@@ -457,14 +457,17 @@ export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
 
 export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-words";
 
-// Explore For You v2. The host fills the Social content area: lead stays,
-// phone dock stays. Negative margin cancels SOCIAL_DESKTOP_FRAME_PAD_CLASS
-// py-4. Phone height matches HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS (6.5rem +
-// safe area). #0A0A0B has no house token — same precedent as the story
-// stage and the feed immersive stage.
+// Explore For You v2. Stories-stage grammar: the host is the content
+// area, edge to edge, near-black. No paper frame, no gutter bleed hack.
+// The phone dock overlays the stage (same 6.5rem as
+// HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS). #0A0A0B has no house token — same
+// precedent as SOCIAL_STORY_STAGE_CLASS.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
+export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
+  "absolute inset-0 overflow-hidden bg-[#0A0A0B]";
+
 export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS =
-  "relative -my-4 overflow-hidden bg-[#0A0A0B] text-band-ink h-[calc(100dvh-var(--header-height))] max-md:-mx-[var(--chrome-gutter)] max-md:h-[calc(100dvh-var(--header-height)-6.5rem-env(safe-area-inset-bottom))] max-md:w-[calc(100%+2*var(--chrome-gutter))] md:-ml-[var(--chrome-gutter)] md:-mr-[var(--shell-gutter-inline-end)] md:w-[calc(100%+var(--chrome-gutter)+var(--shell-gutter-inline-end))]";
+  "absolute inset-0 overflow-hidden bg-[#0A0A0B] text-band-ink";
 
 export const SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS =
   "absolute inset-0 snap-y snap-mandatory overflow-y-auto overscroll-y-contain";
@@ -474,11 +477,12 @@ export const SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS =
 
 // Trailing rail. Same hit 40, glyph 24, gap 8 as the home action row.
 export const SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS =
-  "pointer-events-auto absolute bottom-[max(var(--space-4),env(safe-area-inset-bottom))] right-[var(--space-2)] z-20 flex flex-col items-center gap-[var(--space-2)]";
+  "pointer-events-auto absolute right-[var(--space-2)] z-20 flex flex-col items-center gap-[var(--space-2)] bottom-[max(var(--space-4),env(safe-area-inset-bottom))] max-md:bottom-[calc(6.5rem+env(safe-area-inset-bottom))]";
 
 // Scrim ~40% → 0 over 120. Right pad clears the 40 hit plus the gap.
+// Phone bottom clears the overlay dock so the caption stays on the video.
 export const SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS =
-  "pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pl-[var(--space-4)] pr-[calc(var(--space-4)+40px+var(--space-2))] pt-[var(--space-4)]";
+  "pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pl-[var(--space-4)] pr-[calc(var(--space-4)+40px+var(--space-2))] pt-[var(--space-4)] max-md:pb-[calc(6.5rem+env(safe-area-inset-bottom))]";
 
 export const SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS =
   "absolute inset-x-[var(--space-4)] top-[max(var(--space-4),env(safe-area-inset-top))] z-30";

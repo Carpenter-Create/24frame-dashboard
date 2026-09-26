@@ -139,7 +139,7 @@ function SocialExploreForYouSlide({
           chromeless
           autoPlay={playing}
           muted
-          className="absolute inset-0 size-full bg-[#0A0A0B] object-cover"
+          className="social-explore-stage-media absolute inset-0 size-full bg-[#0A0A0B] object-cover"
         />
       ) : (
         <ExploreForYouClosedFace playbackId={item.playbackId} playbackPolicy={item.playbackPolicy} />

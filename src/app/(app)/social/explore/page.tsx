@@ -10,6 +10,7 @@ import {
   SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS,
+  SOCIAL_STORY_GLASS_FIELD_CLASS,
 } from "@/lib/social-chrome";
 import { socialAvatarHref, socialMediaProxiesByPostId } from "@/lib/social-edge";
 import {
@@ -64,12 +65,16 @@ export default async function SocialExplorePage({
         <label className="sr-only" htmlFor="social-explore-q">
           {SOCIAL.explore.search}
         </label>
-        <Input
-          id="social-explore-q"
-          name="q"
-          defaultValue={query.q}
-          placeholder={SOCIAL.explore.searchPlaceholder}
-        />
+        <div className={SOCIAL_STORY_GLASS_FIELD_CLASS}>
+          <Input
+            id="social-explore-q"
+            name="q"
+            variant="bare"
+            defaultValue={query.q}
+            placeholder={SOCIAL.explore.searchPlaceholder}
+            className="w-full text-band-ink placeholder:text-band-ink/70"
+          />
+        </div>
         {/* Quiet For You opens the chooser. A resolved person, tag, or q stays on that stream. */}
         {query.person || query.tag || query.q ? null : (
           <input type="hidden" name="discover" value="1" />

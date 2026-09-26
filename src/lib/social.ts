@@ -95,6 +95,12 @@ export function isSocialDmImmersivePath(pathname: string): boolean {
   return isSocialDmThreadPath(pathname) || isSocialDmComposePath(pathname);
 }
 
+/** Explore For You. The stage fills the content area. Not search, not a post. */
+export function isSocialExplorePath(pathname: string): boolean {
+  const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  return path === SOCIAL_ROUTES.explore;
+}
+
 /** Open story viewer. Not the index, not the create stage. */
 export function isSocialStoryOpenPath(pathname: string): boolean {
   const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;

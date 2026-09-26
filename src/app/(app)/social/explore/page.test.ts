@@ -127,6 +127,11 @@ describe("Social Explore", () => {
     expect(html).toContain("data-social-explore-search");
     expect(html).toContain('name="discover"');
     expect(html).toContain('value="1"');
+    expect(html).toContain("backdrop-blur");
+    expect(html).toContain("bg-band-ink/15");
+    const search = html.slice(html.indexOf("data-social-explore-search"), html.indexOf("data-social-explore-stream"));
+    expect(search).not.toContain("bg-surface");
+    expect(search).not.toContain("border-hairline");
     expect(html).toContain("data-social-explore-stream");
     expect(html).toContain(SOCIAL.explore.searchPlaceholder);
     expect(html).toContain("bg-[#0A0A0B]");
@@ -139,6 +144,24 @@ describe("Social Explore", () => {
     expect(html).not.toContain("/social/p/");
     expect(src).toContain("SocialExploreForYouStream");
     expect(src).toContain("SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS");
+    expect(src).toContain("SOCIAL_STORY_GLASS_FIELD_CLASS");
+    expect(src).toContain('variant="bare"');
+    const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
+    const hostClass = chrome.slice(chrome.indexOf("export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS"));
+    expect(hostClass.startsWith("export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS")).toBe(true);
+    expect(hostClass.slice(0, hostClass.indexOf("export const SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS"))).not.toContain(
+      "chrome-gutter",
+    );
+    expect(chrome).toContain("SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS");
+    const css = readFileSync("src/app/globals.css", "utf8");
+    expect(css).toContain(".social-explore-stage-media");
+    expect(css).toMatch(/\.social-explore-stage-media[\s\S]*?--media-background-color:\s*#0A0A0B/);
+    expect(css).toMatch(/\.social-explore-stage-media[\s\S]*?--media-object-fit:\s*cover/);
+    const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
+    expect(shell).toContain("isSocialExplorePath");
+    expect(shell).toContain("phoneDestDock && !exploreStage");
+    expect(shell).toContain("SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS");
+    expect(host).toContain("social-explore-stage-media");
     expect(src).toContain('export const runtime = "nodejs"');
     expect(src).toContain("loadExploreMedia");
     expect(src).toContain("socialMediaProxiesByPostId");
