@@ -20,10 +20,11 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("next/dynamic", () => ({
   default: () =>
-    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean }) {
+    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean; muted?: boolean }) {
       return createElement("div", {
         "data-mux-player-stub": props.playbackId ?? "",
         "data-mux-autoplay": props.autoPlay ? "yes" : "no",
+        "data-mux-muted": props.muted ? "yes" : "no",
       });
     },
 }));
@@ -77,6 +78,7 @@ function emptyQuery() {
   chain.is = vi.fn(self);
   chain.or = vi.fn(self);
   chain.ilike = vi.fn(self);
+  chain.contains = vi.fn(self);
   chain.order = vi.fn(self);
   chain.in = vi.fn(async () => ({ data: [], error: null }));
   chain.range = vi.fn(async () => ({ data: [], error: null }));
@@ -266,9 +268,42 @@ describe("Social Explore", () => {
     expect(html).toContain("rgb(0_0_0/0.4)");
     expect(html).toContain("120px");
     expect(html).toContain("data-mux-autoplay=\"yes\"");
+    expect(html).toContain("data-mux-muted=\"yes\"");
     expect(html).not.toContain("/social/p/");
     expect(html).not.toContain("data-social-explore-image");
     expect(html).not.toContain("object-contain");
+  });
+
+  it("does not treat a photo window as the first page of videos", async () => {
+    const posts = Array.from({ length: SOCIAL_EXPLORE_POSTS_LIMIT + 1 }, (_, i) => ({
+      id: `p${i}`,
+      body: `Still ${i}`,
+      author_id: AUTHOR,
+      like_count: 0,
+      comment_count: 0,
+      media: [
+        {
+          kind: "image",
+          key: `posts/${AUTHOR}/${STILL}.jpg`,
+          contentType: "image/jpeg",
+        },
+      ],
+    }));
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "posts") return postsQuery(posts);
+        return emptyQuery();
+      }),
+    } as never);
+
+    const html = await renderServerMarkup(
+      await SocialExplorePage({ searchParams: Promise.resolve({}) }),
+    );
+    expect(html).toContain("data-social-explore-empty");
+    expect(html).toContain(SOCIAL.explore.empty);
+    expect(html).not.toContain("data-social-explore-truncated");
+    expect(html).not.toContain(SOCIAL.explore.truncated);
+    expect(html).not.toContain("Still 0");
   });
 
   it("starts a video stream from people, keywords, and hashtags", async () => {

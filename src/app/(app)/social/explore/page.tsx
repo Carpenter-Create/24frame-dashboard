@@ -121,13 +121,16 @@ async function SocialExploreForYouBody({
     personName: loaded.author?.display_name ?? null,
   });
   const emptyLabel = items.length === 0 ? (mode === "for-you" ? SOCIAL.explore.empty : SOCIAL.explore.noResults) : null;
+  // The cap is a video cap. A shorter list after the Mux check must not
+  // claim the first page of videos is already on screen.
+  const videosTruncated = loaded.page.truncated && items.length === loaded.page.hits.length;
   const hashtag = exploreHashtagToken(query.q);
 
   return (
     <>
       <SocialExploreForYouStream items={items} emptyLabel={emptyLabel} />
       <div className={SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS}>
-        {loaded.page.truncated ? (
+        {videosTruncated ? (
           <p data-social-explore-truncated="" className="t-body-sm text-band-ink break-words">
             {SOCIAL.explore.truncated}
           </p>

@@ -25,6 +25,10 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 
 // Vertical For You. Tap stays on this host (play/pause). Author is the
 // only leave. Comment and Share sheets mount over the same item.
+// Active play() runs in an effect, after the player mounts, with no user
+// gesture. Unmuted play() is NotAllowedError there; the quiet mount drops
+// it, so the clip stays paused and the first tap only flips `held`.
+// Muted play() is allowed, so the active item starts and tap pauses it.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
 
 export function SocialExploreForYouStream({
@@ -127,7 +131,7 @@ function SocialExploreForYouSlide({
         fit="cover"
         chromeless
         autoPlay={playing}
-        muted={false}
+        muted
         className="absolute inset-0 size-full bg-[#0A0A0B] object-cover"
       />
       <button
