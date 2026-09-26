@@ -24,6 +24,7 @@ import {
   SOCIAL_TOPIC_RAIL_CLASS,
   SOCIAL_TOPIC_RAIL_ROWS,
   SOCIAL_TOPIC_RAIL_STACK_CLASS,
+  SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS,
   SOCIAL_HOME_CENTER_CLASS,
   SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_HOME_SPINE_CLASS,
@@ -345,13 +346,14 @@ export function SocialSearchSkeleton() {
   );
 }
 
+export function SocialExploreForYouSkeleton() {
+  return <div data-social-explore-for-you-skeleton="" className="absolute inset-0 bg-[#0A0A0B]" />;
+}
+
 export function SocialExploreSkeleton() {
   return (
-    <div data-social-explore-skeleton="" className={SOCIAL_HOME_LAYOUT_CLASS}>
-      <div className={SOCIAL_HOME_CENTER_CLASS}>
-        <SocialDiscoveryColumnSkeleton />
-      </div>
-      <SocialForYouSkeleton />
+    <div data-social-explore-skeleton="" className={SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS}>
+      <SocialExploreForYouSkeleton />
     </div>
   );
 }

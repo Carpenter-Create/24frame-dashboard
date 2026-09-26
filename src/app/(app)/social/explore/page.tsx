@@ -1,27 +1,40 @@
 import { Suspense } from "react";
+import Link from "next/link";
 
-import { HouseEmpty } from "@/components/chrome/house";
-import { PageHeader } from "@/components/ui/page-header";
-import { InlineNotice } from "@/components/ui/inline-notice";
+import { SocialAvatar } from "@/components/social/social-avatar";
+import { SocialExploreForYouStream } from "@/components/social/social-explore-for-you";
+import { SocialExploreForYouSkeleton } from "@/components/social/social-skeletons";
 import { Input } from "@/components/ui/input";
-import { SocialFeedVideo } from "@/components/social/social-feed-video";
-import { SocialIcon } from "@/components/social/social-icon";
-import { SocialMediaImage } from "@/components/social/social-media-image";
-import { signSocialForYouCourseCovers } from "@/components/social/social-for-you-covers";
-import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot";
-import { SocialExploreResultsSkeleton, SocialForYouSkeleton } from "@/components/social/social-skeletons";
-import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
+import { SOCIAL, SOCIAL_ROUTES, displayHandle } from "@/lib/social";
 import {
-  SOCIAL_HOME_CENTER_CLASS,
-  SOCIAL_HOME_LAYOUT_CLASS,
-  SOCIAL_PROFILE_GRID_CLASS,
-  SOCIAL_PROFILE_PLAY_CLASS,
-  SOCIAL_PROFILE_TILE_CLASS,
+  SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS,
+  SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS,
+  SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS,
 } from "@/lib/social-chrome";
-import { socialMediaProxiesByPostId, type SocialEdgeMediaItem } from "@/lib/social-edge";
-import { SOCIAL_ICON_SIZE_PROFILE_PLAY } from "@/lib/social-icons";
-import { SOCIAL_PROFILE_TILE_IMAGE_SIZES } from "@/lib/social-media-display";
-import { loadExploreMedia, loadExploreSearch, type SocialExploreHit } from "@/lib/social-feed";
+import { socialAvatarHref, socialMediaProxiesByPostId } from "@/lib/social-edge";
+import {
+  loadExploreByAuthor,
+  loadExploreHashtag,
+  loadExploreMedia,
+  loadExploreProfileByHandle,
+  loadExploreSearch,
+  loadLikedPostIds,
+  loadPeopleSearch,
+  loadProfilesByIds,
+  type SocialExplorePage,
+  type SocialSuggestedPerson,
+} from "@/lib/social-feed";
+import {
+  exploreForYouFilterLabel,
+  exploreForYouHref,
+  exploreForYouMuxVideo,
+  exploreForYouStreamMode,
+  exploreForYouVideoItems,
+  exploreHashtagToken,
+  parseExploreForYouSearch,
+  type ExploreForYouMode,
+  type ExploreForYouQuery,
+} from "@/lib/social-explore-for-you";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession, type SocialSession } from "@/lib/social-session";
 
@@ -33,141 +46,173 @@ export default async function SocialExplorePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const [session, sp] = await Promise.all([requireSocialSession(), searchParams]);
-  const raw = sp.q;
-  const q = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? "";
+  const query = parseExploreForYouSearch(sp);
 
   return (
-    <div data-social-explore="" className={SOCIAL_HOME_LAYOUT_CLASS}>
-      <div className={SOCIAL_HOME_CENTER_CLASS}>
-        <PageHeader title={SOCIAL.explore.title} subtitle={SOCIAL.explore.subtitle} />
-        <form data-social-explore-search="" action={SOCIAL_ROUTES.explore} method="get" className="pb-[var(--space-6)]">
-          <label className="sr-only" htmlFor="social-explore-q">
-            {SOCIAL.explore.search}
-          </label>
-          <Input
-            id="social-explore-q"
-            name="q"
-            defaultValue={q}
-            placeholder={SOCIAL.explore.searchPlaceholder}
-          />
-        </form>
-        {q ? (
-          <Suspense fallback={<SocialExploreResultsSkeleton />}>
-            <SocialExploreHits session={session} q={q} />
-          </Suspense>
-        ) : (
-          <Suspense fallback={null}>
-            <SocialExploreMedia session={session} />
-          </Suspense>
-        )}
-      </div>
-      <Suspense fallback={<SocialForYouSkeleton />}>
-        <SocialDesktopForYouSlot session={session} signCourseCovers={signSocialForYouCourseCovers} />
+    <div
+      data-social-explore=""
+      data-social-explore-for-you=""
+      aria-label={SOCIAL.explore.title}
+      className={SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS}
+    >
+      <form
+        data-social-explore-search=""
+        action={SOCIAL_ROUTES.explore}
+        method="get"
+        className={SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS}
+      >
+        <label className="sr-only" htmlFor="social-explore-q">
+          {SOCIAL.explore.search}
+        </label>
+        <Input
+          id="social-explore-q"
+          name="q"
+          defaultValue={query.q}
+          placeholder={SOCIAL.explore.searchPlaceholder}
+        />
+        <input type="hidden" name="discover" value="1" />
+      </form>
+      <Suspense fallback={<SocialExploreForYouSkeleton />}>
+        <SocialExploreForYouBody session={session} query={query} />
       </Suspense>
     </div>
   );
 }
 
-async function SocialExploreMedia({ session }: { session: SocialSession }) {
-  const profile = await ensureOwnSocialProfile(session.supabase, session.ctx.user);
-  const results = await loadExploreMedia(session.supabase, {
-    topics: profile?.topics ?? [],
-    crafts: profile?.crafts ?? [],
-  });
-
-  if (results.hits.length === 0) {
-    return (
-      <div data-social-explore-trending="">
-        <HouseEmpty>{SOCIAL.explore.empty}</HouseEmpty>
-      </div>
-    );
-  }
-
-  return (
-    <div data-social-explore-trending="" data-social-explore-media="" className="flex flex-col gap-3">
-      <SocialExploreHitList results={results} />
-    </div>
-  );
-}
-
-async function SocialExploreHits({ session, q }: { session: SocialSession; q: string }) {
-  const profile = await ensureOwnSocialProfile(session.supabase, session.ctx.user);
-  const results = await loadExploreSearch(session.supabase, q, {
-    topics: profile?.topics ?? [],
-    crafts: profile?.crafts ?? [],
-  });
-
-  if (results.hits.length === 0) {
-    return <HouseEmpty>{SOCIAL.explore.noResults}</HouseEmpty>;
-  }
-
-  return <SocialExploreHitList results={results} />;
-}
-
-function SocialExploreHitList({
-  results,
+async function SocialExploreForYouBody({
+  session,
+  query,
 }: {
-  results: Awaited<ReturnType<typeof loadExploreSearch>>;
+  session: SocialSession;
+  query: ExploreForYouQuery;
 }) {
+  const profile = await ensureOwnSocialProfile(session.supabase, session.ctx.user);
+  const viewer = { topics: profile?.topics ?? [], crafts: profile?.crafts ?? [] };
+  const mode = exploreForYouStreamMode(query);
+  const loaded = await loadExploreForYouPage(session, query, mode, viewer);
   const mediaByPost = socialMediaProxiesByPostId(
-    results.hits.map((hit) => ({ id: hit.id, author_id: hit.authorId, media: hit.media })),
+    loaded.page.hits.map((hit) => ({ id: hit.id, author_id: hit.authorId, media: hit.media })),
   );
-  const mediaHits = results.hits.filter((hit) => (mediaByPost.get(hit.id) ?? []).length > 0);
-  const textHits = results.hits.filter((hit) => (mediaByPost.get(hit.id) ?? []).length === 0);
+  const videoHits = loaded.page.hits.filter((hit) => exploreForYouMuxVideo(mediaByPost.get(hit.id) ?? []));
+  const authorIds = [...new Set(videoHits.map((hit) => hit.authorId))];
+  const [authors, liked, peoplePage] = await Promise.all([
+    loadProfilesByIds(session.supabase, authorIds),
+    loadLikedPostIds(
+      session.supabase,
+      session.ctx.user.id,
+      videoHits.map((hit) => hit.id),
+    ),
+    query.discover && query.q
+      ? loadPeopleSearch(session.supabase, query.q, viewer)
+      : Promise.resolve({ people: [] as SocialSuggestedPerson[], truncated: false }),
+  ]);
+  const items = exploreForYouVideoItems({
+    hits: videoHits,
+    mediaByPost,
+    authors,
+    liked,
+    canLike: !!profile,
+  });
+  const label = exploreForYouFilterLabel({
+    mode,
+    q: query.q,
+    tag: query.tag,
+    personHandle: loaded.author?.handle ?? query.person,
+    personName: loaded.author?.display_name ?? null,
+  });
+  const emptyLabel = items.length === 0 ? (mode === "for-you" ? SOCIAL.explore.empty : SOCIAL.explore.noResults) : null;
+  const hashtag = exploreHashtagToken(query.q);
 
   return (
     <>
-      {results.truncated ? (
-        <InlineNotice tone="info" className="mb-[var(--space-4)]" data-social-explore-truncated="">
-          {SOCIAL.explore.truncated}
-        </InlineNotice>
-      ) : null}
-      {mediaHits.length > 0 ? (
-        <div data-social-explore-grid="" className={SOCIAL_PROFILE_GRID_CLASS}>
-          {mediaHits.map((hit) => (
-            <SocialExploreMediaTile key={hit.id} hit={hit} media={mediaByPost.get(hit.id) ?? []} />
-          ))}
-        </div>
-      ) : null}
-      {textHits.length > 0 ? (
-        <ul data-social-explore-results="" className="flex flex-col gap-[var(--space-3)]">
-          {textHits.map((hit) => (
-            <li key={hit.id}>
-              <span className="t-body font-medium text-ink">{hit.title}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <SocialExploreForYouStream items={items} emptyLabel={emptyLabel} />
+      <div className={SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS}>
+        {loaded.page.truncated ? (
+          <p data-social-explore-truncated="" className="t-body-sm text-band-ink break-words">
+            {SOCIAL.explore.truncated}
+          </p>
+        ) : null}
+        {label ? (
+          <div data-social-explore-filter="" className="flex flex-col gap-[var(--space-2)]">
+            <span className="t-body text-band-ink break-words">{label}</span>
+            <Link href={SOCIAL_ROUTES.explore} data-social-explore-clear="" className="self-start t-body text-band-ink">
+              {SOCIAL.explore.clear}
+            </Link>
+          </div>
+        ) : null}
+        {query.discover ? (
+          <div data-social-explore-discover="" className="flex flex-col gap-[var(--space-2)]">
+            {peoplePage.people.length > 0 ? (
+              <div data-social-explore-people="" className="flex flex-col">
+                <p className="t-body-sm text-band-ink">{SOCIAL.explore.people}</p>
+                {peoplePage.people.map((person) => (
+                  <Link
+                    key={person.id}
+                    href={exploreForYouHref({ person: person.handle })}
+                    data-social-explore-person={person.handle}
+                    className="flex items-start gap-[var(--space-2)] py-[var(--space-2)] text-band-ink"
+                  >
+                    <SocialAvatar
+                      name={person.display_name || person.handle}
+                      photoUrl={socialAvatarHref(person.id)}
+                      size="sm"
+                    />
+                    <span className="flex min-w-0 flex-col break-words">
+                      <span className="t-body font-medium">{displayHandle(person.handle)}</span>
+                      {person.display_name ? (
+                        <span className="t-body-sm">{person.display_name}</span>
+                      ) : null}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+            {query.q ? (
+              <Link
+                href={exploreForYouHref({ q: query.q })}
+                data-social-explore-keyword=""
+                className="flex flex-col break-words text-band-ink"
+              >
+                <span className="t-body-sm">{SOCIAL.explore.keywords}</span>
+                <span className="t-body">{query.q}</span>
+              </Link>
+            ) : null}
+            {hashtag ? (
+              <Link
+                href={exploreForYouHref({ tag: hashtag })}
+                data-social-explore-hashtag=""
+                className="flex flex-col break-words text-band-ink"
+              >
+                <span className="t-body-sm">{SOCIAL.explore.hashtags}</span>
+                <span className="t-body">{`#${hashtag}`}</span>
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }
 
-function SocialExploreMediaTile({
-  hit,
-  media,
-}: {
-  hit: SocialExploreHit;
-  media: SocialEdgeMediaItem[];
-}) {
-  const first = media[0];
-  return (
-    <article data-social-explore-tile={hit.id} className={SOCIAL_PROFILE_TILE_CLASS}>
-      {first.kind === "video" ? (
-        first.playbackId ? (
-          <SocialFeedVideo item={first} className="absolute inset-0 size-full object-cover" />
-        ) : (
-          <div data-social-video-closed="" data-social-explore-video="" className="absolute inset-0" />
-        )
-      ) : (
-        <div data-social-explore-image="" className="absolute inset-0">
-          <SocialMediaImage src={first.url} sizes={SOCIAL_PROFILE_TILE_IMAGE_SIZES} />
-        </div>
-      )}
-      {first.kind === "video" ? (
-        <span data-social-profile-play="" className={SOCIAL_PROFILE_PLAY_CLASS}>
-          <SocialIcon name="play" size={SOCIAL_ICON_SIZE_PROFILE_PLAY} active />
-        </span>
-      ) : null}
-    </article>
-  );
+async function loadExploreForYouPage(
+  session: SocialSession,
+  query: ExploreForYouQuery,
+  mode: ExploreForYouMode,
+  viewer: { topics: unknown; crafts: unknown },
+): Promise<{
+  page: SocialExplorePage;
+  author: { id: string; handle: string; display_name: string } | null;
+}> {
+  if (mode === "person") {
+    const author = await loadExploreProfileByHandle(session.supabase, query.person);
+    if (!author) return { page: { hits: [], truncated: false }, author: null };
+    return { page: await loadExploreByAuthor(session.supabase, author.id, viewer), author };
+  }
+  if (mode === "hashtag") {
+    return { page: await loadExploreHashtag(session.supabase, query.tag, viewer), author: null };
+  }
+  if (mode === "keyword") {
+    return { page: await loadExploreSearch(session.supabase, query.q, viewer), author: null };
+  }
+  return { page: await loadExploreMedia(session.supabase, viewer), author: null };
 }

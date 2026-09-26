@@ -198,9 +198,9 @@ describe("Social Edge vs Node runtime lock", () => {
       expect(src).not.toContain("@aws-sdk");
       expect(src).not.toContain("MUX_TOKEN_SECRET");
     }
-    // Education cover signing is node-only. Explore uses the shared signer.
+    // Explore For You stays off AWS signing. Avatars use the edge proxy href.
     expect(explore).toContain('export const runtime = "nodejs"');
-    expect(explore).toContain("signSocialForYouCourseCovers");
+    expect(explore).not.toContain("signSocialForYouCourseCovers");
     expect(explore).not.toContain('export const runtime = "edge"');
     expect(explore).not.toContain("@/lib/s3-avatars");
     expect(explore).not.toContain("@/lib/s3-social-media");
@@ -216,6 +216,7 @@ describe("Social Edge vs Node runtime lock", () => {
     expect(publicProfile).toContain("loadCachedSocialProfileByHandle");
     expect(search).toContain("socialAvatarFaces");
     expect(explore).toContain("socialMediaProxiesByPostId");
+    expect(explore).toContain("socialAvatarHref");
     expect(explore).not.toContain("socialAvatarFaces");
     expect(follows).toContain("socialAvatarFaces");
     expect(SOCIAL_EDGE_RUNTIME).toBe("edge");

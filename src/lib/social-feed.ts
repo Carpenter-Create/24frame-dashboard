@@ -453,7 +453,12 @@ export type SocialExploreHit = {
   href: string;
   authorId: string;
   media: unknown;
+  body: string;
+  likeCount: number;
+  commentCount: number;
 };
+
+const EXPLORE_POST_COLUMNS = "id, body, author_id, category, media, like_count, comment_count";
 
 export type SocialExplorePage = {
   hits: SocialExploreHit[];
@@ -491,6 +496,8 @@ function explorePostHits(
     author_id: string;
     media?: unknown;
     category?: string | null;
+    like_count?: number | null;
+    comment_count?: number | null;
   }[],
   viewer: { topics?: unknown; crafts?: unknown } | readonly string[],
 ): SocialExploreHit[] {
@@ -502,6 +509,9 @@ function explorePostHits(
     href: SOCIAL_ROUTES.explore,
     authorId: post.author_id,
     media: post.media ?? [],
+    body: post.body?.trim() ?? "",
+    likeCount: post.like_count ?? 0,
+    commentCount: post.comment_count ?? 0,
   }));
 }
 
@@ -517,7 +527,7 @@ export async function loadExploreSearch(
   const like = `%${needle.replace(/[%_]/g, "")}%`;
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, body, author_id, category, media")
+    .select(EXPLORE_POST_COLUMNS)
     .eq("status", "active")
     .is("group_id", null)
     .ilike("body", like)
@@ -535,7 +545,7 @@ export async function loadExploreMedia(
 ): Promise<SocialExplorePage> {
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, body, author_id, category, media")
+    .select(EXPLORE_POST_COLUMNS)
     .eq("status", "active")
     .is("group_id", null)
     .order("created_at", { ascending: false })
@@ -545,6 +555,65 @@ export async function loadExploreMedia(
     hits: explorePostHits(postsPage.rows, viewer),
     truncated: postsPage.truncated,
   };
+}
+
+export async function loadExploreHashtag(
+  supabase: ServerClient,
+  tag: string,
+  viewer: { topics?: unknown; crafts?: unknown } | readonly string[] = [],
+): Promise<SocialExplorePage> {
+  const needle = tag.trim().replace(/^#+/, "").replace(/[%_]/g, "");
+  if (!needle) return { hits: [], truncated: false };
+  const like = `%#${needle}%`;
+  const { data: posts } = await supabase
+    .from("posts")
+    .select(EXPLORE_POST_COLUMNS)
+    .eq("status", "active")
+    .is("group_id", null)
+    .ilike("body", like)
+    .range(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
+  const postsPage = splitProbe(posts, SOCIAL_EXPLORE_POSTS_LIMIT);
+  return {
+    hits: explorePostHits(postsPage.rows, viewer),
+    truncated: postsPage.truncated,
+  };
+}
+
+export async function loadExploreByAuthor(
+  supabase: ServerClient,
+  authorId: string,
+  viewer: { topics?: unknown; crafts?: unknown } | readonly string[] = [],
+): Promise<SocialExplorePage> {
+  if (!authorId) return { hits: [], truncated: false };
+  const { data: posts } = await supabase
+    .from("posts")
+    .select(EXPLORE_POST_COLUMNS)
+    .eq("status", "active")
+    .is("group_id", null)
+    .eq("author_id", authorId)
+    .order("created_at", { ascending: false })
+    .range(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
+  const postsPage = splitProbe(posts, SOCIAL_EXPLORE_POSTS_LIMIT);
+  return {
+    hits: explorePostHits(postsPage.rows, viewer),
+    truncated: postsPage.truncated,
+  };
+}
+
+export async function loadExploreProfileByHandle(
+  supabase: ServerClient,
+  handle: string,
+): Promise<{ id: string; handle: string; display_name: string } | null> {
+  const needle = handle.trim();
+  if (!needle) return null;
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, handle, display_name, status")
+    .eq("status", "active")
+    .eq("handle", needle)
+    .maybeSingle();
+  if (!data?.id || data.status !== "active" || !data.handle) return null;
+  return { id: data.id, handle: data.handle, display_name: data.display_name ?? "" };
 }
 
 export async function loadPeopleSearch(

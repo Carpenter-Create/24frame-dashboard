@@ -59,6 +59,9 @@ describe("house client shell SoT", () => {
     expect(houseExactHref("/social?topic=music")).toBe("/social?topic=music");
     expect(houseScreenKey("/social", "?after=abc")).toBe("/social?after=abc");
     expect(houseScreenKey("/social/explore", "?q=ada")).toBe("/social/explore?q=ada");
+    expect(houseScreenKey("/social/explore", "?tag=night")).toBe("/social/explore?tag=night");
+    expect(houseScreenKey("/social/explore", "?person=ada")).toBe("/social/explore?person=ada");
+    expect(houseScreenKey("/social/explore", "?discover=1&q=ada")).toBe("/social/explore?q=ada&discover=1");
     expect(houseScreenKey("/social/profile", "?tab=credits")).toBe("/social/profile");
     expect(houseScreenKey("/social/profile", "?tab=activity&activity=comments")).toBe("/social/profile");
     expect(houseScreenKey("/social/u/ada", "?tab=highlights")).toBe("/social/u/ada");
