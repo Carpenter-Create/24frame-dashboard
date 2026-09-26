@@ -20,10 +20,11 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("next/dynamic", () => ({
   default: () =>
-    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean }) {
+    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean; muted?: boolean }) {
       return createElement("div", {
         "data-mux-player-stub": props.playbackId ?? "",
         "data-mux-autoplay": props.autoPlay ? "yes" : "no",
+        "data-mux-muted": props.muted ? "yes" : "no",
       });
     },
 }));
@@ -77,6 +78,7 @@ function emptyQuery() {
   chain.is = vi.fn(self);
   chain.or = vi.fn(self);
   chain.ilike = vi.fn(self);
+  chain.contains = vi.fn(self);
   chain.order = vi.fn(self);
   chain.in = vi.fn(async () => ({ data: [], error: null }));
   chain.range = vi.fn(async () => ({ data: [], error: null }));
@@ -165,15 +167,20 @@ describe("Social Explore", () => {
       comment_count: 0,
       media: [muxMedia()],
     }));
+    const postsChain = postsQuery(posts);
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => {
-        if (table === "posts") return postsQuery(posts);
+        if (table === "posts") return postsChain;
         return emptyQuery();
       }),
     } as never);
 
     const html = await renderServerMarkup(
       await SocialExplorePage({ searchParams: Promise.resolve({ q: "ada" }) }),
+    );
+    expect(postsChain.contains).toHaveBeenCalledWith(
+      "media",
+      JSON.stringify([{ kind: "video", provider: "mux" }]),
     );
     expect(html).toContain("data-social-explore-truncated");
     expect(html).toContain(SOCIAL.explore.truncated);
@@ -241,9 +248,10 @@ describe("Social Explore", () => {
       data: [{ id: AUTHOR, handle: "ada", display_name: "Ada Lovelace", status: "active" }],
       error: null,
     }));
+    const postsChain = postsQuery(posts);
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => {
-        if (table === "posts") return postsQuery(posts);
+        if (table === "posts") return postsChain;
         if (table === "profiles") return profiles;
         return emptyQuery();
       }),
@@ -266,6 +274,11 @@ describe("Social Explore", () => {
     expect(html).toContain("rgb(0_0_0/0.4)");
     expect(html).toContain("120px");
     expect(html).toContain("data-mux-autoplay=\"yes\"");
+    expect(html).toContain("data-mux-muted=\"yes\"");
+    expect(postsChain.contains).toHaveBeenCalledWith(
+      "media",
+      JSON.stringify([{ kind: "video", provider: "mux" }]),
+    );
     expect(html).not.toContain("/social/p/");
     expect(html).not.toContain("data-social-explore-image");
     expect(html).not.toContain("object-contain");

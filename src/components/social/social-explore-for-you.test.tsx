@@ -14,10 +14,11 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 
 vi.mock("next/dynamic", () => ({
   default: () =>
-    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean }) {
+    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean; muted?: boolean }) {
       return createElement("div", {
         "data-mux-player-stub": props.playbackId ?? "",
         "data-mux-autoplay": props.autoPlay ? "yes" : "no",
+        "data-mux-muted": props.muted ? "yes" : "no",
       });
     },
 }));
@@ -53,6 +54,9 @@ describe("SocialExploreForYouStream", () => {
     expect(html).toContain("object-cover");
     expect(html).toContain("bg-[#0A0A0B]");
     expect(html).toContain('data-mux-autoplay="yes"');
+    expect(html).toContain('data-mux-muted="yes"');
+    expect(src).toContain("muted");
+    expect(src).not.toContain("muted={false}");
     expect(html).toContain("data-social-explore-media");
     expect(html).toContain('href="/social/u/ada"');
     expect(html).toContain("Night clip");

@@ -137,6 +137,7 @@ function feedChain(result: unknown) {
   c.gt = vi.fn(self);
   c.or = vi.fn(self);
   c.ilike = vi.fn(self);
+  c.contains = vi.fn(self);
   c.order = vi.fn(self);
   c.range = vi.fn(async () => ({ data: result, error: null }));
   c.then = (resolve: (value: unknown) => unknown) =>
@@ -345,6 +346,10 @@ describe("loadExploreSearch", () => {
       return postsChain;
     });
     const page = await loadExploreSearch({ from } as never, "ada");
+    expect(postsChain.contains).toHaveBeenCalledWith(
+      "media",
+      JSON.stringify([{ kind: "video", provider: "mux" }]),
+    );
     expect(postsChain.range).toHaveBeenCalledWith(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
     expect(page.truncated).toBe(true);
     expect(page.hits).toHaveLength(SOCIAL_EXPLORE_POSTS_LIMIT);
@@ -370,6 +375,10 @@ describe("loadExploreMedia", () => {
       return postsChain;
     });
     const page = await loadExploreMedia({ from } as never);
+    expect(postsChain.contains).toHaveBeenCalledWith(
+      "media",
+      JSON.stringify([{ kind: "video", provider: "mux" }]),
+    );
     expect(postsChain.range).toHaveBeenCalledWith(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
     expect(page.hits).toHaveLength(SOCIAL_EXPLORE_POSTS_LIMIT);
     expect(page.truncated).toBe(true);
@@ -438,6 +447,12 @@ describe("class 5 Social Home access lock", () => {
     expect(stories).toContain("probeRange(SOCIAL_STORIES_RAIL_LIMIT)");
     expect(explore).toContain("probeRange(SOCIAL_EXPLORE_POSTS_LIMIT)");
     expect(explore).not.toContain("probeRange(SOCIAL_EXPLORE_PEOPLE_LIMIT)");
+    expect(explore.match(/exploreVideoPosts\(supabase\)/g)).toHaveLength(4);
+    const exploreQuery = src.slice(
+      src.indexOf("function exploreVideoPosts"),
+      src.indexOf("export async function loadExploreSearch"),
+    );
+    expect(exploreQuery).toContain('contains("media", EXPLORE_MUX_VIDEO_CONTAINS)');
     expect(peopleSearch).toContain("probeRange(SOCIAL_EXPLORE_PEOPLE_LIMIT)");
     expect(peopleSearch).not.toContain("probeRange(SOCIAL_EXPLORE_POSTS_LIMIT)");
     for (const chunk of [followees, wall, stories, explore, peopleSearch]) {

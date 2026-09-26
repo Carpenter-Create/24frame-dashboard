@@ -24,6 +24,7 @@ import {
   type SocialActivityPill,
 } from "@/lib/social-activity";
 import type { SocialCommentRow } from "@/lib/social-comments";
+import { SOCIAL_MUX_PROVIDER } from "@/lib/social-mux";
 import {
   SOCIAL_MUTUALS_NAME_CAP,
   SOCIAL_MUTUALS_PROBE,
@@ -460,6 +461,21 @@ export type SocialExploreHit = {
 
 const EXPLORE_POST_COLUMNS = "id, body, author_id, category, media, like_count, comment_count";
 
+// jsonb @> needle. postgrest-js sends a JSON string as cs.<json>.
+// Explore's cap counts Mux videos. A photo window must not empty For You.
+const EXPLORE_MUX_VIDEO_CONTAINS = JSON.stringify([
+  { kind: "video", provider: SOCIAL_MUX_PROVIDER },
+]);
+
+function exploreVideoPosts(supabase: ServerClient) {
+  return supabase
+    .from("posts")
+    .select(EXPLORE_POST_COLUMNS)
+    .eq("status", "active")
+    .is("group_id", null)
+    .contains("media", EXPLORE_MUX_VIDEO_CONTAINS);
+}
+
 export type SocialExplorePage = {
   hits: SocialExploreHit[];
   truncated: boolean;
@@ -525,11 +541,7 @@ export async function loadExploreSearch(
     return { hits: [], truncated: false };
   }
   const like = `%${needle.replace(/[%_]/g, "")}%`;
-  const { data: posts } = await supabase
-    .from("posts")
-    .select(EXPLORE_POST_COLUMNS)
-    .eq("status", "active")
-    .is("group_id", null)
+  const { data: posts } = await exploreVideoPosts(supabase)
     .ilike("body", like)
     .range(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
   const postsPage = splitProbe(posts, SOCIAL_EXPLORE_POSTS_LIMIT);
@@ -543,11 +555,7 @@ export async function loadExploreMedia(
   supabase: ServerClient,
   viewer: { topics?: unknown; crafts?: unknown } | readonly string[] = [],
 ): Promise<SocialExplorePage> {
-  const { data: posts } = await supabase
-    .from("posts")
-    .select(EXPLORE_POST_COLUMNS)
-    .eq("status", "active")
-    .is("group_id", null)
+  const { data: posts } = await exploreVideoPosts(supabase)
     .order("created_at", { ascending: false })
     .range(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
   const postsPage = splitProbe(posts, SOCIAL_EXPLORE_POSTS_LIMIT);
@@ -565,11 +573,7 @@ export async function loadExploreHashtag(
   const needle = tag.trim().replace(/^#+/, "").replace(/[%_]/g, "");
   if (!needle) return { hits: [], truncated: false };
   const like = `%#${needle}%`;
-  const { data: posts } = await supabase
-    .from("posts")
-    .select(EXPLORE_POST_COLUMNS)
-    .eq("status", "active")
-    .is("group_id", null)
+  const { data: posts } = await exploreVideoPosts(supabase)
     .ilike("body", like)
     .range(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
   const postsPage = splitProbe(posts, SOCIAL_EXPLORE_POSTS_LIMIT);
@@ -585,11 +589,7 @@ export async function loadExploreByAuthor(
   viewer: { topics?: unknown; crafts?: unknown } | readonly string[] = [],
 ): Promise<SocialExplorePage> {
   if (!authorId) return { hits: [], truncated: false };
-  const { data: posts } = await supabase
-    .from("posts")
-    .select(EXPLORE_POST_COLUMNS)
-    .eq("status", "active")
-    .is("group_id", null)
+  const { data: posts } = await exploreVideoPosts(supabase)
     .eq("author_id", authorId)
     .order("created_at", { ascending: false })
     .range(...probeRange(SOCIAL_EXPLORE_POSTS_LIMIT));
