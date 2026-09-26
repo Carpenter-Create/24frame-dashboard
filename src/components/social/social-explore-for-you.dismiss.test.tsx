@@ -425,7 +425,7 @@ describe("SocialExploreForYouStream dismiss", () => {
     const likeIndex = rail.findIndex((node) => node.hasAttribute?.("data-social-like"));
     expect(muteIndex).toBeGreaterThanOrEqual(0);
     expect(muteIndex).toBeLessThan(likeIndex);
-    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
     expect(attr(control("data-social-explore-mute", "0"), "aria-pressed")).toBe("true");
     expect(attr(player(), "data-mux-muted")).toBe("yes");
     expect(
@@ -436,11 +436,11 @@ describe("SocialExploreForYouStream dismiss", () => {
 
     await click(control("data-social-explore-media", "0"));
     expect(attr(player(), "data-mux-muted")).toBe("yes");
-    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
 
     await click(control("data-social-explore-mute", "0"));
     expect(attr(player(), "data-mux-muted")).toBe("no");
-    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.mute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.mute);
     expect(attr(control("data-social-explore-mute", "0"), "aria-pressed")).toBe("false");
     expect(
       elementsIn(control("data-social-explore-mute", "0")).some(
@@ -454,7 +454,7 @@ describe("SocialExploreForYouStream dismiss", () => {
 
     await click(control("data-social-explore-mute", "0"));
     expect(attr(player(), "data-mux-muted")).toBe("yes");
-    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
 
     await click(control("data-social-explore-mute", "0"));
     expect(attr(player(), "data-mux-muted")).toBe("no");
@@ -467,7 +467,7 @@ describe("SocialExploreForYouStream dismiss", () => {
     });
     expect(attr(player(), "data-mux-player-stub")).toBe(NEXT_PLAYBACK);
     expect(attr(player(), "data-mux-muted")).toBe("yes");
-    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
     expect(
       elementsIn(control("data-social-explore-mute", "0")).some(
         (node) => attr(node, "data-social-icon") === "speaker-slash",

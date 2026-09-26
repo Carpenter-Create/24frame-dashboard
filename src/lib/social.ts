@@ -570,6 +570,8 @@ export const SOCIAL = {
     play: "Play",
     pause: "Pause",
     forYou: "For you",
+    mute: "Mute",
+    unmute: "Unmute",
   },
   search: {
     title: "Search",

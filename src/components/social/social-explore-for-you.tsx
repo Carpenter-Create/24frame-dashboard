@@ -198,7 +198,7 @@ function SocialExploreForYouSlide({
         <button
           type="button"
           data-social-explore-mute=""
-          aria-label={muted ? SOCIAL.stories.unmute : SOCIAL.stories.mute}
+          aria-label={muted ? SOCIAL.explore.unmute : SOCIAL.explore.mute}
           aria-pressed={muted}
           className={cn(SOCIAL_POST_ACTION_HIT_CLASS, "text-band-ink")}
           onClick={onToggleMute}

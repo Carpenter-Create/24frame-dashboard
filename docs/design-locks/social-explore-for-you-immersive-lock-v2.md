@@ -58,6 +58,7 @@
 | Default | Autoplay **muted** |
 | Placement | **Top of the trailing action rail**, above Like |
 | Host | `data-social-explore-mute` |
+| Labels | `SOCIAL.explore.mute` / `SOCIAL.explore.unmute` · words **Mute** / **Unmute** · not the Stories string keys |
 | Icons | Phosphor **speaker-slash** (muted) / **speaker-high** (sound) · size **20** |
 | Hit | **40×40** · reuse the Stories mute hit and the post-action hit (`size-10`) |
 | Gap | Rail gap stays **8** · do not redesign the column to insert this control |

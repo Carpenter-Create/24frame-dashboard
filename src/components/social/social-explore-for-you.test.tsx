@@ -67,8 +67,10 @@ describe("SocialExploreForYouStream", () => {
     expect(src).toContain("data-social-explore-mute");
     expect(src).toContain("speaker-slash");
     expect(src).toContain("speaker-high");
-    expect(src).toContain("SOCIAL.stories.unmute");
-    expect(src).toContain("SOCIAL.stories.mute");
+    expect(src).toContain("SOCIAL.explore.unmute");
+    expect(src).toContain("SOCIAL.explore.mute");
+    expect(src).not.toContain("SOCIAL.stories.unmute");
+    expect(src).not.toContain("SOCIAL.stories.mute");
     expect(src).toContain("onForcedMute");
     expect(src).toContain("setMuted(true)");
     expect(src).toContain("stories-viewer-mute-control-lock-v1.md");
@@ -86,8 +88,8 @@ describe("SocialExploreForYouStream", () => {
     expect(mute).toContain('width="20"');
     expect(mute).toContain('height="20"');
     expect(mute).not.toContain("data-social-like");
-    expect(SOCIAL.stories.unmute).toBe("Unmute");
-    expect(SOCIAL.stories.mute).toBe("Mute");
+    expect(SOCIAL.explore.unmute).toBe("Unmute");
+    expect(SOCIAL.explore.mute).toBe("Mute");
     expect(html).toContain('href="/social/u/ada"');
     expect(html).toContain("Night clip");
     expect(html).toContain("whitespace-pre-wrap");
