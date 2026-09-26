@@ -80,6 +80,7 @@ export function SocialMuxPlayer({
   autoPlay = false,
   chromeless = false,
   onPaint,
+  onForcedMute,
 }: {
   playbackId: string;
   playbackPolicy?: SocialMuxPlaybackPolicy;
@@ -89,6 +90,7 @@ export function SocialMuxPlayer({
   autoPlay?: boolean;
   chromeless?: boolean;
   onPaint?: () => void;
+  onForcedMute?: () => void;
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
   const [mint, setMint] = useState<{ playbackId: string; tokens: SocialMuxPlaybackTokens } | null>(null);
@@ -146,6 +148,7 @@ export function SocialMuxPlayer({
               streamType="on-demand"
               autoPlay={autoPlay}
               muted={muted}
+              onForcedMute={onForcedMute}
               preload="metadata"
               onLoadedData={paint}
               poster={poster}
@@ -163,6 +166,7 @@ export function SocialMuxPlayer({
             streamType="on-demand"
             autoPlay={autoPlay}
             muted={muted}
+            onForcedMute={onForcedMute}
             preload="metadata"
             onLoadedData={paint}
             poster={poster}

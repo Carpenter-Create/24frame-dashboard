@@ -11,6 +11,7 @@ import {
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTION_LIKED_CLASS,
 } from "@/lib/social-chrome";
+import { SOCIAL } from "@/lib/social";
 import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 
 vi.mock("next/dynamic", () => ({
@@ -58,9 +59,35 @@ describe("SocialExploreForYouStream", () => {
     expect(html).toContain("bg-[#0A0A0B]");
     expect(html).toContain('data-mux-autoplay="yes"');
     expect(html).toContain('data-mux-muted="yes"');
-    expect(src).toContain("muted");
+    const playerSrc = src.slice(src.indexOf("<SocialMuxPlayer"), src.indexOf("ExploreForYouClosedFace"));
+    expect(playerSrc).toContain("muted={muted}");
+    expect(playerSrc).not.toContain("muted={false}");
     expect(src).not.toContain("muted={false}");
+    expect(src).not.toContain("audioTracks");
+    expect(src).toContain("data-social-explore-mute");
+    expect(src).toContain("speaker-slash");
+    expect(src).toContain("speaker-high");
+    expect(src).toContain("SOCIAL.stories.unmute");
+    expect(src).toContain("SOCIAL.stories.mute");
+    expect(src).toContain("onForcedMute");
+    expect(src).toContain("setMuted(true)");
+    expect(src).toContain("stories-viewer-mute-control-lock-v1.md");
+    const media = src.slice(src.indexOf("data-social-explore-media"), src.indexOf("data-social-explore-caption"));
+    expect(media).toContain("onToggle");
+    expect(media).not.toContain("setMuted");
     expect(html).toContain("data-social-explore-media");
+    const mute = html.slice(html.indexOf("data-social-explore-mute"), html.indexOf("data-social-like"));
+    expect(html.indexOf("data-social-explore-mute")).toBeGreaterThanOrEqual(0);
+    expect(html.indexOf("data-social-explore-mute")).toBeLessThan(html.indexOf("data-social-like"));
+    expect(mute).toContain('aria-label="Unmute"');
+    expect(mute).toContain('aria-pressed="true"');
+    expect(mute).toContain("size-10");
+    expect(mute).toContain('data-social-icon="speaker-slash"');
+    expect(mute).toContain('width="20"');
+    expect(mute).toContain('height="20"');
+    expect(mute).not.toContain("data-social-like");
+    expect(SOCIAL.stories.unmute).toBe("Unmute");
+    expect(SOCIAL.stories.mute).toBe("Mute");
     expect(html).toContain('href="/social/u/ada"');
     expect(html).toContain("Night clip");
     expect(html).toContain("whitespace-pre-wrap");

@@ -29,12 +29,17 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 // Active play() runs in an effect, after the player mounts, with no user
 // gesture. Unmuted play() is NotAllowedError there; the quiet mount drops
 // it, so the clip stays paused and the first tap only flips `held`.
-// Muted play() is allowed, so the active item starts and tap pauses it.
+// Muted play() is allowed. Each active item starts muted, before paint,
+// so autoplay stays allowed. Tap on the media pauses. Tap on the rail
+// mute control passes the muted flag through. If an unmuted play() is
+// blocked, onForcedMute snaps the flag back and retries muted. The control
+// stays mounted for the whole item. An empty track list never hides it.
 // Only the active slide mounts SocialMuxPlayer. Off-screen slides stay a
 // poster or closed face, so a signed window does not mint every playback.
 // Comment and Share close in place. Dismiss does not move the active index
 // and does not leave Explore.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
+// docs/design-locks/stories-viewer-mute-control-lock-v1.md
 
 export function SocialExploreForYouStream({
   items,
@@ -47,6 +52,13 @@ export function SocialExploreForYouStream({
   const activeRef = useRef(0);
   const [active, setActive] = useState(0);
   const [held, setHeld] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [mutedFor, setMutedFor] = useState<string | null>(null);
+  const activeItemId = items[active]?.postId ?? "";
+  if (activeItemId !== mutedFor) {
+    setMutedFor(activeItemId);
+    setMuted(true);
+  }
 
   useEffect(() => {
     const root = scrollerRef.current;
@@ -92,10 +104,16 @@ export function SocialExploreForYouStream({
             index={index}
             active={index === active}
             paused={index === active && held}
+            muted={muted}
             onToggle={() => {
               if (index !== active) return;
               setHeld((value) => !value);
             }}
+            onToggleMute={() => {
+              if (index !== active) return;
+              setMuted((value) => !value);
+            }}
+            onForcedMute={() => setMuted(true)}
           />
         ))
       )}
@@ -108,13 +126,19 @@ function SocialExploreForYouSlide({
   index,
   active,
   paused,
+  muted,
   onToggle,
+  onToggleMute,
+  onForcedMute,
 }: {
   item: SocialExploreForYouItem;
   index: number;
   active: boolean;
   paused: boolean;
+  muted: boolean;
   onToggle: () => void;
+  onToggleMute: () => void;
+  onForcedMute: () => void;
 }) {
   const playing = active && !paused;
   const person = item.authorHandle
@@ -138,7 +162,8 @@ function SocialExploreForYouSlide({
           fit="cover"
           chromeless
           autoPlay={playing}
-          muted
+          muted={muted}
+          onForcedMute={onForcedMute}
           className="social-explore-stage-media absolute inset-0 size-full bg-[#0A0A0B] object-cover"
         />
       ) : (
@@ -170,6 +195,16 @@ function SocialExploreForYouSlide({
         ) : null}
       </div>
       <div data-social-explore-rail="" className={SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS}>
+        <button
+          type="button"
+          data-social-explore-mute=""
+          aria-label={muted ? SOCIAL.stories.unmute : SOCIAL.stories.mute}
+          aria-pressed={muted}
+          className={cn(SOCIAL_POST_ACTION_HIT_CLASS, "text-band-ink")}
+          onClick={onToggleMute}
+        >
+          <SocialIcon name={muted ? "speaker-slash" : "speaker-high"} size={20} />
+        </button>
         {item.canLike ? (
           <SocialLikeButton
             postId={item.postId}

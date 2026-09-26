@@ -477,7 +477,10 @@ export const SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS =
 export const SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS =
   "relative h-full min-h-full w-full shrink-0 snap-start snap-always";
 
-// Trailing rail. Same hit 40, glyph 24, gap 8 as the home action row.
+// Trailing rail. Like · Comment · Share keep hit 40, glyph 24, gap 8.
+// Mute is inserted above Like: glyph 20, same 40 hit. The column is not redrawn.
+// docs/design-locks/social-home-post-actions-align-lock-v1.md
+// docs/design-locks/stories-viewer-mute-control-lock-v1.md
 export const SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS =
   "pointer-events-auto absolute right-[var(--space-2)] z-20 flex flex-col items-center gap-[var(--space-2)] bottom-[max(var(--space-4),env(safe-area-inset-bottom))] max-md:bottom-[calc(6.5rem+env(safe-area-inset-bottom))]";
 

@@ -412,6 +412,69 @@ describe("SocialExploreForYouStream dismiss", () => {
     expect(slideLinks.some((node) => attr(node, "href")?.startsWith("/social/p/"))).toBe(false);
   }
 
+  function player(): MiniNode {
+    const found = elementsIn(body()).find((node) => node.hasAttribute?.("data-mux-player-stub"));
+    if (!found) throw new Error("mux player missing");
+    return found;
+  }
+
+  it("toggles the trailing mute control and resets it when the active item changes", async () => {
+    await renderStream();
+    const rail = elementsIn(control("data-social-explore-rail", "0"));
+    const muteIndex = rail.findIndex((node) => node.hasAttribute?.("data-social-explore-mute"));
+    const likeIndex = rail.findIndex((node) => node.hasAttribute?.("data-social-like"));
+    expect(muteIndex).toBeGreaterThanOrEqual(0);
+    expect(muteIndex).toBeLessThan(likeIndex);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-pressed")).toBe("true");
+    expect(attr(player(), "data-mux-muted")).toBe("yes");
+    expect(
+      elementsIn(control("data-social-explore-mute", "0")).some(
+        (node) => attr(node, "data-social-icon") === "speaker-slash",
+      ),
+    ).toBe(true);
+
+    await click(control("data-social-explore-media", "0"));
+    expect(attr(player(), "data-mux-muted")).toBe("yes");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+
+    await click(control("data-social-explore-mute", "0"));
+    expect(attr(player(), "data-mux-muted")).toBe("no");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.mute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-pressed")).toBe("false");
+    expect(
+      elementsIn(control("data-social-explore-mute", "0")).some(
+        (node) => attr(node, "data-social-icon") === "speaker-high",
+      ),
+    ).toBe(true);
+    expect(control("data-social-explore-mute", "0").hasAttribute?.("data-social-explore-mute")).toBe(true);
+
+    await click(control("data-social-explore-mute", SLIDE_N));
+    expect(attr(player(), "data-mux-muted")).toBe("no");
+
+    await click(control("data-social-explore-mute", "0"));
+    expect(attr(player(), "data-mux-muted")).toBe("yes");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+
+    await click(control("data-social-explore-mute", "0"));
+    expect(attr(player(), "data-mux-muted")).toBe("no");
+    const hopped = { ...next, playbackPolicy: "public" as const };
+    await act(async () => {
+      root?.render(createElement(SocialExploreForYouStream, { items: [hopped, first], emptyLabel: null }));
+    });
+    await act(async () => {
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    });
+    expect(attr(player(), "data-mux-player-stub")).toBe(NEXT_PLAYBACK);
+    expect(attr(player(), "data-mux-muted")).toBe("yes");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.stories.unmute);
+    expect(
+      elementsIn(control("data-social-explore-mute", "0")).some(
+        (node) => attr(node, "data-social-icon") === "speaker-slash",
+      ),
+    ).toBe(true);
+  });
+
   it("opens comment and share on slide N and dismisses back to the same Mux item", async () => {
     await renderStream();
     expectSameItem();

@@ -305,6 +305,8 @@ describe("Social Explore", () => {
     expect(html).toContain("data-social-comment-open");
     expect(html).toContain("data-social-post-share");
     expect(html).toContain("data-social-explore-rail");
+    expect(html).toContain("data-social-explore-mute");
+    expect(html.indexOf("data-social-explore-mute")).toBeLessThan(html.indexOf("data-social-like"));
     expect(html).toContain("flex-col");
     expect(html).toContain("rgb(0_0_0/0.4)");
     expect(html).toContain("120px");
