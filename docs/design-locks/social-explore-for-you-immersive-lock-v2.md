@@ -1,7 +1,7 @@
 # [GC][24Frame] LOCK — Explore For You immersive v2
 
 **Date:** 2026-09-26 (CT)  
-**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
+**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
 **Repo:** `docs/design-locks/social-explore-for-you-immersive-lock-v2.md`  
 **Box:** `/workspace/24frame-agg-ux/social-explore-for-you-immersive-lock-v2.md`  
 **Supersedes:** `social-explore-discovery-lock-v1.md` (IG grid) · **#693 DRAFT wrong shape** — do not invent on grid; ship from this v2  
@@ -22,12 +22,12 @@
 | Token | Lock (one SoT) |
 |-------|----------------|
 | Default | Explore opens **For You** vertical immersive stream |
-| Stage | Full viewport media · near-black **`#0A0A0B`** letterbox only if needed · **Media Immersion** (not a grid, not a paper card feed) |
+| Stage | **Media IS the canvas** · full-bleed edge-to-edge **`object-fit: cover`** · near-black **`#0A0A0B`** letterbox only if the frame is not already covered · **Media Immersion** (not a grid, not a paper card, not a framed letterbox) |
 | Fit | Active item **`object-fit: cover`** · fills stage (vertical-first) |
 | Swipe | Vertical snap · one item per viewport · next/prev For You |
 | Video | Mux-only play surface · autoplay when active · pause when off-screen · cite Mux-only |
 | Media kinds | **Video only** in For You / discovery streams · **photos OUT** of vertical Explore feed |
-| Social shell | Existing Social tab dock may remain for IA · media fills the Explore content area · **0** Home-feed post chrome |
+| Social shell | **Social header OUT** on For You · tab dock may overlay the bottom of the media · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
 | Fail | Soft grid of thumbs · FB mosaic · dumping user onto Home post unit · photo tiles in For You |
 
 **FAIL:** IG Explore grid as primary (#693 / v1) · photos in vertical Explore.  
@@ -52,7 +52,7 @@
 
 | Token | Lock (one SoT) |
 |-------|----------------|
-| Entry | Search / discover control on Explore · inset from safe edges · quiet chrome |
+| Entry | Search / discover is overlay chrome on the media · inset from safe edges · quiet · **not** a persistent white slab |
 | Results | People · keywords · hashtags — selecting one filters or starts a **vertical immersive** stream of matching **video** |
 | Shape | Results stay **immersive video** (same For You host) · **not** a Home feed list · **not** the superseded IG grid as primary · **no** photo results in this stream |
 | Clear | Returns to default For You |
@@ -82,6 +82,10 @@
 | FB collage / mosaic | Out |
 | Inventing on grid while v2 ships | Do not · supersede via this lock |
 | Photos in vertical For You / discovery | Adam LOCK video-only |
+| Framed letterbox | Media is the canvas · cover, edge to edge |
+| Persistent search slab | Discover chrome overlays the media |
+| Social header on For You | Header is house chrome · For You suppresses it |
+| White page well | The page canvas is the media, not paper around a card |
 | Design PR | CoS seeds · Dev ships after CLEAR |
 
 ---
@@ -93,7 +97,8 @@
 3. Discovery (people / keywords / hashtags) stays immersive **video** stream.  
 4. Mux-only video · Media Immersion cover stage.  
 5. Vertical Explore = **video-only** · photos OUT (§D).  
-6. v1 grid / #693 superseded.
+6. v1 grid / #693 superseded.  
+7. Media is the canvas. Social header is out on For You. Search overlays the media. Tab dock may overlay the bottom. No framed letterbox. No white page well.
 
 ---
 

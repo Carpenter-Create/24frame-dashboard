@@ -1241,6 +1241,19 @@ describe("AppShell rail-collapse chevron", () => {
     expect(group).toContain("data-app-rail");
   });
 
+  it("suppresses the Social header on For You and keeps the dock over the stage", () => {
+    navigation.pathname = "/social/explore";
+    const html = renderShell();
+    expect(html).toContain('data-social-explore-stage=""');
+    expect(html).not.toContain("data-house-lead-chrome");
+    expect(html).not.toContain("data-social-header-search");
+    expect(html).toContain("data-house-phone-bottom-nav");
+    expect(html).toContain("fixed inset-0 overflow-hidden bg-[#0A0A0B]");
+    expect(html).toContain("data-app-rail");
+    expect(html).toContain("top-[var(--chrome-gutter)]");
+    expect(html).not.toContain("top-[calc(var(--header-height)+var(--chrome-gutter))]");
+  });
+
   it("hides the Social shell on an open story", () => {
     navigation.pathname = "/social/stories/story-1";
     const html = renderShell();

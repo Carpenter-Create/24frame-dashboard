@@ -39,6 +39,7 @@ import { isSettingsPath, SETTINGS_RAIL_PAD_CLASS } from "@/lib/settings";
 import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS,
+  SOCIAL_EXPLORE_RAIL_FLOAT_CLASS,
   SOCIAL_RAIL_PANEL_CLASS,
   SOCIAL_WRITE_COMPOSE_FRAME_CLASS,
 } from "@/lib/social-chrome";
@@ -199,9 +200,9 @@ export function AppShell({
   const dmComposeStage = isSocialDmComposePath(pathname);
   // Write compose owns the face on phone and desktop. Chrome returns on dismiss.
   const writeComposeStage = isSocialWriteComposePath(pathname);
-  // Explore is a Stories-stage in the content area. The Social lead and
-  // dest rail stay. The padded Social frame and the phone paper pad do
-  // not — the dock overlays the near-black stage.
+  // Explore For You: the media is the canvas. The Social header is out.
+  // The phone dock overlays the stage. The dest rail overlays on desktop
+  // without a header offset, so the page well is not a white frame.
   const exploreStage = isSocialExplorePath(pathname);
   const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage;
   const socialChrome = workspace === "social" && !settingsPage && !hideProductRail;
@@ -260,12 +261,13 @@ export function AppShell({
       data-home-chrome={homeChrome ? "" : undefined}
       data-help-chrome={helpPage ? "" : undefined}
       data-activity-chrome={activityPage ? "" : undefined}
+      className={exploreStage ? "bg-[#0A0A0B]" : undefined}
       style={collapseWidthStyle}
     >
       {hideDestRail ? null : (
         <aside
           className={cn(
-            HOUSE_RAIL_FLOAT_CLASS,
+            exploreStage ? SOCIAL_EXPLORE_RAIL_FLOAT_CLASS : HOUSE_RAIL_FLOAT_CLASS,
             RAIL_WIDTH_CLASS,
             socialChrome ? SOCIAL_RAIL_PANEL_CLASS : HOUSE_RAIL_PANEL_CLASS,
           )}
@@ -315,7 +317,7 @@ export function AppShell({
           leftover `/messages` path (retired — 404), and on mobile `/titles` (528:542).
           Phone avatar opens 544:561. Do not invent Move chrome or a
           second phone switcher. Studio secondary rail stays HOLD. */}
-      {storyOpenStage || dmImmersiveStage || writeComposeStage ? null : (
+      {storyOpenStage || dmImmersiveStage || writeComposeStage || exploreStage ? null : (
       <HouseLeadChromeSlot
         chrome={chrome}
         isGcStaff={isGcStaff}

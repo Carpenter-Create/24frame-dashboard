@@ -457,14 +457,20 @@ export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
 
 export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-words";
 
-// Explore For You v2. Stories-stage grammar: the host is the content
-// area, edge to edge, near-black. No paper frame, no gutter bleed hack.
-// The phone dock overlays the stage (same 6.5rem as
-// HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS). #0A0A0B has no house token — same
-// precedent as SOCIAL_STORY_STAGE_CLASS.
+// Explore For You v2. The media is the canvas. Same near-black stage as
+// SOCIAL_STORY_STAGE_CLASS, fixed to the viewport, without z-50: the
+// phone dock (z-40) and sheets (z-50) overlay it. No z-index here, so
+// those overlays are not trapped under the stage. #0A0A0B has no house
+// token. The Social header is not on this route.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
 export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
-  "absolute inset-0 overflow-hidden bg-[#0A0A0B]";
+  "fixed inset-0 overflow-hidden bg-[#0A0A0B]";
+
+// Dest rail when the Social header is suppressed. Same float as
+// HOUSE_RAIL_FLOAT_CLASS, pinned to the chrome gutter instead of under
+// a header that is not painted.
+export const SOCIAL_EXPLORE_RAIL_FLOAT_CLASS =
+  "fixed left-[var(--chrome-gutter)] top-[var(--chrome-gutter)] z-30 hidden h-[calc(100dvh-calc(var(--chrome-gutter)*2))] flex-col md:flex";
 
 export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS =
   "absolute inset-0 overflow-hidden bg-[#0A0A0B] text-band-ink";

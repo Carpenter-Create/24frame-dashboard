@@ -161,6 +161,13 @@ describe("Social Explore", () => {
     expect(shell).toContain("isSocialExplorePath");
     expect(shell).toContain("phoneDestDock && !exploreStage");
     expect(shell).toContain("SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS");
+    expect(shell).toContain("storyOpenStage || dmImmersiveStage || writeComposeStage || exploreStage");
+    expect(shell).toContain("SOCIAL_EXPLORE_RAIL_FLOAT_CLASS");
+    const frameClass = chrome.slice(chrome.indexOf("export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS"));
+    expect(frameClass.startsWith("export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS")).toBe(true);
+    expect(frameClass.slice(0, frameClass.indexOf("export const SOCIAL_EXPLORE_RAIL_FLOAT_CLASS"))).toContain(
+      "fixed inset-0",
+    );
     expect(host).toContain("social-explore-stage-media");
     expect(src).toContain('export const runtime = "nodejs"');
     expect(src).toContain("loadExploreMedia");
