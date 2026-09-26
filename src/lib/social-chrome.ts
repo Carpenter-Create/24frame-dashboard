@@ -393,6 +393,11 @@ export const SOCIAL_POST_ACTION_HIT_CLASS =
 
 export const SOCIAL_POST_ACTION_HEART_NUDGE_CLASS = "translate-y-px";
 
+// Liked heart on a dark stage. Sporty Blue from the post-actions lock.
+// Dark-mode --accent is the soft flip, not this control.
+// docs/design-locks/social-home-post-actions-align-lock-v1.md
+export const SOCIAL_POST_ACTION_LIKED_CLASS = "text-[#1769FF]";
+
 // Phone only. Under the Home Stories rail, same hairline as the feed.
 // The host is already bled, so the rule meets the viewport.
 // Desktop stays without it.
@@ -451,6 +456,39 @@ export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
   "absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pt-[var(--space-4)]";
 
 export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-words";
+
+// Explore For You v2. Stories-stage grammar: the host is the content
+// area, edge to edge, near-black. No paper frame, no gutter bleed hack.
+// The phone dock overlays the stage (same 6.5rem as
+// HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS). #0A0A0B has no house token — same
+// precedent as SOCIAL_STORY_STAGE_CLASS.
+// docs/design-locks/social-explore-for-you-immersive-lock-v2.md
+export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
+  "absolute inset-0 overflow-hidden bg-[#0A0A0B]";
+
+export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS =
+  "absolute inset-0 overflow-hidden bg-[#0A0A0B] text-band-ink";
+
+export const SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS =
+  "absolute inset-0 snap-y snap-mandatory overflow-y-auto overscroll-y-contain";
+
+export const SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS =
+  "relative h-full min-h-full w-full shrink-0 snap-start snap-always";
+
+// Trailing rail. Same hit 40, glyph 24, gap 8 as the home action row.
+export const SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS =
+  "pointer-events-auto absolute right-[var(--space-2)] z-20 flex flex-col items-center gap-[var(--space-2)] bottom-[max(var(--space-4),env(safe-area-inset-bottom))] max-md:bottom-[calc(6.5rem+env(safe-area-inset-bottom))]";
+
+// Scrim ~40% → 0 over 120. Right pad clears the 40 hit plus the gap.
+// Phone bottom clears the overlay dock so the caption stays on the video.
+export const SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS =
+  "pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pl-[var(--space-4)] pr-[calc(var(--space-4)+40px+var(--space-2))] pt-[var(--space-4)] max-md:pb-[calc(6.5rem+env(safe-area-inset-bottom))]";
+
+export const SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS =
+  "absolute inset-x-[var(--space-4)] top-[max(var(--space-4),env(safe-area-inset-top))] z-30";
+
+export const SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS =
+  "absolute inset-x-[var(--space-4)] top-[calc(max(var(--space-4),env(safe-area-inset-top))+3rem)] z-30 flex max-h-[50%] flex-col gap-[var(--space-2)] overflow-y-auto";
 
 // Founder lock 2026-09-21: muted FB `15h` register. Never `t-label`
 // (uppercase + 0.12em track turns `10h` into `10 H`).

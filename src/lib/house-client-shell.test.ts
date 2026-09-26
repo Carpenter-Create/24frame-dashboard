@@ -59,6 +59,9 @@ describe("house client shell SoT", () => {
     expect(houseExactHref("/social?topic=music")).toBe("/social?topic=music");
     expect(houseScreenKey("/social", "?after=abc")).toBe("/social?after=abc");
     expect(houseScreenKey("/social/explore", "?q=ada")).toBe("/social/explore?q=ada");
+    expect(houseScreenKey("/social/explore", "?tag=night")).toBe("/social/explore?tag=night");
+    expect(houseScreenKey("/social/explore", "?person=ada")).toBe("/social/explore?person=ada");
+    expect(houseScreenKey("/social/explore", "?discover=1&q=ada")).toBe("/social/explore?q=ada&discover=1");
     expect(houseScreenKey("/social/profile", "?tab=credits")).toBe("/social/profile");
     expect(houseScreenKey("/social/profile", "?tab=activity&activity=comments")).toBe("/social/profile");
     expect(houseScreenKey("/social/u/ada", "?tab=highlights")).toBe("/social/u/ada");
@@ -568,6 +571,28 @@ describe("Social rail cache flips", () => {
     expect(during.showIngress).toBe(false);
     expect(during.nodes["/home"]).toBe(home);
     expect(houseBlankOutlet(during.displayKey, during.showIngress, "/home", "/home")).toBe("none");
+  });
+
+  it("does not store the default For You tree under an Explore query slot", () => {
+    const base = SOCIAL_ROUTES.explore;
+    const keyword = "/social/explore?q=ada";
+    const forYou = railTree(base);
+    const booted = cacheStep(null, base, forYou, {}, []);
+    const settled = cacheStep(booted.seen, base, forYou, booted.nodes, booted.order);
+    const flip = houseApplyCachedChild({
+      seen: settled.seen,
+      nextKey: keyword,
+      activeKey: keyword,
+      nextPath: base,
+      child: forYou,
+      fallback: false,
+      nodes: settled.nodes,
+      order: settled.order,
+    });
+    expect(flip.childrenStale).toBe(true);
+    expect(flip.nodes[keyword]).toBeUndefined();
+    expect(flip.nodes[base]).toBe(forYou);
+    expect(flip.displayKey).not.toBe(keyword);
   });
 
   it("paints Home when the live tree arrives with the URL and the slot was empty", () => {

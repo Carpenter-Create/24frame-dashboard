@@ -17,25 +17,25 @@ const search = readFileSync("src/app/(app)/social/search/page.tsx", "utf8");
 const leadSearch = readFileSync("src/components/chrome/house-lead-search.tsx", "utf8");
 
 describe("Explore vs people discovery lock (Adam 2026-09-20)", () => {
-  it("keeps Explore as media discovery and does not advertise it as a people hub", () => {
-    expect(SOCIAL.explore.searchPlaceholder).toBe("Search posts");
-    expect(SOCIAL.explore.noResults).toBe("No matching posts.");
-    expect(SOCIAL.explore.empty).toBe("No posts to explore yet.");
-    expect(JSON.stringify(SOCIAL.explore)).not.toMatch(/people/i);
+  it("keeps Explore as a video For You and uses people as a stream filter", () => {
+    expect(SOCIAL.explore.searchPlaceholder).toBe("People, keywords, hashtags");
+    expect(SOCIAL.explore.noResults).toBe("No matching videos.");
+    expect(SOCIAL.explore.empty).toBe("No videos to explore yet.");
     expect(JSON.stringify(SOCIAL.explore)).not.toContain("creators");
     expect(explore).toContain("loadExploreMedia");
     expect(explore).toContain("loadExploreSearch");
-    expect(explore).toContain("data-social-explore-trending");
-    expect(explore).toContain("data-social-explore-grid");
+    expect(explore).toContain("loadPeopleSearch");
+    expect(explore).toContain("data-social-explore-for-you");
     expect(explore).toContain("socialMediaProxiesByPostId");
-    expect(explore).toContain("SOCIAL_PROFILE_GRID_CLASS");
-    expect(explore).toContain("SocialDesktopForYouSlot");
-    expect(explore).toContain("SOCIAL_HOME_LAYOUT_CLASS");
+    expect(explore).not.toContain("data-social-explore-grid");
+    expect(explore).not.toContain("SOCIAL_PROFILE_GRID_CLASS");
+    expect(explore).not.toContain("SocialDesktopForYouSlot");
+    expect(explore).not.toContain("SOCIAL_HOME_LAYOUT_CLASS");
     expect(explore).not.toContain("SocialForYouRail");
     expect(explore).not.toContain("SocialSuggestedPeople");
     expect(explore).not.toContain("loadSuggestedPeople");
-    expect(explore).not.toContain("loadPeopleSearch");
     expect(explore).not.toContain("SocialPersonRow");
+    expect(explore).not.toContain("socialPostHref");
     expect(explore).not.toContain("Reels");
     expect(explore).not.toContain("people rail");
   });

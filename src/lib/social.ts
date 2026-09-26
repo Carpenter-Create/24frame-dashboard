@@ -95,6 +95,12 @@ export function isSocialDmImmersivePath(pathname: string): boolean {
   return isSocialDmThreadPath(pathname) || isSocialDmComposePath(pathname);
 }
 
+/** Explore For You. The stage fills the content area. Not search, not a post. */
+export function isSocialExplorePath(pathname: string): boolean {
+  const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  return path === SOCIAL_ROUTES.explore;
+}
+
 /** Open story viewer. Not the index, not the create stage. */
 export function isSocialStoryOpenPath(pathname: string): boolean {
   const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
@@ -549,14 +555,21 @@ export const SOCIAL = {
     subtitle: `Find what is moving in ${PRODUCT_NAME}.`,
     search: "Search",
     searchSocial: "Search Social",
-    searchPlaceholder: "Search posts",
+    searchPlaceholder: "People, keywords, hashtags",
     searchBack: "Back",
     recent: "Recent",
     recentEmpty: "No recent searches.",
     clearRecent: "Clear",
-    empty: "No posts to explore yet.",
-    noResults: "No matching posts.",
-    truncated: `Showing the first ${SOCIAL_EXPLORE_POSTS_LIMIT} matching posts. More exist — this list is not complete.`,
+    clear: "Clear",
+    empty: "No videos to explore yet.",
+    noResults: "No matching videos.",
+    truncated: `Showing the first ${SOCIAL_EXPLORE_POSTS_LIMIT} videos. More exist — this list is not complete.`,
+    people: "People",
+    keywords: "Keywords",
+    hashtags: "Hashtags",
+    play: "Play",
+    pause: "Pause",
+    forYou: "For you",
   },
   search: {
     title: "Search",

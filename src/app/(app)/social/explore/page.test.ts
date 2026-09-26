@@ -3,10 +3,9 @@ import { readFileSync } from "node:fs";
 import { renderServerMarkup } from "@/lib/render-server-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { signedEducationCoverUrls } from "@/lib/s3-education";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
-import { SOCIAL } from "@/lib/social";
+import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
 import { SOCIAL_EXPLORE_POSTS_LIMIT } from "@/lib/social-home-bounds";
 import SocialExplorePage from "./page";
 
@@ -18,6 +17,16 @@ vi.mock("next/image", () => ({
     src: string;
     className?: string;
   }) => createElement("img", { src, className, alt: "" }),
+}));
+vi.mock("next/dynamic", () => ({
+  default: () =>
+    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean; muted?: boolean }) {
+      return createElement("div", {
+        "data-mux-player-stub": props.playbackId ?? "",
+        "data-mux-autoplay": props.autoPlay ? "yes" : "no",
+        "data-mux-muted": props.muted ? "yes" : "no",
+      });
+    },
 }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((to: string) => {
@@ -43,6 +52,11 @@ vi.mock("@/lib/social-profile", () => ({
   }),
 }));
 
+const AUTHOR = "11111111-1111-4111-8111-111111111111";
+const STILL = "22222222-2222-4222-8222-222222222222";
+const CLIP = "33333333-3333-4333-8333-333333333333";
+const PLAYBACK = "uNbxnGLKJ00yfbijDO8COxT";
+
 function ctx() {
   return {
     user: { id: "u1", email: "ada@example.com" },
@@ -64,11 +78,29 @@ function emptyQuery() {
   chain.is = vi.fn(self);
   chain.or = vi.fn(self);
   chain.ilike = vi.fn(self);
+  chain.contains = vi.fn(self);
   chain.order = vi.fn(self);
-  chain.in = vi.fn(self);
+  chain.in = vi.fn(async () => ({ data: [], error: null }));
   chain.range = vi.fn(async () => ({ data: [], error: null }));
   chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
   return chain;
+}
+
+function postsQuery(posts: unknown[]) {
+  const chain = emptyQuery();
+  chain.range = vi.fn(async () => ({ data: posts, error: null }));
+  return chain;
+}
+
+function muxMedia(objectId = CLIP) {
+  return {
+    kind: "video",
+    key: `posts/${AUTHOR}/${objectId}.mp4`,
+    contentType: "video/mp4",
+    provider: "mux",
+    playbackId: PLAYBACK,
+    playbackPolicy: "public",
+  };
 }
 
 function stub() {
@@ -82,46 +114,66 @@ describe("Social Explore", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
   });
 
-  it("is a media discovery shell without Home lenses or a people hub", async () => {
+  it("opens a vertical video For You and does not paint the Home layout", async () => {
     const html = await renderServerMarkup(
       await SocialExplorePage({ searchParams: Promise.resolve({}) }),
     );
     const src = readFileSync("src/app/(app)/social/explore/page.tsx", "utf8");
+    const host = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
     expect(html).toContain("data-social-explore");
+    expect(html).toContain("data-social-explore-for-you");
     expect(html).toContain(SOCIAL.explore.title);
     expect(html).toContain(SOCIAL.explore.empty);
     expect(html).toContain("data-social-explore-search");
-    expect(html).toContain("data-social-explore-trending");
+    expect(html).toContain('name="discover"');
+    expect(html).toContain('value="1"');
+    expect(html).toContain("backdrop-blur");
+    expect(html).toContain("bg-band-ink/15");
+    const search = html.slice(html.indexOf("data-social-explore-search"), html.indexOf("data-social-explore-stream"));
+    expect(search).not.toContain("bg-surface");
+    expect(search).not.toContain("border-hairline");
+    expect(html).toContain("data-social-explore-stream");
     expect(html).toContain(SOCIAL.explore.searchPlaceholder);
+    expect(html).toContain("bg-[#0A0A0B]");
+    expect(html).toContain("snap-y");
     expect(html).not.toContain("data-social-lenses");
-    expect(html).not.toContain("Cinematography");
     expect(html).not.toContain("data-social-feed");
-    expect(html).toContain("data-social-for-you");
-    expect(html).toContain(SOCIAL.forYou.title);
-    expect(html).toContain("lg:max-w-[720px]");
-    expect(html).toContain("lg:max-w-[1052px]");
-    expect(html).toContain("gap-[32px]");
-    expect(html).not.toContain("lg:max-w-[600px]");
-    expect(html).not.toContain("lg:max-w-[932px]");
-    expect(html).toContain("lg:flex");
-    expect(html).toContain("w-[300px]");
-    expect(html).not.toContain("892");
-    expect(html).not.toContain("data-social-for-you-people");
-    expect(html).not.toContain(SOCIAL.forYou.people);
-    expect(html).not.toContain(SOCIAL.search.people);
-    expect(src).toContain("SocialDesktopForYouSlot");
-    expect(src).toContain("SOCIAL_HOME_LAYOUT_CLASS");
-    expect(src).not.toContain("SocialForYouRail");
-    expect(src).toContain('from "@/components/social/social-for-you-covers"');
-    expect(src).toContain("signCourseCovers={signSocialForYouCourseCovers}");
+    expect(html).not.toContain("data-social-explore-grid");
+    expect(html).not.toContain("data-social-for-you");
+    expect(html).not.toContain("lg:max-w-[1052px]");
+    expect(html).not.toContain("/social/p/");
+    expect(src).toContain("SocialExploreForYouStream");
+    expect(src).toContain("SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS");
+    expect(src).toContain("SOCIAL_STORY_GLASS_FIELD_CLASS");
+    expect(src).toContain('variant="bare"');
+    const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
+    const hostClass = chrome.slice(chrome.indexOf("export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS"));
+    expect(hostClass.startsWith("export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS")).toBe(true);
+    expect(hostClass.slice(0, hostClass.indexOf("export const SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS"))).not.toContain(
+      "chrome-gutter",
+    );
+    expect(chrome).toContain("SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS");
+    const css = readFileSync("src/app/globals.css", "utf8");
+    expect(css).toContain(".social-explore-stage-media");
+    expect(css).toMatch(/\.social-explore-stage-media[\s\S]*?--media-background-color:\s*#0A0A0B/);
+    expect(css).toMatch(/\.social-explore-stage-media[\s\S]*?--media-object-fit:\s*cover/);
+    const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
+    expect(shell).toContain("isSocialExplorePath");
+    expect(shell).toContain("phoneDestDock && !exploreStage");
+    expect(shell).toContain("SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS");
+    expect(host).toContain("social-explore-stage-media");
     expect(src).toContain('export const runtime = "nodejs"');
-    expect(src).not.toContain("SocialLensRow");
-    expect(src).not.toContain("SocialSuggestedPeople");
-    expect(src).not.toContain("loadSuggestedPeople");
-    expect(src).not.toContain("loadPeopleSearch");
     expect(src).toContain("loadExploreMedia");
-    expect(src).toContain("SocialExploreResultsSkeleton");
+    expect(src).toContain("socialMediaProxiesByPostId");
+    expect(src).toContain("SocialExploreForYouSkeleton");
     expect(src).not.toContain("fallback={<SocialExploreSkeleton");
+    expect(src).not.toContain("SocialDesktopForYouSlot");
+    expect(src).not.toContain("signSocialForYouCourseCovers");
+    expect(src).not.toContain("socialPostHref");
+    expect(src).not.toContain("SOCIAL_PROFILE_GRID_CLASS");
+    expect(host).not.toContain("socialPostHref");
+    expect(host).not.toContain("line-clamp");
+    expect(host).not.toContain('fit="contain"');
   });
 
   it("sends an unauthenticated visitor to login", async () => {
@@ -131,22 +183,16 @@ describe("Social Explore", () => {
     );
   });
 
-  it("names the Explore media search bound when posts overflow", async () => {
+  it("names the video bound when the probe overflows", async () => {
     const posts = Array.from({ length: SOCIAL_EXPLORE_POSTS_LIMIT + 1 }, (_, i) => ({
       id: `x${i}`,
       body: `Clip ${i}`,
-      author_id: "u1",
+      author_id: AUTHOR,
+      like_count: 0,
+      comment_count: 0,
+      media: [muxMedia()],
     }));
-    const postsChain: Record<string, unknown> = {};
-    const self = () => postsChain;
-    postsChain.select = vi.fn(self);
-    postsChain.eq = vi.fn(self);
-    postsChain.is = vi.fn(self);
-    postsChain.or = vi.fn(self);
-    postsChain.ilike = vi.fn(self);
-    postsChain.order = vi.fn(self);
-    postsChain.in = vi.fn(self);
-    postsChain.range = vi.fn(async () => ({ data: posts, error: null }));
+    const postsChain = postsQuery(posts);
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => {
         if (table === "posts") return postsChain;
@@ -157,43 +203,81 @@ describe("Social Explore", () => {
     const html = await renderServerMarkup(
       await SocialExplorePage({ searchParams: Promise.resolve({ q: "ada" }) }),
     );
+    expect(postsChain.contains).toHaveBeenCalledWith(
+      "media",
+      JSON.stringify([{ kind: "video", provider: "mux" }]),
+    );
     expect(html).toContain("data-social-explore-truncated");
     expect(html).toContain(SOCIAL.explore.truncated);
     expect(html).toContain("Clip 0");
     expect(html).not.toContain(`Clip ${SOCIAL_EXPLORE_POSTS_LIMIT}`);
-    expect(html).not.toContain("data-social-for-you-people");
+    expect(html).not.toContain("data-social-explore-grid");
+    expect(html).toContain("data-social-explore-clear");
+    expect(html).toContain(`href="${SOCIAL_ROUTES.explore}"`);
   });
 
-  it("renders a media grid from post stills and clips, not people rows", async () => {
-    const author = "11111111-1111-4111-8111-111111111111";
-    const object = "22222222-2222-4222-8222-222222222222";
+  it("keeps photos out of the vertical stream", async () => {
     const posts = [
       {
         id: "m1",
         body: "Night still",
-        author_id: author,
+        author_id: AUTHOR,
         media: [
           {
             kind: "image",
-            key: `posts/${author}/${object}.jpg`,
+            key: `posts/${AUTHOR}/${STILL}.jpg`,
             contentType: "image/jpeg",
           },
         ],
       },
     ];
-    const postsChain: Record<string, unknown> = {};
-    const self = () => postsChain;
-    postsChain.select = vi.fn(self);
-    postsChain.eq = vi.fn(self);
-    postsChain.is = vi.fn(self);
-    postsChain.or = vi.fn(self);
-    postsChain.ilike = vi.fn(self);
-    postsChain.order = vi.fn(self);
-    postsChain.in = vi.fn(self);
-    postsChain.range = vi.fn(async () => ({ data: posts, error: null }));
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "posts") return postsQuery(posts);
+        return emptyQuery();
+      }),
+    } as never);
+
+    const html = await renderServerMarkup(
+      await SocialExplorePage({ searchParams: Promise.resolve({}) }),
+    );
+    expect(html).toContain("data-social-explore-empty");
+    expect(html).toContain(SOCIAL.explore.empty);
+    expect(html).not.toContain("Night still");
+    expect(html).not.toContain("data-social-explore-image");
+    expect(html).not.toContain("data-social-explore-grid");
+    expect(html).not.toContain("aspect-square");
+    expect(html).not.toContain("/social/p/");
+  });
+
+  it("plays the first Mux video full-bleed and stays off the Home post face", async () => {
+    const posts = [
+      {
+        id: "v1",
+        body: "Night clip",
+        author_id: AUTHOR,
+        like_count: 3,
+        comment_count: 1,
+        media: [
+          {
+            kind: "image",
+            key: `posts/${AUTHOR}/${STILL}.jpg`,
+            contentType: "image/jpeg",
+          },
+          muxMedia(),
+        ],
+      },
+    ];
+    const profiles = emptyQuery();
+    profiles.in = vi.fn(async () => ({
+      data: [{ id: AUTHOR, handle: "ada", display_name: "Ada Lovelace", status: "active" }],
+      error: null,
+    }));
+    const postsChain = postsQuery(posts);
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => {
         if (table === "posts") return postsChain;
+        if (table === "profiles") return profiles;
         return emptyQuery();
       }),
     } as never);
@@ -201,54 +285,76 @@ describe("Social Explore", () => {
     const html = await renderServerMarkup(
       await SocialExplorePage({ searchParams: Promise.resolve({}) }),
     );
-    expect(html).toContain("data-social-explore-grid");
-    expect(html).toContain("data-social-explore-tile");
-    expect(html).toContain("data-social-explore-image");
-    expect(html).toContain("aspect-square");
-    expect(html).not.toContain("Night still");
-    expect(html).not.toContain(SOCIAL.home.photoKind);
-    expect(html).not.toContain("data-social-profile-play");
-    expect(html).not.toContain("data-social-for-you-people");
-    expect(html).not.toContain("data-social-person-row");
+    expect(html).toContain("data-social-explore-item");
+    expect(html).toContain("data-social-mux-player");
+    expect(html).toContain("object-cover");
+    expect(html).toContain("Night clip");
+    expect(html).toContain('href="/social/u/ada"');
+    expect(html).toContain("data-social-explore-author");
+    expect(html).toContain("data-social-like");
+    expect(html).toContain("data-social-comment-open");
+    expect(html).toContain("data-social-post-share");
+    expect(html).toContain("data-social-explore-rail");
+    expect(html).toContain("flex-col");
+    expect(html).toContain("rgb(0_0_0/0.4)");
+    expect(html).toContain("120px");
+    expect(html).toContain("data-mux-autoplay=\"yes\"");
+    expect(html).toContain("data-mux-muted=\"yes\"");
+    expect(postsChain.contains).toHaveBeenCalledWith(
+      "media",
+      JSON.stringify([{ kind: "video", provider: "mux" }]),
+    );
+    expect(html).not.toContain("/social/p/");
+    expect(html).not.toContain("data-social-explore-image");
+    expect(html).not.toContain("object-contain");
   });
 
-  it("paints the signed For You course cover through the shared signer", async () => {
-    const course = {
-      id: "c-stewardship",
-      slug: "the-stewardship-of-music",
-      title: "The Stewardship of Music",
-      description: null,
-      cover_key: "covers/stewardship.jpg",
-      is_flagship_free: false,
-      price_cents: null,
-      catalog_code: "EDU-MUSIC",
-      status: "published" as const,
-      position: 1,
-      instructor_id: null,
-      created_at: "2026-09-01T12:00:00.000Z",
-    };
-    const coverUrl = "https://cover.example/stewardship.jpg";
-    vi.mocked(signedEducationCoverUrls).mockResolvedValueOnce(new Map([[course.id, coverUrl]]));
+  it("starts a video stream from people, keywords, and hashtags", async () => {
+    const profiles = emptyQuery();
+    profiles.range = vi.fn(async () => ({
+      data: [
+        {
+          id: AUTHOR,
+          handle: "ada",
+          display_name: "Ada Lovelace",
+          crafts: [],
+          topics: [],
+        },
+      ],
+      error: null,
+    }));
     vi.mocked(createClient).mockResolvedValue({
-      from: vi.fn((table: string) => {
-        if (table === "courses") {
-          const chain = emptyQuery();
-          chain.range = vi.fn(async () => ({ data: [course], error: null }));
-          return chain;
-        }
-        return emptyQuery();
-      }),
+      from: vi.fn((table: string) => (table === "profiles" ? profiles : emptyQuery())),
     } as never);
 
     const html = await renderServerMarkup(
-      await SocialExplorePage({ searchParams: Promise.resolve({}) }),
+      await SocialExplorePage({ searchParams: Promise.resolve({ discover: "1", q: "ada" }) }),
     );
+    expect(html).toContain("data-social-explore-discover");
+    expect(html).not.toContain("data-social-explore-stream");
+    expect(html).not.toContain(SOCIAL.explore.empty);
+    expect(html).not.toContain("data-mux-player");
+    expect(html).toContain("data-social-explore-person=\"ada\"");
+    expect(html).toContain('href="/social/explore?person=ada"');
+    expect(html).toContain("data-social-explore-keyword");
+    expect(html).toContain('href="/social/explore?q=ada"');
+    expect(html).toContain("data-social-explore-hashtag");
+    expect(html).toContain('href="/social/explore?tag=ada"');
+    expect(html).toContain('href="/social/explore"');
+    expect(html).toContain(SOCIAL.explore.people);
+    expect(html).toContain(SOCIAL.explore.keywords);
+    expect(html).toContain(SOCIAL.explore.hashtags);
+    expect(html).not.toContain("data-social-explore-grid");
+    expect(html).not.toContain("data-social-suggested-people");
+    expect(html).not.toContain('name="discover"');
+  });
 
-    expect(signedEducationCoverUrls).toHaveBeenCalledWith([course]);
-    expect(html).toContain("data-social-latest-course");
-    expect(html).toContain(`src="${coverUrl}"`);
-    expect(html).toContain('data-course-cover-tone="photo"');
-    expect(html).toContain(course.title);
-    expect(html).not.toContain("data-course-cover-orb");
+  it("does not open the chooser once person, tag, or q already loads a stream", async () => {
+    for (const sp of [{ q: "ada" }, { tag: "night" }, { person: "ada" }] as const) {
+      const html = await renderServerMarkup(await SocialExplorePage({ searchParams: Promise.resolve(sp) }));
+      expect(html).toContain("data-social-explore-stream");
+      expect(html).not.toContain("data-social-explore-discover");
+      expect(html).not.toContain('name="discover"');
+    }
   });
 });

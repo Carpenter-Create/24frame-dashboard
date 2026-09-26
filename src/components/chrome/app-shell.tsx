@@ -38,6 +38,7 @@ import { isHelpPath } from "@/lib/help";
 import { isSettingsPath, SETTINGS_RAIL_PAD_CLASS } from "@/lib/settings";
 import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
+  SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS,
   SOCIAL_RAIL_PANEL_CLASS,
   SOCIAL_WRITE_COMPOSE_FRAME_CLASS,
 } from "@/lib/social-chrome";
@@ -46,6 +47,7 @@ import {
   isSocialDmComposePath,
   isSocialDmImmersivePath,
   isSocialDmThreadPath,
+  isSocialExplorePath,
   isSocialStoryCreatePath,
   isSocialStoryOpenPath,
   isSocialWriteComposePath,
@@ -197,6 +199,10 @@ export function AppShell({
   const dmComposeStage = isSocialDmComposePath(pathname);
   // Write compose owns the face on phone and desktop. Chrome returns on dismiss.
   const writeComposeStage = isSocialWriteComposePath(pathname);
+  // Explore is a Stories-stage in the content area. The Social lead and
+  // dest rail stay. The padded Social frame and the phone paper pad do
+  // not — the dock overlays the near-black stage.
+  const exploreStage = isSocialExplorePath(pathname);
   const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage;
   const socialChrome = workspace === "social" && !settingsPage && !hideProductRail;
   const homeOwned = isHomeOwnedPath(pathname);
@@ -213,7 +219,8 @@ export function AppShell({
       accountChrome,
       coProductions,
     });
-  const phoneDestPad = phoneDestDock ? HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS : undefined;
+  const phoneDestPad =
+    phoneDestDock && !exploreStage ? HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS : undefined;
 
   useEffect(() => {
     migrateSidebarCollapsedCookie(collapsed);
@@ -350,12 +357,13 @@ export function AppShell({
       )}
 
       <main
-        className={cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad)}
+        className={cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad, exploreStage && "relative")}
         data-app-social-frame={socialChrome ? "" : undefined}
         data-social-story-open={storyOpenStage ? "" : undefined}
         data-social-dm-thread={dmThreadStage ? "" : undefined}
         data-social-dm-compose={dmComposeStage ? "" : undefined}
         data-social-write-compose={writeComposeStage ? "" : undefined}
+        data-social-explore-stage={exploreStage ? "" : undefined}
         data-house-lead-scroll=""
         style={{ marginLeft: "var(--sidebar-width)" }}
       >
@@ -367,6 +375,8 @@ export function AppShell({
                 : "min-h-full w-full"
               : storyCreateStage
               ? "flex min-h-full w-full flex-col"
+              : exploreStage
+              ? SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS
               : socialChrome
               ? SOCIAL_DESKTOP_FRAME_PAD_CLASS
               : titlesBleed
