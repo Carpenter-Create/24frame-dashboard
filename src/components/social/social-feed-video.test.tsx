@@ -86,7 +86,8 @@ describe("SocialFeedVideo", () => {
     expect(player).toContain("objectFit: \"cover\"");
     expect(player).toContain("aspectRatio: \"auto\"");
     expect(player).toContain('tokens={{');
-    expect(player).toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
+    expect(player).toContain("loadSocialMuxPlaybackTokens");
+    expect(readFileSync("src/lib/social-mux.ts", "utf8")).toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
     expect(player).toContain("socialMuxPlaybackRequiresTokens");
     expect(player).toContain("if (!signed) return");
     expect(player).toContain("playback: tokens.playback");

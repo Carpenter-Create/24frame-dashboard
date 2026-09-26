@@ -41,10 +41,19 @@ export function socialMuxPlaybackRequiresTokens(
 /**
  * Empty hold before a signed thumbnail JWT exists. An unsigned
  * image.mux.com request 403s and paints the Safari broken-image glyph.
- * Once tokens exist, the JWT thumb covers until loadeddata, same as public.
+ * Once the JWT exists, paint that thumb and wait until it decodes before
+ * mounting the player. The thumb stays until loadeddata, same as public.
  */
 export function socialMuxCoveringPoster(signed: boolean, hasTokens: boolean): boolean {
   return signed && !hasTokens;
+}
+
+/**
+ * Signed playback mounts under a decoded JWT thumb. Mounting the player
+ * in the same commit as the poster is the blank-then-pop start jump.
+ */
+export function socialMuxSignedPlayerReady(hasTokens: boolean, posterDecoded: boolean): boolean {
+  return hasTokens && posterDecoded;
 }
 
 export function isSocialMuxId(value: string): boolean {
@@ -71,6 +80,72 @@ export type SocialMuxPlaybackTokens = {
   thumbnail: string;
   storyboard: string;
 };
+
+const playbackTokenCache = new Map<string, SocialMuxPlaybackTokens>();
+const playbackTokenInflight = new Map<string, Promise<SocialMuxPlaybackTokens | null>>();
+let playbackTokenGeneration = 0;
+
+export function readSocialMuxPlaybackTokenCache(playbackId: string): SocialMuxPlaybackTokens | null {
+  return playbackTokenCache.get(playbackId) ?? null;
+}
+
+/** Test isolation. A cleared generation ignores a mint that resolves later. */
+export function clearSocialMuxPlaybackTokenCache(): void {
+  playbackTokenGeneration += 1;
+  playbackTokenCache.clear();
+  playbackTokenInflight.clear();
+}
+
+function warmSocialMuxThumbnail(playbackId: string, token: string): void {
+  const ImageCtor = (globalThis as { Image?: new () => { src: string; decoding?: string } }).Image;
+  if (!ImageCtor) return;
+  const img = new ImageCtor();
+  img.decoding = "async";
+  img.src = socialMuxThumbnailUrl(playbackId, token);
+}
+
+/**
+ * Session mint for one playback id. Callers share one request. An aborted
+ * caller receives null and does not write state; the request still fills
+ * the cache when it succeeds, so a warm for the next clip survives.
+ */
+export function loadSocialMuxPlaybackTokens(
+  playbackId: string,
+  signal?: AbortSignal,
+): Promise<SocialMuxPlaybackTokens | null> {
+  if (signal?.aborted) return Promise.resolve(null);
+  const cached = playbackTokenCache.get(playbackId);
+  if (cached) return Promise.resolve(cached);
+
+  let flight = playbackTokenInflight.get(playbackId);
+  if (!flight) {
+    const generation = playbackTokenGeneration;
+    flight = fetch(`${SOCIAL_MUX_PLAYBACK_ROUTE}?playbackId=${encodeURIComponent(playbackId)}`, {
+      credentials: "same-origin",
+    })
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((body: unknown) => {
+        if (generation !== playbackTokenGeneration) return null;
+        const tokens = socialMuxPlaybackTokensFromJson(body);
+        if (!tokens) return null;
+        playbackTokenCache.set(playbackId, tokens);
+        warmSocialMuxThumbnail(playbackId, tokens.thumbnail);
+        return tokens;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return null;
+        return null;
+      })
+      .finally(() => {
+        if (generation === playbackTokenGeneration && playbackTokenInflight.get(playbackId) === flight) {
+          playbackTokenInflight.delete(playbackId);
+        }
+      });
+    playbackTokenInflight.set(playbackId, flight);
+  }
+
+  return flight.then((tokens) => (signal?.aborted ? null : tokens));
+}
 
 export function socialMuxPlaybackTokensFromJson(value: unknown): SocialMuxPlaybackTokens | null {
   if (!value || typeof value !== "object") return null;

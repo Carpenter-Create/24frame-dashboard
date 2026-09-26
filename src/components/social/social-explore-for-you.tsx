@@ -11,7 +11,12 @@ import { SocialPostShareButton } from "@/components/social/social-post-share-she
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { cn } from "@/lib/cn";
 import { SOCIAL, socialMemberHref, socialPersonIdentity } from "@/lib/social";
-import { socialMuxPlaybackRequiresTokens, socialMuxThumbnailUrl, type SocialMuxPlaybackPolicy } from "@/lib/social-mux";
+import {
+  loadSocialMuxPlaybackTokens,
+  socialMuxPlaybackRequiresTokens,
+  socialMuxThumbnailUrl,
+  type SocialMuxPlaybackPolicy,
+} from "@/lib/social-mux";
 import {
   SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS,
@@ -35,7 +40,8 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 // blocked, onForcedMute snaps the flag back and retries muted. The control
 // stays mounted for the whole item. An empty track list never hides it.
 // Only the active slide mounts SocialMuxPlayer. Off-screen slides stay a
-// poster or closed face, so a signed window does not mint every playback.
+// poster or closed face. The stream warms the active signed mint and the
+// next one, and does not mint every closed slide.
 // Comment and Share close in place. Dismiss does not move the active index
 // and does not leave Explore.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
@@ -82,6 +88,15 @@ export function SocialExploreForYouStream({
     }
     return () => observer.disconnect();
   }, [items]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    for (const item of [items[active], items[active + 1]]) {
+      if (!item || !socialMuxPlaybackRequiresTokens(item.playbackPolicy)) continue;
+      void loadSocialMuxPlaybackTokens(item.playbackId, controller.signal);
+    }
+    return () => controller.abort();
+  }, [active, items]);
 
   return (
     <div

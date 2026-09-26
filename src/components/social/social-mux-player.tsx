@@ -6,10 +6,11 @@ import dynamic from "next/dynamic";
 import { cn } from "@/lib/cn";
 import { SOCIAL_MUX_PLAYER_CLASS } from "@/lib/social-chrome";
 import {
-  SOCIAL_MUX_PLAYBACK_ROUTE,
+  loadSocialMuxPlaybackTokens,
+  readSocialMuxPlaybackTokenCache,
   socialMuxCoveringPoster,
   socialMuxPlaybackRequiresTokens,
-  socialMuxPlaybackTokensFromJson,
+  socialMuxSignedPlayerReady,
   socialMuxThumbnailUrl,
   type SocialMuxPlaybackPolicy,
   type SocialMuxPlaybackTokens,
@@ -29,10 +30,12 @@ function MuxPoster({
   src,
   fit,
   onReady,
+  onDecoded,
 }: {
   src: string;
   fit: "cover" | "contain";
   onReady?: () => void;
+  onDecoded?: () => void;
 }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- thumb hold until decoded frames
@@ -40,7 +43,10 @@ function MuxPoster({
       alt=""
       src={src}
       data-social-mux-poster=""
-      onLoad={onReady}
+      onLoad={() => {
+        onDecoded?.();
+        onReady?.();
+      }}
       onError={onReady}
       className={cn(
         "pointer-events-none absolute inset-0 size-full",
@@ -93,11 +99,15 @@ export function SocialMuxPlayer({
   onForcedMute?: () => void;
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
+  const cached = signed ? readSocialMuxPlaybackTokenCache(playbackId) : null;
   const [mint, setMint] = useState<{ playbackId: string; tokens: SocialMuxPlaybackTokens } | null>(null);
   const [paintedId, setPaintedId] = useState<string | null>(null);
-  const tokens = signed && mint?.playbackId === playbackId ? mint.tokens : null;
+  const [posterReadyId, setPosterReadyId] = useState<string | null>(null);
+  const tokens = signed ? (mint?.playbackId === playbackId ? mint.tokens : cached) : null;
   const painted = paintedId === playbackId;
+  const posterReady = posterReadyId === playbackId;
   const poster = socialMuxThumbnailUrl(playbackId, tokens?.thumbnail);
+  const signedPoster = tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null;
   const releaseHold = () => {
     onPaint?.();
   };
@@ -107,21 +117,18 @@ export function SocialMuxPlayer({
   };
   useEffect(() => {
     if (!signed) return;
+    if (readSocialMuxPlaybackTokenCache(playbackId)) return;
     const controller = new AbortController();
-    void fetch(`${SOCIAL_MUX_PLAYBACK_ROUTE}?playbackId=${encodeURIComponent(playbackId)}`, {
-      signal: controller.signal,
-      credentials: "same-origin",
-    })
-      .then(async (response) => (response.ok ? response.json() : null))
-      .then((body: unknown) => {
-        const next = socialMuxPlaybackTokensFromJson(body);
-        if (next) setMint({ playbackId, tokens: next });
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      });
+    void loadSocialMuxPlaybackTokens(playbackId, controller.signal).then((next) => {
+      if (controller.signal.aborted || !next) return;
+      setMint({ playbackId, tokens: next });
+    });
     return () => controller.abort();
   }, [playbackId, signed]);
+  useEffect(() => {
+    if (!signed || !tokens) return;
+    void import("./social-mux-player-mount");
+  }, [signed, tokens]);
 
   return (
     <div
@@ -139,31 +146,36 @@ export function SocialMuxPlayer({
         <>
           {/* No image.mux.com request before the thumbnail JWT — that 403
               is the Safari broken-image glyph. Empty span until tokens.
-              Then the JWT thumb stays up until loadeddata, same as public. */}
+              Then the JWT thumb paints and decodes before the player mounts,
+              and stays up until loadeddata, same as public. */}
           {socialMuxCoveringPoster(signed, Boolean(tokens)) ? (
             <span data-social-mux-poster="pending" className="absolute inset-0 size-full" />
-          ) : tokens ? (
+          ) : null}
+          {signedPoster && tokens ? (
             <>
-              <MuxPlayer
-                playbackId={playbackId}
-                tokens={{
-                  playback: tokens.playback,
-                  thumbnail: tokens.thumbnail,
-                  storyboard: tokens.storyboard,
-                }}
-                streamType="on-demand"
-                autoPlay={autoPlay}
-                muted={muted}
-                onForcedMute={onForcedMute}
-                preload="metadata"
-                onLoadedData={paint}
-                poster={poster}
-                style={playerStyle(chromeless, fit)}
-              />
+              {socialMuxSignedPlayerReady(Boolean(tokens), posterReady) ? (
+                <MuxPlayer
+                  playbackId={playbackId}
+                  tokens={{
+                    playback: tokens.playback,
+                    thumbnail: tokens.thumbnail,
+                    storyboard: tokens.storyboard,
+                  }}
+                  streamType="on-demand"
+                  autoPlay={autoPlay}
+                  muted={muted}
+                  onForcedMute={onForcedMute}
+                  preload="metadata"
+                  onLoadedData={paint}
+                  poster={signedPoster}
+                  style={playerStyle(chromeless, fit)}
+                />
+              ) : null}
               {painted ? null : (
                 <MuxPoster
-                  src={socialMuxThumbnailUrl(playbackId, tokens.thumbnail)}
+                  src={signedPoster}
                   fit={fit}
+                  onDecoded={() => setPosterReadyId(playbackId)}
                   onReady={releaseHold}
                 />
               )}

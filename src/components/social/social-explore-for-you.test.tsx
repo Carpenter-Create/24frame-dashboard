@@ -147,6 +147,16 @@ describe("SocialExploreForYouStream", () => {
     expect(src).not.toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
     expect(src).toContain("active ?");
     expect(src).toContain("ExploreForYouClosedFace");
+    const warmAt = src.indexOf("loadSocialMuxPlaybackTokens");
+    const slidesAt = src.indexOf("items.map");
+    expect(warmAt).toBeGreaterThan(-1);
+    expect(warmAt).toBeLessThan(slidesAt);
+    const warm = src.slice(warmAt, slidesAt);
+    expect(warm).toContain("items[active]");
+    expect(warm).toContain("items[active + 1]");
+    expect(warm).toContain("socialMuxPlaybackRequiresTokens");
+    expect(warm).toContain("controller.abort()");
+    expect(warm).not.toContain(".map(");
   });
 
   it("keeps comment and share dismiss on the same For You item", () => {
