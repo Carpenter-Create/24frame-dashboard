@@ -123,7 +123,7 @@ describe("social Mux encode locks", () => {
     expect(socialMuxPassthroughBoundToUser(undefined, userId)).toBe(false);
   });
 
-  it("covers a signed feed clip only until the player can mount", () => {
+  it("holds a signed clip empty until the JWT, then covers with that thumb until paint", () => {
     expect(socialMuxCoveringPoster(true, false)).toBe(true);
     expect(socialMuxCoveringPoster(true, true)).toBe(false);
     expect(socialMuxCoveringPoster(false, false)).toBe(false);
@@ -133,10 +133,16 @@ describe("social Mux encode locks", () => {
     expect(signedFace).toContain("socialMuxCoveringPoster(signed, Boolean(tokens))");
     expect(signedFace).toContain('data-social-mux-poster="pending"');
     expect(signedFace).toContain("absolute inset-0 size-full");
-    expect(signedFace).not.toContain("<MuxPoster");
+    expect(signedFace).toContain("<MuxPoster");
+    expect(signedFace).toContain("tokens.thumbnail");
+    expect(signedFace).toContain("painted");
     expect(signedFace).not.toContain("<img");
-    expect(signedFace).not.toContain("painted");
-    expect(signedFace).not.toContain("onReady");
+    const pending = signedFace.slice(0, signedFace.indexOf("<MuxPoster"));
+    expect(pending).toContain('data-social-mux-poster="pending"');
+    expect(pending).not.toContain("socialMuxThumbnailUrl");
+    expect(signedFace).toContain("onLoadedData={paint}");
+    const poster = signedFace.slice(signedFace.indexOf("<MuxPoster"));
+    expect(poster).toContain("socialMuxThumbnailUrl(playbackId, tokens.thumbnail)");
   });
 
   it("mints playback tokens only for signed policy", () => {

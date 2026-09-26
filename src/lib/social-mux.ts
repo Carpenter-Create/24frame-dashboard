@@ -39,11 +39,9 @@ export function socialMuxPlaybackRequiresTokens(
 }
 
 /**
- * Signed playback has no paintable still until the thumbnail JWT exists.
- * The hold is an empty span. An unsigned image.mux.com request 403s and
- * paints the Safari broken-image glyph. Once tokens exist the player
- * mounts and the hold leaves. A covering still on top hides play — iOS
- * often withholds loadeddata until then.
+ * Empty hold before a signed thumbnail JWT exists. An unsigned
+ * image.mux.com request 403s and paints the Safari broken-image glyph.
+ * Once tokens exist, the JWT thumb covers until loadeddata, same as public.
  */
 export function socialMuxCoveringPoster(signed: boolean, hasTokens: boolean): boolean {
   return signed && !hasTokens;

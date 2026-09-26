@@ -137,30 +137,37 @@ export function SocialMuxPlayer({
     >
       {signed ? (
         <>
-          {tokens ? (
-            <MuxPlayer
-              playbackId={playbackId}
-              tokens={{
-                playback: tokens.playback,
-                thumbnail: tokens.thumbnail,
-                storyboard: tokens.storyboard,
-              }}
-              streamType="on-demand"
-              autoPlay={autoPlay}
-              muted={muted}
-              onForcedMute={onForcedMute}
-              preload="metadata"
-              onLoadedData={paint}
-              poster={poster}
-              style={playerStyle(chromeless, fit)}
-            />
-          ) : null}
-          {/* Unsigned image.mux.com thumbs 403 before the JWT and paint the
-              Safari broken-image glyph. Empty hold, same as SocialStoryMuxThumb.
-              The span leaves once the player mounts — a covering still hides
-              play, and iOS often withholds loadeddata until then. */}
+          {/* No image.mux.com request before the thumbnail JWT — that 403
+              is the Safari broken-image glyph. Empty span until tokens.
+              Then the JWT thumb stays up until loadeddata, same as public. */}
           {socialMuxCoveringPoster(signed, Boolean(tokens)) ? (
             <span data-social-mux-poster="pending" className="absolute inset-0 size-full" />
+          ) : tokens ? (
+            <>
+              <MuxPlayer
+                playbackId={playbackId}
+                tokens={{
+                  playback: tokens.playback,
+                  thumbnail: tokens.thumbnail,
+                  storyboard: tokens.storyboard,
+                }}
+                streamType="on-demand"
+                autoPlay={autoPlay}
+                muted={muted}
+                onForcedMute={onForcedMute}
+                preload="metadata"
+                onLoadedData={paint}
+                poster={poster}
+                style={playerStyle(chromeless, fit)}
+              />
+              {painted ? null : (
+                <MuxPoster
+                  src={socialMuxThumbnailUrl(playbackId, tokens.thumbnail)}
+                  fit={fit}
+                  onReady={releaseHold}
+                />
+              )}
+            </>
           ) : null}
         </>
       ) : (

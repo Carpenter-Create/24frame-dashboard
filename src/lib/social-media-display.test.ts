@@ -94,10 +94,12 @@ describe("social media display", () => {
     const signedFace = player.slice(player.indexOf("{signed ? ("), player.indexOf(") : ("));
     expect(signedFace).toContain("onLoadedData={paint}");
     expect(signedFace).toContain('data-social-mux-poster="pending"');
-    expect(signedFace).not.toContain("<MuxPoster");
+    expect(signedFace).toContain("<MuxPoster");
+    expect(signedFace).toContain("socialMuxThumbnailUrl(playbackId, tokens.thumbnail)");
+    expect(signedFace).toContain("painted");
     expect(signedFace).not.toContain("<img");
-    expect(signedFace).not.toContain("onReady");
-    expect(signedFace).not.toContain("releaseHold");
+    const pending = signedFace.slice(0, signedFace.indexOf("<MuxPoster"));
+    expect(pending).not.toContain("socialMuxThumbnailUrl");
     expect(player).not.toContain("<video");
     expect(player).not.toContain("#t=");
   });
