@@ -125,6 +125,8 @@ describe("Social Explore", () => {
     expect(html).toContain(SOCIAL.explore.title);
     expect(html).toContain(SOCIAL.explore.empty);
     expect(html).toContain("data-social-explore-search");
+    expect(html).toContain('name="discover"');
+    expect(html).toContain('value="1"');
     expect(html).toContain("data-social-explore-stream");
     expect(html).toContain(SOCIAL.explore.searchPlaceholder);
     expect(html).toContain("bg-[#0A0A0B]");
@@ -321,5 +323,15 @@ describe("Social Explore", () => {
     expect(html).toContain(SOCIAL.explore.hashtags);
     expect(html).not.toContain("data-social-explore-grid");
     expect(html).not.toContain("data-social-suggested-people");
+    expect(html).not.toContain('name="discover"');
+  });
+
+  it("does not open the chooser once person, tag, or q already loads a stream", async () => {
+    for (const sp of [{ q: "ada" }, { tag: "night" }, { person: "ada" }] as const) {
+      const html = await renderServerMarkup(await SocialExplorePage({ searchParams: Promise.resolve(sp) }));
+      expect(html).toContain("data-social-explore-stream");
+      expect(html).not.toContain("data-social-explore-discover");
+      expect(html).not.toContain('name="discover"');
+    }
   });
 });

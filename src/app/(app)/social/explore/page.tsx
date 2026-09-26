@@ -70,7 +70,10 @@ export default async function SocialExplorePage({
           defaultValue={query.q}
           placeholder={SOCIAL.explore.searchPlaceholder}
         />
-        <input type="hidden" name="discover" value="1" />
+        {/* Quiet For You opens the chooser. A resolved person, tag, or q stays on that stream. */}
+        {query.person || query.tag || query.q ? null : (
+          <input type="hidden" name="discover" value="1" />
+        )}
       </form>
       <Suspense fallback={<SocialExploreForYouSkeleton />}>
         <SocialExploreForYouBody session={session} query={query} />

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  houseApplyCachedChild,
   houseHrefKey,
   houseNavHop,
   houseScreenKey,
@@ -138,6 +139,102 @@ describe("soft-nav Explore query hops", () => {
     const pending = readFileSync("src/components/chrome/use-house-nav-pending.ts", "utf8");
     expect(pending).toContain("house?.href ?? pathname");
     expect(pending).toContain("houseNavPendingSettled(location, pendingHref)");
+  });
+
+  it("does not paint stale default For You under a tag filter or its clear", () => {
+    expect(houseScreenQueryNames(SOCIAL_ROUTES.explore)).toEqual(["q", "tag", "person", "discover"]);
+    const base = houseScreenKey(SOCIAL_ROUTES.explore);
+    const tag = houseHrefKey("/social/explore?tag=night");
+    const cleared = houseHrefKey(SOCIAL_ROUTES.explore);
+    expect(cleared).toBe(base);
+    expect(tag).toBe("/social/explore?tag=night");
+    expect(tag).not.toBe(base);
+    expect(houseShouldClientNavigate(tag, [base])).toBe(false);
+    expect(houseShouldClientNavigate(cleared, [tag])).toBe(false);
+    expect(houseNavPendingSettled(base, tag)).toBe(false);
+    expect(houseNavPendingSettled(tag, base)).toBe(false);
+    expect(
+      houseNavHop({
+        cached: houseShouldClientNavigate(tag, [base]),
+        ownedIsDest: false,
+        nextIsDest: false,
+        sameScreen: houseHrefKey(base) === tag,
+      }),
+    ).toBe("next");
+    expect(
+      houseNavHop({
+        cached: houseShouldClientNavigate(cleared, [tag]),
+        ownedIsDest: false,
+        nextIsDest: false,
+        sameScreen: tag === cleared,
+      }),
+    ).toBe("next");
+
+    const forYou = { screen: "for-you" };
+    const booted = houseApplyCachedChild({
+      seen: null,
+      nextKey: base,
+      activeKey: base,
+      nextPath: base,
+      child: forYou,
+      fallback: false,
+      nodes: {},
+      order: [],
+    });
+    const settled = houseApplyCachedChild({
+      seen: booted.seen,
+      nextKey: base,
+      activeKey: base,
+      nextPath: base,
+      child: forYou,
+      fallback: false,
+      nodes: booted.nodes,
+      order: booted.order,
+    });
+    const underTag = houseApplyCachedChild({
+      seen: settled.seen,
+      nextKey: tag,
+      activeKey: tag,
+      nextPath: base,
+      child: forYou,
+      fallback: false,
+      nodes: settled.nodes,
+      order: settled.order,
+    });
+    expect(underTag.childrenStale).toBe(true);
+    expect(underTag.nodes[tag]).toBeUndefined();
+    expect(underTag.nodes[base]).toBe(forYou);
+    expect(underTag.displayKey).not.toBe(tag);
+
+    const staleClear = houseApplyCachedChild({
+      seen: underTag.seen,
+      nextKey: cleared,
+      activeKey: cleared,
+      nextPath: base,
+      child: forYou,
+      fallback: false,
+      nodes: underTag.nodes,
+      order: underTag.order,
+    });
+    expect(staleClear.nodes[tag]).toBeUndefined();
+    expect(staleClear.displayKey).not.toBe(tag);
+
+    const freshForYou = { screen: "for-you" };
+    const clear = houseApplyCachedChild({
+      seen: underTag.seen,
+      nextKey: cleared,
+      activeKey: cleared,
+      nextPath: base,
+      child: freshForYou,
+      fallback: false,
+      nodes: underTag.nodes,
+      order: underTag.order,
+    });
+    expect(clear.childrenStale).toBe(false);
+    expect(clear.nodes[tag]).toBeUndefined();
+    expect(clear.nodes[cleared]).toBe(freshForYou);
+    expect(clear.displayKey).toBe(cleared);
+    expect(clear.displayKey).not.toBe(tag);
   });
 });
 

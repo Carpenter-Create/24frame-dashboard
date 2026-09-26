@@ -47,6 +47,8 @@ describe("SocialExploreForYouStream", () => {
       createElement(SocialExploreForYouStream, { items: [item], emptyLabel: null }),
     );
     const src = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    const likeButton = src.slice(src.indexOf("<SocialLikeButton"), src.indexOf("<SocialCommentTrigger"));
+    expect(likeButton).toContain('tone="stage"');
     expect(html).toContain("data-social-explore-stream");
     expect(html).toContain(SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS);
     expect(SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS).toContain("snap-y");
