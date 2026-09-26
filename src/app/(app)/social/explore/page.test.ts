@@ -162,12 +162,15 @@ describe("Social Explore", () => {
     expect(shell).toContain("phoneDestDock && !exploreStage");
     expect(shell).toContain("SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS");
     expect(shell).toContain("storyOpenStage || dmImmersiveStage || writeComposeStage || exploreStage");
-    expect(shell).toContain("SOCIAL_EXPLORE_RAIL_FLOAT_CLASS");
+    expect(shell).toContain("hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage");
+    expect(shell).not.toContain("SOCIAL_EXPLORE_RAIL_FLOAT_CLASS");
     const frameClass = chrome.slice(chrome.indexOf("export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS"));
     expect(frameClass.startsWith("export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS")).toBe(true);
-    expect(frameClass.slice(0, frameClass.indexOf("export const SOCIAL_EXPLORE_RAIL_FLOAT_CLASS"))).toContain(
-      "fixed inset-0",
-    );
+    const frameBody = frameClass.slice(0, frameClass.indexOf("export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS"));
+    expect(frameBody).toContain("fixed inset-0");
+    for (const card of ["rounded-", "border", "bg-surface", "shadow-", "max-w-"]) {
+      expect(frameBody).not.toContain(card);
+    }
     expect(host).toContain("social-explore-stage-media");
     expect(src).toContain('export const runtime = "nodejs"');
     expect(src).toContain("loadExploreMedia");

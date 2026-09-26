@@ -39,7 +39,6 @@ import { isSettingsPath, SETTINGS_RAIL_PAD_CLASS } from "@/lib/settings";
 import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS,
-  SOCIAL_EXPLORE_RAIL_FLOAT_CLASS,
   SOCIAL_RAIL_PANEL_CLASS,
   SOCIAL_WRITE_COMPOSE_FRAME_CLASS,
 } from "@/lib/social-chrome";
@@ -201,10 +200,10 @@ export function AppShell({
   // Write compose owns the face on phone and desktop. Chrome returns on dismiss.
   const writeComposeStage = isSocialWriteComposePath(pathname);
   // Explore For You: the media is the canvas. The Social header is out.
-  // The phone dock overlays the stage. The dest rail overlays on desktop
-  // without a header offset, so the page well is not a white frame.
+  // The surface dest-rail is a pasted card, so it is out too. The phone
+  // dock overlays the stage. Media Immersion: not a card on a page.
   const exploreStage = isSocialExplorePath(pathname);
-  const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage;
+  const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage;
   const socialChrome = workspace === "social" && !settingsPage && !hideProductRail;
   const homeOwned = isHomeOwnedPath(pathname);
   const coProductions = isCoProductionsPath(pathname);
@@ -267,7 +266,7 @@ export function AppShell({
       {hideDestRail ? null : (
         <aside
           className={cn(
-            exploreStage ? SOCIAL_EXPLORE_RAIL_FLOAT_CLASS : HOUSE_RAIL_FLOAT_CLASS,
+            HOUSE_RAIL_FLOAT_CLASS,
             RAIL_WIDTH_CLASS,
             socialChrome ? SOCIAL_RAIL_PANEL_CLASS : HOUSE_RAIL_PANEL_CLASS,
           )}

@@ -461,16 +461,12 @@ export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-w
 // SOCIAL_STORY_STAGE_CLASS, fixed to the viewport, without z-50: the
 // phone dock (z-40) and sheets (z-50) overlay it. No z-index here, so
 // those overlays are not trapped under the stage. #0A0A0B has no house
-// token. The Social header is not on this route.
+// token. Not a rounded card, not a paper well. The Social header and
+// the surface dest-rail card are not on this route.
+// Media Immersion Doctrine: soft / flat / pasted / framed card = FAIL.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
 export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
   "fixed inset-0 overflow-hidden bg-[#0A0A0B]";
-
-// Dest rail when the Social header is suppressed. Same float as
-// HOUSE_RAIL_FLOAT_CLASS, pinned to the chrome gutter instead of under
-// a header that is not painted.
-export const SOCIAL_EXPLORE_RAIL_FLOAT_CLASS =
-  "fixed left-[var(--chrome-gutter)] top-[var(--chrome-gutter)] z-30 hidden h-[calc(100dvh-calc(var(--chrome-gutter)*2))] flex-col md:flex";
 
 export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS =
   "absolute inset-0 overflow-hidden bg-[#0A0A0B] text-band-ink";

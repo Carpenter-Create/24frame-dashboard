@@ -5,7 +5,7 @@
 **Repo:** `docs/design-locks/social-explore-for-you-immersive-lock-v2.md`  
 **Box:** `/workspace/24frame-agg-ux/social-explore-for-you-immersive-lock-v2.md`  
 **Supersedes:** `social-explore-discovery-lock-v1.md` (IG grid) · **#693 DRAFT wrong shape** — do not invent on grid; ship from this v2  
-**Standing:** Immersive Social · Media Immersion Doctrine · launch-great · rich-calm v1.4 · quiet redundant-chrome · spacing **8 / 16 / 24 / 48** · **no** drop shadows · Geist · Sporty Blue `#1769FF` · mobile never-truncate  
+**Standing:** Immersive Social · **Media Immersion Doctrine** (Adam, house-wide) — media immersion only, never a thin or cheap card on a website page · soft / flat / pasted / framed card = **FAIL before glance** · launch-great · rich-calm v1.4 · quiet redundant-chrome · spacing **8 / 16 / 24 / 48** · **no** drop shadows · Geist · Sporty Blue `#1769FF` · mobile never-truncate  
 **Scope:** `/social` **Explore** only  
 **Cites:** `social-video-mux-only-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` (40/24/gap-8) · `social-post-share-sheet-ig-lock-v1.md` · photo-scale immersive stage tokens (dark stage / scrim) for chrome grammar only — **not** Home feed post face navigation
 
@@ -27,7 +27,7 @@
 | Swipe | Vertical snap · one item per viewport · next/prev For You |
 | Video | Mux-only play surface · autoplay when active · pause when off-screen · cite Mux-only |
 | Media kinds | **Video only** in For You / discovery streams · **photos OUT** of vertical Explore feed |
-| Social shell | **Social header OUT** on For You · tab dock may overlay the bottom of the media · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
+| Social shell | **Social header OUT** on For You · **surface dest-rail card OUT** (it is a pasted card on the canvas) · tab dock may overlay the bottom of the media · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
 | Fail | Soft grid of thumbs · FB mosaic · dumping user onto Home post unit · photo tiles in For You |
 
 **FAIL:** IG Explore grid as primary (#693 / v1) · photos in vertical Explore.  
@@ -86,6 +86,8 @@
 | Persistent search slab | Discover chrome overlays the media |
 | Social header on For You | Header is house chrome · For You suppresses it |
 | White page well | The page canvas is the media, not paper around a card |
+| Surface dest-rail card on For You | A rounded surface card on the video is a website card · Media Immersion FAIL |
+| Soft / flat / pasted / framed card | Media Immersion Doctrine · FAIL before glance |
 | Design PR | CoS seeds · Dev ships after CLEAR |
 
 ---
@@ -98,7 +100,7 @@
 4. Mux-only video · Media Immersion cover stage.  
 5. Vertical Explore = **video-only** · photos OUT (§D).  
 6. v1 grid / #693 superseded.  
-7. Media is the canvas. Social header is out on For You. Search overlays the media. Tab dock may overlay the bottom. No framed letterbox. No white page well.
+7. Media is the canvas. Social header is out on For You. The surface dest-rail card is out. Search overlays the media. Tab dock may overlay the bottom. No framed letterbox. No white page well. Soft / flat / pasted / framed card fails before glance.
 
 ---
 

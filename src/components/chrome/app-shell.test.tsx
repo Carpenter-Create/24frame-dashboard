@@ -611,7 +611,7 @@ describe("AppShell /activity account chrome", () => {
     expect(shellSrc).toContain("isAccountChromeNoRailPath");
     expect(shellSrc).toContain("homeChrome || accountChromeNoRail");
     expect(shellSrc).toContain(
-      "const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage",
+      "const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage",
     );
     expect(shellSrc).toContain("{hideDestRail ? null : (");
     expect(shellSrc).toContain("settingsPage ? (");
@@ -1241,17 +1241,23 @@ describe("AppShell rail-collapse chevron", () => {
     expect(group).toContain("data-app-rail");
   });
 
-  it("suppresses the Social header on For You and keeps the dock over the stage", () => {
+  it("keeps For You as full-bleed media, not a card on the page", () => {
     navigation.pathname = "/social/explore";
     const html = renderShell();
     expect(html).toContain('data-social-explore-stage=""');
     expect(html).not.toContain("data-house-lead-chrome");
     expect(html).not.toContain("data-social-header-search");
+    expect(html).not.toContain("data-app-rail");
+    expect(html).not.toContain("data-social-rail");
+    expect(html).toContain("--sidebar-width:0px");
     expect(html).toContain("data-house-phone-bottom-nav");
     expect(html).toContain("fixed inset-0 overflow-hidden bg-[#0A0A0B]");
-    expect(html).toContain("data-app-rail");
-    expect(html).toContain("top-[var(--chrome-gutter)]");
-    expect(html).not.toContain("top-[calc(var(--header-height)+var(--chrome-gutter))]");
+    const stage = html.slice(html.indexOf("data-social-explore-stage"), html.indexOf("data-house-phone-bottom-nav"));
+    expect(stage).not.toContain("rounded-");
+    expect(stage).not.toContain("border-hairline");
+    expect(stage).not.toContain("bg-surface");
+    expect(stage).not.toContain("shadow-");
+    expect(stage).not.toContain("max-w-");
   });
 
   it("hides the Social shell on an open story", () => {
