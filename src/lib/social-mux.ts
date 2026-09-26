@@ -39,9 +39,11 @@ export function socialMuxPlaybackRequiresTokens(
 }
 
 /**
- * A covering still is only the signed hold before a playback JWT exists.
- * Once tokens are in hand the player mounts with its own poster and controls.
- * Leaving the still up hides play — iOS often withholds loadeddata until then.
+ * Signed playback has no paintable still until the thumbnail JWT exists.
+ * The hold is an empty span. An unsigned image.mux.com request 403s and
+ * paints the Safari broken-image glyph. Once tokens exist the player
+ * mounts and the hold leaves. A covering still on top hides play — iOS
+ * often withholds loadeddata until then.
  */
 export function socialMuxCoveringPoster(signed: boolean, hasTokens: boolean): boolean {
   return signed && !hasTokens;

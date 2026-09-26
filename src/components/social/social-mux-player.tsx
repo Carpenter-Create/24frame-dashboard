@@ -155,9 +155,13 @@ export function SocialMuxPlayer({
               style={playerStyle(chromeless, fit)}
             />
           ) : null}
-          {/* Unsigned signed thumbs 403 before the JWT. That error must not
-              clear the open hold. The still leaves once the player mounts. */}
-          {socialMuxCoveringPoster(signed, Boolean(tokens)) ? <MuxPoster src={poster} fit={fit} /> : null}
+          {/* Unsigned image.mux.com thumbs 403 before the JWT and paint the
+              Safari broken-image glyph. Empty hold, same as SocialStoryMuxThumb.
+              The span leaves once the player mounts — a covering still hides
+              play, and iOS often withholds loadeddata until then. */}
+          {socialMuxCoveringPoster(signed, Boolean(tokens)) ? (
+            <span data-social-mux-poster="pending" className="absolute inset-0 size-full" />
+          ) : null}
         </>
       ) : (
         <>

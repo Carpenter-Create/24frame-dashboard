@@ -131,7 +131,10 @@ describe("social Mux encode locks", () => {
     const player = readFileSync("src/components/social/social-mux-player.tsx", "utf8");
     const signedFace = player.slice(player.indexOf("{signed ? ("), player.indexOf(") : ("));
     expect(signedFace).toContain("socialMuxCoveringPoster(signed, Boolean(tokens))");
-    expect(signedFace).toContain("<MuxPoster");
+    expect(signedFace).toContain('data-social-mux-poster="pending"');
+    expect(signedFace).toContain("absolute inset-0 size-full");
+    expect(signedFace).not.toContain("<MuxPoster");
+    expect(signedFace).not.toContain("<img");
     expect(signedFace).not.toContain("painted");
     expect(signedFace).not.toContain("onReady");
   });

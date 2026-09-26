@@ -137,8 +137,9 @@ describe("SocialStoryViewer", () => {
     );
     expect(mux).toContain('data-social-mux-player="uNbxnGLKJ00yfbijDO8COxT"');
     expect(mux).toContain('data-social-mux-playback="pending"');
-    expect(mux).toContain('data-social-mux-poster=""');
-    expect(mux).toContain("https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp");
+    expect(mux).toContain('data-social-mux-poster="pending"');
+    expect(mux).not.toContain('data-social-mux-poster=""');
+    expect(mux).not.toContain("https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp");
     expect(mux).not.toContain("<video");
     expect(mux).toContain("data-social-story-mute");
   });
