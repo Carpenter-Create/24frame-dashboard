@@ -33,6 +33,17 @@ describe("house nav pending", () => {
     expect(houseNavPendingSettled("/education/slug", "/education")).toBe(true);
   });
 
+  it("settles an Explore filter only when that query slot is the live location", () => {
+    expect(houseNavPendingSettled("/social/explore?q=ada", "/social/explore?q=ada")).toBe(true);
+    expect(houseNavPendingSettled("/social/explore?discover=1&q=ada", "/social/explore?q=ada&discover=1")).toBe(true);
+    expect(houseNavPendingSettled("/social/explore?tag=night", "/social/explore?tag=night")).toBe(true);
+    expect(houseNavPendingSettled("/social/explore?person=ada", "/social/explore?person=ada")).toBe(true);
+    expect(houseNavPendingSettled("/social/explore", "/social/explore?q=ada")).toBe(false);
+    expect(houseNavPendingSettled("/social/explore?q=ada", "/social/explore")).toBe(false);
+    expect(houseNavPendingSettled("/social/explore?tag=night", "/social/explore?q=ada")).toBe(false);
+    expect(houseNavPendingSettled("/social/explore?person=ada", "/social/explore?discover=1&q=ada")).toBe(false);
+  });
+
   it("ignores modified and non-primary clicks", () => {
     const idle = { altKey: false, button: 0, ctrlKey: false, metaKey: false, shiftKey: false };
     expect(houseNavIgnorePendingClick(idle)).toBe(false);

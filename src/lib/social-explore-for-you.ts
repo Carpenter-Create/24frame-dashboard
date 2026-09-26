@@ -40,7 +40,7 @@ export type ExploreForYouQuery = {
   discover: boolean;
 };
 
-export type ExploreForYouMode = "for-you" | "keyword" | "hashtag" | "person";
+export type ExploreForYouMode = "for-you" | "keyword" | "hashtag" | "person" | "discover";
 
 function firstParam(raw: string | string[] | undefined): string {
   return (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? "";
@@ -102,8 +102,11 @@ export function parseExploreForYouSearch(
   };
 }
 
+// discover=1 with a query is the chooser (lock C). It does not start For You.
+// Selecting people, a keyword, or a hashtag drops discover and opens that
+// vertical video stream. Clear is /social/explore.
 export function exploreForYouStreamMode(query: ExploreForYouQuery): ExploreForYouMode {
-  if (query.discover) return "for-you";
+  if (query.discover && query.q) return "discover";
   if (query.person) return "person";
   if (query.tag) return "hashtag";
   if (query.q) return "keyword";

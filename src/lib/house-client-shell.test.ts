@@ -573,6 +573,28 @@ describe("Social rail cache flips", () => {
     expect(houseBlankOutlet(during.displayKey, during.showIngress, "/home", "/home")).toBe("none");
   });
 
+  it("does not store the default For You tree under an Explore query slot", () => {
+    const base = SOCIAL_ROUTES.explore;
+    const keyword = "/social/explore?q=ada";
+    const forYou = railTree(base);
+    const booted = cacheStep(null, base, forYou, {}, []);
+    const settled = cacheStep(booted.seen, base, forYou, booted.nodes, booted.order);
+    const flip = houseApplyCachedChild({
+      seen: settled.seen,
+      nextKey: keyword,
+      activeKey: keyword,
+      nextPath: base,
+      child: forYou,
+      fallback: false,
+      nodes: settled.nodes,
+      order: settled.order,
+    });
+    expect(flip.childrenStale).toBe(true);
+    expect(flip.nodes[keyword]).toBeUndefined();
+    expect(flip.nodes[base]).toBe(forYou);
+    expect(flip.displayKey).not.toBe(keyword);
+  });
+
   it("paints Home when the live tree arrives with the URL and the slot was empty", () => {
     const explore = railTree(SOCIAL_ROUTES.explore);
     const home = railTree(SOCIAL_ROUTES.home);

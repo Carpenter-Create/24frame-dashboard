@@ -30,7 +30,7 @@ import {
   SOCIAL_FOLLOW_COMPACT_IDLE_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
-  SOCIAL_STORY_HEART_LIKED_CLASS,
+  SOCIAL_POST_ACTION_LIKED_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import {
@@ -301,7 +301,7 @@ export function SocialLikeButton({
                 SOCIAL_POST_ACTION_HIT_CLASS,
                 tone === "stage"
                   ? view.liked
-                    ? SOCIAL_STORY_HEART_LIKED_CLASS
+                    ? SOCIAL_POST_ACTION_LIKED_CLASS
                     : "text-band-ink"
                   : view.liked && "text-accent",
               )

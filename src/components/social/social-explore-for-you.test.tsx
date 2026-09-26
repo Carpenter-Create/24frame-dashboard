@@ -9,6 +9,7 @@ import {
   SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS,
   SOCIAL_POST_ACTION_GLYPH,
   SOCIAL_POST_ACTION_HIT_CLASS,
+  SOCIAL_POST_ACTION_LIKED_CLASS,
 } from "@/lib/social-chrome";
 import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 
@@ -73,6 +74,14 @@ describe("SocialExploreForYouStream", () => {
     expect(html).toContain('width="24"');
     expect(SOCIAL_POST_ACTION_GLYPH).toBe(24);
     expect(html).toContain("data-social-like");
+    expect(html).toContain(SOCIAL_POST_ACTION_LIKED_CLASS);
+    expect(SOCIAL_POST_ACTION_LIKED_CLASS).toBe("text-[#1769FF]");
+    const like = readFileSync("src/components/social/social-engagement.tsx", "utf8");
+    const alignLock = readFileSync("docs/design-locks/social-home-post-actions-align-lock-v1.md", "utf8");
+    expect(like).toContain("SOCIAL_POST_ACTION_LIKED_CLASS");
+    expect(alignLock).toContain("#1769FF");
+    expect(src).not.toContain("text-accent");
+    expect(src).not.toContain("#70b5f9");
     expect(html).toContain("data-social-comment-open");
     expect(html).toContain("data-social-post-share");
     expect(html.indexOf("data-social-like")).toBeLessThan(html.indexOf("data-social-comment-open"));
@@ -85,5 +94,62 @@ describe("SocialExploreForYouStream", () => {
     expect(src).toContain("SocialCommentTrigger");
     expect(src).toContain('fit="cover"');
     expect(src).not.toContain("socialPostHref");
+  });
+
+  it("mounts the Mux player on the active slide only", () => {
+    const next = {
+      ...item,
+      postId: "v2",
+      playbackId: "SecondMuxPlaybackId1",
+      playbackPolicy: "signed" as const,
+      body: "Next clip",
+      liked: false,
+    };
+    const html = renderToStaticMarkup(
+      createElement(SocialExploreForYouStream, { items: [item, next], emptyLabel: null }),
+    );
+    const src = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    expect(html).toContain('data-mux-player-stub="uNbxnGLKJ00yfbijDO8COxT"');
+    expect(html).not.toContain('data-mux-player-stub="SecondMuxPlaybackId1"');
+    expect(html).toContain("data-social-explore-closed");
+    expect(html).not.toContain("image.mux.com/SecondMuxPlaybackId1");
+    expect(src).not.toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
+    expect(src).toContain("active ?");
+    expect(src).toContain("ExploreForYouClosedFace");
+  });
+
+  it("keeps comment and share dismiss on the same For You item", () => {
+    const next = {
+      ...item,
+      postId: "v2",
+      playbackId: "SecondMuxPlaybackId1",
+      body: "Next clip",
+      liked: false,
+    };
+    const html = renderToStaticMarkup(
+      createElement(SocialExploreForYouStream, { items: [item, next], emptyLabel: null }),
+    );
+    const first = html.slice(
+      html.indexOf('data-social-explore-item="v1"'),
+      html.indexOf('data-social-explore-item="v2"'),
+    );
+    const second = html.slice(html.indexOf('data-social-explore-item="v2"'));
+    expect(first).toContain('data-explore-index="0"');
+    expect(first).toContain("data-social-explore-active");
+    expect(first).toContain('data-social-explore-active-index="0"');
+    expect(second).toContain('data-explore-index="1"');
+    expect(second).not.toContain("data-social-explore-active");
+    expect(html).not.toContain("data-social-comment-thread");
+    expect(html).not.toContain("data-social-post-share-sheet");
+    expect(html).not.toContain("/social/p/");
+    const explore = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    const comment = readFileSync("src/components/social/social-comment-thread.tsx", "utf8");
+    const share = readFileSync("src/components/social/social-post-share-sheet.tsx", "utf8");
+    expect(explore).not.toContain("useRouter");
+    expect(explore).not.toContain("router.push");
+    expect(comment).toContain("onClose={() => setOpen(false)}");
+    expect(share).toContain("onClose={() => setOpen(false)}");
+    expect(comment).not.toContain("router.push");
+    expect(share).not.toContain("router.push");
   });
 });

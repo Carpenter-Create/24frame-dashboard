@@ -106,8 +106,10 @@ describe("Explore For You video stream", () => {
       person: "",
     });
     expect(exploreForYouStreamMode(parseExploreForYouSearch({ discover: "1", q: "night" }))).toBe(
-      "for-you",
+      "discover",
     );
+    expect(exploreForYouStreamMode(parseExploreForYouSearch({ discover: "1" }))).toBe("for-you");
+    expect(exploreForYouHref({ q: "night" })).not.toContain("discover");
     expect(exploreForYouStreamMode(parseExploreForYouSearch({ q: "night" }))).toBe("keyword");
     expect(exploreForYouStreamMode(parseExploreForYouSearch({ tag: "#night" }))).toBe("hashtag");
     expect(exploreForYouStreamMode(parseExploreForYouSearch({ person: "ada" }))).toBe("person");

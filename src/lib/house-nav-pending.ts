@@ -1,3 +1,4 @@
+import { houseScreenKey, houseScreenQueryNames, parseHouseHref } from "@/lib/house-client-shell";
 import { OVERVIEW_HREF } from "@/lib/overview";
 import { SOCIAL_ROUTES } from "@/lib/social";
 
@@ -24,11 +25,35 @@ export function houseNavActivePath(pathname: string, pendingHref: string | null)
 /** Lands that must match exactly — a child dest is a different hop. */
 const HOUSE_NAV_EXACT_PENDING = new Set<string>([SOCIAL_ROUTES.home, OVERVIEW_HREF]);
 
-export function houseNavPendingSettled(pathname: string, pendingHref: string): boolean {
+function locationPath(location: string): string {
+  const path = parseHouseHref(location).pathname;
+  return path.endsWith("/") && path !== "/" ? path.slice(0, -1) : path || "/";
+}
+
+function slotKey(pathname: string, search: string): string | null {
+  const names = houseScreenQueryNames(pathname);
+  if (names.length === 0) return null;
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  if (!names.some((name) => (params.get(name)?.trim() ?? "") !== "")) return null;
+  return houseScreenKey(pathname, search);
+}
+
+export function houseNavPendingSettled(location: string, pendingHref: string): boolean {
   if (HOUSE_NAV_EXACT_PENDING.has(pendingHref)) {
-    return pathname === pendingHref;
+    return locationPath(location) === pendingHref;
   }
-  return pathname === pendingHref || pathname.startsWith(`${pendingHref}/`);
+  const pending = parseHouseHref(pendingHref);
+  const live = parseHouseHref(location);
+  const pendingSlot = slotKey(pending.pathname, pending.search);
+  const liveSlot = slotKey(live.pathname, live.search);
+  // A filtered Explore hop is its own slot. Matching the bare pathname
+  // would clear pending while keep-alive still shows the other tree.
+  if (pendingSlot !== null || liveSlot !== null) {
+    return pendingSlot === liveSlot && locationPath(live.pathname) === locationPath(pending.pathname);
+  }
+  const path = locationPath(location);
+  const pendingPath = locationPath(pending.pathname);
+  return path === pendingPath || path.startsWith(`${pendingPath}/`);
 }
 
 export function prefetchHrefList(

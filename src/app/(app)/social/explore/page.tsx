@@ -89,7 +89,10 @@ async function SocialExploreForYouBody({
   const profile = await ensureOwnSocialProfile(session.supabase, session.ctx.user);
   const viewer = { topics: profile?.topics ?? [], crafts: profile?.crafts ?? [] };
   const mode = exploreForYouStreamMode(query);
-  const loaded = await loadExploreForYouPage(session, query, mode, viewer);
+  const discovering = mode === "discover";
+  const loaded = discovering
+    ? { page: { hits: [], truncated: false }, author: null }
+    : await loadExploreForYouPage(session, query, mode, viewer);
   const mediaByPost = socialMediaProxiesByPostId(
     loaded.page.hits.map((hit) => ({ id: hit.id, author_id: hit.authorId, media: hit.media })),
   );
@@ -102,7 +105,7 @@ async function SocialExploreForYouBody({
       session.ctx.user.id,
       videoHits.map((hit) => hit.id),
     ),
-    query.discover && query.q
+    discovering && query.q
       ? loadPeopleSearch(session.supabase, query.q, viewer)
       : Promise.resolve({ people: [] as SocialSuggestedPerson[], truncated: false }),
   ]);
@@ -125,7 +128,7 @@ async function SocialExploreForYouBody({
 
   return (
     <>
-      <SocialExploreForYouStream items={items} emptyLabel={emptyLabel} />
+      {discovering ? null : <SocialExploreForYouStream items={items} emptyLabel={emptyLabel} />}
       <div className={SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS}>
         {loaded.page.truncated ? (
           <p data-social-explore-truncated="" className="t-body-sm text-band-ink break-words">
@@ -140,7 +143,7 @@ async function SocialExploreForYouBody({
             </Link>
           </div>
         ) : null}
-        {query.discover ? (
+        {discovering ? (
           <div data-social-explore-discover="" className="flex flex-col gap-[var(--space-2)]">
             {peoplePage.people.length > 0 ? (
               <div data-social-explore-people="" className="flex flex-col">
@@ -167,16 +170,14 @@ async function SocialExploreForYouBody({
                 ))}
               </div>
             ) : null}
-            {query.q ? (
-              <Link
-                href={exploreForYouHref({ q: query.q })}
-                data-social-explore-keyword=""
-                className="flex flex-col break-words text-band-ink"
-              >
-                <span className="t-body-sm">{SOCIAL.explore.keywords}</span>
-                <span className="t-body">{query.q}</span>
-              </Link>
-            ) : null}
+            <Link
+              href={exploreForYouHref({ q: query.q })}
+              data-social-explore-keyword=""
+              className="flex flex-col break-words text-band-ink"
+            >
+              <span className="t-body-sm">{SOCIAL.explore.keywords}</span>
+              <span className="t-body">{query.q}</span>
+            </Link>
             {hashtag ? (
               <Link
                 href={exploreForYouHref({ tag: hashtag })}
@@ -187,6 +188,9 @@ async function SocialExploreForYouBody({
                 <span className="t-body">{`#${hashtag}`}</span>
               </Link>
             ) : null}
+            <Link href={SOCIAL_ROUTES.explore} data-social-explore-clear="" className="self-start t-body text-band-ink">
+              {SOCIAL.explore.clear}
+            </Link>
           </div>
         ) : null}
       </div>
@@ -203,6 +207,7 @@ async function loadExploreForYouPage(
   page: SocialExplorePage;
   author: { id: string; handle: string; display_name: string } | null;
 }> {
+  if (mode === "discover") return { page: { hits: [], truncated: false }, author: null };
   if (mode === "person") {
     const author = await loadExploreProfileByHandle(session.supabase, query.person);
     if (!author) return { page: { hits: [], truncated: false }, author: null };

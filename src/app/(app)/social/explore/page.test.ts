@@ -306,11 +306,16 @@ describe("Social Explore", () => {
       await SocialExplorePage({ searchParams: Promise.resolve({ discover: "1", q: "ada" }) }),
     );
     expect(html).toContain("data-social-explore-discover");
+    expect(html).not.toContain("data-social-explore-stream");
+    expect(html).not.toContain(SOCIAL.explore.empty);
+    expect(html).not.toContain("data-mux-player");
     expect(html).toContain("data-social-explore-person=\"ada\"");
-    expect(html).toContain("person=ada");
+    expect(html).toContain('href="/social/explore?person=ada"');
     expect(html).toContain("data-social-explore-keyword");
+    expect(html).toContain('href="/social/explore?q=ada"');
     expect(html).toContain("data-social-explore-hashtag");
-    expect(html).toContain("tag=ada");
+    expect(html).toContain('href="/social/explore?tag=ada"');
+    expect(html).toContain('href="/social/explore"');
     expect(html).toContain(SOCIAL.explore.people);
     expect(html).toContain(SOCIAL.explore.keywords);
     expect(html).toContain(SOCIAL.explore.hashtags);

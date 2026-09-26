@@ -393,6 +393,11 @@ export const SOCIAL_POST_ACTION_HIT_CLASS =
 
 export const SOCIAL_POST_ACTION_HEART_NUDGE_CLASS = "translate-y-px";
 
+// Liked heart on a dark stage. Sporty Blue from the post-actions lock.
+// Dark-mode --accent is the soft flip, not this control.
+// docs/design-locks/social-home-post-actions-align-lock-v1.md
+export const SOCIAL_POST_ACTION_LIKED_CLASS = "text-[#1769FF]";
+
 // Phone only. Under the Home Stories rail, same hairline as the feed.
 // The host is already bled, so the rule meets the viewport.
 // Desktop stays without it.

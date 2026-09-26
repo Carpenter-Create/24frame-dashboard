@@ -11,6 +11,7 @@ import { SocialPostShareButton } from "@/components/social/social-post-share-she
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { cn } from "@/lib/cn";
 import { SOCIAL, socialMemberHref, socialPersonIdentity } from "@/lib/social";
+import { socialMuxPlaybackRequiresTokens, socialMuxThumbnailUrl, type SocialMuxPlaybackPolicy } from "@/lib/social-mux";
 import {
   SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS,
@@ -29,6 +30,10 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 // gesture. Unmuted play() is NotAllowedError there; the quiet mount drops
 // it, so the clip stays paused and the first tap only flips `held`.
 // Muted play() is allowed, so the active item starts and tap pauses it.
+// Only the active slide mounts SocialMuxPlayer. Off-screen slides stay a
+// poster or closed face, so a signed window does not mint every playback.
+// Comment and Share close in place. Dismiss does not move the active index
+// and does not leave Explore.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
 
 export function SocialExploreForYouStream({
@@ -123,17 +128,22 @@ function SocialExploreForYouSlide({
       data-social-explore-item={item.postId}
       data-explore-index={index}
       data-social-explore-active={active ? "" : undefined}
+      data-social-explore-active-index={active ? index : undefined}
       className={SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS}
     >
-      <SocialMuxPlayer
-        playbackId={item.playbackId}
-        playbackPolicy={item.playbackPolicy}
-        fit="cover"
-        chromeless
-        autoPlay={playing}
-        muted
-        className="absolute inset-0 size-full bg-[#0A0A0B] object-cover"
-      />
+      {active ? (
+        <SocialMuxPlayer
+          playbackId={item.playbackId}
+          playbackPolicy={item.playbackPolicy}
+          fit="cover"
+          chromeless
+          autoPlay={playing}
+          muted
+          className="absolute inset-0 size-full bg-[#0A0A0B] object-cover"
+        />
+      ) : (
+        <ExploreForYouClosedFace playbackId={item.playbackId} playbackPolicy={item.playbackPolicy} />
+      )}
       <button
         type="button"
         data-social-explore-media=""
@@ -189,5 +199,28 @@ function SocialExploreForYouSlide({
         <SocialPostShareButton postId={item.postId} tone="stage" />
       </div>
     </article>
+  );
+}
+
+function ExploreForYouClosedFace({
+  playbackId,
+  playbackPolicy,
+}: {
+  playbackId: string;
+  playbackPolicy?: SocialMuxPlaybackPolicy;
+}) {
+  const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
+  return (
+    <div data-social-explore-closed="" className="absolute inset-0 size-full bg-[#0A0A0B]">
+      {signed ? null : (
+        // eslint-disable-next-line @next/next/no-img-element -- public Mux still, no playback mint
+        <img
+          alt=""
+          src={socialMuxThumbnailUrl(playbackId)}
+          data-social-explore-poster=""
+          className="pointer-events-none absolute inset-0 size-full object-cover"
+        />
+      )}
+    </div>
   );
 }

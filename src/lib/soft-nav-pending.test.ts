@@ -1,6 +1,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import {
+  houseHrefKey,
+  houseNavHop,
+  houseScreenKey,
+  houseScreenQueryNames,
+  houseShouldClientNavigate,
+} from "@/lib/house-client-shell";
+import { houseNavPendingSettled } from "@/lib/house-nav-pending";
+import { SOCIAL_ROUTES } from "@/lib/social";
 import { SOCIAL_CATEGORY_ALL } from "@/lib/social-categories";
 import { resolveSocialHomeLocation } from "@/lib/social-home-location";
 import { workspacePillClickDest } from "@/lib/workspace-switcher";
@@ -96,6 +105,39 @@ describe("soft-nav pending selection", () => {
         seedTopic: "Acting",
       }),
     ).toEqual({ lane: "following", topic: "Acting" });
+  });
+});
+
+describe("soft-nav Explore query hops", () => {
+  it("keeps q, tag, person, and discover as separate slots from default For You", () => {
+    expect(houseScreenQueryNames(SOCIAL_ROUTES.explore)).toEqual(["q", "tag", "person", "discover"]);
+    const base = houseScreenKey(SOCIAL_ROUTES.explore);
+    const keyword = houseHrefKey("/social/explore?q=ada");
+    const tag = houseHrefKey("/social/explore?tag=night");
+    const person = houseHrefKey("/social/explore?person=ada");
+    const discover = houseHrefKey("/social/explore?discover=1&q=ada");
+    expect(keyword).toBe("/social/explore?q=ada");
+    expect(tag).toBe("/social/explore?tag=night");
+    expect(person).toBe("/social/explore?person=ada");
+    expect(discover).toBe("/social/explore?q=ada&discover=1");
+    expect(new Set([base, keyword, tag, person, discover]).size).toBe(5);
+    expect(houseShouldClientNavigate(keyword, [base])).toBe(false);
+    expect(houseShouldClientNavigate(tag, [base, keyword])).toBe(false);
+    expect(houseShouldClientNavigate(person, [base])).toBe(false);
+    expect(houseShouldClientNavigate(discover, [keyword])).toBe(false);
+    expect(
+      houseNavHop({
+        cached: houseShouldClientNavigate(keyword, [base]),
+        ownedIsDest: false,
+        nextIsDest: false,
+        sameScreen: houseHrefKey(base) === keyword,
+      }),
+    ).toBe("next");
+    expect(houseNavPendingSettled(base, keyword)).toBe(false);
+    expect(houseNavPendingSettled(keyword, keyword)).toBe(true);
+    const pending = readFileSync("src/components/chrome/use-house-nav-pending.ts", "utf8");
+    expect(pending).toContain("house?.href ?? pathname");
+    expect(pending).toContain("houseNavPendingSettled(location, pendingHref)");
   });
 });
 

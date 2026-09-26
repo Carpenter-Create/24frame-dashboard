@@ -3,7 +3,7 @@
 import { useLinkStatus } from "next/link";
 import { useCallback, useState } from "react";
 
-import { useHousePathname } from "./house-client-shell";
+import { useHouseClient, useHousePathname } from "./house-client-shell";
 
 import {
   houseNavActivePath,
@@ -17,7 +17,9 @@ import {
 // covers the same tick. A settled pathname drops the optimistic href.
 
 export function useHouseNavPending() {
+  const house = useHouseClient();
   const pathname = useHousePathname();
+  const location = house?.href ?? pathname;
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const markPending = useCallback((href: string, event?: HouseNavClickLike) => {
@@ -26,7 +28,7 @@ export function useHouseNavPending() {
   }, []);
 
   const livePending =
-    pendingHref && houseNavPendingSettled(pathname, pendingHref) ? null : pendingHref;
+    pendingHref && houseNavPendingSettled(location, pendingHref) ? null : pendingHref;
 
   return {
     activePath: houseNavActivePath(pathname, livePending),
