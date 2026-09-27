@@ -8,6 +8,8 @@ export const SOCIAL_MUX_DEFAULT_RESOLUTION = "1080p" as const;
 export const SOCIAL_MUX_ORIGINAL_RESOLUTION = "2160p" as const;
 export const SOCIAL_MUX_4K_MIN_EDGE = 2160;
 export const SOCIAL_MUX_IMAGE_HOST = "image.mux.com";
+/** First frame. Mux's default thumbnail, with no time, is a mid-clip still. */
+export const SOCIAL_MUX_THUMBNAIL_TIME = "0";
 
 export const SOCIAL_MUX_ID_RE = /^[A-Za-z0-9_-]{8,120}$/;
 
@@ -39,12 +41,21 @@ export function socialMuxPlaybackRequiresTokens(
 }
 
 /**
- * A covering still is only the signed hold before a playback JWT exists.
- * Once tokens are in hand the player mounts with its own poster and controls.
- * Leaving the still up hides play — iOS often withholds loadeddata until then.
+ * Empty hold before a signed thumbnail JWT exists. An unsigned
+ * image.mux.com request 403s and paints the Safari broken-image glyph.
+ * Once the JWT exists, paint that thumb and wait until it decodes before
+ * mounting the player. The thumb stays until loadeddata, same as public.
  */
 export function socialMuxCoveringPoster(signed: boolean, hasTokens: boolean): boolean {
   return signed && !hasTokens;
+}
+
+/**
+ * Signed playback mounts under a decoded JWT thumb. Mounting the player
+ * in the same commit as the poster is the blank-then-pop start jump.
+ */
+export function socialMuxSignedPlayerReady(hasTokens: boolean, posterDecoded: boolean): boolean {
+  return hasTokens && posterDecoded;
 }
 
 export function isSocialMuxId(value: string): boolean {
@@ -71,6 +82,82 @@ export type SocialMuxPlaybackTokens = {
   thumbnail: string;
   storyboard: string;
 };
+
+const playbackTokenCache = new Map<string, SocialMuxPlaybackTokens>();
+const playbackTokenInflight = new Map<string, Promise<SocialMuxPlaybackTokens | null>>();
+let playbackTokenGeneration = 0;
+
+export function readSocialMuxPlaybackTokenCache(playbackId: string): SocialMuxPlaybackTokens | null {
+  return playbackTokenCache.get(playbackId) ?? null;
+}
+
+/** Keep a server-minted token set for this browser session. Does not fetch. */
+export function rememberSocialMuxPlaybackTokens(
+  playbackId: string,
+  tokens: SocialMuxPlaybackTokens,
+): void {
+  if (!socialMuxPlaybackTokensFromJson(tokens)) return;
+  playbackTokenCache.set(playbackId, tokens);
+  warmSocialMuxThumbnail(playbackId, tokens.thumbnail);
+}
+
+/** Test isolation. A cleared generation ignores a mint that resolves later. */
+export function clearSocialMuxPlaybackTokenCache(): void {
+  playbackTokenGeneration += 1;
+  playbackTokenCache.clear();
+  playbackTokenInflight.clear();
+}
+
+function warmSocialMuxThumbnail(playbackId: string, token: string): void {
+  const ImageCtor = (globalThis as { Image?: new () => { src: string; decoding?: string } }).Image;
+  if (!ImageCtor) return;
+  const img = new ImageCtor();
+  img.decoding = "async";
+  img.src = socialMuxThumbnailUrl(playbackId, token);
+}
+
+/**
+ * Session mint for one playback id. Callers share one request. An aborted
+ * caller receives null and does not write state; the request still fills
+ * the cache when it succeeds, so a warm for the next clip survives.
+ */
+export function loadSocialMuxPlaybackTokens(
+  playbackId: string,
+  signal?: AbortSignal,
+): Promise<SocialMuxPlaybackTokens | null> {
+  if (signal?.aborted) return Promise.resolve(null);
+  const cached = playbackTokenCache.get(playbackId);
+  if (cached) return Promise.resolve(cached);
+
+  let flight = playbackTokenInflight.get(playbackId);
+  if (!flight) {
+    const generation = playbackTokenGeneration;
+    flight = fetch(`${SOCIAL_MUX_PLAYBACK_ROUTE}?playbackId=${encodeURIComponent(playbackId)}`, {
+      credentials: "same-origin",
+    })
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((body: unknown) => {
+        if (generation !== playbackTokenGeneration) return null;
+        const tokens = socialMuxPlaybackTokensFromJson(body);
+        if (!tokens) return null;
+        playbackTokenCache.set(playbackId, tokens);
+        warmSocialMuxThumbnail(playbackId, tokens.thumbnail);
+        return tokens;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return null;
+        return null;
+      })
+      .finally(() => {
+        if (generation === playbackTokenGeneration && playbackTokenInflight.get(playbackId) === flight) {
+          playbackTokenInflight.delete(playbackId);
+        }
+      });
+    playbackTokenInflight.set(playbackId, flight);
+  }
+
+  return flight.then((tokens) => (signal?.aborted ? null : tokens));
+}
 
 export function socialMuxPlaybackTokensFromJson(value: unknown): SocialMuxPlaybackTokens | null {
   if (!value || typeof value !== "object") return null;
@@ -123,7 +210,12 @@ export function socialMuxAssetSettings(input: {
 
 export function socialMuxThumbnailUrl(playbackId: string, token?: string): string {
   const url = `https://${SOCIAL_MUX_IMAGE_HOST}/${playbackId}/thumbnail.webp`;
-  if (!token) return url;
+  // Public: time is the query. Signed: time is the thumbnail JWT claim, and
+  // the URL stays `?token=` only. Mux rejects `?time=0&token=` as a bad
+  // signed URL (the extra query alters the signed request).
+  // Adam: first visual = first frame.
+  // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
+  if (!token) return `${url}?time=${SOCIAL_MUX_THUMBNAIL_TIME}`;
   return `${url}?token=${encodeURIComponent(token)}`;
 }
 

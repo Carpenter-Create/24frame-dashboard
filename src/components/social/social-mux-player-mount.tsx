@@ -53,6 +53,7 @@ export default function SocialMuxPlayerMount(props: QuietMuxPlayerProps) {
           poster: current.poster,
           autoPlay: current.autoPlay,
           muted: current.muted,
+          onForcedMute: current.onForcedMute,
           tokens: current.tokens,
           style: current.style,
           onLoadedData: onLoaded,
@@ -81,6 +82,7 @@ export default function SocialMuxPlayerMount(props: QuietMuxPlayerProps) {
       autoPlay: props.autoPlay,
       muted: props.muted,
       autoPlayChanged,
+      onForcedMute: propsRef.current.onForcedMute,
     });
   }, [props.autoPlay, props.muted]);
 

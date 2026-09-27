@@ -112,10 +112,12 @@ describe("Social loading skeletons", () => {
     expect(viewer).not.toContain("animate-pulse");
     expect(viewer).not.toContain("bg-surface-muted");
     expect(explore).toContain("data-social-explore-skeleton");
-    expect(explore).toContain("data-social-explore-results-skeleton");
-    expect(explore).toContain("data-social-for-you-skeleton");
-    expect(explore).toContain("lg:max-w-[720px]");
-    expect(explore).toContain("lg:max-w-[1052px]");
+    expect(explore).toContain("data-social-explore-for-you-skeleton");
+    expect(explore).toContain("bg-[#0A0A0B]");
+    expect(explore).not.toContain("data-social-explore-results-skeleton");
+    expect(explore).not.toContain("data-social-for-you-skeleton");
+    expect(explore).not.toContain("lg:max-w-[720px]");
+    expect(explore).not.toContain("lg:max-w-[1052px]");
     expect(explore).not.toContain("lg:max-w-[600px]");
     expect(explore).not.toContain("892");
     expect(dms).toContain("data-social-dms-skeleton");

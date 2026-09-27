@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 
 import {
+  clearSocialMuxPlaybackTokenCache,
   isSocialMux4kSource,
   isSocialMuxId,
+  loadSocialMuxPlaybackTokens,
   parseSocialMuxIntent,
+  readSocialMuxPlaybackTokenCache,
   SOCIAL_MUX_DEFAULT_RESOLUTION,
   SOCIAL_MUX_IMAGE_HOST,
   SOCIAL_MUX_ORIGINAL_RESOLUTION,
@@ -13,6 +16,8 @@ import {
   socialMuxPassthroughBoundToUser,
   socialMuxPlaybackRequiresTokens,
   socialMuxPlaybackTokensFromJson,
+  socialMuxSignedPlayerReady,
+  SOCIAL_MUX_THUMBNAIL_TIME,
   socialMuxThumbnailUrl,
   SOCIAL_MUX_PLAYBACK_ROUTE,
 } from "./social-mux";
@@ -73,10 +78,14 @@ describe("social Mux encode locks", () => {
   it("builds a thumbnail URL from a playback id and does not mint a native HLS src", () => {
     expect(isSocialMuxId("uNbxnGLKJ00yfbijDO8COxTOyVKT01xpxW")).toBe(true);
     expect(isSocialMuxId("short")).toBe(false);
-    expect(socialMuxThumbnailUrl("abc12345")).toBe(`https://${SOCIAL_MUX_IMAGE_HOST}/abc12345/thumbnail.webp`);
+    expect(socialMuxThumbnailUrl("abc12345")).toBe(
+      `https://${SOCIAL_MUX_IMAGE_HOST}/abc12345/thumbnail.webp?time=${SOCIAL_MUX_THUMBNAIL_TIME}`,
+    );
     expect(socialMuxThumbnailUrl("abc12345", "thumb.jwt")).toBe(
       `https://${SOCIAL_MUX_IMAGE_HOST}/abc12345/thumbnail.webp?token=thumb.jwt`,
     );
+    expect(socialMuxThumbnailUrl("abc12345", "thumb.jwt")).not.toContain("time=");
+    expect(SOCIAL_MUX_THUMBNAIL_TIME).toBe("0");
     const sot = readFileSync("src/lib/social-mux.ts", "utf8");
     expect(sot).not.toContain("socialMuxPlaybackUrl");
     expect(sot).not.toContain(".m3u8");
@@ -102,6 +111,8 @@ describe("social Mux encode locks", () => {
     expect(server).toContain("MUX_SIGNING_KEY");
     expect(server).toContain("MUX_PRIVATE_KEY");
     expect(server).toContain("signPlaybackId");
+    expect(server).toContain('["thumbnail", { time: SOCIAL_MUX_THUMBNAIL_TIME }]');
+    expect(server).not.toContain('["video", { time:');
     expect(server).not.toContain("NEXT_PUBLIC_");
     expect(server).toContain("video_quality");
     expect(server).toContain("max_resolution_tier");
@@ -123,17 +134,52 @@ describe("social Mux encode locks", () => {
     expect(socialMuxPassthroughBoundToUser(undefined, userId)).toBe(false);
   });
 
-  it("covers a signed feed clip only until the player can mount", () => {
+  it("holds a signed clip empty until the JWT, then covers with that thumb until paint", () => {
     expect(socialMuxCoveringPoster(true, false)).toBe(true);
     expect(socialMuxCoveringPoster(true, true)).toBe(false);
     expect(socialMuxCoveringPoster(false, false)).toBe(false);
     expect(socialMuxCoveringPoster(false, true)).toBe(false);
+    expect(socialMuxSignedPlayerReady(false, true)).toBe(false);
+    expect(socialMuxSignedPlayerReady(true, false)).toBe(false);
+    expect(socialMuxSignedPlayerReady(true, true)).toBe(true);
     const player = readFileSync("src/components/social/social-mux-player.tsx", "utf8");
     const signedFace = player.slice(player.indexOf("{signed ? ("), player.indexOf(") : ("));
     expect(signedFace).toContain("socialMuxCoveringPoster(signed, Boolean(tokens))");
+    expect(signedFace).toContain('data-social-mux-poster="pending"');
+    expect(signedFace).toContain("absolute inset-0 size-full");
     expect(signedFace).toContain("<MuxPoster");
-    expect(signedFace).not.toContain("painted");
-    expect(signedFace).not.toContain("onReady");
+    expect(signedFace).toContain("painted");
+    expect(signedFace).not.toContain("<img");
+    expect(signedFace).not.toContain("poster={poster}");
+    expect(signedFace).not.toContain("src={poster}");
+    const hold = signedFace.slice(
+      signedFace.indexOf("socialMuxCoveringPoster"),
+      signedFace.indexOf("signedPoster &&"),
+    );
+    expect(hold).toContain('data-social-mux-poster="pending"');
+    expect(hold).not.toContain("socialMuxThumbnailUrl");
+    expect(hold).not.toContain("<MuxPlayer");
+    expect(hold).not.toContain("<MuxPoster");
+    const gated = signedFace.slice(signedFace.indexOf("socialMuxSignedPlayerReady"), signedFace.indexOf("<MuxPoster"));
+    expect(gated).toContain("socialMuxSignedPlayerReady(Boolean(tokens), posterReady)");
+    expect(gated).toContain("<MuxPlayer");
+    expect(gated).toContain("poster={signedPoster}");
+    expect(gated).toContain("onLoadedData={paint}");
+    const poster = signedFace.slice(signedFace.indexOf("<MuxPoster"));
+    expect(poster).toContain("src={signedPoster}");
+    expect(poster).toContain("onDecoded={() => setPosterReadyId(playbackId)}");
+    expect(player).toContain("signed && tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null");
+    expect(player).toContain('signed ? "" : socialMuxThumbnailUrl(playbackId)');
+    expect(player).not.toContain("tokens?.thumbnail");
+    expect(player).toContain("cached ?? provided");
+    expect(player).toContain("rememberSocialMuxPlaybackTokens");
+    expect(player).toContain('import("@mux/mux-player-react")');
+    expect(player).toContain('typeof HTMLElement === "undefined"');
+    expect(player).toContain("if (!signed || provided || readSocialMuxPlaybackTokenCache(playbackId)) return");
+    const posterFn = player.slice(player.indexOf("function MuxPoster"), player.indexOf("function playerStyle"));
+    expect(posterFn).toContain("onDecoded?.()");
+    const onError = posterFn.slice(posterFn.indexOf("onError"));
+    expect(onError).not.toContain("onDecoded");
   });
 
   it("mints playback tokens only for signed policy", () => {
@@ -163,5 +209,44 @@ describe("social Mux encode locks", () => {
     });
     expect(socialMuxPlaybackTokensFromJson({ playback: "play.jwt" })).toBeNull();
     expect(socialMuxPlaybackTokensFromJson(null)).toBeNull();
+  });
+
+  it("reuses one signed mint for a playback id and ignores an aborted caller", async () => {
+    clearSocialMuxPlaybackTokenCache();
+    const playbackId = "uNbxnGLKJ00yfbijDO8COxT";
+    let fetchCount = 0;
+    let release: (response: Response) => void = () => {};
+    vi.stubGlobal("fetch", () => {
+      fetchCount += 1;
+      return new Promise<Response>((resolve) => {
+        release = resolve;
+      });
+    });
+    const controller = new AbortController();
+    const aborted = loadSocialMuxPlaybackTokens(playbackId, controller.signal);
+    const shared = loadSocialMuxPlaybackTokens(playbackId);
+    expect(fetchCount).toBe(1);
+    controller.abort();
+    release(
+      new Response(
+        JSON.stringify({ playback: "play.jwt", thumbnail: "thumb.jwt", storyboard: "board.jwt" }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    await expect(aborted).resolves.toBeNull();
+    await expect(shared).resolves.toEqual({
+      playback: "play.jwt",
+      thumbnail: "thumb.jwt",
+      storyboard: "board.jwt",
+    });
+    expect(readSocialMuxPlaybackTokenCache(playbackId)?.thumbnail).toBe("thumb.jwt");
+    await expect(loadSocialMuxPlaybackTokens(playbackId)).resolves.toEqual({
+      playback: "play.jwt",
+      thumbnail: "thumb.jwt",
+      storyboard: "board.jwt",
+    });
+    expect(fetchCount).toBe(1);
+    vi.unstubAllGlobals();
+    clearSocialMuxPlaybackTokenCache();
   });
 });

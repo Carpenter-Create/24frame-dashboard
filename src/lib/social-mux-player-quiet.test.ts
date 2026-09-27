@@ -221,6 +221,65 @@ describe("mountQuietMuxPlayer", () => {
     }
   });
 
+  it("force-mutes and retries play when unmuted autoplay is blocked", async () => {
+    const player = fakePlayer();
+    player.isConnected = true;
+    const forced: string[] = [];
+    player.play = () => {
+      player.calls.push(`play:${player.muted}`);
+      if (!player.muted) {
+        return Promise.reject(
+          new DOMException("The request is not allowed by the user agent.", "NotAllowedError"),
+        );
+      }
+    };
+    assignQuietMuxPlaybackFlags(player, {
+      muted: false,
+      autoPlay: true,
+      onForcedMute: () => {
+        forced.push("forced");
+      },
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(forced).toEqual(["forced"]);
+    expect(player.muted).toBe(true);
+    expect(player.calls.filter((call) => call.startsWith("play:"))).toEqual(["play:false", "play:true"]);
+  });
+
+  it("leaves a blocked unmuted play muted-off when no force-mute handler is set", async () => {
+    const player = fakePlayer();
+    player.isConnected = true;
+    player.play = () => {
+      player.calls.push("play");
+      return Promise.reject(new DOMException("The request is not allowed by the user agent.", "NotAllowedError"));
+    };
+    assignQuietMuxPlaybackFlags(player, { muted: false, autoPlay: true });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(player.muted).toBe(false);
+    expect(player.calls.filter((call) => call === "play")).toEqual(["play"]);
+  });
+
+  it("does not retry when a muted autoplay is blocked", async () => {
+    const player = fakePlayer();
+    player.isConnected = true;
+    const forced: string[] = [];
+    player.play = () => {
+      player.calls.push("play");
+      return Promise.reject(new DOMException("The request is not allowed by the user agent.", "NotAllowedError"));
+    };
+    assignQuietMuxPlaybackFlags(player, {
+      muted: true,
+      autoPlay: true,
+      onForcedMute: () => {
+        forced.push("forced");
+      },
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(forced).toEqual([]);
+    expect(player.muted).toBe(true);
+    expect(player.calls.filter((call) => call === "play")).toEqual(["play"]);
+  });
+
   it("refuses mute and autoplay writes while the element is disconnected", () => {
     const player = fakePlayer();
     expect(() => assignQuietMuxPlaybackFlags(player, { muted: true, autoPlay: true })).toThrow(/connected/);

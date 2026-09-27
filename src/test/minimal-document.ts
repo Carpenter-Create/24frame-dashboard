@@ -86,9 +86,22 @@ class MiniNode {
     return this.ownerDocument;
   }
 
-  addEventListener() {}
+  private listeners = new Map<string, Set<(event: Event) => void>>();
 
-  removeEventListener() {}
+  addEventListener(type: string, listener: (event: Event) => void) {
+    const set = this.listeners.get(type) ?? new Set();
+    set.add(listener);
+    this.listeners.set(type, set);
+  }
+
+  removeEventListener(type: string, listener: (event: Event) => void) {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  dispatchEvent(event: Event): boolean {
+    for (const listener of this.listeners.get(event.type) ?? []) listener(event);
+    return true;
+  }
 
   remove() {
     this.parentNode?.removeChild(this);

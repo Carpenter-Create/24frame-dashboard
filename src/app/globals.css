@@ -370,6 +370,16 @@ body:has([data-social-write-compose]) :is(#vercel-toolbar, vercel-live-feedback,
   background-color: #0A0A0B;
 }
 
+/* Explore For You. Cover fill. Letterbox is the story stage, not
+   surface-muted. #0A0A0B has no house token.
+   docs/design-locks/social-explore-for-you-immersive-lock-v2.md */
+.social-explore-stage-media {
+  --media-background-color: #0A0A0B;
+  --media-object-fit: cover;
+  --media-object-position: center;
+  background-color: #0A0A0B;
+}
+
 html:has([data-social-feed-immersive]) [data-house-lead-stack],
 html:has([data-social-feed-immersive]) [data-house-phone-bottom-nav] {
   display: none;

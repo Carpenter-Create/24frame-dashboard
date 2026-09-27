@@ -93,9 +93,23 @@ describe("social media display", () => {
     expect(player).not.toContain("if (ready) onPaint?.()");
     const signedFace = player.slice(player.indexOf("{signed ? ("), player.indexOf(") : ("));
     expect(signedFace).toContain("onLoadedData={paint}");
+    expect(signedFace).toContain('data-social-mux-poster="pending"');
     expect(signedFace).toContain("<MuxPoster");
-    expect(signedFace).not.toContain("onReady");
-    expect(signedFace).not.toContain("releaseHold");
+    expect(signedFace).toContain("poster={signedPoster}");
+    expect(signedFace).toContain("src={signedPoster}");
+    expect(signedFace).toContain("socialMuxSignedPlayerReady");
+    expect(signedFace).toContain("painted");
+    expect(signedFace).not.toContain("<img");
+    expect(signedFace).not.toContain("poster={poster}");
+    const pending = signedFace.slice(
+      signedFace.indexOf("socialMuxCoveringPoster"),
+      signedFace.indexOf("signedPoster &&"),
+    );
+    expect(pending).not.toContain("socialMuxThumbnailUrl");
+    expect(pending).not.toContain("<MuxPlayer");
+    const gated = signedFace.slice(signedFace.indexOf("socialMuxSignedPlayerReady"), signedFace.indexOf("<MuxPoster"));
+    expect(gated).toContain("socialMuxSignedPlayerReady(Boolean(tokens), posterReady)");
+    expect(gated).toContain("<MuxPlayer");
     expect(player).not.toContain("<video");
     expect(player).not.toContain("#t=");
   });

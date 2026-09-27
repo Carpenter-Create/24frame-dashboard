@@ -29,6 +29,7 @@ import {
   isSocialDmComposePath,
   isSocialDmImmersivePath,
   isSocialDmThreadPath,
+  isSocialExplorePath,
   isSocialWriteComposePath,
   leaveSocialWriteCompose,
   isSocialStoryOpenPath,
@@ -159,7 +160,7 @@ describe("social copy lock", () => {
     expect(SOCIAL_ROUTES.search).toBe("/social/search");
     expect(socialSearchHref({ intent: "people" })).toBe("/social/search?intent=people");
     expect(SOCIAL.search.searchPlaceholder).toBe("Search people");
-    expect(SOCIAL.explore.searchPlaceholder).toBe("Search posts");
+    expect(SOCIAL.explore.searchPlaceholder).toBe("People, keywords, hashtags");
     expect(SOCIAL.home.findPeople).toBe("Find people");
     expect(SOCIAL.home.emptyHint).not.toMatch(/Explore/i);
     expect(SOCIAL_ROUTES.create).toBe("/social/create");
@@ -169,6 +170,10 @@ describe("social copy lock", () => {
     expect(isSocialStoryCreatePath(`${SOCIAL_ROUTES.storiesNew}/`)).toBe(true);
     expect(isSocialStoryCreatePath(SOCIAL_ROUTES.home)).toBe(false);
     expect(isSocialStoryCreatePath(SOCIAL_ROUTES.stories)).toBe(false);
+    expect(isSocialExplorePath(SOCIAL_ROUTES.explore)).toBe(true);
+    expect(isSocialExplorePath(`${SOCIAL_ROUTES.explore}/`)).toBe(true);
+    expect(isSocialExplorePath(SOCIAL_ROUTES.home)).toBe(false);
+    expect(isSocialExplorePath(SOCIAL_ROUTES.search)).toBe(false);
     expect(isSocialStoryOpenPath("/social/stories/story-1")).toBe(true);
     expect(isSocialStoryOpenPath("/social/stories/story-1/")).toBe(true);
     expect(isSocialStoryOpenPath(SOCIAL_ROUTES.stories)).toBe(false);

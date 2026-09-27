@@ -15,7 +15,8 @@ import {
  *   posts following wall       — active, group_id is null, author_id IN (self+followees).
  *                                created_at+id keyset (`after=`). Cap SOCIAL_FOLLOWING_WALL_LIMIT.
  *   stories rail               — live (expires_at > now), same author set. Cap SOCIAL_STORIES_RAIL_LIMIT.
- *   Explore search             — posts / media only. Cap SOCIAL_EXPLORE_POSTS_LIMIT.
+ *   Explore For You            — video posts. Cap SOCIAL_EXPLORE_POSTS_LIMIT.
+ *   Explore people discovery   — filter choices, then that author's videos. Cap SOCIAL_EXPLORE_PEOPLE_LIMIT.
  *   People search              — header Search people intent. Cap SOCIAL_EXPLORE_PEOPLE_LIMIT.
  *   Home recent chats          — retired from Social Home. Cap SOCIAL_HOME_CHATS_LIMIT
  *                                remains for leftover preview helpers. Full inbox stays on Messages.

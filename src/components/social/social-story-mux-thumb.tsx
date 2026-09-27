@@ -14,14 +14,17 @@ import {
 // thumbnail JWT exists, and that host is not a next/image remote pattern.
 // Paint nothing until the src can decode — an empty or unsigned src is
 // the Safari broken-image glyph on the story card.
+// Public thumbs always use socialMuxThumbnailUrl. A caller url can carry
+// a stale time and must not override time=0. Signed still waits for the
+// thumbnail JWT, then uses that token.
 
 export function SocialStoryMuxThumb({
   playbackId,
   playbackPolicy,
-  url,
 }: {
   playbackId: string;
   playbackPolicy?: SocialMuxPlaybackPolicy;
+  /** Accepted from the rail. Not read — a caller url must not override time=0. */
   url: string;
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
@@ -59,7 +62,7 @@ export function SocialStoryMuxThumb({
     ? token
       ? socialMuxThumbnailUrl(playbackId, token)
       : ""
-    : url || socialMuxThumbnailUrl(playbackId);
+    : socialMuxThumbnailUrl(playbackId);
   if (!src) {
     return <span data-social-story-mux-thumb="pending" className="absolute inset-0 size-full" />;
   }

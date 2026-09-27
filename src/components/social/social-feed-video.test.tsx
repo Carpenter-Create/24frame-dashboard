@@ -59,8 +59,10 @@ describe("SocialFeedVideo", () => {
     );
     expect(html).toContain('data-social-mux-player="abc12345xx"');
     expect(html).toContain('data-social-mux-playback="pending"');
-    expect(html).toContain('data-social-mux-poster=""');
-    expect(html).toContain("https://image.mux.com/abc12345xx/thumbnail.webp");
+    expect(html).toContain('data-social-mux-poster="pending"');
+    expect(html).not.toContain('data-social-mux-poster=""');
+    expect(html).not.toContain("https://image.mux.com/abc12345xx/thumbnail.webp");
+    expect(html).not.toContain("<img");
     expect(html).not.toContain("data-mux-player-stub");
     expect(html).not.toContain('data-mux-has-tokens="yes"');
   });
@@ -84,7 +86,8 @@ describe("SocialFeedVideo", () => {
     expect(player).toContain("objectFit: \"cover\"");
     expect(player).toContain("aspectRatio: \"auto\"");
     expect(player).toContain('tokens={{');
-    expect(player).toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
+    expect(player).toContain("loadSocialMuxPlaybackTokens");
+    expect(readFileSync("src/lib/social-mux.ts", "utf8")).toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
     expect(player).toContain("socialMuxPlaybackRequiresTokens");
     expect(player).toContain("if (!signed) return");
     expect(player).toContain("playback: tokens.playback");

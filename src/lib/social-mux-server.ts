@@ -4,6 +4,7 @@ import Mux from "@mux/mux-node";
 
 import {
   isSocialMuxId,
+  SOCIAL_MUX_THUMBNAIL_TIME,
   socialMuxAssetSettings,
   socialMuxPassthroughBoundToUser,
   SocialMuxUploadNotBoundError,
@@ -136,7 +137,9 @@ export async function mintSocialMuxPlaybackTokens(
   });
   const signed = await mux.jwt.signPlaybackId(playbackId, {
     expiration: SOCIAL_MUX_PLAYBACK_TOKEN_EXPIRATION,
-    type: ["video", "thumbnail", "storyboard"],
+    // Thumbnail claim only. A time claim on video or storyboard would
+    // change playback, not the poster. URL time stays off the signed request.
+    type: ["video", ["thumbnail", { time: SOCIAL_MUX_THUMBNAIL_TIME }], "storyboard"],
   });
   const playback = signed["playback-token"];
   const thumbnail = signed["thumbnail-token"];

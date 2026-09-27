@@ -76,7 +76,10 @@ export function houseScreenQueryNames(pathname: string): readonly string[] {
     // still splits the slot.
     return [SOCIAL_FOLLOWING_WALL_CURSOR_PARAM];
   }
-  if (path === SOCIAL_ROUTES.explore || path === SOCIAL_ROUTES.search) {
+  if (path === SOCIAL_ROUTES.explore) {
+    return ["q", "tag", "person", "discover"];
+  }
+  if (path === SOCIAL_ROUTES.search) {
     return ["q"];
   }
   if (path === SOCIAL_ROUTES.create) return [SOCIAL_CREATE_KIND_PARAM];

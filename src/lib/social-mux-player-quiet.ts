@@ -39,6 +39,7 @@ export type QuietMuxPlayerProps = {
   poster: string;
   autoPlay: boolean;
   muted: boolean;
+  onForcedMute?: () => void;
   tokens?: QuietMuxTokens;
   style: QuietMuxPlayerStyle;
   onLoadedData?: () => void;
@@ -101,13 +102,18 @@ export function mountQuietMuxPlayer(
 // play() rejections: drop only DOMException AbortError (pause wins the race)
 // and DOMException NotAllowedError (the browser blocks playback). Every other
 // rejection is rethrown so it stays visible.
-function voidQuietMuxPlay(started: void | Promise<void>): void {
+// Unmuted play() from an effect is NotAllowedError on iOS. A caller that
+// passes onForcedMute gets the element forced muted and one muted play()
+// retry. The slash stays tappable. Callers that omit the handler keep the
+// swallow, so Stories does not change.
+// docs/design-locks/stories-viewer-mute-control-lock-v1.md
+function voidQuietMuxPlay(started: void | Promise<void>, onNotAllowed?: () => void): void {
   if (!(started instanceof Promise)) return;
   void started.catch((error: unknown) => {
-    if (
-      error instanceof DOMException &&
-      (error.name === "AbortError" || error.name === "NotAllowedError")
-    ) {
+    if (!(error instanceof DOMException)) throw error;
+    if (error.name === "AbortError") return;
+    if (error.name === "NotAllowedError") {
+      onNotAllowed?.();
       return;
     }
     throw error;
@@ -116,7 +122,7 @@ function voidQuietMuxPlay(started: void | Promise<void>): void {
 
 export function assignQuietMuxPlaybackFlags(
   player: QuietMuxPlayerElement,
-  flags: Pick<QuietMuxPlayerProps, "autoPlay" | "muted"> & { autoPlayChanged?: boolean },
+  flags: Pick<QuietMuxPlayerProps, "autoPlay" | "muted" | "onForcedMute"> & { autoPlayChanged?: boolean },
 ): void {
   assertMuxPlayerConnected(player);
   player.muted = flags.muted;
@@ -124,8 +130,16 @@ export function assignQuietMuxPlaybackFlags(
   // Omit autoPlayChanged, or pass true, to pause or play. Pass false when
   // autoPlay did not change so a mute-only flip does not call play() or pause().
   if (flags.autoPlayChanged === false) return;
-  if (flags.autoPlay) voidQuietMuxPlay(player.play());
-  else player.pause();
+  if (!flags.autoPlay) {
+    player.pause();
+    return;
+  }
+  voidQuietMuxPlay(player.play(), () => {
+    if (flags.muted || !flags.onForcedMute || !player.isConnected) return;
+    player.muted = true;
+    flags.onForcedMute();
+    voidQuietMuxPlay(player.play());
+  });
 }
 
 export function assignConnectedMuxPlayer(
