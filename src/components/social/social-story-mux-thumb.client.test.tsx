@@ -189,9 +189,23 @@ describe("SocialStoryMuxThumb client mint", () => {
       );
     });
 
-    expect(html()).toContain("https://image.mux.com/public-still.webp");
+    expect(html()).toContain(socialMuxThumbnailUrl(PLAYBACK_A));
+    expect(html()).not.toContain("public-still.webp");
     expect(html()).not.toContain(THUMB_TOKEN);
     expect(html()).not.toContain('data-social-story-mux-thumb="pending"');
+  });
+
+  it("paints the first frame and ignores a caller url on public playback", () => {
+    mount({
+      playbackId: PLAYBACK_A,
+      playbackPolicy: "public",
+      url: "https://image.mux.com/public-still.webp?time=12",
+    });
+    expect(html()).toContain(socialMuxThumbnailUrl(PLAYBACK_A));
+    expect(html()).toContain("time=0");
+    expect(html()).not.toContain("time=12");
+    expect(html()).not.toContain("public-still.webp");
+    expect(pending).toHaveLength(0);
   });
 
   it("does not reuse the prior mint when signed playback returns for the same id", async () => {

@@ -111,8 +111,9 @@ export function SocialMuxPlayer({
   const tokens = signed ? (mint?.playbackId === playbackId ? mint.tokens : cached ?? provided) : null;
   const painted = paintedId === playbackId;
   const posterReady = posterReadyId === playbackId;
-  const poster = socialMuxThumbnailUrl(playbackId, tokens?.thumbnail);
-  const signedPoster = tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null;
+  // Signed pending must not build an unsigned image.mux.com URL.
+  const poster = signed ? "" : socialMuxThumbnailUrl(playbackId);
+  const signedPoster = signed && tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null;
   const releaseHold = () => {
     onPaint?.();
   };

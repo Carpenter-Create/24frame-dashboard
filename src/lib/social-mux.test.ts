@@ -168,7 +168,9 @@ describe("social Mux encode locks", () => {
     const poster = signedFace.slice(signedFace.indexOf("<MuxPoster"));
     expect(poster).toContain("src={signedPoster}");
     expect(poster).toContain("onDecoded={() => setPosterReadyId(playbackId)}");
-    expect(player).toContain("tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null");
+    expect(player).toContain("signed && tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null");
+    expect(player).toContain('signed ? "" : socialMuxThumbnailUrl(playbackId)');
+    expect(player).not.toContain("tokens?.thumbnail");
     expect(player).toContain("cached ?? provided");
     expect(player).toContain("rememberSocialMuxPlaybackTokens");
     expect(player).toContain('import("@mux/mux-player-react")');
