@@ -66,6 +66,21 @@ describe("warmExploreForYouPlaybackTokens", () => {
     expect(vi.mocked(mintSocialMuxPlaybackTokens)).toHaveBeenCalledTimes(2);
   });
 
+  it("does not copy warm tokens onto a later slide that reuses the playback id", async () => {
+    const shared = item("SharedSignedPlayback1", "signed");
+    const later = { ...shared, postId: "later-same-playback" };
+    const warmed = await warmExploreForYouPlaybackTokens("user-1", [
+      shared,
+      item("PublicPlaybackId0001", "public"),
+      later,
+    ]);
+    expect(vi.mocked(mintSocialMuxPlaybackTokens).mock.calls).toEqual([["SharedSignedPlayback1"]]);
+    expect(warmed[0]?.playbackTokens).toEqual(TOKENS);
+    expect(warmed[1]?.playbackTokens).toBeUndefined();
+    expect(warmed[2]?.playbackTokens).toBeUndefined();
+    expect(warmed[2]).toBe(later);
+  });
+
   it("leaves the item without tokens when the grant or the mint fails", async () => {
     vi.mocked(viewerMayMintSocialMuxPlayback).mockResolvedValueOnce(false);
     const denied = await warmExploreForYouPlaybackTokens("user-1", [item("DeniedSignedPlayback1", "signed")]);

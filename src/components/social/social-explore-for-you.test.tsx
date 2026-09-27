@@ -148,7 +148,7 @@ describe("SocialExploreForYouStream", () => {
     expect(src).not.toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
     expect(src).toContain("active ?");
     expect(src).toContain("ExploreForYouClosedFace");
-    const warmAt = src.indexOf("loadSocialMuxPlaybackTokens");
+    const warmAt = src.indexOf("for (const item of [items[active], items[active + 1]]");
     const slidesAt = src.indexOf("items.map");
     expect(warmAt).toBeGreaterThan(-1);
     expect(warmAt).toBeLessThan(slidesAt);
@@ -156,6 +156,9 @@ describe("SocialExploreForYouStream", () => {
     expect(warm).toContain("items[active]");
     expect(warm).toContain("items[active + 1]");
     expect(warm).toContain("socialMuxPlaybackRequiresTokens");
+    expect(warm).toContain("item.playbackTokens");
+    expect(warm).toContain("rememberSocialMuxPlaybackTokens");
+    expect(warm.indexOf("rememberSocialMuxPlaybackTokens")).toBeLessThan(warm.indexOf("loadSocialMuxPlaybackTokens"));
     expect(warm).toContain("controller.abort()");
     expect(warm).not.toContain(".map(");
   });

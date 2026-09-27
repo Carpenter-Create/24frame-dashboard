@@ -41,6 +41,11 @@ vi.mock("@/app/(app)/social/light-actions", () => ({
 
 import { SOCIAL } from "@/lib/social";
 import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
+import {
+  clearSocialMuxPlaybackTokenCache,
+  readSocialMuxPlaybackTokenCache,
+  SOCIAL_MUX_PLAYBACK_ROUTE,
+} from "@/lib/social-mux";
 import { minimalDocument, uninstallMinimalDocument } from "@/test/minimal-document";
 import { SocialExploreForYouStream } from "./social-explore-for-you";
 
@@ -342,6 +347,7 @@ describe("SocialExploreForYouStream dismiss", () => {
       });
     }
     root = null;
+    clearSocialMuxPlaybackTokenCache();
     const parent = host?.parentNode as { removeChild?: (child: MiniNode) => void } | null;
     if (host && parent?.removeChild) parent.removeChild(host);
     host = null;
@@ -349,7 +355,7 @@ describe("SocialExploreForYouStream dismiss", () => {
     restore = null;
   });
 
-  async function renderStream() {
+  async function renderStream(items: readonly SocialExploreForYouItem[] = [first, next]) {
     restore = installDomHooks();
     const doc = minimalDocument();
     const node = doc.createElement("div") as unknown as MiniNode;
@@ -357,7 +363,7 @@ describe("SocialExploreForYouStream dismiss", () => {
     host = node;
     root = createRoot(node as unknown as HTMLElement);
     await act(async () => {
-      root?.render(createElement(SocialExploreForYouStream, { items: [first, next], emptyLabel: null }));
+      root?.render(createElement(SocialExploreForYouStream, { items, emptyLabel: null }));
     });
     await act(async () => {
       for (let i = 0; i < 8; i += 1) await Promise.resolve();
@@ -417,6 +423,19 @@ describe("SocialExploreForYouStream dismiss", () => {
     if (!found) throw new Error("mux player missing");
     return found;
   }
+
+  it("does not mint when the active and next slides already carry playback tokens", async () => {
+    const tokens = { playback: "play.jwt", thumbnail: "thumb.jwt", storyboard: "board.jwt" };
+    clearSocialMuxPlaybackTokenCache();
+    await renderStream([
+      { ...first, playbackPolicy: "signed", playbackTokens: tokens },
+      { ...next, playbackPolicy: "signed", playbackTokens: tokens },
+    ]);
+    const urls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
+    expect(urls.some((url) => url.includes(SOCIAL_MUX_PLAYBACK_ROUTE))).toBe(false);
+    expect(readSocialMuxPlaybackTokenCache(ACTIVE_PLAYBACK)).toEqual(tokens);
+    expect(readSocialMuxPlaybackTokenCache(NEXT_PLAYBACK)).toEqual(tokens);
+  });
 
   it("toggles the trailing mute control and resets it when the active item changes", async () => {
     await renderStream();

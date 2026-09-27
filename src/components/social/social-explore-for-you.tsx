@@ -13,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { SOCIAL, socialMemberHref, socialPersonIdentity } from "@/lib/social";
 import {
   loadSocialMuxPlaybackTokens,
+  rememberSocialMuxPlaybackTokens,
   socialMuxPlaybackRequiresTokens,
   socialMuxThumbnailUrl,
   type SocialMuxPlaybackPolicy,
@@ -41,8 +42,10 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 // stays mounted for the whole item. An empty track list never hides it.
 // Only the active slide mounts SocialMuxPlayer. Off-screen slides stay a
 // poster or closed face. The loader mints the first two signed playbacks
-// before paint. The stream still warms the active id and the next one, and
-// does not mint every closed slide.
+// before paint and attaches those tokens only to that window. The stream
+// seeds the session cache from tokens already on the slide and does not
+// mint them again. It still warms the active id and the next one when
+// those slides have no tokens, and does not mint every closed slide.
 // Comment and Share close in place. Dismiss does not move the active index
 // and does not leave Explore.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
@@ -94,6 +97,10 @@ export function SocialExploreForYouStream({
     const controller = new AbortController();
     for (const item of [items[active], items[active + 1]]) {
       if (!item || !socialMuxPlaybackRequiresTokens(item.playbackPolicy)) continue;
+      if (item.playbackTokens) {
+        rememberSocialMuxPlaybackTokens(item.playbackId, item.playbackTokens);
+        continue;
+      }
       void loadSocialMuxPlaybackTokens(item.playbackId, controller.signal);
     }
     return () => controller.abort();
