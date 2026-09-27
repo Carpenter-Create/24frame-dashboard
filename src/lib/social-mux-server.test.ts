@@ -182,10 +182,16 @@ describe("social Mux server client", () => {
           Buffer.from(signature!, "base64url"),
         ),
       ).toBe(true);
-      return JSON.parse(Buffer.from(body!, "base64url").toString()) as { sub?: string; aud?: string; kid?: string };
+      return JSON.parse(Buffer.from(body!, "base64url").toString()) as {
+        sub?: string;
+        aud?: string;
+        kid?: string;
+        time?: string;
+      };
     });
     expect(claims.map((claim) => claim.aud)).toEqual(["v", "t", "s"]);
     expect(claims.every((claim) => claim.sub === PLAYBACK_ID && claim.kid === "signing-key-id")).toBe(true);
+    expect(claims.map((claim) => claim.time)).toEqual([undefined, "0", undefined]);
   });
 
   it("maps live + 4K form fields on the server, not the client", () => {

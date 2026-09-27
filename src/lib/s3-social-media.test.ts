@@ -211,7 +211,7 @@ describe("s3-social-media isolated lane", () => {
     expect(items).toEqual([
       {
         kind: "video",
-        url: "https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp",
+        url: "https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp?time=0",
         contentType: "video/mp4",
         playbackId: "uNbxnGLKJ00yfbijDO8COxT",
       },

@@ -26,6 +26,7 @@
 | Fit | Active item **`object-fit: cover`** · fills stage (vertical-first) |
 | Swipe | Vertical snap · one item per viewport · next/prev For You |
 | Video | Mux-only play surface · autoplay when active · pause when off-screen · cite Mux-only |
+| First visual | **First frame** of the clip (Adam) · public Mux thumbnail `time=0` · signed thumbnail time is the JWT claim `time` `0` · not Mux's default mid-clip still |
 | Media kinds | **Video only** in For You / discovery streams · **photos OUT** of vertical Explore feed |
 | Social shell | **Social header OUT** on For You · **surface dest-rail card OUT** (it is a pasted card on the canvas) · tab dock may overlay the bottom of the media · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
 | Fail | Soft grid of thumbs · FB mosaic · dumping user onto Home post unit · photo tiles in For You |

@@ -14,6 +14,8 @@ import {
 // thumbnail JWT exists, and that host is not a next/image remote pattern.
 // Paint nothing until the src can decode — an empty or unsigned src is
 // the Safari broken-image glyph on the story card.
+// The src is socialMuxThumbnailUrl, so a public still and a signed JWT
+// thumb are both the first frame.
 
 export function SocialStoryMuxThumb({
   playbackId,

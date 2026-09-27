@@ -212,9 +212,12 @@ describe("SocialMuxPlayer signed poster gate", () => {
 
   it("mounts a public player without waiting on a poster decode", () => {
     mount("public");
+    const thumb = socialMuxThumbnailUrl(PLAYBACK_ID);
     expect(pending).toHaveLength(0);
     expect(html()).toContain("data-mux-player-stub");
     expect(html()).toContain('data-social-mux-playback="public"');
+    expect(html()).toContain(thumb);
+    expect(thumb).toContain("time=0");
     expect(html()).not.toContain('data-social-mux-poster="pending"');
   });
 });

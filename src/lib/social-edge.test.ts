@@ -73,7 +73,7 @@ describe("Social Edge media proxies", () => {
       ),
     ).toEqual({
       kind: "image",
-      url: `https://image.mux.com/${playbackId}/thumbnail.webp`,
+      url: `https://image.mux.com/${playbackId}/thumbnail.webp?time=0`,
       playbackId,
       playbackPolicy: "public",
     });
@@ -117,7 +117,7 @@ describe("Social Edge media proxies", () => {
     expect(items).toEqual([
       {
         kind: "video",
-        url: "https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp",
+        url: "https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp?time=0",
         contentType: "video/mp4",
         playbackId: "uNbxnGLKJ00yfbijDO8COxT",
       },

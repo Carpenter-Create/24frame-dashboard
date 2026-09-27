@@ -8,6 +8,8 @@ export const SOCIAL_MUX_DEFAULT_RESOLUTION = "1080p" as const;
 export const SOCIAL_MUX_ORIGINAL_RESOLUTION = "2160p" as const;
 export const SOCIAL_MUX_4K_MIN_EDGE = 2160;
 export const SOCIAL_MUX_IMAGE_HOST = "image.mux.com";
+/** First frame. Mux's default thumbnail, with no time, is a mid-clip still. */
+export const SOCIAL_MUX_THUMBNAIL_TIME = "0";
 
 export const SOCIAL_MUX_ID_RE = /^[A-Za-z0-9_-]{8,120}$/;
 
@@ -208,7 +210,12 @@ export function socialMuxAssetSettings(input: {
 
 export function socialMuxThumbnailUrl(playbackId: string, token?: string): string {
   const url = `https://${SOCIAL_MUX_IMAGE_HOST}/${playbackId}/thumbnail.webp`;
-  if (!token) return url;
+  // Public: time is the query. Signed: time is the thumbnail JWT claim, and
+  // the URL stays `?token=` only. Mux rejects `?time=0&token=` as a bad
+  // signed URL (the extra query alters the signed request).
+  // Adam: first visual = first frame.
+  // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
+  if (!token) return `${url}?time=${SOCIAL_MUX_THUMBNAIL_TIME}`;
   return `${url}?token=${encodeURIComponent(token)}`;
 }
 

@@ -17,6 +17,7 @@ import {
   socialMuxPlaybackRequiresTokens,
   socialMuxPlaybackTokensFromJson,
   socialMuxSignedPlayerReady,
+  SOCIAL_MUX_THUMBNAIL_TIME,
   socialMuxThumbnailUrl,
   SOCIAL_MUX_PLAYBACK_ROUTE,
 } from "./social-mux";
@@ -77,10 +78,14 @@ describe("social Mux encode locks", () => {
   it("builds a thumbnail URL from a playback id and does not mint a native HLS src", () => {
     expect(isSocialMuxId("uNbxnGLKJ00yfbijDO8COxTOyVKT01xpxW")).toBe(true);
     expect(isSocialMuxId("short")).toBe(false);
-    expect(socialMuxThumbnailUrl("abc12345")).toBe(`https://${SOCIAL_MUX_IMAGE_HOST}/abc12345/thumbnail.webp`);
+    expect(socialMuxThumbnailUrl("abc12345")).toBe(
+      `https://${SOCIAL_MUX_IMAGE_HOST}/abc12345/thumbnail.webp?time=${SOCIAL_MUX_THUMBNAIL_TIME}`,
+    );
     expect(socialMuxThumbnailUrl("abc12345", "thumb.jwt")).toBe(
       `https://${SOCIAL_MUX_IMAGE_HOST}/abc12345/thumbnail.webp?token=thumb.jwt`,
     );
+    expect(socialMuxThumbnailUrl("abc12345", "thumb.jwt")).not.toContain("time=");
+    expect(SOCIAL_MUX_THUMBNAIL_TIME).toBe("0");
     const sot = readFileSync("src/lib/social-mux.ts", "utf8");
     expect(sot).not.toContain("socialMuxPlaybackUrl");
     expect(sot).not.toContain(".m3u8");
@@ -106,6 +111,8 @@ describe("social Mux encode locks", () => {
     expect(server).toContain("MUX_SIGNING_KEY");
     expect(server).toContain("MUX_PRIVATE_KEY");
     expect(server).toContain("signPlaybackId");
+    expect(server).toContain('["thumbnail", { time: SOCIAL_MUX_THUMBNAIL_TIME }]');
+    expect(server).not.toContain('["video", { time:');
     expect(server).not.toContain("NEXT_PUBLIC_");
     expect(server).toContain("video_quality");
     expect(server).toContain("max_resolution_tier");
