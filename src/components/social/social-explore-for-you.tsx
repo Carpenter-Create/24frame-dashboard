@@ -40,8 +40,9 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 // blocked, onForcedMute snaps the flag back and retries muted. The control
 // stays mounted for the whole item. An empty track list never hides it.
 // Only the active slide mounts SocialMuxPlayer. Off-screen slides stay a
-// poster or closed face. The stream warms the active signed mint and the
-// next one, and does not mint every closed slide.
+// poster or closed face. The loader mints the first two signed playbacks
+// before paint. The stream still warms the active id and the next one, and
+// does not mint every closed slide.
 // Comment and Share close in place. Dismiss does not move the active index
 // and does not leave Explore.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
@@ -174,6 +175,7 @@ function SocialExploreForYouSlide({
         <SocialMuxPlayer
           playbackId={item.playbackId}
           playbackPolicy={item.playbackPolicy}
+          initialTokens={item.playbackTokens}
           fit="cover"
           chromeless
           autoPlay={playing}
@@ -182,7 +184,11 @@ function SocialExploreForYouSlide({
           className="social-explore-stage-media absolute inset-0 size-full bg-[#0A0A0B] object-cover"
         />
       ) : (
-        <ExploreForYouClosedFace playbackId={item.playbackId} playbackPolicy={item.playbackPolicy} />
+        <ExploreForYouClosedFace
+          playbackId={item.playbackId}
+          playbackPolicy={item.playbackPolicy}
+          playbackTokens={item.playbackTokens}
+        />
       )}
       <button
         type="button"
@@ -255,14 +261,27 @@ function SocialExploreForYouSlide({
 function ExploreForYouClosedFace({
   playbackId,
   playbackPolicy,
+  playbackTokens,
 }: {
   playbackId: string;
   playbackPolicy?: SocialMuxPlaybackPolicy;
+  playbackTokens?: SocialExploreForYouItem["playbackTokens"];
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
+  const signedThumb = signed && playbackTokens
+    ? socialMuxThumbnailUrl(playbackId, playbackTokens.thumbnail)
+    : "";
   return (
     <div data-social-explore-closed="" className="absolute inset-0 size-full bg-[#0A0A0B]">
-      {signed ? null : (
+      {signedThumb ? (
+        // eslint-disable-next-line @next/next/no-img-element -- JWT still already minted for this slide
+        <img
+          alt=""
+          src={signedThumb}
+          data-social-explore-poster=""
+          className="pointer-events-none absolute inset-0 size-full object-cover"
+        />
+      ) : signed ? null : (
         // eslint-disable-next-line @next/next/no-img-element -- public Mux still, no playback mint
         <img
           alt=""

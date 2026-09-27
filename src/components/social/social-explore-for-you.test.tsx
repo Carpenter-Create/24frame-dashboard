@@ -12,6 +12,7 @@ import {
   SOCIAL_POST_ACTION_LIKED_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL } from "@/lib/social";
+import { socialMuxThumbnailUrl } from "@/lib/social-mux";
 import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 
 vi.mock("next/dynamic", () => ({
@@ -157,6 +158,26 @@ describe("SocialExploreForYouStream", () => {
     expect(warm).toContain("socialMuxPlaybackRequiresTokens");
     expect(warm).toContain("controller.abort()");
     expect(warm).not.toContain(".map(");
+  });
+
+  it("paints a server-minted JWT poster on the first signed item without a client mint", () => {
+    const signed = {
+      ...item,
+      playbackPolicy: "signed" as const,
+      playbackTokens: { playback: "play.jwt", thumbnail: "thumb.jwt", storyboard: "board.jwt" },
+    };
+    const html = renderToStaticMarkup(
+      createElement(SocialExploreForYouStream, { items: [signed], emptyLabel: null }),
+    );
+    const src = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    const thumb = socialMuxThumbnailUrl(signed.playbackId, "thumb.jwt");
+    expect(html).toContain("<img");
+    expect(html).toContain(thumb);
+    expect(html).not.toContain('data-social-mux-poster="pending"');
+    expect(html).not.toContain("data-mux-player-stub");
+    expect(html).not.toContain(`src="https://image.mux.com/${signed.playbackId}/thumbnail.webp"`);
+    expect(src).toContain("initialTokens={item.playbackTokens}");
+    expect(src).not.toContain("SOCIAL_MUX_PLAYBACK_ROUTE");
   });
 
   it("keeps comment and share dismiss on the same For You item", () => {

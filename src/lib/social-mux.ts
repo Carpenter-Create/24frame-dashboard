@@ -89,6 +89,16 @@ export function readSocialMuxPlaybackTokenCache(playbackId: string): SocialMuxPl
   return playbackTokenCache.get(playbackId) ?? null;
 }
 
+/** Keep a server-minted token set for this browser session. Does not fetch. */
+export function rememberSocialMuxPlaybackTokens(
+  playbackId: string,
+  tokens: SocialMuxPlaybackTokens,
+): void {
+  if (!socialMuxPlaybackTokensFromJson(tokens)) return;
+  playbackTokenCache.set(playbackId, tokens);
+  warmSocialMuxThumbnail(playbackId, tokens.thumbnail);
+}
+
 /** Test isolation. A cleared generation ignores a mint that resolves later. */
 export function clearSocialMuxPlaybackTokenCache(): void {
   playbackTokenGeneration += 1;

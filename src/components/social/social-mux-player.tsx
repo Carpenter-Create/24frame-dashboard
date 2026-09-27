@@ -8,8 +8,10 @@ import { SOCIAL_MUX_PLAYER_CLASS } from "@/lib/social-chrome";
 import {
   loadSocialMuxPlaybackTokens,
   readSocialMuxPlaybackTokenCache,
+  rememberSocialMuxPlaybackTokens,
   socialMuxCoveringPoster,
   socialMuxPlaybackRequiresTokens,
+  socialMuxPlaybackTokensFromJson,
   socialMuxSignedPlayerReady,
   socialMuxThumbnailUrl,
   type SocialMuxPlaybackPolicy,
@@ -87,6 +89,7 @@ export function SocialMuxPlayer({
   chromeless = false,
   onPaint,
   onForcedMute,
+  initialTokens,
 }: {
   playbackId: string;
   playbackPolicy?: SocialMuxPlaybackPolicy;
@@ -97,13 +100,15 @@ export function SocialMuxPlayer({
   chromeless?: boolean;
   onPaint?: () => void;
   onForcedMute?: () => void;
+  initialTokens?: SocialMuxPlaybackTokens;
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
+  const provided = signed ? socialMuxPlaybackTokensFromJson(initialTokens) : null;
   const cached = signed ? readSocialMuxPlaybackTokenCache(playbackId) : null;
   const [mint, setMint] = useState<{ playbackId: string; tokens: SocialMuxPlaybackTokens } | null>(null);
   const [paintedId, setPaintedId] = useState<string | null>(null);
   const [posterReadyId, setPosterReadyId] = useState<string | null>(null);
-  const tokens = signed ? (mint?.playbackId === playbackId ? mint.tokens : cached) : null;
+  const tokens = signed ? (mint?.playbackId === playbackId ? mint.tokens : cached ?? provided) : null;
   const painted = paintedId === playbackId;
   const posterReady = posterReadyId === playbackId;
   const poster = socialMuxThumbnailUrl(playbackId, tokens?.thumbnail);
@@ -117,16 +122,21 @@ export function SocialMuxPlayer({
   };
   useEffect(() => {
     if (!signed) return;
-    if (readSocialMuxPlaybackTokenCache(playbackId)) return;
+    if (!provided) return;
+    rememberSocialMuxPlaybackTokens(playbackId, provided);
+  }, [playbackId, signed, provided]);
+  useEffect(() => {
+    if (!signed || provided || readSocialMuxPlaybackTokenCache(playbackId)) return;
     const controller = new AbortController();
     void loadSocialMuxPlaybackTokens(playbackId, controller.signal).then((next) => {
       if (controller.signal.aborted || !next) return;
       setMint({ playbackId, tokens: next });
     });
     return () => controller.abort();
-  }, [playbackId, signed]);
+  }, [playbackId, signed, provided]);
   useEffect(() => {
     if (!signed || !tokens) return;
+    void import("@mux/mux-player-react");
     void import("./social-mux-player-mount");
   }, [signed, tokens]);
 

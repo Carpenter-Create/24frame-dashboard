@@ -95,7 +95,10 @@ describe("SocialMuxPlayer signed poster gate", () => {
     vi.restoreAllMocks();
   });
 
-  function mount(playbackPolicy: "signed" | "public") {
+  function mount(
+    playbackPolicy: "signed" | "public",
+    initialTokens?: { playback: string; thumbnail: string; storyboard: string },
+  ) {
     installFetch();
     const host = minimalDocument();
     const node = host.createElement("div");
@@ -109,6 +112,7 @@ describe("SocialMuxPlayer signed poster gate", () => {
           playbackPolicy,
           autoPlay: true,
           muted: true,
+          initialTokens,
         }),
       );
     });
@@ -193,6 +197,17 @@ describe("SocialMuxPlayer signed poster gate", () => {
     expect(html()).toContain(socialMuxThumbnailUrl(PLAYBACK_ID, TOKENS.thumbnail));
     expect(html()).not.toContain("data-mux-player-stub");
     expect(html()).not.toContain('data-social-mux-poster="pending"');
+  });
+
+  it("paints a provided JWT poster before any client mint", () => {
+    mount("signed", TOKENS);
+    const thumb = socialMuxThumbnailUrl(PLAYBACK_ID, TOKENS.thumbnail);
+    expect(pending).toHaveLength(0);
+    expect(html()).toContain("<img");
+    expect(html()).toContain(thumb);
+    expect(html()).not.toContain('data-social-mux-poster="pending"');
+    expect(html()).not.toContain("data-mux-player-stub");
+    expect(html()).not.toContain(`src="https://image.mux.com/${PLAYBACK_ID}/thumbnail.webp"`);
   });
 
   it("mounts a public player without waiting on a poster decode", () => {

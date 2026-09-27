@@ -36,6 +36,7 @@ import {
   type ExploreForYouMode,
   type ExploreForYouQuery,
 } from "@/lib/social-explore-for-you";
+import { warmExploreForYouPlaybackTokens } from "@/lib/social-explore-mux-warm";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession, type SocialSession } from "@/lib/social-session";
 
@@ -117,13 +118,16 @@ async function SocialExploreForYouBody({
       ? loadPeopleSearch(session.supabase, query.q, viewer)
       : Promise.resolve({ people: [] as SocialSuggestedPerson[], truncated: false }),
   ]);
-  const items = exploreForYouVideoItems({
-    hits: videoHits,
-    mediaByPost,
-    authors,
-    liked,
-    canLike: !!profile,
-  });
+  const items = await warmExploreForYouPlaybackTokens(
+    session.ctx.user.id,
+    exploreForYouVideoItems({
+      hits: videoHits,
+      mediaByPost,
+      authors,
+      liked,
+      canLike: !!profile,
+    }),
+  );
   const label = exploreForYouFilterLabel({
     mode,
     q: query.q,

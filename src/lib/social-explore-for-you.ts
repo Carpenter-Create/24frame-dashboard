@@ -1,5 +1,9 @@
 import { socialAvatarHref, type SocialEdgeMediaItem } from "@/lib/social-edge";
-import { isSocialMuxId, type SocialMuxPlaybackPolicy } from "@/lib/social-mux";
+import {
+  isSocialMuxId,
+  type SocialMuxPlaybackPolicy,
+  type SocialMuxPlaybackTokens,
+} from "@/lib/social-mux";
 import { SOCIAL_ROUTES, displayHandle, normalizeHandle } from "@/lib/social";
 
 // Explore For You v2. Video-only vertical stream. Photos stay off this host.
@@ -31,6 +35,8 @@ export type SocialExploreForYouItem = {
   commentCount: number;
   liked: boolean;
   canLike: boolean;
+  /** Present when the Explore loader already minted this signed playback. */
+  playbackTokens?: SocialMuxPlaybackTokens;
 };
 
 export type ExploreForYouQuery = {

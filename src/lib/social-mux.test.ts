@@ -162,6 +162,10 @@ describe("social Mux encode locks", () => {
     expect(poster).toContain("src={signedPoster}");
     expect(poster).toContain("onDecoded={() => setPosterReadyId(playbackId)}");
     expect(player).toContain("tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null");
+    expect(player).toContain("cached ?? provided");
+    expect(player).toContain("rememberSocialMuxPlaybackTokens");
+    expect(player).toContain('import("@mux/mux-player-react")');
+    expect(player).toContain("if (!signed || provided || readSocialMuxPlaybackTokenCache(playbackId)) return");
     const posterFn = player.slice(player.indexOf("function MuxPoster"), player.indexOf("function playerStyle"));
     expect(posterFn).toContain("onDecoded?.()");
     const onError = posterFn.slice(posterFn.indexOf("onError"));
