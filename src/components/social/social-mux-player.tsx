@@ -136,8 +136,10 @@ export function SocialMuxPlayer({
   }, [playbackId, signed, provided]);
   useEffect(() => {
     if (!signed || !tokens) return;
-    void import("@mux/mux-player-react");
-    void import("./social-mux-player-mount");
+    // Mux's custom element reads HTMLElement at import. Skip that in Node tests.
+    if (typeof HTMLElement === "undefined") return;
+    void import("@mux/mux-player-react").catch(() => undefined);
+    void import("./social-mux-player-mount").catch(() => undefined);
   }, [signed, tokens]);
 
   return (

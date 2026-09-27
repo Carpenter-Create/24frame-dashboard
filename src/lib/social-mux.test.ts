@@ -165,6 +165,7 @@ describe("social Mux encode locks", () => {
     expect(player).toContain("cached ?? provided");
     expect(player).toContain("rememberSocialMuxPlaybackTokens");
     expect(player).toContain('import("@mux/mux-player-react")');
+    expect(player).toContain('typeof HTMLElement === "undefined"');
     expect(player).toContain("if (!signed || provided || readSocialMuxPlaybackTokenCache(playbackId)) return");
     const posterFn = player.slice(player.indexOf("function MuxPoster"), player.indexOf("function playerStyle"));
     expect(posterFn).toContain("onDecoded?.()");
