@@ -5,6 +5,7 @@ import { socialMediaKindFor, type SocialMediaKind } from "@/lib/social-media";
 // Adam lock 2026-09-20 — Create Media is one mixed-library intent.
 // Media tile opens the camera roll immediately (`image/*,video/*`).
 // After pick, one screen: preview, caption, Post.
+// docs/design-locks/social-create-media-single-screen-lock-v1.md
 // docs/design-locks/social-video-upload-cover-lift-lock-v1.md
 // docs/design-locks/social-video-mux-only-lock-v1.md
 
