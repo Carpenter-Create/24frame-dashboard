@@ -41,7 +41,7 @@ File: [`scripts/db/rematch-migration-ledger-20260928.sql`](../../scripts/db/rema
 
 1. Open the **24Frame** project (`uevsculwzwlhxeamagwg`), SQL editor, role **postgres**. `drift_reader` is select-only and the script refuses that role.
 2. Paste the file and run it once. It is one transaction. A guard failure rolls it back.
-3. It updates 38 `version` values to the filename prefix. It does not rewrite `statements`. It deletes the two alias rows above, and only after checking they are aliases.
+3. It updates 38 `version` values to the filename prefix. It does not rewrite `statements`. It deletes the two alias rows above, and only after checking they are aliases. Each pinned digest is stored as `md5:` plus 32 hex digits. The guard strips that prefix before comparing it to `md5` of the applied statement. A bare 32-hex digest next to a name that contains `key` is the shape `generic-api-key` flags.
 4. It does **not** insert rows for the seven files below, and it does **not** delete the six `account_invites_*` rows.
 5. A second run is a no-op. The script drops temp table `rematch` before creating it, so pasting it again in the same SQL-editor session does not fail on the leftover table.
 

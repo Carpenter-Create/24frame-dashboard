@@ -19,7 +19,7 @@ const sqlPath = "scripts/db/rematch-migration-ledger-20260928.sql";
 const sql = readFileSync(sqlPath, "utf8");
 
 const pairRe =
-  /\('(\d{14})', '(\d{14})', '([a-z0-9_]+)', '([0-9a-f]{32})'\)/g;
+  /\('(\d{14})', '(\d{14})', '([a-z0-9_]+)', 'md5:([0-9a-f]{32})'\)/g;
 const pairs = [...sql.matchAll(pairRe)].map((m) => ({
   fromVersion: m[1],
   toVersion: m[2],
@@ -89,6 +89,13 @@ test("the map does not claim the seven unresolved files or the six splits", () =
     assert.equal(sources.has(version), false, version);
     assert.equal(fileForPrefix(version).length, 0);
   }
+});
+
+test("map digests are stored as md5: plus the file hex", () => {
+  assert.equal(pairs.length, 38);
+  assert.match(sql, /r\.expected_md5 !~ '\^md5:\[0-9a-f\]\{32\}\$'/);
+  assert.match(sql, /regexp_replace\(r\.expected_md5, '\^md5:', ''\)/);
+  assert.doesNotMatch(sql, /'[0-9a-f]{32}'/);
 });
 
 test("each expected_md5 is the comment-stripped file body", () => {

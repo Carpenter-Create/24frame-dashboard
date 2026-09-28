@@ -33,3 +33,10 @@ e3441ece37d7a769865f5371268b011d8bfc6da9:scripts/security/l7-chain-of-title-gate
 # Unmerged social branch — `linkedInWidth` / `linkedInHeight` dimension lock names, not credentials.
 7daab7ce433e5a5ba6c7e18241683ccbcfe75c31:src/lib/social-profile-cover.ts:linkedin-client-id:34
 
+# Rematch map. `profile_cover_key` sits beside its statement MD5, so
+# generic-api-key treats that digest as a key. It is an MD5 body digest,
+# not a credential. Only this introducing commit adds the bare hex
+# (`git log -p -U0`); later commits do not. The tip stores every digest
+# as `md5:` + hex. The other 37 digests in that commit do not match the rule.
+0d21074bbec3a86a48cbddf933e973917b8ee85b:scripts/db/rematch-migration-ledger-20260928.sql:generic-api-key:81
+
