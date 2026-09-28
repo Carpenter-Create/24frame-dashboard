@@ -47,7 +47,7 @@ Full doctrine: [`AGENTS.md`](../../AGENTS.md). Domain truth: [`docs/domain-spec.
 | Item | Status |
 | --- | --- |
 | Production database release | **Complete** |
-| Migration state | **Fully applied; no pending migrations** |
+| Migration state | **Not filename-aligned.** Prod was applied through MCP, which stored apply-time versions while the repo kept hand-named files. Thirty-eight of those are the same SQL under two version strings. Seven repo files are still not recorded as applied, and six `account_invites_*` ledger rows are split applies rather than filename aliases. Repair and the do-not-batch-`db push` rule: [`docs/scheduled/migration-ledger-rematch.md`](../scheduled/migration-ledger-rematch.md). |
 | Terminal catalog and RLS state | **Verified** |
 | Release verification suites | **Passed** |
 | Duplicate invariant | **Clean** |
