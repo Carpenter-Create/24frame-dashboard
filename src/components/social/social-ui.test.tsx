@@ -965,7 +965,8 @@ describe("SocialPostCard media", () => {
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-actions"));
     expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf(`0 ${SOCIAL.post.likes}`));
     expect(html.indexOf(`0 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("data-social-post-caption"));
-    expect(html.indexOf("data-social-post-caption")).toBeLessThan(html.indexOf("hello"));
+    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("hello"));
+    expect(html.indexOf(`0 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("hello"));
   });
 
   it("renders signed image and video URLs", () => {
