@@ -57,4 +57,27 @@ describe("owner post overflow", () => {
     expect(postCard.indexOf("SocialPostOwnerMenu")).toBeLessThan(postCard.indexOf("data-social-post-actions"));
     expect(postCard).toContain('className="flex items-center gap-3.5"');
   });
+
+  it("locks delete confirm copy to Remove and Keep", () => {
+    expect(SOCIAL.post.delete).toBe("Delete");
+    expect(SOCIAL.post.deleteTitle).toBe("Remove this post?");
+    expect(SOCIAL.post.deleteBody).toBe(
+      "It'll come off your profile and the feed. Comments and likes go with it.",
+    );
+    expect(SOCIAL.post.deleteConfirm).toBe("Remove");
+    expect(SOCIAL.post.deleteKeep).toBe("Keep");
+    expect(SOCIAL.post.deleteFailed).toBe("Could not remove that post.");
+    expect(SOCIAL.post.editCancel).toBe("Cancel");
+
+    const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
+    const edit = src.slice(src.indexOf('mode === "edit"'), src.indexOf('mode === "delete"'));
+    const remove = src.slice(src.indexOf('mode === "delete"'));
+    expect(edit).toContain("SOCIAL.post.editCancel");
+    expect(edit).not.toContain("SOCIAL.post.deleteKeep");
+    expect(remove).toContain("SOCIAL.post.deleteKeep");
+    expect(remove).toContain("SOCIAL.post.deleteTitle");
+    expect(remove).toContain("SOCIAL.post.deleteBody");
+    expect(remove).toContain("SOCIAL.post.deleteConfirm");
+    expect(remove).not.toContain("SOCIAL.post.editCancel");
+  });
 });

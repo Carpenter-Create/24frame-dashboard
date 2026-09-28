@@ -239,7 +239,7 @@ export function SocialPostOwnerMenu({
         {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
         <DialogFooter>
           <Button type="button" variant="secondary" onClick={close}>
-            {SOCIAL.post.editCancel}
+            {SOCIAL.post.deleteKeep}
           </Button>
           <Button
             type="button"
