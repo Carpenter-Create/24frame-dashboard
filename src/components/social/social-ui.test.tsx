@@ -1093,7 +1093,8 @@ describe("SocialPostCard media", () => {
     expect(multi.indexOf("data-social-post-carousel")).toBeLessThan(multi.indexOf("data-social-post-actions"));
     expect(multi.indexOf("data-social-post-actions")).toBeLessThan(multi.indexOf(`4 ${SOCIAL.post.likes}`));
     expect(multi.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(multi.indexOf("data-social-post-caption"));
-    expect(multi.indexOf("data-social-post-caption")).toBeLessThan(multi.indexOf("two stills"));
+    expect(multi.indexOf("data-social-post-carousel")).toBeLessThan(multi.indexOf("two stills"));
+    expect(multi.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(multi.indexOf("two stills"));
     expect(multi).not.toContain("truncate");
 
     const mediaOnly = renderToStaticMarkup(
