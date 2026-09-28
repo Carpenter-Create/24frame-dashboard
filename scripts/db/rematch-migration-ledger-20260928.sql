@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Rematch prod schema_migrations.version to repo filename prefixes.
 --
--- READ THIS WITH docs/scheduled/migration-ledger-rematch-20260928.md
+-- READ THIS WITH docs/scheduled/migration-ledger-rematch.md
 --
 -- What this does
 --   Updates 38 ledger versions from the MCP apply-time timestamp to the
@@ -24,6 +24,8 @@
 --   drift_reader cannot. This script raises if current_user is drift_reader.
 --
 -- Idempotent. A second run sees the target versions and does nothing.
+-- Same SQL-editor session: DROP TABLE IF EXISTS rematch before CREATE, so a
+-- re-paste does not collide with the temp table left by the previous commit.
 -- One transaction. Any guard failure rolls the whole script back.
 -- ============================================================================
 
@@ -36,27 +38,30 @@ begin
   end if;
 end $$;
 
+drop table if exists rematch;
+
 create temp table rematch (
   from_version text primary key,
   to_version text not null unique,
   expected_name text not null,
-  -- md5 of the applied statement after removing full-line '--' comments
-  -- and all whitespace. Computed 2026-09-28 against prod. Refuses the
-  -- update if that body is no longer the body that was inspected.
+  -- md5 after removing full-line '--' comments, including indented
+  -- comment lines, then all whitespace. Same normalization as the test,
+  -- which recomputes it from the repo file. Refuses the update if the
+  -- applied statement no longer matches that body.
   expected_md5 text not null
 );
 
 insert into rematch (from_version, to_version, expected_name, expected_md5) values
   ('20260912032826', '20260912000100', 'rename_ask_globee_ai_conversation_tables', 'bd2c4716a4c872ceb49453a2024079c5'),
-  ('20260912034413', '20260912033234', 'identity_spine', 'db2717921890c1505983929ebc060d71'),
-  ('20260912040353', '20260912120000', 'groups_posts', 'c0d4a13a09698cbb1d23fb76be5dd135'),
-  ('20260912044030', '20260912180000', 'likes', 'f677b6d89b122a4e6dd5d32adfab4937'),
-  ('20260912050532', '20260912200000', 'direct_messages', '24435e99761bbd890db3cbf802d2b747'),
+  ('20260912034413', '20260912033234', 'identity_spine', 'db4a12dc0ee0925bc4d2653fef4ba151'),
+  ('20260912040353', '20260912120000', 'groups_posts', '9d8154863c7bca81217b1882e9d8709b'),
+  ('20260912044030', '20260912180000', 'likes', 'af8e9d4ce853bb4a372ec1260ea77464'),
+  ('20260912050532', '20260912200000', 'direct_messages', '7e62060e7f85aa297490c42c53eecabf'),
   ('20260912155643', '20260912220000', 'leaderboards', '0d7c56231349cfe0f4543e167d81a399'),
   ('20260912164653', '20260912230000', 'group_dms', '1e93c2f5d3e0f10c7ef6fa5d1980ca40'),
   ('20260912170303', '20260912240000', 'courses', '4eb1573974748379e9f0cb496ed49fe9'),
   ('20260913125400', '20260913120000', 'dashboard_sign_in_requests', '5743b3c9f027ced56e99ac04995287d9'),
-  ('20260913215055', '20260913130000', 'finance_ops_slice_1', 'c0d27e2e823acd3afdb93c445340b0f1'),
+  ('20260913215055', '20260913130000', 'finance_ops_slice_1', '000281573df940e29767c4c8d3b8e1b9'),
   ('20260913225857', '20260913220000', 'finance_ops_slice_2_suspense', '8422b6817e5a940684c7439bc616ede5'),
   ('20260913225947', '20260913230000', 'finance_ops_slice_2_aws_spine', 'aa240f4bee84b4b9a1cc68361fca82ac'),
   ('20260914025648', '20260914120000', 'social_home_stories', 'd939d7637df4054e2aa9a2fc297455a4'),
@@ -65,7 +70,7 @@ insert into rematch (from_version, to_version, expected_name, expected_md5) valu
   ('20260914044320', '20260914200000', 'social_media_author_bound', '13b603e41c8b265030292a3f82adb820'),
   ('20260914050541', '20260914310000', 'bound_my_rpcs', 'a69c37bc087b4126514c863c8d820c98'),
   ('20260914052332', '20260914210000', 'profiles_select_active_public', '79ae960068704f412d8f0d072eb3a645'),
-  ('20260914060027', '20260914420000', 'dm_fanout_caps', '8b168e66f280c9b0fa4cde770a4f035f'),
+  ('20260914060027', '20260914420000', 'dm_fanout_caps', 'ba40544130bd938fe71b6ee985654931'),
   ('20260916014642', '20260916010000', 'course_education_media', '36103f012af6d04e34d696e57dd158ed'),
   ('20260916024716', '20260916020000', 'education_catalog', '93b69fd10c40450f35ee8949ddd24e82'),
   ('20260917184318', '20260917120000', 'title_status_archived', '6a6f3e02fd4c53f7d340055669edcddf'),
@@ -84,7 +89,7 @@ insert into rematch (from_version, to_version, expected_name, expected_md5) valu
   ('20260924124222', '20260924120100', 'story_item_likes', '2ceae500302fbbfc4015b68e6ad9ba3a'),
   ('20260924152453', '20260924140000', 'story_send_self_dm', '84623fba2a6114b437dbc84accfd03b5'),
   ('20260924162806', '20260924190000', 'dm_membership_sealed', '5fe8b853480f86f97e438738016fd218'),
-  ('20260926050031', '20260926120000', 'social_post_author_edit', '9d0e19b8e7bcdce12a1469b26491c4ce');
+  ('20260926050031', '20260926120000', 'social_post_author_edit', 'aa12e1655fe36bec0e144bdb013a673a');
 
 -- Drop alias rows before the version update, so a keeper is never asked
 -- to occupy a version that a duplicate still holds. None of these targets
@@ -150,7 +155,7 @@ begin
 
     if n_from = 1 and n_to = 0 then
       select name,
-             md5(regexp_replace(regexp_replace(statements[1], '^--.*$', '', 'gn'), '\s+', '', 'g'))
+             md5(regexp_replace(regexp_replace(statements[1], '^\s*--.*$', '', 'gn'), '\s+', '', 'g'))
         into got_name, got_md5
         from supabase_migrations.schema_migrations
        where version = r.from_version;

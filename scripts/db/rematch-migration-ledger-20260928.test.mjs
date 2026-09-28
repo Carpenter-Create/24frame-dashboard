@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
+
+// Same digest the repair pins: drop full-line `--` comments (including
+// indented ones) and all whitespace, then md5. Ledger statements have no
+// indented comment lines; repo files do, and those comments are not part
+// of the applied body. A change to executable SQL changes this digest.
+function statementMd5(sqlText) {
+  const stripped = sqlText
+    .replaceAll("\r\n", "\n")
+    .replace(/^\s*--.*$/gm, "")
+    .replace(/\s+/g, "");
+  return createHash("md5").update(stripped).digest("hex");
+}
 
 const sqlPath = "scripts/db/rematch-migration-ledger-20260928.sql";
 const sql = readFileSync(sqlPath, "utf8");
@@ -76,6 +89,28 @@ test("the map does not claim the seven unresolved files or the six splits", () =
     assert.equal(sources.has(version), false, version);
     assert.equal(fileForPrefix(version).length, 0);
   }
+});
+
+test("each expected_md5 is the comment-stripped file body", () => {
+  for (const pair of pairs) {
+    const body = readFileSync(
+      `supabase/migrations/${pair.toVersion}_${pair.name}.sql`,
+      "utf8",
+    );
+    assert.equal(
+      statementMd5(body),
+      pair.md5,
+      `${pair.name} file digest does not match the map`,
+    );
+  }
+});
+
+test("same-session re-paste drops the temp table before creating it", () => {
+  const dropAt = sql.toLowerCase().indexOf("drop table if exists rematch;");
+  const createAt = sql.toLowerCase().indexOf("create temp table rematch");
+  assert.ok(dropAt !== -1, "missing DROP TABLE IF EXISTS rematch");
+  assert.ok(createAt !== -1, "missing CREATE TEMP TABLE rematch");
+  assert.ok(dropAt < createAt);
 });
 
 test("the only deletes are the two proven alias versions", () => {

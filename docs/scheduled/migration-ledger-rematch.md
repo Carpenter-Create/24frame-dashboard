@@ -32,7 +32,7 @@ File: [`scripts/db/rematch-migration-ledger-20260928.sql`](../../scripts/db/rema
 2. Paste the file and run it once. It is one transaction. A guard failure rolls it back.
 3. It updates 38 `version` values to the filename prefix. It does not rewrite `statements`. It deletes the two alias rows above, and only after checking they are aliases.
 4. It does **not** insert rows for the seven files below, and it does **not** delete the six `account_invites_*` rows.
-5. A second run is a no-op.
+5. A second run is a no-op. The script drops temp table `rematch` before creating it, so pasting it again in the same SQL-editor session does not fail on the leftover table.
 
 Rollback, if the 38 updates need to be undone and nothing newer has been applied under the new versions: run the same pairs in reverse (`to_version` back to `from_version`) with the same name guard. Do not re-insert the two deleted duplicates; the kept row still holds that statement. There is no foreign key on `schema_migrations`.
 
