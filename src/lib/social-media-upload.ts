@@ -6,8 +6,9 @@ import {
 import { SOCIAL } from "@/lib/social";
 import {
   SOCIAL_MEDIA_MAX_ITEMS,
-  socialMediaKindFor,
+  storyPickFile,
   type SocialMediaItem,
+  type SocialMediaKind,
   type SocialMediaLane,
 } from "@/lib/social-media";
 import { probeSocialVideoPixels, SOCIAL_MUX_PROVIDER, type SocialMuxIntent } from "@/lib/social-mux";
@@ -24,7 +25,6 @@ export type SocialUploadProgress = {
 
 export type SocialPostUploadOptions = {
   intent?: SocialMuxIntent;
-  originalQuality?: boolean;
   signal?: AbortSignal;
   /**
    * Source pixels for the Mux tier.
@@ -125,6 +125,18 @@ export function putSocialMediaWithProgress(
   });
 }
 
+/**
+ * Kind for a library file before bytes move.
+ * iPhone camera-roll clips often have an empty type or a codec parameter.
+ * A bare MIME check misses those and the still upload would run.
+ * Extension and bare-type mapping stay on the story pick helper.
+ */
+export function socialPostUploadPlan(file: File): { file: File; kind: SocialMediaKind } | null {
+  const picked = storyPickFile(file);
+  if (!picked) return null;
+  return { file: picked.file, kind: picked.kind };
+}
+
 export async function uploadSocialPostMedia(
   files: ArrayLike<File> | null,
   current: SocialMediaItem[],
@@ -138,15 +150,16 @@ export async function uploadSocialPostMedia(
   const chosen = Array.from(files).slice(0, remaining);
   const next: SocialMediaItem[] = [];
   for (const file of chosen) {
-    const kind = socialMediaKindFor(file.type);
-    if (kind === "video" && (lane === "posts" || lane === "stories")) {
-      const uploaded = await uploadSocialMuxVideoFile(file, { ...options, lane });
+    const planned = socialPostUploadPlan(file);
+    if (!planned) return { error: SOCIAL.home.mediaType };
+    if (planned.kind === "video" && (lane === "posts" || lane === "stories")) {
+      const uploaded = await uploadSocialMuxVideoFile(planned.file, { ...options, lane });
       if (uploaded.aborted) return { aborted: true };
       if (uploaded.error || !uploaded.item) return { error: uploaded.error ?? SOCIAL.home.uploadFailed };
       next.push(uploaded.item);
       continue;
     }
-    const uploaded = await uploadSocialS3Media(file, lane, options.signal);
+    const uploaded = await uploadSocialS3Media(planned.file, lane, options.signal);
     if (uploaded.aborted) return { aborted: true };
     if (uploaded.error || !uploaded.item) return { error: uploaded.error ?? SOCIAL.home.uploadFailed };
     next.push(uploaded.item);
@@ -208,7 +221,6 @@ export async function uploadSocialMuxVideoFile(
   body.set("byte_length", String(file.size));
   body.set("lane", lane);
   body.set("intent", options.intent ?? "video");
-  if (options.originalQuality) body.set("original_quality", "1");
   if (pixels) {
     body.set("source_width", String(pixels.width));
     body.set("source_height", String(pixels.height));

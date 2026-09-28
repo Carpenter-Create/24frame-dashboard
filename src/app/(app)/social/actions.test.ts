@@ -1290,7 +1290,6 @@ describe("social actions", () => {
     start.set("content_type", "video/mp4");
     start.set("byte_length", "1200");
     start.set("intent", "video");
-    start.set("original_quality", "1");
     start.set("source_width", "3840");
     start.set("source_height", "2160");
     expect(await createSocialMuxUpload(start)).toEqual({
@@ -1302,7 +1301,6 @@ describe("social actions", () => {
     });
     expect(socialMuxSettingsFromUploadInput).toHaveBeenCalledWith({
       intent: "video",
-      originalQuality: true,
       width: 3840,
       height: 2160,
     });

@@ -1048,6 +1048,39 @@ describe("SocialPostCard media", () => {
     );
     expect(mux).toContain('data-social-mux-player="uNbxnGLKJ00yfbijDO8COxT"');
     expect(uiSrc).toContain("SocialFeedVideo");
+
+    const cheese = renderToStaticMarkup(
+      <SocialPostCard
+        post={{
+          id: "cheese",
+          body: "Cheese please test",
+          likeCount: 0,
+          liked: false,
+          createdAt: "2026-09-28T14:00:00.000Z",
+          authorId: "u1",
+          authorHandle: "adam",
+          authorName: "Adam",
+          authorPhotoUrl: null,
+          groupSlug: null,
+          groupName: null,
+          canLike: false,
+          media: [
+            {
+              kind: "video",
+              url: "",
+              playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+              playbackPolicy: "signed",
+            },
+          ],
+        }}
+      />,
+    );
+    expect(cheese).toContain("Cheese please test");
+    expect(cheese).toContain('data-social-mux-player="uNbxnGLKJ00yfbijDO8COxT"');
+    expect(cheese).toContain('data-social-mux-playback="pending"');
+    expect(cheese).not.toContain("data-social-post-image");
+    expect(cheese).not.toContain("<img");
+    expect(cheese).not.toContain("<video");
   });
 
   it("swipes two or more media as one carousel and keeps a single frame for one", () => {

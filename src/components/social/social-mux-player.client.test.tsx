@@ -98,6 +98,7 @@ describe("SocialMuxPlayer signed poster gate", () => {
   function mount(
     playbackPolicy: "signed" | "public",
     initialTokens?: { playback: string; thumbnail: string; storyboard: string },
+    autoPlay = true,
   ) {
     installFetch();
     const host = minimalDocument();
@@ -110,7 +111,7 @@ describe("SocialMuxPlayer signed poster gate", () => {
         createElement(SocialMuxPlayer, {
           playbackId: PLAYBACK_ID,
           playbackPolicy,
-          autoPlay: true,
+          autoPlay,
           muted: true,
           initialTokens,
         }),
@@ -208,6 +209,17 @@ describe("SocialMuxPlayer signed poster gate", () => {
     expect(html()).not.toContain('data-social-mux-poster="pending"');
     expect(html()).not.toContain("data-mux-player-stub");
     expect(html()).not.toContain(`src="https://image.mux.com/${PLAYBACK_ID}/thumbnail.webp"`);
+  });
+
+  it("drops the cover still on a paused player once Mux can show play chrome", async () => {
+    mount("signed", undefined, false);
+    await settleTokens();
+    expect(html()).toContain("<img");
+    expect(html()).not.toContain("data-mux-player-stub");
+    decodePoster();
+    expect(html()).toContain("data-mux-player-stub");
+    expect(html()).not.toContain("<img");
+    expect(html()).toContain('data-social-mux-playback="signed"');
   });
 
   it("mounts a public player without waiting on a poster decode", () => {

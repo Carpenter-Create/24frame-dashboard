@@ -42,6 +42,7 @@ describe("SocialFeedVideo", () => {
       expect(html).toContain('data-social-mux-playback="public"');
       expect(html).toContain('data-mux-player-stub="abc12345xx"');
       expect(html).toContain('data-mux-has-tokens="no"');
+      expect(html).not.toContain("<img");
       expect(html).not.toContain('data-mux-has-tokens="yes"');
       expect(html).not.toContain("playback-token");
     }

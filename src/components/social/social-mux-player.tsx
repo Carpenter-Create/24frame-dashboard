@@ -13,6 +13,7 @@ import {
   socialMuxPlaybackRequiresTokens,
   socialMuxPlaybackTokensFromJson,
   socialMuxSignedPlayerReady,
+  socialMuxStillCoversChrome,
   socialMuxThumbnailUrl,
   type SocialMuxPlaybackPolicy,
   type SocialMuxPlaybackTokens,
@@ -114,6 +115,11 @@ export function SocialMuxPlayer({
   // Signed pending must not build an unsigned image.mux.com URL.
   const poster = signed ? "" : socialMuxThumbnailUrl(playbackId);
   const signedPoster = signed && tokens ? socialMuxThumbnailUrl(playbackId, tokens.thumbnail) : null;
+  const coverStill = socialMuxStillCoversChrome({
+    autoPlay,
+    chromeless,
+    firstFrame: painted,
+  });
   const releaseHold = () => {
     onPaint?.();
   };
@@ -159,8 +165,9 @@ export function SocialMuxPlayer({
         <>
           {/* No image.mux.com request before the thumbnail JWT — that 403
               is the Safari broken-image glyph. Empty span until tokens.
-              Then the JWT thumb paints and decodes before the player mounts,
-              and stays up until loadeddata, same as public. */}
+              Then the JWT thumb paints and decodes before the player mounts.
+              Autoplay may keep that still until loadeddata. A paused feed
+              player must not: iOS does not emit loadeddata until play. */}
           {socialMuxCoveringPoster(signed, Boolean(tokens)) ? (
             <span data-social-mux-poster="pending" className="absolute inset-0 size-full" />
           ) : null}
@@ -184,7 +191,10 @@ export function SocialMuxPlayer({
                   style={playerStyle(chromeless, fit)}
                 />
               ) : null}
-              {painted ? null : (
+              {/* Paused feed: once the player is mounted, its own poster and
+                  play control stay visible. Covering that face until
+                  loadeddata is the iPhone still with no chrome. */}
+              {socialMuxSignedPlayerReady(Boolean(tokens), posterReady) && !coverStill ? null : (
                 <MuxPoster
                   src={signedPoster}
                   fit={fit}
@@ -208,7 +218,7 @@ export function SocialMuxPlayer({
             poster={poster}
             style={playerStyle(chromeless, fit)}
           />
-          {painted ? null : <MuxPoster src={poster} fit={fit} onReady={releaseHold} />}
+          {coverStill ? <MuxPoster src={poster} fit={fit} onReady={releaseHold} /> : null}
         </>
       )}
     </div>

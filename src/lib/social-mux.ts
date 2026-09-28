@@ -58,6 +58,23 @@ export function socialMuxSignedPlayerReady(hasTokens: boolean, posterDecoded: bo
   return hasTokens && posterDecoded;
 }
 
+/**
+ * Whether a still may sit over the player after it has mounted.
+ * Autoplay and chromeless faces (Stories, Explore) keep the still until
+ * the first frame. A paused feed player must not: iOS Safari does not
+ * emit `loadeddata` for `preload="metadata"` until play, so a cover that
+ * waits on that event stays a static photo with no play chrome.
+ */
+export function socialMuxStillCoversChrome(input: {
+  autoPlay: boolean;
+  chromeless: boolean;
+  firstFrame: boolean;
+}): boolean {
+  if (input.firstFrame) return false;
+  if (!input.autoPlay && !input.chromeless) return false;
+  return true;
+}
+
 export function isSocialMuxId(value: string): boolean {
   return SOCIAL_MUX_ID_RE.test(value);
 }
@@ -187,9 +204,13 @@ export function parseSocialMuxIntent(raw: string | null | undefined): SocialMuxI
   return raw === "live" ? "live" : "video";
 }
 
+/**
+ * Video posts encode at the source tier, up to 4K. There is no quality
+ * prompt. A 4K source is 2160p; anything shorter stays 1080p. Go live
+ * stays plus / 1080p.
+ */
 export function socialMuxAssetSettings(input: {
   intent?: SocialMuxIntent | null;
-  originalQuality?: boolean;
   width?: number;
   height?: number;
 }): SocialMuxAssetSettings {
@@ -199,9 +220,7 @@ export function socialMuxAssetSettings(input: {
       maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
     };
   }
-  const fourK =
-    Boolean(input.originalQuality) &&
-    isSocialMux4kSource(input.width ?? 0, input.height ?? 0);
+  const fourK = isSocialMux4kSource(input.width ?? 0, input.height ?? 0);
   return {
     videoQuality: "basic",
     maxResolutionTier: fourK ? SOCIAL_MUX_ORIGINAL_RESOLUTION : SOCIAL_MUX_DEFAULT_RESOLUTION,

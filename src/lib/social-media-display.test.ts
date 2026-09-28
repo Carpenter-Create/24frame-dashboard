@@ -98,7 +98,7 @@ describe("social media display", () => {
     expect(signedFace).toContain("poster={signedPoster}");
     expect(signedFace).toContain("src={signedPoster}");
     expect(signedFace).toContain("socialMuxSignedPlayerReady");
-    expect(signedFace).toContain("painted");
+    expect(signedFace).toContain("coverStill");
     expect(signedFace).not.toContain("<img");
     expect(signedFace).not.toContain("poster={poster}");
     const pending = signedFace.slice(

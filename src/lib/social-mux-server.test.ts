@@ -198,7 +198,6 @@ describe("social Mux server client", () => {
     expect(
       socialMuxSettingsFromUploadInput({
         intent: "live",
-        originalQuality: true,
         width: 3840,
         height: 2160,
       }),
@@ -209,11 +208,17 @@ describe("social Mux server client", () => {
     expect(
       socialMuxSettingsFromUploadInput({
         intent: "video",
-        originalQuality: true,
         width: 3840,
         height: 2160,
       }).settings.maxResolutionTier,
     ).toBe("2160p");
+    expect(
+      socialMuxSettingsFromUploadInput({
+        intent: "video",
+        width: 1920,
+        height: 1080,
+      }).settings.maxResolutionTier,
+    ).toBe("1080p");
     expect(
       signedPlaybackIdFromAsset({
         playback_ids: [

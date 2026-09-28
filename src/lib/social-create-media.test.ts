@@ -22,15 +22,15 @@ describe("Social Create Media SoT", () => {
     expect(socialCreateMediaHref("review")).toBe("/social/create?kind=media&step=review");
     expect(socialCreateMediaHref("caption")).toBe("/social/create?kind=media&step=caption");
     expect(parseSocialCreateMediaStep("caption")).toBe("caption");
-    expect(parseSocialCreateMediaStep("review")).toBe("review");
+    expect(parseSocialCreateMediaStep("review")).toBe("caption");
     expect(parseSocialCreateMediaStep("pick")).toBe("pick");
     expect(socialCreateKindFromMediaFile({ type: "image/jpeg" })).toBe("media");
     expect(socialCreateKindFromMediaFile({ type: "video/mp4" })).toBe("media");
     expect(socialCreateKindFromMediaFile({ type: "application/pdf" })).toBeNull();
     expect(socialCreateKindFromMediaFiles([{ type: "image/png" }])).toBe("media");
     expect(socialCreateMediaStepAfterPick([], "caption")).toBe("pick");
-    expect(socialCreateMediaStepAfterPick([{}], null)).toBe("review");
-    expect(socialCreateMediaStepAfterPick([{}], "caption")).toBe("caption");
+    expect(socialCreateMediaStepAfterPick([{}], null)).toBe("caption");
+    expect(socialCreateMediaStepAfterPick([{}], "review")).toBe("caption");
 
     const sheet = readFileSync("src/lib/social-create-sheet.ts", "utf8");
     const tiles = readFileSync("src/components/social/social-create-sheet.tsx", "utf8");
@@ -47,8 +47,10 @@ describe("Social Create Media SoT", () => {
     expect(media).toContain("stashSocialHomeComposerMedia");
     expect(media).toContain("socialCreateMediaHref()");
     expect(compose).toContain('data-social-create-media-step="pick"');
-    expect(compose).toContain('data-social-create-media-step="review"');
-    expect(compose).toContain("SOCIAL.create.next");
+    expect(compose).toContain('data-social-create-media-step="caption"');
+    expect(compose).not.toContain('data-social-create-media-step="review"');
+    expect(compose).not.toContain("data-social-create-media-next");
+    expect(compose).not.toContain("data-social-create-original-quality");
     expect(compose).toContain("SOCIAL_CREATE_MEDIA_ACCEPT");
     expect(compose).not.toContain("SOCIAL.create.dropEmpty");
     expect(compose).not.toContain("data-social-create-well");

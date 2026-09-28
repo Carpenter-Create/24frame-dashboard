@@ -29,9 +29,13 @@ names the official Mux JWT helper reads. They stay in
 
 | Path | `video_quality` | `max_resolution_tier` |
 | --- | --- | --- |
-| Video (default) | `basic` | `1080p` |
+| Video, source under 4K | `basic` | `1080p` |
+| Video, 4K source (default, no prompt) | `basic` | `2160p` |
 | Go live (~10 min recorder → normal video post) | `plus` | `1080p` |
-| Video + “Upload in original quality (up to 4K)” + 4K source | `basic` | `2160p` |
+
+Adam 2026-09-28: video posts encode at the source tier up to 4K. The
+optional “original quality” checkbox is gone. Clients do not send a
+quality flag. Dimensions on the upload decide the tier.
 
 No livestream backend. No Settings quality maze. New uploads use
 playback policy `signed`. Playback IDs are stored on `posts.media` and

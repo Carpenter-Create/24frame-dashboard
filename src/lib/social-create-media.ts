@@ -1,10 +1,11 @@
 import { socialCreateHref, type SocialCreateKind } from "@/lib/social";
-import { socialMediaKindFor } from "@/lib/social-media";
+import { planSocialComposeAttach } from "@/lib/social-compose-video";
+import { socialMediaKindFor, type SocialMediaKind } from "@/lib/social-media";
 
 // Adam lock 2026-09-20 — Create Media is one mixed-library intent.
-// Media tile / Share-a-post media CTAs open the camera roll immediately
-// (`image/*,video/*`). After pick, Next. Then optional caption + Post.
-// Never land on an empty attach well first. Photo and Video are not tiles.
+// Media tile opens the camera roll immediately (`image/*,video/*`).
+// Adam 2026-09-28 — after pick, one screen: preview, caption, Post.
+// The empty "Video" + Next card is not a step. Photo and Video are not tiles.
 
 export const SOCIAL_CREATE_MEDIA_ACCEPT = "image/*,video/*";
 // Home composer Camera. Still capture into the same Create media review.
@@ -18,7 +19,8 @@ export function parseSocialCreateMediaStep(
   raw: string | string[] | undefined | null,
 ): SocialCreateMediaStep {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  if (value === "review" || value === "caption") return value;
+  // Older links used step=review for the empty label card. That card is gone.
+  if (value === "review" || value === "caption") return "caption";
   return "pick";
 }
 
@@ -45,5 +47,58 @@ export function socialCreateMediaStepAfterPick(
   requested: SocialCreateMediaStep | null | undefined,
 ): SocialCreateMediaStep {
   if (files.length === 0) return "pick";
-  return requested === "caption" ? "caption" : "review";
+  // A picked file skips the empty card even when the URL still says pick or review.
+  switch (requested) {
+    case "pick":
+    case "review":
+    case "caption":
+    case null:
+    case undefined:
+      return "caption";
+    default: {
+      const unreachable: never = requested;
+      return unreachable;
+    }
+  }
+}
+
+export function socialCreateMediaLocalId(
+  file: { name: string; size: number; lastModified: number },
+  index: number,
+): string {
+  return `${index}:${file.size}:${file.lastModified}:${file.name}`;
+}
+
+export function socialCreateMediaPreviewUrl(file: File): string {
+  const create = globalThis.URL?.createObjectURL;
+  if (typeof create !== "function") return "";
+  return create(file);
+}
+
+export type SocialCreateMediaRow = {
+  index: number;
+  localId: string;
+  file: File;
+  kind: SocialMediaKind;
+};
+
+/** Files the single create screen can preview. The first rejection wins. */
+export function socialCreateMediaRows(files: ArrayLike<File>): {
+  rows: SocialCreateMediaRow[];
+  error: string;
+} {
+  const rows: SocialCreateMediaRow[] = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const raw = files[index];
+    if (!raw) continue;
+    const plan = planSocialComposeAttach(raw);
+    if (!plan.ok) return { rows, error: plan.error };
+    rows.push({
+      index,
+      localId: socialCreateMediaLocalId(plan.file, index),
+      file: plan.file,
+      kind: plan.kind,
+    });
+  }
+  return { rows, error: "" };
 }
