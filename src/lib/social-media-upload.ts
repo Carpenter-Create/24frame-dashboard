@@ -11,7 +11,7 @@ import {
   type SocialMediaKind,
   type SocialMediaLane,
 } from "@/lib/social-media";
-import { probeSocialVideoPixels, SOCIAL_MUX_PROVIDER, type SocialMuxIntent } from "@/lib/social-mux";
+import { SOCIAL_MUX_PROVIDER, type SocialMuxIntent } from "@/lib/social-mux";
 
 // One client upload helper for Social posts and story video.
 // Images stay on the media S3 lane. Video goes to Mux.
@@ -26,12 +26,6 @@ export type SocialUploadProgress = {
 export type SocialPostUploadOptions = {
   intent?: SocialMuxIntent;
   signal?: AbortSignal;
-  /**
-   * Source pixels for the Mux tier.
-   * `undefined` probes a detached video.
-   * `null` skips that probe — write compose already holds the only decoder.
-   */
-  pixels?: { width: number; height: number } | null;
   onProgress?: (progress: SocialUploadProgress) => void;
 };
 
@@ -212,19 +206,11 @@ export async function uploadSocialMuxVideoFile(
   options: SocialPostUploadOptions & { lane?: SocialMediaLane } = {},
 ): Promise<{ item?: SocialMediaItem; error?: string; aborted?: boolean }> {
   const lane = options.lane ?? "posts";
-  // A detached probe opens a second video element. On iOS Safari that holds
-  // the decoder and the compose preview stays a blank frame. Callers that
-  // already show the clip pass `pixels: null` and skip it.
-  const pixels = options.pixels === undefined ? await probeSocialVideoPixels(file) : options.pixels;
   const body = new FormData();
   body.set("content_type", file.type);
   body.set("byte_length", String(file.size));
   body.set("lane", lane);
   body.set("intent", options.intent ?? "video");
-  if (pixels) {
-    body.set("source_width", String(pixels.width));
-    body.set("source_height", String(pixels.height));
-  }
   let created: Awaited<ReturnType<typeof createSocialMuxUpload>>;
   try {
     created = await createSocialMuxUpload(body);

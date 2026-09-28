@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 
 import {
   clearSocialMuxPlaybackTokenCache,
-  isSocialMux4kSource,
   isSocialMuxId,
   loadSocialMuxPlaybackTokens,
   parseSocialMuxIntent,
@@ -30,7 +29,7 @@ describe("social Mux encode locks", () => {
       videoQuality: "basic",
       maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
     });
-    expect(socialMuxAssetSettings({ intent: "live", width: 3840, height: 2160 })).toEqual({
+    expect(socialMuxAssetSettings({ intent: "live" })).toEqual({
       videoQuality: "plus",
       maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
     });
@@ -38,33 +37,19 @@ describe("social Mux encode locks", () => {
     expect(parseSocialMuxIntent("video")).toBe("video");
   });
 
-  it("encodes a 4K source at 2160p and leaves shorter video at 1080p", () => {
-    expect(isSocialMux4kSource(3840, 2160)).toBe(true);
-    expect(isSocialMux4kSource(1920, 1080)).toBe(false);
-    expect(
-      socialMuxAssetSettings({
-        intent: "video",
-        width: 3840,
-        height: 2160,
-      }),
-    ).toEqual({
-      videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_ORIGINAL_RESOLUTION,
-    });
-    expect(
-      socialMuxAssetSettings({
-        intent: "video",
-        width: 1920,
-        height: 1080,
-      }),
-    ).toEqual({
-      videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
-    });
+  it("keeps 1080p when a caller reports a 4K edge", () => {
     expect(socialMuxAssetSettings({ intent: "video" })).toEqual({
       videoQuality: "basic",
       maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
     });
+    expect(socialMuxAssetSettings({ intent: "video" }).maxResolutionTier).not.toBe(
+      SOCIAL_MUX_ORIGINAL_RESOLUTION,
+    );
+    const sot = readFileSync("src/lib/social-mux.ts", "utf8");
+    const settings = sot.slice(sot.indexOf("export function socialMuxAssetSettings"), sot.indexOf("export function socialMuxThumbnailUrl"));
+    expect(settings).not.toContain("width");
+    expect(settings).not.toContain("height");
+    expect(settings).not.toContain(SOCIAL_MUX_ORIGINAL_RESOLUTION);
   });
 
   it("builds a thumbnail URL from a playback id and does not mint a native HLS src", () => {

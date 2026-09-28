@@ -25,6 +25,10 @@ import type { QuietMuxPlayerStyle } from "@/lib/social-mux-player-quiet";
 // and rows with no policy play the playback id alone.
 // Adaptive Auto — no quality Settings control in v1.
 // Feed face is cover. Immersive passes contain.
+// Paused feed lifts the still when the player mounts. iOS does not emit
+// loadeddata until play, so that event is not the lift for this face.
+// docs/design-locks/social-video-upload-cover-lift-lock-v1.md
+// docs/design-locks/social-video-mux-only-lock-v1.md
 // docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md
 
 const MuxPlayer = dynamic(() => import("./social-mux-player-mount"), { ssr: false });

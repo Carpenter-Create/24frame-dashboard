@@ -591,7 +591,6 @@ export const SOCIAL = {
     photo: "Photo",
     video: "Video",
     goLive: "Go live",
-    next: "Next",
     close: "Close",
     liveTitle: "Go live",
     liveHint: "Record up to 10 minutes, then post as a video.",

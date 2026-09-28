@@ -29,13 +29,14 @@ names the official Mux JWT helper reads. They stay in
 
 | Path | `video_quality` | `max_resolution_tier` |
 | --- | --- | --- |
-| Video, source under 4K | `basic` | `1080p` |
-| Video, 4K source (default, no prompt) | `basic` | `2160p` |
+| Video post | `basic` | `1080p` |
 | Go live (~10 min recorder → normal video post) | `plus` | `1080p` |
 
-Adam 2026-09-28: video posts encode at the source tier up to 4K. The
-optional “original quality” checkbox is gone. Clients do not send a
-quality flag. Dimensions on the upload decide the tier.
+The cover-lift cap is 2160p. Client `source_width` / `source_height` do
+not select it. The tier stays 1080p until a server probe or Mux-reported
+input exists. No quality checkbox. Playback stays Mux-only.
+[`docs/design-locks/social-video-upload-cover-lift-lock-v1.md`](../design-locks/social-video-upload-cover-lift-lock-v1.md) ·
+[`docs/design-locks/social-video-mux-only-lock-v1.md`](../design-locks/social-video-mux-only-lock-v1.md).
 
 No livestream backend. No Settings quality maze. New uploads use
 playback policy `signed`. Playback IDs are stored on `posts.media` and

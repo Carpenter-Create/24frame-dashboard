@@ -12,14 +12,13 @@ import {
 } from "./social-create-media";
 
 describe("Social Create Media SoT", () => {
-  it("opens a mixed photo-and-video library, then Next, then optional caption", () => {
+  it("opens a mixed photo-and-video library, then one caption screen", () => {
     expect(SOCIAL.create.media).toBe("Media");
-    expect(SOCIAL.create.next).toBe("Next");
+    expect("next" in SOCIAL.create).toBe(false);
     expect(SOCIAL_CREATE_MEDIA_ACCEPT).toBe("image/*,video/*");
     expect(SOCIAL_CREATE_MEDIA_ACCEPT).not.toContain("image/jpeg");
     expect(socialCreateHref("media")).toBe("/social/create?kind=media");
     expect(socialCreateMediaHref()).toBe("/social/create?kind=media");
-    expect(socialCreateMediaHref("review")).toBe("/social/create?kind=media&step=review");
     expect(socialCreateMediaHref("caption")).toBe("/social/create?kind=media&step=caption");
     expect(parseSocialCreateMediaStep("caption")).toBe("caption");
     expect(parseSocialCreateMediaStep("review")).toBe("caption");
@@ -30,7 +29,7 @@ describe("Social Create Media SoT", () => {
     expect(socialCreateKindFromMediaFiles([{ type: "image/png" }])).toBe("media");
     expect(socialCreateMediaStepAfterPick([], "caption")).toBe("pick");
     expect(socialCreateMediaStepAfterPick([{}], null)).toBe("caption");
-    expect(socialCreateMediaStepAfterPick([{}], "review")).toBe("caption");
+    expect(socialCreateMediaStepAfterPick([{}], "caption")).toBe("caption");
 
     const sheet = readFileSync("src/lib/social-create-sheet.ts", "utf8");
     const tiles = readFileSync("src/components/social/social-create-sheet.tsx", "utf8");

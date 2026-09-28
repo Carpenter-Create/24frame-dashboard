@@ -1301,8 +1301,6 @@ describe("social actions", () => {
     });
     expect(socialMuxSettingsFromUploadInput).toHaveBeenCalledWith({
       intent: "video",
-      width: 3840,
-      height: 2160,
     });
     expect(presignSocialMediaPut).not.toHaveBeenCalled();
     expect(createSocialMuxDirectUpload).toHaveBeenCalledWith({

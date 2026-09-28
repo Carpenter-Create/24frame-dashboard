@@ -498,7 +498,7 @@ describe("profile opt-in", () => {
     expect(socialCreateWellCopy("media", true)).toBeNull();
     expect(socialCreateWellCopy("text", false)).toBeNull();
     expect(SOCIAL.create.media).toBe("Media");
-    expect(SOCIAL.create.next).toBe("Next");
+    expect("next" in SOCIAL.create).toBe(false);
     expect(SOCIAL.create.photo).toBe("Photo");
     expect(SOCIAL.create.caption).toBe("Caption");
     expect("originalQuality" in SOCIAL.create).toBe(false);

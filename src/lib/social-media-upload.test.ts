@@ -37,6 +37,7 @@ describe("social post upload kind", () => {
 describe("social post media upload SoT", () => {
   it("routes post and story videos to Mux and leaves stills on S3", () => {
     const src = readFileSync("src/lib/social-media-upload.ts", "utf8");
+    const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
     const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
     const live = readFileSync("src/components/social/social-go-live.tsx", "utf8");
     const studio = readFileSync("src/components/social/social-story-studio.tsx", "utf8");
@@ -47,7 +48,11 @@ describe("social post media upload SoT", () => {
     expect(src).toContain("socialPostUploadPlan");
     expect(src).not.toContain("original_quality");
     expect(src).not.toContain("socialMediaKindFor(file.type)");
-    expect(src).toContain("probeSocialVideoPixels");
+    expect(src).not.toContain("probeSocialVideoPixels");
+    expect(src).not.toContain("source_width");
+    expect(src).not.toContain("source_height");
+    expect(actions).not.toContain("source_width");
+    expect(actions).not.toContain("source_height");
     expect(src).toContain('lane === "posts" || lane === "stories"');
     expect(src).not.toContain("NEXT_PUBLIC_MUX");
     expect(forms).toContain("uploadSocialPostMedia");

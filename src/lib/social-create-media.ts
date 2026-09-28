@@ -4,23 +4,24 @@ import { socialMediaKindFor, type SocialMediaKind } from "@/lib/social-media";
 
 // Adam lock 2026-09-20 — Create Media is one mixed-library intent.
 // Media tile opens the camera roll immediately (`image/*,video/*`).
-// Adam 2026-09-28 — after pick, one screen: preview, caption, Post.
-// The empty "Video" + Next card is not a step. Photo and Video are not tiles.
+// After pick, one screen: preview, caption, Post.
+// docs/design-locks/social-video-upload-cover-lift-lock-v1.md
+// docs/design-locks/social-video-mux-only-lock-v1.md
 
 export const SOCIAL_CREATE_MEDIA_ACCEPT = "image/*,video/*";
 // Home composer Camera. Still capture into the same Create media review.
 // Not a second uploader and not a second viewfinder.
 export const SOCIAL_CREATE_CAMERA_ACCEPT = "image/*";
 export const SOCIAL_CREATE_MEDIA_STEP_PARAM = "step";
-export const SOCIAL_CREATE_MEDIA_STEPS = ["pick", "review", "caption"] as const;
+export const SOCIAL_CREATE_MEDIA_STEPS = ["pick", "caption"] as const;
 export type SocialCreateMediaStep = (typeof SOCIAL_CREATE_MEDIA_STEPS)[number];
 
 export function parseSocialCreateMediaStep(
   raw: string | string[] | undefined | null,
 ): SocialCreateMediaStep {
   const value = Array.isArray(raw) ? raw[0] : raw;
-  // Older links used step=review for the empty label card. That card is gone.
-  if (value === "review" || value === "caption") return "caption";
+  // Old links used step=review for the empty card. That step is gone.
+  if (value === "caption" || value === "review") return "caption";
   return "pick";
 }
 
@@ -47,10 +48,8 @@ export function socialCreateMediaStepAfterPick(
   requested: SocialCreateMediaStep | null | undefined,
 ): SocialCreateMediaStep {
   if (files.length === 0) return "pick";
-  // A picked file skips the empty card even when the URL still says pick or review.
   switch (requested) {
     case "pick":
-    case "review":
     case "caption":
     case null:
     case undefined:

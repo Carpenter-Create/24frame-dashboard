@@ -683,8 +683,6 @@ export function SocialCreateCompose({
         const result = await uploadSocialPostMedia([row.file], items, SOCIAL_MEDIA_MAX_ITEMS, "posts", {
           intent: "video",
           signal: controller.signal,
-          // Measured on the visible preview. Null skips the detached iOS probe.
-          pixels: row.kind === "video" ? measured : undefined,
           onProgress:
             row.kind === "video"
               ? (progress) => {
@@ -797,12 +795,9 @@ export function SocialCreateCompose({
           uploadAbortRef.current.delete(slot.localId);
           continue;
         }
-        const measured = slot.kind === "video" ? (pixelsRef.current.get(slot.localId) ?? null) : null;
         const result = await uploadSocialPostMedia([file], carried, SOCIAL_MEDIA_MAX_ITEMS, "posts", {
           ...(slot.kind === "video" ? { intent: "video" as const } : {}),
           signal: controller.signal,
-          // Measured from the visible preview. Null skips the detached probe.
-          pixels: slot.kind === "video" ? composeVideoUploadPixels(measured) : undefined,
           onProgress:
             slot.kind === "video"
               ? (progress) => {
@@ -823,7 +818,6 @@ export function SocialCreateCompose({
           uploadAbortRef.current.delete(slot.localId);
           continue;
         }
-        // CI must re-run on this tip: the prior synchronize never enqueued checks, isolation, or governance.
         const measuredNow =
           slot.kind === "video" && !result.error
             ? await waitForComposePixels(slot.localId, controller.signal)

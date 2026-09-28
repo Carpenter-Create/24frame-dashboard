@@ -5,8 +5,8 @@
 
 export const SOCIAL_MUX_PROVIDER = "mux" as const;
 export const SOCIAL_MUX_DEFAULT_RESOLUTION = "1080p" as const;
+/** Cover-lift cap. Not chosen from client-reported pixels. */
 export const SOCIAL_MUX_ORIGINAL_RESOLUTION = "2160p" as const;
-export const SOCIAL_MUX_4K_MIN_EDGE = 2160;
 export const SOCIAL_MUX_IMAGE_HOST = "image.mux.com";
 /** First frame. Mux's default thumbnail, with no time, is a mid-clip still. */
 export const SOCIAL_MUX_THUMBNAIL_TIME = "0";
@@ -195,24 +195,19 @@ export class SocialMuxUploadNotBoundError extends Error {
   }
 }
 
-export function isSocialMux4kSource(width: number, height: number): boolean {
-  if (!Number.isFinite(width) || !Number.isFinite(height)) return false;
-  return Math.max(width, height) >= SOCIAL_MUX_4K_MIN_EDGE;
-}
-
 export function parseSocialMuxIntent(raw: string | null | undefined): SocialMuxIntent {
   return raw === "live" ? "live" : "video";
 }
 
 /**
- * Video posts encode at the source tier, up to 4K. There is no quality
- * prompt. A 4K source is 2160p; anything shorter stays 1080p. Go live
- * stays plus / 1080p.
+ * Video posts and go-live both stay at 1080p until a server probe or
+ * Mux-reported input proves a taller source. Client width and height are
+ * not that measurement. The cover-lift cap is 2160p. Playback stays Mux-only.
+ * docs/design-locks/social-video-upload-cover-lift-lock-v1.md
+ * docs/design-locks/social-video-mux-only-lock-v1.md
  */
 export function socialMuxAssetSettings(input: {
   intent?: SocialMuxIntent | null;
-  width?: number;
-  height?: number;
 }): SocialMuxAssetSettings {
   if (input.intent === "live") {
     return {
@@ -220,10 +215,9 @@ export function socialMuxAssetSettings(input: {
       maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
     };
   }
-  const fourK = isSocialMux4kSource(input.width ?? 0, input.height ?? 0);
   return {
     videoQuality: "basic",
-    maxResolutionTier: fourK ? SOCIAL_MUX_ORIGINAL_RESOLUTION : SOCIAL_MUX_DEFAULT_RESOLUTION,
+    maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
   };
 }
 

@@ -194,31 +194,14 @@ describe("social Mux server client", () => {
     expect(claims.map((claim) => claim.time)).toEqual([undefined, "0", undefined]);
   });
 
-  it("maps live + 4K form fields on the server, not the client", () => {
-    expect(
-      socialMuxSettingsFromUploadInput({
-        intent: "live",
-        width: 3840,
-        height: 2160,
-      }),
-    ).toEqual({
+  it("maps live and video intents without client pixel fields", () => {
+    expect(socialMuxSettingsFromUploadInput({ intent: "live" })).toEqual({
       intent: "live",
       settings: { videoQuality: "plus", maxResolutionTier: "1080p" },
     });
-    expect(
-      socialMuxSettingsFromUploadInput({
-        intent: "video",
-        width: 3840,
-        height: 2160,
-      }).settings.maxResolutionTier,
-    ).toBe("2160p");
-    expect(
-      socialMuxSettingsFromUploadInput({
-        intent: "video",
-        width: 1920,
-        height: 1080,
-      }).settings.maxResolutionTier,
-    ).toBe("1080p");
+    expect(socialMuxSettingsFromUploadInput({ intent: "video" }).settings.maxResolutionTier).toBe(
+      "1080p",
+    );
     expect(
       signedPlaybackIdFromAsset({
         playback_ids: [

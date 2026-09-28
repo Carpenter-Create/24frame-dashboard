@@ -174,7 +174,7 @@ describe("Social create kinds", () => {
     expect(review).toContain('data-social-create-media-step="caption"');
     expect(review).toContain("data-social-create-preview");
     expect(review).not.toContain("data-social-create-media-next");
-    expect(review).not.toContain(SOCIAL.create.next);
+    expect(review).not.toContain(">Next<");
     expect(review).toContain(SOCIAL.create.caption);
     expect(review).toContain(SOCIAL.home.submit);
     expect(review).not.toContain("data-social-create-original-quality");

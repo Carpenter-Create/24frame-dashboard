@@ -33,3 +33,8 @@ e3441ece37d7a769865f5371268b011d8bfc6da9:scripts/security/l7-chain-of-title-gate
 # Unmerged social branch — `linkedInWidth` / `linkedInHeight` dimension lock names, not credentials.
 7daab7ce433e5a5ba6c7e18241683ccbcfe75c31:src/lib/social-profile-cover.ts:linkedin-client-id:34
 
+# Historical rematch ledger only. One introducing commit's statement MD5
+# beside `profile_cover_key` matches generic-api-key. It is a body digest,
+# not a credential. Later commits on that branch prefix `md5:`.
+0d21074bbec3a86a48cbddf933e973917b8ee85b:scripts/db/rematch-migration-ledger-20260928.sql:generic-api-key:81
+

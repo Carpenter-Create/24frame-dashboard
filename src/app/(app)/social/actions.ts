@@ -295,8 +295,6 @@ export async function createSocialMuxUpload(formData: FormData): Promise<{
   const key = socialMediaObjectKey(user.id, objectId, checked.contentType, lane);
   const { settings } = socialMuxSettingsFromUploadInput({
     intent: String(formData.get("intent") ?? ""),
-    width: Number(formData.get("source_width") ?? 0),
-    height: Number(formData.get("source_height") ?? 0),
   });
   try {
     const upload = await createSocialMuxDirectUpload({
