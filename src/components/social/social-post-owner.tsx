@@ -53,16 +53,12 @@ export function SocialPostPresence({
 export function SocialPostCaptionPlace({
   postId,
   serverBody,
-  hasMedia,
-  place,
   href,
   permalink,
   handle,
 }: {
   postId: string;
   serverBody: string | null;
-  hasMedia: boolean;
-  place: "above" | "below";
   href: string;
   permalink: boolean;
   handle: string;
@@ -72,9 +68,9 @@ export function SocialPostCaptionPlace({
     () => socialPostLiveBody(postId, serverBody),
     () => serverBody,
   );
-  const above = Boolean(body) && hasMedia;
-  if (place === "above" && !above) return null;
-  if (place === "below" && (above || !body)) return null;
+  // Text-only and text+media share this slot: under likes, above comments.
+  // docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
+  if (!body) return null;
   const caption = (
     <>
       <span className="font-semibold">{handle} </span>

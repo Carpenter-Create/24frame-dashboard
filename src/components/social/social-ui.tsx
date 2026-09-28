@@ -502,8 +502,8 @@ export function SocialPostCard({
   permalink?: boolean;
 }) {
   // One card at every breakpoint.
-  // Text + media: docs/design-locks/social-feed-text-media-caption-above-lock-v1.md
-  //   author → caption → media → actions → likes → comments when N > 0.
+  // Text + media: docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
+  //   author → media → actions → likes → caption → comments when N > 0.
   // Two or more media items (Adam lock 2026-09-25): that media face is one
   // full-bleed swipe carousel with dots and N of M. No collage.
   // Text-only stays the 2026-09-20 blend:
@@ -525,17 +525,6 @@ export function SocialPostCard({
     <time dateTime={post.createdAt} data-social-post-time="" className={SOCIAL_POST_TIME_CLASS}>
       {socialRelativeTime(post.createdAt)}
     </time>
-  );
-  const captionPlace = (place: "above" | "below") => (
-    <SocialPostCaptionPlace
-      postId={post.id}
-      serverBody={post.body}
-      hasMedia={media}
-      place={place}
-      href={href}
-      permalink={permalink}
-      handle={handle}
-    />
   );
   return (
     <SocialPostPresence postId={post.id}>
@@ -585,7 +574,6 @@ export function SocialPostCard({
           />
         ) : null}
       </div>
-      {captionPlace("above")}
       {media ? <SocialPostMedia items={post.media} onOpen={setImmersiveIndex} /> : null}
       {immersiveIndex != null ? (
         <SocialFeedImmersive post={post} index={immersiveIndex} onClose={closeImmersive} />
@@ -613,7 +601,13 @@ export function SocialPostCard({
           <SocialPostShareButton postId={post.id} />
         </div>
         <SocialLikeCount postId={post.id} liked={post.liked} likeCount={post.likeCount} />
-        {captionPlace("below")}
+        <SocialPostCaptionPlace
+          postId={post.id}
+          serverBody={post.body}
+          href={href}
+          permalink={permalink}
+          handle={handle}
+        />
         <SocialCommentTrigger post={thread} />
       </div>
     </article>

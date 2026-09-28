@@ -1,9 +1,9 @@
 # [GC][24Frame] LOCK — Social feed text+media caption above v1
 
 **Date:** 2026-09-25 (CT)
-**Status:** **LOCKED** · Design Own→READY cite-only · Adam lock 2026-09-25 feed caption-above-media (Facebook) · CoS CLEAR
+**Status:** **SUPERSEDED** by [`social-feed-text-media-caption-below-lock-v1.md`](social-feed-text-media-caption-below-lock-v1.md) (Adam CLEAR via CoS 2026-09-28 caption-below). Historical record of the #685 caption-above-media order. Do not implement caption-above.
 **Repo:** `docs/design-locks/social-feed-text-media-caption-above-lock-v1.md`
-**Amends:** `docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md` §A caption stack points here. Media face stays that lock.
+**Amends:** `docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md` §A caption stack pointed here while this lock was current. Media face stayed that lock. Caption stack now points at the caption-below lock.
 
 ## One lock
 
