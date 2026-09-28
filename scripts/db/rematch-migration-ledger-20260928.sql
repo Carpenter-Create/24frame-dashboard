@@ -101,7 +101,8 @@ declare
 begin
   select statements[1] into extra
     from supabase_migrations.schema_migrations
-   where version = '20260924124157';
+   where version = '20260924124157'
+   limit 1;
 
   if extra is not null then
     if extra is distinct from 'alter type public.like_target add value if not exists ''story_item'';' then
@@ -117,14 +118,20 @@ begin
     delete from supabase_migrations.schema_migrations where version = '20260924124157';
   end if;
 
+  -- Both the MCP version and the filename version can match after a
+  -- partial re-run. ORDER BY version picks the lower prefix so the
+  -- choice is stable. LIMIT 1 keeps SELECT INTO from raising.
   select statements[1] into keeper
     from supabase_migrations.schema_migrations
    where version in ('20260924124222', '20260924120100')
-     and name = 'story_item_likes';
+     and name = 'story_item_likes'
+   order by version
+   limit 1;
 
   select statements[1] into extra
     from supabase_migrations.schema_migrations
-   where version = '20260924124241';
+   where version = '20260924124241'
+   limit 1;
 
   if extra is not null then
     if keeper is null then
@@ -158,7 +165,8 @@ begin
              md5(regexp_replace(regexp_replace(statements[1], '^\s*--.*$', '', 'gn'), '\s+', '', 'g'))
         into got_name, got_md5
         from supabase_migrations.schema_migrations
-       where version = r.from_version;
+       where version = r.from_version
+       limit 1;
 
       if got_name is distinct from r.expected_name then
         raise exception 'refusing rematch % -> %: name is %, expected %',
@@ -176,7 +184,8 @@ begin
     elsif n_from = 0 and n_to = 1 then
       select name into got_name
         from supabase_migrations.schema_migrations
-       where version = r.to_version;
+       where version = r.to_version
+       limit 1;
       if got_name is distinct from r.expected_name then
         raise exception 'target % already exists with name %, expected %',
           r.to_version, got_name, r.expected_name;

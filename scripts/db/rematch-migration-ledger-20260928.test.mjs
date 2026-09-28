@@ -4,9 +4,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 // Same digest the repair pins: drop full-line `--` comments (including
-// indented ones) and all whitespace, then md5. Ledger statements have no
-// indented comment lines; repo files do, and those comments are not part
-// of the applied body. A change to executable SQL changes this digest.
+// indented ones) and all whitespace, then md5. The SQL guard strips the
+// applied statement the same way (`^\s*--`). A change to executable SQL
+// changes this digest.
 function statementMd5(sqlText) {
   const stripped = sqlText
     .replaceAll("\r\n", "\n")
@@ -120,6 +120,39 @@ test("the only deletes are the two proven alias versions", () => {
     ),
   ].map((m) => m[1]);
   assert.deepEqual(deletes.sort(), ["20260924124157", "20260924124241"]);
+});
+
+test("cross-day rematches are name and body matches in the note", () => {
+  const doc = readFileSync("docs/scheduled/migration-ledger-rematch.md", "utf8");
+  const cross = pairs.filter(
+    (pair) => pair.fromVersion.slice(0, 8) !== pair.toVersion.slice(0, 8),
+  );
+  assert.deepEqual(
+    cross.map((pair) => pair.name).sort(),
+    ["title_delete_s3_purge", "user_notification_preferences"],
+  );
+  assert.match(doc, /name and body match/);
+  assert.match(doc, /not applied on the filename's day/);
+  for (const pair of cross) {
+    assert.ok(doc.includes(pair.fromVersion), pair.fromVersion);
+    assert.ok(doc.includes(pair.toVersion), pair.toVersion);
+    assert.ok(doc.includes(pair.name), pair.name);
+  }
+});
+
+test("keeper, extra, and name lookups are single-row", () => {
+  const selects = [
+    ...sql.matchAll(
+      /select[\s\S]*?into (?:extra|keeper|got_name(?:, got_md5)?)[\s\S]*?;/gi,
+    ),
+  ];
+  assert.equal(selects.length, 5);
+  for (const match of selects) {
+    assert.match(match[0], /\blimit\s+1\s*;\s*$/i, match[0].slice(-80));
+  }
+  const keeper = selects.find((match) => /into keeper/i.test(match[0]));
+  assert.ok(keeper);
+  assert.match(keeper[0], /order by version/i);
 });
 
 test("notifications publication file uses the applied ledger version", () => {

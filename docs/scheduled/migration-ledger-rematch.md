@@ -24,6 +24,17 @@ Count on that run: **102 ledger rows, 100 files.**
 
 `docs/auth-cutover-pack-a.md` already recorded the first five of these as "MCP apply assigns its own version."
 
+## Cross-day prefixes
+
+Some MCP apply-time versions rematch to a hand-named filename prefix whose calendar day is earlier. That is a name and body match. The SQL was not applied on the filename's day and then moved backward.
+
+| MCP version | Filename prefix | Name |
+| --- | --- | --- |
+| `20260918000638` | `20260917120200` | `title_delete_s3_purge` |
+| `20260920170717` | `20260919120000` | `user_notification_preferences` |
+
+Every other pair in the 38 shares the same `YYYYMMDD` on both versions. The clock inside the day still differs, because MCP stamped the apply time and the file used a hand-named prefix.
+
 ## Repair Adam runs
 
 File: [`scripts/db/rematch-migration-ledger-20260928.sql`](../../scripts/db/rematch-migration-ledger-20260928.sql).
