@@ -372,10 +372,16 @@ export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 // SOCIAL_STORIES_FEED_RULE_CLASS.
 // docs/design-locks/social-home-craft-wave-1-lock-v1.md
 // docs/design-locks/social-mobile-full-bleed-lock-v1.md
-// ~24 air before the next author. Padding, so the page background
-// cannot show as a band between posts.
+// IG gap: ~8–12 CSS px from the under-post time baseline to the next
+// avatar. The time is block + leading-none, so the permalink link does
+// not inherit body line-height 1.6 (that strut put ~8px under the
+// glyphs, and --space-6 then opened ~32 CSS px). --space-2 is 8; ~2px
+// of the em stays below the baseline, so the measured gap is ~10.
+// Phone and desktop share it. No md fork. Padding, so the page
+// background cannot show as a band between posts.
+// docs/design-locks/social-feed-under-post-time-lock-v1.md
 // docs/design-locks/social-home-craft-wave-1-lock-v1.md
-export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-6)]";
+export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-2)]";
 
 // Media → actions ~10. Not the 8/16 scale — the lock names ~10.
 export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-[10px]";
@@ -392,7 +398,7 @@ export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
 // this padded box. On the phone the row is wider than the gutter (bleed).
 // Mobile Safari drops padding-bottom on that column-flex item, so the
 // caption sits on the next author. The inner row's border box, including
-// this 24, sets the shell's height. A negative margin-bottom on the last
+// this padding, sets the shell's height. A negative margin-bottom on the last
 // child eats this padding the same way — media bleed stays inline (-mx only).
 // shrink-0 on the shell is the gutter's main axis (vertical): the list
 // scrolls instead of compressing the air.
@@ -545,9 +551,11 @@ export const SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS =
 // Not primary ink. Not text-ink-2.
 // Never t-label (uppercase + 0.12em track turns `10h` into `10 H`).
 // Own line: wrap instead of truncating. No breakpoint fork.
+// block + leading-none: the permalink <a> must not grow a body 1.6
+// strut under the glyphs. That strut is what opened the next-author gap.
 // docs/design-locks/social-feed-under-post-time-lock-v1.md
 export const SOCIAL_POST_TIME_CLASS =
-  "self-start max-w-full break-words text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-3";
+  "block self-start max-w-full break-words text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-3";
 
 // Adam 2026-09-22 feed chrome. Supersedes #599 Facebook gray gutter
 // (muted band + py slabs above and below every post). Posts sit on

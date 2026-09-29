@@ -7,7 +7,7 @@
 
 ## One lock
 
-The feed post separator is an **under-post relative time** on its own line. It sits **below the caption** (and below the comment trail when that line is present) as the **last chrome line** inside the post, then Wave 1 **~24 air** into the next author.
+The feed post separator is an **under-post relative time** on its own line. It sits **below the caption** (and below the comment trail when that line is present) as the **last chrome line** inside the post, then **~8–12 CSS px** into the next author.
 
 It is **not** beside the author name.
 
@@ -34,7 +34,13 @@ Type stays xs, normal tracking. Not `t-label`. The line wraps. It does not trunc
 
 ## Wave 1 air
 
-Hairline stays **out**. No `divide-y`, no post→post border. `SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS` stays `pb-[var(--space-6)]` on `SOCIAL_FEED_ROW_CLASS`. The time is inside that row, so the 24 is the air after the time.
+Hairline stays **out**. No `divide-y`, no post→post border.
+
+Instagram SoT: compact air from the timestamp **baseline** to the next post header (avatar/name). **~8–12 CSS px.** Phone and desktop share it. No `md:` fork.
+
+`SOCIAL_POST_TIME_CLASS` is `block` + `leading-none`. The permalink link must not inherit body line-height 1.6 — that strut put ~8px under the glyphs. `SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS` is `pb-[var(--space-2)]` (8) on `SOCIAL_FEED_ROW_CLASS`. ~2px of the em stays below the baseline, so the measured baseline→avatar gap is **~10 CSS px**.
+
+The prior Wave 1 **~24** (`pb-[var(--space-6)]`) sat under the time and opened **~32 CSS px** (~34 on the prod screenshot, ~102 device px at 3x). That stacking is **out**. Cite [`social-home-craft-wave-1-lock-v1.md`](social-home-craft-wave-1-lock-v1.md).
 
 ## Out
 

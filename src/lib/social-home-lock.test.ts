@@ -363,7 +363,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-hairline");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-b");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-hairline");
-    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-2)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).toContain("shrink-0");
@@ -425,7 +425,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("rounded");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)(?:m[ytb]|my)-/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("py-[var(--space-4)]");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-2)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("p-[var(--space-4)]");
     expect(SOCIAL_MOBILE_BLEED_CLASS.startsWith("max-md:")).toBe(true);
     expect(SOCIAL_MOBILE_BLEED_CLASS).toContain("-mx-[var(--chrome-gutter)]");

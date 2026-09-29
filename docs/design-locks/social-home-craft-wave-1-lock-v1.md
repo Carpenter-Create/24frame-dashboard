@@ -6,7 +6,7 @@
 **Entity:** Global Content / 24Frame only  
 **Positioning:** **Coinbase shell × IG feed rhythm × FB hint** (FB hint **deferred** — not this wave)  
 **House:** Geist · Sporty Blue `#1769FF` · spacing **8 / 16 / 24 / 48** where on-scale · hairline only where this lock keeps it · **no** drop shadows · Launch-great · Media Immersion · quiet redundant-chrome  
-**Related (do not reopen OUT list):** `social-mobile-full-bleed-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` · `social-home-density-craft-sequel-lock-v1.md` (M3/M4/M7) · `shell-workspace-waffle-layer-lock-v1.md` · `social-home-stories-feed-hairline-lock-v1.md` (Stories→feed seam — not inter-post)  
+**Related (do not reopen OUT list):** `social-mobile-full-bleed-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` · `social-home-density-craft-sequel-lock-v1.md` (M3/M4/M7) · `shell-workspace-waffle-layer-lock-v1.md` · `social-home-stories-feed-hairline-lock-v1.md` (Stories→feed seam — not inter-post) · `social-feed-under-post-time-lock-v1.md` (amends the next-author air)  
 **No invent** beyond Adam CLEAR Wave 1.
 
 ---
@@ -23,11 +23,11 @@ Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media�
 |-------|------|
 | Media → actions | **~10pt** under media (actions sit close under the media stage) |
 | Likes / caption / comments stack | **4–6pt** between those meta rows |
-| Before next author | **~24pt** air before the next post’s author row |
+| Before next author | **~8–12 CSS px** from the under-post time baseline to the next author (avatar/name). Token `pb-[var(--space-2)]` after a tight time line (`block` + `leading-none`). Phone and desktop share it. Cite `social-feed-under-post-time-lock-v1.md`. The 2026-09-28 **~24pt** row air is superseded — it sat under the time and opened ~32 CSS px |
 | Inter-post hairline | **DELETE** — no gray band / hairline between posts (no FB gray band) |
 | Stories → feed seam | **Not** redefined here — cite `social-home-stories-feed-hairline-lock-v1.md` if that section seam remains; this lock kills **post→post** dividers only |
 
-**PASS:** Dense IG-like stack under media · clear 24 air into next author · no inter-post gray band.  
+**PASS:** Dense IG-like stack under media · ~8–12 CSS px from the under-post time into the next author · no inter-post gray band.  
 **FAIL:** Loose website gaps · FB gray strip between posts · actions far under media.
 
 **Amends:** Mid-feed **inter-post** `#ECEDF0` dividers from mobile full-bleed / spine “between posts hairline” intent → **OUT** for post→post. Full-bleed **media** L/R on phone **stays**.
@@ -106,7 +106,7 @@ Do **not** ship in Wave 1:
 
 ## Gates
 
-**G1.** Media→actions ~10 · likes/caption/comments 4–6 · ~24 before next author · **no** inter-post hairline.  
+**G1.** Media→actions ~10 · likes/caption/comments 4–6 · ~8–12 CSS px from the under-post time baseline to the next author · **no** inter-post hairline.  
 **G2.** One **16** content margin (except full-bleed media) · action glyph optical edge aligns to text.  
 **G3.** Trailing icons shared **24** box · same stroke · waffle=bell weight · avatar ~28 · tap **44**.  
 **G4.** Hide 0 likes · `1 like` · even action gaps / 44 taps · play control with backing disc.  
@@ -116,7 +116,7 @@ Do **not** ship in Wave 1:
 
 ## Verify-on-ship
 
-1. Phone Social Home feed: no gray band between posts; ~24 air into next author; tight meta under media.  
+1. Phone and desktop Social Home feed: no gray band between posts; ~8–12 CSS px from the under-post time into the next author; tight meta under media.  
 2. Inset chrome shares one 16 margin; full-bleed media still edge-to-edge on phone.  
 3. Header: 24 boxes, waffle matches bell, avatar ~28, 44 taps.  
 4. 0 likes hidden; one like reads “1 like”; play control has backing disc.
