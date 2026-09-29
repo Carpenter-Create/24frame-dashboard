@@ -44,8 +44,10 @@ describe("owner post overflow", () => {
     expect(owned.indexOf("data-social-post-owner")).toBeLessThan(owned.indexOf("data-social-post-actions"));
     const actions = owned.slice(owned.indexOf("data-social-post-actions"));
     expect(actions).not.toContain("data-social-post-owner");
+    expect(actions).toContain("gap-2");
+    expect(actions).not.toContain("gap-3.5");
+    expect(actions).not.toContain("gap-4");
     expect(other).not.toContain("data-social-post-owner");
-    expect(owned).toContain("gap-3.5");
     const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
     expect(src).toContain("ThreadPopoverContent");
     expect(src).toContain("THREAD_POPOVER_ICON_CLASS");
@@ -55,7 +57,9 @@ describe("owner post overflow", () => {
     const cardSrc = readFileSync("src/components/social/social-ui.tsx", "utf8");
     const postCard = cardSrc.slice(cardSrc.indexOf("export function SocialPostCard"));
     expect(postCard.indexOf("SocialPostOwnerMenu")).toBeLessThan(postCard.indexOf("data-social-post-actions"));
-    expect(postCard).toContain('className="flex items-center gap-3.5"');
+    expect(postCard).toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
+    expect(postCard).not.toContain("gap-3.5");
+    expect(postCard).not.toContain("gap-4");
   });
 
   it("locks delete confirm copy to Remove and Keep", () => {

@@ -394,10 +394,6 @@ export function parseSocialHomeLane(raw: string | string[] | undefined | null): 
   return value === "for-you" ? "for-you" : "following";
 }
 
-export function socialHomeLaneHref(lane: SocialHomeLane): string {
-  return lane === "for-you" ? `${SOCIAL_ROUTES.home}?${SOCIAL_HOME_LANE_PARAM}=for-you` : SOCIAL_ROUTES.home;
-}
-
 export const SOCIAL_PROFILE_TAB_PARAM = "tab";
 export const SOCIAL_PROFILE_TABS = ["activity", "highlights", "credits", "interests"] as const;
 export type SocialProfileTab = (typeof SOCIAL_PROFILE_TABS)[number];

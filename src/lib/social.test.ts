@@ -47,7 +47,6 @@ import {
   socialHandleInputError,
   socialHandleRequiredError,
   socialNameRequiredError,
-  socialHomeLaneHref,
   socialInitials,
   composeSocialDisplayName,
   socialPersonIdentity,
@@ -504,7 +503,7 @@ describe("profile opt-in", () => {
     expect("originalQuality" in SOCIAL.create).toBe(false);
     expect(SOCIAL.home.videoPreparing).toBe("That video is still preparing.");
     expect(parseSocialHomeLane("for-you")).toBe("for-you");
-    expect(socialHomeLaneHref("following")).toBe("/social");
+    expect(readFileSync("src/lib/social.ts", "utf8")).not.toContain("socialHomeLaneHref");
     expect(SOCIAL_PROFILE_TABS).toEqual(["activity", "highlights", "credits", "interests"]);
     expect(SOCIAL_PROFILE_DEFAULT_TAB).toBe("activity");
     expect(parseSocialProfileTab("highlights")).toBe("highlights");
@@ -715,7 +714,8 @@ describe("social writes stay on the live spine", () => {
     expect(actions).not.toContain("from(\"organizations\")");
     expect(pages).toContain("loadCachedFollowingPosts");
     expect(pages).not.toContain("SocialPostCompose");
-    expect(pages).toContain("SocialHomeTabs");
+    expect(pages).not.toContain("SocialHomeTabs");
+    expect(pages).toContain("<SocialHomeTopics active={topic} lane={lane}");
     expect(pages).toContain("SocialHomeComposer");
     expect(pages).not.toContain("SocialLensRow");
     expect(pages).toContain("SocialStoriesRail");

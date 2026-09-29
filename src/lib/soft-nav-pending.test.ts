@@ -75,18 +75,18 @@ describe("soft-nav pending selection", () => {
 
   it("reads Home lane and topic from the owned href without swapping the center", () => {
     const topics = readFileSync("src/components/social/social-home-topics.tsx", "utf8");
-    const tabs = readFileSync("src/components/social/social-home-tabs.tsx", "utf8");
     const slot = readFileSync("src/components/social/social-home-cold-slot.tsx", "utf8");
     const home = readFileSync("src/app/(app)/social/page.tsx", "utf8");
     expect(topics).toContain("useSocialHomeLive");
-    expect(tabs).toContain("useSocialHomeLive");
+    expect(topics).toContain("data-social-home-lane");
     expect(slot).toContain("return children");
     expect(slot).toContain("router.push(house.href, { scroll: false })");
     expect(slot).toContain("pushed.current = null");
     expect(slot).not.toContain("<SocialHomeCenterSkeleton");
     expect(slot).not.toContain("<SocialForYouSkeleton");
     expect(slot).not.toContain("live.lane !== \"following\"");
-    expect(home).toContain("<SocialHomeTopics active={topic}");
+    expect(home).toContain("<SocialHomeTopics active={topic} lane={lane}");
+    expect(home).not.toContain("SocialHomeTabs");
     expect(home).toContain("<SocialHomeColdSlot");
     expect(home).toContain("<SocialHomeFollowingRail");
     expect(

@@ -16,9 +16,9 @@
 // --space-1. Do not put overflow-hidden on the leading row (#412).
 // Phone trailing: [search if needed] [24Frame AI] [bell]
 // [waffle] [avatar]. No header sun/moon. --chrome-gutter so the avatar is not flush.
-// Cluster gap is --space-2 on every breakpoint; phone
-// AI/bell/search hug the 16px glyph so that gap is optical,
-// not 16-in-32 vs a 32 disk. Do not cancel that hug with -mx.
+// Cluster gap is phone --space-3 / desktop md:gap-[var(--space-4)] (16).
+// Phone AI/bell/search hug --header-control-size so that gap is
+// edge-to-edge. Do not cancel that hug with -mx.
 // #452 stacked AI on the bell. Theme is the avatar drill to
 // /settings/preferences/theme. No header glyph writes gc-theme.
 // Ask 24Frame AI sits immediately left of the
@@ -148,11 +148,11 @@ export const WORKSPACE_SWITCHER_HEADER_CLASS =
 /** Sporty Blue check on the current Layer 1 tile. */
 export const WORKSPACE_SWITCHER_OPTION_CHECK_CLASS = "text-accent";
 
-// Adam 2026-09-19 phone glance: space-2 still optically tight AI↔bell;
-// phone space-3 / desktop space-2. Still no negative margins; still no
-// glyph resize.
+// Phone header stays space-3. Desktop trailing utilities are space-4 (16).
+// Not a 12–16 band and not an invented px. Phone dock glyphs are not this gap.
+// docs/design-locks/social-home-density-craft-sequel-lock-v1.md
 export const APP_HEADER_TRAILING_CLUSTER_CLASS =
-  "flex min-w-0 items-center gap-[var(--space-3)] md:gap-[var(--space-2)] max-md:shrink-0";
+  "flex min-w-0 items-center gap-[var(--space-3)] md:gap-[var(--space-4)] max-md:shrink-0";
 
 export const APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS = HOUSE_LEAD_UNDER_NAV_CLASS;
 

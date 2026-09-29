@@ -76,11 +76,6 @@ export function normalizeSocialCategory(raw: string | null | undefined): SocialC
   return parsed;
 }
 
-export function socialHomeLensHref(label: SocialCategoryLabel, active: SocialCategoryLabel): string {
-  if (label === SOCIAL_CATEGORY_ALL || label === active) return "/social";
-  return `/social?${SOCIAL_CATEGORY_PARAM}=${socialCategorySlug(label)}`;
-}
-
 export function isSocialHomeLensPath(pathname: string): boolean {
   return pathname === "/social";
 }

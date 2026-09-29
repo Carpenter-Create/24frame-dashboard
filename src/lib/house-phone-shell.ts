@@ -165,7 +165,9 @@ export const HOUSE_HEADER_TRAILING_ICON_CLASS = `${HOUSE_HEADER_TRAILING_PHONE_I
  *  Hidden from md+, so the ink override does not touch desktop text-ink-3. */
 export const HOUSE_HEADER_TRAILING_PHONE_CLASS = `${HOUSE_HEADER_TRAILING_ICON_CLASS} md:hidden ${HOUSE_PHONE_CHROME_IDLE_INK_CLASS}`;
 
-/** Desktop header trailing instance — 20px. Not the 16px Phosphor rail. */
+/** Desktop header trailing instance — size-5 (20). Not the 16px Phosphor rail.
+ *  Phone dock stays on HOUSE_PHONE_CHROME_ICON_CLASS (size-6). Not ~18px.
+ *  docs/design-locks/social-home-density-craft-sequel-lock-v1.md */
 export const HOUSE_HEADER_TRAILING_DESKTOP_CLASS = "size-5 shrink-0 hidden md:block";
 
 /** Bottom nav rides the 24px SoT (HOUSE_PHONE_CHROME_ICON_CLASS),

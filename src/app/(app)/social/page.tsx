@@ -7,7 +7,6 @@ import { SocialForYouRail } from "@/components/social/social-for-you";
 import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot";
 import { SocialHomeComposer } from "@/components/social/social-home-composer";
 import { SocialHomeColdSlot, SocialHomeFollowingRail } from "@/components/social/social-home-cold-slot";
-import { SocialHomeTabs } from "@/components/social/social-home-tabs";
 import { SocialHomeTopics } from "@/components/social/social-home-topics";
 import {
   SocialForYouSkeleton,
@@ -145,7 +144,7 @@ async function SocialHomeCenter({
         <h1>{SOCIAL.home.title}</h1>
         <p>{SOCIAL.home.subtitle}</p>
       </div>
-      <SocialHomeTopics active={topic} />
+      <SocialHomeTopics active={topic} lane={lane} />
       <SocialHomeColdSlot seedLane={lane} seedTopic={topic}>
         {profile ? (
           <SocialHomeComposer authorName={profile.display_name} authorPhotoUrl={photoUrl} />
@@ -168,7 +167,6 @@ async function SocialHomeCenter({
             {SOCIAL.home.truncatedFollowees}
           </InlineNotice>
         ) : null}
-        <SocialHomeTabs active={lane} />
         {lane === "for-you" ? (
           <SocialHomeForYouLane suggested={suggested} faces={faces} />
         ) : (

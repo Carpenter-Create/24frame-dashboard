@@ -7,7 +7,6 @@ import {
   SOCIAL_CATEGORY_LABELS,
   SOCIAL_CATEGORY_TOPICS,
   socialCategorySlug,
-  socialHomeLensHref,
   sortTopicsAlpha,
 } from "@/lib/social-categories";
 import {
@@ -17,6 +16,7 @@ import {
   SOCIAL_TOPIC_RAIL_ROWS,
 } from "@/lib/social-chrome";
 import { HOUSE_PILL_SELECTED_CLASS } from "@/lib/house-shell";
+import { socialHomeAxisHref } from "@/lib/social-home-location";
 import { SocialHomeTopics } from "./social-home-topics";
 
 const src = readFileSync("src/components/social/social-home-topics.tsx", "utf8");
@@ -27,6 +27,11 @@ function topicChips(html: string): string[] {
 
 function chipMarkup(html: string, label: string): string {
   const match = html.match(new RegExp(`<a[^>]*data-social-home-topic="${label}"[^>]*>`));
+  return match?.[0] ?? "";
+}
+
+function laneMarkup(html: string, lane: string): string {
+  const match = html.match(new RegExp(`<a[^>]*data-social-home-lane="${lane}"[^>]*>`));
   return match?.[0] ?? "";
 }
 
@@ -67,11 +72,36 @@ describe("SocialHomeTopics bank", () => {
     expect(actingChip).not.toContain("aria-current");
     expect(actingChip).toContain(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
     expect(actingChip).not.toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(actingChip).toContain(`href="${socialHomeLensHref("Acting", SOCIAL_CATEGORY_ALL)}"`);
+    expect(actingChip).toContain(`href="${socialHomeAxisHref("following", "Acting")}"`);
     expect(src).toContain("socialTopicRailChipClass");
-    expect(src).toContain("socialHomeLensHref");
+    expect(src).toContain("socialHomeAxisHref");
+    expect(src).not.toContain("socialHomeLensHref");
+    expect(src).not.toContain("socialHomeLaneHref");
+    expect(src).not.toContain("h-[3px]");
+    expect(src).not.toContain("hidden md:flex");
+    expect(src).not.toContain("md:hidden");
     expect(socialTopicRailChipClass(true)).toBe(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS);
     expect(socialTopicRailChipClass(false)).toBe(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
+    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain("h-8");
+    const following = laneMarkup(html, "following");
+    const forYou = laneMarkup(html, "for-you");
+    expect(html.indexOf('data-social-home-lane="following"')).toBeLessThan(
+      html.indexOf('data-social-home-lane="for-you"'),
+    );
+    expect(html.indexOf('data-social-home-lane="for-you"')).toBeLessThan(
+      html.indexOf(`data-social-home-topic="${SOCIAL_CATEGORY_ALL}"`),
+    );
+    expect(following).toContain('data-social-home-lane-active=""');
+    expect(following).toContain('aria-pressed="true"');
+    expect(following).toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(following).toContain("h-8");
+    expect(following).toContain('href="/social"');
+    expect(following).not.toContain("h-[3px]");
+    expect(forYou).not.toContain("data-social-home-lane-active");
+    expect(forYou).toContain('aria-pressed="false"');
+    expect(forYou).not.toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(forYou).toContain('href="/social?lane=for-you"');
+    expect(html).not.toContain("data-social-home-tabs");
   });
 
   it("selects the URL topic and re-taps it back to All", () => {
@@ -87,5 +117,39 @@ describe("SocialHomeTopics bank", () => {
     expect(chipMarkup(html, "Acting")).toContain(
       `href="/social?topic=${socialCategorySlug("Acting")}"`,
     );
+    expect(laneMarkup(html, "following")).toContain('href="/social?topic=music"');
+    expect(laneMarkup(html, "for-you")).toContain('href="/social?topic=music&amp;lane=for-you"');
+  });
+
+  it("lights lane and topic together and keeps both axes in the chip hrefs", () => {
+    const html = renderToStaticMarkup(<SocialHomeTopics active="Music" lane="for-you" />);
+    const forYou = laneMarkup(html, "for-you");
+    const following = laneMarkup(html, "following");
+    const music = chipMarkup(html, "Music");
+    const all = chipMarkup(html, SOCIAL_CATEGORY_ALL);
+    const acting = chipMarkup(html, "Acting");
+    expect(forYou).toContain('data-social-home-lane-active=""');
+    expect(forYou).toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(forYou).toContain('href="/social?topic=music&amp;lane=for-you"');
+    expect(following).not.toContain("data-social-home-lane-active");
+    expect(following).toContain('href="/social?topic=music"');
+    expect(music).toContain('data-social-home-topic-active=""');
+    expect(music).toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(music).toContain('href="/social?lane=for-you"');
+    expect(all).not.toContain("data-social-home-topic-active");
+    expect(all).toContain('href="/social?lane=for-you"');
+    expect(acting).toContain('href="/social?topic=acting&amp;lane=for-you"');
+    expect(html).not.toContain("h-[3px]");
+    expect(socialHomeAxisHref("following", "All")).toBe("/social");
+    expect(socialHomeAxisHref("for-you", "All")).toBe("/social?lane=for-you");
+    expect(socialHomeAxisHref("following", "Music")).toBe(
+      `/social?topic=${socialCategorySlug("Music")}`,
+    );
+    expect(socialHomeAxisHref("for-you", "Music")).toBe(
+      `/social?topic=${socialCategorySlug("Music")}&lane=for-you`,
+    );
+    expect(socialHomeAxisHref("following", "Cinematography")).not.toContain("explore");
+    expect(socialHomeAxisHref("for-you", "Music")).not.toContain("/social/home");
+    expect(socialHomeAxisHref("for-you", "Acting")).toContain("lane=for-you");
   });
 });
