@@ -30,6 +30,9 @@ import type { QuietMuxPlayerStyle } from "@/lib/social-mux-player-quiet";
 // docs/design-locks/social-video-upload-cover-lift-lock-v1.md
 // docs/design-locks/social-video-mux-only-lock-v1.md
 // docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md
+// Home Following mounts this player only for the active video.
+// The next video warms a signed JWT without this component.
+// docs/design-locks/social-home-following-mux-active-gate-lock-v1.md
 
 const MuxPlayer = dynamic(() => import("./social-mux-player-mount"), { ssr: false });
 

@@ -942,7 +942,9 @@ describe("SocialPostCard media", () => {
     expect(postMedia).toContain("data-social-feed-media-open");
     expect(postMedia).toContain("SOCIAL.post.viewPhoto");
     expect(postMedia).toContain("SOCIAL.post.viewVideo");
-    expect(postCard).toContain("<SocialPostMedia items={post.media} onOpen={setImmersiveIndex} />");
+    expect(postCard).toContain(
+      "<SocialPostMedia items={post.media} onOpen={setImmersiveIndex} muxBandId={muxBandId} />",
+    );
     expect(still).toContain("min(70vh,560px)");
     expect(still).toContain('aria-label="View photo"');
     expect(still).toContain("max-md:-mx-");

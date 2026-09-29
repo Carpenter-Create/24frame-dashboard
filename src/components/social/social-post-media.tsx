@@ -15,14 +15,16 @@ export function SocialPostMedia({
   items,
   onOpen,
   frameClass,
+  muxBandId,
 }: {
   items: readonly SocialPostMediaItem[];
   onOpen: (index: number) => void;
   frameClass?: string;
+  muxBandId?: string;
 }) {
   if (items.length === 0) return null;
   if (socialFeedUsesCarousel(items.length)) {
-    return <SocialFeedCarousel items={items} onOpen={onOpen} />;
+    return <SocialFeedCarousel items={items} onOpen={onOpen} muxBandId={muxBandId} />;
   }
   return (
     <div data-social-post-media="" className={cn("@container", SOCIAL_POST_MEDIA_CLASS)}>
@@ -32,6 +34,7 @@ export function SocialPostMedia({
           item={item}
           label={item.kind === "video" ? SOCIAL.post.viewVideo : SOCIAL.post.viewPhoto}
           frameClass={frameClass}
+          muxBandId={muxBandId}
           onOpen={() => onOpen(index)}
         />
       ))}
@@ -43,11 +46,13 @@ function SocialPostMediaFrame({
   item,
   label,
   frameClass,
+  muxBandId,
   onOpen,
 }: {
   item: SocialPostMediaItem;
   label: string;
   frameClass?: string;
+  muxBandId?: string;
   onOpen: () => void;
 }) {
   const frame = cn(
@@ -66,7 +71,11 @@ function SocialPostMediaFrame({
   if (item.kind === "video") {
     return (
       <div data-social-feed-media-frame="" className={frame}>
-        <SocialFeedVideo item={item} className="absolute inset-0 size-full object-cover" />
+        <SocialFeedVideo
+          item={item}
+          muxBandId={muxBandId}
+          className="absolute inset-0 size-full object-cover"
+        />
         {open}
       </div>
     );

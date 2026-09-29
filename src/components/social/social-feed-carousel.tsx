@@ -9,6 +9,7 @@ import {
   socialFeedCarouselShowLabel,
   socialFeedCarouselVideoUsesMux,
 } from "@/lib/social-feed-carousel";
+import { socialFollowingMuxCarouselSlideRole } from "@/lib/social-following-mux-active";
 import { SOCIAL } from "@/lib/social";
 import {
   SOCIAL_FEED_CAROUSEL_BLEED_CLASS,
@@ -22,17 +23,34 @@ import {
 } from "@/lib/social-chrome";
 import type { SocialPostMediaItem } from "@/lib/social-author-post-card";
 import { SocialMediaImage } from "./social-media-image";
+import {
+  SocialFollowingMuxWarm,
+  useSocialFollowingMuxObserve,
+  useSocialFollowingMuxRole,
+} from "./social-following-mux-band";
 import { SocialMuxPlayer } from "./social-mux-player";
 
 // Adam lock 2026-09-25. One full-bleed stage, swipe, dots, N of M.
 // Video slides mount Mux only. A leftover cookie or proxy URL is not a
 // playable face. Stories do not render this.
+// Following band: the visible Mux slide mounts. The next Mux slide warms.
+// docs/design-locks/social-home-following-mux-active-gate-lock-v1.md
 
-function CarouselSlideFace({ item }: { item: SocialPostMediaItem }) {
+function CarouselSlideFace({
+  item,
+  band,
+}: {
+  item: SocialPostMediaItem;
+  band: "mount" | "warm" | "closed" | "unbanded";
+}) {
   if (item.kind === "video") {
     if (!socialFeedCarouselVideoUsesMux(item) || !item.playbackId) {
       return <div data-social-carousel-mux-missing="" className="absolute inset-0 bg-surface-muted" />;
     }
+    if (band === "warm") {
+      return <SocialFollowingMuxWarm playbackId={item.playbackId} playbackPolicy={item.playbackPolicy} />;
+    }
+    if (band === "closed") return null;
     return (
       <SocialMuxPlayer
         playbackId={item.playbackId}
@@ -47,14 +65,23 @@ function CarouselSlideFace({ item }: { item: SocialPostMediaItem }) {
 export function SocialFeedCarousel({
   items,
   onOpen,
+  muxBandId,
 }: {
   items: readonly SocialPostMediaItem[];
   onOpen?: (index: number) => void;
+  muxBandId?: string;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const role = useSocialFollowingMuxRole(muxBandId);
+  useSocialFollowingMuxObserve(muxBandId, rootRef);
   const total = items.length;
   const label = socialFeedCarouselLabel(index, total);
+  const muxIndexes = items.flatMap((item, slide) =>
+    item.kind === "video" && socialFeedCarouselVideoUsesMux(item) ? [slide] : [],
+  );
+  const banded = role !== "unbanded";
 
   function go(next: number) {
     const bounded = Math.min(total - 1, Math.max(0, next));
@@ -76,8 +103,11 @@ export function SocialFeedCarousel({
 
   return (
     <div
+      ref={rootRef}
       data-social-post-media=""
       data-social-post-carousel=""
+      data-social-mux-band={banded ? muxBandId : undefined}
+      data-social-mux-slot={banded ? role : undefined}
       role="region"
       aria-roledescription="carousel"
       aria-label={SOCIAL.post.carousel}
@@ -89,26 +119,38 @@ export function SocialFeedCarousel({
         className={SOCIAL_FEED_CAROUSEL_TRACK_CLASS}
         onScroll={onScroll}
       >
-        {items.map((item, slide) => (
-          <div
-            key={`${item.playbackId ?? item.url}-${slide}`}
-            data-social-post-carousel-slide=""
-            data-social-post-image={item.kind === "image" ? "" : undefined}
-            className={SOCIAL_FEED_CAROUSEL_SLIDE_CLASS}
-            aria-hidden={slide === index ? undefined : true}
-          >
-            <CarouselSlideFace item={item} />
-            {onOpen ? (
-              <button
-                type="button"
-                data-social-feed-media-open=""
-                aria-label={item.kind === "video" ? SOCIAL.post.viewVideo : SOCIAL.post.viewPhoto}
-                className="absolute inset-0 z-[1] cursor-pointer"
-                onClick={() => onOpen(slide)}
-              />
-            ) : null}
-          </div>
-        ))}
+        {items.map((item, slide) => {
+          const slideRole = socialFollowingMuxCarouselSlideRole({
+            postRole: role,
+            index: slide,
+            visibleIndex: index,
+            muxIndexes,
+          });
+          const muxSlide = item.kind === "video" && socialFeedCarouselVideoUsesMux(item);
+          const slideSlot =
+            banded && muxSlide && slideRole !== "mount" ? slideRole : undefined;
+          return (
+            <div
+              key={`${item.playbackId ?? item.url}-${slide}`}
+              data-social-post-carousel-slide=""
+              data-social-post-image={item.kind === "image" ? "" : undefined}
+              data-social-mux-slot={slideSlot}
+              className={SOCIAL_FEED_CAROUSEL_SLIDE_CLASS}
+              aria-hidden={slide === index ? undefined : true}
+            >
+              <CarouselSlideFace item={item} band={slideRole} />
+              {onOpen ? (
+                <button
+                  type="button"
+                  data-social-feed-media-open=""
+                  aria-label={item.kind === "video" ? SOCIAL.post.viewVideo : SOCIAL.post.viewPhoto}
+                  className="absolute inset-0 z-[1] cursor-pointer"
+                  onClick={() => onOpen(slide)}
+                />
+              ) : null}
+            </div>
+          );
+        })}
       </div>
       <p data-social-post-carousel-count="" aria-live="polite" className={SOCIAL_FEED_CAROUSEL_COUNT_CLASS}>
         {label}

@@ -74,9 +74,11 @@ export function SocialAuthorHistory({
 export function SocialPostCard({
   post,
   permalink = true,
+  muxBandId,
 }: {
   post: SocialPostCardModel;
   permalink?: boolean;
+  muxBandId?: string;
 }) {
   // One card at every breakpoint.
   // Text + media: docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
@@ -148,7 +150,9 @@ export function SocialPostCard({
           />
         ) : null}
       </div>
-      {media ? <SocialPostMedia items={post.media} onOpen={setImmersiveIndex} /> : null}
+      {media ? (
+        <SocialPostMedia items={post.media} onOpen={setImmersiveIndex} muxBandId={muxBandId} />
+      ) : null}
       {immersiveIndex != null ? (
         <SocialFeedImmersive post={post} index={immersiveIndex} onClose={closeImmersive} />
       ) : null}
