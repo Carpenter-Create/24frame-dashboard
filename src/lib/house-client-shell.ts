@@ -221,6 +221,88 @@ export function houseNavHop(input: {
   return "next";
 }
 
+function houseScreenLand(key: string): string {
+  const path = key.split("?")[0] || "/";
+  return houseWorkspaceLandKey(path);
+}
+
+/**
+ * Layer 1 swap across Social / Education / Aggregation / Staff.
+ * Null when the hop stays on one land — Home `?period=` and Social
+ * home panel queries are not workspace swaps.
+ * Own the URL only when the dest screen is already a painted slot.
+ * Otherwise Next must navigate. pushState would move the pill and
+ * rail while the center is still the previous workspace.
+ */
+export function houseLayer1Hop(input: {
+  fromHref: string;
+  destHref: string;
+  painted: readonly string[];
+}): "owned" | "next" | null {
+  const fromLand = houseScreenLand(parseHouseHref(input.fromHref).pathname);
+  const destLand = houseScreenLand(parseHouseHref(input.destHref).pathname);
+  if (fromLand === destLand) return null;
+  return input.painted.includes(houseHrefKey(input.destHref)) ? "owned" : "next";
+}
+
+/**
+ * Hop the shell may commit. A Layer 1 dest that is not painted is
+ * always "next" — no owned URL. A painted Layer 1 screen is owned
+ * even when the path is outside the Social/Home client-owned set.
+ */
+export function houseCommitHop(input: {
+  fromHref: string;
+  destHref: string;
+  painted: readonly string[];
+  ownedIsDest: boolean;
+  nextIsDest: boolean;
+  sameScreen: boolean;
+}): HouseNavHop {
+  const layer1 = houseLayer1Hop({
+    fromHref: input.fromHref,
+    destHref: input.destHref,
+    painted: input.painted,
+  });
+  if (layer1 === "next") return "next";
+  return houseNavHop({
+    cached: layer1 === "owned" || houseShouldClientNavigate(input.destHref, input.painted),
+    ownedIsDest: input.ownedIsDest,
+    nextIsDest: input.nextIsDest,
+    sameScreen: input.sameScreen,
+  });
+}
+
+function houseChildIsOtherWorkspace<T>(
+  child: T,
+  nodes: Record<string, T>,
+  key: string,
+): boolean {
+  const land = houseScreenLand(key);
+  for (const slot of Object.keys(nodes)) {
+    if (slot === key) continue;
+    if (nodes[slot] !== child) continue;
+    if (houseScreenLand(slot) !== land) return true;
+  }
+  return false;
+}
+
+/**
+ * Live tree is still another workspace's screen. Do not store it
+ * under this key, and do not treat a blank outlet as "refresh" —
+ * that revalidation accepts the previous body as this URL.
+ */
+function houseBlockForeignWorkspace<T>(
+  seen: HouseChildSeen | null,
+  nextKey: string,
+  child: T,
+  nodes: Record<string, T>,
+): boolean {
+  if (houseChildIsOtherWorkspace(child, nodes, nextKey)) return true;
+  if (seen === null) return false;
+  if (houseScreenLand(seen.key) === houseScreenLand(nextKey)) return false;
+  return child === seen.child || (seen.snapshot !== null && child === seen.snapshot);
+}
+
 /** Focus trapped in a hidden keep-alive screen eats later dock clicks. */
 export function houseFocusBelongsToInactiveScreen(
   screenHidden: boolean,
@@ -413,8 +495,13 @@ export function houseBlankOutlet(
   showIngress: boolean,
   activeKey: string,
   nextKey: string,
+  /** Center is still the previous workspace. Do not refresh-accept it. */
+  waitForWorkspace = false,
 ): "none" | "refresh" | "load" {
   if (displayKey !== null || showIngress) return "none";
+  // Next is already fetching this URL. Refresh would abort that hop and
+  // then accept the previous workspace as this screen.
+  if (waitForWorkspace && activeKey === nextKey) return "none";
   // Owned URL with no slot. Next is still on the other screen — ask it to load this one.
   if (activeKey !== nextKey) return "load";
   // Next is already on this URL and the slot is empty. Revalidate, then accept the settled tree.
@@ -439,13 +526,22 @@ export function houseApplyCachedChild<T>(input: {
   nodes: Record<string, T>;
   displayKey: string | null;
   showIngress: boolean;
+  /** Empty slot is the previous workspace. Caller must not refresh-accept it. */
+  waitForSlot: boolean;
 } {
+  const blockForeignWorkspace = houseBlockForeignWorkspace(
+    input.seen,
+    input.nextKey,
+    input.child,
+    input.nodes,
+  );
   let advanced = houseSyncChildSeen(input.seen, input.nextKey, input.child);
   if (
     input.acceptStale &&
     input.activeKey === input.nextKey &&
     advanced.childrenStale &&
-    !input.fallback
+    !input.fallback &&
+    !blockForeignWorkspace
   ) {
     advanced = {
       seen: { key: input.nextKey, snapshot: null, child: input.child },
@@ -469,6 +565,7 @@ export function houseApplyCachedChild<T>(input: {
   const has = input.nextKey in nodes;
   const storedDiffers = has && nodes[input.nextKey] !== input.child;
   if (
+    !blockForeignWorkspace &&
     houseCanIngest(
       input.nextKey,
       input.activeKey,
@@ -504,11 +601,13 @@ export function houseApplyCachedChild<T>(input: {
 
   const hasSlot = input.activeKey in nodes && nodes[input.activeKey] != null;
   const paintLive =
+    !blockForeignWorkspace &&
     !advanced.childrenStale &&
     input.activeKey === input.nextKey &&
     !hasSlot &&
     !input.fallback;
   const display = houseResolveDisplay(input.activeKey, hasSlot, input.fallback, paintLive);
+  const waitForSlot = blockForeignWorkspace && !hasSlot;
   const orderSame =
     order === input.order ||
     (order.length === input.order.length && order.every((key, index) => key === input.order[index]));
@@ -520,6 +619,7 @@ export function houseApplyCachedChild<T>(input: {
       nodes: input.nodes,
       displayKey: display.displayKey,
       showIngress: display.showIngress,
+      waitForSlot,
     };
   }
 
@@ -530,6 +630,7 @@ export function houseApplyCachedChild<T>(input: {
     nodes,
     displayKey: display.displayKey,
     showIngress: display.showIngress,
+    waitForSlot,
   };
 }
 

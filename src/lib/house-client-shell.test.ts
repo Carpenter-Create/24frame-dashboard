@@ -12,10 +12,12 @@ import {
   houseBlankOutletRepeats,
   houseCanIngest,
   houseClientHistoryState,
+  houseCommitHop,
   houseExactHref,
   houseFocusBelongsToInactiveScreen,
   houseHomePeriodHop,
   houseHrefKey,
+  houseLayer1Hop,
   houseMayClientOwnHop,
   houseNavHop,
   housePaintedKeys,
@@ -695,6 +697,125 @@ describe("Social rail cache flips", () => {
     expect(houseShouldClientNavigate(SOCIAL_ROUTES.home, housePaintedKeys())).toBe(false);
     expect(houseShouldClientNavigate(SOCIAL_ROUTES.explore, housePaintedKeys())).toBe(true);
     resetHousePaintedForTests();
+  });
+
+  it("keeps Layer 1 URL, pill, rail, and center on the same workspace", () => {
+    const lands = ["/social", "/education", "/aggregation/dashboard", "/staff/queue"] as const;
+    for (const from of lands) {
+      for (const dest of lands) {
+        if (from === dest) continue;
+        const unpainted = houseCommitHop({
+          fromHref: from,
+          destHref: dest,
+          painted: [from],
+          ownedIsDest: false,
+          nextIsDest: false,
+          sameScreen: false,
+        });
+        expect(unpainted).toBe("next");
+        expect(houseLayer1Hop({ fromHref: from, destHref: dest, painted: [from] })).toBe("next");
+
+        const painted = houseCommitHop({
+          fromHref: from,
+          destHref: dest,
+          painted: [from, dest],
+          ownedIsDest: false,
+          nextIsDest: false,
+          sameScreen: false,
+        });
+        expect(painted).toBe("owned");
+        expect(houseLayer1Hop({ fromHref: from, destHref: dest, painted: [from, dest] })).toBe(
+          "owned",
+        );
+      }
+    }
+
+    // Home period and Social panel queries stay on the mounted screen.
+    expect(houseLayer1Hop({ fromHref: "/home", destHref: "/home?period=ytd", painted: ["/home"] })).toBe(
+      null,
+    );
+    expect(
+      houseCommitHop({
+        fromHref: "/home",
+        destHref: "/home?period=ytd",
+        painted: ["/home"],
+        ownedIsDest: false,
+        nextIsDest: false,
+        sameScreen: true,
+      }),
+    ).toBe("owned");
+    expect(
+      houseLayer1Hop({
+        fromHref: "/social",
+        destHref: "/social?topic=music",
+        painted: ["/social"],
+      }),
+    ).toBeNull();
+    expect(
+      houseCommitHop({
+        fromHref: "/social",
+        destHref: "/social?topic=music",
+        painted: ["/social"],
+        ownedIsDest: false,
+        nextIsDest: false,
+        sameScreen: true,
+      }),
+    ).toBe("owned");
+
+    const education = { screen: "education" };
+    const social = { screen: "social" };
+    const held = houseApplyCachedChild({
+      seen: { key: "/education", snapshot: null, child: education },
+      nextKey: "/social",
+      activeKey: "/social",
+      nextPath: "/social",
+      child: education,
+      fallback: false,
+      nodes: { "/education": education },
+      order: ["/education"],
+      acceptStale: true,
+    });
+    expect(held.nodes["/social"]).toBeUndefined();
+    expect(held.displayKey).not.toBe("/social");
+    expect(held.nodes["/education"]).toBe(education);
+    expect(held.waitForSlot).toBe(true);
+    expect(houseBlankOutlet(held.displayKey, held.showIngress, "/social", "/social", held.waitForSlot)).toBe(
+      "none",
+    );
+
+    const restarted = houseApplyCachedChild({
+      seen: held.seen,
+      nextKey: "/social",
+      activeKey: "/social",
+      nextPath: "/social",
+      child: education,
+      fallback: false,
+      nodes: held.nodes,
+      order: held.order,
+      acceptStale: true,
+    });
+    expect(restarted.nodes["/social"]).toBeUndefined();
+    expect(restarted.displayKey).not.toBe("/social");
+    expect(restarted.waitForSlot).toBe(true);
+
+    const shown = houseApplyCachedChild({
+      seen: { key: "/education", snapshot: null, child: education },
+      nextKey: "/education",
+      activeKey: "/social",
+      nextPath: "/education",
+      child: education,
+      fallback: false,
+      nodes: { "/education": education, "/social": social },
+      order: ["/education", "/social"],
+    });
+    expect(shown.displayKey).toBe("/social");
+    expect(shown.nodes["/social"]).toBe(social);
+    expect(shown.waitForSlot).toBe(false);
+
+    const provider = readFileSync("src/components/chrome/house-client-shell.tsx", "utf8");
+    expect(provider).toContain("houseCommitHop");
+    expect(provider).toContain("if (hop === \"next\") return false");
+    expect(provider).toContain("applied.waitForSlot");
   });
 
   it("marks warm history so Next does not restore the previous flight tree", () => {
