@@ -21,8 +21,10 @@ import {
   SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_STORY_PLUS } from "@/lib/social-icons";
+import { socialStoryRailCover } from "@/lib/social-edge";
 import type { SocialStoryRailCard } from "@/lib/social-feed";
 import { SOCIAL, SOCIAL_ROUTES, socialPersonLabel, socialStoryHref } from "@/lib/social";
+import type { SocialStoryRailWarmThumb } from "@/lib/social-story-rail-mint";
 
 function storyCardHref(card: SocialStoryRailCard): string {
   return socialStoryHref(card.openId ?? card.latest.id);
@@ -48,6 +50,20 @@ function StoryCreatePlus() {
   );
 }
 
+function warmForCard(
+  card: SocialStoryRailCard,
+  warmedThumbs: readonly SocialStoryRailWarmThumb[] | undefined,
+): { playbackId: string; thumbnail: string } | null {
+  if (!warmedThumbs || warmedThumbs.length === 0) return null;
+  const cover = socialStoryRailCover(card.latest.media, card.authorId);
+  if (!cover?.playbackId) return null;
+  const match = warmedThumbs.find(
+    (row) => row.authorId === card.authorId && row.playbackId === cover.playbackId,
+  );
+  if (!match) return null;
+  return { playbackId: match.playbackId, thumbnail: match.thumbnail };
+}
+
 function HomeTallStoriesRail({
   cards,
   authors,
@@ -55,6 +71,7 @@ function HomeTallStoriesRail({
   canCreate,
   createName,
   createPhotoUrl,
+  warmedThumbs,
 }: {
   cards: readonly SocialStoryRailCard[];
   authors: ReadonlyMap<string, { display_name: string; handle?: string }>;
@@ -62,6 +79,7 @@ function HomeTallStoriesRail({
   canCreate: boolean;
   createName?: string | null;
   createPhotoUrl?: string | null;
+  warmedThumbs?: readonly SocialStoryRailWarmThumb[];
 }) {
   return (
     <div
@@ -108,7 +126,11 @@ function HomeTallStoriesRail({
               className={SOCIAL_HOME_STORY_CARD_CLASS}
             >
               <span data-social-story-media="" className="absolute inset-0 bg-surface-muted">
-                <SocialStoryRailCover media={card.latest.media} authorId={card.authorId} />
+                <SocialStoryRailCover
+                  media={card.latest.media}
+                  authorId={card.authorId}
+                  warm={warmForCard(card, warmedThumbs)}
+                />
               </span>
               <span
                 className={cn(
@@ -138,6 +160,7 @@ export function SocialStoriesRail({
   canCreate,
   createName,
   createPhotoUrl,
+  warmedThumbs,
   surface = "home",
 }: {
   cards: readonly SocialStoryRailCard[];
@@ -146,6 +169,8 @@ export function SocialStoriesRail({
   canCreate: boolean;
   createName?: string | null;
   createPhotoUrl?: string | null;
+  /** Server mint for the first two cards. Later cards stay lazy. */
+  warmedThumbs?: readonly SocialStoryRailWarmThumb[];
   surface?: "home" | "stories";
 }) {
   if (surface === "home") {
@@ -157,6 +182,7 @@ export function SocialStoriesRail({
         canCreate={canCreate}
         createName={createName}
         createPhotoUrl={createPhotoUrl}
+        warmedThumbs={warmedThumbs}
       />
     );
   }

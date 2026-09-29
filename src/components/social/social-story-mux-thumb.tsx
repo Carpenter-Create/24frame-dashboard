@@ -17,27 +17,37 @@ import {
 // Public thumbs always use socialMuxThumbnailUrl. A caller url can carry
 // a stale time and must not override time=0. Signed still waits for the
 // thumbnail JWT, then uses that token.
+// The Home rail passes needed=false until the card intersects, so a full
+// ring does not sign on mount. A direct mount still mints.
 
 export function SocialStoryMuxThumb({
   playbackId,
   playbackPolicy,
+  thumbnail = null,
+  needed = true,
 }: {
   playbackId: string;
   playbackPolicy?: SocialMuxPlaybackPolicy;
   /** Accepted from the rail. Not read — a caller url must not override time=0. */
   url: string;
+  /** Server warm for this playback id. Skips /api/social/mux-playback. */
+  thumbnail?: { playbackId: string; token: string } | null;
+  /** False withholds the playback JWT. Default true keeps a direct mount. */
+  needed?: boolean;
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
+  const provided =
+    signed && thumbnail?.playbackId === playbackId && thumbnail.token ? thumbnail.token : null;
   // Home rail cards are keyed by author, so this instance survives a new
   // story. A thumbnail JWT is valid only for the playback id that minted it.
   // The check is on render: a new id does not paint the previous JWT.
   // Same bind as SocialMuxPlayer. Leaving this effect clears the mint, so
   // signed false→true on the same id cannot keep the previous token.
   const [mint, setMint] = useState<{ playbackId: string; token: string } | null>(null);
-  const token = signed && mint?.playbackId === playbackId ? mint.token : null;
+  const token = (signed && mint?.playbackId === playbackId ? mint.token : null) ?? provided;
 
   useEffect(() => {
-    if (!signed) return;
+    if (!signed || !needed || provided) return;
     const controller = new AbortController();
     void fetch(`${SOCIAL_MUX_PLAYBACK_ROUTE}?playbackId=${encodeURIComponent(playbackId)}`, {
       signal: controller.signal,
@@ -56,7 +66,7 @@ export function SocialStoryMuxThumb({
       controller.abort();
       setMint(null);
     };
-  }, [playbackId, signed]);
+  }, [playbackId, signed, needed, provided]);
 
   const src = signed
     ? token

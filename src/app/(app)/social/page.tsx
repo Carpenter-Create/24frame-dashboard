@@ -13,6 +13,7 @@ import {
   SocialHomeCenterSkeleton,
 } from "@/components/social/social-skeletons";
 import { SocialStoriesRail } from "@/components/social/social-stories-rail";
+import { warmStoryRailPlaybackTokens } from "@/lib/social-story-rail-mux-warm";
 import { cn } from "@/lib/cn";
 import { SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_HOME_SPINE_CLASS, SOCIAL_PILL_ACTIVE_CLASS, SOCIAL_PILL_CLASS } from "@/lib/social-chrome";
 import { signedAvatarUrls, signedSocialMediaByPostId } from "@/lib/social-edge";
@@ -136,6 +137,7 @@ async function SocialHomeCenter({
       : Promise.resolve(new Set<string>()),
   ]);
   const rail = groupStoryRail(stories, viewed);
+  const warmedThumbs = await warmStoryRailPlaybackTokens(ctx.user.id, rail);
   const photoUrl = faces.get(ctx.user.id) ?? null;
 
   return (
@@ -160,6 +162,7 @@ async function SocialHomeCenter({
           canCreate={!!profile}
           createName={profile?.display_name}
           createPhotoUrl={photoUrl}
+          warmedThumbs={warmedThumbs}
         />
         {storiesPage.truncated ? (
           <InlineNotice tone="info" data-social-stories-truncated="">
