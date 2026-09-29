@@ -35,7 +35,9 @@ describe("SOCIAL_PROFILE_COVER_LOCK_A", () => {
     expect(chrome).toContain("md:h-[224px]");
     expect(chrome).toContain("bg-accent-wash");
     expect(chrome).toContain(`-mt-[${SOCIAL_PROFILE_AVATAR_LIP_PX}px]`);
-    expect(chrome).not.toContain("md:-mt-");
+    // Phone Topics pull is max-md:-mt-. That is not a desktop avatar lip.
+    expect(chrome).not.toContain(`md:-mt-[${SOCIAL_PROFILE_AVATAR_LIP_PX}px]`);
+    expect(chrome).not.toMatch(/md:-mt-\[\d+px\]/);
     expect(SOCIAL_AVATAR_PROFILE_CLASS).toContain("size-20");
     expect(SOCIAL_AVATAR_PROFILE_CLASS).not.toContain("size-[72px]");
     expect(SOCIAL_AVATAR_PROFILE_CLASS).not.toContain("md:size-[88px]");
