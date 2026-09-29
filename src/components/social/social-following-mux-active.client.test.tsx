@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { SOCIAL_FOLLOWING_MUX_ACTIVE_ROOT_MARGIN } from "@/lib/social-following-mux-active";
+import { SOCIAL_FOLLOWING_MUX_ACTIVE_THRESHOLDS } from "@/lib/social-following-mux-active";
 import type { SocialFollowingWallCard } from "@/lib/social-following-wall";
 import { clearSocialMuxPlaybackTokenCache, SOCIAL_MUX_PLAYBACK_ROUTE } from "@/lib/social-mux";
 import { minimalDocument, serializeElement, uninstallMinimalDocument } from "@/test/minimal-document";
@@ -40,14 +40,19 @@ vi.mock("next/navigation", () => ({
 
 import { SocialFollowingWallBound } from "./social-following-wall-bound";
 
-const SIGNED_NEAR = ["VisibleOnePlayback01", "VisibleTwoPlayback02"] as const;
-const SIGNED_COLD = ["ColdThreePlayback003", "ColdFourPlayback0004", "ColdFivePlayback0005"] as const;
-const PUBLIC_NEAR = "PublicNearPlayback001";
-const PUBLIC_COLD = "PublicColdPlayback001";
+const PUBLIC_LEAD = "PublicLeadPlayback001";
+const SIGNED_NEXT = "SignedNextPlayback001";
+const SIGNED_LATER = "SignedLaterPlayback01";
+const SIGNED_AFTER = "SignedAfterPlayback01";
+const SIGNED_COLD = "SignedColdPlayback0001";
+const SIGNED_COLD2 = "SignedColdPlayback0002";
+const SLIDE_ONE = "SlideOnePlayback0001";
+const SLIDE_TWO = "SlideTwoPlayback0002";
+const SLIDE_THREE = "SlideThreePlayback003";
 
 type Observed = {
-  callback: (entries: Array<{ isIntersecting: boolean; target: Element }>) => void;
-  rootMargin: string;
+  callback: (entries: Array<{ isIntersecting: boolean; intersectionRatio: number; target: Element }>) => void;
+  threshold: readonly number[];
   targets: Element[];
 };
 
@@ -58,8 +63,11 @@ function installObserver() {
   observed.length = 0;
   class FakeObserver {
     private record: Observed;
-    constructor(callback: Observed["callback"], options?: { rootMargin?: string }) {
-      this.record = { callback, rootMargin: options?.rootMargin ?? "", targets: [] };
+    constructor(
+      callback: Observed["callback"],
+      options?: { threshold?: readonly number[] },
+    ) {
+      this.record = { callback, threshold: options?.threshold ?? [], targets: [] };
       observed.push(this.record);
     }
     observe(target: Element) {
@@ -87,18 +95,30 @@ function installFetch() {
   });
 }
 
-function show(ids: ReadonlySet<string>) {
+function show(ratios: Readonly<Record<string, number>>) {
   act(() => {
     for (const record of observed) {
       for (const target of [...record.targets]) {
-        const id = target.getAttribute("data-social-mux-player");
-        record.callback([{ isIntersecting: id != null && ids.has(id), target }]);
+        const id = target.getAttribute("data-social-mux-band");
+        const ratio = id != null && Object.prototype.hasOwnProperty.call(ratios, id) ? ratios[id]! : 0;
+        record.callback([
+          {
+            isIntersecting: ratio > 0,
+            intersectionRatio: ratio,
+            target,
+          },
+        ]);
       }
     }
   });
 }
 
-function post(id: string, playbackId: string, playbackPolicy: "signed" | "public"): SocialFollowingWallCard {
+function post(
+  id: string,
+  playbackId: string,
+  playbackPolicy: "signed" | "public",
+  media?: SocialFollowingWallCard["media"],
+): SocialFollowingWallCard {
   return {
     id,
     body: id,
@@ -114,7 +134,7 @@ function post(id: string, playbackId: string, playbackPolicy: "signed" | "public
     groupName: null,
     canLike: false,
     owned: false,
-    media: [
+    media: media ?? [
       {
         kind: "video",
         url: "",
@@ -156,8 +176,9 @@ describe("Following wall Mux active gate", () => {
     return serializeElement(container as unknown as Parameters<typeof serializeElement>[0]);
   }
 
-  function mount(cards: readonly SocialFollowingWallCard[]) {
-    installObserver();
+  function mount(cards: readonly SocialFollowingWallCard[], observer = true) {
+    if (observer) installObserver();
+    else vi.stubGlobal("IntersectionObserver", undefined);
     installFetch();
     const host = minimalDocument();
     const node = host.createElement("div");
@@ -176,58 +197,137 @@ describe("Following wall Mux active gate", () => {
     });
   }
 
-  it("does not mint every signed video on the Following first page", () => {
+  it("does not mint signed playback before a video is 60 percent on screen", () => {
     const cards = [
-      post("a", SIGNED_NEAR[0], "signed"),
-      post("b", SIGNED_NEAR[1], "signed"),
-      post("c", PUBLIC_NEAR, "public"),
-      post("d", SIGNED_COLD[0], "signed"),
-      post("e", SIGNED_COLD[1], "signed"),
-      post("f", SIGNED_COLD[2], "signed"),
-      post("g", PUBLIC_COLD, "public"),
+      post("lead", PUBLIC_LEAD, "public"),
+      post("next", SIGNED_NEXT, "signed"),
+      post("later", SIGNED_LATER, "signed"),
+      post("after", SIGNED_AFTER, "signed"),
+      post("cold", SIGNED_COLD, "signed"),
+      post("cold2", SIGNED_COLD2, "signed"),
     ];
     mount(cards);
 
     expect(requested).toEqual([]);
     expect(html()).not.toContain("data-mux-player-stub");
+    expect(html()).not.toContain("data-social-mux-player");
     expect(observed).toHaveLength(cards.length);
-    expect(observed.every((row) => row.rootMargin === SOCIAL_FOLLOWING_MUX_ACTIVE_ROOT_MARGIN)).toBe(true);
+    expect(observed.every((row) => [...row.threshold].join() === [...SOCIAL_FOLLOWING_MUX_ACTIVE_THRESHOLDS].join())).toBe(
+      true,
+    );
 
-    show(new Set<string>([...SIGNED_NEAR, PUBLIC_NEAR]));
+    show({ lead: 0.9 });
 
-    expect([...requested].sort()).toEqual([...SIGNED_NEAR].sort());
-    for (const id of [...SIGNED_COLD, PUBLIC_COLD, PUBLIC_NEAR]) {
-      expect(requested).not.toContain(id);
-    }
-
+    expect(requested).toEqual([SIGNED_NEXT]);
     const page = html();
-    expect(page).toContain(`data-mux-player-stub="${PUBLIC_NEAR}"`);
+    expect(page).toContain(`data-mux-player-stub="${PUBLIC_LEAD}"`);
     expect(page).toContain('data-mux-autoplay="no"');
     expect(page).toContain('data-mux-muted="no"');
-    expect(page).not.toContain(`data-mux-player-stub="${PUBLIC_COLD}"`);
-    expect(page.match(/data-social-mux-active="live"/g)?.length).toBe(3);
-    expect(page.match(/data-social-mux-active="cold"/g)?.length).toBe(4);
-    for (const id of SIGNED_COLD) {
-      expect(page).toContain(`data-social-mux-player="${id}"`);
-      expect(page).toContain('data-social-mux-playback="pending"');
+    expect(page).not.toContain(`data-social-mux-player="${SIGNED_NEXT}"`);
+    expect(page).not.toContain(`data-mux-player-stub="${SIGNED_NEXT}"`);
+    for (const id of [SIGNED_LATER, SIGNED_AFTER, SIGNED_COLD, SIGNED_COLD2]) {
+      expect(requested).not.toContain(id);
+      expect(page).not.toContain(`data-social-mux-player="${id}"`);
     }
+    expect(page.match(/data-social-mux-slot="mount"/g)?.length).toBe(1);
+    expect(page.match(/data-social-mux-slot="warm"/g)?.length).toBe(1);
+    expect(page.match(/data-social-mux-slot="closed"/g)?.length).toBe(4);
 
-    show(new Set<string>([...SIGNED_NEAR, PUBLIC_NEAR, SIGNED_COLD[0]]));
-    expect(requested.filter((id) => id === SIGNED_COLD[0])).toHaveLength(1);
-    expect(requested).not.toContain(SIGNED_COLD[1]);
-    expect(requested).not.toContain(SIGNED_COLD[2]);
+    show({ lead: 0, later: 0.9 });
+
+    expect(requested).toEqual([SIGNED_NEXT, SIGNED_LATER, SIGNED_AFTER]);
+    const moved = html();
+    expect(moved).not.toContain(`data-mux-player-stub="${PUBLIC_LEAD}"`);
+    expect(moved).toContain(`data-social-mux-player="${SIGNED_LATER}"`);
+    expect(moved).not.toContain(`data-social-mux-player="${SIGNED_NEXT}"`);
+    expect(moved).not.toContain(`data-social-mux-player="${SIGNED_AFTER}"`);
+    expect(requested).not.toContain(SIGNED_COLD);
+    expect(requested).not.toContain(SIGNED_COLD2);
   });
 
-  it("keeps the Following feed inside the gate and withholds mint until armed", () => {
-    const wall = readFileSync("src/components/social/social-following-wall-bound.tsx", "utf8");
+  it("mounts the visible carousel Mux slide and warms the next Mux slide", () => {
+    mount([
+      post("reel", SLIDE_ONE, "signed", [
+        { kind: "video", url: "", contentType: "video/mp4", playbackId: SLIDE_ONE, playbackPolicy: "signed" },
+        { kind: "video", url: "", contentType: "video/mp4", playbackId: SLIDE_TWO, playbackPolicy: "signed" },
+        { kind: "video", url: "", contentType: "video/mp4", playbackId: SLIDE_THREE, playbackPolicy: "signed" },
+      ]),
+    ]);
+
+    expect(requested).toEqual([]);
+    expect(html()).not.toContain("data-social-mux-player");
+    expect(observed).toHaveLength(1);
+
+    show({ reel: 0.8 });
+
+    expect([...requested].sort()).toEqual([SLIDE_ONE, SLIDE_TWO].sort());
+    expect(requested).not.toContain(SLIDE_THREE);
+    const page = html();
+    expect(page).toContain(`data-social-mux-player="${SLIDE_ONE}"`);
+    expect(page).not.toContain(`data-social-mux-player="${SLIDE_TWO}"`);
+    expect(page).not.toContain(`data-social-mux-player="${SLIDE_THREE}"`);
+    expect(page.match(/data-social-mux-slot="warm"/g)?.length).toBe(1);
+    expect(page).toContain('data-social-mux-slot="mount"');
+  });
+
+  it("mounts the first video and warms the next when IntersectionObserver is missing", () => {
+    mount(
+      [
+        post("lead", PUBLIC_LEAD, "public"),
+        post("next", SIGNED_NEXT, "signed"),
+        post("cold", SIGNED_COLD, "signed"),
+      ],
+      false,
+    );
+
+    expect(requested).toEqual([SIGNED_NEXT]);
+    const page = html();
+    expect(page).toContain(`data-mux-player-stub="${PUBLIC_LEAD}"`);
+    expect(page).not.toContain(`data-social-mux-player="${SIGNED_NEXT}"`);
+    expect(page).not.toContain(`data-social-mux-player="${SIGNED_COLD}"`);
+    expect(requested).not.toContain(SIGNED_COLD);
+  });
+
+  it("keeps the band on the optimistic feed and leaves other hosts unbanded", () => {
+    const feed = readFileSync("src/components/social/social-optimistic-feed.tsx", "utf8");
+    const card = readFileSync("src/components/social/social-post-card.tsx", "utf8");
+    const media = readFileSync("src/components/social/social-post-media.tsx", "utf8");
+    const video = readFileSync("src/components/social/social-feed-video.tsx", "utf8");
+    const carousel = readFileSync("src/components/social/social-feed-carousel.tsx", "utf8");
     const player = readFileSync("src/components/social/social-mux-player.tsx", "utf8");
-    expect(wall.indexOf("<SocialMuxActiveGate>")).toBeGreaterThan(-1);
-    expect(wall.indexOf("<SocialMuxActiveGate>")).toBeLessThan(wall.indexOf("<SocialOptimisticFeed"));
-    expect(player).toContain("socialFollowingMuxPlaybackArmed");
-    expect(player).toContain("SOCIAL_FOLLOWING_MUX_ACTIVE_ROOT_MARGIN");
-    const mint = player.indexOf("loadSocialMuxPlaybackTokens(");
-    expect(mint).toBeGreaterThan(-1);
-    expect(player.lastIndexOf("if (!armed) return", mint)).toBeGreaterThan(-1);
-    expect(player.lastIndexOf("if (!armed) return", mint)).toBeLessThan(mint);
+    const wall = readFileSync("src/components/social/social-following-wall-bound.tsx", "utf8");
+    const explore = readFileSync("src/lib/social-explore-mux-warm.ts", "utf8");
+    const author = readFileSync("src/lib/social-author-post-card.ts", "utf8");
+    const history = card.slice(card.indexOf("export function SocialAuthorHistory"), card.indexOf("export function SocialPostCard"));
+    expect(feed).toContain("SocialFollowingMuxBand");
+    expect(feed).toContain("muxBandId={post.id}");
+    expect(feed).toContain("@/components/social/social-post-card");
+    expect(feed).not.toContain("social-ui");
+    expect(feed.indexOf("<SocialFollowingMuxBand")).toBeLessThan(feed.indexOf("<SocialPostCard"));
+    expect(card).toContain("muxBandId={muxBandId}");
+    expect(media).toContain("muxBandId={muxBandId}");
+    expect(video).toContain("SocialFollowingMuxWarm");
+    expect(video).toContain('role === "mount"');
+    expect(video).toContain('role === "warm"');
+    expect(video).not.toContain("rootMargin");
+    expect(carousel).toContain("SocialMuxPlayer");
+    expect(carousel).toContain("SocialFollowingMuxWarm");
+    expect(carousel).not.toContain("rootMargin");
+    expect(player).toContain("social-home-following-mux-active-gate-lock-v1.md");
+    expect(player).not.toContain("useSocialMuxActiveGate");
+    expect(player).not.toContain("rootMargin");
+    expect(player).toContain("loadSocialMuxPlaybackTokens");
+    expect(wall).toContain("initialData");
+    expect(wall).toContain("SocialOptimisticFeed");
+    expect(wall).not.toContain("SocialMuxActiveGate");
+    expect(explore).toContain("EXPLORE_FOR_YOU_MUX_WARM_AHEAD = 2");
+    expect(author).not.toContain("muxBandId");
+    expect(history).not.toContain("muxBandId");
+    expect(readFileSync("src/components/social/social-activity-history.tsx", "utf8")).not.toContain("muxBandId");
+    expect(readFileSync("src/app/(app)/social/p/[postId]/page.tsx", "utf8")).not.toContain("muxBandId");
+    expect(readFileSync("src/components/social/social-feed-immersive.tsx", "utf8")).not.toContain("muxBandId");
+    expect(readFileSync("src/components/social/social-dm-story-share.tsx", "utf8")).not.toContain("muxBandId");
+    expect(readFileSync("src/components/social/social-dm-post-share.tsx", "utf8")).not.toContain("muxBandId");
+    expect(readFileSync("src/lib/social-home-bounds.ts", "utf8")).toContain("SOCIAL_FOLLOWING_WALL_LIMIT = 50");
   });
 });

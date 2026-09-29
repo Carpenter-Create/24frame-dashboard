@@ -2,11 +2,13 @@
 
 import type { ReactNode } from "react";
 
-import { InlineNotice } from "@/components/ui/inline-notice";
+import { SocialFollowingMuxBand } from "@/components/social/social-following-mux-band";
 import { SocialPostCard } from "@/components/social/social-post-card";
-import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { useSocialOptimisticPosts } from "@/components/social/use-social-optimistic";
+import { InlineNotice } from "@/components/ui/inline-notice";
+import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { SOCIAL_FEED_GUTTER_CLASS } from "@/lib/social-chrome";
+import { socialFollowingMuxVideoOrder } from "@/lib/social-following-mux-active";
 import {
   mergeSocialOptimisticPosts,
   socialOptimisticNotice,
@@ -39,12 +41,15 @@ export function SocialOptimisticFeed({
       </>
     );
   }
+  const muxOrder = socialFollowingMuxVideoOrder(merged);
   return (
-    <div data-social-feed="" className={SOCIAL_FEED_GUTTER_CLASS}>
-      {notice}
-      {merged.map((post) => (
-        <SocialPostCard key={post.id} post={post} />
-      ))}
-    </div>
+    <SocialFollowingMuxBand order={muxOrder}>
+      <div data-social-feed="" className={SOCIAL_FEED_GUTTER_CLASS}>
+        {notice}
+        {merged.map((post) => (
+          <SocialPostCard key={post.id} post={post} muxBandId={post.id} />
+        ))}
+      </div>
+    </SocialFollowingMuxBand>
   );
 }
