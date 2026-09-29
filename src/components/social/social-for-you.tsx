@@ -1,6 +1,6 @@
 import { CourseCard } from "@/components/courses/course-card";
 import { SocialFollowButton } from "@/components/social/social-engagement";
-import { SocialPersonRow } from "@/components/social/social-ui";
+import { SocialPersonRow } from "@/components/social/social-person-row";
 import {
   SOCIAL_FOR_YOU_CARD_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,

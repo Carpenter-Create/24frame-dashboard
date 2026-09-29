@@ -53,7 +53,7 @@ describe("social feed carousel", () => {
   it("keeps the slide cap on the Media Immersion box and out of Stories", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
-    const card = readFileSync("src/components/social/social-ui.tsx", "utf8");
+    const card = readFileSync("src/components/social/social-post-card.tsx", "utf8");
     const carousel = readFileSync("src/components/social/social-feed-carousel.tsx", "utf8");
     expect(css).toContain("height: min(70vh, 560px);");
     expect(css).toContain("max-height: min(70vh, 560px);");

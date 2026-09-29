@@ -7,7 +7,7 @@ import { InlineNotice } from "@/components/ui/inline-notice";
 import { signSocialForYouCourseCovers } from "@/components/social/social-for-you-covers";
 import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot";
 import { SocialDmsRowsSkeleton, SocialForYouSkeleton } from "@/components/social/social-skeletons";
-import { SocialConversationFaces } from "@/components/social/social-ui";
+import { SocialConversationFaces } from "@/components/social/social-conversation-faces";
 import { SOCIAL_DM_INBOX_ROW_CLASS, SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_LAYOUT_CLASS } from "@/lib/social-chrome";
 import { signedAvatarUrls } from "@/lib/s3-avatars";
 import { conversationRoomLabel, dmInboxDisplayPeerIds, SOCIAL, SOCIAL_ROUTES, socialDmHref, socialPersonLabel } from "@/lib/social";

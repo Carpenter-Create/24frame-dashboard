@@ -6,7 +6,7 @@ import { useEffect, type ReactNode } from "react";
 import { readSocialProfile } from "@/app/(app)/social/query-actions";
 import { SocialProfileAvatarEdit } from "@/components/social/social-profile-avatar-edit";
 import { SocialProfileCoverUpload } from "@/components/social/social-profile-cover-upload";
-import { SocialProfileIdentity } from "@/components/social/social-ui";
+import { SocialProfileIdentity } from "@/components/social/social-profile-identity";
 import { SocialWelcomeVideo } from "@/components/social/social-welcome-video";
 import { useAppQueryClient } from "@/components/query-provider";
 import {

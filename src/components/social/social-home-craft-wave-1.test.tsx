@@ -72,11 +72,8 @@ describe("Social Home craft Wave 1", () => {
     expect(SOCIAL_POST_MEDIA_CLASS).not.toMatch(/-m[ybt]\b|-mb-|margin-bottom/);
     expect(SOCIAL_POST_ACTIONS_OPTICAL_CLASS).toBe("-ml-[var(--space-2)]");
     expect(SOCIAL_POST_ACTIONS_OPTICAL_CLASS).not.toContain("-mb");
-    const card = readFileSync("src/components/social/social-ui.tsx", "utf8");
-    const postCard = card.slice(
-      card.indexOf("export function SocialPostCard"),
-      card.indexOf("export function SocialProfileActions"),
-    );
+    const card = readFileSync("src/components/social/social-post-card.tsx", "utf8");
+    const postCard = card.slice(card.indexOf("export function SocialPostCard"));
     expect(postCard).toContain("className={SOCIAL_FEED_ROW_CLASS}");
     expect(postCard).toContain('className="block min-w-0 shrink-0"');
     const article = postCard.slice(postCard.indexOf("<article"), postCard.indexOf("</article>"));

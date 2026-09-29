@@ -406,7 +406,7 @@ describe("social profile roles", () => {
     const fieldSrc = readFileSync("src/components/social/social-profile-roles.tsx", "utf8");
     const editSrc = readFileSync("src/components/social/social-profile-edit.tsx", "utf8");
     const chromeSrc = readFileSync("src/lib/social-chrome.ts", "utf8");
-    const identitySrc = readFileSync("src/components/social/social-ui.tsx", "utf8");
+    const identitySrc = readFileSync("src/components/social/social-profile-identity.tsx", "utf8");
     expect(rolesSrc).toContain("socialProfileRolesRailItems");
     expect(rolesSrc).not.toContain("socialProfileRolesFace");
     expect(rolesSrc).not.toContain("socialProfileRolesMoreLabel");

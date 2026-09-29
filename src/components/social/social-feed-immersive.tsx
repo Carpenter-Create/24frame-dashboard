@@ -9,7 +9,7 @@ import { SocialFeedVideo } from "@/components/social/social-feed-video";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialMediaImage } from "@/components/social/social-media-image";
 import { SocialPostShareButton } from "@/components/social/social-post-share-sheet";
-import type { SocialPostCardModel } from "@/components/social/social-ui";
+import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { cn } from "@/lib/cn";
 import { displayHandle, SOCIAL } from "@/lib/social";
 import {

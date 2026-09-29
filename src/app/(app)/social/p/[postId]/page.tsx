@@ -1,7 +1,7 @@
 import { HouseEmpty } from "@/components/chrome/house";
 import { SocialCommentThread } from "@/components/social/social-comment-thread";
 import { SocialPostBack } from "@/components/social/social-post-back";
-import { SocialPostCard } from "@/components/social/social-ui";
+import { SocialPostCard } from "@/components/social/social-post-card";
 import { PAGE_LEAD_STACK_CLASS } from "@/components/ui/page-header";
 import { socialAvatarHref, socialMediaProxies } from "@/lib/social-edge";
 import { SOCIAL, socialPersonLabel } from "@/lib/social";

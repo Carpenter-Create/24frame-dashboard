@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 
 import { InlineNotice } from "@/components/ui/inline-notice";
-import { SocialPostCard, type SocialPostCardModel } from "@/components/social/social-ui";
+import { SocialPostCard } from "@/components/social/social-post-card";
+import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { useSocialOptimisticPosts } from "@/components/social/use-social-optimistic";
 import { SOCIAL_FEED_GUTTER_CLASS } from "@/lib/social-chrome";
 import {
