@@ -80,9 +80,9 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("text-ink");
     expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).not.toMatch(/green|emerald|#00|#12|#1[Bb]|#1769FF/);
     expect(leadSrc).toContain("data-app-header-leading");
-    expect(leadSrc).toContain("data-app-header-workspace-pill");
+    expect(leadSrc).not.toContain("data-app-header-workspace-pill");
     expect(leadSrc).toContain("APP_HEADER_LEADING_CLASS");
-    expect(leadSrc).toContain('tone="pill"');
+    expect(leadSrc).not.toContain('tone="pill"');
     expect(shellSrc).not.toContain("MobileNavSlot");
     expect(shellSrc).not.toContain("DestChipsSlot");
     expect(shellSrc).toContain("<HouseLeadChrome");
@@ -98,8 +98,8 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
       header.indexOf("data-app-header-trailing"),
     );
     expect(leading).toContain("{leadingNav}");
-    expect(leading).toContain("data-app-header-workspace-pill");
-    expect(leading).toContain("WorkspaceSwitcher");
+    expect(leading).not.toContain("data-app-header-workspace-pill");
+    expect(leading).not.toContain("WorkspaceSwitcher");
     expect(leading).not.toContain("{accountMenu}");
     expect(leading).not.toContain("{trailingNav}");
     expect(shellSrc).not.toContain("afterLead=");
@@ -127,8 +127,8 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
       leadSrc.indexOf("data-app-header-trailing"),
       leadSrc.indexOf("</header>"),
     );
-    expect(trailing).toContain("data-app-header-workspace-desktop");
-    expect(trailing).toContain("<WorkspaceSwitcher current={workspace} options={workspaceOptions} presentation=\"pills\" />");
+    expect(trailing).toContain("<WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />");
+    expect(trailing).not.toContain("data-app-header-workspace-desktop");
     expect(trailing).not.toContain('tone="pill"');
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
@@ -136,9 +136,12 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(trailing).toContain('data-app-header-trailing-nav="" className="md:hidden"');
     expect(trailing).not.toContain("data-education-header-search-host");
     expect(trailing.indexOf("{trailingNav}")).toBeLessThan(
-      trailing.indexOf("data-app-header-workspace-desktop"),
+      trailing.indexOf("<WorkspaceSwitcher"),
     );
-    expect(trailing.indexOf("data-app-header-workspace-desktop")).toBeLessThan(
+    expect(trailing.indexOf("<ActivityBell")).toBeLessThan(
+      trailing.indexOf("<WorkspaceSwitcher"),
+    );
+    expect(trailing.indexOf("<WorkspaceSwitcher")).toBeLessThan(
       trailing.indexOf("{accountMenu}"),
     );
     expect(shellSrc).toContain("accountMenu=");
@@ -161,18 +164,16 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     const open = renderToStaticMarkup(
       createElement(WorkspaceSwitcher, {
         current: "aggregation",
-        tone: "pill",
         defaultOpen: true,
       }),
     );
     expect(open).toContain("data-workspace-switcher-popover");
     expect(open).toContain(WORKSPACE_SWITCHER.heading);
-    expect(open).toContain('data-workspace-switcher-option="aggregation"');
-    expect(open).toContain('data-workspace-switcher-option="social"');
-    expect(open).toContain('data-workspace-switcher-option="education"');
-    expect(open).toContain('data-workspace-switcher-option="co-productions"');
+    expect(open).toContain('data-workspace-waffle-tile="social"');
+    expect(open).toContain('data-workspace-waffle-tile="education"');
+    expect(open).toContain('data-workspace-waffle-tile="aggregation"');
+    expect(open).not.toContain('data-workspace-waffle-tile="co-productions"');
     expect(open).toContain(WORKSPACE_SWITCHER_PILL_PANEL_CLASS);
-    expect(switcherSrc).toContain("Mercury");
     expect(switcherSrc).toContain("Workspaces");
   });
 

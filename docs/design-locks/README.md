@@ -64,3 +64,4 @@ Design locks land in this directory before CoS undrafts a UI pull request.
 - [`create-story-photo-video-fb-layout-lock-v1.3.md`](create-story-photo-video-fb-layout-lock-v1.3.md) — media-path grammar retained. Superseded by v1.4 for the live viewfinder.
 - [`shell-desktop-horizontal-gutter-lock-v2.md`](shell-desktop-horizontal-gutter-lock-v2.md) — desktop shell L = R = 32. Supersedes v1.
 - [`shell-desktop-horizontal-gutter-lock-v1.md`](shell-desktop-horizontal-gutter-lock-v1.md) — superseded by v2. #661 shipped 32 / 44.
+- [`shell-workspace-waffle-layer-lock-v1.md`](shell-workspace-waffle-layer-lock-v1.md) — header workspace control is a waffle in the utility cluster. Panel is Layer 1 tiles only (Social · Education · Aggregation if entitled · Staff if entitled). Social dock stays Layer 2 and goes slim. Supersedes sliding-pill header controls.

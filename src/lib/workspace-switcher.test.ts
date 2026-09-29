@@ -241,30 +241,29 @@ describe("workspace switcher lock", () => {
     ).toEqual({ top: 104, right: 30 });
   });
 
-  it("keeps the phone sheet on four workspaces and a Home mark", () => {
+  it("keeps waffle tiles on Layer 1 in lock order — no Home, no Staff unless entitled", () => {
     expect(phoneWorkspaceSwitcherPills().map((pill) => pill.id)).toEqual([
-      "home",
-      "aggregation",
       "social",
       "education",
+      "aggregation",
     ]);
     expect(phoneWorkspaceSwitcherPills().map((pill) => pill.label)).toEqual([
-      "Home",
-      "Aggregation",
       "Social",
       "Education",
+      "Aggregation",
     ]);
     expect(phoneWorkspaceSwitcherPills().map((pill) => pill.id)).not.toContain("staff");
+    expect(phoneWorkspaceSwitcherPills().map((pill) => pill.id)).not.toContain("home");
     expect(
       phoneWorkspaceSwitcherPills(availableWorkspaceOptions({ isGcStaff: true })).map(
         (pill) => pill.id,
       ),
-    ).toEqual(["home", "aggregation", "social", "education", "staff"]);
+    ).toEqual(["social", "education", "aggregation", "staff"]);
     expect(
       phoneWorkspaceSwitcherPills(availableWorkspaceOptions({ isGcStaff: true })).map(
         (pill) => pill.label,
       ),
-    ).toEqual(["Home", "Aggregation", "Social", "Education", "Staff"]);
+    ).toEqual(["Social", "Education", "Aggregation", "Staff"]);
     expect(workspaceSwitcherLeadMarkLetter("home")).toBe("H");
     expect(workspaceSwitcherLeadMarkLetter("aggregation")).toBe("A");
     expect(workspaceSwitcherTriggerMarkId("/home", "aggregation")).toBe("home");

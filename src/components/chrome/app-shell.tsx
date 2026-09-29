@@ -297,15 +297,16 @@ export function AppShell({
       )}
 
       {/* Full-width top + dest side nav — same HouseLeadChrome as Social.
-          Phone IA A: Asset 8 emblem on every workspace + workspace
-          word+chevron. Tap opens the workspace sheet. No hamburger.
-          Local dests live in HousePhoneBottomNav. Home dests are Home
-          + Industry news. Trailing is search (if needed) ·
-          24Frame AI · bell · avatar. Theme is the avatar drill.
+          Phone IA: Asset 8 emblem on every workspace. Workspace switch
+          is the header waffle. No hamburger. No workspace name in
+          the header. Local dests live in HousePhoneBottomNav. Home
+          dests are Home + Industry news. Trailing is search (if
+          needed) · 24Frame AI · bell · waffle · avatar. Theme is the
+          avatar drill.
           Ask AI is header + Home module only
           (#465). Emblem links workspace
-          home; it does not open the rail. Desktop keeps switcher ·
-          Ask · bell · avatar. Brand sits on the full-width top, not a
+          home; it does not open the rail. Desktop keeps Ask · bell ·
+          waffle · avatar. Brand sits on the full-width top, not a
           second rail chrome. Period stays on the Dashboard org row.
           No org switcher on any route. Aggregation mid-lead stays
           empty. Education mounts a quiet course/video search

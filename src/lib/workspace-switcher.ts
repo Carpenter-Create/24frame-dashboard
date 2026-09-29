@@ -1,11 +1,17 @@
-// Mercury workspace switcher. Lives in lib/, not JSX.
-// IA A (Adam): phone header shows the current workspace word +
-// chevron only — no letter mark / circular emblem in the pill
-// (2026-09-20 glance). Tap opens a calm house sheet — Home ·
-// Aggregation · Social · Education. One tap open, one tap switch.
-// Dock dests stay in-workspace only. Avatar stays Settings /
-// account. Desktop md+ keeps the sliding-pill cluster. Do not
-// redesign desktop in this slice.
+// Header workspace switch. Lives in lib/, not JSX.
+// docs/design-locks/shell-workspace-waffle-layer-lock-v1.md
+// Trigger is an icon-only waffle in the trailing utility cluster:
+// search · optional (Ask) · bell · waffle · avatar. No Social pill,
+// no workspace-name dropdown, no sliding pills of workspace names.
+// Panel is Layer 1 tiles only, in lock order: Social · Education ·
+// Aggregation (when the existing options gate includes it) · Staff
+// (when isGcStaff). Hide lanes the caller omits. No dead tiles.
+// Social Layer 2 dests stay out of the panel (Home / Explore /
+// Create / Messages / Profile). Account / Settings / Help stay on
+// the avatar menu — same jobs as today. Desktop face is the
+// portaled MenuSurface-class panel. Phone face is the existing
+// app sheet. Same tile inventory.
+// Dock dests stay in-workspace only.
 // Leading air (settings back ↔ emblem) is --space-3 (12). Not
 // --space-1. Do not put overflow-hidden on the leading row (#412).
 // Phone trailing: [search if needed] [24Frame AI] [bell]
@@ -61,6 +67,7 @@
 import {
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_UNDER_NAV_CLASS,
+  HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
 import {
   APP_SHEET_HOST_CLASS,
@@ -360,17 +367,63 @@ export type PhoneWorkspaceSwitcherPill = {
   href: string;
 };
 
+/** Layer 1 waffle order. Entitlement stays on `options` — omit a lane to hide it. */
+export const WORKSPACE_WAFFLE_ORDER = [
+  "social",
+  "education",
+  "aggregation",
+  "staff",
+] as const satisfies readonly WorkspaceMode[];
+
+export const WORKSPACE_WAFFLE_FORBIDDEN_LABELS = [
+  "Home",
+  "Explore",
+  "Create",
+  "Messages",
+  "Profile",
+] as const;
+
+/** Quiet circular hit — same box as the bell. Open wash is muted, not accent fill. */
+export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
+  `${HOUSE_THEME_TOGGLE_CLASS} relative hover:bg-surface-muted`;
+
+export const WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS = "bg-surface-muted";
+
+export const WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS =
+  `${WORKSPACE_SWITCHER_PANEL_CLASS} max-md:hidden`;
+
+export const WORKSPACE_WAFFLE_GRID_CLASS =
+  "grid grid-cols-2 gap-[var(--space-2)] px-[var(--space-2)] pb-[var(--space-2)]";
+
+export const WORKSPACE_WAFFLE_TILE_CLASS =
+  "relative flex min-h-16 flex-col items-center justify-center gap-[var(--space-1)] rounded-[12px] px-[var(--space-2)] py-[var(--space-3)] text-center t-body-sm text-ink";
+
+export const WORKSPACE_WAFFLE_TILE_CURRENT_CLASS = "bg-surface-muted";
+
+export const WORKSPACE_WAFFLE_TILE_LABEL_CLASS = "whitespace-normal";
+
+export const WORKSPACE_WAFFLE_ICON_CLASS = "size-6 shrink-0";
+
+export function workspaceWaffleTiles(
+  options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
+): WorkspaceMenuOption[] {
+  const byMode = new Map(options.map((option) => [option.mode, option]));
+  const tiles: WorkspaceMenuOption[] = [];
+  for (const mode of WORKSPACE_WAFFLE_ORDER) {
+    const option = byMode.get(mode);
+    if (option) tiles.push(option);
+  }
+  return tiles;
+}
+
 export function phoneWorkspaceSwitcherPills(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
 ): PhoneWorkspaceSwitcherPill[] {
-  return [
-    { id: "home", label: "Home", href: "/home" },
-    ...options.map((option) => ({
-      id: option.mode,
-      label: option.label,
-      href: option.href,
-    })),
-  ];
+  return workspaceWaffleTiles(options).map((option) => ({
+    id: option.mode,
+    label: option.label,
+    href: option.href,
+  }));
 }
 
 export function workspaceSwitcherTriggerMarkId(
@@ -418,5 +471,5 @@ export function workspaceSwitcherPersistLane(
 export function phoneWorkspaceSwitcherPrefetchHrefs(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
 ): string[] {
-  return phoneWorkspaceSwitcherPills(options).map((pill) => pill.href);
+  return workspaceWaffleTiles(options).map((tile) => tile.href);
 }

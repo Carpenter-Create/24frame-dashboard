@@ -1,20 +1,20 @@
 // Shared top lead chrome for Aggregation · Social · Education · Home.
 // Phone: Asset 8 emblem on every workspace (logoVisible always).
-// IA A: emblem + current workspace word+chevron on the left. Tap
-// opens the workspace sheet. No letter mark in the pill.
+// Emblem on the left. Workspace switch is the trailing waffle.
+// No workspace name in the header.
 // Emblem owns the phone left next to the workspace trigger.
 // No hamburger — leading or trailing.
 // Destinations live in HousePhoneBottomNav (in-workspace only).
 // Emblem is a workspace-home link, not the rail.
 // Phone grammar IA A:
-//   Left inline: [emblem] [workspace word ▾] — no mark, no truncate.
-//   Trailing: [search if needed] [24Frame AI] [bell] [avatar]
+//   Left inline: [emblem]. No workspace word.
+//   Trailing: [search if needed] [24Frame AI] [bell] [waffle] [avatar]
 //   Trailing rhythm: one --space-2 gap between distinct siblings.
 //   Phone icon hits hug the 24px glyph (HOUSE_HEADER_TRAILING_HIT_CLASS)
 //   without negative margin. #452 -mx collapsed AI onto the bell.
 //   Avatar follows --header-avatar-size (40 phone / 44 desktop).
 //   Bottom: HousePhoneBottomNav dests for the current workspace.
-// Phone header owns workspace switching. Dock dests stay local.
+// Phone and desktop share one waffle. Dock dests stay local.
 // 24Frame AI sits immediately left of the notification bell on every
 // house chrome path (Home · Social · Aggregation · Education ·
 // Settings). The header control toggles the Mercury ?ai=1 overlay
@@ -23,7 +23,7 @@
 // strips ?ai=1 and leaves the current path. Ask AI is header + Home
 // module only (#465). One trail. Theme is the avatar drill, not a
 // header glyph.
-// Desktop md+ keeps switcher · Ask · bell · avatar. The Ask
+// Desktop md+ keeps Ask · bell · waffle · avatar. The Ask
 // control is shared so phone and desktop do not fork a second mark.
 // Social live explore search and Education quiet courses/videos
 // search share Facebook-compact geometry (04-facebook.png SoT)

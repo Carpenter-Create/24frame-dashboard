@@ -77,7 +77,7 @@ describe("phone header grammar A — trim trailing", () => {
     expect(leadSrc.indexOf("<AskAssistantHeaderLink")).toBeLessThan(leadSrc.indexOf("<ActivityBell"));
     expect(leadSrc.indexOf("<ActivityBell")).toBeLessThan(leadSrc.indexOf("{accountMenu}"));
     expect(leadSrc).toMatch(
-      /data-app-header-workspace-desktop[\s\S]*<\/div>\s*<AskAssistantHeaderLink/,
+      /<AskAssistantHeaderLink \/>[\s\S]*<ActivityBell[\s\S]*<WorkspaceSwitcher/,
     );
 
     const aggregation = renderToStaticMarkup(
