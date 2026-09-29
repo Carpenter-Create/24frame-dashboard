@@ -896,7 +896,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).toContain("grid-cols-3 gap-px");
     const authorHistory = card.slice(
       card.indexOf("export function SocialAuthorHistory"),
-      card.indexOf("export function socialAuthorPostCard"),
+      card.indexOf("export function SocialPostCard"),
     );
     expect(authorHistory).toContain("SocialPostCard");
     expect(authorHistory).toContain("SOCIAL_FEED_GUTTER_CLASS");

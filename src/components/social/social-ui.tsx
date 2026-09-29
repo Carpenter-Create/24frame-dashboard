@@ -7,7 +7,10 @@ import { HouseChipRail } from "@/components/chrome/house-chip-rail";
 import { TextAction } from "@/components/chrome/house";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { cn } from "@/lib/cn";
-import type { SocialMuxPlaybackPolicy } from "@/lib/social-mux";
+import {
+  type SocialPostCardModel,
+  type SocialPostMediaItem,
+} from "@/lib/social-author-post-card";
 import {
   SOCIAL_ACTION_CLASS,
   SOCIAL_ACTION_SECONDARY_CLASS,
@@ -61,11 +64,7 @@ import { socialProfilePublicLinks } from "@/lib/social-profile-links";
 import { socialProfileRolesRailItems } from "@/lib/social-profile-roles";
 import { socialProfileRendersCoverBand } from "@/lib/social-profile-cover";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
-import {
-  SOCIAL_POST_IMAGE_SIZES,
-  socialMediaFrameClass,
-  type SocialMediaOrientation,
-} from "@/lib/social-media-display";
+import { SOCIAL_POST_IMAGE_SIZES, socialMediaFrameClass } from "@/lib/social-media-display";
 import { socialFeedUsesCarousel } from "@/lib/social-feed-carousel";
 import { SocialAvatar } from "./social-avatar";
 import { SocialFeedCarousel } from "./social-feed-carousel";
@@ -157,34 +156,8 @@ export function SocialConversationFaces({
   );
 }
 
-export type SocialPostMediaItem = {
-  kind: "image" | "video";
-  url: string;
-  playbackId?: string;
-  playbackPolicy?: SocialMuxPlaybackPolicy;
-  orientation?: SocialMediaOrientation;
-  width?: number;
-  height?: number;
-  aspect?: number;
-};
-
-export type SocialPostCardModel = {
-  id: string;
-  body: string | null;
-  likeCount: number;
-  commentCount?: number;
-  liked: boolean;
-  createdAt: string;
-  authorId: string;
-  authorHandle: string | null;
-  authorName: string;
-  authorPhotoUrl: string | null;
-  groupSlug: string | null;
-  groupName: string | null;
-  canLike: boolean;
-  media: SocialPostMediaItem[];
-  owned?: boolean;
-};
+export type { SocialPostCardModel, SocialPostMediaItem } from "@/lib/social-author-post-card";
+export { socialAuthorPostCard } from "@/lib/social-author-post-card";
 
 export function SocialPostMedia({
   items,
@@ -460,42 +433,6 @@ export function SocialAuthorHistory({
       ) : null}
     </div>
   );
-}
-
-export function socialAuthorPostCard(input: {
-  post: {
-    id: string;
-    body: string | null;
-    author_id: string;
-    like_count: number;
-    comment_count?: number;
-    created_at: string;
-  };
-  authorHandle: string;
-  authorName: string;
-  authorPhotoUrl: string | null;
-  liked: boolean;
-  canLike: boolean;
-  media: SocialPostMediaItem[];
-  owned?: boolean;
-}): SocialPostCardModel {
-  return {
-    id: input.post.id,
-    body: input.post.body,
-    likeCount: input.post.like_count,
-    commentCount: input.post.comment_count,
-    liked: input.liked,
-    createdAt: input.post.created_at,
-    authorId: input.post.author_id,
-    authorHandle: input.authorHandle,
-    authorName: input.authorName,
-    authorPhotoUrl: input.authorPhotoUrl,
-    groupSlug: null,
-    groupName: null,
-    canLike: input.canLike,
-    media: input.media,
-    owned: input.owned ?? false,
-  };
 }
 
 export function SocialPostCard({

@@ -12,7 +12,7 @@ import { signSocialForYouCourseCovers } from "@/components/social/social-for-you
 import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot";
 import { SocialForYouSkeleton, SocialProfileCenterSkeleton } from "@/components/social/social-skeletons";
 import { SocialOwnProfileFace } from "@/components/social/social-own-profile";
-import { socialAuthorPostCard } from "@/components/social/social-ui";
+import { socialAuthorPostCard } from "@/lib/social-author-post-card";
 import { SOCIAL_ACTION_CLASS, SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PAGE_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
 import {
   signedAvatarUrls,
