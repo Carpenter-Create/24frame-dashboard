@@ -16,11 +16,8 @@ import {
 import {
   APP_HEADER_LEADING_CLASS,
   APP_HEADER_TRAILING_CLUSTER_CLASS,
-  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   WORKSPACE_SWITCHER,
-  WORKSPACE_SWITCHER_PILL_CHEVRON_CLASS,
-  WORKSPACE_SWITCHER_PILL_PANEL_CLASS,
-  WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS,
+  WORKSPACE_SWITCHER_PANEL_CLASS,
 } from "@/lib/workspace-switcher";
 import { WorkspaceSwitcher } from "@/components/chrome/workspace-switcher";
 
@@ -74,11 +71,8 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("justify-center");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("border-hairline");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("bg-surface-muted");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("t-body-sm");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("text-ink");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).not.toMatch(/green|emerald|#00|#12|#1[Bb]|#1769FF/);
+    expect(switcherSrc).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
+    expect(switcherSrc).not.toContain("WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS");
     expect(leadSrc).toContain("data-app-header-leading");
     expect(leadSrc).not.toContain("data-app-header-workspace-pill");
     expect(leadSrc).toContain("APP_HEADER_LEADING_CLASS");
@@ -119,8 +113,7 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toContain("hidden");
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toContain("md:contents");
+    expect(switcherSrc).not.toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
     expect(leadSrc).toContain("data-app-header-trailing");
     expect(leadSrc).toContain("APP_HEADER_TRAILING_CLUSTER_CLASS");
     const trailing = leadSrc.slice(
@@ -154,12 +147,10 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(shellSrc).not.toContain("data-workspace-switcher-rail");
   });
 
-  it("keeps a quiet always-on chevron on the pill and the Workspaces menu", () => {
-    expect(WORKSPACE_SWITCHER_PILL_CHEVRON_CLASS).toContain("opacity-100");
-    expect(WORKSPACE_SWITCHER_PILL_CHEVRON_CLASS).not.toContain("opacity-0");
-    expect(WORKSPACE_SWITCHER_PILL_PANEL_CLASS).toContain("fixed");
-    expect(WORKSPACE_SWITCHER_PILL_PANEL_CLASS).toContain("z-50");
-    expect(WORKSPACE_SWITCHER_PILL_PANEL_CLASS).not.toContain("absolute");
+  it("opens a portaled Workspaces panel of Layer 1 tiles", () => {
+    expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("fixed");
+    expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("z-50");
+    expect(WORKSPACE_SWITCHER_PANEL_CLASS).not.toContain("absolute");
     expect(WORKSPACE_SWITCHER.heading).toBe("Workspaces");
     const open = renderToStaticMarkup(
       createElement(WorkspaceSwitcher, {
@@ -173,7 +164,7 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(open).toContain('data-workspace-waffle-tile="education"');
     expect(open).toContain('data-workspace-waffle-tile="aggregation"');
     expect(open).not.toContain('data-workspace-waffle-tile="co-productions"');
-    expect(open).toContain(WORKSPACE_SWITCHER_PILL_PANEL_CLASS);
+    expect(open).toContain(WORKSPACE_SWITCHER_PANEL_CLASS);
     expect(switcherSrc).toContain("Workspaces");
   });
 

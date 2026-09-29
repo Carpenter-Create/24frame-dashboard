@@ -215,7 +215,6 @@ export function WorkspaceSwitcher({
       if (!trigger) return;
       setPanelStyle(
         workspaceSwitcherMenuStyle({
-          tone: "plain",
           trigger: trigger.getBoundingClientRect(),
           chromeBottoms: workspaceSwitcherChromeClearanceBottoms(),
           viewportWidth: window.innerWidth,

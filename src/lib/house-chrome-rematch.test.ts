@@ -233,7 +233,10 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(sideNav).toContain("staffItems");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
     expect(HOUSE_FILTER_ON_CLASS).toBe("bg-ink text-surface");
-    expect(switcher).toContain("HOUSE_CONTROL_PILL_CLASS");
+    expect(switcher).not.toContain("HOUSE_CONTROL_PILL_CLASS");
+    expect(switcher).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
+    expect(switcher).toContain("WORKSPACE_WAFFLE_TRIGGER_CLASS");
+    expect(switcher).toContain("HOUSE_THEME_TOGGLE_CLASS");
     expect(switcher).not.toContain("rounded-[var(--radius-sm)]");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
     expect(collapse).toContain("HOUSE_ICON_BUTTON_CLASS");
@@ -254,7 +257,8 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(socialChrome).not.toContain("SOCIAL_RAIL_WIDTH_CLASS");
     expect(SOCIAL_FOR_YOU_CARD_CLASS).toContain(HOUSE_MODULE_CLASS);
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
-    expect(switcher).toContain("HOUSE_CONTROL_PILL_CLASS");
+    expect(switcher).toContain("HOUSE_THEME_TOGGLE_CLASS");
+    expect(switcher).not.toContain("HOUSE_CONTROL_PILL_CLASS");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
     expect(collapse).toContain("HOUSE_ICON_BUTTON_CLASS");
     expect(socialChrome).toContain("HOUSE_MODULE_CLASS");
