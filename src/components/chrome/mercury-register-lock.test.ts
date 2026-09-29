@@ -143,7 +143,8 @@ describe("Adam Mercury register lock", () => {
     // search is shared chrome — Phosphor, not a Social interior fork.
     // Density lock v1.1 puts Photo and Camera on the composer via SocialIcon.
     const composer = src("src/components/social/social-home-composer.tsx");
-    expect(composer).toContain('socialCreateHref("text")');
+    expect(composer).toContain("SocialWriteComposeSheet");
+    expect(composer).not.toContain('socialCreateHref("text")');
     expect(composer).not.toContain("SocialCreateSheet");
     expect(composer).toContain("SocialIcon");
     expect(composer).toContain('icon="image"');

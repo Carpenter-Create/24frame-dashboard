@@ -928,6 +928,18 @@ export const SOCIAL_WRITE_COMPOSE_FRAME_CLASS = "min-h-dvh w-full";
 export const SOCIAL_WRITE_COMPOSE_HOST_CLASS =
   "mx-auto flex h-dvh max-h-dvh min-h-0 w-full max-w-[680px] flex-col overflow-hidden bg-surface px-[var(--space-4)] pt-[max(0px,env(safe-area-inset-top))] pb-[max(var(--space-4),env(safe-area-inset-bottom))]";
 
+// Share something entry hosts this compose in the house sheet.
+// The sheet pad is the inset. Do not add a second pad or a viewport height.
+// docs/design-locks/share-something-write-compose-sheet-lock-v1.md
+export const SOCIAL_WRITE_COMPOSE_SHEET_FORM_CLASS =
+  "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-transparent";
+
+export const SOCIAL_WRITE_COMPOSE_SHEET_CHROME_CLASS =
+  "flex h-12 shrink-0 items-center justify-between gap-[var(--space-4)] border-b border-hairline";
+
+export const SOCIAL_WRITE_COMPOSE_SHEET_ROW_CLASS =
+  "mt-auto flex min-h-12 w-full min-w-0 items-end gap-[var(--space-2)] border-t border-hairline bg-transparent";
+
 // §0. Row 48. Hairline on the bottom edge only. Pad H 16.
 export const SOCIAL_WRITE_COMPOSE_CHROME_CLASS =
   "-mx-[var(--space-4)] flex h-12 items-center justify-between gap-[var(--space-4)] border-b border-hairline px-[var(--space-4)]";
