@@ -534,10 +534,13 @@ export const SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS =
 export const SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS =
   "absolute inset-x-[var(--space-4)] top-[calc(max(var(--space-4),env(safe-area-inset-top))+3rem)] z-30 flex max-h-[50%] flex-col gap-[var(--space-2)] overflow-y-auto";
 
-// Founder lock 2026-09-21: muted FB `15h` register. Never `t-label`
-// (uppercase + 0.12em track turns `10h` into `10 H`).
+// Under-post separator. House tertiary text-ink-3, the muted token.
+// Not primary ink. Not text-ink-2.
+// Never t-label (uppercase + 0.12em track turns `10h` into `10 H`).
+// Own line: wrap instead of truncating. No breakpoint fork.
+// docs/design-locks/social-feed-under-post-time-lock-v1.md
 export const SOCIAL_POST_TIME_CLASS =
-  "text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-2";
+  "self-start max-w-full break-words text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-3";
 
 // Adam 2026-09-22 feed chrome. Supersedes #599 Facebook gray gutter
 // (muted band + py slabs above and below every post). Posts sit on

@@ -37,6 +37,7 @@ import {
   SOCIAL_BANNED_PRODUCT_NAMES,
   SOCIAL_PROFILE_ORIGIN,
   SOCIAL_ROUTES,
+  socialFeedRelativeTime,
   socialGroupPostHref,
   socialPostHref,
   socialRelativeTime,
@@ -855,5 +856,34 @@ describe("feed post craft lock 2026-09-21", () => {
     expect(socialLikeCountCopy(1)).toBe("1 like");
     expect(socialLikeCountCopy(2)).toBe("2 likes");
     expect(SOCIAL_ROUTES.post).toBe("/social/p");
+  });
+});
+
+describe("feed under-post time", () => {
+  const now = Date.parse("2026-09-21T12:00:00.000Z");
+
+  it("uses Just now, Nm, Nh for 1–23 hours, and Nd from the first day", () => {
+    expect(socialFeedRelativeTime("2026-09-21T11:59:30.000Z", now)).toBe("Just now");
+    expect(socialFeedRelativeTime("2026-09-21T11:50:00.000Z", now)).toBe("10m");
+    expect(socialFeedRelativeTime("2026-09-21T11:00:00.000Z", now)).toBe("1h");
+    expect(socialFeedRelativeTime("2026-09-21T02:00:00.000Z", now)).toBe("10h");
+    expect(socialFeedRelativeTime("2026-09-20T13:00:00.000Z", now)).toBe("23h");
+    expect(socialFeedRelativeTime("2026-09-20T12:01:00.000Z", now)).toBe("23h");
+    expect(socialFeedRelativeTime("2026-09-20T12:00:00.000Z", now)).toBe("1d");
+    expect(socialFeedRelativeTime("2026-09-18T12:00:00.000Z", now)).toBe("3d");
+    expect(socialFeedRelativeTime("2026-08-01T12:00:00.000Z", now)).toBe("51d");
+    expect(socialFeedRelativeTime("not-a-date", now)).toBe("");
+    for (const iso of [
+      "2026-09-21T11:00:00.000Z",
+      "2026-09-20T13:00:00.000Z",
+      "2026-09-20T12:00:00.000Z",
+      "2026-08-01T12:00:00.000Z",
+    ]) {
+      const label = socialFeedRelativeTime(iso, now);
+      expect(label).not.toMatch(/ago/i);
+      expect(label).not.toBe("Yesterday");
+      expect(label).not.toMatch(/\d:\d/);
+      expect(label).not.toMatch(/[A-Za-z]{3,}/);
+    }
   });
 });
