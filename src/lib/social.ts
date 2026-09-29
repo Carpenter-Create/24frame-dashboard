@@ -103,13 +103,16 @@ export function isSocialExplorePath(pathname: string): boolean {
 
 /**
  * Desktop Explore Exit.
- * Same-origin referrer whose path is not Explore uses history.
- * Otherwise the link goes to Social home.
+ * Same-origin referrer whose path is not Explore uses history when
+ * this tab has a prior entry. A new tab keeps the opener as referrer
+ * and has nothing to pop, so the link stays Social home.
  */
 export function exploreExitUsesPriorRoute(
   referrer: string | null | undefined,
   origin: string,
+  historyLength: number,
 ): boolean {
+  if (!(historyLength > 1)) return false;
   if (!referrer || !origin) return false;
   try {
     const url = new URL(referrer);

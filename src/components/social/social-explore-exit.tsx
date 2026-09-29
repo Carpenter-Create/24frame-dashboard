@@ -7,8 +7,9 @@ import type { MouseEvent } from "react";
 import { SOCIAL, SOCIAL_ROUTES, exploreExitUsesPriorRoute } from "@/lib/social";
 import { SOCIAL_EXPLORE_EXIT_CLASS } from "@/lib/social-chrome";
 
-// Desktop Explore Exit. The href is Social home. A same-origin
-// referrer that is not Explore itself uses history instead.
+// Desktop Explore Exit. The href is Social home. History is used
+// only when the referrer is a same-origin non-Explore page and this
+// tab has a prior entry. Otherwise the link stays Social home.
 export function SocialExploreExit() {
   const router = useRouter();
 
@@ -17,7 +18,7 @@ export function SocialExploreExit() {
     if (event.button !== 0 || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) {
       return;
     }
-    if (exploreExitUsesPriorRoute(document.referrer, window.location.origin)) {
+    if (exploreExitUsesPriorRoute(document.referrer, window.location.origin, window.history.length)) {
       event.preventDefault();
       router.back();
     }

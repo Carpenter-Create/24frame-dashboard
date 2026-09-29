@@ -358,15 +358,17 @@ describe("social copy lock", () => {
 describe("desktop Explore Exit", () => {
   it("uses a same-origin prior route that is not Explore", () => {
     const origin = "https://app.24frame.co";
-    expect(exploreExitUsesPriorRoute(`${origin}/social`, origin)).toBe(true);
-    expect(exploreExitUsesPriorRoute(`${origin}/education`, origin)).toBe(true);
-    expect(exploreExitUsesPriorRoute(`${origin}/social/explore`, origin)).toBe(false);
-    expect(exploreExitUsesPriorRoute(`${origin}/social/explore?q=cheese`, origin)).toBe(false);
-    expect(exploreExitUsesPriorRoute("https://example.com/social", origin)).toBe(false);
-    expect(exploreExitUsesPriorRoute("", origin)).toBe(false);
-    expect(exploreExitUsesPriorRoute(null, origin)).toBe(false);
-    expect(exploreExitUsesPriorRoute(`${origin}/social`, "")).toBe(false);
-    expect(exploreExitUsesPriorRoute("not a url", origin)).toBe(false);
+    expect(exploreExitUsesPriorRoute(`${origin}/social`, origin, 2)).toBe(true);
+    expect(exploreExitUsesPriorRoute(`${origin}/education`, origin, 2)).toBe(true);
+    expect(exploreExitUsesPriorRoute(`${origin}/social/explore`, origin, 2)).toBe(false);
+    expect(exploreExitUsesPriorRoute(`${origin}/social/explore?q=cheese`, origin, 2)).toBe(false);
+    expect(exploreExitUsesPriorRoute("https://example.com/social", origin, 2)).toBe(false);
+    expect(exploreExitUsesPriorRoute("", origin, 2)).toBe(false);
+    expect(exploreExitUsesPriorRoute(null, origin, 2)).toBe(false);
+    expect(exploreExitUsesPriorRoute(`${origin}/social`, "", 2)).toBe(false);
+    expect(exploreExitUsesPriorRoute("not a url", origin, 2)).toBe(false);
+    expect(exploreExitUsesPriorRoute(`${origin}/social`, origin, 1)).toBe(false);
+    expect(exploreExitUsesPriorRoute(`${origin}/education`, origin, 0)).toBe(false);
   });
 });
 
