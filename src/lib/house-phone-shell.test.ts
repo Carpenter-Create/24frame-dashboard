@@ -218,7 +218,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("shadow-[var(--elevation-float)]");
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).not.toContain("backdrop-blur");
     expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("max-md:pb-");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("5.5rem");
+    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("var(--house-phone-dock-clearance)");
     const socialChrome = readFileSync("src/lib/social-chrome.ts", "utf8");
     expect(socialChrome).toContain('from "@/lib/house-phone-dock"');
     expect(socialChrome).not.toContain("house-phone-shell");
@@ -387,7 +387,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(bottomNavSrc).toContain("useHousePhoneBottomNavHidden(pathname)");
     expect(phoneAppShellSrc).toContain("HousePhoneBottomNav");
     expect(HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS).toBe("pointer-events-none translate-y-full");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("env(safe-area-inset-bottom)");
+    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("var(--house-phone-dock-clearance)");
 
     const html = renderToStaticMarkup(
       createElement(HousePhoneBottomNav, { workspace: "social" }),

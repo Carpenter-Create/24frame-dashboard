@@ -135,6 +135,12 @@
      both sides. Not the desktop shell L/R pair. Not --content-inset
      (page reading measure). */
   --chrome-gutter: 16px;
+  /* Phone floating dock. One length for Explore chrome and the lead
+     scroll pad. Pill is h-12 (3rem). Float matches the dock padding:
+     max(12px, safe-area) — the safe area replaces the 12px, it is not
+     added again. House 16 (--space-4) is the gap above the pill so
+     name and caption clear the bar. Video may still bleed under it. */
+  --house-phone-dock-clearance: calc(3rem + max(12px, env(safe-area-inset-bottom)) + var(--space-4));
   /* Desktop shell horizontal gutters. Viewport → logo ink 32.
      Viewport → avatar ink 32. Same number both sides. Full-bleed
      columns that share the shell use the same pair. Not 44. Not 48. */

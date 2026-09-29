@@ -69,7 +69,10 @@ import {
   WORKSPACE_EDUCATION_LABEL,
   WORKSPACE_STAFF_LABEL,
 } from "@/lib/workspace-menu";
-import { HOUSE_PHONE_DOCK_CLEARANCE } from "@/lib/house-phone-dock";
+import {
+  HOUSE_PHONE_DOCK_CHROME_PB_CLASS,
+  HOUSE_PHONE_DOCK_CLEARANCE,
+} from "@/lib/house-phone-dock";
 import { workspaceHome, type WorkspaceMode } from "@/lib/workspace";
 
 export { HOUSE_PHONE_DOCK_CLEARANCE };
@@ -183,9 +186,9 @@ export const HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS = HOUSE_PHONE_CHROME_ICON_CLASS;
 export const HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT = HOUSE_PHONE_CHROME_ICON_WEIGHT;
 
 /** Clears the float once on main. Do not stack a second phone bottom pad on children.
- *  Pad stays when the bar hides so scroll-hide does not jump the page. */
-export const HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS =
-  `max-md:pb-[calc(${HOUSE_PHONE_DOCK_CLEARANCE}+env(safe-area-inset-bottom))]`;
+ *  Pad stays when the bar hides so scroll-hide does not jump the page.
+ *  Static literal — same length as Explore caption and rail. */
+export const HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS = HOUSE_PHONE_DOCK_CHROME_PB_CLASS;
 
 /** Social phone dests are SOCIAL_NAV — Home · Explore · Create · Messages · Profile. */
 export const SOCIAL_PHONE_DESTS = mobileNavDestinations(false, "social");
