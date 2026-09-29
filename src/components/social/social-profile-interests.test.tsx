@@ -18,6 +18,8 @@ describe("SocialProfileInterests", () => {
     expect(html).toContain(SOCIAL_TOPIC_CHIP_BANK_CLASS);
     expect(html).toContain("flex-wrap");
     expect(html).toContain("whitespace-nowrap");
+    expect(html).toContain("h-8");
+    expect(html).not.toContain("py-[var(--space-2)]");
     expect(html).not.toContain("truncate");
     expect(html).not.toContain("text-ellipsis");
     expect(html).not.toContain("Topics:");

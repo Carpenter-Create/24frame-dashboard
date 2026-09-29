@@ -22,7 +22,6 @@ import {
   HOUSE_FILTER_OFF_CLASS,
   HOUSE_FILTER_ON_CLASS,
   HOUSE_MODULE_CLASS,
-  HOUSE_PILL_ITEM_CLASS,
   HOUSE_PILL_SELECTED_CLASS,
   HOUSE_RAIL_PANEL_CLASS,
   HOUSE_SCROLL_ROW_CLASS,
@@ -175,8 +174,16 @@ export const SOCIAL_CHECKLIST_ROW_CLASS = "border-b border-hairline py-[var(--sp
 
 export const SOCIAL_CHECKLIST_ROW_LAST_CLASS = "py-[var(--space-3)]";
 
-export const SOCIAL_PILL_CLASS =
-  "rounded-full px-[14px] py-[var(--space-2)] t-body-sm whitespace-nowrap";
+// Same-family social chip hit. Home topic rail is the size source of
+// truth (density lock v1.1 §C: 32 / h-8). Profile roles, topic tags,
+// profession chips, and the idle topic pill compose this string.
+// Workspace / dest / news SegmentedTrack stays on HOUSE_PILL_MEASURE_CLASS.
+// Do not copy this class list.
+// docs/design-locks/social-home-spine-density-lock-v1.1.md
+export const SOCIAL_CHIP_HIT_CLASS =
+  "inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-[var(--space-4)] t-body-sm";
+
+export const SOCIAL_PILL_CLASS = SOCIAL_CHIP_HIT_CLASS;
 
 export const SOCIAL_PILL_ACTIVE_CLASS = HOUSE_FILTER_ON_CLASS;
 
@@ -569,10 +576,10 @@ export const SOCIAL_ACTIVITY_COMMENT_SNIPPET_CLASS =
 export const SOCIAL_CREATE_CTA_CLASS =
   "inline-flex w-full items-center justify-center gap-2 rounded-[24px] bg-accent px-4 py-3 t-body font-semibold text-accent-contrast";
 
-// Topic/Profession chip measure — house fat pill SoT (same height as
-// SegmentedTrack). Width hugs the label. Display stays surface fill.
-// Edit select composes idle outline + HOUSE_PILL_SELECTED_CLASS.
-export const SOCIAL_TOPIC_CHIP_MEASURE_CLASS = `w-fit ${HOUSE_PILL_ITEM_CLASS}`;
+// Topic/Profession chip box. Same hit as the Home topic rail
+// (SOCIAL_CHIP_HIT_CLASS). Width hugs the label. Display stays
+// surface fill. Edit select composes idle outline + HOUSE_PILL_SELECTED_CLASS.
+export const SOCIAL_TOPIC_CHIP_MEASURE_CLASS = `w-fit ${SOCIAL_CHIP_HIT_CLASS}`;
 
 export const SOCIAL_TOPIC_CHIP_CLASS =
   `${SOCIAL_TOPIC_CHIP_MEASURE_CLASS} ${HOUSE_FILTER_OFF_CLASS}`;
@@ -733,25 +740,26 @@ export const SOCIAL_PROFILE_LINKS_SHEET_LINK_CLASS =
 // Public Professions: one-row house chip rail (same primitive as Topics).
 // Phone: nowrap + overflow-x auto + no-scrollbar. Desktop: same one-row
 // scroll — every selected Role as its own chip; do not wrap, do not +N.
-// Each Role is its own muted HOUSE_PILL. Omit the rail when empty.
+// Each Role uses SOCIAL_CHIP_HIT_CLASS (Home topic rail height) with
+// muted fill. Omit the rail when empty.
 export const SOCIAL_PROFILE_ROLES_RAIL_ROWS = 1;
 export const SOCIAL_PROFILE_ROLES_ROW_CLASS = HOUSE_CHIP_RAIL_CLASS;
 
 export const SOCIAL_PROFILE_ROLE_PILL_CLASS =
-  `w-fit ${HOUSE_PILL_ITEM_CLASS} ${HOUSE_FILTER_OFF_CLASS}`;
+  `w-fit ${SOCIAL_CHIP_HIT_CLASS} ${HOUSE_FILTER_OFF_CLASS}`;
 
 // Home Topics uses the house chip rail host. Not SegmentedTrack: lenses
 // stay discrete chips (All first). Selected uses HOUSE_PILL_SELECTED_CLASS
-// (accent fill + white). Density lock v1.1: chip hit is 32 (h-8), not the
-// fat HOUSE_CHIP_RAIL_CHIP_CLASS. Type stays t-body-sm. One horizontal
-// row. Phone scrolls — never truncate. HOUSE_CHIP_RAIL_ROWS stays 2 for
-// every other chip-rail consumer.
+// (accent fill + white). Density lock v1.1: chip hit is SOCIAL_CHIP_HIT_CLASS
+// (32 / h-8), not the fat HOUSE_CHIP_RAIL_CHIP_CLASS. Type stays t-body-sm.
+// One horizontal row. Phone scrolls — never truncate. HOUSE_CHIP_RAIL_ROWS
+// stays 2 for every other chip-rail consumer.
 export const SOCIAL_TOPIC_RAIL_ROWS = 1;
 export const SOCIAL_TOPIC_RAIL_CLASS = HOUSE_CHIP_RAIL_CLASS;
 export const SOCIAL_TOPIC_RAIL_STACK_CLASS = HOUSE_CHIP_RAIL_STACK_CLASS;
 export const SOCIAL_TOPIC_CHIP_ROW_CLASS = HOUSE_CHIP_RAIL_ROW_CLASS;
 export const SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS =
-  "relative z-10 inline-flex h-8 shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full px-[var(--space-4)] t-body-sm";
+  `relative z-10 cursor-pointer select-none ${SOCIAL_CHIP_HIT_CLASS}`;
 export const SOCIAL_TOPIC_RAIL_CHIP_CLASS =
   `${SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS} ${HOUSE_FILTER_OFF_CLASS}`;
 export const SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS =
