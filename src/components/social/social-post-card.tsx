@@ -83,11 +83,12 @@ export function SocialPostCard({
   // One card at every breakpoint.
   // Text + media: docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
   //   author → media → actions → likes → caption → comments when N > 0
-  //   → under-post time, the last chrome line before Wave 1 air.
+  //   → under-post time, the last chrome line, then the post-separation air.
   // Text-only: author → actions → likes → caption → comments when N > 0 → time.
   // Media-only: author → media → actions → likes → time.
   // Time is not author-row meta. Nh / Nd. No clock.
   // docs/design-locks/social-feed-under-post-time-lock-v1.md
+  // docs/design-locks/social-home-post-separation-lock-v1.md
   // docs/design-locks/social-home-craft-wave-1-lock-v1.md
   // Two or more media items (Adam lock 2026-09-25): that media face is one
   // full-bleed swipe carousel with dots and N of M. No collage.

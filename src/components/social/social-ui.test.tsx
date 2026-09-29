@@ -981,12 +981,14 @@ describe("SocialPostCard media", () => {
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("hello"));
     expect(html).toContain("mt-[10px]");
     expect(html).toContain("gap-[6px]");
-    expect(html).toContain("pb-[var(--space-2)]");
+    expect(html).toContain("pb-[var(--space-4)]");
+    expect(html).not.toContain("pb-[var(--space-2)]");
     expect(html).not.toContain("pb-[var(--space-6)]");
     expect(html).toContain("-ml-[var(--space-2)]");
     expect(html).toContain("gap-2");
     expect(html).not.toContain("divide-hairline");
-    expect(html).not.toContain("border-hairline");
+    expect(html).toContain("border-b border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
   });
 
   it("reads one like as singular and keeps a plural count", () => {
@@ -1371,7 +1373,7 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(active).not.toContain("text-center");
   });
 
-  it("keeps under-post time as muted separator chrome without a post hairline", () => {
+  it("keeps under-post time on its own line and separates posts with a hairline", () => {
     const label = socialFeedRelativeTime(createdAt);
     expect(label).toMatch(/^\d+d$/);
     expect(label).not.toMatch(/ago|Yesterday|:/);
@@ -1389,20 +1391,25 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/md:|max-md:/);
     expect(html).not.toContain("divide-y");
     expect(html).not.toContain("divide-hairline");
-    expect(html).not.toContain("border-b");
+    expect(html).toContain("border-b border-hairline");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
     expect(SOCIAL_POST_TIME_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_POST_TIME_CLASS).toContain("leading-none");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-2)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-4)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-b border-hairline");
     const lock = readFileSync("docs/design-locks/social-feed-under-post-time-lock-v1.md", "utf8");
+    const separation = readFileSync(
+      "docs/design-locks/social-home-post-separation-lock-v1.md",
+      "utf8",
+    );
     expect(lock).toContain("social-home-craft-wave-1-lock-v1.md");
+    expect(lock).toContain("social-home-post-separation-lock-v1.md");
     expect(lock).toContain("text-ink-3");
-    expect(lock).toContain("8–12");
-    expect(lock).toContain("pb-[var(--space-2)]");
     expect(lock).toContain("stacking is **out**");
+    expect(separation).toContain("pb-[var(--space-4)]");
+    expect(separation).toContain("border-b border-hairline");
     const quiet = renderToStaticMarkup(
       <SocialPostCard post={cardPost()} permalink={false} />,
     );
