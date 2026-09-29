@@ -121,6 +121,9 @@ describe("Social loading skeletons", () => {
     expect(explore).not.toContain("lg:max-w-[600px]");
     expect(explore).not.toContain("892");
     expect(dms).toContain("data-social-dms-skeleton");
+    expect(dms).toContain("data-social-dms-inbox-skeleton");
+    expect(dms).toContain("h-[var(--header-search-height)] w-full rounded-full");
+    expect(dms).not.toContain("border-b border-hairline");
     expect(dms).toContain("data-social-for-you-skeleton");
     expect(dms).toContain("lg:max-w-[720px]");
     expect(dms).toContain("lg:max-w-[1052px]");
