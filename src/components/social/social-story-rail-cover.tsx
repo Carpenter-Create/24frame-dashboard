@@ -43,14 +43,21 @@ function useStoryRailThumbVisible(enabled: boolean): {
 export function SocialStoryRailCover({
   media,
   authorId,
+  warm = null,
 }: {
   media: unknown;
   authorId: string;
+  /** Active or next card, already minted on the server. */
+  warm?: { playbackId: string; thumbnail: string } | null;
 }) {
   const cover = socialStoryRailCover(media, authorId);
   const signedMux = Boolean(cover?.playbackId && socialMuxPlaybackRequiresTokens(cover.playbackPolicy));
   const proxyStill = Boolean(cover && !cover.playbackId && cover.kind === "image" && cover.url);
-  const { ref, visible } = useStoryRailThumbVisible(signedMux || proxyStill);
+  const warmed =
+    signedMux && cover?.playbackId && warm?.playbackId === cover.playbackId && warm.thumbnail
+      ? { playbackId: cover.playbackId, token: warm.thumbnail }
+      : null;
+  const { ref, visible } = useStoryRailThumbVisible((signedMux && !warmed) || proxyStill);
 
   if (cover?.playbackId) {
     return (
@@ -59,7 +66,8 @@ export function SocialStoryRailCover({
           playbackId={cover.playbackId}
           playbackPolicy={cover.playbackPolicy}
           url={cover.url}
-          needed={!signedMux || visible}
+          thumbnail={warmed}
+          needed={(!signedMux || visible) && !warmed}
         />
       </span>
     );

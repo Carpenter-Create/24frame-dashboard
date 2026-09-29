@@ -9,15 +9,16 @@
 
 ## One lock
 
-Social Home must not mint a Mux playback JWT, or request a story-still media signed URL, for every rail card on load.
+Social Home must not call `/api/social/mux-playback` for every rail card on load. The ring cap stays `SOCIAL_STORIES_RAIL_LIMIT` (80).
 
-A card mints when it intersects the viewport, plus one card of horizontal lookahead (`0px 160px 0px 160px`). The viewer still mints when a story opens. Cards that are not intersecting stay on the muted face.
+Home paint warms the active card and the next one (`SOCIAL_STORY_RAIL_MUX_WARM_AHEAD` = 2), the same window as Explore. Those two carry a thumbnail JWT and do not fetch again. Every later signed card stays pending until it intersects the viewport, plus one card of horizontal lookahead (`0px 160px 0px 160px`). Story stills withhold `/api/social/media` the same way. The viewer still mints when a story opens.
 
 ## Concrete
 
 | Thumb | On mount, off screen | When intersecting |
 |-------|----------------------|-------------------|
-| Signed Mux | Pending span. No `/api/social/mux-playback`. No `image.mux.com` src | Thumbnail JWT, then the still. `loading="eager"` |
+| Signed Mux, active or next | Server thumbnail JWT. No `/api/social/mux-playback` from the card | Already painted |
+| Signed Mux, later | Pending span. No `/api/social/mux-playback`. No `image.mux.com` src | Client thumbnail JWT, then the still. `loading="eager"` |
 | Story still (media proxy) | Held. No `/api/social/media` src | Same proxy URL. `loading="eager"`. Not `loading="lazy"` |
 | Public Mux | Unchanged. No JWT | Unchanged |
 | Raw video, no playback id | Closed face. No file URL | Closed face |

@@ -5,7 +5,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { SOCIAL_MUX_PLAYBACK_ROUTE } from "@/lib/social-mux";
+import { SOCIAL_MUX_PLAYBACK_ROUTE, socialMuxThumbnailUrl } from "@/lib/social-mux";
+import type { SocialStoryRailWarmThumb } from "@/lib/social-story-rail-mint";
 import { minimalDocument, serializeElement, uninstallMinimalDocument } from "@/test/minimal-document";
 
 vi.mock("next/image", () => ({
@@ -141,7 +142,7 @@ describe("Social Stories rail mint", () => {
     vi.restoreAllMocks();
   });
 
-  function mount(kind: "signed" | "still") {
+  function mount(kind: "signed" | "still", warmedThumbs?: readonly SocialStoryRailWarmThumb[]) {
     installObserver();
     installFetch();
     const cards = Array.from({ length: RING }, (_, index) => card(index, kind));
@@ -153,7 +154,13 @@ describe("Social Stories rail mint", () => {
     root = createRoot(container);
     act(() => {
       root?.render(
-        <SocialStoriesRail cards={cards} authors={authors} faces={new Map()} canCreate={false} />,
+        <SocialStoriesRail
+          cards={cards}
+          authors={authors}
+          faces={new Map()}
+          canCreate={false}
+          warmedThumbs={warmedThumbs}
+        />,
       );
     });
   }
@@ -188,6 +195,34 @@ describe("Social Stories rail mint", () => {
       `${SOCIAL_MUX_PLAYBACK_ROUTE}?playbackId=${encodeURIComponent(playbackId(0))}`,
     ]);
     expect(fetches).toHaveLength(1);
+  });
+
+  it("paints the warmed active and next thumbs without calling mux-playback", async () => {
+    const warmed: SocialStoryRailWarmThumb[] = [
+      { authorId: authorId(0), playbackId: playbackId(0), thumbnail: "thumb-active.jwt" },
+      { authorId: authorId(1), playbackId: playbackId(1), thumbnail: "thumb-next.jwt" },
+    ];
+    mount("signed", warmed);
+    expect(fetches).toHaveLength(0);
+    expect(observed.length).toBe(RING - warmed.length);
+    expect(html()).toContain(socialMuxThumbnailUrl(playbackId(0), "thumb-active.jwt"));
+    expect(html()).toContain(socialMuxThumbnailUrl(playbackId(1), "thumb-next.jwt"));
+    expect(html().match(/data-social-story-mux-thumb="pending"/g)?.length).toBe(RING - warmed.length);
+
+    await reportFirst(true);
+
+    expect(fetches).toEqual([
+      `${SOCIAL_MUX_PLAYBACK_ROUTE}?playbackId=${encodeURIComponent(playbackId(2))}`,
+    ]);
+  });
+
+  it("does not paint a warm token on a different playback id", () => {
+    mount("signed", [
+      { authorId: authorId(0), playbackId: "DifferentPlaybackId1", thumbnail: "stale.jwt" },
+    ]);
+    expect(fetches).toHaveLength(0);
+    expect(html()).not.toContain("stale.jwt");
+    expect(html()).not.toContain("image.mux.com");
   });
 
   it("does not request a story-still signed URL for the full ring on mount", async () => {

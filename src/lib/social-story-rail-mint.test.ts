@@ -14,7 +14,9 @@ describe("story rail mint window", () => {
     expect(cover).toContain("SOCIAL_STORY_RAIL_MINT_ROOT_MARGIN");
     expect(cover).toContain('loading="eager"');
     expect(cover).not.toContain('loading="lazy"');
-    expect(thumb).toContain("if (!signed || !needed) return");
+    expect(thumb).toContain("if (!signed || !needed || provided) return");
+    expect(home).toContain("warmStoryRailPlaybackTokens");
     expect(home).not.toContain("mintSocialMuxPlaybackTokens");
+    expect(home).not.toContain("@/lib/social-mux-server");
   });
 });
