@@ -17,15 +17,20 @@ import {
 // Public thumbs always use socialMuxThumbnailUrl. A caller url can carry
 // a stale time and must not override time=0. Signed still waits for the
 // thumbnail JWT, then uses that token.
+// The Home rail passes needed=false until the card intersects, so a full
+// ring does not sign on mount. A direct mount still mints.
 
 export function SocialStoryMuxThumb({
   playbackId,
   playbackPolicy,
+  needed = true,
 }: {
   playbackId: string;
   playbackPolicy?: SocialMuxPlaybackPolicy;
   /** Accepted from the rail. Not read — a caller url must not override time=0. */
   url: string;
+  /** False withholds the playback JWT. Default true keeps a direct mount. */
+  needed?: boolean;
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
   // Home rail cards are keyed by author, so this instance survives a new
@@ -37,7 +42,7 @@ export function SocialStoryMuxThumb({
   const token = signed && mint?.playbackId === playbackId ? mint.token : null;
 
   useEffect(() => {
-    if (!signed) return;
+    if (!signed || !needed) return;
     const controller = new AbortController();
     void fetch(`${SOCIAL_MUX_PLAYBACK_ROUTE}?playbackId=${encodeURIComponent(playbackId)}`, {
       signal: controller.signal,
@@ -56,7 +61,7 @@ export function SocialStoryMuxThumb({
       controller.abort();
       setMint(null);
     };
-  }, [playbackId, signed]);
+  }, [playbackId, signed, needed]);
 
   const src = signed
     ? token

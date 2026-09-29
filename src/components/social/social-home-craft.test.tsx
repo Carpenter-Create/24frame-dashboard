@@ -451,7 +451,7 @@ describe("Social Stories craft (Figma 138:163 / 138:889 / 138:943)", () => {
     expect(html.slice(0, html.indexOf('data-social-stories-mobile=""'))).toContain("data-social-story-media");
   });
 
-  it("fills the home story card with story media, not the profile photo", () => {
+  it("holds a story still off the media signer until it is visible, and does not use the profile photo", () => {
     const authorId = "11111111-1111-4111-8111-111111111111";
     const objectId = "22222222-2222-4222-8222-222222222222";
     const imageKey = `stories/${authorId}/${objectId}.jpg`;
@@ -479,9 +479,10 @@ describe("Social Stories craft (Figma 138:163 / 138:889 / 138:943)", () => {
       />,
     );
     const media = image.slice(image.indexOf("data-social-story-media"), image.indexOf("data-social-avatar"));
-    expect(media).toContain("/api/social/media?key=");
-    expect(media).toContain(encodeURIComponent(imageKey));
-    expect(media).toContain('loading="eager"');
+    expect(media).toContain('data-social-story-rail-cover="held"');
+    expect(media).not.toContain("/api/social/media?key=");
+    expect(media).not.toContain(encodeURIComponent(imageKey));
+    expect(media).not.toContain('loading="lazy"');
     expect(media).not.toContain("signed-avatar");
     expect(image).toContain('aria-label="Maya Chen"');
     expect(image).not.toContain("Maya C.");
