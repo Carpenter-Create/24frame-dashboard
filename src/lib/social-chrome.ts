@@ -376,20 +376,27 @@ export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 // everything except phone full-bleed media: the row restores
 // --chrome-gutter (16) after the phone bleed; desktop uses the
 // frame's single 16 and does not add a second pad.
-// Wave 1 deletes post→post hairlines. Stories→feed seam stays
+// Post rules are border-y-2 border-hairline on this row: 2px top and
+// bottom, house --border. The 1px bottom-only border-b is superseded.
+// The row already bleeds on the phone, so both rules meet the viewport.
+// Not a muted fill. No margin and no padding outside the rules, so the
+// bottom rule touches the next post's top rule. The gutter stays a
+// plain column — a divide there would be inset and would double these
+// rules. Stories→feed seam stays
 // SOCIAL_STORIES_FEED_RULE_CLASS.
-// docs/design-locks/social-home-craft-wave-1-lock-v1.md
+// docs/design-locks/social-home-post-separation-lock-v1.md
 // docs/design-locks/social-mobile-full-bleed-lock-v1.md
-// IG gap: ~8–12 CSS px from the under-post time baseline to the next
+// Air: ~16–24 CSS px from the under-post time baseline to the next
 // avatar. The time is block + leading-none, so the permalink link does
 // not inherit body line-height 1.6 (that strut put ~8px under the
-// glyphs, and --space-6 then opened ~32 CSS px). --space-2 is 8; ~2px
-// of the em stays below the baseline, so the measured gap is ~10.
-// Phone and desktop share it. No md fork. Padding, so the page
-// background cannot show as a band between posts.
+// glyphs, and --space-6 then opened ~32 CSS px). --space-4 is 16; ~2px
+// of the em stays below the baseline, so the measured gap is ~18.
+// --space-6 would measure ~26 and stays out. Phone and desktop share
+// it. No md fork. Padding, so the page background cannot show as a
+// band between posts.
+// docs/design-locks/social-home-post-separation-lock-v1.md
 // docs/design-locks/social-feed-under-post-time-lock-v1.md
-// docs/design-locks/social-home-craft-wave-1-lock-v1.md
-export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-2)]";
+export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-4)]";
 
 // Media → actions ~10. Not the 8/16 scale — the lock names ~10.
 export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-[10px]";
@@ -411,7 +418,7 @@ export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
 // shrink-0 on the shell is the gutter's main axis (vertical): the list
 // scrolls instead of compressing the air.
 export const SOCIAL_FEED_ROW_CLASS =
-  `block shrink-0 bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
+  `block shrink-0 border-y-2 border-hairline bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
 
 // Feed media. px-0 inside the row. On phone it cancels the row pad
 // so the frame meets the viewport. Side radius stays 0. Desktop is
@@ -587,9 +594,11 @@ export const SOCIAL_POST_TIME_CLASS =
 
 // Adam 2026-09-22 feed chrome. Supersedes #599 Facebook gray gutter
 // (muted band + py slabs above and below every post). Posts sit on
-// the page canvas. Wave 1 takes the mid-feed post→post hairline OUT.
+// the page canvas. The 2px top and bottom rules live on
+// SOCIAL_FEED_ROW_CLASS, not as a gutter divide or a gray fill.
 // Home, Profile Activity, and author history share this list. No grey
 // slab. No divide. Stories→feed seam is a different rule.
+// docs/design-locks/social-home-post-separation-lock-v1.md
 // docs/design-locks/social-home-craft-wave-1-lock-v1.md
 export const SOCIAL_FEED_GUTTER_CLASS = "flex flex-col";
 

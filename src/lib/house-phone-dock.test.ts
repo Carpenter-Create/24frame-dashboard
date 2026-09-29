@@ -81,7 +81,7 @@ describe("phone dock clearance", () => {
     expect(explore).not.toContain("progress");
   });
 
-  it("pads the Home lead scroll with the same clearance and does not restyle feed rows", () => {
+  it("pads the Home lead scroll with the same clearance and leaves dock chrome off the feed row", () => {
     expect(isSocialExplorePath("/social")).toBe(false);
     expect(isSocialExplorePath("/social/explore")).toBe(true);
     expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toBe(HOUSE_PHONE_DOCK_CHROME_PB_CLASS);
@@ -92,8 +92,7 @@ describe("phone dock clearance", () => {
     expect(shell).toContain('data-house-lead-scroll=""');
     expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("house-phone-dock-clearance");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-b");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2 border-hairline");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("house-phone-dock-clearance");
   });
 });

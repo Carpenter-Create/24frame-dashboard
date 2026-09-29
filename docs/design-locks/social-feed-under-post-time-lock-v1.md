@@ -4,10 +4,11 @@
 **Status:** **LOCKED** · CoS / Adam
 **Entity:** Global Content / 24Frame only
 **Cite:** [`social-home-craft-wave-1-lock-v1.md`](social-home-craft-wave-1-lock-v1.md) · [`social-feed-text-media-caption-below-lock-v1.md`](social-feed-text-media-caption-below-lock-v1.md)
+**Amended (air + hairline only):** [`social-home-post-separation-lock-v1.md`](social-home-post-separation-lock-v1.md)
 
 ## One lock
 
-The feed post separator is an **under-post relative time** on its own line. It sits **below the caption** (and below the comment trail when that line is present) as the **last chrome line** inside the post, then **~8–12 CSS px** into the next author.
+The feed post separator is an **under-post relative time** on its own line. It sits **below the caption** (and below the comment trail when that line is present) as the **last chrome line** inside the post. The gap into the next author, and the post→post hairline, are the post-separation lock.
 
 It is **not** beside the author name.
 
@@ -32,16 +33,14 @@ House **tertiary** `text-ink-3` (light `#6B7280`). That is the muted token for t
 
 Type stays xs, normal tracking. Not `t-label`. The line wraps. It does not truncate. Phone and desktop share it.
 
-## Wave 1 air
+## Air and hairline
 
-Hairline stays **out**. No `divide-y`, no post→post border.
+Those two points moved. Cite [`social-home-post-separation-lock-v1.md`](social-home-post-separation-lock-v1.md).
 
-Instagram SoT: compact air from the timestamp **baseline** to the next post header (avatar/name). **~8–12 CSS px.** Phone and desktop share it. No `md:` fork.
+`SOCIAL_POST_TIME_CLASS` stays `block` + `leading-none`. The permalink link must not inherit body line-height 1.6 — that strut put ~8px under the glyphs.
 
-`SOCIAL_POST_TIME_CLASS` is `block` + `leading-none`. The permalink link must not inherit body line-height 1.6 — that strut put ~8px under the glyphs. `SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS` is `pb-[var(--space-2)]` (8) on `SOCIAL_FEED_ROW_CLASS`. ~2px of the em stays below the baseline, so the measured baseline→avatar gap is **~10 CSS px**.
-
-The prior Wave 1 **~24** (`pb-[var(--space-6)]`) sat under the time and opened **~32 CSS px** (~34 on the prod screenshot, ~102 device px at 3x). That stacking is **out**. Cite [`social-home-craft-wave-1-lock-v1.md`](social-home-craft-wave-1-lock-v1.md).
+The 2026-09-29 reading (`pb-[var(--space-2)]`, hairline out, measured ~10 from the time baseline) is **amended**. The earlier Wave 1 `pb-[var(--space-6)]` sat under the time and opened **~32 CSS px** (~34 on the prod screenshot, ~102 device px at 3x). That stacking is **out**. Post separation uses `--space-4`, not `--space-6`. No `divide-y` on the gutter.
 
 ## Out
 
-Author-row time. Clock times. “ago”. Inter-post hairline. A second post-card fork.
+Author-row time. Clock times. “ago”. A gray fill band. A second post-card fork. Post→post hairline is **in** — see the post-separation lock.

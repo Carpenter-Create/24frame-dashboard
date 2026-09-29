@@ -32,13 +32,28 @@ const stories = readFileSync("src/components/social/social-stories-rail.tsx", "u
 const lock = readFileSync("docs/design-locks/social-home-craft-wave-1-lock-v1.md", "utf8");
 
 describe("Social Home craft Wave 1", () => {
-  it("deletes post-to-post hairlines and keeps the Stories seam", () => {
+  it("restores the post hairline on the feed row and keeps the Stories seam", () => {
+    const separation = readFileSync(
+      "docs/design-locks/social-home-post-separation-lock-v1.md",
+      "utf8",
+    );
     expect(lock).toContain("social-home-stories-feed-hairline-lock-v1.md");
+    expect(lock).toContain("social-home-post-separation-lock-v1.md");
+    expect(separation).toContain("border-y-2 border-hairline");
+    expect(separation).toContain("superseded");
+    expect(separation).toContain("SOCIAL_MOBILE_BLEED_CLASS");
+    expect(separation).toContain("2px");
+    expect(separation).toContain("No `bg-surface-muted` fill");
     expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("hairline");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("#ECEDF0");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
+    expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_MOBILE_BLEED_CLASS);
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("divide");
     expect(SOCIAL_STORIES_FEED_RULE_CLASS).toBe(
       "max-md:border-b max-md:border-solid max-md:border-hairline",
     );
@@ -49,16 +64,24 @@ describe("Social Home craft Wave 1", () => {
     expect(homeStories).toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
   });
 
-  it("locks media-to-actions ~10, meta rows 4–6, and ~8–12 before the next author", () => {
+  it("locks media-to-actions ~10, meta rows 4–6, and ~16–24 before the next author", () => {
+    const separation = readFileSync(
+      "docs/design-locks/social-home-post-separation-lock-v1.md",
+      "utf8",
+    );
     expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[10px]");
     expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toContain("gap-[6px]");
-    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-2)]");
+    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-4)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-2)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-4)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-2)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
     expect(lock).toContain("social-feed-under-post-time-lock-v1.md");
-    expect(lock).toContain("8–12");
+    expect(lock).toContain("social-home-post-separation-lock-v1.md");
+    expect(separation).toContain("16–24");
+    expect(separation).toContain("pb-[var(--space-4)]");
+    expect(separation).toContain("~18");
     // Column flex on this row drops the padding on Mobile Safari.
     // Block keeps the air. shrink-0 stops the gutter from compressing it.
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
