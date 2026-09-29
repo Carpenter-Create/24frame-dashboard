@@ -11,15 +11,29 @@ import type { SocialFollowingWallCard } from "@/lib/social-following-wall";
 import { clearSocialMuxPlaybackTokenCache, SOCIAL_MUX_PLAYBACK_ROUTE } from "@/lib/social-mux";
 import { minimalDocument, serializeElement, uninstallMinimalDocument } from "@/test/minimal-document";
 
+const dynamicRegistry = vi.hoisted(() => ({
+  resolve: (source: string): ((props: Record<string, unknown>) => unknown) | null =>
+    source ? null : null,
+}));
+
 vi.mock("next/dynamic", () => ({
-  default: () =>
-    function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean; muted?: boolean }) {
-      return createElement("div", {
-        "data-mux-player-stub": props.playbackId ?? "",
-        "data-mux-autoplay": props.autoPlay ? "yes" : "no",
-        "data-mux-muted": props.muted ? "yes" : "no",
-      });
-    },
+  default: (loader: () => Promise<unknown>, options?: { ssr?: boolean }) => {
+    if (options?.ssr === false) {
+      return function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean; muted?: boolean }) {
+        return createElement("div", {
+          "data-mux-player-stub": props.playbackId ?? "",
+          "data-mux-autoplay": props.autoPlay ? "yes" : "no",
+          "data-mux-muted": props.muted ? "yes" : "no",
+        });
+      };
+    }
+    const source = loader.toString();
+    return function SocialDynamic(props: Record<string, unknown>) {
+      const Comp = dynamicRegistry.resolve(source);
+      if (!Comp) return null;
+      return createElement(Comp as never, props);
+    };
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -38,7 +52,11 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+import { SocialPostMedia } from "./social-post-media";
 import { SocialFollowingWallBound } from "./social-following-wall-bound";
+
+dynamicRegistry.resolve = (source) =>
+  source.includes("social-post-media") ? (SocialPostMedia as never) : null;
 
 const PUBLIC_LEAD = "PublicLeadPlayback001";
 const SIGNED_NEXT = "SignedNextPlayback001";
