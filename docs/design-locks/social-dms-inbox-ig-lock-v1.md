@@ -11,7 +11,7 @@
 
 ## One lock
 
-The Messages list drops the page title block. Chrome is an IG-style list header (viewer handle, or **Messages** when there is no handle) with a pencil that opens the existing compose route, a search pill under that header, and thread rows with vertical spacing instead of full-width hairlines. The house shell and the phone dock stay. Primary tabs do not move to the top.
+The Messages list drops the page title block. Chrome is an IG-style list header: the viewer handle when one exists, and no title word when it does not. A pencil opens the existing compose route. A search pill sits under that header. Thread rows use vertical spacing instead of full-width hairlines. The house shell and the phone dock stay. Primary tabs do not move to the top.
 
 ---
 
@@ -20,8 +20,8 @@ The Messages list drops the page title block. Chrome is an IG-style list header 
 | Token | Lock |
 |-------|------|
 | Page title block | **OUT** — no `PageHeader`, no subtitle, no “Start a conversation” text link |
-| Title | Viewer handle when a profile exists (no `@`). Otherwise `Messages` |
-| Compose | Pencil, top-right, hit 44, glyph 24. `href` `/social/dms/new`. Accessible name stays **Start a conversation**. Omitted when there is no profile |
+| Title | Viewer handle when one exists (no `@`). When there is no handle, render no title word. Do not fall back to `Messages` |
+| Compose | Pencil, top-right, hit 44, glyph 24. `href` `/social/dms/new`. Accessible name **New message**. Present when compose is allowed (a profile exists), including when the title is absent. Omitted when there is no profile |
 | Host | Inside the Social center column, under the existing house shell. Same on phone and desktop |
 
 ---
@@ -77,5 +77,5 @@ The Messages list drops the page title block. Chrome is an IG-style list header 
 
 ## FAIL / PASS
 
-**PASS:** List header is handle (or Messages) plus pencil. Search pill filters loaded rows. Rows have no full-width hairline, show preview with relative time, and mark unread with a blue dot. Dock and For You stay.  
-**FAIL:** Page title + subtitle + text link still lead the list. Hairlines between rows. “N unread” as a text line. Notes or request filters invented. Primary tabs moved above the list. Thread or compose chrome rewritten in this pass.
+**PASS:** List header is the viewer handle when one exists, and no title word when it does not. Pencil accessible name is New message and stays top-right when compose is allowed. Search pill filters loaded rows. Rows have no full-width hairline, show preview with relative time, and mark unread with a blue dot. Dock and For You stay.  
+**FAIL:** The list title is the word Messages. Pencil accessible name is “Start a conversation”. Page title + subtitle + text link still lead the list. Hairlines between rows. “N unread” as a text line. Notes or request filters invented. Primary tabs moved above the list. Thread or compose chrome rewritten in this pass.

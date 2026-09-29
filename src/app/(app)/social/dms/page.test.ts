@@ -159,11 +159,37 @@ describe("social DMs", () => {
     expect(html).toContain("data-social-dms-empty");
     expect(html).toContain(SOCIAL.dms.empty);
     expect(html).toContain("data-social-dms-start");
-    expect(html).toContain(SOCIAL.dms.startCta);
-    expect(html).not.toContain(`>${SOCIAL.dms.startCta}<`);
+    expect(html).toContain(`aria-label="${SOCIAL.dms.newMessage}"`);
+    expect(html).not.toContain(`>${SOCIAL.dms.newMessage}<`);
+    expect(html).not.toContain(SOCIAL.dms.startCta);
+    expect(html).not.toContain(`>${SOCIAL.dms.title}<`);
     expect(html).toContain('href="/social/dms/new"');
     expect(html).toContain(">ada<");
     expect(html).not.toContain(SOCIAL.dms.subtitle);
+  });
+
+  it("omits the list title when the viewer has no handle and keeps the pencil", async () => {
+    const from = inboxFrom([
+      { id: "u1", handle: "   ", display_name: "", status: "active" },
+    ]);
+    vi.mocked(createClient).mockResolvedValue({
+      from,
+      rpc: vi.fn(async () => ({ data: [], error: null })),
+    } as never);
+
+    const html = await renderServerMarkup(await SocialDmsPage());
+    expect(html).toContain("data-social-dms-header");
+    expect(html).not.toContain("data-social-dms-title");
+    expect(html).not.toContain(`>${SOCIAL.dms.title}<`);
+    expect(html).not.toContain(">Messages<");
+    expect(html).toContain(`aria-label="${SOCIAL.dms.newMessage}"`);
+    expect(html).toContain("ml-auto");
+    expect(html).toContain("data-social-dms-search");
+    expect(html).toContain('placeholder="Search"');
+    expect(html).toContain('href="/social/dms/new"');
+    expect(html).not.toContain(SOCIAL.dms.startCta);
+    expect(html).not.toContain("Notes");
+    expect(html).not.toContain("Requests");
   });
 
   it("shows the viewer on a direct room with no other peer", async () => {

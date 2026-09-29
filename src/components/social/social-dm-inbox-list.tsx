@@ -46,26 +46,31 @@ export function SocialDmInboxList({
     [query, rows],
   );
   const showEmpty = emptyLabel != null && rows.length === 0 && query.trim() === "";
+  const heading = title.trim();
 
   return (
     <div data-social-dms-list="" className="flex flex-col">
-      <div data-social-dms-header="" className={SOCIAL_DM_INBOX_HEADER_CLASS}>
-        <h1 data-social-dms-title="" className={SOCIAL_DM_INBOX_TITLE_CLASS}>
-          {title}
-        </h1>
-        {composeHref ? (
-          <Link
-            href={composeHref}
-            data-social-dms-start=""
-            aria-label={composeLabel}
-            className={SOCIAL_DM_INBOX_COMPOSE_CLASS}
-          >
-            <span aria-hidden="true">
-              <SocialIcon name="pencil-simple" size={24} />
-            </span>
-          </Link>
-        ) : null}
-      </div>
+      {heading || composeHref ? (
+        <div data-social-dms-header="" className={SOCIAL_DM_INBOX_HEADER_CLASS}>
+          {heading ? (
+            <h1 data-social-dms-title="" className={SOCIAL_DM_INBOX_TITLE_CLASS}>
+              {heading}
+            </h1>
+          ) : null}
+          {composeHref ? (
+            <Link
+              href={composeHref}
+              data-social-dms-start=""
+              aria-label={composeLabel}
+              className={SOCIAL_DM_INBOX_COMPOSE_CLASS}
+            >
+              <span aria-hidden="true">
+                <SocialIcon name="pencil-simple" size={24} />
+              </span>
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
       <form
         data-social-dms-search=""
         role="search"

@@ -1,4 +1,4 @@
-import { handleDisplay, SOCIAL } from "@/lib/social";
+import { handleDisplay } from "@/lib/social";
 
 // List-page helpers for the IG inbox chrome. Filter is in-memory on
 // rows the inbox already loaded. No new query.
@@ -20,9 +20,9 @@ export type SocialDmInboxListRow = {
   people: readonly SocialDmInboxListPerson[];
 };
 
+/** Viewer handle with `@` stripped. Empty when there is no handle. */
 export function socialDmInboxTitle(handle: string | null | undefined): string {
-  const display = handle ? handleDisplay(handle) : "";
-  return display || SOCIAL.dms.title;
+  return handle ? handleDisplay(handle) : "";
 }
 
 export function socialDmInboxMatchesQuery(

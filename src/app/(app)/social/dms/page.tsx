@@ -96,7 +96,7 @@ async function SocialDmsInbox({ session }: { session: SocialSession }) {
     <SocialDmInboxList
       title={socialDmInboxTitle(profile?.handle)}
       composeHref={profile ? `${SOCIAL_ROUTES.dms}/new` : null}
-      composeLabel={SOCIAL.dms.startCta}
+      composeLabel={SOCIAL.dms.newMessage}
       rows={listRows}
       emptyLabel={profile ? SOCIAL.dms.empty : null}
       notice={notice}

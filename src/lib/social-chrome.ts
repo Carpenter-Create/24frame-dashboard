@@ -423,7 +423,7 @@ export const SOCIAL_DM_INBOX_TITLE_CLASS =
   "min-w-0 break-words t-heading font-semibold text-ink";
 
 export const SOCIAL_DM_INBOX_COMPOSE_CLASS =
-  "flex size-[var(--header-control-size)] min-h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center rounded-full text-ink";
+  "ml-auto flex size-[var(--header-control-size)] min-h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center rounded-full text-ink";
 
 export const SOCIAL_DM_INBOX_ROW_CLASS = "py-[var(--space-3)]";
 
