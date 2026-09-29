@@ -21,13 +21,13 @@ import {
   houseBlankOutlet,
   houseBlankOutletRepeats,
   houseClientHistoryState,
+  houseCommitHop,
   houseExactHref,
   houseFocusBelongsToInactiveScreen,
   houseHomePeriodHop,
   type HouseChildSeen,
   houseHrefKey,
   houseMayClientOwnHop,
-  houseNavHop,
   housePaintedKeys,
   housePathFromLocation,
   houseReadScroll,
@@ -151,8 +151,10 @@ function HousePathProviderCore({
         if (!houseMayClientOwnHop(parsed.pathname, nextPath)) return false;
         const parsedDest = parseHouseHref(dest);
         const next = housePathFromLocation(parsedDest.pathname, parsedDest.search);
-        const hop = houseNavHop({
-          cached: houseShouldClientNavigate(dest, housePaintedKeys()),
+        const hop = houseCommitHop({
+          fromHref: href,
+          destHref: dest,
+          painted: housePaintedKeys(),
           ownedIsDest: houseExactHref(href) === houseExactHref(dest),
           nextIsDest: houseExactHref(nextHref) === houseExactHref(dest),
           sameScreen: houseHrefKey(href) === houseHrefKey(dest),
@@ -297,7 +299,13 @@ export function HouseScreenCache({ children }: { children: ReactNode }) {
   const activeNode = displayKey != null ? nextStore.nodes[displayKey] : null;
 
   useEffect(() => {
-    const action = houseBlankOutlet(displayKey, showIngress, activeKey, nextKey);
+    const action = houseBlankOutlet(
+      displayKey,
+      showIngress,
+      activeKey,
+      nextKey,
+      applied.waitForSlot,
+    );
     if (action === "none") return;
     if (action === "load") {
       // One push. An interval of the same href aborts the RSC hop,
@@ -315,7 +323,7 @@ export function HouseScreenCache({ children }: { children: ReactNode }) {
     kick();
     const retry = window.setInterval(kick, HOUSE_BLANK_OUTLET_RETRY_MS);
     return () => window.clearInterval(retry);
-  }, [activeKey, displayKey, house?.href, nextKey, router, showIngress]);
+  }, [activeKey, applied.waitForSlot, displayKey, house?.href, nextKey, router, showIngress]);
 
   useEffect(() => {
     const active = document.activeElement;
