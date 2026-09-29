@@ -35,11 +35,14 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 // Active play() runs in an effect, after the player mounts, with no user
 // gesture. Unmuted play() is NotAllowedError there; the quiet mount drops
 // it, so the clip stays paused and the first tap only flips `held`.
-// Muted play() is allowed. Each active item starts muted, before paint,
-// so autoplay stays allowed. Tap on the media pauses. Tap on the rail
-// mute control passes the muted flag through. If an unmuted play() is
-// blocked, onForcedMute snaps the flag back and retries muted. The control
-// stays mounted for the whole item. An empty track list never hides it.
+// Muted play() is allowed. A cold session starts muted, before paint,
+// so autoplay stays allowed. Unmute sets preferUnmuted on this host.
+// Later Explore items stay unmuted until the user mutes. Tap on the media
+// pauses. Tap on the rail mute control passes the muted flag through and
+// writes that preference. If an unmuted play() is blocked, onForcedMute
+// snaps muted for that attempt and retries muted play. It does not clear
+// preferUnmuted. The control stays mounted for the whole item. An empty
+// track list never hides it.
 // Only the active slide mounts SocialMuxPlayer. Off-screen slides stay a
 // poster or closed face. The loader mints the first two signed playbacks
 // before paint and attaches those tokens only to that window. The stream
@@ -63,11 +66,15 @@ export function SocialExploreForYouStream({
   const [active, setActive] = useState(0);
   const [held, setHeld] = useState(false);
   const [muted, setMuted] = useState(true);
+  // Session preference on this Explore host. Cold start is muted.
+  // User unmute sets it; only a user Mute tap clears it. Item changes
+  // apply it. Force-mute does not.
+  const [preferUnmuted, setPreferUnmuted] = useState(false);
   const [mutedFor, setMutedFor] = useState<string | null>(null);
   const activeItemId = items[active]?.postId ?? "";
   if (activeItemId !== mutedFor) {
     setMutedFor(activeItemId);
-    setMuted(true);
+    setMuted(!preferUnmuted);
   }
 
   useEffect(() => {
@@ -134,7 +141,9 @@ export function SocialExploreForYouStream({
             }}
             onToggleMute={() => {
               if (index !== active) return;
-              setMuted((value) => !value);
+              const nextMuted = !muted;
+              setMuted(nextMuted);
+              setPreferUnmuted(!nextMuted);
             }}
             onForcedMute={() => setMuted(true)}
           />
