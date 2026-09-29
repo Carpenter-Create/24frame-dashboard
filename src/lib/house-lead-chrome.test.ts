@@ -196,6 +196,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).toContain(APP_HEADER_TRAILING_CLUSTER_CLASS);
       expect(html).toContain("data-workspace-waffle");
       expect(html).toContain('data-workspace-switcher-presentation="waffle"');
+      expect(html).toContain('data-workspace-switcher-presentation="pills"');
+      expect(html).toContain("hidden md:contents");
+      expect(html).toContain("md:hidden");
       expect(html).toContain("data-ask-assistant-header");
       expect(html).not.toContain("data-theme-toggle");
       expect(html).toContain("data-activity-bell");
@@ -213,7 +216,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).not.toContain('stroke-width="1.33"');
       expect(html).toContain('data-house-ai-mark-register="stroke"');
     }
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
     expect(leadSrc).toContain("<AskAssistantHeaderLink />");
     expect(leadSrc).not.toContain("ThemeToggle");
     expect(leadSrc).not.toContain('from "@/components/theme-toggle"');

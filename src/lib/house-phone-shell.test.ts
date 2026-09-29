@@ -101,8 +101,12 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(leadSrc).toContain("<WorkspaceSwitcher");
     expect(leadSrc).not.toContain("data-app-header-workspace-pill");
     expect(leadSrc).not.toContain('tone="pill"');
-    expect(leadSrc).not.toContain('presentation="pills"');
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
+    expect(leadSrc).toContain('presentation="pills"');
+    expect(leadSrc).toContain('presentation="waffle"');
+    expect(leadSrc).toContain("data-app-header-workspace-desktop");
+    expect(leadSrc).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
+    expect(leadSrc).toContain("APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS");
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
 
     const aggregation = renderToStaticMarkup(
       createElement(HouseLeadChrome, {
@@ -112,8 +116,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     );
     expect(aggregation).toContain("data-workspace-waffle");
     expect(aggregation).toContain('data-workspace-switcher-presentation="waffle"');
+    expect(aggregation).toContain('data-workspace-switcher-presentation="pills"');
     expect(aggregation).not.toContain("data-app-header-workspace-pill");
-    expect(aggregation).not.toContain("data-app-header-workspace-desktop");
+    expect(aggregation).toContain("data-app-header-workspace-desktop");
+    expect(aggregation).toContain("hidden md:contents");
 
     const top = renderToStaticMarkup(
       createElement(HouseLeadChrome, {
@@ -581,7 +587,9 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(home).not.toContain("data-social-tab-bar");
     expect(home).not.toContain("data-house-phone-dest-chips");
     expect(home).toContain('data-workspace-switcher-presentation="waffle"');
-    expect(home).not.toContain('data-workspace-switcher-presentation="pills"');
+    expect(home).toContain('data-workspace-switcher-presentation="pills"');
+    expect(home).toContain("hidden md:contents");
+    expect(home).toContain("md:hidden");
 
     navigation.pathname = "/social";
     const social = renderToStaticMarkup(

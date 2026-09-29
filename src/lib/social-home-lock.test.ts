@@ -11,6 +11,7 @@ import {
   SOCIAL_COMPOSER_ROW_CLASS,
   SOCIAL_CONTENT_PAIR_WIDTH,
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
+  SOCIAL_DESKTOP_HEADER_INSET_CLASS,
   SOCIAL_DESKTOP_MEASURE,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
@@ -1043,6 +1044,22 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(canvas).toBeGreaterThanOrEqual(SOCIAL_CONTENT_PAIR_WIDTH);
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("md:pr-[var(--shell-gutter-inline-end)]");
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("max-md:px-[var(--chrome-gutter)]");
+    expect(SOCIAL_DESKTOP_HEADER_INSET_CLASS).toBe("md:pt-[var(--space-2)]");
+    expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain(SOCIAL_DESKTOP_HEADER_INSET_CLASS);
+    expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("pt-4");
+    expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("pb-4");
+    expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).not.toMatch(/(?:^|\s)py-4(?:\s|$)/);
+    expect(SOCIAL_HOME_TOPICS_CLASS).toBe("min-w-0 py-0 max-md:-mt-[var(--space-2)]");
+    expect(SOCIAL_HOME_TOPICS_CLASS).not.toMatch(/(?:^|\s)-mt-/);
+    for (const page of [
+      "src/app/(app)/social/page.tsx",
+      "src/app/(app)/social/dms/page.tsx",
+      "src/app/(app)/social/profile/page.tsx",
+    ]) {
+      const src = readFileSync(page, "utf8");
+      expect(src).not.toContain("md:pt-");
+      expect(src).not.toContain("md:mt-");
+    }
     expect(SOCIAL_HOME_CENTER_CLASS).toBe(
       `flex min-w-0 w-full flex-1 flex-col gap-2 lg:max-w-[${SOCIAL_DESKTOP_MEASURE.center}px]`,
     );

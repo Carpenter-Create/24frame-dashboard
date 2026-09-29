@@ -5,8 +5,14 @@ import { USER_MENU } from "./user-menu";
 import { availableWorkspaceOptions, WORKSPACE_EDUCATION_HREF } from "./workspace-menu";
 import { housePhoneForbidsTruncate } from "./house-phone-stack";
 import {
+  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
+  APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
+  WORKSPACE_SWITCHER_SEGMENTS_CLASS,
+  workspaceSliderSegments,
+  workspaceSwitcherNextSegmentIndex,
   workspaceSwitcherPersistLane,
+  workspaceSwitcherSegmentClass,
   APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS,
   APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS,
   APP_HEADER_LEADING_CLASS,
@@ -37,17 +43,12 @@ const src = readFileSync("src/lib/workspace-switcher.ts", "utf8");
 
 const RETIRED_PILL_GRAMMAR = [
   "APP_HEADER_WORKSPACE_PILL_HOST_CLASS",
-  "APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS",
   "WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS",
   "WORKSPACE_SWITCHER_PILL_CHEVRON_CLASS",
   "WORKSPACE_SWITCHER_PILL_PANEL_CLASS",
-  "WORKSPACE_SWITCHER_SEGMENTS_CLASS",
-  "WORKSPACE_SWITCHER_SEGMENT_CLASS",
   "workspaceSwitcherTriggerClass",
-  "workspaceSwitcherShowsSegments",
   "phoneWorkspaceSwitcherPills",
   "HOUSE_CONTROL_PILL_CLASS",
-  "HOUSE_SEGMENTED_TRACK_CLASS",
 ] as const;
 
 describe("workspace switcher lock", () => {
@@ -85,12 +86,20 @@ describe("workspace switcher lock", () => {
     expect(workspaceHome("education")).not.toBe("/social/courses");
   });
 
-  it("retires labeled-pill and sliding-pill grammar", () => {
+  it("retires the labeled pill and splits slider vs waffle by host", () => {
     for (const token of RETIRED_PILL_GRAMMAR) {
       expect(src, token).not.toContain(token);
     }
     expect(src).not.toContain('tone === "pill"');
     expect(src).not.toContain("presentation: \"pills\"");
+    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toBe("hidden md:contents");
+    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("shrink-0 md:hidden");
+    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).not.toContain("md:contents");
+    expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("rounded-full");
+    expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("bg-surface-muted");
+    expect(workspaceSwitcherSegmentClass(true)).toContain("text-white");
+    expect(workspaceSwitcherSegmentClass(false)).toContain("text-ink-2");
+    expect(workspaceSwitcherNextSegmentIndex(0, 3, -1)).toBe(2);
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("relative");
     expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).toBe("bg-surface-muted");
     expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).not.toContain("bg-accent");
@@ -188,6 +197,13 @@ describe("workspace switcher lock", () => {
     expect(phoneWorkspaceSwitcherPrefetchHrefs()).toEqual(
       workspaceWaffleTiles().map((tile) => tile.href),
     );
+    expect(workspaceSliderSegments().map((tile) => tile.mode)).toEqual(
+      workspaceWaffleTiles().map((tile) => tile.mode),
+    );
+    expect(
+      workspaceSliderSegments(availableWorkspaceOptions({ isGcStaff: true })).map((tile) => tile.mode),
+    ).toEqual(["social", "education", "aggregation", "staff"]);
+    expect(workspaceSliderSegments().map((tile) => tile.label)).not.toContain("Home");
     for (const label of WORKSPACE_WAFFLE_FORBIDDEN_LABELS) {
       expect(workspaceWaffleTiles().map((tile) => tile.label)).not.toContain(label);
     }

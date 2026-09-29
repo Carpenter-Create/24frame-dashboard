@@ -10,6 +10,7 @@ import { HouseLeadChrome } from "./house-lead-chrome";
 import { HouseLeadSearch } from "./house-lead-search";
 import { RailCollapse } from "./rail-collapse";
 import { AskAssistantChromeProvider } from "@/components/messages/ask-globee-chrome";
+import { SocialExploreExit } from "@/components/social/social-explore-exit";
 import { AskAiOverlayProvider } from "./ask-ai-overlay";
 import { cn } from "@/lib/cn";
 import { isAccountChromeNoRailPath } from "@/lib/account-chrome";
@@ -38,6 +39,7 @@ import { isHelpPath } from "@/lib/help";
 import { isSettingsPath, SETTINGS_RAIL_PAD_CLASS } from "@/lib/settings";
 import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
+  SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS,
   SOCIAL_RAIL_PANEL_CLASS,
   SOCIAL_WRITE_COMPOSE_FRAME_CLASS,
@@ -78,7 +80,8 @@ type Org = { id: string; name: string };
 // flash) and, when collapsed, overrides `--sidebar-width` so the header + main follow.
 // Phone: the rail is gone (hidden + width tokens collapse). Local dests
 // live in HousePhoneBottomNav — client dests on Aggregation, operator
-// dests on Staff. Workspace switch is the header sheet. No hamburger.
+// dests on Staff. Phone workspace switch is the header waffle.
+// Desktop md+ uses the sliding Layer 1 row. No hamburger.
 // One return tree — Social is a flag, not a second shell. Workspace
 // hops keep chrome mounted so the sheet and dock do not freeze.
 // Desktop collapse path is unchanged. Width is `--sidebar-width`.
@@ -199,9 +202,10 @@ export function AppShell({
   const dmComposeStage = isSocialDmComposePath(pathname);
   // Write compose owns the face on phone and desktop. Chrome returns on dismiss.
   const writeComposeStage = isSocialWriteComposePath(pathname);
-  // Explore For You: the media is the canvas. The Social header is out.
-  // The surface dest-rail is a pasted card, so it is out too. The phone
-  // dock overlays the stage. Media Immersion: not a card on a page.
+  // Explore For You: the media is the canvas. Phone stays headerless
+  // and viewport-fixed; the dock overlays the stage. Desktop md+ keeps
+  // the house header above the media and a labeled Exit. The surface
+  // dest-rail stays out. Media Immersion: not a card on a page.
   const exploreStage = isSocialExplorePath(pathname);
   const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage;
   const socialChrome = workspace === "social" && !settingsPage && !hideProductRail;
@@ -243,6 +247,48 @@ export function AppShell({
     : collapsed && !settingsPage
       ? ({ "--sidebar-width": RAIL_COLLAPSE_WIDTH_VAR } as React.CSSProperties)
       : undefined;
+
+  const leadChrome = (
+    <HouseLeadChromeSlot
+      chrome={chrome}
+      isGcStaff={isGcStaff}
+      workspace={workspace}
+      settingsPage={settingsPage || helpPage || activityPage}
+      logoVisible="always"
+      headerExit={exploreStage ? <SocialExploreExit /> : undefined}
+      search={
+        socialChrome ? (
+          <HouseLeadSearch tone="live" />
+        ) : workspace === "education" && !settingsPage && !helpPage && !activityPage ? (
+          <Suspense fallback={null}>
+            <HouseLeadSearch tone="quiet" />
+          </Suspense>
+        ) : undefined
+      }
+      trailingSearch={
+        socialChrome ? <HouseLeadSearch tone="live" presentation="icon" /> : undefined
+      }
+      underNav={
+        socialChrome
+          ? undefined
+          : workspace === "education" && !settingsPage && !helpPage && !activityPage ? (
+          <Suspense fallback={null}>
+            <HouseLeadSearch tone="quiet" inputId="education-header-q-phone" />
+          </Suspense>
+        ) : undefined
+      }
+      activityUnread={messagesUnread}
+      activityItems={activityItems}
+      accountMenu={
+        <AccountMenuSlot
+          chrome={chrome}
+          email={identity.email}
+          name={identity.name}
+          photoUrl={identity.photoUrl}
+        />
+      }
+    />
+  );
 
   return (
     <AskAiOverlayProvider>
@@ -305,8 +351,8 @@ export function AppShell({
           avatar drill.
           Ask AI is header + Home module only
           (#465). Emblem links workspace
-          home; it does not open the rail. Desktop keeps Ask · bell ·
-          waffle · avatar. Brand sits on the full-width top, not a
+          home; it does not open the rail. Desktop keeps the sliding
+          workspace row, then Ask · bell · avatar. No waffle. Brand sits on the full-width top, not a
           second rail chrome. Period stays on the Dashboard org row.
           No org switcher on any route. Aggregation mid-lead stays
           empty. Education mounts a quiet course/video search
@@ -317,49 +363,19 @@ export function AppShell({
           leftover `/messages` path (retired — 404), and on mobile `/titles` (528:542).
           Phone avatar opens 544:561. Do not invent Move chrome or a
           second phone switcher. Studio secondary rail stays HOLD. */}
-      {storyOpenStage || dmImmersiveStage || writeComposeStage || exploreStage ? null : (
-      <HouseLeadChromeSlot
-        chrome={chrome}
-        isGcStaff={isGcStaff}
-        workspace={workspace}
-        settingsPage={settingsPage || helpPage || activityPage}
-        logoVisible="always"
-        search={
-          socialChrome ? (
-            <HouseLeadSearch tone="live" />
-          ) : workspace === "education" && !settingsPage && !helpPage && !activityPage ? (
-            <Suspense fallback={null}>
-              <HouseLeadSearch tone="quiet" />
-            </Suspense>
-          ) : undefined
-        }
-        trailingSearch={
-          socialChrome ? <HouseLeadSearch tone="live" presentation="icon" /> : undefined
-        }
-        underNav={
-          socialChrome
-            ? undefined
-            : workspace === "education" && !settingsPage && !helpPage && !activityPage ? (
-            <Suspense fallback={null}>
-              <HouseLeadSearch tone="quiet" inputId="education-header-q-phone" />
-            </Suspense>
-          ) : undefined
-        }
-        activityUnread={messagesUnread}
-        activityItems={activityItems}
-        accountMenu={
-          <AccountMenuSlot
-            chrome={chrome}
-            email={identity.email}
-            name={identity.name}
-            photoUrl={identity.photoUrl}
-          />
-        }
-      />
+      {storyOpenStage || dmImmersiveStage || writeComposeStage ? null : exploreStage ? (
+        <div
+          data-social-explore-desktop-header=""
+          className={SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS}
+        >
+          {leadChrome}
+        </div>
+      ) : (
+        leadChrome
       )}
 
       <main
-        className={cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad, exploreStage && "relative")}
+        className={cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad, exploreStage && "relative overflow-hidden")}
         data-app-social-frame={socialChrome ? "" : undefined}
         data-social-story-open={storyOpenStage ? "" : undefined}
         data-social-dm-thread={dmThreadStage ? "" : undefined}
@@ -495,6 +511,7 @@ function HouseLeadChromeSlot({
   workspace: WorkspaceMode;
   settingsPage?: boolean;
   logoVisible?: "always" | "desktop";
+  headerExit?: React.ReactNode;
   search?: React.ReactNode;
   underNav?: React.ReactNode;
   trailingSearch?: React.ReactNode;
@@ -534,6 +551,7 @@ function HouseLeadChromeFromChrome({
   workspace: WorkspaceMode;
   settingsPage?: boolean;
   logoVisible?: "always" | "desktop";
+  headerExit?: React.ReactNode;
   search?: React.ReactNode;
   underNav?: React.ReactNode;
   trailingSearch?: React.ReactNode;

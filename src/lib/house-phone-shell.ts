@@ -16,7 +16,8 @@
 // optimistic dest light on tap. No under-top dest chip rail. No
 // peer workspace pill rail.
 // Phone OS dark is not the product theme. One house SoT.
-// Trailing is search (when needed) · 24Frame AI · bell · waffle · avatar.
+// Phone/tablet trailing is search (when needed) · 24Frame AI · bell · waffle · avatar.
+// Desktop hides the waffle and leads the cluster with the sliding workspace row.
 // Theme is the avatar drill. No header sun/moon.
 // Ask AI is header + Home module only (#465).
 // Craft is Elevated Mercury (reference, not a pixel clone, not

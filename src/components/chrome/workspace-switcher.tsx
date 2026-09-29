@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, DotsNine, FilmStrip, Tray, Users } from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
@@ -8,9 +15,11 @@ import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
 
 import { AppearanceCheck } from "./appearance-check";
+import { SegmentedTrack } from "@/components/ui/segmented-track";
+import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
-import { overviewLeadSelected } from "@/lib/overview";
-import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
+import { overviewLeadActiveIndex, overviewLeadSelected } from "@/lib/overview";
+import { clampWorkspaceMode, resolveWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 import { prefetchHrefList, type HouseNavClickLike } from "@/lib/house-nav-pending";
 import {
   HouseNavPendingProbe,
@@ -31,9 +40,13 @@ import {
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
+  WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS,
+  WORKSPACE_SWITCHER_SEGMENTS_CLASS,
+  WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS,
   WORKSPACE_SWITCHER_SHEET_HOST_CLASS,
   WORKSPACE_SWITCHER_SHEET_SCRIM_CLASS,
   WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS,
+  WORKSPACE_SWITCHER_STATIC_CLASS,
   WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
   WORKSPACE_WAFFLE_GRID_CLASS,
   WORKSPACE_WAFFLE_ICON_CLASS,
@@ -45,7 +58,11 @@ import {
   phoneWorkspaceSwitcherPrefetchHrefs,
   workspaceSwitcherChromeClearanceBottoms,
   workspaceSwitcherMenuStyle,
+  workspaceSwitcherNextSegmentIndex,
   workspaceSwitcherPersistLane,
+  workspaceSwitcherSegmentClass,
+  workspaceSwitcherSegmentTabIndex,
+  workspaceSliderSegments,
   workspaceWaffleTiles,
   workspacePillClickDest,
 } from "@/lib/workspace-switcher";
@@ -180,16 +197,118 @@ function WorkspaceWaffleTiles({
   );
 }
 
+function WorkspaceSlider({
+  current,
+  options,
+  isGcStaff = false,
+}: {
+  current: WorkspaceMode;
+  options: readonly WorkspaceMenuOption[];
+  isGcStaff?: boolean;
+}) {
+  const router = useRouter();
+  const shellPath = useHousePathname();
+  const house = useHouseClient();
+  const { activePath, markPending } = useHouseNavPending();
+  const segmentRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const tiles = workspaceSliderSegments(options);
+  const pills = tiles.map((tile) => ({ id: tile.mode, label: tile.label, href: tile.href }));
+  const routeWorkspace = resolveWorkspaceMode(activePath, current);
+  const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
+
+  function onSegmentKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const next = workspaceSwitcherNextSegmentIndex(
+      index,
+      pills.length,
+      event.key === "ArrowRight" ? 1 : -1,
+    );
+    segmentRefs.current[next]?.focus();
+  }
+
+  if (pills.length <= 1) {
+    const only = pills[0];
+    if (!only) return null;
+    return (
+      <span
+        data-workspace-switcher=""
+        data-workspace-switcher-presentation="pills"
+        className={WORKSPACE_SWITCHER_STATIC_CLASS}
+      >
+        <span data-workspace-switcher-current="" className={WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS}>
+          {only.label}
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <SegmentedTrack
+      activeIndex={routeIndex}
+      persistKey={SEGMENTED_TRACK_PERSIST.workspace}
+      trackClass={WORKSPACE_SWITCHER_SEGMENTS_CLASS}
+      thumbClass={WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS}
+      data-workspace-switcher=""
+      data-workspace-switcher-presentation="pills"
+      data-workspace-switcher-pills=""
+      role="tablist"
+      aria-label={WORKSPACE_SWITCHER.label}
+    >
+      {({ selectedIndex }) =>
+        pills.map((pill, index) => {
+          const selected = segmentedItemOn(index, selectedIndex);
+          return (
+            <button
+              key={pill.id}
+              ref={(node) => {
+                segmentRefs.current[index] = node;
+              }}
+              type="button"
+              role="tab"
+              data-segmented-item=""
+              data-workspace-switcher-segment={pill.id}
+              aria-selected={selected}
+              tabIndex={workspaceSwitcherSegmentTabIndex(selected)}
+              className={workspaceSwitcherSegmentClass(selected)}
+              onClick={(event) => {
+                const tile = tiles.find((row) => row.mode === pill.id);
+                if (!tile) return;
+                selectWorkspaceTile(
+                  current,
+                  tile,
+                  tiles,
+                  router,
+                  shellPath,
+                  isGcStaff,
+                  markPending,
+                  event,
+                  house?.navigateOwned,
+                );
+              }}
+              onKeyDown={(event) => onSegmentKeyDown(event, index)}
+            >
+              {pill.label}
+            </button>
+          );
+        })
+      }
+    </SegmentedTrack>
+  );
+}
+
 export function WorkspaceSwitcher({
   current: requestedCurrent,
   isGcStaff = false,
   options = availableWorkspaceOptions(),
   defaultOpen = false,
+  presentation = "waffle",
 }: {
   current: WorkspaceMode;
   isGcStaff?: boolean;
   options?: readonly WorkspaceMenuOption[];
   defaultOpen?: boolean;
+  presentation?: "waffle" | "pills";
 }) {
   const staffGate = isGcStaff || options.some((option) => option.mode === "staff");
   const current = clampWorkspaceMode(requestedCurrent, staffGate);
@@ -251,6 +370,10 @@ export function WorkspaceSwitcher({
   }, [open]);
 
   if (options.length === 0) return null;
+
+  if (presentation === "pills") {
+    return <WorkspaceSlider current={current} options={options} isGcStaff={staffGate} />;
+  }
 
   const faces = (key: string) => (
     <WorkspaceWaffleTiles

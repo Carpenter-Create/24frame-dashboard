@@ -115,28 +115,35 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
-    expect(switcherSrc).not.toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
+    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden md:contents"');
+    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 md:hidden"');
     expect(leadSrc).toContain("data-app-header-trailing");
     expect(leadSrc).toContain("APP_HEADER_TRAILING_CLUSTER_CLASS");
     const trailing = leadSrc.slice(
       leadSrc.indexOf("data-app-header-trailing"),
       leadSrc.indexOf("</header>"),
     );
-    expect(trailing).toContain("<WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />");
-    expect(trailing).not.toContain("data-app-header-workspace-desktop");
+    expect(trailing).toContain('presentation="pills"');
+    expect(trailing).toContain('presentation="waffle"');
+    expect(trailing).toContain("data-app-header-workspace-desktop");
+    expect(trailing).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
     expect(trailing).not.toContain('tone="pill"');
+    expect(trailing).not.toContain("data-app-header-workspace-pill");
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
     expect(trailing).toContain("{trailingNav}");
     expect(trailing).toContain('data-app-header-trailing-nav="" className="md:hidden"');
     expect(trailing).not.toContain("data-education-header-search-host");
     expect(trailing.indexOf("{trailingNav}")).toBeLessThan(
-      trailing.indexOf("<WorkspaceSwitcher"),
+      trailing.indexOf('presentation="waffle"'),
+    );
+    expect(trailing.indexOf('presentation="pills"')).toBeLessThan(
+      trailing.indexOf("<AskAssistantHeaderLink"),
     );
     expect(trailing.indexOf("<ActivityBell")).toBeLessThan(
-      trailing.indexOf("<WorkspaceSwitcher"),
+      trailing.indexOf('presentation="waffle"'),
     );
-    expect(trailing.indexOf("<WorkspaceSwitcher")).toBeLessThan(
+    expect(trailing.indexOf('presentation="waffle"')).toBeLessThan(
       trailing.indexOf("{accountMenu}"),
     );
     expect(shellSrc).toContain("accountMenu=");

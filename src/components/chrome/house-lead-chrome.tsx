@@ -21,6 +21,8 @@ import { availableWorkspaceOptions } from "@/lib/workspace-menu";
 import {
   APP_HEADER_LEADING_CLASS,
   APP_HEADER_TRAILING_CLUSTER_CLASS,
+  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
+  APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
 } from "@/lib/workspace-switcher";
 
 export function HouseLeadChrome({
@@ -34,6 +36,7 @@ export function HouseLeadChrome({
   underNav,
   trailingSearch,
   afterLead,
+  headerExit,
   activityUnread = 0,
   activityItems = [],
   accountMenu,
@@ -48,6 +51,7 @@ export function HouseLeadChrome({
   underNav?: React.ReactNode;
   trailingSearch?: React.ReactNode;
   afterLead?: React.ReactNode;
+  headerExit?: React.ReactNode;
   activityUnread?: Promise<number> | number;
   activityItems?: Promise<ActivityItem[]> | ActivityItem[];
   accountMenu: React.ReactNode;
@@ -101,6 +105,7 @@ export function HouseLeadChrome({
             ) : null}
           </div>
           {afterLead}
+          {headerExit}
         </div>
         <div data-app-header-trailing="" className={APP_HEADER_TRAILING_CLUSTER_CLASS}>
           {trailingSearch ? (
@@ -116,9 +121,30 @@ export function HouseLeadChrome({
               {trailingNav}
             </div>
           ) : null}
+          <div
+            data-app-header-workspace-desktop=""
+            className={APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS}
+          >
+            <WorkspaceSwitcher
+              presentation="pills"
+              current={workspace}
+              options={workspaceOptions}
+              isGcStaff={isGcStaff}
+            />
+          </div>
           <AskAssistantHeaderLink />
           <ActivityBell unread={activityUnread} items={activityItems} workspace={workspace} />
-          <WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />
+          <div
+            data-app-header-workspace-waffle=""
+            className={APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS}
+          >
+            <WorkspaceSwitcher
+              presentation="waffle"
+              current={workspace}
+              options={workspaceOptions}
+              isGcStaff={isGcStaff}
+            />
+          </div>
           {accountMenu}
         </div>
       </header>

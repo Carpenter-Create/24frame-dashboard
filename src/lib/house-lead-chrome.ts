@@ -15,7 +15,8 @@
 //   #452 -mx collapsed AI onto the bell.
 //   Avatar follows --header-avatar-size (~28, 1.15× the 24 box).
 //   Bottom: HousePhoneBottomNav dests for the current workspace.
-// Phone and desktop share one waffle. Dock dests stay local.
+// Phone/tablet (max-md) uses the waffle. Desktop md+ uses the
+// sliding Layer 1 row and hides the waffle. Dock dests stay local.
 // 24Frame AI sits immediately left of the notification bell on every
 // house chrome path (Home · Social · Aggregation · Education ·
 // Settings). The header control toggles the Mercury ?ai=1 overlay
@@ -24,7 +25,8 @@
 // strips ?ai=1 and leaves the current path. Ask AI is header + Home
 // module only (#465). One trail. Theme is the avatar drill, not a
 // header glyph.
-// Desktop md+ keeps Ask · bell · waffle · avatar. The Ask
+// Desktop md+ keeps the sliding workspace row, then Ask · bell ·
+// avatar. No waffle. The Ask
 // control is shared so phone and desktop do not fork a second mark.
 // Social live explore search and Education quiet courses/videos
 // search share Facebook-compact geometry (04-facebook.png SoT)
