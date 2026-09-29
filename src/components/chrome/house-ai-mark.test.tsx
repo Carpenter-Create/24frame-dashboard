@@ -110,13 +110,12 @@ describe("HouseAiMark", () => {
     expect(header).toContain("data-house-ai-mark");
     expect(header).toContain(HOUSE_HEADER_TRAILING_PHONE_CLASS);
     expect(header).toContain(HOUSE_HEADER_TRAILING_DESKTOP_CLASS);
-    // Phone header trailing is 24px. Desktop header fill is 20px.
-    // Dock 28px stays off this control.
+    // Header trailing glyphs share the 24px box. Dock stays off this control.
     expect(header).toContain("size-6");
-    expect(header).toContain("size-5");
+    expect(header).not.toContain("size-5");
     expect(header).not.toContain("size-7");
     expect(header).not.toContain("size-4");
-    expect(header).toContain("md:size-5");
+    expect(header).not.toContain("md:size-5");
     expect(header).toContain('data-house-ai-mark-register="stroke"');
     expect(header).toContain('data-house-ai-mark-register="fill"');
     expect(header).not.toContain("lucide-");

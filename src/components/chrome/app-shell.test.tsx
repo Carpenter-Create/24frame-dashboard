@@ -346,7 +346,7 @@ describe("AppShell Access rail and home frame", () => {
     expect(tokens).toMatch(/--content-inset:\s*48px;/);
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
     expect(tokens).toMatch(/--header-height:\s*88px;/);
-    expect(tokens).toMatch(/--header-avatar-size:\s*44px;/);
+    expect(tokens).toMatch(/--header-avatar-size:\s*28px;/);
     expect(tokens).toMatch(/--header-control-size:\s*44px;/);
     expect(tokens).toMatch(/--header-search-height:\s*48px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*64px;/);

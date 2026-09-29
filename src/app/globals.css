@@ -393,6 +393,20 @@ html:has([data-social-feed-immersive]) [data-house-phone-bottom-nav] {
   object-fit: cover;
 }
 
+/* Quiet disc behind the paused play glyph. Phone Mux center control
+   ships transparent — a naked glyph on the still. 48 is the on-scale
+   disc. !important beats the player shadow rule that paints a solid
+   disc only above its small breakpoint.
+   docs/design-locks/social-home-craft-wave-1-lock-v1.md */
+.social-feed-play-disc mux-player::part(center play button) {
+  --media-control-background: color-mix(in srgb, var(--ink) 42%, transparent) !important;
+  --media-control-hover-background: color-mix(in srgb, var(--ink) 55%, transparent) !important;
+  border-radius: 9999px !important;
+  width: 48px !important;
+  height: 48px !important;
+  padding: 12px !important;
+}
+
 /* Adam lock 2026-09-25. Feed carousel slide cap. Same Media Immersion
    box for every slide so the stage does not jump while swiping.
    Cover crop lives on the media. Width bleed is a chrome class. */

@@ -129,6 +129,10 @@ describe("SocialPostShareButton", () => {
   it("is a share control and does not mount the sheet or the comment thread", () => {
     const html = renderToStaticMarkup(createElement(SocialPostShareButton, { postId: "p1" }));
     expect(html).toContain('data-social-post-share=""');
+    expect(html).toContain("size-10");
+    expect(html).toContain('width="24"');
+    expect(html).toContain('height="24"');
+    expect(html).not.toContain('width="22"');
     expect(html).toContain('data-social-icon="paper-plane-tilt"');
     expect(html).toContain(`aria-label="${SOCIAL.post.share}"`);
     expect(html).not.toContain("data-social-post-share-sheet");

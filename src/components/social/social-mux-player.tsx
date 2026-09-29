@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
 import { cn } from "@/lib/cn";
-import { SOCIAL_MUX_PLAYER_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_FEED_PLAY_DISC_CLASS, SOCIAL_MUX_PLAYER_CLASS } from "@/lib/social-chrome";
 import {
   loadSocialMuxPlaybackTokens,
   readSocialMuxPlaybackTokenCache,
@@ -158,9 +158,11 @@ export function SocialMuxPlayer({
       data-social-mux-player={playbackId}
       data-social-mux-playback={signed ? (tokens ? "signed" : "pending") : "public"}
       data-social-post-video=""
+      data-social-play-disc={chromeless ? undefined : ""}
       className={cn(
         "relative",
         SOCIAL_MUX_PLAYER_CLASS,
+        !chromeless && SOCIAL_FEED_PLAY_DISC_CLASS,
         fit === "contain" && "social-feed-immersive-media object-contain",
         className,
       )}

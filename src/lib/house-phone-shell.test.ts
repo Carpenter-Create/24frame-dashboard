@@ -277,13 +277,11 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       "HOUSE_PHONE_CHROME_ICON_CLASS = HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS",
     );
     expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).not.toBe(PHOSPHOR_CHROME_ICON_CLASS);
-    expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe(
-      `${HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS} md:size-5`,
-    );
+    expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe("size-6 shrink-0");
     expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toBe(
-      "size-6 shrink-0 md:size-5 md:hidden text-ink-2",
+      "size-6 shrink-0 md:hidden text-ink-2",
     );
-    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-5 shrink-0 hidden md:block");
+    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-6 shrink-0 hidden md:block");
     expect(bottomNavSrc).toContain("HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS");
     expect(bottomNavSrc).not.toContain("HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS");
     expect(bottomNavSrc).not.toContain("size-5");
@@ -292,6 +290,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(phoneShellSrc).toContain('"size-6 shrink-0"');
     expect(phoneShellSrc).not.toContain('"size-4 shrink-0"');
     expect(phoneShellSrc.match(/"size-\d shrink-0"/g) ?? []).toEqual([
+      '"size-6 shrink-0"',
       '"size-6 shrink-0"',
       '"size-6 shrink-0"',
     ]);
@@ -344,7 +343,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(trailing).toContain("data-ask-assistant-header");
     expect(trailing).toContain("data-activity-bell");
     expect(trailing).toContain("size-6");
-    expect(trailing).toContain("size-5");
+    expect(trailing).not.toContain("size-5");
     expect(trailing).not.toContain("size-7");
     expect(trailing).not.toContain("size-4");
     expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);

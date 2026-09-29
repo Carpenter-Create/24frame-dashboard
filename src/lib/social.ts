@@ -895,6 +895,7 @@ export const SOCIAL = {
     missing: "That post is not visible.",
     like: "Like",
     unlike: "Unlike",
+    likeOne: "like",
     likes: "likes",
     likesTitle: "Likes",
     likesEmpty: "No likes yet.",
@@ -1399,6 +1400,13 @@ export function followInsertRow(followerId: string, followeeId: string) {
     follower_id: followerId,
     followee_id: followeeId,
   };
+}
+
+/** Hide a zero count. One like is singular. */
+export function socialLikeCountCopy(count: number): string | null {
+  if (!Number.isFinite(count) || count <= 0) return null;
+  if (count === 1) return `1 ${SOCIAL.post.likeOne}`;
+  return `${count} ${SOCIAL.post.likes}`;
 }
 
 export function likeInsertRow(userId: string, postId: string) {

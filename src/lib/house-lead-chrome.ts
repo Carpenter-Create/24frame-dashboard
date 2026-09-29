@@ -10,9 +10,10 @@
 //   Left inline: [emblem]. No workspace word.
 //   Trailing: [search if needed] [24Frame AI] [bell] [waffle] [avatar]
 //   Trailing rhythm: one --space-2 gap between distinct siblings.
-//   Phone icon hits hug the 24px glyph (HOUSE_HEADER_TRAILING_HIT_CLASS)
-//   without negative margin. #452 -mx collapsed AI onto the bell.
-//   Avatar follows --header-avatar-size (40 phone / 44 desktop).
+//   Phone icon hits are the 44 tap (HOUSE_HEADER_TRAILING_HIT_CLASS).
+//   The glyph inside is the shared 24 box. No negative margin.
+//   #452 -mx collapsed AI onto the bell.
+//   Avatar follows --header-avatar-size (~28, 1.15× the 24 box).
 //   Bottom: HousePhoneBottomNav dests for the current workspace.
 // Phone and desktop share one waffle. Dock dests stay local.
 // 24Frame AI sits immediately left of the notification bell on every
@@ -91,9 +92,10 @@ export const HOUSE_LEAD_SEARCH_PILL_CLASS =
 
 // Phone trailing optical rhythm (Adam 2026-09-18 fail after #452).
 // Equal CSS gap was not equal air when glyphs sat in oversized hits
-// beside the avatar. Phone hit hugs --header-control-size (24) so
+// beside the avatar. The hit is --header-control-size (44) so the
+// tap stays 44 while the glyph stays the 24 box.
 // APP_HEADER_TRAILING_CLUSTER_CLASS phone --space-3 / desktop --space-4
-// is edge-to-edge AI · bell · waffle · avatar. Do not cancel padding with -mx:
+// is the air between those hits. Do not cancel padding with -mx:
 // that pulled adjacent hits to zero flex width and stacked the glyphs.
 // Do not add phone padding that overflows the control box.
 // Desktop hits follow the same token (44 on the 88 bar).
@@ -108,9 +110,9 @@ export const HOUSE_HEADER_TRAILING_SLOT_CLASS = "contents";
 
 export const HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS = "contents md:hidden";
 
-// Avatar follows --header-avatar-size on both breakpoints (40 phone,
-// 44 desktop). No extra pad. The shared cluster gap is the only air
-// to AI / bell / search.
+// Avatar follows --header-avatar-size on both breakpoints (~28).
+// No extra pad. The shared cluster gap is the only air
+// to AI / bell / search / waffle.
 export const HOUSE_HEADER_TRAILING_AVATAR_CLASS =
   "flex size-[var(--header-avatar-size)] shrink-0 items-center justify-center rounded-full bg-surface-muted t-body-sm font-medium text-ink-2";
 

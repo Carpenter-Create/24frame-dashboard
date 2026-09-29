@@ -38,7 +38,7 @@ import {
   followButtonLabel,
   followedConfirmCopy,
 } from "@/lib/social-follow";
-import { SOCIAL } from "@/lib/social";
+import { SOCIAL, socialLikeCountCopy } from "@/lib/social";
 import { cn } from "@/lib/cn";
 import { SocialIcon } from "./social-icon";
 import { SocialLikesSheet } from "./social-likes-sheet";
@@ -317,9 +317,7 @@ export function SocialLikeButton({
             className={SOCIAL_POST_ACTION_HEART_NUDGE_CLASS}
           />
         ) : (
-          <>
-            {view.likeCount} {SOCIAL.post.likes}
-          </>
+          socialLikeCountCopy(view.likeCount)
         )}
       </button>
       {error ? (
@@ -342,6 +340,8 @@ export function SocialLikeCount({
 }) {
   const view = useSocialLike(postId, { liked, likeCount });
   const [open, setOpen] = useState(false);
+  const label = socialLikeCountCopy(view.likeCount);
+  if (!label) return null;
   return (
     <>
       <button
@@ -353,7 +353,7 @@ export function SocialLikeCount({
         className="self-start text-left t-body-sm font-semibold text-ink"
         onClick={() => setOpen(true)}
       >
-        {view.likeCount} {SOCIAL.post.likes}
+        {label}
       </button>
       <SocialLikesSheet postId={postId} open={open} onClose={() => setOpen(false)} />
     </>
