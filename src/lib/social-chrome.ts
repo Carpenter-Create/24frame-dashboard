@@ -28,7 +28,10 @@ import {
   HOUSE_SCROLL_ROW_CLASS,
 } from "@/lib/house-shell";
 import { HOUSE_VOICE_FOCUS_HOST_CLASS } from "@/lib/form-control";
-import { HOUSE_PHONE_DOCK_CLEARANCE } from "@/lib/house-phone-dock";
+import {
+  HOUSE_PHONE_DOCK_CHROME_BOTTOM_CLASS,
+  HOUSE_PHONE_DOCK_CHROME_PB_CLASS,
+} from "@/lib/house-phone-dock";
 import { HOUSE_PHONE_STACK_CLASS, HOUSE_PHONE_WRAP_CLASS } from "@/lib/house-phone-stack";
 import {
   SETTINGS_DIALOG_ERROR_CLASS,
@@ -508,12 +511,12 @@ export const SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS =
 // docs/design-locks/social-home-post-actions-align-lock-v1.md
 // docs/design-locks/stories-viewer-mute-control-lock-v1.md
 export const SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS =
-  `pointer-events-auto absolute right-[var(--space-2)] z-20 flex flex-col items-center gap-[var(--space-2)] bottom-[max(var(--space-4),env(safe-area-inset-bottom))] max-md:bottom-[calc(${HOUSE_PHONE_DOCK_CLEARANCE}+env(safe-area-inset-bottom))]`;
+  `pointer-events-auto absolute right-[var(--space-2)] z-20 flex flex-col items-center gap-[var(--space-2)] bottom-[max(var(--space-4),env(safe-area-inset-bottom))] ${HOUSE_PHONE_DOCK_CHROME_BOTTOM_CLASS}`;
 
 // Scrim ~40% → 0 over 120. Right pad clears the 40 hit plus the gap.
 // Phone bottom clears the overlay dock so the caption stays on the video.
 export const SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS =
-  `pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pl-[var(--space-4)] pr-[calc(var(--space-4)+40px+var(--space-2))] pt-[var(--space-4)] max-md:pb-[calc(${HOUSE_PHONE_DOCK_CLEARANCE}+env(safe-area-inset-bottom))]`;
+  `pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pl-[var(--space-4)] pr-[calc(var(--space-4)+40px+var(--space-2))] pt-[var(--space-4)] ${HOUSE_PHONE_DOCK_CHROME_PB_CLASS}`;
 
 export const SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS =
   "absolute inset-x-[var(--space-4)] top-[max(var(--space-4),env(safe-area-inset-top))] z-30";
