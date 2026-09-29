@@ -105,7 +105,8 @@ export function SocialHomeCenterSkeleton({
       {middle}
       <div data-social-feed-skeleton="" className={SOCIAL_FEED_GUTTER_CLASS}>
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className={SOCIAL_FEED_ROW_CLASS}>
+          <div key={i} className="block min-w-0 shrink-0">
+            <div className={SOCIAL_FEED_ROW_CLASS}>
             <div className="flex gap-2">
               <Skeleton className={SOCIAL_AVATAR_SM_CLASS} />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -114,6 +115,7 @@ export function SocialHomeCenterSkeleton({
               </div>
             </div>
             <Skeleton className={cn("h-40 w-full", SOCIAL_MOBILE_BLEED_CLASS)} />
+            </div>
           </div>
         ))}
       </div>
@@ -193,7 +195,8 @@ export function SocialProfileCenterSkeleton() {
       </div>
       <div className={SOCIAL_FEED_GUTTER_CLASS}>
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className={SOCIAL_FEED_ROW_CLASS}>
+          <div key={i} className="block min-w-0 shrink-0">
+            <div className={SOCIAL_FEED_ROW_CLASS}>
             <div className="flex gap-2">
               <Skeleton className={SOCIAL_AVATAR_SM_CLASS} />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -202,6 +205,7 @@ export function SocialProfileCenterSkeleton() {
               </div>
             </div>
             <Skeleton className={cn("h-40 w-full", SOCIAL_MOBILE_BLEED_CLASS)} />
+            </div>
           </div>
         ))}
       </div>

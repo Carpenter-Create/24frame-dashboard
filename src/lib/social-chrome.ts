@@ -362,8 +362,9 @@ export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 // SOCIAL_STORIES_FEED_RULE_CLASS.
 // docs/design-locks/social-home-craft-wave-1-lock-v1.md
 // docs/design-locks/social-mobile-full-bleed-lock-v1.md
-// ~24 air before the next author lives on the row (padding, so the
-// page background cannot show as a gray band).
+// ~24 air before the next author. Padding, so the page background
+// cannot show as a band between posts.
+// docs/design-locks/social-home-craft-wave-1-lock-v1.md
 export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-6)]";
 
 // Media → actions ~10. Not the 8/16 scale — the lock names ~10.
@@ -376,8 +377,17 @@ export const SOCIAL_FEED_META_ROW_GAP_CLASS = "flex flex-col gap-[6px]";
 // Text-only grammar itself stays frozen.
 export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
 
+// Block, not column flex. Callers put this on an inner row. The gutter's
+// flex item is the shell (`block min-w-0 shrink-0` on the article), not
+// this padded box. On the phone the row is wider than the gutter (bleed).
+// Mobile Safari drops padding-bottom on that column-flex item, so the
+// caption sits on the next author. The inner row's border box, including
+// this 24, sets the shell's height. A negative margin-bottom on the last
+// child eats this padding the same way — media bleed stays inline (-mx only).
+// shrink-0 on the shell is the gutter's main axis (vertical): the list
+// scrolls instead of compressing the air.
 export const SOCIAL_FEED_ROW_CLASS =
-  `flex flex-col bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
+  `block shrink-0 bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
 
 // Feed media. px-0 inside the row. On phone it cancels the row pad
 // so the frame meets the viewport. Side radius stays 0. Desktop is

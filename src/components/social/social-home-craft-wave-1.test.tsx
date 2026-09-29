@@ -54,8 +54,62 @@ describe("Social Home craft Wave 1", () => {
     expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toContain("gap-[6px]");
     expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
+    // Column flex on this row drops the padding on Mobile Safari.
+    // Block keeps the 24. shrink-0 stops the gutter from compressing it.
+    expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("shrink-0");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("flex-col");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("flex ");
+    expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
+    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-y");
+    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-hairline");
+    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("gap-");
     expect(SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS).toBe("mt-[var(--space-2)]");
     expect(SOCIAL_POST_MEDIA_CLASS).toContain("mt-[var(--space-2)]");
+    // Horizontal bleed only. A block-end negative margin cancels the air.
+    expect(SOCIAL_POST_MEDIA_CLASS).toContain("-mx-[var(--chrome-gutter)]");
+    expect(SOCIAL_POST_MEDIA_CLASS).not.toMatch(/-m[ybt]\b|-mb-|margin-bottom/);
+    expect(SOCIAL_POST_ACTIONS_OPTICAL_CLASS).toBe("-ml-[var(--space-2)]");
+    expect(SOCIAL_POST_ACTIONS_OPTICAL_CLASS).not.toContain("-mb");
+    const card = readFileSync("src/components/social/social-ui.tsx", "utf8");
+    const postCard = card.slice(
+      card.indexOf("export function SocialPostCard"),
+      card.indexOf("export function SocialProfileActions"),
+    );
+    expect(postCard).toContain("className={SOCIAL_FEED_ROW_CLASS}");
+    expect(postCard).toContain('className="block min-w-0 shrink-0"');
+    const article = postCard.slice(postCard.indexOf("<article"), postCard.indexOf("</article>"));
+    // Shell is the gutter flex item. The 24 lives on the inner row.
+    expect(article.indexOf('className="block min-w-0 shrink-0"')).toBeGreaterThan(-1);
+    expect(article.indexOf('className="block min-w-0 shrink-0"')).toBeLessThan(
+      article.indexOf("className={SOCIAL_FEED_ROW_CLASS}"),
+    );
+    expect(article).not.toMatch(/<article[^>]*SOCIAL_FEED_ROW_CLASS/);
+    expect(postCard).not.toMatch(/-mb-| -my-/);
+    const feed = readFileSync("src/components/social/social-optimistic-feed.tsx", "utf8");
+    expect(feed).toContain("SOCIAL_FEED_GUTTER_CLASS");
+    expect(feed).not.toContain("divide-y");
+    const history = readFileSync("src/components/social/social-activity-history.tsx", "utf8");
+    expect(history).toContain("SOCIAL_FEED_GUTTER_CLASS");
+    const skeletons = readFileSync("src/components/social/social-skeletons.tsx", "utf8");
+    expect(skeletons).toContain("SOCIAL_FEED_ROW_CLASS");
+    expect(skeletons).toContain("SOCIAL_FEED_GUTTER_CLASS");
+    expect(skeletons.match(/className="block min-w-0 shrink-0"/g)?.length).toBe(2);
+    const homeSkel = skeletons.slice(
+      skeletons.indexOf("data-social-feed-skeleton"),
+      skeletons.indexOf("function SocialStoriesRailSkeleton"),
+    );
+    expect(homeSkel.indexOf('className="block min-w-0 shrink-0"')).toBeLessThan(
+      homeSkel.indexOf("className={SOCIAL_FEED_ROW_CLASS}"),
+    );
+    const profileSkel = skeletons.slice(
+      skeletons.indexOf("function SocialProfileCenterSkeleton"),
+      skeletons.indexOf("export function SocialProfileSkeleton"),
+    );
+    expect(profileSkel.indexOf('className="block min-w-0 shrink-0"')).toBeLessThan(
+      profileSkel.indexOf("className={SOCIAL_FEED_ROW_CLASS}"),
+    );
   });
 
   it("uses one 16 content inset and aligns the action glyph to that edge", () => {

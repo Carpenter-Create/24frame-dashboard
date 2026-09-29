@@ -473,8 +473,9 @@ export function SocialPostCard({
       data-social-post={post.id}
       data-social-post-owned={post.owned ? "" : undefined}
       data-social-post-href={permalink ? href : undefined}
-      className={SOCIAL_FEED_ROW_CLASS}
+      className="block min-w-0 shrink-0"
     >
+      <div className={SOCIAL_FEED_ROW_CLASS}>
       <div className="flex min-w-0 items-center gap-2.5">
         <SocialAvatar name={post.authorName} photoUrl={post.authorPhotoUrl} size="sm" />
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
@@ -558,6 +559,7 @@ export function SocialPostCard({
           handle={handle}
         />
         <SocialCommentTrigger post={thread} />
+      </div>
       </div>
     </article>
     </SocialPostPresence>
