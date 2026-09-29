@@ -24,8 +24,19 @@ const PROFILE_FACE = [
   "src/components/social/social-highlights.tsx",
 ] as const;
 
-const BARREL = "src/components/social/social-ui.tsx";
 const CONVERSATION_FACES = "src/components/social/social-conversation-faces.tsx";
+const AVATAR = "src/components/social/social-avatar.tsx";
+/** Home-feed Mux, immersive, and the sheets the post card must not import statically. */
+const FEED_HEAVY = [
+  "src/components/social/social-post-media.tsx",
+  "src/components/social/social-feed-carousel.tsx",
+  "src/components/social/social-feed-immersive.tsx",
+  "src/components/social/social-feed-video.tsx",
+  "src/components/social/social-mux-player.tsx",
+  "src/components/social/social-mux-player-mount.tsx",
+  "src/components/social/social-comment-thread.tsx",
+  "src/components/social/social-post-share-sheet.tsx",
+] as const;
 
 function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -97,11 +108,8 @@ function hits(files: Set<string>, banned: readonly string[]): string[] {
 }
 
 describe("social-ui import boundary", () => {
-  it("keeps the client barrel from re-exporting UI modules", () => {
-    const barrel = readFileSync(BARREL, "utf8");
-    expect(barrel.startsWith('"use client"')).toBe(true);
-    expect(barrel).toContain('export { socialAuthorPostCard } from "@/lib/social-author-post-card"');
-    expect(hits(closure(BARREL), [...POST_UI, ...PROFILE_FACE])).toEqual([]);
+  it("does not keep a client social-ui barrel", () => {
+    expect(existsSync(join(ROOT, "src/components/social/social-ui.tsx"))).toBe(false);
   });
 
   it("keeps DM, For You, follows, and leaderboard off the post and profile faces", () => {
@@ -117,20 +125,44 @@ describe("social-ui import boundary", () => {
       const files = closure(entry);
       expect(hits(files, POST_UI), entry).toEqual([]);
       expect(hits(files, PROFILE_FACE), entry).toEqual([]);
-      expect(files.has(BARREL), entry).toBe(false);
+      expect(hits(files, FEED_HEAVY), entry).toEqual([]);
     }
     expect(closure("src/app/(app)/social/dms/page.tsx").has(CONVERSATION_FACES)).toBe(true);
+    expect(closure("src/app/(app)/social/leaderboard/page.tsx").has(AVATAR)).toBe(true);
+    expect(readFileSync(join(ROOT, "src/app/(app)/social/leaderboard/page.tsx"), "utf8")).toContain(
+      'from "@/components/social/social-avatar"',
+    );
+    expect(readFileSync(join(ROOT, CONVERSATION_FACES), "utf8")).toContain('from "./social-avatar"');
   });
 
-  it("keeps Home on the post card and off the profile face", () => {
+  it("keeps Home on the post card and off the Mux and profile faces", () => {
     const home = closure("src/app/(app)/social/page.tsx");
     expect(home.has("src/components/social/social-post-card.tsx")).toBe(true);
     expect(hits(home, PROFILE_FACE)).toEqual([]);
-    expect(home.has(BARREL)).toBe(false);
+    expect(hits(home, FEED_HEAVY)).toEqual([]);
     expect(home.has(CONVERSATION_FACES)).toBe(false);
   });
 
-  it("keeps profile routes on the faces they render, not the barrel or DM faces", () => {
+  it("keeps profile, activity, and identity off the Home-feed Mux graph", () => {
+    for (const entry of [
+      "src/app/(app)/social/profile/page.tsx",
+      "src/app/(app)/social/u/[handle]/page.tsx",
+      "src/components/social/social-activity-history.tsx",
+      "src/components/social/social-profile-identity.tsx",
+    ]) {
+      expect(hits(closure(entry), FEED_HEAVY), entry).toEqual([]);
+    }
+    const identity = closure("src/components/social/social-profile-identity.tsx");
+    expect(identity.has(AVATAR)).toBe(true);
+    expect(hits(identity, POST_UI)).toEqual([]);
+    expect(readFileSync(join(ROOT, "src/components/social/social-profile-identity.tsx"), "utf8")).toContain(
+      'from "./social-avatar"',
+    );
+    const activity = closure("src/components/social/social-activity-history.tsx");
+    expect(activity.has("src/components/social/social-post-card.tsx")).toBe(true);
+  });
+
+  it("keeps profile routes on the faces they render, not the DM faces", () => {
     for (const entry of [
       "src/app/(app)/social/profile/page.tsx",
       "src/app/(app)/social/u/[handle]/page.tsx",
@@ -138,16 +170,40 @@ describe("social-ui import boundary", () => {
       const files = closure(entry);
       expect(files.has("src/components/social/social-profile-identity.tsx"), entry).toBe(true);
       expect(files.has("src/components/social/social-post-card.tsx"), entry).toBe(true);
-      expect(files.has(BARREL), entry).toBe(false);
       expect(files.has(CONVERSATION_FACES), entry).toBe(false);
     }
     const own = closure("src/components/social/social-own-profile.tsx");
     expect(own.has("src/components/social/social-profile-identity.tsx")).toBe(true);
     expect(hits(own, POST_UI)).toEqual([]);
-    expect(own.has(BARREL)).toBe(false);
+    expect(hits(own, FEED_HEAVY)).toEqual([]);
+  });
 
-    const identity = closure("src/components/social/social-profile-identity.tsx");
-    expect(hits(identity, POST_UI)).toEqual([]);
-    expect(identity.has(BARREL)).toBe(false);
+  it("lazy-loads immersive, media, comments, and share from the post card", () => {
+    const card = readFileSync(join(ROOT, "src/components/social/social-post-card.tsx"), "utf8");
+    const trigger = readFileSync(join(ROOT, "src/components/social/social-comment-trigger.tsx"), "utf8");
+    const share = readFileSync(join(ROOT, "src/components/social/social-post-share-button.tsx"), "utf8");
+    for (const heavy of [
+      "social-post-media",
+      "social-feed-immersive",
+      "social-feed-carousel",
+      "social-feed-video",
+      "social-comment-thread",
+      "social-post-share-sheet",
+      "social-mux-player",
+    ]) {
+      expect(card, heavy).not.toMatch(new RegExp(`from ["'][^"']*${heavy}["']`));
+    }
+    expect(card).toContain('import("./social-post-media")');
+    expect(card).toContain('import("./social-feed-immersive")');
+    expect(card).toContain('from "./social-avatar"');
+    expect(card).toContain('from "./social-comment-trigger"');
+    expect(card).toContain('from "./social-post-share-button"');
+    expect(trigger).toContain('import("./social-comment-thread")');
+    expect(trigger).not.toMatch(/from ["'][^"']*social-comment-thread["']/);
+    expect(share).toContain('import("./social-post-share-sheet")');
+    expect(share).not.toMatch(/from ["'][^"']*social-post-share-sheet["']/);
+    expect(hits(closure("src/components/social/social-post-card.tsx"), FEED_HEAVY)).toEqual([]);
+    const explore = closure("src/app/(app)/social/explore/page.tsx");
+    expect(explore.has("src/components/social/social-mux-player.tsx")).toBe(true);
   });
 });

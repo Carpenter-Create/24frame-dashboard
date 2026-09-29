@@ -8,19 +8,15 @@ import { HouseDialogFrame, HouseOverlayHead, useHouseDesktop } from "@/component
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
 import { SocialAvatar } from "@/components/social/social-avatar";
-import { SocialIcon } from "@/components/social/social-icon";
-import { useSocialCommentCount } from "@/components/social/use-social-optimistic";
 import { cn } from "@/lib/cn";
 import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
 import {
   SOCIAL_ACTION_CLASS,
   SOCIAL_COMMENT_COMPOSER_CLASS,
-  SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_COMMENT_SHEET_HOST_CLASS,
   SOCIAL_COMMENT_SHEET_SCRIM_CLASS,
   SOCIAL_COMMENT_SHEET_SURFACE_CLASS,
 } from "@/lib/social-chrome";
-import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import { socialMemberHref, socialRelativeTime, SOCIAL } from "@/lib/social";
 import {
   applyOptimisticCommentCount,
@@ -30,63 +26,6 @@ import {
 } from "@/lib/social-optimistic";
 import type { SocialCommentCard } from "@/lib/social-comments";
 import { COMMENT_BODY_MAX, normalizeCommentBody } from "@/lib/social-comments";
-
-type ThreadPost = {
-  id: string;
-  commentCount?: number;
-  groupSlug?: string | null;
-  canComment: boolean;
-};
-
-export function SocialCommentTrigger({
-  post,
-  icon = false,
-  tone = "canvas",
-}: {
-  post: ThreadPost;
-  icon?: boolean;
-  tone?: "canvas" | "stage";
-}) {
-  const [open, setOpen] = useState(false);
-  const count = useSocialCommentCount(post.id, post.commentCount ?? 0);
-  // Adam lock 2026-09-20: trail is left muted "N comments" only when N > 0.
-  // Icon always opens the thread. N === 0 has no trail text.
-  const showTrail = !icon && count > 0;
-
-  return (
-    <>
-      {icon || showTrail ? (
-        <button
-          type="button"
-          data-social-comment-open=""
-          {...(showTrail ? { "data-social-comment-trail": "" } : {})}
-          aria-label={SOCIAL.post.commentsTitle}
-          className={
-            icon
-              ? cn(SOCIAL_POST_ACTION_HIT_CLASS, tone === "stage" && "text-band-ink")
-              : "self-start text-left t-body-sm text-ink-2"
-          }
-          onClick={() => setOpen(true)}
-        >
-          {icon ? (
-            <SocialIcon name="chat-circle" size={SOCIAL_ICON_SIZE_POST_ACTION} />
-          ) : (
-            `${count} ${SOCIAL.post.comments}`
-          )}
-        </button>
-      ) : null}
-      {open ? (
-        <SocialCommentThread
-          postId={post.id}
-          groupSlug={post.groupSlug}
-          canComment={post.canComment}
-          commentCount={count}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
-    </>
-  );
-}
 
 export function SocialCommentThread({
   postId,

@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { SocialCommentTrigger } from "@/components/social/social-comment-thread";
+import { SocialCommentTrigger } from "@/components/social/social-comment-trigger";
 import { SocialLikeButton } from "@/components/social/social-engagement";
 import { SocialFeedVideo } from "@/components/social/social-feed-video";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialMediaImage } from "@/components/social/social-media-image";
-import { SocialPostShareButton } from "@/components/social/social-post-share-sheet";
+import { SocialPostShareButton } from "@/components/social/social-post-share-button";
 import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { cn } from "@/lib/cn";
 import { displayHandle, SOCIAL } from "@/lib/social";

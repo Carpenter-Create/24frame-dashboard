@@ -1,25 +1,21 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { cn } from "@/lib/cn";
-import { socialFeedUsesCarousel } from "@/lib/social-feed-carousel";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
-import { SOCIAL_POST_IMAGE_SIZES, socialMediaFrameClass } from "@/lib/social-media-display";
 import {
   displayHandle,
   SOCIAL,
+  socialFeedRelativeTime,
   socialGroupHref,
   socialMemberHref,
   socialPostHref,
-  socialRelativeTime,
 } from "@/lib/social";
-import {
-  type SocialPostCardModel,
-  type SocialPostMediaItem,
-} from "@/lib/social-author-post-card";
+import { type SocialPostCardModel } from "@/lib/social-author-post-card";
 import {
   SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
@@ -30,89 +26,23 @@ import {
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTIONS_CLASS,
   SOCIAL_POST_ACTIONS_OPTICAL_CLASS,
-  SOCIAL_POST_MEDIA_CLASS,
   SOCIAL_POST_TIME_CLASS,
 } from "@/lib/social-chrome";
 
 import { SocialAvatar } from "./social-avatar";
-import { SocialCommentTrigger } from "./social-comment-thread";
+import { SocialCommentTrigger } from "./social-comment-trigger";
 import { SocialProfilePostsEmpty } from "./social-empty";
 import { SocialLikeButton, SocialLikeCount } from "./social-engagement";
-import { SocialFeedCarousel } from "./social-feed-carousel";
-import { SocialFeedImmersive } from "./social-feed-immersive";
-import { SocialFeedVideo } from "./social-feed-video";
 import { SocialIcon } from "./social-icon";
-import { SocialMediaImage } from "./social-media-image";
 import { SocialPostCaptionPlace, SocialPostOwnerMenu, SocialPostPresence } from "./social-post-owner";
-import { SocialPostShareButton } from "./social-post-share-sheet";
+import { SocialPostShareButton } from "./social-post-share-button";
 
-export function SocialPostMedia({
-  items,
-  onOpen,
-  frameClass,
-}: {
-  items: readonly SocialPostMediaItem[];
-  onOpen: (index: number) => void;
-  frameClass?: string;
-}) {
-  if (items.length === 0) return null;
-  if (socialFeedUsesCarousel(items.length)) {
-    return <SocialFeedCarousel items={items} onOpen={onOpen} />;
-  }
-  return (
-    <div data-social-post-media="" className={cn("@container", SOCIAL_POST_MEDIA_CLASS)}>
-      {items.map((item, index) => (
-        <SocialPostMediaFrame
-          key={item.playbackId ?? item.url}
-          item={item}
-          label={item.kind === "video" ? SOCIAL.post.viewVideo : SOCIAL.post.viewPhoto}
-          frameClass={frameClass}
-          onOpen={() => onOpen(index)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function SocialPostMediaFrame({
-  item,
-  label,
-  frameClass,
-  onOpen,
-}: {
-  item: SocialPostMediaItem;
-  label: string;
-  frameClass?: string;
-  onOpen: () => void;
-}) {
-  const frame = cn(
-    frameClass ?? socialMediaFrameClass(item),
-    "relative w-full overflow-hidden bg-surface-muted",
-  );
-  const open = (
-    <button
-      type="button"
-      data-social-feed-media-open=""
-      aria-label={label}
-      className="absolute inset-0 z-10 cursor-pointer"
-      onClick={onOpen}
-    />
-  );
-  if (item.kind === "video") {
-    return (
-      <div data-social-feed-media-frame="" className={frame}>
-        <SocialFeedVideo item={item} className="absolute inset-0 size-full object-cover" />
-        {open}
-      </div>
-    );
-  }
-  return (
-    <div data-social-post-image="" data-social-feed-media-frame="" className={frame}>
-      <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} />
-      {open}
-    </div>
-  );
-}
+const SocialPostMedia = dynamic(() =>
+  import("./social-post-media").then((mod) => mod.SocialPostMedia),
+);
+const SocialFeedImmersive = dynamic(() =>
+  import("./social-feed-immersive").then((mod) => mod.SocialFeedImmersive),
+);
 
 export function SocialAuthorHistory({
   posts,
@@ -150,13 +80,16 @@ export function SocialPostCard({
 }) {
   // One card at every breakpoint.
   // Text + media: docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
-  //   author → media → actions → likes → caption → comments when N > 0.
+  //   author → media → actions → likes → caption → comments when N > 0
+  //   → under-post time, the last chrome line before Wave 1 air.
+  // Text-only: author → actions → likes → caption → comments when N > 0 → time.
+  // Media-only: author → media → actions → likes → time.
+  // Time is not author-row meta. Nh / Nd. No clock.
+  // docs/design-locks/social-feed-under-post-time-lock-v1.md
+  // docs/design-locks/social-home-craft-wave-1-lock-v1.md
   // Two or more media items (Adam lock 2026-09-25): that media face is one
   // full-bleed swipe carousel with dots and N of M. No collage.
-  // Text-only stays the 2026-09-20 blend:
-  //   author → actions → likes → caption → comments when N > 0.
-  // Media-only: author → media → actions → likes.
-  // Forbidden: FB reaction pile, labeled action bar, bottom timestamp, share count, collage.
+  // Forbidden: FB reaction pile, labeled action bar, clock time, share count, collage.
   const media = post.media.length > 0;
   const [immersiveIndex, setImmersiveIndex] = useState<number | null>(null);
   const closeImmersive = useCallback(() => setImmersiveIndex(null), []);
@@ -170,7 +103,7 @@ export function SocialPostCard({
   };
   const time = (
     <time dateTime={post.createdAt} data-social-post-time="" className={SOCIAL_POST_TIME_CLASS}>
-      {socialRelativeTime(post.createdAt)}
+      {socialFeedRelativeTime(post.createdAt)}
     </time>
   );
   return (
@@ -194,13 +127,6 @@ export function SocialPostCard({
             </Link>
           ) : (
             <span className="min-w-0 break-words t-body-sm font-semibold text-ink">{post.authorName}</span>
-          )}
-          {permalink ? (
-            <Link href={href} className={SOCIAL_POST_TIME_CLASS}>
-              {time}
-            </Link>
-          ) : (
-            time
           )}
           {post.groupSlug && post.groupName ? (
             <>
@@ -265,6 +191,13 @@ export function SocialPostCard({
           handle={handle}
         />
         <SocialCommentTrigger post={thread} />
+        {permalink ? (
+          <Link href={href} className="self-start">
+            {time}
+          </Link>
+        ) : (
+          time
+        )}
       </div>
       </div>
     </article>

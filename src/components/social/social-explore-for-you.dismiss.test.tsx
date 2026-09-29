@@ -9,19 +9,37 @@ const exploreMuteProbe = vi.hoisted(() => ({
   onForcedMute: undefined as (() => void) | undefined,
 }));
 
+const openedHeavy = vi.hoisted(() => ({
+  thread: null as ((props: Record<string, unknown>) => unknown) | null,
+  sheet: null as ((props: Record<string, unknown>) => unknown) | null,
+}));
+
 vi.mock("next/dynamic", () => ({
-  default: () =>
-    function MuxPlayerStub(props: {
-      playbackId?: string;
-      muted?: boolean;
-      onForcedMute?: () => void;
-    }) {
-      exploreMuteProbe.onForcedMute = props.onForcedMute;
-      return createElement("div", {
-        "data-mux-player-stub": props.playbackId ?? "",
-        "data-mux-muted": props.muted ? "yes" : "no",
-      });
-    },
+  default: (loader: () => Promise<unknown>, options?: { ssr?: boolean }) => {
+    if (options?.ssr === false) {
+      return function MuxPlayerStub(props: {
+        playbackId?: string;
+        muted?: boolean;
+        onForcedMute?: () => void;
+      }) {
+        exploreMuteProbe.onForcedMute = props.onForcedMute;
+        return createElement("div", {
+          "data-mux-player-stub": props.playbackId ?? "",
+          "data-mux-muted": props.muted ? "yes" : "no",
+        });
+      };
+    }
+    const source = loader.toString();
+    return function OpenedHeavy(props: Record<string, unknown>) {
+      const Comp = source.includes("social-comment-thread")
+        ? openedHeavy.thread
+        : source.includes("social-post-share-sheet")
+          ? openedHeavy.sheet
+          : null;
+      if (!Comp) return null;
+      return createElement(Comp as never, props);
+    };
+  },
 }));
 
 vi.mock("next/image", () => ({
@@ -56,7 +74,12 @@ import {
   SOCIAL_MUX_PLAYBACK_ROUTE,
 } from "@/lib/social-mux";
 import { minimalDocument, uninstallMinimalDocument } from "@/test/minimal-document";
+import { SocialCommentThread } from "./social-comment-thread";
 import { SocialExploreForYouStream } from "./social-explore-for-you";
+import { SocialPostShareSheet } from "./social-post-share-sheet";
+
+openedHeavy.thread = SocialCommentThread as never;
+openedHeavy.sheet = SocialPostShareSheet as never;
 
 const ACTIVE_PLAYBACK = "uNbxnGLKJ00yfbijDO8COxT";
 const NEXT_PLAYBACK = "SecondMuxPlaybackId1";

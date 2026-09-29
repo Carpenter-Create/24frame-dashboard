@@ -216,8 +216,8 @@ describe("SocialExploreForYouStream", () => {
     expect(html).not.toContain("data-social-post-share-sheet");
     expect(html).not.toContain("/social/p/");
     const explore = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
-    const comment = readFileSync("src/components/social/social-comment-thread.tsx", "utf8");
-    const share = readFileSync("src/components/social/social-post-share-sheet.tsx", "utf8");
+    const comment = readFileSync("src/components/social/social-comment-trigger.tsx", "utf8");
+    const share = readFileSync("src/components/social/social-post-share-button.tsx", "utf8");
     expect(explore).not.toContain("useRouter");
     expect(explore).not.toContain("router.push");
     expect(comment).toContain("onClose={() => setOpen(false)}");

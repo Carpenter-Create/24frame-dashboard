@@ -9,7 +9,8 @@ vi.mock("next/image", () => ({
 
 import { SOCIAL } from "@/lib/social";
 import { POST_SHARE_RECIPIENT_CAP } from "@/lib/social-post-share";
-import { SocialPostShareButton, SocialPostShareSheet } from "./social-post-share-sheet";
+import { SocialPostShareButton } from "./social-post-share-button";
+import { SocialPostShareSheet } from "./social-post-share-sheet";
 
 const person = {
   id: "u2",

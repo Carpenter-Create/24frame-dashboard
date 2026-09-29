@@ -8,7 +8,7 @@
 **Grammar ref only:** `/workspace/24frame-agg-ux/write-compose-voice-first-chatgpt-ref-2026-09-25.png` (big voice center · compact bottom Ask-bar — **not** ChatGPT brand / orb / dark)  
 **Media grammar ref only:** `/workspace/24frame-agg-ux/write-compose-photo-preview-instagram-ref-2026-09-25.png` (preview **above** caption — **not** IG dark / brand / New-post chrome invent)  
 **Keeps from** `write-compose-immersive-icons-lock-v1.md`: edge-to-edge · hide Social header+dock · media icons-only · X + Post  
-**Entry unchanged:** `share-something-text-write-direct-lock-v1.md`  
+**Entry:** Share something opens this compose in the house sheet (`share-something-write-compose-sheet-lock-v1.md`). Kind stays text. The `/social/create?kind=text` page keeps this craft.  
 **Standing:** Immersive Social · Media Immersion · launch-great · quiet redundant-chrome · **rich-calm v1.4** (`24frame-visual-register-rich-calm-lock-v1.md`) · Mercury sharpness + Circle air · phone never-truncate · spacing **8 / 16 / 24 / 48** · **no** drop shadows
 
 ---

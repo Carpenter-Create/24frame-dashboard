@@ -36,6 +36,9 @@ import {
   SOCIAL_WRITE_COMPOSE_HOST_CLASS,
   SOCIAL_WRITE_COMPOSE_ROW_CLASS,
   SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS,
+  SOCIAL_WRITE_COMPOSE_SHEET_CHROME_CLASS,
+  SOCIAL_WRITE_COMPOSE_SHEET_FORM_CLASS,
+  SOCIAL_WRITE_COMPOSE_SHEET_ROW_CLASS,
   bindSocialWriteComposeViewport,
   fitSocialWriteComposeField,
   SOCIAL_WRITE_COMPOSE_POST_CLASS,
@@ -530,12 +533,18 @@ export function SocialCreateCompose({
   authorPhotoUrl = null,
   initialKind = null,
   initialStep = null,
+  presentation = "page",
+  autoFocusBody = false,
+  onDismiss,
 }: {
   authorName?: string;
   authorHandle?: string | null;
   authorPhotoUrl?: string | null;
   initialKind?: SocialCreateKind | null;
   initialStep?: SocialCreateMediaStep | null;
+  presentation?: "page" | "sheet";
+  autoFocusBody?: boolean;
+  onDismiss?: () => void;
 }) {
   const router = useRouter();
   const house = useHouseClient();
@@ -603,13 +612,20 @@ export function SocialCreateCompose({
   }
 
   useEffect(() => {
+    if (presentation === "sheet") return undefined;
     const form = writeFormRef.current;
-    if (!form) return;
+    if (!form) return undefined;
     return bindSocialWriteComposeViewport(form, () => {
       const field = writeBodyRef.current;
       if (field) fitSocialWriteComposeField(field);
     });
-  }, [kind]);
+  }, [kind, presentation]);
+
+  useEffect(() => {
+    if (!autoFocusBody || kind !== "text") return undefined;
+    writeBodyRef.current?.focus({ preventScroll: true });
+    return undefined;
+  }, [autoFocusBody, kind]);
 
   useEffect(() => {
     const controllers = uploadAbortRef.current;
@@ -950,7 +966,11 @@ export function SocialCreateCompose({
         data-social-create-form=""
         data-social-create-kind="text"
         data-social-write-voice=""
-        className={cn(SOCIAL_WRITE_COMPOSE_HOST_CLASS, SOCIAL_STORY_STAGE_IN_CLASS)}
+        data-social-write-compose-presentation={presentation}
+        className={cn(
+          presentation === "sheet" ? SOCIAL_WRITE_COMPOSE_SHEET_FORM_CLASS : SOCIAL_WRITE_COMPOSE_HOST_CLASS,
+          presentation === "sheet" ? undefined : SOCIAL_STORY_STAGE_IN_CLASS,
+        )}
         onSubmit={(event) => {
           event.preventDefault();
           if (uploading) return;
@@ -967,24 +987,32 @@ export function SocialCreateCompose({
             authorHandle,
             authorPhotoUrl,
             onNavigate: () => {
+              if (onDismiss) {
+                onDismiss();
+                return;
+              }
               router.push(SOCIAL_ROUTES.home);
             },
             setError,
           });
         }}
       >
-        <div className={SOCIAL_WRITE_COMPOSE_CHROME_CLASS}>
+        <div className={presentation === "sheet" ? SOCIAL_WRITE_COMPOSE_SHEET_CHROME_CLASS : SOCIAL_WRITE_COMPOSE_CHROME_CLASS}>
           <button
             type="button"
             data-social-create-dismiss=""
             aria-label={SOCIAL.create.close}
             className={SOCIAL_WRITE_COMPOSE_X_CLASS}
-            onClick={() =>
+            onClick={() => {
+              if (onDismiss) {
+                onDismiss();
+                return;
+              }
               leaveSocialWriteCompose(
                 () => house?.navigateOwned(SOCIAL_ROUTES.home) ?? false,
                 () => router.push(SOCIAL_ROUTES.home),
-              )
-            }
+              );
+            }}
           >
             <SocialIcon name="x" size={22} className="text-ink" />
           </button>
@@ -994,7 +1022,7 @@ export function SocialCreateCompose({
         </div>
         <div className="mt-[var(--space-2)] flex items-center gap-[var(--space-2)]" data-social-create-author="">
           <SocialAvatar name={authorName} photoUrl={authorPhotoUrl} size="sm" className="size-8" />
-          <span className="min-w-0 t-body font-medium text-ink">{authorName}</span>
+          <span className="min-w-0 break-words t-body font-medium text-ink">{authorName}</span>
         </div>
         <div className="flex min-h-0 flex-1 flex-col pt-[var(--space-2)]">
           {previewSlots.length > 0 ? (
@@ -1044,7 +1072,10 @@ export function SocialCreateCompose({
             <div className="min-h-0 flex-1" data-social-write-stage="" />
           )}
         </div>
-        <div className={SOCIAL_WRITE_COMPOSE_ROW_CLASS} data-social-write-compose-row="">
+        <div
+          className={presentation === "sheet" ? SOCIAL_WRITE_COMPOSE_SHEET_ROW_CLASS : SOCIAL_WRITE_COMPOSE_ROW_CLASS}
+          data-social-write-compose-row=""
+        >
           <label className="sr-only" htmlFor="social-create-body">
             {SOCIAL.home.composerPrompt}
           </label>
@@ -1060,6 +1091,7 @@ export function SocialCreateCompose({
               fitSocialWriteComposeField(e.currentTarget);
             }}
             placeholder={SOCIAL.home.composerPrompt}
+            autoFocus={autoFocusBody}
             className={SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS}
           />
           <button
