@@ -1218,16 +1218,31 @@ describe("AppShell rail-collapse chevron", () => {
   });
 
   it("keeps For You as full-bleed media, not a card on the page", () => {
+    navigation.pathname = "/social";
+    expect(renderShell()).not.toContain("data-social-explore-exit");
+
     navigation.pathname = "/social/explore";
     const html = renderShell();
     expect(html).toContain('data-social-explore-stage=""');
-    expect(html).not.toContain("data-house-lead-chrome");
-    expect(html).not.toContain("data-social-header-search");
+    expect(html).toContain("data-house-lead-chrome");
+    expect(html.indexOf("data-house-lead-chrome")).toBeLessThan(html.indexOf("data-social-explore-stage"));
+    const desktopHeader = html.slice(
+      html.indexOf("data-social-explore-desktop-header"),
+      html.indexOf("data-social-explore-stage"),
+    );
+    expect(desktopHeader).toContain("hidden md:contents");
+    expect(desktopHeader).toContain('data-social-explore-exit=""');
+    expect(desktopHeader).toContain('href="/social"');
+    expect(desktopHeader).toContain(">Exit<");
+    expect(desktopHeader).toContain('data-workspace-switcher-presentation="pills"');
+    expect(desktopHeader).toContain("data-app-header-workspace-waffle");
+    expect(desktopHeader).toContain("md:hidden");
     expect(html).not.toContain("data-app-rail");
     expect(html).not.toContain("data-social-rail");
     expect(html).toContain("--sidebar-width:0px");
     expect(html).toContain("data-house-phone-bottom-nav");
-    expect(html).toContain("fixed inset-0 overflow-hidden bg-[#0A0A0B]");
+    expect(html).toContain("max-md:fixed max-md:inset-0 overflow-hidden bg-[#0A0A0B] md:absolute md:inset-0");
+    expect(html).toContain("relative overflow-hidden");
     const stage = html.slice(html.indexOf("data-social-explore-stage"), html.indexOf("data-house-phone-bottom-nav"));
     expect(stage).not.toContain("rounded-");
     expect(stage).not.toContain("border-hairline");

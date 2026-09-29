@@ -8,7 +8,7 @@
 **Supersedes:** `workspace-switcher-sliding-pill-miss-list-v1.md` · `workspace-desktop-sliding-pill-miss-list-v1.md` (sliding-pill / labeled workspace control in header)  
 **Related:** `desktop-avatar-menu-coinbase-lock-v1.md` (avatar MenuSurface — unchanged) · `dashboard-coinbase-shell-miss-list-v1.md` (quiet utilities SoT) · Coinbase shell shots `/workspace/24frame-agg-ux/coinbase-shell-sot/`  
 **No invent** beyond Adam voice in this brief.  
-**Amended 2026-09-29:** [`shell-desktop-top-nav-slider-waffle-phone-lock-v1.md`](shell-desktop-top-nav-slider-waffle-phone-lock-v1.md) splits the host. Waffle is **phone/tablet (`max-md`) only**. Desktop (`md+`) restores the Layer 1 sliding workspace row and hides the waffle. Layer 1 inventory, entitlement, and the Social Layer 2 dock in this lock stay.
+**Amended 2026-09-29:** [`shell-desktop-top-nav-slider-waffle-phone-lock-v1.md`](shell-desktop-top-nav-slider-waffle-phone-lock-v1.md) splits the host. Waffle is **phone/tablet (`max-md`) only**. Desktop (`md+`) restores the Layer 1 sliding workspace row and hides the waffle. Desktop Explore uses that same header **above** the media, plus a labeled Exit. Phone Explore stays headerless. Layer 1 inventory, entitlement, and the Social Layer 2 dock in this lock stay.
 
 ---
 

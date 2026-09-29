@@ -101,6 +101,25 @@ export function isSocialExplorePath(pathname: string): boolean {
   return path === SOCIAL_ROUTES.explore;
 }
 
+/**
+ * Desktop Explore Exit.
+ * Same-origin referrer whose path is not Explore uses history.
+ * Otherwise the link goes to Social home.
+ */
+export function exploreExitUsesPriorRoute(
+  referrer: string | null | undefined,
+  origin: string,
+): boolean {
+  if (!referrer || !origin) return false;
+  try {
+    const url = new URL(referrer);
+    if (url.origin !== origin) return false;
+    return !isSocialExplorePath(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
 /** Open story viewer. Not the index, not the create stage. */
 export function isSocialStoryOpenPath(pathname: string): boolean {
   const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
@@ -569,6 +588,7 @@ export const SOCIAL = {
   explore: {
     title: "Explore",
     subtitle: `Find what is moving in ${PRODUCT_NAME}.`,
+    exit: "Exit",
     search: "Search",
     searchSocial: "Search Social",
     searchPlaceholder: "People, keywords, hashtags",

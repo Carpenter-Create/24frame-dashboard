@@ -69,7 +69,11 @@ describe("phone dock clearance", () => {
       "bottom-[max(var(--space-4),env(safe-area-inset-bottom))]",
     );
     expect(socialChrome).not.toContain("${HOUSE_PHONE_DOCK_CLEARANCE}");
-    expect(SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS).toBe("fixed inset-0 overflow-hidden bg-[#0A0A0B]");
+    expect(SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS).toBe(
+      "max-md:fixed max-md:inset-0 overflow-hidden bg-[#0A0A0B] md:absolute md:inset-0",
+    );
+    expect(SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS).toContain("max-md:fixed");
+    expect(SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS).not.toMatch(/(^|\s)fixed inset-0/);
     expect(SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS).not.toContain("house-phone-dock-clearance");
     expect(explore).toContain("fit=\"cover\"");
     expect(explore).toContain("object-cover");

@@ -1,7 +1,7 @@
 # [GC][24Frame] LOCK — Explore For You immersive v2
 
 **Date:** 2026-09-26 (CT)  
-**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · **mute control** amend 2026-09-26 · **mute persistence** amend 2026-09-28 (Adam CLEAR · B2 unmute leak) · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
+**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · **mute control** amend 2026-09-26 · **mute persistence** amend 2026-09-28 (Adam CLEAR · B2 unmute leak) · **desktop header + Exit** amend 2026-09-29 (Adam LOCK AMEND) · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
 **Repo:** `docs/design-locks/social-explore-for-you-immersive-lock-v2.md`  
 **Box:** `/workspace/24frame-agg-ux/social-explore-for-you-immersive-lock-v2.md`  
 **Supersedes:** `social-explore-discovery-lock-v1.md` (IG grid) · **#693 DRAFT wrong shape** — do not invent on grid; ship from this v2  
@@ -28,7 +28,7 @@
 | Video | Mux-only play surface · autoplay when active · pause when off-screen · cite Mux-only |
 | First visual | **First frame** of the clip (Adam) · public Mux thumbnail `time=0` · signed thumbnail time is the JWT claim `time` `0` · not Mux's default mid-clip still |
 | Media kinds | **Video only** in For You / discovery streams · **photos OUT** of vertical Explore feed |
-| Social shell | **Social header OUT** on For You · **surface dest-rail card OUT** (it is a pasted card on the canvas) · tab dock may overlay the bottom of the media · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
+| Social shell | **Phone:** Social header **OUT** · stage is viewport-fixed · tab dock may overlay the bottom of the media. **Desktop `md+`:** house header (logo + Layer 1 sliding workspace row) sits **above** the media. Stage fills that column. Labeled **Exit** leaves Explore (prior in-app route, or Social home). Waffle stays hidden. **Both:** **surface dest-rail card OUT** · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
 | Fail | Soft grid of thumbs · FB mosaic · dumping user onto Home post unit · photo tiles in For You |
 
 **FAIL:** IG Explore grid as primary (#693 / v1) · photos in vertical Explore.  
@@ -111,7 +111,9 @@
 | Photos in vertical For You / discovery | Adam LOCK video-only |
 | Framed letterbox | Media is the canvas · cover, edge to edge |
 | Persistent search slab | Discover chrome overlays the media |
-| Social header on For You | Header is house chrome · For You suppresses it |
+| Social header on phone For You | Phone stays immersive · headerless · dock overlays the media |
+| Desktop For You with no header above the media, or no Exit | Adam 2026-09-29 · desktop is not a viewport trap |
+| Exit, slider, or waffle on phone Explore | Phone face stays immersive |
 | White page well | The page canvas is the media, not paper around a card |
 | Surface dest-rail card on For You | A rounded surface card on the video is a website card · Media Immersion FAIL |
 | Soft / flat / pasted / framed card | Media Immersion Doctrine · FAIL before glance |
@@ -132,7 +134,7 @@
 4. Mux-only video · Media Immersion cover stage.  
 5. Vertical Explore = **video-only** · photos OUT (§D).  
 6. v1 grid / #693 superseded.  
-7. Media is the canvas. Social header is out on For You. The surface dest-rail card is out. Search overlays the media. Tab dock may overlay the bottom. No framed letterbox. No white page well. Soft / flat / pasted / framed card fails before glance.  
+7. Media is the canvas. Phone For You keeps the header out and the stage viewport-fixed. Desktop For You puts the house header above the media and a labeled Exit. The surface dest-rail card is out. Search overlays the media. Tab dock may overlay the bottom on phone. No framed letterbox. No white page well. Soft / flat / pasted / framed card fails before glance.  
 8. Mute sits at the **top** of the trailing rail, above Like. It stays visible and tappable for the whole active video. Autoplay starts muted on cold session. Empty `audioTracks` do not remove it. Once user unmutes, **session sticky** — stay unmuted across subsequent Explore videos until user mutes. §B2.
 
 ---

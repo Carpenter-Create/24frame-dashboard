@@ -36,6 +36,7 @@ export function HouseLeadChrome({
   underNav,
   trailingSearch,
   afterLead,
+  headerExit,
   activityUnread = 0,
   activityItems = [],
   accountMenu,
@@ -50,6 +51,7 @@ export function HouseLeadChrome({
   underNav?: React.ReactNode;
   trailingSearch?: React.ReactNode;
   afterLead?: React.ReactNode;
+  headerExit?: React.ReactNode;
   activityUnread?: Promise<number> | number;
   activityItems?: Promise<ActivityItem[]> | ActivityItem[];
   accountMenu: React.ReactNode;
@@ -103,6 +105,7 @@ export function HouseLeadChrome({
             ) : null}
           </div>
           {afterLead}
+          {headerExit}
         </div>
         <div data-app-header-trailing="" className={APP_HEADER_TRAILING_CLUSTER_CLASS}>
           {trailingSearch ? (

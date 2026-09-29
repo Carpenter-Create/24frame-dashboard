@@ -30,6 +30,7 @@ import {
   isSocialDmComposePath,
   isSocialDmImmersivePath,
   isSocialDmThreadPath,
+  exploreExitUsesPriorRoute,
   isSocialExplorePath,
   isSocialWriteComposePath,
   leaveSocialWriteCompose,
@@ -155,6 +156,7 @@ describe("social copy lock", () => {
     expect(SOCIAL.explore.recent).toBe("Recent");
     expect(SOCIAL.explore.recentEmpty).toBe("No recent searches.");
     expect(SOCIAL.explore.searchBack).toBe("Back");
+    expect(SOCIAL.explore.exit).toBe("Exit");
     expect(JSON.stringify(SOCIAL.explore)).not.toContain("Meta AI");
     expect(JSON.stringify(SOCIAL.explore)).not.toContain("Search with Meta AI");
     expect(SOCIAL_ROUTES.explore).toBe("/social/explore");
@@ -350,6 +352,21 @@ describe("social copy lock", () => {
     }
     expect(blob).not.toContain("Globee");
     expect(ASK_GLOBEE.headline).toBe("Ask 24Frame AI");
+  });
+});
+
+describe("desktop Explore Exit", () => {
+  it("uses a same-origin prior route that is not Explore", () => {
+    const origin = "https://app.24frame.co";
+    expect(exploreExitUsesPriorRoute(`${origin}/social`, origin)).toBe(true);
+    expect(exploreExitUsesPriorRoute(`${origin}/education`, origin)).toBe(true);
+    expect(exploreExitUsesPriorRoute(`${origin}/social/explore`, origin)).toBe(false);
+    expect(exploreExitUsesPriorRoute(`${origin}/social/explore?q=cheese`, origin)).toBe(false);
+    expect(exploreExitUsesPriorRoute("https://example.com/social", origin)).toBe(false);
+    expect(exploreExitUsesPriorRoute("", origin)).toBe(false);
+    expect(exploreExitUsesPriorRoute(null, origin)).toBe(false);
+    expect(exploreExitUsesPriorRoute(`${origin}/social`, "")).toBe(false);
+    expect(exploreExitUsesPriorRoute("not a url", origin)).toBe(false);
   });
 });
 

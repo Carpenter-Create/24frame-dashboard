@@ -522,15 +522,23 @@ export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
 export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-words";
 
 // Explore For You v2. The media is the canvas. Same near-black stage as
-// SOCIAL_STORY_STAGE_CLASS, fixed to the viewport, without z-50: the
-// phone dock (z-40) and sheets (z-50) overlay it. No z-index here, so
-// those overlays are not trapped under the stage. #0A0A0B has no house
-// token. Not a rounded card, not a paper well. The Social header and
-// the surface dest-rail card are not on this route.
+// SOCIAL_STORY_STAGE_CLASS. Phone is fixed to the viewport. Desktop
+// fills the column under the house header. No z-index, so the phone
+// dock (z-40) and sheets (z-50) overlay the stage. #0A0A0B has no house
+// token. Not a rounded card, not a paper well. Phone For You is
+// viewport-fixed and headerless. Desktop md+ fills the column under
+// the house header — the stage does not cover that header.
+// The surface dest-rail card stays off this route.
 // Media Immersion Doctrine: soft / flat / pasted / framed card = FAIL.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
+// docs/design-locks/shell-desktop-top-nav-slider-waffle-phone-lock-v1.md
+export const SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS = "hidden md:contents";
+
+export const SOCIAL_EXPLORE_EXIT_CLASS =
+  "hidden shrink-0 items-center t-body text-ink md:inline-flex";
+
 export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
-  "fixed inset-0 overflow-hidden bg-[#0A0A0B]";
+  "max-md:fixed max-md:inset-0 overflow-hidden bg-[#0A0A0B] md:absolute md:inset-0";
 
 export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS =
   "absolute inset-0 overflow-hidden bg-[#0A0A0B] text-band-ink";
