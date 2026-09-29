@@ -50,7 +50,7 @@ vi.mock("@/lib/social-mux-server", () => ({
   finalizeSocialMuxDirectUpload: vi.fn(),
   socialMuxSettingsFromUploadInput: vi.fn(() => ({
     intent: "video",
-    settings: { videoQuality: "basic", maxResolutionTier: "1080p" },
+    settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
   })),
 }));
 
@@ -1304,7 +1304,7 @@ describe("social actions", () => {
     });
     expect(presignSocialMediaPut).not.toHaveBeenCalled();
     expect(createSocialMuxDirectUpload).toHaveBeenCalledWith({
-      settings: { videoQuality: "basic", maxResolutionTier: "1080p" },
+      settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
       passthrough: `${author}:${object}`,
     });
 

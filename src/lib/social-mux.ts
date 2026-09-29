@@ -5,7 +5,7 @@
 
 export const SOCIAL_MUX_PROVIDER = "mux" as const;
 export const SOCIAL_MUX_DEFAULT_RESOLUTION = "1080p" as const;
-/** Cover-lift cap. Not chosen from client-reported pixels. */
+/** Silent video default. Mux stores and delivers up to 4K. Not chosen from client-reported pixels. */
 export const SOCIAL_MUX_ORIGINAL_RESOLUTION = "2160p" as const;
 export const SOCIAL_MUX_IMAGE_HOST = "image.mux.com";
 /** First frame. Mux's default thumbnail, with no time, is a mid-clip still. */
@@ -200,9 +200,8 @@ export function parseSocialMuxIntent(raw: string | null | undefined): SocialMuxI
 }
 
 /**
- * Video posts and go-live both stay at 1080p until a server probe or
- * Mux-reported input proves a taller source. Client width and height are
- * not that measurement. The cover-lift cap is 2160p. Playback stays Mux-only.
+ * Video posts default to original up to 2160p. Go live stays plus / 1080p.
+ * Client width and height do not select the tier. Playback stays Mux-only.
  * docs/design-locks/social-video-upload-cover-lift-lock-v1.md
  * docs/design-locks/social-video-mux-only-lock-v1.md
  */
@@ -217,7 +216,7 @@ export function socialMuxAssetSettings(input: {
   }
   return {
     videoQuality: "basic",
-    maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
+    maxResolutionTier: SOCIAL_MUX_ORIGINAL_RESOLUTION,
   };
 }
 

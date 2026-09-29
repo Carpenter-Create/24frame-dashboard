@@ -24,10 +24,10 @@ import {
 import { SOCIAL_MUX_ENV } from "./social-mux-server";
 
 describe("social Mux encode locks", () => {
-  it("defaults Video to 1080p basic and Go live to 1080p plus", () => {
+  it("defaults Video to 2160p basic and Go live to 1080p plus", () => {
     expect(socialMuxAssetSettings({ intent: "video" })).toEqual({
       videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
+      maxResolutionTier: SOCIAL_MUX_ORIGINAL_RESOLUTION,
     });
     expect(socialMuxAssetSettings({ intent: "live" })).toEqual({
       videoQuality: "plus",
@@ -37,19 +37,17 @@ describe("social Mux encode locks", () => {
     expect(parseSocialMuxIntent("video")).toBe("video");
   });
 
-  it("keeps 1080p when a caller reports a 4K edge", () => {
-    expect(socialMuxAssetSettings({ intent: "video" })).toEqual({
-      videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
-    });
-    expect(socialMuxAssetSettings({ intent: "video" }).maxResolutionTier).not.toBe(
+  it("defaults video to 2160p without reading client pixels", () => {
+    expect(socialMuxAssetSettings({ intent: "video" }).maxResolutionTier).toBe(
       SOCIAL_MUX_ORIGINAL_RESOLUTION,
     );
     const sot = readFileSync("src/lib/social-mux.ts", "utf8");
     const settings = sot.slice(sot.indexOf("export function socialMuxAssetSettings"), sot.indexOf("export function socialMuxThumbnailUrl"));
     expect(settings).not.toContain("width");
     expect(settings).not.toContain("height");
-    expect(settings).not.toContain(SOCIAL_MUX_ORIGINAL_RESOLUTION);
+    expect(settings).toContain("SOCIAL_MUX_ORIGINAL_RESOLUTION");
+    expect(settings).not.toContain("source_width");
+    expect(settings).not.toContain("source_height");
   });
 
   it("builds a thumbnail URL from a playback id and does not mint a native HLS src", () => {

@@ -29,12 +29,12 @@ names the official Mux JWT helper reads. They stay in
 
 | Path | `video_quality` | `max_resolution_tier` |
 | --- | --- | --- |
-| Video post | `basic` | `1080p` |
+| Video post | `basic` | `2160p` |
 | Go live (~10 min recorder → normal video post) | `plus` | `1080p` |
 
-The cover-lift cap is 2160p. Client `source_width` / `source_height` do
-not select it. The tier stays 1080p until a server probe or Mux-reported
-input exists. No quality checkbox. Playback stays Mux-only.
+Video posts default to original up to 2160p. Client `source_width` /
+`source_height` do not select the tier. No quality checkbox. Playback
+stays Mux-only.
 [`docs/design-locks/social-video-upload-cover-lift-lock-v1.md`](../design-locks/social-video-upload-cover-lift-lock-v1.md) ·
 [`docs/design-locks/social-video-mux-only-lock-v1.md`](../design-locks/social-video-mux-only-lock-v1.md).
 
