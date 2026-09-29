@@ -203,7 +203,6 @@ export function parseSocialMuxIntent(raw: string | null | undefined): SocialMuxI
  * Video posts and go-live both stay at 1080p until a server probe or
  * Mux-reported input proves a taller source. Client width and height are
  * not that measurement. The cover-lift cap is 2160p. Playback stays Mux-only.
- * docs/design-locks/social-create-video-quality-default-lock-v1.md
  * docs/design-locks/social-video-upload-cover-lift-lock-v1.md
  * docs/design-locks/social-video-mux-only-lock-v1.md
  */
