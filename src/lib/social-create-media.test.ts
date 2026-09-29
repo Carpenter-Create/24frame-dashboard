@@ -55,7 +55,7 @@ describe("Social Create Media SoT", () => {
     expect(compose).not.toContain("data-social-create-well");
     const createChunk = compose.slice(
       compose.indexOf("export function SocialCreateCompose"),
-      compose.indexOf("export { SocialStoryCompose }"),
+      compose.indexOf("export function SocialProfilePhotoForm"),
     );
     expect(createChunk).toContain("disabled={uploading}");
     expect(createChunk).not.toContain("disabled={uploading ||");

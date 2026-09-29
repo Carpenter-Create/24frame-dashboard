@@ -323,7 +323,7 @@ describe("Social optimistic mutation SoT", () => {
     const likeChunk = engagement.slice(engagement.indexOf("export function SocialLikeButton"));
     const createChunk = forms.slice(
       forms.indexOf("export function SocialCreateCompose"),
-      forms.indexOf("export { SocialStoryCompose }"),
+      forms.indexOf("export function SocialProfilePhotoForm"),
     );
     const followChunk = engagement.slice(
       engagement.indexOf("export function SocialFollowButton"),

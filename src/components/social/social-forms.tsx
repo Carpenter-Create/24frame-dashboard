@@ -1222,8 +1222,6 @@ export function SocialCreateCompose({
   );
 }
 
-export { SocialStoryCompose } from "./social-story-studio";
-
 export function SocialProfilePhotoForm() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");

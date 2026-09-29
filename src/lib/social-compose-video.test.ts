@@ -238,7 +238,7 @@ describe("write compose video attach", () => {
     const upload = readFileSync("src/lib/social-media-upload.ts", "utf8");
     const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
     const textStart = forms.indexOf("export function SocialCreateCompose");
-    const textEnd = forms.indexOf("export { SocialStoryCompose }");
+    const textEnd = forms.indexOf("export function SocialProfilePhotoForm");
     const text = forms.slice(forms.indexOf("function SocialComposeUploadProgress"), textEnd);
     const compose = forms.slice(textStart, textEnd);
     const loopAt = compose.indexOf("for (let index = 0; index < prepared.length");
