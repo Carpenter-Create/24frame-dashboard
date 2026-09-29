@@ -362,6 +362,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-hairline");
     expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
+    expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("shrink-0");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("flex-col");
     expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[10px]");
     expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[6px]");
     expect(SOCIAL_POST_ACTIONS_GAP_CLASS).toBe("gap-2");
