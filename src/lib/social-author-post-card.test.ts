@@ -1,19 +1,22 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
 
 const helperSrc = readFileSync("src/lib/social-author-post-card.ts", "utf8");
-const clientSrc = readFileSync("src/components/social/social-ui.tsx", "utf8");
 const profileSrc = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
 const publicProfileSrc = readFileSync("src/app/(app)/social/u/[handle]/page.tsx", "utf8");
 
 const SERVER_PROFILE_PAGES = [profileSrc, publicProfileSrc];
+const LIB_SPEC = "@/lib/social-author-post-card";
 
-function importsClientFunction(src: string): boolean {
-  return /import\s*\{[^}]*\bsocialAuthorPostCard\b[^}]*\}\s*from\s*["']@\/components\/social\/social-ui["']/.test(
-    src,
-  );
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(ts|tsx)$/.test(entry.name) ? [path] : [];
+  });
 }
 
 function hasUseClientDirective(src: string): boolean {
@@ -25,9 +28,8 @@ describe("socialAuthorPostCard server boundary", () => {
   it("builds the card model from a module with no client directive", () => {
     expect(hasUseClientDirective(helperSrc)).toBe(false);
     expect(helperSrc).not.toContain("social-ui");
-    expect(clientSrc).not.toContain("export function socialAuthorPostCard");
-    expect(clientSrc).toContain('export { socialAuthorPostCard } from "@/lib/social-author-post-card"');
-    expect(clientSrc.startsWith('"use client"')).toBe(true);
+    expect(existsSync("src/components/social/social-ui.tsx")).toBe(false);
+    expect(helperSrc).toContain("export function socialAuthorPostCard");
 
     const card = socialAuthorPostCard({
       post: {
@@ -86,12 +88,25 @@ describe("socialAuthorPostCard server boundary", () => {
     expect(unowned.groupName).toBeNull();
   });
 
-  it("keeps profile server pages from importing the client function", () => {
-    for (const src of SERVER_PROFILE_PAGES) {
-      expect(src).toContain('from "@/lib/social-author-post-card"');
-      expect(importsClientFunction(src)).toBe(false);
-      expect(src).toContain("socialAuthorPostCard(");
+  it("keeps socialAuthorPostCard on the lib module", () => {
+    const spec =
+      /(?:import|export)\s+(?:type\s+)?\{[^}]*\bsocialAuthorPostCard\b[^}]*\}\s*from\s*["']([^"']+)["']/g;
+    const offenders: string[] = [];
+    for (const file of sourceFiles("src")) {
+      if (file.endsWith("social-author-post-card.ts") || file.endsWith("social-author-post-card.test.ts")) {
+        continue;
+      }
+      const src = readFileSync(file, "utf8");
+      if (/export\s+function\s+socialAuthorPostCard\b/.test(src)) offenders.push(file);
+      for (const match of src.matchAll(spec)) {
+        if (match[1] !== LIB_SPEC) offenders.push(`${file} -> ${match[1]}`);
+      }
     }
-    expect(profileSrc).not.toContain("@/components/social/social-ui");
+    expect(offenders).toEqual([]);
+    for (const src of SERVER_PROFILE_PAGES) {
+      expect(src).toContain(`from "${LIB_SPEC}"`);
+      expect(src).toContain("socialAuthorPostCard(");
+      expect(src).not.toContain("@/components/social/social-ui");
+    }
   });
 });

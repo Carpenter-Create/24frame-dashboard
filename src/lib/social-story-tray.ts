@@ -1,4 +1,4 @@
-import type { SocialPostMediaItem } from "@/components/social/social-ui";
+import type { SocialPostMediaItem } from "@/lib/social-author-post-card";
 
 /** A short release is a tap. A longer press resumes and does not advance. */
 export const SOCIAL_STORY_HOLD_TAP_MS = 200;

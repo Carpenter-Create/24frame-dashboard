@@ -20,7 +20,7 @@ import {
   SOCIAL_FEED_CAROUSEL_SLIDE_CLASS,
   SOCIAL_FEED_CAROUSEL_TRACK_CLASS,
 } from "@/lib/social-chrome";
-import type { SocialPostMediaItem } from "./social-ui";
+import type { SocialPostMediaItem } from "@/lib/social-author-post-card";
 import { SocialMediaImage } from "./social-media-image";
 import { SocialMuxPlayer } from "./social-mux-player";
 

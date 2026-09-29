@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/ui/page-header";
-import { SocialAvatar } from "@/components/social/social-ui";
+import { SocialAvatar } from "@/components/social/social-avatar";
 import {
   formatLeaderboardComputedAt,
   formatLeaderboardPct,

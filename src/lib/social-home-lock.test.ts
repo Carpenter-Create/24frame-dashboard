@@ -51,7 +51,9 @@ const create = readFileSync("src/app/(app)/social/create/page.tsx", "utf8");
 const stories = readFileSync("src/app/(app)/social/stories/page.tsx", "utf8");
 const messages = readFileSync("src/app/(app)/social/dms/page.tsx", "utf8");
 const profile = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
-const card = readFileSync("src/components/social/social-ui.tsx", "utf8");
+const card = readFileSync("src/components/social/social-post-card.tsx", "utf8");
+const postMedia = readFileSync("src/components/social/social-post-media.tsx", "utf8");
+const identitySrc = readFileSync("src/components/social/social-profile-identity.tsx", "utf8");
 const rail = readFileSync("src/components/social/social-stories-rail.tsx", "utf8");
 const empty = readFileSync("src/components/social/social-empty.tsx", "utf8");
 const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
@@ -198,7 +200,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(rail.indexOf("data-social-story-create")).toBeLessThan(
       rail.indexOf("cards.map"),
     );
-    expect(card).toContain("ring?:");
+    expect(identitySrc).toContain("ring?:");
     const postCard = card.slice(card.indexOf("export function SocialPostCard"));
     expect(postCard).not.toContain("ring=");
     expect(postCard).not.toContain("hidden md:flex");
@@ -232,7 +234,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(rail).not.toContain("size-10");
     expect(card).toContain("SOCIAL_FEED_ROW_CLASS");
     expect(card).toContain("SOCIAL_FEED_GUTTER_CLASS");
-    expect(card).toContain("socialMediaFrameClass");
+    expect(postMedia).toContain("socialMediaFrameClass");
     expect(card.slice(card.indexOf("export function SocialPostCard")).indexOf("SocialAvatar")).toBeLessThan(
       card.slice(card.indexOf("export function SocialPostCard")).indexOf("SocialPostMedia"),
     );
@@ -396,7 +398,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(icons).toContain("export const SOCIAL_ICON_SIZE_POST_ACTION = 24");
     const like = readFileSync("src/components/social/social-engagement.tsx", "utf8");
     const likeFn = like.slice(like.indexOf("export function SocialLikeButton"));
-    const comments = readFileSync("src/components/social/social-comment-thread.tsx", "utf8");
+    const comments = readFileSync("src/components/social/social-comment-trigger.tsx", "utf8");
     const alignLock = readFileSync("docs/design-locks/social-home-post-actions-align-lock-v1.md", "utf8");
     expect(likeFn).toContain("SOCIAL_POST_ACTION_HIT_CLASS");
     expect(likeFn).toContain("SOCIAL_POST_ACTION_HEART_NUDGE_CLASS");
@@ -443,8 +445,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(card).not.toContain("SOCIAL_FEED_CHROME_CLASS");
     expect(card).toContain("SOCIAL_FEED_META_ROW_GAP_CLASS");
     expect(card).toContain("SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS");
-    expect(card).toContain("w-full");
-    expect(card).toContain("SOCIAL_POST_MEDIA_CLASS");
+    expect(postMedia).toContain("w-full");
+    expect(postMedia).toContain("SOCIAL_POST_MEDIA_CLASS");
     expect(card).not.toContain("md:rounded-[8px]");
     expect(chrome).toContain("SOCIAL_HOME_STORY_CARD_CLASS");
     expect(chrome).toContain("SOCIAL_FOR_YOU_CARD_CLASS");
@@ -824,9 +826,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(ownProfile).toContain("actions?: ReactNode");
     expect(ownProfile).not.toContain("(view: SocialProfileIdentityView) => ReactNode");
     expect(ownProfile).not.toContain("() => actions(merged)");
-    expect(card).toContain("actions?: ReactNode");
-    expect(card).not.toContain("actions?: () => ReactNode");
-    expect(card).not.toContain("{actions()}");
+    expect(identitySrc).toContain("actions?: ReactNode");
+    expect(identitySrc).not.toContain("actions?: () => ReactNode");
+    expect(identitySrc).not.toContain("{actions()}");
     expect(publicProfile).not.toContain("? () => <SocialShareButton");
     expect(publicProfile).not.toContain("? () => (");
     expect(profile).not.toContain('href="#social-profile-edit"');
@@ -834,10 +836,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(profile).not.toContain("<summary");
     expect(profile).not.toContain("SocialProfilePhotoForm");
     expect(profile).not.toContain("SocialBioForm");
-    expect(card).not.toContain("socialProfilePublicHost");
-    expect(card).not.toContain("data-social-profile-url");
-    expect(card).not.toContain("socialShareHint");
-    expect(card).not.toContain("data-social-share-hint");
+    expect(identitySrc).not.toContain("socialProfilePublicHost");
+    expect(identitySrc).not.toContain("data-social-profile-url");
+    expect(identitySrc).not.toContain("socialShareHint");
+    expect(identitySrc).not.toContain("data-social-share-hint");
     expect(home).not.toContain("SocialShareButton");
     const panels = readFileSync("src/components/social/social-profile-tab-panels.tsx", "utf8");
     expect(profile).toContain("SocialProfileTabPanels");
@@ -866,23 +868,25 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(readFileSync("src/app/(app)/social/u/[handle]/follows/page.tsx", "utf8")).toContain(
       "loadProfileFollowList",
     );
-    expect(card).toContain("SocialProfileStats");
-    expect(card).toContain("data-social-profile-head");
-    expect(card).not.toContain("data-social-profile-meta");
-    expect(card).not.toContain("SOCIAL_PROFILE_META_CLASS");
-    expect(card).toContain("SOCIAL_PROFILE_INSET_CLASS");
-    expect(card).toContain("data-social-profile-actions");
-    expect(card).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
-    expect(card).toContain("socialProfileRolesRailItems");
-    expect(card).toContain("HouseChipRail");
+    expect(identitySrc).toContain("SocialProfileStats");
+    expect(identitySrc).toContain("data-social-profile-head");
+    expect(identitySrc).not.toContain("data-social-profile-meta");
+    expect(identitySrc).not.toContain("SOCIAL_PROFILE_META_CLASS");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_INSET_CLASS");
+    expect(identitySrc).toContain("data-social-profile-actions");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
+    expect(identitySrc).toContain("socialProfileRolesRailItems");
+    expect(identitySrc).toContain("HouseChipRail");
     expect(card).toContain("SocialProfilePostsEmpty");
     expect(card).not.toContain("emptySecondary");
+    expect(identitySrc).not.toContain("emptySecondary");
     expect(card).not.toContain("emptyHint");
-    expect(card).toContain("data-social-profile-handle");
-    expect(card).toContain("SOCIAL_PROFILE_NAME_STACK_CLASS");
-    expect(card).toContain("SOCIAL_PROFILE_HANDLE_CLASS");
-    expect(card.indexOf("data-social-profile-name")).toBeLessThan(
-      card.indexOf("data-social-profile-handle"),
+    expect(identitySrc).not.toContain("emptyHint");
+    expect(identitySrc).toContain("data-social-profile-handle");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_NAME_STACK_CLASS");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_HANDLE_CLASS");
+    expect(identitySrc.indexOf("data-social-profile-name")).toBeLessThan(
+      identitySrc.indexOf("data-social-profile-handle"),
     );
     expect(chrome).toContain("SOCIAL_PROFILE_HEAD_CLASS");
     expect(chrome).not.toContain("SOCIAL_PROFILE_META_CLASS");
@@ -952,8 +956,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(publicProfile).not.toContain("signedEducationCoverUrls");
     expect(forYouSlot).toContain("loadSuggestedPeople");
     expect(home).toContain("SocialForYouRail");
-    expect(card).toContain("socialProfileRolesRailItems");
-    expect(card).not.toContain("socialProfileRolesLine");
+    expect(identitySrc).toContain("socialProfileRolesRailItems");
+    expect(identitySrc).not.toContain("socialProfileRolesLine");
     expect(homeSkeleton).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
     const profileCenterSkeleton = homeSkeleton.slice(
       homeSkeleton.indexOf("export function SocialProfileCenterSkeleton"),

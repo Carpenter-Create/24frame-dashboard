@@ -257,7 +257,7 @@ describe("cover upload component (FB-exact)", () => {
 
 describe("cover banner architecture", () => {
   it("uses SocialProfileCoverBlock for own-profile (menu escapes overflow)", () => {
-    const ui = readFileSync("src/components/social/social-ui.tsx", "utf8");
+    const ui = readFileSync("src/components/social/social-profile-identity.tsx", "utf8");
     expect(ui).toContain("SocialProfileCoverBlock");
     const banner = readFileSync(
       "src/components/social/social-profile-banner.tsx",

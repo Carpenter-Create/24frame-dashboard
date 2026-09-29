@@ -15,24 +15,30 @@ vi.mock("next/image", () => ({
   }) => createElement("img", { src, className, alt: "" }),
 }));
 
+const dynamicRegistry = vi.hoisted(() => ({
+  resolve: (source: string): ((props: Record<string, unknown>) => unknown) | null =>
+    source ? null : null,
+}));
+
 vi.mock("next/dynamic", () => ({
-  default: () =>
-    function MuxPlayerStub() {
-      return null;
-    },
+  default: (loader: () => Promise<unknown>, options?: { ssr?: boolean }) => {
+    if (options?.ssr === false) {
+      return function MuxPlayerStub() {
+        return null;
+      };
+    }
+    const source = loader.toString();
+    return function SocialDynamic(props: Record<string, unknown>) {
+      const Comp = dynamicRegistry.resolve(source);
+      if (!Comp) return null;
+      return createElement(Comp as never, props);
+    };
+  },
 }));
 
 import { HOUSE_CHIP_RAIL_CLASS } from "@/lib/house-chip-rail";
 import { HOUSE_PHONE_WRAP_CLASS, housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
 import { IDENTITY_AVATAR_CLASS } from "@/lib/house-sheet";
-import {
-  SocialAuthorHistory,
-  SocialAvatar,
-  SocialConversationFaces,
-  SocialPersonRow,
-  SocialPostCard,
-  SocialProfileIdentity,
-} from "./social-ui";
 import { SOCIAL, socialFeedRelativeTime, socialPostHref } from "@/lib/social";
 import {
   SOCIAL_POST_TIME_CLASS,
@@ -61,9 +67,21 @@ import {
   SOCIAL_PROFILE_STATS_GRID_CLASS,
   SOCIAL_PROFILE_TILE_CLASS,
 } from "@/lib/social-chrome";
+import { SocialAvatar } from "./social-avatar";
+import { SocialConversationFaces } from "./social-conversation-faces";
+import { SocialPersonRow } from "./social-person-row";
+import { SocialAuthorHistory, SocialPostCard } from "./social-post-card";
+import { SocialPostMedia } from "./social-post-media";
+import { SocialProfileIdentity } from "./social-profile-identity";
+
+dynamicRegistry.resolve = (source) =>
+  source.includes("social-post-media") ? (SocialPostMedia as never) : null;
 
 const here = dirname(fileURLToPath(import.meta.url));
-const uiSrc = readFileSync(join(here, "social-ui.tsx"), "utf8");
+const postSrc = readFileSync(join(here, "social-post-card.tsx"), "utf8");
+const mediaSrc = readFileSync(join(here, "social-post-media.tsx"), "utf8");
+const identitySrc = readFileSync(join(here, "social-profile-identity.tsx"), "utf8");
+const personSrc = readFileSync(join(here, "social-person-row.tsx"), "utf8");
 const avatarSrc = readFileSync(join(here, "social-avatar.tsx"), "utf8");
 
 describe("SocialAvatar", () => {
@@ -106,7 +124,7 @@ describe("SocialPersonRow", () => {
     expect(sentinel).toContain("@joshua");
     expect(sentinel).not.toContain("Member");
     expect(sentinel).not.toContain("data-social-person-name");
-    expect(uiSrc).toContain("socialPersonIdentity");
+    expect(personSrc).toContain("socialPersonIdentity");
   });
 });
 
@@ -189,24 +207,26 @@ describe("SocialPostCard faces", () => {
   });
 
   it("reuses signed account faces and does not add a second upload", () => {
-    expect(uiSrc).toContain('from "./social-avatar"');
+    expect(postSrc).toContain('from "./social-avatar"');
     expect(avatarSrc).toContain("IDENTITY_AVATAR_CLASS");
     expect(avatarSrc).toContain("photoUrl");
-    expect(uiSrc).toContain("photoUrl");
-    expect(uiSrc).not.toContain("signedAvatarUrl");
-    expect(uiSrc).not.toContain("putAvatarObject");
-    expect(uiSrc).not.toContain("uploadAccountPhoto");
-    expect(uiSrc).not.toContain("type=\"file\"");
-    expect(uiSrc).not.toContain("S3_BUCKET");
-    expect(uiSrc).not.toContain("24frame-media");
+    expect(postSrc).toContain("photoUrl");
+    expect(postSrc).not.toContain("signedAvatarUrl");
+    expect(postSrc).not.toContain("putAvatarObject");
+    expect(postSrc).not.toContain("uploadAccountPhoto");
+    expect(postSrc).not.toContain("type=\"file\"");
+    expect(postSrc).not.toContain("S3_BUCKET");
+    expect(postSrc).not.toContain("24frame-media");
     expect(avatarSrc).not.toContain("signedAvatarUrl");
     expect(avatarSrc).toContain("onError");
     expect(avatarSrc).toContain("SocialMediaImage");
     expect(avatarSrc).not.toContain("<img");
-    expect(uiSrc).toContain("SocialMediaImage");
-    expect(uiSrc).toContain("SocialFeedVideo");
-    expect(uiSrc).not.toContain("<img");
-    expect(uiSrc).not.toContain("@next/next/no-img-element");
+    expect(mediaSrc).toContain("SocialMediaImage");
+    expect(mediaSrc).toContain("SocialFeedVideo");
+    expect(mediaSrc).not.toContain("<img");
+    expect(mediaSrc).not.toContain("@next/next/no-img-element");
+    expect(postSrc).not.toContain("<img");
+    expect(postSrc).not.toContain("@next/next/no-img-element");
   });
 });
 
@@ -222,9 +242,9 @@ describe("Social profile public face", () => {
       />,
     );
     expect(identity).toContain("Edit profile");
-    expect(uiSrc).toContain("actions?: ReactNode");
-    expect(uiSrc).not.toContain("actions?: () => ReactNode");
-    expect(uiSrc).not.toContain("{actions()}");
+    expect(identitySrc).toContain("actions?: ReactNode");
+    expect(identitySrc).not.toContain("actions?: () => ReactNode");
+    expect(identitySrc).not.toContain("{actions()}");
     expect(identity).toContain("data-social-profile-identity");
     expect(identity).not.toContain('data-social-profile-cover=""');
     expect(identity).not.toContain("data-social-profile-cover-empty");
@@ -271,22 +291,19 @@ describe("Social profile public face", () => {
     expect(identity).not.toContain("https://24frame.co/@ada");
     expect(identity).not.toContain("Copies ");
     expect(identity).not.toContain("data-social-share-hint");
-    expect(uiSrc).not.toContain("socialProfilePublicHost");
-    expect(uiSrc).not.toContain("socialShareHint");
-    expect(uiSrc).toContain("data-social-profile-head");
-    expect(uiSrc).toContain("SocialProfileBanner");
-    expect(uiSrc).toContain("socialProfileRendersCoverBand");
-    expect(uiSrc).toContain("SOCIAL_PROFILE_COVER_STACK_CLASS");
-    expect(uiSrc).toContain("SOCIAL_PROFILE_HEAD_OVERLAP_CLASS");
-    expect(uiSrc).toContain("SOCIAL_PROFILE_HEAD_CLASS");
-    expect(uiSrc).toContain("SOCIAL_PROFILE_INSET_CLASS");
-    expect(uiSrc).not.toContain("SOCIAL_PROFILE_META_CLASS");
-    expect(uiSrc).not.toContain("data-social-profile-meta");
-    expect(uiSrc).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
-    const identityMarkup = uiSrc.slice(
-      uiSrc.indexOf("data-social-profile-identity"),
-      uiSrc.indexOf("export function SocialHighlights"),
-    );
+    expect(identitySrc).not.toContain("socialProfilePublicHost");
+    expect(identitySrc).not.toContain("socialShareHint");
+    expect(identitySrc).toContain("data-social-profile-head");
+    expect(identitySrc).toContain("SocialProfileBanner");
+    expect(identitySrc).toContain("socialProfileRendersCoverBand");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_COVER_STACK_CLASS");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_HEAD_OVERLAP_CLASS");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_HEAD_CLASS");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_INSET_CLASS");
+    expect(identitySrc).not.toContain("SOCIAL_PROFILE_META_CLASS");
+    expect(identitySrc).not.toContain("data-social-profile-meta");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
+    const identityMarkup = identitySrc.slice(identitySrc.indexOf("data-social-profile-identity"));
     expect(identityMarkup.indexOf("data-social-profile-head")).toBeLessThan(
       identityMarkup.indexOf("data-social-profile-name"),
     );
@@ -313,7 +330,7 @@ describe("Social profile public face", () => {
     );
     expect(identityMarkup).not.toContain("data-social-profile-topics");
     expect(identityMarkup).not.toContain("data-social-profile-topic");
-    expect(uiSrc).toContain("data-social-profile-handle");
+    expect(identitySrc).toContain("data-social-profile-handle");
     expect(identity).toContain("Writes engines.");
     expect(identity).toContain('src="https://s3.example/signed-avatar"');
     expect(identity).not.toContain("data-social-profile-roles");
@@ -708,18 +725,13 @@ describe("Social profile public face", () => {
     expect(overflow).not.toContain(">instagram.com/ada<");
     expect(overflow).not.toContain(">x.com/ada<");
     expect(overflow).not.toContain("data-social-profile-links-sheet");
-    expect(uiSrc).not.toContain("socialProfileRolesLine");
-    expect(uiSrc).toContain("socialProfileRolesRailItems");
-    expect(uiSrc).toContain("HouseChipRail");
-    expect(uiSrc).toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
-    expect(uiSrc).not.toContain("data-social-profile-roles-more");
-    expect(uiSrc).not.toContain('item.kind === "more"');
-    expect(
-      uiSrc.slice(
-        uiSrc.indexOf("export function SocialPersonRow"),
-        uiSrc.indexOf("export function SocialConversationFaces"),
-      ),
-    ).not.toContain("socialProfileRolesRailItems");
+    expect(identitySrc).not.toContain("socialProfileRolesLine");
+    expect(identitySrc).toContain("socialProfileRolesRailItems");
+    expect(identitySrc).toContain("HouseChipRail");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
+    expect(identitySrc).not.toContain("data-social-profile-roles-more");
+    expect(identitySrc).not.toContain('item.kind === "more"');
+    expect(personSrc).not.toContain("socialProfileRolesRailItems");
 
     const history = renderToStaticMarkup(
       <SocialAuthorHistory
@@ -755,8 +767,8 @@ describe("Social profile public face", () => {
     expect(history).not.toContain("border border-hairline bg-surface");
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
-    expect(uiSrc).not.toContain('className="flex flex-col bg-surface md:hidden"');
-    expect(uiSrc).not.toContain("data-social-post-mobile");
+    expect(postSrc).not.toContain('className="flex flex-col bg-surface md:hidden"');
+    expect(postSrc).not.toContain("data-social-post-mobile");
     expect(history).toContain('data-social-post="p1"');
     expect(history).toContain("hello");
     expect(history).not.toContain("data-social-profile-grid");
@@ -842,9 +854,9 @@ describe("Social profile public face", () => {
     expect(withCreate).not.toContain(SOCIAL.profile.edit);
     expect(withCreate).not.toContain(SOCIAL.profile.completeIdentity);
     expect(withCreate).not.toContain("/social/profile/edit");
-    expect(uiSrc).toContain("SocialProfilePostsEmpty");
-    expect(uiSrc).not.toContain("emptySecondary");
-    expect(uiSrc).not.toContain("emptyHint");
+    expect(postSrc).toContain("SocialProfilePostsEmpty");
+    expect(postSrc).not.toContain("emptySecondary");
+    expect(postSrc).not.toContain("emptyHint");
 
     const truncated = renderToStaticMarkup(<SocialAuthorHistory posts={[]} truncated />);
     expect(truncated).toContain("data-social-author-truncated");
@@ -922,11 +934,8 @@ describe("SocialPostCard media", () => {
     expect(portrait).toContain("aspect-[4/5]");
     expect(portrait).not.toContain("aspect-square");
 
-    const postCard = uiSrc.slice(uiSrc.indexOf("export function SocialPostCard"));
-    const postMedia = uiSrc.slice(
-      uiSrc.indexOf("export function SocialPostMedia"),
-      uiSrc.indexOf("export function SocialProfileIdentity"),
-    );
+    const postCard = postSrc.slice(postSrc.indexOf("export function SocialPostCard"));
+    const postMedia = mediaSrc.slice(mediaSrc.indexOf("export function SocialPostMedia"));
     expect(postCard).not.toContain("aspect-square");
     expect(postMedia).not.toContain("aspect-square");
     expect(postMedia).toContain("socialMediaFrameClass");
@@ -1102,7 +1111,7 @@ describe("SocialPostCard media", () => {
       />,
     );
     expect(mux).toContain('data-social-mux-player="uNbxnGLKJ00yfbijDO8COxT"');
-    expect(uiSrc).toContain("SocialFeedVideo");
+    expect(mediaSrc).toContain("SocialFeedVideo");
 
     const cheese = renderToStaticMarkup(
       <SocialPostCard
@@ -1398,7 +1407,7 @@ describe("SocialPostCard 24Frame blend", () => {
   });
 
   it("does not fork desktop meta-row chrome in source", () => {
-    const postCard = uiSrc.slice(uiSrc.indexOf("export function SocialPostCard"));
+    const postCard = postSrc.slice(postSrc.indexOf("export function SocialPostCard"));
     expect(postCard).toContain("SOCIAL_FEED_ROW_CLASS");
     expect(postCard).toContain("data-social-post-time");
     expect(postCard).toContain("SOCIAL_POST_TIME_CLASS");
@@ -1467,10 +1476,7 @@ function expectNameBelowCover(html: string) {
 
 describe("Social profile cover band", () => {
   it("lips the whole head column so the name starts under the avatar", () => {
-    const identity = uiSrc.slice(
-      uiSrc.indexOf("export function SocialProfileIdentity"),
-      uiSrc.indexOf("export function SocialHighlights"),
-    );
+    const identity = identitySrc.slice(identitySrc.indexOf("export function SocialProfileIdentity"));
     expect(identity).not.toContain("data-social-profile-avatar-hang");
     expect(identity).not.toContain("SOCIAL_PROFILE_HEAD_ON_COVER_CLASS");
     expect(identity).not.toContain("SOCIAL_PROFILE_NAME_STACK_ON_COVER_CLASS");

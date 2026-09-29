@@ -56,11 +56,8 @@ describe("SOCIAL_PROFILE_COVER_LOCK_A", () => {
     expect(chrome).not.toMatch(
       /export const SOCIAL_PROFILE_NAME_CLASS = "[^"]*t-title/,
     );
-    const ui = readFileSync("src/components/social/social-ui.tsx", "utf8");
-    const identity = ui.slice(
-      ui.indexOf("export function SocialProfileIdentity"),
-      ui.indexOf("export function SocialHighlights"),
-    );
+    const ui = readFileSync("src/components/social/social-profile-identity.tsx", "utf8");
+    const identity = ui.slice(ui.indexOf("export function SocialProfileIdentity"));
     expect(identity).not.toContain("data-social-profile-avatar-hang");
     const headHost = identity.slice(
       identity.indexOf('data-social-profile-head=""'),

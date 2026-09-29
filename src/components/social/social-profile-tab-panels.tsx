@@ -3,9 +3,10 @@
 import { useHouseClient } from "@/components/chrome/house-client-shell";
 import { SocialActivityHistory, type SocialActivityCommentCardModel } from "@/components/social/social-activity-history";
 import { SocialEmpty } from "@/components/social/social-empty";
+import { SocialHighlights } from "@/components/social/social-highlights";
 import { SocialProfileInterests } from "@/components/social/social-profile-interests";
 import { SocialProfileTabs } from "@/components/social/social-profile-tabs";
-import { SocialHighlights, type SocialPostCardModel } from "@/components/social/social-ui";
+import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { houseExactHref } from "@/lib/house-client-shell";
 import {
   resolveSocialProfileLocation,

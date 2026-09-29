@@ -65,7 +65,7 @@ import {
   type SocialStoryTrayAuthor,
   type SocialStoryTrayCursor,
 } from "@/lib/social-story-tray";
-import type { SocialPostMediaItem } from "@/components/social/social-ui";
+import type { SocialPostMediaItem } from "@/lib/social-author-post-card";
 
 export type SocialStoryNeighbor = {
   storyId: string;

@@ -5,9 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { SOCIAL } from "@/lib/social";
-import { SocialCommentTrigger } from "./social-comment-thread";
+import { SocialCommentTrigger } from "./social-comment-trigger";
 
-const triggerSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "social-comment-thread.tsx"), "utf8");
+const triggerSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "social-comment-trigger.tsx"), "utf8");
 
 describe("SocialCommentTrigger", () => {
   it("renders no trail text when the count is zero", () => {

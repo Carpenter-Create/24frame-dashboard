@@ -1,6 +1,7 @@
 import { SocialEmpty } from "@/components/social/social-empty";
 import { SocialActivityPills } from "@/components/social/social-activity-pills";
-import { SocialPostCard, type SocialPostCardModel } from "@/components/social/social-ui";
+import { SocialPostCard } from "@/components/social/social-post-card";
+import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import {
   SOCIAL_ACTIVITY_COMMENT_SNIPPET_CLASS,

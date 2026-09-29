@@ -1,5 +1,5 @@
 import { SocialFollowButton } from "@/components/social/social-engagement";
-import { SocialPersonRow } from "@/components/social/social-ui";
+import { SocialPersonRow } from "@/components/social/social-person-row";
 import { socialMemberHref } from "@/lib/social";
 import type { SocialFollowsListPerson } from "@/lib/social-feed";
 

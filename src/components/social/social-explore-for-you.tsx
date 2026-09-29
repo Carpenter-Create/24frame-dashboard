@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-import { SocialCommentTrigger } from "@/components/social/social-comment-thread";
+import { SocialCommentTrigger } from "@/components/social/social-comment-trigger";
 import { SocialLikeButton } from "@/components/social/social-engagement";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialMuxPlayer } from "@/components/social/social-mux-player";
-import { SocialPostShareButton } from "@/components/social/social-post-share-sheet";
+import { SocialPostShareButton } from "@/components/social/social-post-share-button";
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { cn } from "@/lib/cn";
 import { SOCIAL, socialMemberHref, socialPersonIdentity } from "@/lib/social";

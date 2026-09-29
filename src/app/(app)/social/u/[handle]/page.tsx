@@ -10,7 +10,7 @@ import { SocialQueryBound } from "@/components/social/social-query-bound";
 import { SocialEmpty } from "@/components/social/social-empty";
 import { SocialProfileTabPanels } from "@/components/social/social-profile-tab-panels";
 import { SocialShareButton } from "@/components/social/social-share-button";
-import { SocialProfileIdentity } from "@/components/social/social-ui";
+import { SocialProfileIdentity } from "@/components/social/social-profile-identity";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
 import { SocialWelcomeVideo } from "@/components/social/social-welcome-video";
 import { SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PAGE_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";

@@ -25,7 +25,7 @@ const chrome = readFileSync(join(here, "social-chrome.ts"), "utf8");
 const sheet = readFileSync(join(here, "../components/social/social-share-sheet.tsx"), "utf8");
 const button = readFileSync(join(here, "../components/social/social-share-button.tsx"), "utf8");
 const home = readFileSync(join(here, "../app/(app)/social/page.tsx"), "utf8");
-const identity = readFileSync(join(here, "../components/social/social-ui.tsx"), "utf8");
+const identity = readFileSync(join(here, "../components/social/social-profile-identity.tsx"), "utf8");
 
 describe("Profile share sheet lock", () => {
   afterEach(() => {
