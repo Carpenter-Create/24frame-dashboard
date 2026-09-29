@@ -14,7 +14,6 @@ const src = readFileSync("src/components/ui/segmented-track.tsx", "utf8");
 const lib = readFileSync("src/lib/segmented-track.ts", "utf8");
 
 const CONSUMERS = [
-  "src/components/chrome/workspace-switcher.tsx",
   "src/components/chrome/house-period-presets.tsx",
   "src/components/activity/activity-family-chips.tsx",
   "src/components/reports/reports-ranked.tsx",
@@ -99,6 +98,13 @@ describe("SegmentedTrack slide SoT", () => {
       expect(body, path).not.toContain("HOUSE_FILTER_PILL_CLUSTER_CLASS");
       expect(body, path).toContain("SegmentedTrack");
     }
+
+    const waffle = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
+    expect(waffle).toContain("workspaceWaffleTiles");
+    expect(waffle).toContain('data-workspace-waffle=""');
+    expect(waffle).not.toContain("SegmentedTrack");
+    expect(waffle).not.toContain("SEGMENTED_TRACK_PERSIST");
+    expect(waffle).not.toContain("HOUSE_FILTER_PILL_CLUSTER_CLASS");
   });
 
   it("stamps data-segmented-selected on the visual item before the route commits", () => {

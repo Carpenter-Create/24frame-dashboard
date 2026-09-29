@@ -1,9 +1,9 @@
 // Shared phone app-shell — IA A (Adam lock: dests in the dock).
 // One primitive for Home · Aggregation · Social · Education.
 // Desktop header + desktop workspace pills stay on HouseLeadChrome.
-// Phone header: emblem + current workspace word+chevron. Tap opens a
-// calm house sheet — Home · Aggregation · Social · Education.
-// One tap open, one tap switch. No workspace item in the dock.
+// Phone header: emblem, then trailing utilities. Workspace switch is
+// the waffle (search · Ask · bell · waffle · avatar). No workspace
+// name in the header. No workspace item in the dock.
 // Avatar stays Settings / account — not a second workspace door.
 // Destinations live in the Mercury floating dock (in-workspace
 // only). Social dest order is Home · Explore · Create ·
@@ -16,7 +16,7 @@
 // optimistic dest light on tap. No under-top dest chip rail. No
 // peer workspace pill rail.
 // Phone OS dark is not the product theme. One house SoT.
-// Trailing is search (when needed) · 24Frame AI · bell · avatar.
+// Trailing is search (when needed) · 24Frame AI · bell · waffle · avatar.
 // Theme is the avatar drill. No header sun/moon.
 // Ask AI is header + Home module only (#465).
 // Craft is Elevated Mercury (reference, not a pixel clone, not
@@ -26,11 +26,11 @@
 // the glyph. Inactive sit bare. Stroke is Regular for both the
 // Mercury bar and the phone-top AI/bell cluster — one weight
 // register — but the glyph boxes ride TWO independent size SoT
-// tokens. Joshua bar 2026-09-22: the dock sits at size-7 / 28px
-// (HOUSE_PHONE_CHROME_ICON_CLASS) so dests read at thumb weight,
-// and the header trailing sits at size-6 / 24px
-// (HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS). Desktop header glyphs
-// are size-5 / 20 inside the 44 control. Two literals, no alias.
+// tokens. Shell waffle lock: the phone dock glyph matches the phone
+// header trailing optical size (size-6 / 24px). The dock literal
+// (HOUSE_PHONE_CHROME_ICON_CLASS) stays its own declaration — not an
+// alias of HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS. Desktop header
+// glyphs stay size-5 / 20 inside the 44 control.
 // Header must NOT re-export the bottom-chrome class. Phosphor rail
 // stays size-4. Not Bold/Fill heavy. Active ink is accent
 // on the chip; idle is ink-2 on both the bar off state and the top
@@ -69,7 +69,10 @@ import {
   WORKSPACE_EDUCATION_LABEL,
   WORKSPACE_STAFF_LABEL,
 } from "@/lib/workspace-menu";
+import { HOUSE_PHONE_DOCK_CLEARANCE } from "@/lib/house-phone-dock";
 import { workspaceHome, type WorkspaceMode } from "@/lib/workspace";
+
+export { HOUSE_PHONE_DOCK_CLEARANCE };
 
 export type HousePhoneWorkspaceId = Exclude<OverviewLeadPillId, "co-productions">;
 
@@ -117,22 +120,19 @@ export const HOUSE_PHONE_BOTTOM_NAV_CLASS =
 export const HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS = "pointer-events-none translate-y-full";
 
 export const HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS =
-  "flex h-16 w-full max-w-[420px] items-center rounded-[32px] border border-hairline bg-surface px-2 shadow-[var(--elevation-float)]";
+  "flex h-12 w-full max-w-[420px] items-center rounded-full border border-hairline bg-surface px-2 shadow-[var(--elevation-float)]";
 
-export const HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS = "flex h-14 w-full items-center";
+export const HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS = "flex h-10 w-full items-center";
 
 export const HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS =
   "flex h-full min-w-0 flex-1 items-center justify-center px-1";
 
 export const HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS = "text-accent";
 
-/** Phone dock glyph — 28px box.
- *  Bottom bar owns in-workspace dests and sits at the base of the
- *  screen, so its glyphs stay at thumb weight. The phone header
- *  trailing cluster uses a SEPARATE size literal
- *  (HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS). Two tokens, two sizes.
- *  Never alias them. */
-export const HOUSE_PHONE_CHROME_ICON_CLASS = "size-7 shrink-0";
+/** Phone dock glyph — 24px box.
+ *  Matches the phone header trailing optical size. Own literal, not
+ *  an alias of HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS. */
+export const HOUSE_PHONE_CHROME_ICON_CLASS = "size-6 shrink-0";
 
 /** Phone header trailing glyph — 24px box.
  *  AI mark + bell + phone search read off this token. Its value is a
@@ -153,9 +153,9 @@ export const HOUSE_PHONE_CHROME_IDLE_INK_CLASS = "text-ink-2";
 
 export const HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS = HOUSE_PHONE_CHROME_IDLE_INK_CLASS;
 
-/** Soft light pill behind the selected glyph. Scales with the 28px box. */
+/** Soft light pill behind the selected glyph. Scales with the 24px box. */
 export const HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS =
-  "flex h-14 min-w-16 items-center justify-center rounded-full bg-surface-muted";
+  "flex h-9 min-w-9 items-center justify-center rounded-full bg-surface-muted";
 
 /** Phone 24px; desktop header is 20px inside the 44 control.
  *  Not the Phosphor rail (size-4) and not the dock (size-7). */
@@ -168,10 +168,10 @@ export const HOUSE_HEADER_TRAILING_PHONE_CLASS = `${HOUSE_HEADER_TRAILING_ICON_C
 /** Desktop header trailing instance — 20px. Not the 16px Phosphor rail. */
 export const HOUSE_HEADER_TRAILING_DESKTOP_CLASS = "size-5 shrink-0 hidden md:block";
 
-/** Bottom nav rides the 28px SoT (HOUSE_PHONE_CHROME_ICON_CLASS)
- *  independently of the phone header trailing. The two clusters share
- *  weight (Regular) and idle ink (text-ink-2), but the size tokens
- *  are two independent literals. Never Bold/Fill. */
+/** Bottom nav rides the 24px SoT (HOUSE_PHONE_CHROME_ICON_CLASS),
+ *  the same optical size as the phone header trailing. The two
+ *  clusters share weight (Regular) and idle ink (text-ink-2). The
+ *  size tokens stay two independent literals. Never Bold/Fill. */
 export const HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS = HOUSE_PHONE_CHROME_ICON_CLASS;
 
 export const HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT = HOUSE_PHONE_CHROME_ICON_WEIGHT;
@@ -179,7 +179,7 @@ export const HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT = HOUSE_PHONE_CHROME_ICON_WEIGHT
 /** Clears the float once on main. Do not stack a second phone bottom pad on children.
  *  Pad stays when the bar hides so scroll-hide does not jump the page. */
 export const HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS =
-  "max-md:pb-[calc(6.5rem+env(safe-area-inset-bottom))]";
+  `max-md:pb-[calc(${HOUSE_PHONE_DOCK_CLEARANCE}+env(safe-area-inset-bottom))]`;
 
 /** Social phone dests are SOCIAL_NAV — Home · Explore · Create · Messages · Profile. */
 export const SOCIAL_PHONE_DESTS = mobileNavDestinations(false, "social");

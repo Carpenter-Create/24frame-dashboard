@@ -16,11 +16,8 @@ import {
 import {
   APP_HEADER_LEADING_CLASS,
   APP_HEADER_TRAILING_CLUSTER_CLASS,
-  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   WORKSPACE_SWITCHER,
-  WORKSPACE_SWITCHER_PILL_CHEVRON_CLASS,
-  WORKSPACE_SWITCHER_PILL_PANEL_CLASS,
-  WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS,
+  WORKSPACE_SWITCHER_PANEL_CLASS,
 } from "@/lib/workspace-switcher";
 import { WorkspaceSwitcher } from "@/components/chrome/workspace-switcher";
 
@@ -74,15 +71,12 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("justify-center");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("border-hairline");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("bg-surface-muted");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("t-body-sm");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).toContain("text-ink");
-    expect(WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS).not.toMatch(/green|emerald|#00|#12|#1[Bb]|#1769FF/);
+    expect(switcherSrc).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
+    expect(switcherSrc).not.toContain("WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS");
     expect(leadSrc).toContain("data-app-header-leading");
-    expect(leadSrc).toContain("data-app-header-workspace-pill");
+    expect(leadSrc).not.toContain("data-app-header-workspace-pill");
     expect(leadSrc).toContain("APP_HEADER_LEADING_CLASS");
-    expect(leadSrc).toContain('tone="pill"');
+    expect(leadSrc).not.toContain('tone="pill"');
     expect(shellSrc).not.toContain("MobileNavSlot");
     expect(shellSrc).not.toContain("DestChipsSlot");
     expect(shellSrc).toContain("<HouseLeadChrome");
@@ -98,8 +92,8 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
       header.indexOf("data-app-header-trailing"),
     );
     expect(leading).toContain("{leadingNav}");
-    expect(leading).toContain("data-app-header-workspace-pill");
-    expect(leading).toContain("WorkspaceSwitcher");
+    expect(leading).not.toContain("data-app-header-workspace-pill");
+    expect(leading).not.toContain("WorkspaceSwitcher");
     expect(leading).not.toContain("{accountMenu}");
     expect(leading).not.toContain("{trailingNav}");
     expect(shellSrc).not.toContain("afterLead=");
@@ -119,16 +113,15 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toContain("hidden");
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toContain("md:contents");
+    expect(switcherSrc).not.toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
     expect(leadSrc).toContain("data-app-header-trailing");
     expect(leadSrc).toContain("APP_HEADER_TRAILING_CLUSTER_CLASS");
     const trailing = leadSrc.slice(
       leadSrc.indexOf("data-app-header-trailing"),
       leadSrc.indexOf("</header>"),
     );
-    expect(trailing).toContain("data-app-header-workspace-desktop");
-    expect(trailing).toContain("<WorkspaceSwitcher current={workspace} options={workspaceOptions} presentation=\"pills\" />");
+    expect(trailing).toContain("<WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />");
+    expect(trailing).not.toContain("data-app-header-workspace-desktop");
     expect(trailing).not.toContain('tone="pill"');
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
@@ -136,9 +129,12 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(trailing).toContain('data-app-header-trailing-nav="" className="md:hidden"');
     expect(trailing).not.toContain("data-education-header-search-host");
     expect(trailing.indexOf("{trailingNav}")).toBeLessThan(
-      trailing.indexOf("data-app-header-workspace-desktop"),
+      trailing.indexOf("<WorkspaceSwitcher"),
     );
-    expect(trailing.indexOf("data-app-header-workspace-desktop")).toBeLessThan(
+    expect(trailing.indexOf("<ActivityBell")).toBeLessThan(
+      trailing.indexOf("<WorkspaceSwitcher"),
+    );
+    expect(trailing.indexOf("<WorkspaceSwitcher")).toBeLessThan(
       trailing.indexOf("{accountMenu}"),
     );
     expect(shellSrc).toContain("accountMenu=");
@@ -151,28 +147,24 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(shellSrc).not.toContain("data-workspace-switcher-rail");
   });
 
-  it("keeps a quiet always-on chevron on the pill and the Workspaces menu", () => {
-    expect(WORKSPACE_SWITCHER_PILL_CHEVRON_CLASS).toContain("opacity-100");
-    expect(WORKSPACE_SWITCHER_PILL_CHEVRON_CLASS).not.toContain("opacity-0");
-    expect(WORKSPACE_SWITCHER_PILL_PANEL_CLASS).toContain("fixed");
-    expect(WORKSPACE_SWITCHER_PILL_PANEL_CLASS).toContain("z-50");
-    expect(WORKSPACE_SWITCHER_PILL_PANEL_CLASS).not.toContain("absolute");
+  it("opens a portaled Workspaces panel of Layer 1 tiles", () => {
+    expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("fixed");
+    expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("z-50");
+    expect(WORKSPACE_SWITCHER_PANEL_CLASS).not.toContain("absolute");
     expect(WORKSPACE_SWITCHER.heading).toBe("Workspaces");
     const open = renderToStaticMarkup(
       createElement(WorkspaceSwitcher, {
         current: "aggregation",
-        tone: "pill",
         defaultOpen: true,
       }),
     );
     expect(open).toContain("data-workspace-switcher-popover");
     expect(open).toContain(WORKSPACE_SWITCHER.heading);
-    expect(open).toContain('data-workspace-switcher-option="aggregation"');
-    expect(open).toContain('data-workspace-switcher-option="social"');
-    expect(open).toContain('data-workspace-switcher-option="education"');
-    expect(open).toContain('data-workspace-switcher-option="co-productions"');
-    expect(open).toContain(WORKSPACE_SWITCHER_PILL_PANEL_CLASS);
-    expect(switcherSrc).toContain("Mercury");
+    expect(open).toContain('data-workspace-waffle-tile="social"');
+    expect(open).toContain('data-workspace-waffle-tile="education"');
+    expect(open).toContain('data-workspace-waffle-tile="aggregation"');
+    expect(open).not.toContain('data-workspace-waffle-tile="co-productions"');
+    expect(open).toContain(WORKSPACE_SWITCHER_PANEL_CLASS);
     expect(switcherSrc).toContain("Workspaces");
   });
 

@@ -1,32 +1,16 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { BookOpen, DotsNine, FilmStrip, Tray, Users } from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
-import { CaretDown } from "@phosphor-icons/react";
 
 import { AppearanceCheck } from "./appearance-check";
-import { SegmentedTrack } from "@/components/ui/segmented-track";
-import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
-import {
-  overviewLeadActiveIndex,
-  overviewLeadPills,
-  overviewLeadSelected,
-  overviewTriggerLabel,
-  type OverviewLeadPill,
-  type OverviewLeadPillId,
-} from "@/lib/overview";
-import { clampWorkspaceMode, resolveWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
+import { overviewLeadSelected } from "@/lib/overview";
+import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 import { prefetchHrefList, type HouseNavClickLike } from "@/lib/house-nav-pending";
 import {
   HouseNavPendingProbe,
@@ -35,59 +19,47 @@ import {
 import {
   availableWorkspaceOptions,
   type WorkspaceMenuOption,
-  workspaceModeLabel,
 } from "@/lib/workspace-menu";
+import {
+  HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
+  HOUSE_HEADER_TRAILING_PHONE_CLASS,
+  HOUSE_PHONE_CHROME_ICON_WEIGHT,
+} from "@/lib/house-phone-shell";
+import { cn } from "@/lib/cn";
 import {
   WORKSPACE_SWITCHER,
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
-  WORKSPACE_SWITCHER_MARK_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
-  WORKSPACE_SWITCHER_OPTION_CHECK_GUTTER_CLASS,
-  WORKSPACE_SWITCHER_OPTION_LABEL_CLASS,
-  WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS,
-  WORKSPACE_SWITCHER_SEGMENTS_CLASS,
-  WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS,
   WORKSPACE_SWITCHER_SHEET_HOST_CLASS,
   WORKSPACE_SWITCHER_SHEET_SCRIM_CLASS,
   WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS,
-  WORKSPACE_SWITCHER_TRIGGER_NAME_CLASS,
-  type WorkspaceSwitcherPresentation,
-  type WorkspaceSwitcherTone,
-  phoneWorkspaceSwitcherPills,
+  WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
+  WORKSPACE_WAFFLE_GRID_CLASS,
+  WORKSPACE_WAFFLE_ICON_CLASS,
+  WORKSPACE_WAFFLE_TILE_CLASS,
+  WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_TILE_LABEL_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
-  workspaceSwitcherChevronClass,
   workspaceSwitcherChromeClearanceBottoms,
-  workspaceSwitcherLeadMarkLetter,
   workspaceSwitcherMenuStyle,
-  workspaceSwitcherNextSegmentIndex,
-  workspaceSwitcherOptionClass,
-  workspaceSwitcherPanelClass,
-  workspaceSwitcherSegmentClass,
-  workspaceSwitcherSegmentLabel,
-  workspaceSwitcherSegmentTabIndex,
-  workspaceSwitcherStaticClass,
-  workspaceSwitcherTriggerClass,
-  workspacePillClickDest,
   workspaceSwitcherPersistLane,
+  workspaceWaffleTiles,
+  workspacePillClickDest,
 } from "@/lib/workspace-switcher";
 
-function WorkspaceLeadMark({ id }: { id: OverviewLeadPillId }) {
-  const letter = id === "co-productions" ? "" : workspaceSwitcherLeadMarkLetter(id);
-  return (
-    <span
-      data-workspace-switcher-mark={id}
-      className={WORKSPACE_SWITCHER_MARK_CLASS}
-      aria-hidden="true"
-    >
-      {letter}
-    </span>
-  );
-}
+const WORKSPACE_WAFFLE_ICON = {
+  social: Users,
+  education: BookOpen,
+  aggregation: FilmStrip,
+  staff: Tray,
+} as const;
 
-function selectLeadPill(
+function selectWorkspaceTile(
   current: WorkspaceMode,
-  pill: Pick<OverviewLeadPill, "id" | "href">,
+  tile: WorkspaceMenuOption,
   options: readonly WorkspaceMenuOption[],
   router: ReturnType<typeof useRouter>,
   shellPath: string,
@@ -96,118 +68,115 @@ function selectLeadPill(
   event?: HouseNavClickLike,
   navigateOwned?: (href: string, click?: HouseNavClickLike) => boolean,
 ) {
-  // shellPath is the owned/Next address. Pending activePath lights the
-  // pill in the click but must not swallow a retry when the push no-ops
-  // (Next already has this URL while the owned screen is elsewhere).
   const dest = workspacePillClickDest({
     shellPath,
     workspace: current,
-    pill,
+    pill: { id: tile.mode, href: tile.href },
     options,
   });
   if (!dest) return;
-  if (pill.id !== "home" && pill.id !== "co-productions") {
-    workspaceSwitcherPersistLane(pill.id, isGcStaff);
-  }
+  workspaceSwitcherPersistLane(tile.mode, isGcStaff);
   markPending?.(dest, event);
   if (navigateOwned?.(dest, event)) return;
   router.push(dest);
 }
 
-function WorkspaceSwitcherPills({
+function WorkspaceWaffleTiles({
+  tiles,
   current,
-  options,
-  isGcStaff = false,
+  chromePath,
+  staffGate,
+  onNavigate,
 }: {
+  tiles: readonly WorkspaceMenuOption[];
   current: WorkspaceMode;
-  options: readonly WorkspaceMenuOption[];
-  isGcStaff?: boolean;
+  chromePath: string;
+  staffGate: boolean;
+  onNavigate: () => void;
 }) {
   const router = useRouter();
-  const shellPath = useHousePathname();
+  const pathname = useHousePathname();
   const house = useHouseClient();
-  const { activePath, markPending } = useHouseNavPending();
-  const pills = overviewLeadPills(options);
-  const segmentRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const routeWorkspace = resolveWorkspaceMode(activePath, current);
-  const label = overviewTriggerLabel(activePath, workspaceSwitcherSegmentLabel(current));
-  const canSwitch = pills.length > 1;
-  const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
-
-  function onSegmentKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
-    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
-    event.preventDefault();
-    const next = workspaceSwitcherNextSegmentIndex(
-      index,
-      pills.length,
-      event.key === "ArrowRight" ? 1 : -1,
-    );
-    segmentRefs.current[next]?.focus();
-  }
-
-  if (!canSwitch) {
-    return (
-      <span
-        data-workspace-switcher=""
-        data-workspace-switcher-presentation="pills"
-        className={workspaceSwitcherStaticClass("plain")}
-      >
-        <span data-workspace-switcher-current="" className={WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS}>
-          {label}
-        </span>
-      </span>
-    );
-  }
+  const { markPending } = useHouseNavPending();
 
   return (
-    <SegmentedTrack
-      activeIndex={routeIndex}
-      persistKey={SEGMENTED_TRACK_PERSIST.workspace}
-      trackClass={WORKSPACE_SWITCHER_SEGMENTS_CLASS}
-      thumbClass={WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS}
-      data-workspace-switcher=""
-      data-workspace-switcher-presentation="pills"
-      data-workspace-switcher-pills=""
-      role="tablist"
-      aria-label={WORKSPACE_SWITCHER.label}
-    >
-      {({ selectedIndex }) =>
-        pills.map((pill, index) => {
-          const selected = segmentedItemOn(index, selectedIndex);
+    <>
+      <div data-workspace-switcher-header="" className={WORKSPACE_SWITCHER_HEADER_CLASS}>
+        {WORKSPACE_SWITCHER.heading}
+      </div>
+      <div
+        role="listbox"
+        aria-label={WORKSPACE_SWITCHER.heading}
+        data-workspace-waffle-grid=""
+        className={WORKSPACE_WAFFLE_GRID_CLASS}
+      >
+        {tiles.map((tile) => {
+          const selected = overviewLeadSelected(tile.mode, chromePath, current);
+          const Icon = WORKSPACE_WAFFLE_ICON[tile.mode];
+          const body = (
+            <>
+              <Icon className={WORKSPACE_WAFFLE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} aria-hidden="true" />
+              <span data-workspace-waffle-label="" className={WORKSPACE_WAFFLE_TILE_LABEL_CLASS}>
+                {tile.label}
+              </span>
+              <AppearanceCheck selected={selected} className={WORKSPACE_SWITCHER_OPTION_CHECK_CLASS} />
+            </>
+          );
+          const className = cn(
+            WORKSPACE_WAFFLE_TILE_CLASS,
+            selected && WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
+          );
+          if (!selected) {
+            return (
+              <HouseLink
+                key={tile.mode}
+                href={tile.href}
+                prefetch
+                role="option"
+                data-workspace-waffle-tile={tile.mode}
+                aria-selected={false}
+                className={className}
+                onClick={(event) => {
+                  workspaceSwitcherPersistLane(tile.mode, staffGate);
+                  markPending(tile.href, event);
+                  onNavigate();
+                }}
+              >
+                <HouseNavPendingProbe href={tile.href} onPending={markPending} />
+                {body}
+              </HouseLink>
+            );
+          }
           return (
             <button
-              key={pill.id}
-              ref={(node) => {
-                segmentRefs.current[index] = node;
-              }}
+              key={tile.mode}
               type="button"
-              role="tab"
-              data-segmented-item=""
-              data-workspace-switcher-segment={pill.id}
-              aria-selected={selected}
-              tabIndex={workspaceSwitcherSegmentTabIndex(selected)}
-              className={workspaceSwitcherSegmentClass(selected)}
+              role="option"
+              data-workspace-waffle-tile={tile.mode}
+              data-workspace-waffle-current=""
+              aria-selected
+              className={className}
               onClick={(event) => {
-                selectLeadPill(
+                selectWorkspaceTile(
                   current,
-                  pill,
-                  options,
+                  tile,
+                  tiles,
                   router,
-                  shellPath,
-                  isGcStaff,
-                  markPending,
+                  pathname,
+                  staffGate,
+                  undefined,
                   event,
                   house?.navigateOwned,
                 );
+                onNavigate();
               }}
-              onKeyDown={(event) => onSegmentKeyDown(event, index)}
             >
-              {pill.label}
+              {body}
             </button>
           );
-        })
-      }
-    </SegmentedTrack>
+        })}
+      </div>
+    </>
   );
 }
 
@@ -216,39 +185,28 @@ export function WorkspaceSwitcher({
   isGcStaff = false,
   options = availableWorkspaceOptions(),
   defaultOpen = false,
-  tone = "plain",
-  presentation = "menu",
 }: {
   current: WorkspaceMode;
   isGcStaff?: boolean;
   options?: readonly WorkspaceMenuOption[];
   defaultOpen?: boolean;
-  tone?: WorkspaceSwitcherTone;
-  presentation?: WorkspaceSwitcherPresentation;
 }) {
   const staffGate = isGcStaff || options.some((option) => option.mode === "staff");
   const current = clampWorkspaceMode(requestedCurrent, staffGate);
   const router = useRouter();
   const pathname = useHousePathname();
-  const house = useHouseClient();
-  const { activePath, markPending } = useHouseNavPending();
+  const { activePath } = useHouseNavPending();
   const hostRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(defaultOpen);
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
-  const pills =
-    presentation === "sheet"
-      ? phoneWorkspaceSwitcherPills(options)
-      : overviewLeadPills(options);
-  const chromePath = presentation === "sheet" ? activePath : pathname;
-  const label = overviewTriggerLabel(chromePath, workspaceModeLabel(current));
-  const canSwitch = pills.length > 1;
+  const tiles = workspaceWaffleTiles(options);
+  const chromePath = activePath || pathname;
 
   useEffect(() => {
-    if (presentation !== "sheet") return;
     prefetchHrefList(router.prefetch, phoneWorkspaceSwitcherPrefetchHrefs(options));
-  }, [options, presentation, router]);
+  }, [options, router]);
 
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -257,7 +215,6 @@ export function WorkspaceSwitcher({
       if (!trigger) return;
       setPanelStyle(
         workspaceSwitcherMenuStyle({
-          tone,
           trigger: trigger.getBoundingClientRect(),
           chromeBottoms: workspaceSwitcherChromeClearanceBottoms(),
           viewportWidth: window.innerWidth,
@@ -271,7 +228,7 @@ export function WorkspaceSwitcher({
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [open, tone]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -295,115 +252,30 @@ export function WorkspaceSwitcher({
 
   if (options.length === 0) return null;
 
-  if (presentation === "pills") {
-    return <WorkspaceSwitcherPills current={current} options={options} isGcStaff={staffGate} />;
-  }
-
-  if (!canSwitch) {
-    return (
-      <span
-        data-workspace-switcher=""
-        data-workspace-switcher-tone={tone}
-        className={workspaceSwitcherStaticClass(tone)}
-      >
-        <span data-workspace-switcher-current="" className={WORKSPACE_SWITCHER_TRIGGER_NAME_CLASS}>
-          {label}
-        </span>
-      </span>
-    );
-  }
-
-  const optionRows = (
-    <>
-      <div data-workspace-switcher-header="" className={WORKSPACE_SWITCHER_HEADER_CLASS}>
-        {WORKSPACE_SWITCHER.heading}
-      </div>
-      <div
-        role="listbox"
-        aria-label={WORKSPACE_SWITCHER.heading}
-        className="flex flex-col"
-      >
-        {pills.map((pill) => {
-          const selected = overviewLeadSelected(pill.id, chromePath, current);
-          const optionBody = (
-            <>
-              <WorkspaceLeadMark id={pill.id} />
-              <span
-                data-workspace-switcher-option-label=""
-                className={WORKSPACE_SWITCHER_OPTION_LABEL_CLASS}
-              >
-                {pill.label}
-              </span>
-              <span
-                data-workspace-switcher-option-check=""
-                className={WORKSPACE_SWITCHER_OPTION_CHECK_GUTTER_CLASS}
-                aria-hidden="true"
-              >
-                <AppearanceCheck
-                  selected={selected}
-                  className={WORKSPACE_SWITCHER_OPTION_CHECK_CLASS}
-                />
-              </span>
-            </>
-          );
-          if (presentation === "sheet" && !selected) {
-            return (
-              <HouseLink
-                key={pill.id}
-                href={pill.href}
-                prefetch
-                role="option"
-                data-workspace-switcher-option={pill.id}
-                aria-selected={false}
-                className={workspaceSwitcherOptionClass(false)}
-                onClick={(event) => {
-                  workspaceSwitcherPersistLane(pill.id, staffGate);
-                  markPending(pill.href, event);
-                  setOpen(false);
-                }}
-              >
-                <HouseNavPendingProbe href={pill.href} onPending={markPending} />
-                {optionBody}
-              </HouseLink>
-            );
-          }
-          return (
-            <button
-              key={pill.id}
-              type="button"
-              role="option"
-              data-workspace-switcher-option={pill.id}
-              aria-selected={selected}
-              className={workspaceSwitcherOptionClass(selected)}
-              onClick={(event) => {
-                selectLeadPill(
-                  current,
-                  pill,
-                  options,
-                  router,
-                  pathname,
-                  staffGate,
-                  undefined,
-                  event,
-                  house?.navigateOwned,
-                );
-                setOpen(false);
-              }}
-            >
-              {optionBody}
-            </button>
-          );
-        })}
-      </div>
-    </>
+  const faces = (key: string) => (
+    <WorkspaceWaffleTiles
+      key={key}
+      tiles={tiles}
+      current={current}
+      chromePath={chromePath}
+      staffGate={staffGate}
+      onNavigate={() => setOpen(false)}
+    />
   );
 
-  const panel =
-    presentation === "sheet" ? (
+  const panel = (
+    <div ref={panelRef} className="contents">
       <div
-        ref={panelRef}
+        data-workspace-switcher-popover=""
+        data-workspace-switcher-presentation="waffle"
+        className={WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS}
+        style={panelStyle}
+      >
+        {faces("desktop")}
+      </div>
+      <div
         data-workspace-switcher-sheet=""
-        data-workspace-switcher-presentation="sheet"
+        data-workspace-switcher-presentation="waffle"
         className={WORKSPACE_SWITCHER_SHEET_HOST_CLASS}
       >
         <button
@@ -414,48 +286,41 @@ export function WorkspaceSwitcher({
           onClick={() => setOpen(false)}
         />
         <div
-          data-workspace-switcher-popover=""
+          data-workspace-waffle-sheet=""
           className={`relative z-10 ${WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS}`}
         >
-          {optionRows}
+          {faces("phone")}
         </div>
       </div>
-    ) : (
-      <div
-        ref={panelRef}
-        data-workspace-switcher-popover=""
-        className={workspaceSwitcherPanelClass(tone)}
-        style={panelStyle}
-      >
-        {optionRows}
-      </div>
-    );
+    </div>
+  );
 
   return (
     <div
       ref={hostRef}
       data-workspace-switcher=""
-      data-workspace-switcher-tone={tone}
-      data-workspace-switcher-presentation={presentation}
+      data-workspace-switcher-presentation="waffle"
       className={WORKSPACE_SWITCHER_HOST_CLASS}
     >
       <button
         ref={triggerRef}
         type="button"
         data-workspace-switcher-trigger=""
-        aria-label={WORKSPACE_SWITCHER.label}
+        data-workspace-waffle=""
+        aria-label={WORKSPACE_SWITCHER.heading}
         aria-expanded={open}
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         onClick={() => setOpen((next) => !next)}
-        className={workspaceSwitcherTriggerClass(tone)}
+        className={cn(WORKSPACE_WAFFLE_TRIGGER_CLASS, open && WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS)}
       >
-        <span data-workspace-switcher-current="" className={WORKSPACE_SWITCHER_TRIGGER_NAME_CLASS}>
-          {label}
-        </span>
-        <CaretDown
-          data-workspace-switcher-chevron=""
-          data-workspace-switcher-chevron-open={open ? "" : undefined}
-          className={workspaceSwitcherChevronClass(open, tone)}
+        <DotsNine
+          data-workspace-waffle-icon="phone"
+          className={HOUSE_HEADER_TRAILING_PHONE_CLASS}
+          weight={HOUSE_PHONE_CHROME_ICON_WEIGHT}
+        />
+        <DotsNine
+          data-workspace-waffle-icon="desktop"
+          className={HOUSE_HEADER_TRAILING_DESKTOP_CLASS}
           weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
         />
       </button>

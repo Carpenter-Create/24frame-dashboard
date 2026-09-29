@@ -26,7 +26,7 @@ const AGGREGATION_LOADING = [
 ] as const;
 
 describe("soft-nav pending selection", () => {
-  it("points Aggregation desktop, Settings, and workspace pills at markPending/activePath", () => {
+  it("points Aggregation desktop, Settings, and the workspace waffle at markPending/activePath", () => {
     const sideNav = readFileSync("src/components/chrome/side-nav.tsx", "utf8");
     const settings = readFileSync("src/components/chrome/settings-rail.tsx", "utf8");
     const pills = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
@@ -38,7 +38,8 @@ describe("soft-nav pending selection", () => {
     expect(settings).toContain("settingsHubSection(activePath)");
     expect(settings).toContain("markPending(item.href, event)");
     expect(settings).toContain("HouseNavPendingProbe");
-    expect(pills).toContain("resolveWorkspaceMode(activePath, current)");
+    expect(pills).toContain("const chromePath = activePath || pathname");
+    expect(pills).toContain("overviewLeadSelected(tile.mode, chromePath, current)");
     expect(pills).toContain("shellPath");
     expect(pills).toContain("house?.navigateOwned");
     expect(pills).toContain("markPending?.(dest, event)");

@@ -171,9 +171,9 @@ describe("AppShell header", () => {
     expect(html).toContain("data-user-menu-host");
     expect(html).not.toContain("data-theme-toggle");
     expect(html).not.toContain("Switch to dark mode");
-    expect(html.indexOf("data-workspace-switcher")).toBeLessThan(html.indexOf("data-ask-assistant-header"));
     expect(html.indexOf("data-ask-assistant-header")).toBeLessThan(html.indexOf("data-activity-bell"));
-    expect(html.indexOf("data-activity-bell")).toBeLessThan(html.indexOf("data-user-menu-host"));
+    expect(html.indexOf("data-activity-bell")).toBeLessThan(html.indexOf("data-workspace-switcher"));
+    expect(html.indexOf("data-workspace-switcher")).toBeLessThan(html.indexOf("data-user-menu-host"));
     expect(shellSrc).not.toContain("ThemeToggle");
     expect(shellSrc).not.toContain("ThemeGlyph");
     expect(leadSrc).not.toContain("ThemeToggle");
@@ -204,31 +204,20 @@ describe("AppShell header", () => {
     expect(shellSrc).toContain("HouseLeadChromeSlot");
     expect(shellSrc).toContain("isGcStaff={data.isGcStaff}");
     expect(leadSrc).toContain("WorkspaceSwitcher");
-    expect(leadSrc).toContain('tone="pill"');
-    expect(leadSrc).toContain('<WorkspaceSwitcher current={workspace} options={workspaceOptions} presentation="pills" />');
+    expect(leadSrc).not.toContain('tone="pill"');
+    expect(leadSrc).toContain('<WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />');
     expect(html).toContain("data-workspace-switcher");
     expect(html).toContain("data-house-lead-scroll");
     expect(html).toContain("h-dvh");
     expect(html).toContain("overflow-hidden");
     expect(html).toContain("overflow-y-auto");
-    expect(html).toContain("Aggregation");
-    expect((html.match(/data-workspace-switcher=""/g) ?? []).length).toBe(2);
-    expect(html).toContain('data-workspace-switcher-tone="pill"');
-    expect(html).toContain('data-workspace-switcher-presentation="pills"');
-    expect(html).toContain('data-workspace-switcher-presentation="sheet"');
-    expect(html).toContain("data-workspace-switcher-pills");
-    expect(html).toContain('data-workspace-switcher-segment="home"');
-    expect(html).toContain('data-workspace-switcher-segment="aggregation"');
-    expect(html).toContain('data-workspace-switcher-segment="social"');
-    expect(html).toContain('data-workspace-switcher-segment="education"');
-    expect(html).toContain('data-workspace-switcher-segment="co-productions"');
-    expect(html.indexOf('data-workspace-switcher-segment="home"')).toBeLessThan(
-      html.indexOf('data-workspace-switcher-segment="aggregation"'),
-    );
-    expect(html.indexOf('data-workspace-switcher-segment="education"')).toBeLessThan(
-      html.indexOf('data-workspace-switcher-segment="co-productions"'),
-    );
-    expect(html).toContain("data-app-header-workspace-pill");
+    expect(html).toContain("data-workspace-waffle");
+    expect((html.match(/data-workspace-switcher=""/g) ?? []).length).toBe(1);
+    expect(html).toContain('data-workspace-switcher-presentation="waffle"');
+    expect(html).not.toContain('data-workspace-switcher-presentation="pills"');
+    expect(html).not.toContain("data-workspace-switcher-pills");
+    expect(html).not.toContain("data-workspace-switcher-segment");
+    expect(html).not.toContain("data-app-header-workspace-pill");
     expect(html).not.toContain("data-workspace-switcher-rail");
     expect(html).not.toContain("data-workspace-switcher-lead");
     expect(html.indexOf("data-workspace-switcher")).toBeLessThan(html.indexOf("data-user-menu-host"));
@@ -240,8 +229,8 @@ describe("AppShell header", () => {
   it("is avatar-only on every Access route — no org switcher", () => {
     expect(shellSrc).not.toContain("OrganizationSwitcher");
     expect(leadSrc).toContain("HOUSE_LEAD_CHROME_CLASS");
-    expect(leadSrc).toContain('tone="pill"');
-    expect(leadSrc).toContain('<WorkspaceSwitcher current={workspace} options={workspaceOptions} presentation="pills" />');
+    expect(leadSrc).not.toContain('tone="pill"');
+    expect(leadSrc).toContain('<WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />');
 
     for (const path of ["/", "/aggregation/titles", "/aggregation/attention", "/activity"]) {
       navigation.pathname = path;
@@ -274,7 +263,8 @@ describe("AppShell Home chrome", () => {
     expect(homeFrameMarkup(home)).not.toContain("1080");
     expect(home).toContain("data-house-lead-chrome");
     expect(home).toContain("data-workspace-switcher");
-    expect(home).toContain('data-workspace-switcher-segment="home"');
+    expect(home).toContain("data-workspace-waffle");
+    expect(home).not.toContain("data-workspace-switcher-segment");
     expect(home).toContain("data-brand-emblem");
     expect(home).not.toContain("data-theme-toggle");
     expect(home).toContain("data-activity-bell");
@@ -316,10 +306,9 @@ describe("AppShell Home chrome", () => {
     const news = renderShell();
     expect(news).toContain('data-home-chrome=""');
     expect(news).toContain("data-app-home-frame");
-    expect(news).toContain('data-workspace-switcher-segment="home"');
-    expect(news).toMatch(/data-workspace-switcher-segment="home"[^>]*aria-selected="true"/);
-    expect(news).toMatch(/data-workspace-switcher-segment="aggregation"[^>]*aria-selected="false"/);
-    expect(news).not.toContain('data-workspace-switcher-segment="news"');
+    expect(news).toContain("data-workspace-waffle");
+    expect(news).not.toContain("data-workspace-switcher-segment");
+    expect(news).not.toContain('data-workspace-waffle-tile="news"');
     expect(news).not.toContain("data-app-rail");
     expect(news).not.toContain("data-side-nav");
     expect(news).not.toContain("data-social-rail");
@@ -334,15 +323,9 @@ describe("AppShell Home chrome", () => {
     const page = renderShell();
     expect(page).toContain('data-home-chrome=""');
     expect(page).toContain("data-app-home-frame");
-    expect(page).toContain('data-workspace-switcher-segment="co-productions"');
-    expect(page).toMatch(
-      /data-workspace-switcher-segment="co-productions"[^>]*aria-selected="true"/,
-    );
-    expect(page).toMatch(/data-workspace-switcher-segment="home"[^>]*aria-selected="false"/);
-    expect(page).toMatch(
-      /data-workspace-switcher-segment="aggregation"[^>]*aria-selected="false"/,
-    );
-    expect(page).toMatch(/data-workspace-switcher-segment="education"[^>]*aria-selected="false"/);
+    expect(page).toContain("data-workspace-waffle");
+    expect(page).not.toContain("data-workspace-switcher-segment");
+    expect(page).not.toContain('data-workspace-waffle-tile="co-productions"');
     expect(page).not.toContain("data-app-rail");
     expect(page).not.toContain("data-side-nav");
     expect(page).not.toContain("data-social-rail");
@@ -588,18 +571,8 @@ describe("AppShell /activity account chrome", () => {
         expect(html).not.toContain("Expand sidebar");
         expect(html).toContain("--sidebar-width:0px");
         expect(html).toContain("data-workspace-switcher");
-        expect(html).toContain('data-workspace-switcher-segment="education"');
-        expect(html).toMatch(
-          /data-workspace-switcher-segment="education"[^>]*aria-selected="false"/,
-        );
-        expect(html).toMatch(/data-workspace-switcher-segment="home"[^>]*aria-selected="false"/);
-        expect(html).toMatch(
-          /data-workspace-switcher-segment="aggregation"[^>]*aria-selected="false"/,
-        );
-        expect(html).toMatch(/data-workspace-switcher-segment="social"[^>]*aria-selected="false"/);
-        expect(html).toMatch(
-          /data-workspace-switcher-segment="co-productions"[^>]*aria-selected="false"/,
-        );
+        expect(html).toContain("data-workspace-waffle");
+        expect(html).not.toContain("data-workspace-switcher-segment");
         expect(html).toContain("data-user-menu-host");
         expect(html).toContain("data-house-lead-chrome");
         expect(html).toContain("px-[var(--chrome-gutter)]");
@@ -696,18 +669,8 @@ describe("AppShell /help account chrome", () => {
         expect(html).not.toContain("Expand sidebar");
         expect(html).toContain("--sidebar-width:0px");
         expect(html).toContain("data-workspace-switcher");
-        expect(html).toContain('data-workspace-switcher-segment="education"');
-        expect(html).toMatch(
-          /data-workspace-switcher-segment="education"[^>]*aria-selected="false"/,
-        );
-        expect(html).toMatch(/data-workspace-switcher-segment="home"[^>]*aria-selected="false"/);
-        expect(html).toMatch(
-          /data-workspace-switcher-segment="aggregation"[^>]*aria-selected="false"/,
-        );
-        expect(html).toMatch(/data-workspace-switcher-segment="social"[^>]*aria-selected="false"/);
-        expect(html).toMatch(
-          /data-workspace-switcher-segment="co-productions"[^>]*aria-selected="false"/,
-        );
+        expect(html).toContain("data-workspace-waffle");
+        expect(html).not.toContain("data-workspace-switcher-segment");
         expect(html).toContain("data-user-menu-host");
         expect(html).toContain("data-house-lead-chrome");
         expect(html).toContain("px-[var(--chrome-gutter)]");
@@ -737,7 +700,7 @@ describe("AppShell /settings rail", () => {
     expect(html).toContain('data-settings-rail=""');
     expect(html).toContain("data-settings-rail-nav");
     expect(html).toContain("data-user-menu-host");
-    expect(html).toContain("Home");
+    expect(html).toContain("data-workspace-waffle");
     expect(html).toContain("Settings");
     const settingsRail = html.slice(
       html.indexOf("data-settings-rail"),
@@ -1087,7 +1050,8 @@ describe("AppShell rail-collapse chevron", () => {
       </AppShell>,
     );
     expect(propOnly).not.toContain(">Staff<");
-    expect(propOnly).toContain("Aggregation");
+    expect(propOnly).toContain("data-workspace-waffle");
+    expect(propOnly).not.toContain('data-workspace-waffle-tile="staff"');
 
     expect(shellSrc).toContain("clampWorkspaceMode");
     expect(shellSrc).toContain("clampWorkspaceMode(defaultWorkspace, isGcStaff)");
@@ -1367,9 +1331,8 @@ describe("AppShell rail-collapse chevron", () => {
     expect(html).toContain("data-education-workspace");
     expect(html).toContain('data-workspace="education"');
     expect(html).toContain("data-workspace-switcher");
-    expect(html).toContain("Aggregation");
-    expect(html).toContain("Social");
-    expect(html).toContain("Education");
+    expect(html).toContain("data-workspace-waffle");
+    expect(html).not.toContain("data-workspace-switcher-segment");
     expect(html).toContain('data-education-header-search-host="phone"');
     expect(html).toContain('data-education-header-search-host="desktop"');
     expect(html).toContain("data-education-header-search");
@@ -1379,7 +1342,7 @@ describe("AppShell rail-collapse chevron", () => {
       html.indexOf('data-education-header-search-host="desktop"'),
     );
     expect(html.indexOf('data-education-header-search-host="desktop"')).toBeLessThan(
-      html.indexOf('data-workspace-switcher-presentation="pills"'),
+      html.indexOf('data-workspace-switcher-presentation="waffle"'),
     );
     expect(html.indexOf("data-house-lead-chrome")).toBeLessThan(
       html.indexOf("data-house-under-nav"),
@@ -1387,7 +1350,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(html.indexOf("data-app-header-trailing")).toBeLessThan(
       html.indexOf('data-education-header-search-host="phone"'),
     );
-    expect(html.indexOf('data-workspace-switcher-presentation="pills"')).toBeLessThan(
+    expect(html.indexOf('data-workspace-switcher-presentation="waffle"')).toBeLessThan(
       html.indexOf("data-user-menu-host"),
     );
     expect(html).toContain("data-app-header");

@@ -22,8 +22,8 @@ describe("theme preference sync", () => {
     expect(src).not.toContain("Moon");
     expect(leadSrc).not.toContain("ThemeToggle");
     expect(leadSrc).not.toContain("data-theme-toggle");
-    expect(leadSrc.indexOf("<AskAssistantHeaderLink />")).toBeGreaterThan(
-      leadSrc.indexOf('presentation="pills"'),
+    expect(leadSrc.indexOf("<AskAssistantHeaderLink />")).toBeLessThan(
+      leadSrc.indexOf("<WorkspaceSwitcher"),
     );
     expect(leadSrc.indexOf("<AskAssistantHeaderLink />")).toBeLessThan(leadSrc.indexOf("<ActivityBell"));
     expect(leadSrc.indexOf("<ActivityBell")).toBeLessThan(leadSrc.indexOf("{accountMenu}"));

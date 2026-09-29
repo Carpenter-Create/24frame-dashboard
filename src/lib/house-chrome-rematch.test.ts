@@ -194,7 +194,8 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead).toContain("data-house-under-nav");
     expect(lead.indexOf("</header>")).toBeLessThan(lead.indexOf("data-house-under-nav"));
     expect(lead).toContain('data-education-header-search-host={education ? "phone" : undefined}');
-    expect(trailing).toContain('presentation="pills"');
+    expect(trailing).toContain("<WorkspaceSwitcher");
+    expect(trailing).not.toContain('presentation="pills"');
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
     expect(trailing).toContain("data-social-header-actions");
@@ -221,18 +222,21 @@ describe("house chrome rematch miss list v1.1", () => {
   });
 
   it("keeps one phone workspace switcher, Staff as its own workspace, one Sporty Blue pill", () => {
-    expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
     expect(shell).toContain("<HouseLeadChrome");
     expect(existsSync("src/components/social/social-top-bar.tsx")).toBe(false);
-    expect(lead).toContain('presentation="pills"');
-    expect(lead).toContain('tone="pill"');
-    expect(lead).toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
-    expect(lead).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
+    expect(lead).not.toContain('presentation="pills"');
+    expect(lead).not.toContain('tone="pill"');
+    expect(lead).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
+    expect(lead).toContain("<WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />");
     expect(nav).toContain('if (workspace === "social") return { items: SOCIAL_NAV, staffItems: [] }');
     expect(sideNav).toContain("staffItems");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
     expect(HOUSE_FILTER_ON_CLASS).toBe("bg-ink text-surface");
-    expect(switcher).toContain("HOUSE_CONTROL_PILL_CLASS");
+    expect(switcher).not.toContain("HOUSE_CONTROL_PILL_CLASS");
+    expect(switcher).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
+    expect(switcher).toContain("WORKSPACE_WAFFLE_TRIGGER_CLASS");
+    expect(switcher).toContain("HOUSE_THEME_TOGGLE_CLASS");
     expect(switcher).not.toContain("rounded-[var(--radius-sm)]");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
     expect(collapse).toContain("HOUSE_ICON_BUTTON_CLASS");
@@ -253,7 +257,8 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(socialChrome).not.toContain("SOCIAL_RAIL_WIDTH_CLASS");
     expect(SOCIAL_FOR_YOU_CARD_CLASS).toContain(HOUSE_MODULE_CLASS);
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
-    expect(switcher).toContain("HOUSE_CONTROL_PILL_CLASS");
+    expect(switcher).toContain("HOUSE_THEME_TOGGLE_CLASS");
+    expect(switcher).not.toContain("HOUSE_CONTROL_PILL_CLASS");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
     expect(collapse).toContain("HOUSE_ICON_BUTTON_CLASS");
     expect(socialChrome).toContain("HOUSE_MODULE_CLASS");

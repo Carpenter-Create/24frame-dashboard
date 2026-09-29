@@ -53,7 +53,6 @@ import { workspaceHome } from "@/lib/workspace";
 import {
   APP_HEADER_LEADING_CLASS,
   APP_HEADER_TRAILING_CLUSTER_CLASS,
-  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
 } from "@/lib/workspace-switcher";
 
@@ -195,26 +194,26 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       const html = leadHtml(workspace);
       expect(html).toContain("data-app-header-trailing");
       expect(html).toContain(APP_HEADER_TRAILING_CLUSTER_CLASS);
-      expect(html).toContain(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS);
-      expect(html).toContain('data-workspace-switcher-presentation="pills"');
+      expect(html).toContain("data-workspace-waffle");
+      expect(html).toContain('data-workspace-switcher-presentation="waffle"');
       expect(html).toContain("data-ask-assistant-header");
       expect(html).not.toContain("data-theme-toggle");
       expect(html).toContain("data-activity-bell");
       expect(html).toContain("data-user-menu-host");
-      expect(html.indexOf('data-workspace-switcher-presentation="pills"')).toBeLessThan(
-        html.indexOf("data-ask-assistant-header"),
-      );
       expect(html.indexOf("data-ask-assistant-header")).toBeLessThan(
         html.indexOf("data-activity-bell"),
       );
       expect(html.indexOf("data-activity-bell")).toBeLessThan(
+        html.indexOf("data-workspace-waffle"),
+      );
+      expect(html.indexOf("data-workspace-waffle")).toBeLessThan(
         html.indexOf("data-user-menu-host"),
       );
       expect(html).not.toContain("lucide-");
       expect(html).not.toContain('stroke-width="1.33"');
       expect(html).toContain('data-house-ai-mark-register="stroke"');
     }
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
     expect(leadSrc).toContain("<AskAssistantHeaderLink />");
     expect(leadSrc).not.toContain("ThemeToggle");
     expect(leadSrc).not.toContain('from "@/components/theme-toggle"');
@@ -342,7 +341,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("max-md:shrink-0");
-    expect(leadSrc).toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
+    expect(leadSrc).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
     expect(APP_HEADER_LEADING_CLASS).toContain("gap-[var(--space-3)]");
@@ -355,7 +354,8 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).toContain("/brand/24frame-emblem.svg");
       expect(html).toContain("/brand/24frame-logo-light.svg");
       expect(html).toContain("md:hidden");
-      expect(html).toContain("data-app-header-workspace-pill");
+      expect(html).toContain("data-workspace-waffle");
+      expect(html).not.toContain("data-app-header-workspace-pill");
       expect(html.indexOf("data-brand-emblem")).toBeLessThan(
         html.indexOf("data-app-header-trailing"),
       );
@@ -382,16 +382,15 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     const open = renderToStaticMarkup(
       createElement(WorkspaceSwitcher, {
         current: "aggregation",
-        tone: "pill",
         defaultOpen: true,
       }),
     );
     expect(htmlClass(open, "data-workspace-switcher=")).toBe(WORKSPACE_SWITCHER_HOST_CLASS);
     expect(htmlClass(open, "data-workspace-switcher=")).not.toMatch(/overflow-hidden/);
     expect(open).toContain("data-workspace-switcher-popover");
-    expect(open).toContain('data-workspace-switcher-option="social"');
-    expect(open).toContain('data-workspace-switcher-option="education"');
-    expect(open).toContain('data-workspace-switcher-option="co-productions"');
+    expect(open).toContain('data-workspace-waffle-tile="social"');
+    expect(open).toContain('data-workspace-waffle-tile="education"');
+    expect(open).not.toContain('data-workspace-waffle-tile="co-productions"');
   });
 
   it("shows the phone emblem on every workspace — no hamburger", () => {

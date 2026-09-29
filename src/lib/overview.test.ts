@@ -157,9 +157,11 @@ describe("Home lead pills", () => {
     expect(overviewLeadActiveIndex("/aggregation/dashboard", "aggregation", pills)).toBe(1);
     expect(overviewLeadActiveIndex(CO_PRODUCTIONS_HREF, "aggregation", pills)).toBe(4);
     const switcher = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
-    expect(switcher).toContain("overviewLeadActiveIndex");
-    expect(switcher).toContain("activeIndex={routeIndex}");
-    expect(switcher).toContain("persistKey={SEGMENTED_TRACK_PERSIST.workspace}");
+    expect(switcher).toContain("overviewLeadSelected");
+    expect(switcher).toContain("workspaceWaffleTiles");
+    expect(switcher).not.toContain("overviewLeadActiveIndex");
+    expect(switcher).not.toContain("SegmentedTrack");
+    expect(switcher).not.toContain("persistKey={SEGMENTED_TRACK_PERSIST.workspace}");
     expect(switcher).not.toContain("activeIndex >= 0 ? activeIndex : 0");
     expect(switcher).not.toContain("routeIndex >= 0 ? routeIndex : 0");
   });

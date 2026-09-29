@@ -72,9 +72,6 @@ import {
 } from "@/lib/house-lead-chrome";
 import { PHOSPHOR_CHROME_ICON_CLASS } from "@/lib/phosphor-icon";
 import { SOCIAL_ROUTES } from "@/lib/social";
-import {
-  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
-} from "@/lib/workspace-switcher";
 
 const leadSrc = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
 const shellSrc = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
@@ -100,15 +97,12 @@ function renderLead(workspace: "aggregation" | "social" | "education") {
 }
 
 describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
-  it("shows the current workspace on the phone header and desktop pills", () => {
-    expect(leadSrc).toContain("data-app-header-workspace-pill");
-    expect(leadSrc).toContain('tone="pill"');
-    expect(leadSrc).toContain('presentation="sheet"');
-    expect(leadSrc).toContain('presentation="pills"');
-    expect(leadSrc).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toContain("hidden");
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toContain("md:contents");
+  it("shows the waffle in the header and no workspace name pill", () => {
+    expect(leadSrc).toContain("<WorkspaceSwitcher");
+    expect(leadSrc).not.toContain("data-app-header-workspace-pill");
+    expect(leadSrc).not.toContain('tone="pill"');
+    expect(leadSrc).not.toContain('presentation="pills"');
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
 
     const aggregation = renderToStaticMarkup(
       createElement(HouseLeadChrome, {
@@ -116,10 +110,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
         accountMenu: createElement("div", { "data-user-menu-host": "" }),
       }),
     );
-    expect(aggregation).toContain("data-app-header-workspace-pill");
-    expect(aggregation).toContain('data-workspace-switcher-tone="pill"');
-    expect(aggregation).toContain('data-workspace-switcher-presentation="pills"');
-    expect(aggregation).toContain("data-app-header-workspace-desktop");
+    expect(aggregation).toContain("data-workspace-waffle");
+    expect(aggregation).toContain('data-workspace-switcher-presentation="waffle"');
+    expect(aggregation).not.toContain("data-app-header-workspace-pill");
+    expect(aggregation).not.toContain("data-app-header-workspace-desktop");
 
     const top = renderToStaticMarkup(
       createElement(HouseLeadChrome, {
@@ -128,7 +122,8 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       }),
     );
     expect(top).toContain("data-house-lead-chrome");
-    expect(top).toContain("data-app-header-workspace-pill");
+    expect(top).toContain("data-workspace-waffle");
+    expect(top).not.toContain("data-app-header-workspace-pill");
   });
 
   it("keeps the emblem on the left and kills the hamburger on every workspace", () => {
@@ -149,7 +144,8 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
         html.indexOf("data-app-header-trailing"),
       );
       expect(lead).toContain("data-brand-emblem");
-      expect(lead).toContain("data-app-header-workspace-pill");
+      expect(lead).not.toContain("data-app-header-workspace-pill");
+      expect(lead).not.toContain("data-workspace-waffle");
       expect(lead).not.toContain("data-mobile-nav-trigger");
       expect(lead).not.toContain("data-house-phone-dest-chips");
       expect(html).not.toContain("data-mobile-nav-trigger");
@@ -168,6 +164,9 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
         html.indexOf("data-activity-bell"),
       );
       expect(html.indexOf("data-activity-bell")).toBeLessThan(
+        html.indexOf("data-workspace-waffle"),
+      );
+      expect(html.indexOf("data-workspace-waffle")).toBeLessThan(
         html.indexOf("data-account-sheet-trigger"),
       );
     }
@@ -212,13 +211,17 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV.label).toBe("Destinations");
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("md:hidden");
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("env(safe-area-inset-bottom)");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("rounded-[32px]");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-16");
+    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("rounded-full");
+    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-12");
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("border-hairline");
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("bg-surface");
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("shadow-[var(--elevation-float)]");
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).not.toContain("backdrop-blur");
     expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("max-md:pb-");
+    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("5.5rem");
+    const socialChrome = readFileSync("src/lib/social-chrome.ts", "utf8");
+    expect(socialChrome).toContain('from "@/lib/house-phone-dock"');
+    expect(socialChrome).not.toContain("house-phone-shell");
     expect(phoneShellSrc).toContain("IA A");
     expect(phoneShellSrc).toContain("FilmStrip");
     expect(phoneShellSrc).not.toContain("CO_PRODUCTIONS_ICON");
@@ -255,15 +258,24 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(housePhoneWorkspaceSelected("social", "/settings", "social")).toBe(false);
   });
 
-  it("splits phone chrome size SoT — dock size-7, header trailing size-6, no alias", () => {
-    expect(HOUSE_PHONE_CHROME_ICON_CLASS).toBe("size-7 shrink-0");
+  it("matches dock glyphs to the phone header trailing size — separate literals", () => {
+    expect(HOUSE_PHONE_CHROME_ICON_CLASS).toBe("size-6 shrink-0");
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS).toBe(HOUSE_PHONE_CHROME_ICON_CLASS);
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS).not.toBe(PHOSPHOR_CHROME_ICON_CLASS);
     expect(PHOSPHOR_CHROME_ICON_CLASS).toBe("size-4 shrink-0");
     expect(HOUSE_PHONE_CHROME_ICON_WEIGHT).toBe("regular");
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe(HOUSE_PHONE_CHROME_ICON_WEIGHT);
     expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).toBe("size-6 shrink-0");
-    expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).not.toBe(HOUSE_PHONE_CHROME_ICON_CLASS);
+    expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).toBe(HOUSE_PHONE_CHROME_ICON_CLASS);
+    expect(phoneShellSrc).toMatch(
+      /export const HOUSE_PHONE_CHROME_ICON_CLASS = "size-6 shrink-0";/,
+    );
+    expect(phoneShellSrc).toMatch(
+      /export const HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS = "size-6 shrink-0";/,
+    );
+    expect(phoneShellSrc).not.toContain(
+      "HOUSE_PHONE_CHROME_ICON_CLASS = HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS",
+    );
     expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).not.toBe(PHOSPHOR_CHROME_ICON_CLASS);
     expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe(
       `${HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS} md:size-5`,
@@ -276,11 +288,11 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(bottomNavSrc).not.toContain("HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS");
     expect(bottomNavSrc).not.toContain("size-5");
     expect(bottomNavSrc).not.toContain("size-4");
-    expect(phoneShellSrc).toContain('"size-7 shrink-0"');
+    expect(phoneShellSrc).not.toContain('"size-7 shrink-0"');
     expect(phoneShellSrc).toContain('"size-6 shrink-0"');
     expect(phoneShellSrc).not.toContain('"size-4 shrink-0"');
     expect(phoneShellSrc.match(/"size-\d shrink-0"/g) ?? []).toEqual([
-      '"size-7 shrink-0"',
+      '"size-6 shrink-0"',
       '"size-6 shrink-0"',
     ]);
     expect(phoneShellSrc).toMatch(
@@ -297,8 +309,8 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       createElement(HousePhoneBottomNav, { workspace: "aggregation" }),
     );
     expect(html).toContain(HOUSE_PHONE_CHROME_ICON_CLASS);
-    expect(html).toContain("size-7");
-    expect(html).not.toContain("size-6");
+    expect(html).toContain("size-6");
+    expect(html).not.toContain("size-7");
     expect(html).not.toContain("size-5");
     expect(html).not.toContain("size-4");
     expect(html).not.toContain('weight="bold"');
@@ -358,7 +370,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       aggregation.indexOf('data-house-phone-dest="Titles"'),
     );
     expect(dash).toContain("data-house-phone-bottom-nav-chip");
-    expect(dash).toContain("size-7");
+    expect(dash).toContain("size-6");
     const titles = aggregation.slice(aggregation.indexOf('data-house-phone-dest="Titles"'));
     expect(titles).not.toContain("data-house-phone-bottom-nav-chip");
 
@@ -565,12 +577,12 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     );
     expect(home).toContain("data-house-phone-app-shell");
     expect(home).toContain("data-house-phone-bottom-nav");
-    expect(home).toContain("data-app-header-workspace-pill");
+    expect(home).toContain("data-workspace-waffle");
     expect(home).toContain('data-house-phone-dest="Home"');
     expect(home).not.toContain("data-social-tab-bar");
     expect(home).not.toContain("data-house-phone-dest-chips");
-    expect(home).toContain('data-workspace-switcher-presentation="pills"');
-    expect(home).toContain('data-workspace-switcher-presentation="sheet"');
+    expect(home).toContain('data-workspace-switcher-presentation="waffle"');
+    expect(home).not.toContain('data-workspace-switcher-presentation="pills"');
 
     navigation.pathname = "/social";
     const social = renderToStaticMarkup(
@@ -603,7 +615,8 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       social.indexOf('data-house-phone-dest="Profile"'),
     );
     expect(social).not.toContain("data-house-phone-dest-chips");
-    expect(social).toContain("data-app-header-workspace-pill");
+    expect(social).toContain("data-workspace-waffle");
+    expect(social).not.toContain("data-app-header-workspace-pill");
     expect((social.match(/data-house-phone-bottom-nav=""/g) ?? []).length).toBe(1);
 
     navigation.pathname = "/education";
@@ -619,7 +632,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     );
     expect(education).toContain("data-house-phone-bottom-nav");
     expect(education).toContain('data-house-phone-dest="Education"');
-    expect(education).toContain('data-workspace-switcher-presentation="pills"');
+    expect(education).toContain('data-workspace-switcher-presentation="waffle"');
 
     const wrapped = renderToStaticMarkup(
       createElement(
