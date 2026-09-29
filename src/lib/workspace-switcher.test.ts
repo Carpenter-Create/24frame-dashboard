@@ -137,6 +137,8 @@ describe("workspace switcher lock", () => {
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
+    expect(src).toContain("phone --space-3 / desktop md:gap-[var(--space-4)] (16)");
+    expect(src).not.toContain("--space-2 on every breakpoint");
     const phoneGap = APP_HEADER_LEADING_CLASS.match(
       /(?<![a-z0-9:-])gap-\[var\((--space-\d+)\)\]/,
     )?.[1];

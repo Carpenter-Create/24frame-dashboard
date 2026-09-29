@@ -47,7 +47,6 @@ import {
   socialHandleInputError,
   socialHandleRequiredError,
   socialNameRequiredError,
-  socialHomeLaneHref,
   socialInitials,
   composeSocialDisplayName,
   socialPersonIdentity,
@@ -504,7 +503,7 @@ describe("profile opt-in", () => {
     expect("originalQuality" in SOCIAL.create).toBe(false);
     expect(SOCIAL.home.videoPreparing).toBe("That video is still preparing.");
     expect(parseSocialHomeLane("for-you")).toBe("for-you");
-    expect(socialHomeLaneHref("following")).toBe("/social");
+    expect(readFileSync("src/lib/social.ts", "utf8")).not.toContain("socialHomeLaneHref");
     expect(SOCIAL_PROFILE_TABS).toEqual(["activity", "highlights", "credits", "interests"]);
     expect(SOCIAL_PROFILE_DEFAULT_TAB).toBe("activity");
     expect(parseSocialProfileTab("highlights")).toBe("highlights");

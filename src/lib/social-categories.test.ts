@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,8 +6,6 @@ import {
   SOCIAL_CATEGORY_ALL,
   SOCIAL_CATEGORY_LABELS,
   SOCIAL_CATEGORY_TOPICS,
-  socialCategorySlug,
-  socialHomeLensHref,
   sortByLabelAlpha,
   sortTopicsAlpha,
 } from "./social-categories";
@@ -54,10 +53,8 @@ describe("locked Social Home categories", () => {
     expect(parseSocialCategoryParam("Cousins")).toBe(SOCIAL_CATEGORY_ALL);
   });
 
-  it("re-taps the active topic back to All", () => {
-    expect(socialHomeLensHref("All", "Acting")).toBe("/social");
-    expect(socialHomeLensHref("Acting", "Acting")).toBe("/social");
-    expect(socialHomeLensHref("Music", "All")).toBe(`/social?topic=${socialCategorySlug("Music")}`);
-    expect(socialHomeLensHref("Cinematography", "All")).not.toContain("explore");
+  it("does not keep a lane-blind Home topic href", () => {
+    const src = readFileSync("src/lib/social-categories.ts", "utf8");
+    expect(src).not.toContain("socialHomeLensHref");
   });
 });

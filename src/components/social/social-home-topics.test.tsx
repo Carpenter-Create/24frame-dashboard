@@ -7,7 +7,6 @@ import {
   SOCIAL_CATEGORY_LABELS,
   SOCIAL_CATEGORY_TOPICS,
   socialCategorySlug,
-  socialHomeLensHref,
   sortTopicsAlpha,
 } from "@/lib/social-categories";
 import {
@@ -73,10 +72,11 @@ describe("SocialHomeTopics bank", () => {
     expect(actingChip).not.toContain("aria-current");
     expect(actingChip).toContain(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
     expect(actingChip).not.toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(actingChip).toContain(`href="${socialHomeLensHref("Acting", SOCIAL_CATEGORY_ALL)}"`);
+    expect(actingChip).toContain(`href="${socialHomeAxisHref("following", "Acting")}"`);
     expect(src).toContain("socialTopicRailChipClass");
     expect(src).toContain("socialHomeAxisHref");
     expect(src).not.toContain("socialHomeLensHref");
+    expect(src).not.toContain("socialHomeLaneHref");
     expect(src).not.toContain("h-[3px]");
     expect(src).not.toContain("hidden md:flex");
     expect(src).not.toContain("md:hidden");
@@ -141,10 +141,15 @@ describe("SocialHomeTopics bank", () => {
     expect(acting).toContain('href="/social?topic=acting&amp;lane=for-you"');
     expect(html).not.toContain("h-[3px]");
     expect(socialHomeAxisHref("following", "All")).toBe("/social");
-    expect(socialHomeAxisHref("following", "All")).toBe(socialHomeLensHref("All", "Acting"));
     expect(socialHomeAxisHref("for-you", "All")).toBe("/social?lane=for-you");
-    expect(socialHomeAxisHref("following", "Music")).toBe("/social?topic=music");
-    expect(socialHomeAxisHref("for-you", "Music")).toBe("/social?topic=music&lane=for-you");
+    expect(socialHomeAxisHref("following", "Music")).toBe(
+      `/social?topic=${socialCategorySlug("Music")}`,
+    );
+    expect(socialHomeAxisHref("for-you", "Music")).toBe(
+      `/social?topic=${socialCategorySlug("Music")}&lane=for-you`,
+    );
+    expect(socialHomeAxisHref("following", "Cinematography")).not.toContain("explore");
     expect(socialHomeAxisHref("for-you", "Music")).not.toContain("/social/home");
+    expect(socialHomeAxisHref("for-you", "Acting")).toContain("lane=for-you");
   });
 });
