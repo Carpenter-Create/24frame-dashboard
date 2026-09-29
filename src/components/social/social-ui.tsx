@@ -16,6 +16,7 @@ import {
   SOCIAL_FEED_ROW_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
+  SOCIAL_POST_ACTIONS_ROW_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
   SOCIAL_POST_TIME_CLASS,
   SOCIAL_HIGHLIGHT_RING_CLASS,
@@ -579,7 +580,7 @@ export function SocialPostCard({
         <SocialFeedImmersive post={post} index={immersiveIndex} onClose={closeImmersive} />
       ) : null}
       <div className={`flex flex-col gap-1 ${SOCIAL_FEED_CHROME_CLASS}`}>
-        <div data-social-post-actions="" className="flex items-center gap-3.5">
+        <div data-social-post-actions="" className={SOCIAL_POST_ACTIONS_ROW_CLASS}>
           {post.canLike ? (
             <SocialLikeButton
               postId={post.id}

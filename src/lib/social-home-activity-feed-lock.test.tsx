@@ -25,7 +25,8 @@ describe("Social Home activity feed lock v1", () => {
     expect(SOCIAL_HOME_STACK_ORDER).toEqual(["topics", "composer", "stories", "wall"]);
     expect(home.indexOf("<SocialHomeTopics")).toBeLessThan(home.indexOf("<SocialHomeComposer"));
     expect(home.indexOf("<SocialHomeComposer")).toBeLessThan(home.indexOf("<SocialStoriesRail"));
-    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialHomeTabs"));
+    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));
+    expect(home).not.toContain("SocialHomeTabs");
     expect(home).not.toContain("SocialStoriesEmpty");
   });
 

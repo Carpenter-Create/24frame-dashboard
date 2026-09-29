@@ -196,7 +196,13 @@ describe("Social home", () => {
     expect(html).toContain("border-x-0");
     expect(html).toContain("py-[var(--space-2)]");
     expect(html.indexOf("data-social-home-composer")).toBeLessThan(html.indexOf("data-social-stories"));
-    expect(html.indexOf("data-social-stories")).toBeLessThan(html.indexOf("data-social-home-tabs"));
+    expect(html.indexOf("data-social-home-topics")).toBeLessThan(html.indexOf("data-social-stories"));
+    expect(html.indexOf('data-social-home-lane="following"')).toBeLessThan(
+      html.indexOf('data-social-home-lane="for-you"'),
+    );
+    expect(html.indexOf('data-social-home-lane="for-you"')).toBeLessThan(
+      html.indexOf('data-social-home-topic="All"'),
+    );
     expect(html).not.toMatch(/>Topics</);
     expect(html).toContain("Share something");
     expect(html).not.toContain("Write something");
@@ -204,7 +210,10 @@ describe("Social home", () => {
     expect(html).not.toContain("Topics for you");
     expect(html).not.toContain("data-social-for-you-topics");
     expect(html).toContain("data-social-stories-tall");
-    expect(html).toContain("data-social-home-tabs");
+    expect(html).not.toContain("data-social-home-tabs");
+    expect(html).toContain('data-social-home-lane="following"');
+    expect(html).toContain('data-social-home-lane="for-you"');
+    expect(html).toMatch(/data-social-home-lane="following"[^>]*data-social-home-lane-active=""/);
     expect(html).toContain(SOCIAL.home.followingTab);
     expect(html).toContain(SOCIAL.home.forYouTab);
     expect(html).toContain("data-social-stories");
@@ -460,6 +469,9 @@ describe("Social home", () => {
     expect(html).toContain(SOCIAL.forYou.people);
     expect(html).not.toMatch(/>Topics</);
     expect(html.indexOf("data-social-home-topics")).toBeLessThan(html.indexOf("data-social-for-you-lane"));
+    expect(html).toMatch(/data-social-home-lane="for-you"[^>]*data-social-home-lane-active=""/);
+    expect(html).toMatch(/data-social-home-topic="All"[^>]*data-social-home-topic-active=""/);
+    expect(html).not.toContain("data-social-home-tabs");
     expect(html).not.toContain("data-social-for-you-topics");
     expect(html).not.toContain("data-social-latest-course");
     expect(html).toContain("Cinematography");

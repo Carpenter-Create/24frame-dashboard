@@ -715,7 +715,8 @@ describe("social writes stay on the live spine", () => {
     expect(actions).not.toContain("from(\"organizations\")");
     expect(pages).toContain("loadCachedFollowingPosts");
     expect(pages).not.toContain("SocialPostCompose");
-    expect(pages).toContain("SocialHomeTabs");
+    expect(pages).not.toContain("SocialHomeTabs");
+    expect(pages).toContain("<SocialHomeTopics active={topic} lane={lane}");
     expect(pages).toContain("SocialHomeComposer");
     expect(pages).not.toContain("SocialLensRow");
     expect(pages).toContain("SocialStoriesRail");

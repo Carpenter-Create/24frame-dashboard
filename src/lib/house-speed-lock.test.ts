@@ -91,7 +91,6 @@ describe("house speed lock — no RSA on Social Home / Home critical path", () =
       "src/components/chrome/house-phone-bottom-nav.tsx",
       "src/components/chrome/workspace-switcher.tsx",
       "src/components/chrome/house-lead-chrome.tsx",
-      "src/components/social/social-home-tabs.tsx",
       "src/components/social/social-home-topics.tsx",
       "src/components/social/social-profile-tabs.tsx",
       "src/components/social/social-follows-tabs.tsx",

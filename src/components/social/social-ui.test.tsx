@@ -1306,7 +1306,9 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(postCard).toContain("SocialLikeCount");
     expect(postCard).toContain("SocialCommentTrigger");
     expect(postCard).toContain("SocialPostShareButton");
-    expect(postCard).toContain('className="flex items-center gap-3.5"');
+    expect(postCard).toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
+    expect(postCard).not.toContain("gap-3.5");
+    expect(postCard).not.toContain("gap-4");
     expect(postCard.split("<SocialCommentTrigger").length - 1).toBe(2);
     expect(postCard).toContain("<SocialCommentTrigger post={thread} icon />");
     expect(postCard).toContain("<SocialCommentTrigger post={thread} />");

@@ -19,6 +19,8 @@ import {
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTIONS_CLASS,
+  SOCIAL_POST_ACTIONS_GAP_CLASS,
+  SOCIAL_POST_ACTIONS_ROW_CLASS,
   SOCIAL_STORIES_FEED_RULE_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
@@ -98,7 +100,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).not.toContain("SOCIAL_HOME_TOPICS_COMPOSER_DIVIDER_CLASS");
     expect(homeSkeleton).not.toContain("data-social-home-topics-composer-divider");
     expect(chrome).not.toContain("SOCIAL_HOME_TOPICS_COMPOSER_DIVIDER_CLASS");
-    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialHomeTabs"));
+    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));
+    expect(home).not.toContain("SocialHomeTabs");
+    expect(home).not.toContain("data-social-home-tabs");
     expect(homeSkeleton.indexOf("data-social-home-topics-skeleton")).toBeLessThan(
       homeSkeleton.indexOf("data-social-home-composer-skeleton"),
     );
@@ -108,7 +112,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(homeSkeleton.indexOf("SocialStoriesRailSkeleton")).toBeLessThan(
       homeSkeleton.indexOf("data-social-feed-skeleton"),
     );
-    expect(home).toContain("SocialHomeTabs");
+    expect(home).toContain("<SocialHomeTopics active={topic} lane={lane}");
+    expect(home).not.toContain("SocialHomeTabs");
     expect(home).not.toContain("SocialProfileTabs");
     expect(home).not.toContain("creditsEmpty");
     expect(home).not.toContain("SocialWelcomeVideo");
@@ -229,7 +234,8 @@ describe("Social Home miss list v1 P0 lock", () => {
       card.slice(card.indexOf("export function SocialPostCard")).indexOf("SocialPostMedia"),
     );
     expect(home).toContain('icon="users"');
-    expect(home).toContain("SocialHomeTabs");
+    expect(home).toContain("<SocialHomeTopics active={topic} lane={lane}");
+    expect(home).not.toContain("SocialHomeTabs");
     expect(composer).toContain("data-social-home-composer");
     expect(composer).toContain('socialCreateHref("text")');
     expect(composer).toContain("data-social-composer-write");
@@ -354,7 +360,13 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_TAIL_RULE_CLASS.startsWith("max-md:")).toBe(true);
     expect(SOCIAL_FEED_TAIL_RULE_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_TAIL_RULE_CLASS);
+    expect(SOCIAL_POST_ACTIONS_GAP_CLASS).toBe("gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toBe("flex flex-row items-center gap-2");
+    expect(SOCIAL_POST_ACTIONS_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
+    expect(SOCIAL_POST_ACTIONS_ROW_CLASS).toBe("flex items-center gap-2");
+    expect(SOCIAL_POST_ACTIONS_ROW_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
+    expect(SOCIAL_POST_ACTIONS_ROW_CLASS).not.toContain("gap-3.5");
+    expect(SOCIAL_POST_ACTIONS_ROW_CLASS).not.toContain("gap-4");
     expect(SOCIAL_POST_ACTION_HIT_CLASS).toBe(
       "inline-flex size-10 shrink-0 items-center justify-center text-ink-2 active:opacity-70",
     );
@@ -364,9 +376,12 @@ describe("Social Home miss list v1 P0 lock", () => {
       "max-md:border-b max-md:border-solid max-md:border-hairline",
     );
     expect(SOCIAL_STORIES_FEED_RULE_CLASS.startsWith("max-md:")).toBe(true);
-    expect(card.slice(card.indexOf("export function SocialPostCard"))).toContain(
-      'className="flex items-center gap-3.5"',
-    );
+    const postCard = card.slice(card.indexOf("export function SocialPostCard"));
+    expect(postCard).toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
+    expect(postCard).not.toContain("gap-3.5");
+    expect(postCard).not.toContain("gap-4");
+    const immersive = readFileSync("src/components/social/social-feed-immersive.tsx", "utf8");
+    expect(immersive).toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
     expect(icons).toContain("export const SOCIAL_ICON_SIZE_POST_ACTION = 24");
     const like = readFileSync("src/components/social/social-engagement.tsx", "utf8");
     const likeFn = like.slice(like.indexOf("export function SocialLikeButton"));
@@ -493,7 +508,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).not.toContain("data-social-home-setup");
     expect(home).not.toContain("SocialOnboardingChecklist");
     expect(home).not.toContain("socialChecklistItems");
-    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialHomeTabs"));
+    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));
+    expect(home).not.toContain("SocialHomeTabs");
+    expect(home).not.toContain("data-social-home-tabs");
     expect(home).toContain("SocialHomeActivityEmpty");
     expect(home).not.toContain("SOCIAL.home.emptyQuiet");
     expect(home).not.toContain("md:hidden");

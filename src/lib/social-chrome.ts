@@ -385,9 +385,13 @@ export const SOCIAL_FEED_CHROME_CLASS = "px-[var(--space-4)]";
 // Hit 40, glyph 24 centered, gap 8 between hit edges.
 // Phosphor Heart ink sits about 1px above the bubble in both
 // weights, so both states share one translateY(1px). No other nudge.
+// Feed card and immersive row share SOCIAL_POST_ACTIONS_GAP_CLASS.
 // docs/design-locks/social-home-post-actions-align-lock-v1.md
+// docs/design-locks/social-home-density-craft-sequel-lock-v1.md
+export const SOCIAL_POST_ACTIONS_GAP_CLASS = "gap-2";
+
 export const SOCIAL_POST_ACTIONS_CLASS =
-  "flex flex-row items-center gap-2";
+  `flex flex-row items-center ${SOCIAL_POST_ACTIONS_GAP_CLASS}`;
 
 export const SOCIAL_POST_ACTION_HIT_CLASS =
   "inline-flex size-10 shrink-0 items-center justify-center text-ink-2 active:opacity-70";
@@ -439,7 +443,8 @@ export const SOCIAL_FEED_CAROUSEL_DOT_ACTIVE_CLASS = "size-2 rounded-full bg-acc
 // actions cite the align lock: hit 40, glyph 24, gap 8.
 export const SOCIAL_POST_ACTION_GLYPH = 24;
 
-export const SOCIAL_POST_ACTIONS_ROW_CLASS = "flex items-center gap-[var(--space-2)]";
+export const SOCIAL_POST_ACTIONS_ROW_CLASS =
+  `flex items-center ${SOCIAL_POST_ACTIONS_GAP_CLASS}`;
 
 // #0A0A0B has no house token (--band is #1b1f23). One class, same
 // precedent as the story stage. Desktop uses this same fullscreen
@@ -529,9 +534,6 @@ export const SOCIAL_ACTIVITY_COMMENT_SNIPPET_CLASS =
 
 export const SOCIAL_CREATE_CTA_CLASS =
   "inline-flex w-full items-center justify-center gap-2 rounded-[24px] bg-accent px-4 py-3 t-body font-semibold text-accent-contrast";
-
-export const SOCIAL_HOME_TAB_CLASS =
-  "flex flex-1 flex-col items-center gap-2.5 px-4 pt-3 t-body";
 
 // Topic/Profession chip measure — house fat pill SoT (same height as
 // SegmentedTrack). Width hugs the label. Display stays surface fill.
