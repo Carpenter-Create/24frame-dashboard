@@ -380,17 +380,24 @@ export function SocialDmsRowsSkeleton() {
   );
 }
 
+export function SocialDmsInboxSkeleton() {
+  return (
+    <div data-social-dms-inbox-skeleton="" className="flex flex-col">
+      <div className="flex items-center justify-between py-[var(--space-2)]">
+        <Skeleton className="h-6 w-36" />
+        <Skeleton className="size-6 rounded-full" />
+      </div>
+      <Skeleton className="mb-[var(--space-2)] h-[var(--header-search-height)] w-full rounded-full" />
+      <SocialDmsRowsSkeleton />
+    </div>
+  );
+}
+
 export function SocialDmsSkeleton() {
   return (
     <div data-social-dms-skeleton="" className={SOCIAL_HOME_LAYOUT_CLASS}>
       <div className={SOCIAL_HOME_CENTER_CLASS}>
-        <div className="flex flex-col gap-[var(--space-4)]">
-          <div className="flex flex-col gap-2 pb-6">
-            <Skeleton className="h-7 w-36" />
-            <Skeleton className="h-3.5 w-56" />
-          </div>
-          <SocialDmsRowsSkeleton />
-        </div>
+        <SocialDmsInboxSkeleton />
       </div>
       <SocialForYouSkeleton />
     </div>

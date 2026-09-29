@@ -412,10 +412,22 @@ export const SOCIAL_FEED_ROW_CLASS =
 export const SOCIAL_POST_MEDIA_CLASS =
   `mt-[var(--space-2)] flex w-full flex-col gap-2 px-0 ${SOCIAL_MOBILE_BLEED_CLASS}`;
 
-// Messages inbox hairline. Same phone bleed as the feed. The pad
-// keeps the face and the name inset.
-export const SOCIAL_DM_INBOX_ROW_CLASS =
-  `border-b border-hairline py-[var(--space-4)] ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
+// Messages inbox list. No full-width hairline — vertical pad is the
+// rhythm. The frame gutter keeps the face inset, so this row does not
+// bleed. Unread is Sporty Blue via the accent token (light #1769FF).
+// docs/design-locks/social-dms-inbox-ig-lock-v1.md
+export const SOCIAL_DM_INBOX_HEADER_CLASS =
+  "flex items-center justify-between gap-[var(--space-3)] py-[var(--space-2)]";
+
+export const SOCIAL_DM_INBOX_TITLE_CLASS =
+  "min-w-0 break-words t-heading font-semibold text-ink";
+
+export const SOCIAL_DM_INBOX_COMPOSE_CLASS =
+  "ml-auto flex size-[var(--header-control-size)] min-h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center rounded-full text-ink";
+
+export const SOCIAL_DM_INBOX_ROW_CLASS = "py-[var(--space-3)]";
+
+export const SOCIAL_DM_INBOX_UNREAD_DOT_CLASS = "size-2 shrink-0 rounded-full bg-accent";
 
 // Named 16 inset family (--space-4). The feed row does not stack this
 // on the phone bleed pad or the desktop frame pad — one 16 only.

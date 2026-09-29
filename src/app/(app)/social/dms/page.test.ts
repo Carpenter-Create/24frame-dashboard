@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 import { signedAvatarUrls } from "@/lib/s3-avatars";
-import { SOCIAL } from "@/lib/social";
+import { SOCIAL, socialRelativeTime } from "@/lib/social";
+import { SOCIAL_DM_INBOX_ROW_CLASS } from "@/lib/social-chrome";
 import { dmThreadDayLabel, dmThreadTimeLabel } from "@/lib/social-dm-thread-format";
 import SocialDmsPage from "./page";
 import SocialDmThreadPage from "./[id]/page";
@@ -115,8 +116,22 @@ describe("social DMs", () => {
     expect(html).toContain("data-social-conversation-faces");
     expect(html).toContain("BO");
     expect(html).toContain("CO");
-    expect(html).toContain("1 unread");
-    expect(html).toContain(SOCIAL.dms.subtitle);
+    expect(html).toContain("data-social-dms-header");
+    expect(html).toContain("data-social-dms-title");
+    expect(html).toContain(">ada<");
+    expect(html).toContain("data-social-dms-search");
+    expect(html).toContain('placeholder="Search"');
+    expect(html).toContain('data-social-icon="pencil-simple"');
+    expect(html).toContain('href="/social/dms/new"');
+    expect(html).toContain("data-social-dm-unread");
+    expect(html).toContain("bg-accent");
+    expect(html).toContain('aria-label="1 unread"');
+    expect(html).not.toContain(">1 unread<");
+    expect(html).toContain("data-social-dm-time");
+    expect(html).toContain(socialRelativeTime("2026-09-12T14:00:00.000Z"));
+    expect(html).toContain(SOCIAL_DM_INBOX_ROW_CLASS);
+    expect(SOCIAL_DM_INBOX_ROW_CLASS).not.toContain("border-b");
+    expect(html).not.toContain(SOCIAL.dms.subtitle);
     expect(html).toContain("data-social-for-you");
     expect(html).toContain("lg:max-w-[720px]");
     expect(html).toContain("lg:max-w-[1052px]");
@@ -126,12 +141,12 @@ describe("social DMs", () => {
     expect(html).toContain("w-[300px]");
     expect(html).toContain("lg:flex");
     expect(html).not.toContain("892");
-    expect(html).toContain("24Frame");
+    expect(html).not.toContain("24Frame");
     expect(rpc).toHaveBeenCalledWith("get_dm_inbox", { p_limit: 51 });
     expect(html).not.toContain("data-social-dms-truncated");
   });
 
-  it("keeps a quiet Start a conversation CTA on an empty inbox", async () => {
+  it("keeps compose on the pencil and a quiet empty inbox", async () => {
     const from = inboxFrom([
       { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
     ]);
@@ -144,8 +159,37 @@ describe("social DMs", () => {
     expect(html).toContain("data-social-dms-empty");
     expect(html).toContain(SOCIAL.dms.empty);
     expect(html).toContain("data-social-dms-start");
-    expect(html).toContain(SOCIAL.dms.startCta);
+    expect(html).toContain(`aria-label="${SOCIAL.dms.newMessage}"`);
+    expect(html).not.toContain(`>${SOCIAL.dms.newMessage}<`);
+    expect(html).not.toContain(SOCIAL.dms.startCta);
+    expect(html).not.toContain(`>${SOCIAL.dms.title}<`);
     expect(html).toContain('href="/social/dms/new"');
+    expect(html).toContain(">ada<");
+    expect(html).not.toContain(SOCIAL.dms.subtitle);
+  });
+
+  it("omits the list title when the viewer has no handle and keeps the pencil", async () => {
+    const from = inboxFrom([
+      { id: "u1", handle: "   ", display_name: "", status: "active" },
+    ]);
+    vi.mocked(createClient).mockResolvedValue({
+      from,
+      rpc: vi.fn(async () => ({ data: [], error: null })),
+    } as never);
+
+    const html = await renderServerMarkup(await SocialDmsPage());
+    expect(html).toContain("data-social-dms-header");
+    expect(html).not.toContain("data-social-dms-title");
+    expect(html).not.toContain(`>${SOCIAL.dms.title}<`);
+    expect(html).not.toContain(">Messages<");
+    expect(html).toContain(`aria-label="${SOCIAL.dms.newMessage}"`);
+    expect(html).toContain("ml-auto");
+    expect(html).toContain("data-social-dms-search");
+    expect(html).toContain('placeholder="Search"');
+    expect(html).toContain('href="/social/dms/new"');
+    expect(html).not.toContain(SOCIAL.dms.startCta);
+    expect(html).not.toContain("Notes");
+    expect(html).not.toContain("Requests");
   });
 
   it("shows the viewer on a direct room with no other peer", async () => {
@@ -524,6 +568,9 @@ describe("social DMs", () => {
     const thread = readFileSync("src/app/(app)/social/dms/[id]/page.tsx", "utf8");
     const groups = readFileSync("src/app/(app)/social/groups/new/page.tsx", "utf8");
     expect(inbox).not.toContain("min_level");
+    expect(inbox).not.toContain("PageHeader");
+    expect(inbox).not.toContain("TextAction");
+    expect(inbox).not.toContain("border-b");
     expect(thread).not.toContain("min_level");
     expect(thread).not.toContain("kind !== \"direct\"");
     expect(groups).toContain("has_capability");
