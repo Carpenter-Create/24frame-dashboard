@@ -987,7 +987,7 @@ describe("SocialPostCard media", () => {
     expect(html).toContain("-ml-[var(--space-2)]");
     expect(html).toContain("gap-2");
     expect(html).not.toContain("divide-hairline");
-    expect(html).toContain("border-b border-hairline");
+    expect(html).toContain("border-y-2 border-hairline");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
   });
 
@@ -1391,14 +1391,15 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/md:|max-md:/);
     expect(html).not.toContain("divide-y");
     expect(html).not.toContain("divide-hairline");
-    expect(html).toContain("border-b border-hairline");
+    expect(html).toContain("border-y-2 border-hairline");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
     expect(SOCIAL_POST_TIME_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_POST_TIME_CLASS).toContain("leading-none");
     expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-4)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-b border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2 border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
     const lock = readFileSync("docs/design-locks/social-feed-under-post-time-lock-v1.md", "utf8");
     const separation = readFileSync(
       "docs/design-locks/social-home-post-separation-lock-v1.md",
@@ -1409,7 +1410,8 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(lock).toContain("text-ink-3");
     expect(lock).toContain("stacking is **out**");
     expect(separation).toContain("pb-[var(--space-4)]");
-    expect(separation).toContain("border-b border-hairline");
+    expect(separation).toContain("border-y-2 border-hairline");
+    expect(separation).toContain("superseded");
     const quiet = renderToStaticMarkup(
       <SocialPostCard post={cardPost()} permalink={false} />,
     );

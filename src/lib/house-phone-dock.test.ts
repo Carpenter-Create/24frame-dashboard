@@ -92,7 +92,7 @@ describe("phone dock clearance", () => {
     expect(shell).toContain('data-house-lead-scroll=""');
     expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("house-phone-dock-clearance");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-b border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2 border-hairline");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("house-phone-dock-clearance");
   });
 });

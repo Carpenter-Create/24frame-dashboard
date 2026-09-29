@@ -10,7 +10,7 @@
 
 ## One lock
 
-Between feed posts: **~16–24 CSS px** from the under-post time baseline to the next author, and a **1px** house hairline between posts. Not a gray fill band.
+Between feed posts: **~16–24 CSS px** from the under-post time baseline to the next author, and a **2px** house rule on the top and the bottom of each post. Not a 1px hairline. Not a gray fill band.
 
 Home, Profile Activity, and author history share `SocialPostCard` and `SOCIAL_FEED_ROW_CLASS`. Same separation everywhere that row class applies.
 
@@ -27,12 +27,15 @@ Home, Profile Activity, and author history share `SocialPostCard` and `SOCIAL_FE
 
 | Token | Lock |
 |-------|------|
-| Rule | `border-b border-hairline` on `SOCIAL_FEED_ROW_CLASS` |
+| Rule | `border-y-2 border-hairline` on `SOCIAL_FEED_ROW_CLASS`. Top and bottom |
+| Superseded | The 1px bottom-only rule (`border-b border-hairline`) is superseded |
+| Weight | **2px**. Not 1px. Not a heavy bar |
 | Color | House `border-hairline` (`--border`, light `#ECEDF0`). Same token as other Social hairlines. No new hex |
-| Phone | Full-bleed. The row already carries `SOCIAL_MOBILE_BLEED_CLASS`, the same pattern as `SOCIAL_DM_INBOX_ROW_CLASS`. The rule meets the viewport. Content stays inset by `SOCIAL_MOBILE_BLEED_PAD_CLASS` |
-| Desktop | Same class. No fork. The row is the column width, so the rule spans the column |
-| Gutter | `SOCIAL_FEED_GUTTER_CLASS` stays `flex flex-col`. No `divide-y`. A gutter divide would sit inside the column and would double the row rule |
-| Fill | Row stays `bg-surface`. The air is padding, so the canvas cannot show as a band. No `bg-surface-muted` fill |
+| Contact | No margin between rows. The gutter has no gap, so the bottom rule of post N touches the top rule of post N+1. No white gap between those rules. No padding outside the rules |
+| Phone | Full-bleed. The row already carries `SOCIAL_MOBILE_BLEED_CLASS`. The rules meet the viewport. Content stays inset by `SOCIAL_MOBILE_BLEED_PAD_CLASS` |
+| Desktop | Same class. No `md:` fork. The row is the column width, so the rules span the column |
+| Gutter | `SOCIAL_FEED_GUTTER_CLASS` stays `flex flex-col`. No `divide-y`. A gutter divide would sit inside the column and would double the row rules |
+| Fill | Row stays `bg-surface`. The air is padding inside the rules, so the canvas cannot show as a band. No `bg-surface-muted` fill |
 
 ## Under-post time
 
@@ -40,4 +43,4 @@ Stays the last chrome line inside the post. Format, color, and `SOCIAL_POST_TIME
 
 ## Out
 
-Author-row time. Gray FB band fill. Text-only grammar rewrite. Stories→feed seam change. A second card shell. `md:` air fork. `--space-6` row air.
+Author-row time. Gray FB band fill. Text-only grammar rewrite. Stories→feed seam change. A second card shell. `md:` air fork. `md:` rule fork. `--space-6` row air. The 1px bottom-only `border-b` rule. Padding or margin outside the rules.

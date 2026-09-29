@@ -376,11 +376,13 @@ export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 // everything except phone full-bleed media: the row restores
 // --chrome-gutter (16) after the phone bleed; desktop uses the
 // frame's single 16 and does not add a second pad.
-// Post→post hairline is border-b border-hairline on this row. The
-// row already bleeds on the phone, same pattern as the DM inbox
-// row, so the rule meets the viewport. Not a muted fill. The gutter
-// stays a plain column — a divide there would be inset and would
-// double this rule. Stories→feed seam stays
+// Post rules are border-y-2 border-hairline on this row: 2px top and
+// bottom, house --border. The 1px bottom-only border-b is superseded.
+// The row already bleeds on the phone, so both rules meet the viewport.
+// Not a muted fill. No margin and no padding outside the rules, so the
+// bottom rule touches the next post's top rule. The gutter stays a
+// plain column — a divide there would be inset and would double these
+// rules. Stories→feed seam stays
 // SOCIAL_STORIES_FEED_RULE_CLASS.
 // docs/design-locks/social-home-post-separation-lock-v1.md
 // docs/design-locks/social-mobile-full-bleed-lock-v1.md
@@ -416,7 +418,7 @@ export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
 // shrink-0 on the shell is the gutter's main axis (vertical): the list
 // scrolls instead of compressing the air.
 export const SOCIAL_FEED_ROW_CLASS =
-  `block shrink-0 border-b border-hairline bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
+  `block shrink-0 border-y-2 border-hairline bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
 
 // Feed media. px-0 inside the row. On phone it cancels the row pad
 // so the frame meets the viewport. Side radius stays 0. Desktop is
@@ -592,7 +594,7 @@ export const SOCIAL_POST_TIME_CLASS =
 
 // Adam 2026-09-22 feed chrome. Supersedes #599 Facebook gray gutter
 // (muted band + py slabs above and below every post). Posts sit on
-// the page canvas. The post→post hairline lives on
+// the page canvas. The 2px top and bottom rules live on
 // SOCIAL_FEED_ROW_CLASS, not as a gutter divide or a gray fill.
 // Home, Profile Activity, and author history share this list. No grey
 // slab. No divide. Stories→feed seam is a different rule.

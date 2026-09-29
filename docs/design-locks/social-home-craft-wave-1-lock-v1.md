@@ -24,7 +24,7 @@ Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media�
 | Media → actions | **~10pt** under media (actions sit close under the media stage) |
 | Likes / caption / comments stack | **4–6pt** between those meta rows |
 | Before next author | **Amended** — cite `social-home-post-separation-lock-v1.md`. Was ~8–12 (`pb-[var(--space-2)]`). Now `pb-[var(--space-4)]` (16), measured ~18. Phone and desktop still share it. The 2026-09-28 **~24pt** / `--space-6` row air stays superseded — it opened ~32 CSS px with the old time strut |
-| Inter-post hairline | **Amended** — cite `social-home-post-separation-lock-v1.md`. Wave 1 deleted it. Adam 2026-09-29 puts `border-b border-hairline` back on the feed row. Still **no** gray FB fill band |
+| Inter-post hairline | **Amended** — cite `social-home-post-separation-lock-v1.md`. Wave 1 deleted it. The 1px bottom-only `border-b border-hairline` is superseded. The feed row is `border-y-2 border-hairline` (2px top and bottom). Still **no** gray FB fill band |
 | Stories → feed seam | **Not** redefined here — cite `social-home-stories-feed-hairline-lock-v1.md` if that section seam remains; this lock kills **post→post** dividers only |
 
 **PASS:** Dense IG-like stack under media · next-author air and post→post hairline per `social-home-post-separation-lock-v1.md` · no inter-post gray fill band.  

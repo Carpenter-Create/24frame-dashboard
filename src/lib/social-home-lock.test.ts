@@ -362,8 +362,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-y");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-hairline");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-b");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2");
     expect(SOCIAL_FEED_ROW_CLASS).toContain("border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
     expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-4)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
@@ -422,7 +423,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("gap-");
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-b border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2 border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-y(?:\s|$)/);
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:border|max-md:border/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("rounded");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)(?:m[ytb]|my)-/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("py-[var(--space-4)]");
