@@ -86,6 +86,7 @@ export function SocialDmStoryShare({
       >
         <SocialFeedVideo
           item={{ url: url ?? "", playbackId, playbackPolicy }}
+          chromeless
           className="absolute inset-0 size-full object-cover"
         />
       </div>

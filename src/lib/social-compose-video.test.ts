@@ -270,7 +270,7 @@ describe("write compose video attach", () => {
     expect(loop.indexOf("composeSlotMayUpload")).toBeLessThan(loop.indexOf("uploadSocialPostMedia"));
     expect(loop).toContain('slot.kind === "video" ? { intent: "video" as const } : {}');
     expect(loop).not.toContain('intent: "video",');
-    expect(loop).toContain("composeVideoUploadPixels(measured)");
+    expect(loop).not.toContain("composeVideoUploadPixels(measured)");
     expect(loop.indexOf("waitForComposePixels")).toBeGreaterThan(loop.indexOf("uploadSocialPostMedia"));
     expect(loop.indexOf("commitSocialComposeMediaItem")).toBeGreaterThan(loop.indexOf("waitForComposePixels"));
     const pixelWait = loop.slice(loop.indexOf("const measuredNow"), loop.indexOf("waitForComposePixels"));
@@ -291,7 +291,9 @@ describe("write compose video attach", () => {
     expect(chrome).toContain("§5 same-slot overlay");
     expect(chrome).toContain('SOCIAL_WRITE_COMPOSE_PROGRESS_FILL_CLASS = "h-full rounded-full bg-accent"');
     expect(chrome).toContain("rounded-full bg-surface");
-    expect(upload).toContain("options.pixels === undefined");
+    expect(upload).not.toContain("options.pixels");
+    expect(upload).not.toContain("probeSocialVideoPixels");
+    expect(upload).not.toContain("source_width");
     expect(upload).toContain("putSocialMediaWithProgress");
     expect(upload).toContain('headers: { "Content-Type": signed.contentType }');
     expect(upload).not.toContain("Cache-Control");

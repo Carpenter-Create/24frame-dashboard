@@ -354,6 +354,13 @@ describe("story library pick", () => {
       "image/jpeg",
     );
     expect(storyPickFile(new File([new Uint8Array([1])], "notes.txt", { type: "" }))).toBeNull();
+    expect(storyPickFile(new File([new Uint8Array([1])], "IMG_2048.MOV", { type: "" }))).toMatchObject({
+      contentType: "video/quicktime",
+      kind: "video",
+    });
+    expect(
+      storyPickFile(new File([new Uint8Array([1])], "clip.mp4", { type: "video/mp4;codecs=avc1" })),
+    ).toMatchObject({ contentType: "video/mp4", kind: "video" });
     expect(storyImageAccept()).toContain(".jpg");
     expect(storyImageAccept()).not.toContain("capture");
   });

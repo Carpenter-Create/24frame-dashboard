@@ -49,7 +49,6 @@ import {
   SOCIAL_MEDIA_ACCEPT,
   SOCIAL_MEDIA_MAX_ITEMS,
   socialMediaFrameFields,
-  socialMediaKindFor,
   type SocialMediaItem,
   type SocialMediaKind,
 } from "@/lib/social-media";
@@ -73,6 +72,8 @@ import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { HOUSE_VOICE_FIELD_HOST_CLASS } from "@/lib/form-control";
 import {
   SOCIAL_CREATE_MEDIA_ACCEPT,
+  socialCreateMediaPreviewUrl,
+  socialCreateMediaRows,
   socialCreateMediaStepAfterPick,
   type SocialCreateMediaStep,
 } from "@/lib/social-create-media";
@@ -112,6 +113,12 @@ import {
 } from "@/app/(app)/social/actions";
 
 export { SocialFollowButton, SocialLikeButton, SocialLikeCount } from "./social-engagement";
+
+function revokeBlobUrls(urls: Record<string, string>) {
+  for (const url of Object.values(urls)) {
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+  }
+}
 
 function FormError({ error }: { error: string }) {
   if (!error) return null;
@@ -387,14 +394,9 @@ export function SocialProfileCreateForm({
   );
 }
 
-async function uploadSocialMedia(
-  files: ArrayLike<File> | null,
-  current: SocialMediaItem[],
-  originalQuality = false,
-) {
+async function uploadSocialMedia(files: ArrayLike<File> | null, current: SocialMediaItem[]) {
   return uploadSocialPostMedia(files, current, SOCIAL_MEDIA_MAX_ITEMS, "posts", {
     intent: "video",
-    originalQuality,
   });
 }
 
@@ -539,89 +541,29 @@ export function SocialCreateCompose({
   const house = useHouseClient();
   const [pickedFiles, setPickedFiles] = useState(takeSocialHomeComposerMedia);
   const kind: SocialCreateKind = initialKind ?? "text";
-  const ingestPicked = pickedFiles.length > 0 && kind === "media";
   const [step, setStep] = useState<SocialCreateMediaStep>(() =>
     kind === "media" ? socialCreateMediaStepAfterPick(pickedFiles, initialStep) : "caption",
   );
   const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(ingestPicked);
+  const [uploading, setUploading] = useState(kind === "media" && pickedFiles.length > 0);
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<SocialMediaItem[]>([]);
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [slotProgress, setSlotProgress] = useState<Record<string, number | null>>({});
   const [locals, setLocals] = useState<WriteComposeLocal[]>([]);
-  const [originalQuality, setOriginalQuality] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadAbortRef = useRef(new Map<string, AbortController>());
   const dismissedRef = useRef(new Set<string>());
   const pixelsRef = useRef(new Map<string, SocialComposeSourcePixels>());
   const pixelWaitersRef = useRef(new Map<string, Set<(pixels: SocialComposeSourcePixels | null) => void>>());
+  const previewUrlsRef = useRef(previewUrls);
   const writeFormRef = useRef<HTMLFormElement>(null);
   const writeBodyRef = useRef<HTMLTextAreaElement>(null);
-  const hasVideo =
-    pickedFiles.some((file) => socialMediaKindFor(file.type) === "video") ||
-    media.some((item) => item.kind === "video");
-
-  useEffect(() => {
-    const form = writeFormRef.current;
-    if (!form) return;
-    return bindSocialWriteComposeViewport(form, () => {
-      const field = writeBodyRef.current;
-      if (field) fitSocialWriteComposeField(field);
-    });
-  }, [kind]);
-
-  useEffect(() => {
-    const controllers = uploadAbortRef.current;
-    return () => {
-      for (const controller of controllers.values()) controller.abort();
-    };
-  }, []);
-
-  useEffect(() => {
-    const field = writeBodyRef.current;
-    if (!field) return;
-    fitSocialWriteComposeField(field);
-  }, [body, kind]);
-
-  useEffect(() => {
-    if (!ingestPicked) return;
-    let cancelled = false;
-    void uploadSocialMedia(pickedFiles, [], originalQuality).then((result) => {
-      if (cancelled) return;
-      setUploading(false);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      if (result.items) {
-        setPreviews((current) => {
-          const next = { ...current };
-          result.items!.forEach((item, index) => {
-            const file = pickedFiles[index];
-            if (file) next[item.key] = URL.createObjectURL(file);
-          });
-          return next;
-        });
-        setMedia(result.items);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [pickedFiles, ingestPicked, originalQuality]);
-
-  useEffect(() => {
-    if (kind !== "media" || step !== "pick") return undefined;
-    const input = fileRef.current;
-    input?.click();
-    function onCancel() {
-      router.back();
-    }
-    input?.addEventListener("cancel", onCancel);
-    return () => {
-      input?.removeEventListener("cancel", onCancel);
-    };
-  }, [kind, router, step]);
+  const mediaRows = kind === "media" ? socialCreateMediaRows(pickedFiles) : { rows: [], error: "" };
+  const formError = error || mediaRows.error;
+  const mediaStep: SocialCreateMediaStep =
+    kind === "media" && pickedFiles.length > 0 && mediaRows.rows.length === 0 ? "pick" : step;
 
   function publishComposePixels(localId: string, measured: SocialComposeSourcePixels) {
     const pixels = composeVideoUploadPixels(measured);
@@ -659,6 +601,136 @@ export function SocialCreateCompose({
       if (raced) finish(raced);
     });
   }
+
+  useEffect(() => {
+    const form = writeFormRef.current;
+    if (!form) return;
+    return bindSocialWriteComposeViewport(form, () => {
+      const field = writeBodyRef.current;
+      if (field) fitSocialWriteComposeField(field);
+    });
+  }, [kind]);
+
+  useEffect(() => {
+    const controllers = uploadAbortRef.current;
+    return () => {
+      for (const controller of controllers.values()) controller.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const field = writeBodyRef.current;
+    if (!field) return;
+    fitSocialWriteComposeField(field);
+  }, [body, kind]);
+
+  useEffect(() => {
+    previewUrlsRef.current = previewUrls;
+  }, [previewUrls]);
+
+  useEffect(() => {
+    return () => {
+      revokeBlobUrls(previewUrlsRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (kind !== "media") return;
+    const rows = socialCreateMediaRows(pickedFiles).rows;
+    const needed = new Set(rows.map((row) => row.localId));
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      setPreviewUrls((current) => {
+        const next: Record<string, string> = {};
+        for (const [id, url] of Object.entries(current)) {
+          if (needed.has(id)) next[id] = url;
+          else if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+        }
+        for (const row of rows) {
+          if (next[row.localId]) continue;
+          next[row.localId] = socialCreateMediaPreviewUrl(row.file);
+        }
+        const unchanged =
+          Object.keys(next).length === Object.keys(current).length &&
+          Object.keys(next).every((id) => next[id] === current[id]);
+        return unchanged ? current : next;
+      });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [kind, pickedFiles]);
+
+  useEffect(() => {
+    if (kind !== "media" || pickedFiles.length === 0) return;
+    const planned = socialCreateMediaRows(pickedFiles);
+    if (planned.rows.length === 0) return;
+    if (!planned.rows.every((row) => row.localId in previewUrls)) return;
+    const rows = planned.rows;
+    const controller = new AbortController();
+    let cancelled = false;
+    void (async () => {
+      const items: SocialMediaItem[] = [];
+      const stored: Record<string, string> = {};
+      for (const row of rows) {
+        if (cancelled || controller.signal.aborted) return;
+        const pixels =
+          row.kind === "video" ? await waitForComposePixels(row.localId, controller.signal) : null;
+        if (cancelled || controller.signal.aborted) return;
+        const measured = row.kind === "video" ? composeVideoUploadPixels(pixels) : null;
+        const result = await uploadSocialPostMedia([row.file], items, SOCIAL_MEDIA_MAX_ITEMS, "posts", {
+          intent: "video",
+          signal: controller.signal,
+          onProgress:
+            row.kind === "video"
+              ? (progress) => {
+                  const percent = progress.percent ?? 0;
+                  setSlotProgress((current) => ({ ...current, [row.localId]: percent }));
+                }
+              : undefined,
+        });
+        if (cancelled || result.aborted) return;
+        const uploaded = result.items?.[0];
+        const item = uploaded
+          ? row.kind === "video" && measured
+            ? commitSocialComposeMediaItem(uploaded, measured)
+            : uploaded
+          : null;
+        if (result.error || !item) {
+          setError(result.error ?? (row.kind === "video" ? SOCIAL.home.videoPreparing : SOCIAL.home.uploadFailed));
+          setUploading(false);
+          return;
+        }
+        items.push(item);
+        const url = previewUrls[row.localId];
+        if (url) stored[item.key] = url;
+        setSlotProgress((current) => ({ ...current, [row.localId]: null }));
+      }
+      if (cancelled) return;
+      setPreviews(stored);
+      setMedia(items);
+      setUploading(false);
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [kind, pickedFiles, previewUrls]);
+
+  useEffect(() => {
+    if (kind !== "media" || mediaStep !== "pick") return undefined;
+    const input = fileRef.current;
+    input?.click();
+    function onCancel() {
+      router.back();
+    }
+    input?.addEventListener("cancel", onCancel);
+    return () => {
+      input?.removeEventListener("cancel", onCancel);
+    };
+  }, [kind, mediaStep, router]);
 
   function dismissLocal(slot: WriteComposeLocal) {
     dismissedRef.current.add(slot.localId);
@@ -723,13 +795,9 @@ export function SocialCreateCompose({
           uploadAbortRef.current.delete(slot.localId);
           continue;
         }
-        const measured = slot.kind === "video" ? (pixelsRef.current.get(slot.localId) ?? null) : null;
         const result = await uploadSocialPostMedia([file], carried, SOCIAL_MEDIA_MAX_ITEMS, "posts", {
           ...(slot.kind === "video" ? { intent: "video" as const } : {}),
-          originalQuality,
           signal: controller.signal,
-          // Measured from the visible preview. Null skips the detached probe.
-          pixels: slot.kind === "video" ? composeVideoUploadPixels(measured) : undefined,
           onProgress:
             slot.kind === "video"
               ? (progress) => {
@@ -750,7 +818,6 @@ export function SocialCreateCompose({
           uploadAbortRef.current.delete(slot.localId);
           continue;
         }
-        // CI must re-run on this tip: the prior synchronize never enqueued checks, isolation, or governance.
         const measuredNow =
           slot.kind === "video" && !result.error
             ? await waitForComposePixels(slot.localId, controller.signal)
@@ -791,37 +858,43 @@ export function SocialCreateCompose({
   async function onPick(files: ArrayLike<File> | null) {
     if (!files || files.length === 0) return;
     const chosen = Array.from(files);
-    setPickedFiles(chosen);
     setError("");
     if (fileRef.current) fileRef.current.value = "";
     if (kind === "text") {
       await attachWriteMedia(chosen);
       return;
     }
-    setUploading(true);
-    const result = await uploadSocialMedia(chosen, media, originalQuality);
-    setUploading(false);
-    if (result.error) {
-      setError(result.error);
+    const planned = socialCreateMediaRows(chosen);
+    setPickedFiles(chosen);
+    setMedia([]);
+    setPreviews({});
+    setSlotProgress({});
+    if (planned.error) setError(planned.error);
+    if (planned.rows.length === 0) {
+      setUploading(false);
+      setStep("pick");
       return;
     }
-    if (result.items) {
-      setPreviews((current) => {
-        const next = { ...current };
-        result.items!.forEach((item, index) => {
-          const file = chosen[index];
-          if (file) next[item.key] = URL.createObjectURL(file);
-        });
-        return next;
-      });
-      setMedia((current) => [...current, ...result.items!]);
-      if (kind === "media") {
-        setStep((current) => (current === "caption" ? current : "review"));
-      }
-    }
+    setUploading(true);
+    setStep("caption");
   }
 
-  if (kind === "media" && step === "pick") {
+  function dismissMediaRow(localId: string) {
+    const row = mediaRows.rows.find((item) => item.localId === localId);
+    if (!row) return;
+    const next = pickedFiles.filter((_, index) => index !== row.index);
+    setMedia([]);
+    setPreviews({});
+    setPickedFiles(next);
+    if (next.length === 0) {
+      setUploading(false);
+      setStep("pick");
+      return;
+    }
+    setUploading(true);
+  }
+
+  if (kind === "media" && mediaStep === "pick") {
     return (
       <div
         data-social-create-form=""
@@ -839,47 +912,7 @@ export function SocialCreateCompose({
           aria-label={SOCIAL.create.media}
           onChange={(event) => void onPick(event.target.files)}
         />
-      </div>
-    );
-  }
-
-  if (kind === "media" && step === "review") {
-    const rows =
-      media.length > 0
-        ? media.map((item) => ({
-            key: item.key,
-            label: item.kind === "video" ? SOCIAL.home.videoKind : SOCIAL.home.photoKind,
-          }))
-        : pickedFiles.map((file, index) => ({
-            key: `${file.name}-${index}`,
-            label:
-              socialMediaKindFor(file.type) === "video" ? SOCIAL.home.videoKind : SOCIAL.home.photoKind,
-          }));
-    return (
-      <div
-        data-social-create-form=""
-        data-social-create-kind="media"
-        data-social-create-media-step="review"
-        className={SOCIAL_CREATE_CARD_CLASS}
-      >
-        <ul data-social-post-attachments="" className="flex flex-col gap-1">
-          {rows.map((row) => (
-            <li key={row.key} className="t-body-sm text-ink-2">
-              {row.label}
-            </li>
-          ))}
-        </ul>
-        <div className="flex justify-end">
-          <button
-            type="button"
-            data-social-create-media-next=""
-            className={SOCIAL_ACTION_CLASS}
-            onClick={() => setStep("caption")}
-          >
-            {SOCIAL.create.next}
-          </button>
-        </div>
-        <FormError error={error} />
+        <FormError error={formError} />
       </div>
     );
   }
@@ -1050,10 +1083,13 @@ export function SocialCreateCompose({
             onChange={(event) => void onPick(event.target.files)}
           />
         </div>
-        <FormError error={error} />
+        <FormError error={formError} />
       </form>
     );
   }
+
+  const mediaPostDisabled =
+    uploading || media.length !== mediaRows.rows.length || mediaRows.rows.length === 0;
 
   return (
     <form
@@ -1063,6 +1099,7 @@ export function SocialCreateCompose({
       className={SOCIAL_CREATE_CARD_CLASS}
       onSubmit={(event) => {
         event.preventDefault();
+        if (mediaPostDisabled) return;
         ingestSpeechLearning({
           text: body,
           source: "typed",
@@ -1096,34 +1133,45 @@ export function SocialCreateCompose({
           ) : null}
         </span>
       </div>
-      {kind === "media" && hasVideo ? (
-        <label
-          data-social-create-original-quality=""
-          className="flex items-start gap-2 t-body-sm text-ink"
-        >
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={originalQuality}
-            onChange={(event) => setOriginalQuality(event.target.checked)}
-          />
-          <span>{SOCIAL.create.originalQuality}</span>
-        </label>
-      ) : null}
-      {media.length > 0 ? (
-        <ul data-social-post-attachments="" className="flex flex-col gap-1">
-          {media.map((item) => (
-            <li key={item.key} className="flex items-center gap-[var(--space-2)] t-body-sm text-ink-2">
-              <span>{item.kind === "video" ? SOCIAL.home.videoKind : SOCIAL.home.photoKind}</span>
-              <button
-                type="button"
-                className={TEXT_ACTION_CLASS}
-                onClick={() => setMedia((current) => current.filter((row) => row.key !== item.key))}
-              >
-                {SOCIAL.home.removeAttach}
-              </button>
-            </li>
-          ))}
+      {mediaRows.rows.length > 0 ? (
+        <ul data-social-create-preview="" className="flex flex-col gap-[var(--space-2)]">
+          {mediaRows.rows.map((row) => {
+            const url = previewUrls[row.localId] ?? "";
+            const progress = slotProgress[row.localId] ?? null;
+            return (
+              <li key={row.localId}>
+                <div className={SOCIAL_WRITE_COMPOSE_PREVIEW_CLASS}>
+                  {url && row.kind === "video" ? (
+                    <SocialComposeVideoPreview
+                      src={url}
+                      onPixels={(pixels) => publishComposePixels(row.localId, pixels)}
+                    />
+                  ) : url ? (
+                    <Image
+                      src={url}
+                      alt={SOCIAL.home.photoKind}
+                      fill
+                      unoptimized
+                      sizes="100vw"
+                      className="object-cover"
+                    />
+                  ) : null}
+                  {progress !== null ? <SocialComposeUploadProgress percent={progress} /> : null}
+                  <button
+                    type="button"
+                    aria-label={SOCIAL.home.removeAttach}
+                    className={cn(
+                      SOCIAL_POST_ACTION_HIT_CLASS,
+                      "absolute right-[var(--space-2)] top-[var(--space-2)] z-10 bg-surface",
+                    )}
+                    onClick={() => dismissMediaRow(row.localId)}
+                  >
+                    <SocialIcon name="x" size={20} className="text-ink-2" />
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       <div className="flex flex-col gap-1.5 md:gap-2">
@@ -1161,11 +1209,15 @@ export function SocialCreateCompose({
         </select>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <button type="submit" disabled={uploading} className={SOCIAL_ACTION_CLASS}>
+        <button
+          type="submit"
+          disabled={mediaPostDisabled}
+          className={SOCIAL_ACTION_CLASS}
+        >
           {SOCIAL.home.submit}
         </button>
       </div>
-      <FormError error={error} />
+      <FormError error={formError} />
     </form>
   );
 }

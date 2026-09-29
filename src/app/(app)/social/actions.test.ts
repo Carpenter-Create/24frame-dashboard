@@ -50,7 +50,7 @@ vi.mock("@/lib/social-mux-server", () => ({
   finalizeSocialMuxDirectUpload: vi.fn(),
   socialMuxSettingsFromUploadInput: vi.fn(() => ({
     intent: "video",
-    settings: { videoQuality: "basic", maxResolutionTier: "1080p" },
+    settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
   })),
 }));
 
@@ -1290,7 +1290,6 @@ describe("social actions", () => {
     start.set("content_type", "video/mp4");
     start.set("byte_length", "1200");
     start.set("intent", "video");
-    start.set("original_quality", "1");
     start.set("source_width", "3840");
     start.set("source_height", "2160");
     expect(await createSocialMuxUpload(start)).toEqual({
@@ -1302,13 +1301,10 @@ describe("social actions", () => {
     });
     expect(socialMuxSettingsFromUploadInput).toHaveBeenCalledWith({
       intent: "video",
-      originalQuality: true,
-      width: 3840,
-      height: 2160,
     });
     expect(presignSocialMediaPut).not.toHaveBeenCalled();
     expect(createSocialMuxDirectUpload).toHaveBeenCalledWith({
-      settings: { videoQuality: "basic", maxResolutionTier: "1080p" },
+      settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
       passthrough: `${author}:${object}`,
     });
 

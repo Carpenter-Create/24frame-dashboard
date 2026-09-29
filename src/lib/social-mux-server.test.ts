@@ -44,7 +44,7 @@ describe("social Mux server client", () => {
 
     await expect(
       createSocialMuxDirectUpload({
-        settings: { videoQuality: "basic", maxResolutionTier: "1080p" },
+        settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
         passthrough: "user:object",
       }),
     ).resolves.toEqual({
@@ -67,7 +67,7 @@ describe("social Mux server client", () => {
     expect(body.new_asset_settings).toMatchObject({
       playback_policies: ["signed"],
       video_quality: "basic",
-      max_resolution_tier: "1080p",
+      max_resolution_tier: "2160p",
       passthrough: "user:object",
     });
   });
@@ -194,26 +194,14 @@ describe("social Mux server client", () => {
     expect(claims.map((claim) => claim.time)).toEqual([undefined, "0", undefined]);
   });
 
-  it("maps live + 4K form fields on the server, not the client", () => {
-    expect(
-      socialMuxSettingsFromUploadInput({
-        intent: "live",
-        originalQuality: true,
-        width: 3840,
-        height: 2160,
-      }),
-    ).toEqual({
+  it("maps live and video intents without client pixel fields", () => {
+    expect(socialMuxSettingsFromUploadInput({ intent: "live" })).toEqual({
       intent: "live",
       settings: { videoQuality: "plus", maxResolutionTier: "1080p" },
     });
-    expect(
-      socialMuxSettingsFromUploadInput({
-        intent: "video",
-        originalQuality: true,
-        width: 3840,
-        height: 2160,
-      }).settings.maxResolutionTier,
-    ).toBe("2160p");
+    expect(socialMuxSettingsFromUploadInput({ intent: "video" }).settings.maxResolutionTier).toBe(
+      "2160p",
+    );
     expect(
       signedPlaybackIdFromAsset({
         playback_ids: [

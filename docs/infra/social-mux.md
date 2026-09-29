@@ -29,9 +29,14 @@ names the official Mux JWT helper reads. They stay in
 
 | Path | `video_quality` | `max_resolution_tier` |
 | --- | --- | --- |
-| Video (default) | `basic` | `1080p` |
+| Video post | `basic` | `2160p` |
 | Go live (~10 min recorder → normal video post) | `plus` | `1080p` |
-| Video + “Upload in original quality (up to 4K)” + 4K source | `basic` | `2160p` |
+
+Video posts default to original up to 2160p. Client `source_width` /
+`source_height` do not select the tier. No quality checkbox. Playback
+stays Mux-only.
+[`docs/design-locks/social-video-upload-cover-lift-lock-v1.md`](../design-locks/social-video-upload-cover-lift-lock-v1.md) ·
+[`docs/design-locks/social-video-mux-only-lock-v1.md`](../design-locks/social-video-mux-only-lock-v1.md).
 
 No livestream backend. No Settings quality maze. New uploads use
 playback policy `signed`. Playback IDs are stored on `posts.media` and

@@ -5,8 +5,8 @@
 
 export const SOCIAL_MUX_PROVIDER = "mux" as const;
 export const SOCIAL_MUX_DEFAULT_RESOLUTION = "1080p" as const;
+/** Silent video default. Mux stores and delivers up to 4K. Not chosen from client-reported pixels. */
 export const SOCIAL_MUX_ORIGINAL_RESOLUTION = "2160p" as const;
-export const SOCIAL_MUX_4K_MIN_EDGE = 2160;
 export const SOCIAL_MUX_IMAGE_HOST = "image.mux.com";
 /** First frame. Mux's default thumbnail, with no time, is a mid-clip still. */
 export const SOCIAL_MUX_THUMBNAIL_TIME = "0";
@@ -56,6 +56,23 @@ export function socialMuxCoveringPoster(signed: boolean, hasTokens: boolean): bo
  */
 export function socialMuxSignedPlayerReady(hasTokens: boolean, posterDecoded: boolean): boolean {
   return hasTokens && posterDecoded;
+}
+
+/**
+ * Whether a still may sit over the player after it has mounted.
+ * Autoplay and chromeless faces (Stories, Explore) keep the still until
+ * the first frame. A paused feed player must not: iOS Safari does not
+ * emit `loadeddata` for `preload="metadata"` until play, so a cover that
+ * waits on that event stays a static photo with no play chrome.
+ */
+export function socialMuxStillCoversChrome(input: {
+  autoPlay: boolean;
+  chromeless: boolean;
+  firstFrame: boolean;
+}): boolean {
+  if (input.firstFrame) return false;
+  if (!input.autoPlay && !input.chromeless) return false;
+  return true;
 }
 
 export function isSocialMuxId(value: string): boolean {
@@ -178,20 +195,18 @@ export class SocialMuxUploadNotBoundError extends Error {
   }
 }
 
-export function isSocialMux4kSource(width: number, height: number): boolean {
-  if (!Number.isFinite(width) || !Number.isFinite(height)) return false;
-  return Math.max(width, height) >= SOCIAL_MUX_4K_MIN_EDGE;
-}
-
 export function parseSocialMuxIntent(raw: string | null | undefined): SocialMuxIntent {
   return raw === "live" ? "live" : "video";
 }
 
+/**
+ * Video posts default to original up to 2160p. Go live stays plus / 1080p.
+ * Client width and height do not select the tier. Playback stays Mux-only.
+ * docs/design-locks/social-video-upload-cover-lift-lock-v1.md
+ * docs/design-locks/social-video-mux-only-lock-v1.md
+ */
 export function socialMuxAssetSettings(input: {
   intent?: SocialMuxIntent | null;
-  originalQuality?: boolean;
-  width?: number;
-  height?: number;
 }): SocialMuxAssetSettings {
   if (input.intent === "live") {
     return {
@@ -199,12 +214,9 @@ export function socialMuxAssetSettings(input: {
       maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
     };
   }
-  const fourK =
-    Boolean(input.originalQuality) &&
-    isSocialMux4kSource(input.width ?? 0, input.height ?? 0);
   return {
     videoQuality: "basic",
-    maxResolutionTier: fourK ? SOCIAL_MUX_ORIGINAL_RESOLUTION : SOCIAL_MUX_DEFAULT_RESOLUTION,
+    maxResolutionTier: SOCIAL_MUX_ORIGINAL_RESOLUTION,
   };
 }
 

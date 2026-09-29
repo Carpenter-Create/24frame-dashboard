@@ -171,12 +171,13 @@ describe("Social create kinds", () => {
         initialKind: "media",
       }),
     );
-    expect(review).toContain('data-social-create-media-step="review"');
-    expect(review).toContain("data-social-create-media-next");
-    expect(review).toContain(SOCIAL.create.next);
-    expect(review).toContain(SOCIAL.home.photoKind);
-    expect(review).not.toContain(SOCIAL.create.caption);
-    expect(review).not.toContain(SOCIAL.home.submit);
+    expect(review).toContain('data-social-create-media-step="caption"');
+    expect(review).toContain("data-social-create-preview");
+    expect(review).not.toContain("data-social-create-media-next");
+    expect(review).not.toContain(">Next<");
+    expect(review).toContain(SOCIAL.create.caption);
+    expect(review).toContain(SOCIAL.home.submit);
+    expect(review).not.toContain("data-social-create-original-quality");
     expect(review).not.toContain(SOCIAL.create.dropEmpty);
     expect(review).not.toContain("data-social-create-well");
 
@@ -198,6 +199,9 @@ describe("Social create kinds", () => {
     expect(caption).not.toContain("required");
     expect(caption).not.toContain(SOCIAL.create.dropEmpty);
     expect(caption).not.toContain("data-social-create-well");
+    expect(caption).not.toContain("data-social-create-media-next");
+    expect(caption).toContain("data-social-create-preview");
+    expect(caption).not.toContain("data-social-create-original-quality");
     expect(caption).not.toContain("data-social-create-media-next");
     expect(caption).not.toContain("data-social-create-attach");
     expect(caption).not.toContain("autofocus");

@@ -591,7 +591,6 @@ export const SOCIAL = {
     photo: "Photo",
     video: "Video",
     goLive: "Go live",
-    next: "Next",
     close: "Close",
     liveTitle: "Go live",
     liveHint: "Record up to 10 minutes, then post as a video.",
@@ -607,7 +606,6 @@ export const SOCIAL = {
     dropPhotoHint: "or choose from library · stills up to 20MB",
     dropVideo: "Drop video here",
     dropVideoHint: "or choose from library",
-    originalQuality: "Upload in original quality (up to 4K)",
   },
   stories: {
     create: "Create story",

@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 
 import {
   clearSocialMuxPlaybackTokenCache,
-  isSocialMux4kSource,
   isSocialMuxId,
   loadSocialMuxPlaybackTokens,
   parseSocialMuxIntent,
@@ -17,6 +16,7 @@ import {
   socialMuxPlaybackRequiresTokens,
   socialMuxPlaybackTokensFromJson,
   socialMuxSignedPlayerReady,
+  socialMuxStillCoversChrome,
   SOCIAL_MUX_THUMBNAIL_TIME,
   socialMuxThumbnailUrl,
   SOCIAL_MUX_PLAYBACK_ROUTE,
@@ -24,12 +24,12 @@ import {
 import { SOCIAL_MUX_ENV } from "./social-mux-server";
 
 describe("social Mux encode locks", () => {
-  it("defaults Video to 1080p basic and Go live to 1080p plus", () => {
+  it("defaults Video to 2160p basic and Go live to 1080p plus", () => {
     expect(socialMuxAssetSettings({ intent: "video" })).toEqual({
       videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
+      maxResolutionTier: SOCIAL_MUX_ORIGINAL_RESOLUTION,
     });
-    expect(socialMuxAssetSettings({ intent: "live", originalQuality: true, width: 3840, height: 2160 })).toEqual({
+    expect(socialMuxAssetSettings({ intent: "live" })).toEqual({
       videoQuality: "plus",
       maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
     });
@@ -37,42 +37,17 @@ describe("social Mux encode locks", () => {
     expect(parseSocialMuxIntent("video")).toBe("video");
   });
 
-  it("raises 2160p only when the 4K toggle is on and the source is 4K", () => {
-    expect(isSocialMux4kSource(3840, 2160)).toBe(true);
-    expect(isSocialMux4kSource(1920, 1080)).toBe(false);
-    expect(
-      socialMuxAssetSettings({
-        intent: "video",
-        originalQuality: true,
-        width: 3840,
-        height: 2160,
-      }),
-    ).toEqual({
-      videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_ORIGINAL_RESOLUTION,
-    });
-    expect(
-      socialMuxAssetSettings({
-        intent: "video",
-        originalQuality: true,
-        width: 1920,
-        height: 1080,
-      }),
-    ).toEqual({
-      videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
-    });
-    expect(
-      socialMuxAssetSettings({
-        intent: "video",
-        originalQuality: false,
-        width: 3840,
-        height: 2160,
-      }),
-    ).toEqual({
-      videoQuality: "basic",
-      maxResolutionTier: SOCIAL_MUX_DEFAULT_RESOLUTION,
-    });
+  it("defaults video to 2160p without reading client pixels", () => {
+    expect(socialMuxAssetSettings({ intent: "video" }).maxResolutionTier).toBe(
+      SOCIAL_MUX_ORIGINAL_RESOLUTION,
+    );
+    const sot = readFileSync("src/lib/social-mux.ts", "utf8");
+    const settings = sot.slice(sot.indexOf("export function socialMuxAssetSettings"), sot.indexOf("export function socialMuxThumbnailUrl"));
+    expect(settings).not.toContain("width");
+    expect(settings).not.toContain("height");
+    expect(settings).toContain("SOCIAL_MUX_ORIGINAL_RESOLUTION");
+    expect(settings).not.toContain("source_width");
+    expect(settings).not.toContain("source_height");
   });
 
   it("builds a thumbnail URL from a playback id and does not mint a native HLS src", () => {
@@ -142,13 +117,18 @@ describe("social Mux encode locks", () => {
     expect(socialMuxSignedPlayerReady(false, true)).toBe(false);
     expect(socialMuxSignedPlayerReady(true, false)).toBe(false);
     expect(socialMuxSignedPlayerReady(true, true)).toBe(true);
+    expect(socialMuxStillCoversChrome({ autoPlay: false, chromeless: false, firstFrame: false })).toBe(false);
+    expect(socialMuxStillCoversChrome({ autoPlay: false, chromeless: false, firstFrame: true })).toBe(false);
+    expect(socialMuxStillCoversChrome({ autoPlay: true, chromeless: true, firstFrame: false })).toBe(true);
+    expect(socialMuxStillCoversChrome({ autoPlay: true, chromeless: false, firstFrame: false })).toBe(true);
+    expect(socialMuxStillCoversChrome({ autoPlay: false, chromeless: true, firstFrame: false })).toBe(true);
     const player = readFileSync("src/components/social/social-mux-player.tsx", "utf8");
     const signedFace = player.slice(player.indexOf("{signed ? ("), player.indexOf(") : ("));
     expect(signedFace).toContain("socialMuxCoveringPoster(signed, Boolean(tokens))");
     expect(signedFace).toContain('data-social-mux-poster="pending"');
     expect(signedFace).toContain("absolute inset-0 size-full");
     expect(signedFace).toContain("<MuxPoster");
-    expect(signedFace).toContain("painted");
+    expect(signedFace).toContain("coverStill");
     expect(signedFace).not.toContain("<img");
     expect(signedFace).not.toContain("poster={poster}");
     expect(signedFace).not.toContain("src={poster}");

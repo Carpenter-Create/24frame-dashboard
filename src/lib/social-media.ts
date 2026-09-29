@@ -166,7 +166,8 @@ const STORY_PICK_EXTENSIONS: Record<string, SocialMediaContentType> = {
 
 /** Library pickers often omit `file.type` or send `image/jpg`. Map those onto the house allowlist. */
 export function storyPickContentType(file: { type: string; name: string }): SocialMediaContentType | null {
-  const raw = file.type.trim().toLowerCase();
+  // iOS sometimes appends `;codecs=…`. The allowlist is the bare type.
+  const raw = (file.type.trim().toLowerCase().split(";")[0] ?? "").trim();
   if (raw === "image/jpg" || raw === "image/pjpeg") return "image/jpeg";
   if (isSocialMediaContentType(raw)) return raw;
   if (raw !== "" && raw !== "application/octet-stream") return null;

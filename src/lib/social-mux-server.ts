@@ -199,18 +199,10 @@ export async function finalizeSocialMuxDirectUpload(
 
 export function socialMuxSettingsFromUploadInput(input: {
   intent?: string | null;
-  originalQuality?: boolean;
-  width?: number;
-  height?: number;
 }): { intent: SocialMuxIntent; settings: SocialMuxAssetSettings } {
   const intent = input.intent === "live" ? "live" : "video";
   return {
     intent,
-    settings: socialMuxAssetSettings({
-      intent,
-      originalQuality: input.originalQuality,
-      width: input.width,
-      height: input.height,
-    }),
+    settings: socialMuxAssetSettings({ intent }),
   };
 }
