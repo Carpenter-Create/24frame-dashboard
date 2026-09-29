@@ -5,9 +5,18 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
+const exploreMuteProbe = vi.hoisted(() => ({
+  onForcedMute: undefined as (() => void) | undefined,
+}));
+
 vi.mock("next/dynamic", () => ({
   default: () =>
-    function MuxPlayerStub(props: { playbackId?: string; muted?: boolean }) {
+    function MuxPlayerStub(props: {
+      playbackId?: string;
+      muted?: boolean;
+      onForcedMute?: () => void;
+    }) {
+      exploreMuteProbe.onForcedMute = props.onForcedMute;
       return createElement("div", {
         "data-mux-player-stub": props.playbackId ?? "",
         "data-mux-muted": props.muted ? "yes" : "no",
@@ -437,7 +446,16 @@ describe("SocialExploreForYouStream dismiss", () => {
     expect(readSocialMuxPlaybackTokenCache(NEXT_PLAYBACK)).toEqual(tokens);
   });
 
-  it("toggles the trailing mute control and resets it when the active item changes", async () => {
+  async function showItems(items: readonly SocialExploreForYouItem[]) {
+    await act(async () => {
+      root?.render(createElement(SocialExploreForYouStream, { items, emptyLabel: null }));
+    });
+    await act(async () => {
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    });
+  }
+
+  it("keeps unmute across later items until the user mutes", async () => {
     await renderStream();
     const rail = elementsIn(control("data-social-explore-rail", "0"));
     const muteIndex = rail.findIndex((node) => node.hasAttribute?.("data-social-explore-mute"));
@@ -478,18 +496,55 @@ describe("SocialExploreForYouStream dismiss", () => {
     await click(control("data-social-explore-mute", "0"));
     expect(attr(player(), "data-mux-muted")).toBe("no");
     const hopped = { ...next, playbackPolicy: "public" as const };
-    await act(async () => {
-      root?.render(createElement(SocialExploreForYouStream, { items: [hopped, first], emptyLabel: null }));
-    });
-    await act(async () => {
-      for (let i = 0; i < 8; i += 1) await Promise.resolve();
-    });
+    await showItems([hopped, first]);
     expect(attr(player(), "data-mux-player-stub")).toBe(NEXT_PLAYBACK);
+    expect(attr(player(), "data-mux-muted")).toBe("no");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.mute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-pressed")).toBe("false");
+    expect(
+      elementsIn(control("data-social-explore-mute", "0")).some(
+        (node) => attr(node, "data-social-icon") === "speaker-high",
+      ),
+    ).toBe(true);
+
+    await click(control("data-social-explore-mute", "0"));
+    expect(attr(player(), "data-mux-muted")).toBe("yes");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
+    await showItems([first, hopped]);
+    expect(attr(player(), "data-mux-player-stub")).toBe(ACTIVE_PLAYBACK);
     expect(attr(player(), "data-mux-muted")).toBe("yes");
     expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
     expect(
       elementsIn(control("data-social-explore-mute", "0")).some(
         (node) => attr(node, "data-social-icon") === "speaker-slash",
+      ),
+    ).toBe(true);
+  });
+
+  it("force-mute does not clear the session unmuted preference", async () => {
+    await renderStream();
+    expect(attr(player(), "data-mux-muted")).toBe("yes");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
+
+    await click(control("data-social-explore-mute", "0"));
+    expect(attr(player(), "data-mux-muted")).toBe("no");
+    expect(typeof exploreMuteProbe.onForcedMute).toBe("function");
+
+    await act(async () => {
+      exploreMuteProbe.onForcedMute?.();
+    });
+    expect(attr(player(), "data-mux-muted")).toBe("yes");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.unmute);
+    expect(attr(control("data-social-explore-mute", "0"), "aria-pressed")).toBe("true");
+
+    const hopped = { ...next, playbackPolicy: "public" as const };
+    await showItems([hopped, first]);
+    expect(attr(player(), "data-mux-player-stub")).toBe(NEXT_PLAYBACK);
+    expect(attr(player(), "data-mux-muted")).toBe("no");
+    expect(attr(control("data-social-explore-mute", "0"), "aria-label")).toBe(SOCIAL.explore.mute);
+    expect(
+      elementsIn(control("data-social-explore-mute", "0")).some(
+        (node) => attr(node, "data-social-icon") === "speaker-high",
       ),
     ).toBe(true);
   });

@@ -1,7 +1,7 @@
 # [GC][24Frame] LOCK — Explore For You immersive v2
 
 **Date:** 2026-09-26 (CT)  
-**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · **mute control** amend 2026-09-26 · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
+**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · **mute control** amend 2026-09-26 · **mute persistence** amend 2026-09-28 (Adam CLEAR · B2 unmute leak) · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
 **Repo:** `docs/design-locks/social-explore-for-you-immersive-lock-v2.md`  
 **Box:** `/workspace/24frame-agg-ux/social-explore-for-you-immersive-lock-v2.md`  
 **Supersedes:** `social-explore-discovery-lock-v1.md` (IG grid) · **#693 DRAFT wrong shape** — do not invent on grid; ship from this v2  
@@ -51,7 +51,8 @@
 
 ## B2) Mute — top of the trailing rail
 
-**Behavior cite:** `docs/design-locks/stories-viewer-mute-control-lock-v1.md`.  
+**Behavior cite:** `docs/design-locks/stories-viewer-mute-control-lock-v1.md` (control presence / icons / force-mute — **not** Explore item-change mute reset).  
+**Amend 2026-09-28:** Adam CLEAR — Explore mute **session sticky** after unmute (B2 unmute leak). Stories lock “reset on item change” does **not** override this Explore preference.  
 **Placement is Explore, not Stories.** The control lives on the For You trailing rail (`data-social-explore-mute`), above Like. It does **not** move into the Stories header, and it is not a second speaker family.
 
 | Token | Lock (one SoT) |
@@ -65,9 +66,11 @@
 | Gap | Rail gap stays **8** · do not redesign the column to insert this control |
 | Presence | Visible and tappable for the **whole** active video item, muted or unmuted |
 | Empty `audioTracks` | Do **not** treat empty or missing `audioTracks` as no-audio · do **not** hide the control |
-| Item change | Reset to **muted** before the next item paints, so autoplay stays allowed · control stays mounted |
-| Unmute | Tap passes sound through to the player · the clip is heard when it has audio |
-| Force-mute | Unmuted autoplay blocked (`NotAllowedError`) → force muted and keep playing if muted play is allowed · control remains the tappable slash |
+| Item change / **mute persistence** | **Session sticky** preference on the Explore For You host: once the user turns audio **ON** (unmute), **stay unmuted** for **subsequent** Explore videos until they turn audio **OFF**. Do **not** reset to muted on every item change when preference is ON. Cold session / first paint still **default muted** (autoplay). Durable cookie/localStorage **not** required unless a house mute SoT already persists — session sticky is enough. Control stays mounted. |
+| B2 unmute leak (FAIL) | Unmute on clip A → swipe to clip B → audio OFF again / user must unmute every clip = **FAIL** |
+| Unmute | Tap passes sound through to the player · the clip is heard when it has audio · sets session preference **ON** |
+| Mute (user) | Tap sets session preference **OFF** · subsequent clips start muted until user unmutes again |
+| Force-mute | Unmuted autoplay blocked (`NotAllowedError`) → force muted **for that play attempt** and keep playing if muted play is allowed · control remains the tappable slash · **do not** clear the session unmuted preference unless the user taps Mute |
 | Media tap | Play / pause only · **not** mute |
 
 ---
@@ -117,6 +120,7 @@
 | New speaker family / dock | Reuse Phosphor speaker-slash / speaker-high on the existing rail |
 | Volume slider | Out |
 | Rail geometry redesign | Insert mute above Like · hit 40 · gap 8 stays · do not redraw the column |
+| Reset mute on every item when user unmuted | B2 unmute leak · Adam CLEAR 2026-09-28 — session sticky ON until user mutes |
 
 ---
 
@@ -129,7 +133,7 @@
 5. Vertical Explore = **video-only** · photos OUT (§D).  
 6. v1 grid / #693 superseded.  
 7. Media is the canvas. Social header is out on For You. The surface dest-rail card is out. Search overlays the media. Tab dock may overlay the bottom. No framed letterbox. No white page well. Soft / flat / pasted / framed card fails before glance.  
-8. Mute sits at the **top** of the trailing rail, above Like. It stays visible and tappable for the whole active video. Autoplay starts muted. Empty `audioTracks` do not remove it. §B2.
+8. Mute sits at the **top** of the trailing rail, above Like. It stays visible and tappable for the whole active video. Autoplay starts muted on cold session. Empty `audioTracks` do not remove it. Once user unmutes, **session sticky** — stay unmuted across subsequent Explore videos until user mutes. §B2.
 
 ---
 
@@ -137,6 +141,6 @@
 
 1. Tip cites this v2 lock · Adam glance: TikTok-class video For You · not grid · no photos in stream.  
 2. Design Own→READY · CoS CLEAR Dev · #693 reshaped or replaced to this lock.  
-3. Active For You video shows mute above Like. Tap toggles. Unmute hears audio when the clip has audio. The control does not flash off. Autoplay still starts muted.
+3. Active For You video shows mute above Like. Tap toggles. Unmute hears audio when the clip has audio. The control does not flash off. Cold session starts muted. Unmute then swipe → next clips stay unmuted until user mutes (no per-clip unmute tax).
 
 **Ship:** Design Own→READY · CoS routes Dev.

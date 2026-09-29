@@ -74,6 +74,14 @@ describe("SocialExploreForYouStream", () => {
     expect(src).not.toContain("SOCIAL.stories.mute");
     expect(src).toContain("onForcedMute");
     expect(src).toContain("setMuted(true)");
+    expect(src).toContain("preferUnmuted");
+    expect(src).toContain("setMuted(!preferUnmuted)");
+    expect(src).toContain("setPreferUnmuted(!nextMuted)");
+    expect(src).not.toContain("Each active item starts muted");
+    const forcedAt = src.indexOf("onForcedMute={() =>");
+    const forcedMute = src.slice(forcedAt, src.indexOf("}", forcedAt) + 1);
+    expect(forcedMute).toBe("onForcedMute={() => setMuted(true)}");
+    expect(forcedMute).not.toContain("preferUnmuted");
     expect(src).toContain("stories-viewer-mute-control-lock-v1.md");
     const media = src.slice(src.indexOf("data-social-explore-media"), src.indexOf("data-social-explore-caption"));
     expect(media).toContain("onToggle");
