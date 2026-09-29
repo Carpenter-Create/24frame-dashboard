@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { readSocialFollowingWall } from "@/app/(app)/social/query-actions";
 import { TextAction } from "@/components/chrome/house";
+import { SocialMuxActiveGate } from "@/components/social/social-mux-active-gate";
 import { SocialOptimisticFeed } from "@/components/social/social-optimistic-feed";
 import { useAppQueryClient } from "@/components/query-provider";
 import { InlineNotice } from "@/components/ui/inline-notice";
@@ -68,8 +69,10 @@ function SocialFollowingWallPaint({
   wall: SocialFollowingWallView;
   empty?: ReactNode;
 }) {
+  // Mint and mount Mux only for posts in or near the viewport.
+  // docs/design-locks/social-home-following-mux-active-gate-lock-v1.md
   return (
-    <>
+    <SocialMuxActiveGate>
       {wall.truncated ? (
         <div data-social-wall-truncated="" className="flex flex-col gap-[var(--space-3)]">
           <InlineNotice tone="info">{SOCIAL.home.truncatedWall}</InlineNotice>
@@ -81,6 +84,6 @@ function SocialFollowingWallPaint({
         </div>
       ) : null}
       <SocialOptimisticFeed topic={topic} posts={wall.cards} empty={empty} />
-    </>
+    </SocialMuxActiveGate>
   );
 }

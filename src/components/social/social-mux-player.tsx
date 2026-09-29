@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
 import { cn } from "@/lib/cn";
 import { SOCIAL_FEED_PLAY_DISC_CLASS, SOCIAL_MUX_PLAYER_CLASS } from "@/lib/social-chrome";
+import {
+  SOCIAL_FOLLOWING_MUX_ACTIVE_ROOT_MARGIN,
+  socialFollowingMuxPlaybackArmed,
+} from "@/lib/social-following-mux-active";
 import {
   loadSocialMuxPlaybackTokens,
   readSocialMuxPlaybackTokenCache,
@@ -19,6 +23,7 @@ import {
   type SocialMuxPlaybackTokens,
 } from "@/lib/social-mux";
 import type { QuietMuxPlayerStyle } from "@/lib/social-mux-player-quiet";
+import { useSocialMuxActiveGate } from "./social-mux-active-gate";
 
 // Mux Player is browser-only. SSR paints the host so feed tests stay
 // static. Signed policy mints tokens on the Node route. Public policy
@@ -30,6 +35,8 @@ import type { QuietMuxPlayerStyle } from "@/lib/social-mux-player-quiet";
 // docs/design-locks/social-video-upload-cover-lift-lock-v1.md
 // docs/design-locks/social-video-mux-only-lock-v1.md
 // docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md
+// Following wall: mint and mount only after the post enters the band.
+// docs/design-locks/social-home-following-mux-active-gate-lock-v1.md
 
 const MuxPlayer = dynamic(() => import("./social-mux-player-mount"), { ssr: false });
 
@@ -108,12 +115,19 @@ export function SocialMuxPlayer({
   initialTokens?: SocialMuxPlaybackTokens;
 }) {
   const signed = socialMuxPlaybackRequiresTokens(playbackPolicy);
+  const gate = useSocialMuxActiveGate();
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const armed = socialFollowingMuxPlaybackArmed({ gate, playbackId, armedId });
   const provided = signed ? socialMuxPlaybackTokensFromJson(initialTokens) : null;
   const cached = signed ? readSocialMuxPlaybackTokenCache(playbackId) : null;
   const [mint, setMint] = useState<{ playbackId: string; tokens: SocialMuxPlaybackTokens } | null>(null);
   const [paintedId, setPaintedId] = useState<string | null>(null);
   const [posterReadyId, setPosterReadyId] = useState<string | null>(null);
-  const tokens = signed ? (mint?.playbackId === playbackId ? mint.tokens : cached ?? provided) : null;
+  const held = signed ? (mint?.playbackId === playbackId ? mint.tokens : cached ?? provided) : null;
+  // Cold Following posts keep the empty hold. A cached JWT must not mount
+  // playback or request the thumb until this post enters the band.
+  const tokens = armed ? held : null;
   const painted = paintedId === playbackId;
   const posterReady = posterReadyId === playbackId;
   // Signed pending must not build an unsigned image.mux.com URL.
@@ -132,11 +146,36 @@ export function SocialMuxPlayer({
     releaseHold();
   };
   useEffect(() => {
+    if (!gate) return;
+    if (armedId === playbackId) return;
+    const node = hostRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setArmedId(playbackId);
+      return;
+    }
+    let cancelled = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (cancelled) return;
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setArmedId(playbackId);
+      },
+      { root: null, rootMargin: SOCIAL_FOLLOWING_MUX_ACTIVE_ROOT_MARGIN, threshold: 0 },
+    );
+    observer.observe(node);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [gate, armedId, playbackId]);
+  useEffect(() => {
+    if (!armed) return;
     if (!signed) return;
     if (!provided) return;
     rememberSocialMuxPlaybackTokens(playbackId, provided);
-  }, [playbackId, signed, provided]);
+  }, [armed, playbackId, signed, provided]);
   useEffect(() => {
+    if (!armed) return;
     if (!signed || provided || readSocialMuxPlaybackTokenCache(playbackId)) return;
     const controller = new AbortController();
     void loadSocialMuxPlaybackTokens(playbackId, controller.signal).then((next) => {
@@ -144,7 +183,7 @@ export function SocialMuxPlayer({
       setMint({ playbackId, tokens: next });
     });
     return () => controller.abort();
-  }, [playbackId, signed, provided]);
+  }, [armed, playbackId, signed, provided]);
   useEffect(() => {
     if (!signed || !tokens) return;
     // Mux's custom element reads HTMLElement at import. Skip that in Node tests.
@@ -155,7 +194,9 @@ export function SocialMuxPlayer({
 
   return (
     <div
+      ref={hostRef}
       data-social-mux-player={playbackId}
+      data-social-mux-active={gate ? (armed ? "live" : "cold") : undefined}
       data-social-mux-playback={signed ? (tokens ? "signed" : "pending") : "public"}
       data-social-post-video=""
       data-social-play-disc={chromeless ? undefined : ""}
@@ -212,20 +253,22 @@ export function SocialMuxPlayer({
           ) : null}
         </>
       ) : (
-        <>
-          <MuxPlayer
-            playbackId={playbackId}
-            streamType="on-demand"
-            autoPlay={autoPlay}
-            muted={muted}
-            onForcedMute={onForcedMute}
-            preload="metadata"
-            onLoadedData={paint}
-            poster={poster}
-            style={playerStyle(chromeless, fit)}
-          />
-          {coverStill ? <MuxPoster src={poster} fit={fit} onReady={releaseHold} /> : null}
-        </>
+        armed ? (
+          <>
+            <MuxPlayer
+              playbackId={playbackId}
+              streamType="on-demand"
+              autoPlay={autoPlay}
+              muted={muted}
+              onForcedMute={onForcedMute}
+              preload="metadata"
+              onLoadedData={paint}
+              poster={poster}
+              style={playerStyle(chromeless, fit)}
+            />
+            {coverStill ? <MuxPoster src={poster} fit={fit} onReady={releaseHold} /> : null}
+          </>
+        ) : null
       )}
     </div>
   );
