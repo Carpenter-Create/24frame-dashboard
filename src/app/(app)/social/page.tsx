@@ -147,7 +147,11 @@ async function SocialHomeCenter({
       <SocialHomeTopics active={topic} lane={lane} />
       <SocialHomeColdSlot seedLane={lane} seedTopic={topic}>
         {profile ? (
-          <SocialHomeComposer authorName={profile.display_name} authorPhotoUrl={photoUrl} />
+          <SocialHomeComposer
+            authorName={profile.display_name}
+            authorHandle={profile.handle}
+            authorPhotoUrl={photoUrl}
+          />
         ) : null}
         <SocialStoriesRail
           cards={rail}

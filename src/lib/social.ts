@@ -485,6 +485,9 @@ export function formatSocialCount(n: number): string {
   return `${Math.round(n / 1000)}k`;
 }
 
+// Activity, DMs, comments, stories, and news. Feed posts use
+// socialFeedRelativeTime so this string can keep Yesterday and a
+// calendar day.
 export function socialRelativeTime(iso: string, now = Date.now()): string {
   const then = Date.parse(iso);
   if (Number.isNaN(then)) return "";
@@ -498,6 +501,23 @@ export function socialRelativeTime(iso: string, now = Date.now()): string {
   if (delta < 2 * day) return "Yesterday";
   if (delta < 7 * day) return `${Math.floor(delta / day)}d`;
   return new Date(then).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// Feed post separator. Compact chrome under the post: Just now / Nm,
+// then Nh for 1–23 hours, then Nd from the first day on. No clock,
+// no "ago", no Yesterday, no calendar month/day.
+// docs/design-locks/social-feed-under-post-time-lock-v1.md
+export function socialFeedRelativeTime(iso: string, now = Date.now()): string {
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return "";
+  const delta = Math.max(0, now - then);
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (delta < minute) return "Just now";
+  if (delta < hour) return `${Math.floor(delta / minute)}m`;
+  if (delta < day) return `${Math.floor(delta / hour)}h`;
+  return `${Math.floor(delta / day)}d`;
 }
 
 export const SOCIAL = {

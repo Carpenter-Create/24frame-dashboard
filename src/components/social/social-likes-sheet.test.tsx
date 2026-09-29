@@ -51,6 +51,8 @@ describe("SocialLikesSheet", () => {
     expect(count).not.toContain("<p className=\"t-body-sm font-semibold text-ink\">");
     expect(SOCIAL_POST_TIME_CLASS).not.toContain("t-label");
     expect(SOCIAL_POST_TIME_CLASS).toContain("tracking-normal");
-    expect(SOCIAL_POST_TIME_CLASS).toContain("text-ink-2");
+    expect(SOCIAL_POST_TIME_CLASS).toContain("text-ink-3");
+    expect(SOCIAL_POST_TIME_CLASS).not.toContain("text-ink-2");
+    expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/(?:^|\s)text-ink(?:\s|$)/);
   });
 });

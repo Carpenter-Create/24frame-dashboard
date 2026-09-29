@@ -541,10 +541,13 @@ export const SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS =
 export const SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS =
   "absolute inset-x-[var(--space-4)] top-[calc(max(var(--space-4),env(safe-area-inset-top))+3rem)] z-30 flex max-h-[50%] flex-col gap-[var(--space-2)] overflow-y-auto";
 
-// Founder lock 2026-09-21: muted FB `15h` register. Never `t-label`
-// (uppercase + 0.12em track turns `10h` into `10 H`).
+// Under-post separator. House tertiary text-ink-3, the muted token.
+// Not primary ink. Not text-ink-2.
+// Never t-label (uppercase + 0.12em track turns `10h` into `10 H`).
+// Own line: wrap instead of truncating. No breakpoint fork.
+// docs/design-locks/social-feed-under-post-time-lock-v1.md
 export const SOCIAL_POST_TIME_CLASS =
-  "text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-2";
+  "self-start max-w-full break-words text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-3";
 
 // Adam 2026-09-22 feed chrome. Supersedes #599 Facebook gray gutter
 // (muted band + py slabs above and below every post). Posts sit on
@@ -935,6 +938,18 @@ export const SOCIAL_WRITE_COMPOSE_FRAME_CLASS = "min-h-dvh w-full";
 
 export const SOCIAL_WRITE_COMPOSE_HOST_CLASS =
   "mx-auto flex h-dvh max-h-dvh min-h-0 w-full max-w-[680px] flex-col overflow-hidden bg-surface px-[var(--space-4)] pt-[max(0px,env(safe-area-inset-top))] pb-[max(var(--space-4),env(safe-area-inset-bottom))]";
+
+// Share something entry hosts this compose in the house sheet.
+// The sheet pad is the inset. Do not add a second pad or a viewport height.
+// docs/design-locks/share-something-write-compose-sheet-lock-v1.md
+export const SOCIAL_WRITE_COMPOSE_SHEET_FORM_CLASS =
+  "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-transparent";
+
+export const SOCIAL_WRITE_COMPOSE_SHEET_CHROME_CLASS =
+  "flex h-12 shrink-0 items-center justify-between gap-[var(--space-4)] border-b border-hairline";
+
+export const SOCIAL_WRITE_COMPOSE_SHEET_ROW_CLASS =
+  "mt-auto flex min-h-12 w-full min-w-0 items-end gap-[var(--space-2)] border-t border-hairline bg-transparent";
 
 // §0. Row 48. Hairline on the bottom edge only. Pad H 16.
 export const SOCIAL_WRITE_COMPOSE_CHROME_CLASS =

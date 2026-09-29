@@ -49,11 +49,11 @@ import {
   displayHandle,
   SOCIAL,
   SOCIAL_ROUTES,
+  socialFeedRelativeTime,
   socialGroupHref,
   socialMemberHref,
   socialPersonIdentity,
   socialPostHref,
-  socialRelativeTime,
 } from "@/lib/social";
 import {
   socialFollowedByLine,
@@ -444,13 +444,16 @@ export function SocialPostCard({
 }) {
   // One card at every breakpoint.
   // Text + media: docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
-  //   author → media → actions → likes → caption → comments when N > 0.
+  //   author → media → actions → likes → caption → comments when N > 0
+  //   → under-post time, the last chrome line before Wave 1 air.
+  // Text-only: author → actions → likes → caption → comments when N > 0 → time.
+  // Media-only: author → media → actions → likes → time.
+  // Time is not author-row meta. Nh / Nd. No clock.
+  // docs/design-locks/social-feed-under-post-time-lock-v1.md
+  // docs/design-locks/social-home-craft-wave-1-lock-v1.md
   // Two or more media items (Adam lock 2026-09-25): that media face is one
   // full-bleed swipe carousel with dots and N of M. No collage.
-  // Text-only stays the 2026-09-20 blend:
-  //   author → actions → likes → caption → comments when N > 0.
-  // Media-only: author → media → actions → likes.
-  // Forbidden: FB reaction pile, labeled action bar, bottom timestamp, share count, collage.
+  // Forbidden: FB reaction pile, labeled action bar, clock time, share count, collage.
   const media = post.media.length > 0;
   const [immersiveIndex, setImmersiveIndex] = useState<number | null>(null);
   const closeImmersive = useCallback(() => setImmersiveIndex(null), []);
@@ -464,7 +467,7 @@ export function SocialPostCard({
   };
   const time = (
     <time dateTime={post.createdAt} data-social-post-time="" className={SOCIAL_POST_TIME_CLASS}>
-      {socialRelativeTime(post.createdAt)}
+      {socialFeedRelativeTime(post.createdAt)}
     </time>
   );
   return (
@@ -488,13 +491,6 @@ export function SocialPostCard({
             </Link>
           ) : (
             <span className="min-w-0 break-words t-body-sm font-semibold text-ink">{post.authorName}</span>
-          )}
-          {permalink ? (
-            <Link href={href} className={SOCIAL_POST_TIME_CLASS}>
-              {time}
-            </Link>
-          ) : (
-            time
           )}
           {post.groupSlug && post.groupName ? (
             <>
@@ -559,6 +555,13 @@ export function SocialPostCard({
           handle={handle}
         />
         <SocialCommentTrigger post={thread} />
+        {permalink ? (
+          <Link href={href} className="self-start">
+            {time}
+          </Link>
+        ) : (
+          time
+        )}
       </div>
       </div>
     </article>

@@ -33,7 +33,7 @@ import {
   SocialPostCard,
   SocialProfileIdentity,
 } from "./social-ui";
-import { SOCIAL, socialPostHref, socialRelativeTime } from "@/lib/social";
+import { SOCIAL, socialFeedRelativeTime, socialPostHref } from "@/lib/social";
 import {
   SOCIAL_POST_TIME_CLASS,
   SOCIAL_AVATAR_PROFILE_CLASS,
@@ -1261,9 +1261,10 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(media).not.toContain("md:rounded-[8px]");
     expect(media).not.toContain("rounded-");
     expect(html).toContain('data-social-post-time=""');
-    expect(html).toContain(socialRelativeTime(createdAt));
+    expect(html).toContain(socialFeedRelativeTime(createdAt));
     expect(html).toContain(SOCIAL_POST_TIME_CLASS);
     expect(html).not.toMatch(/data-social-post-time=""[^>]*\bt-label\b/);
+    expect(html.slice(0, html.indexOf("data-social-post-media"))).not.toContain("data-social-post-time");
     expect(html).toContain(`href="${socialPostHref("p1")}"`);
     expect(html).toContain(`data-social-post-href="${socialPostHref("p1")}"`);
     expect(html).toContain("data-social-like-count");
@@ -1283,11 +1284,12 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(html).toContain("data-social-comment-trail");
     expect(html).toContain("self-start text-left");
     expect(html.indexOf("Ada Lovelace")).toBeLessThan(html.indexOf("data-social-post-time"));
-    expect(html.indexOf("data-social-post-time")).toBeLessThan(html.indexOf("data-social-post-media"));
+    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-time"));
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-actions"));
     expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf(`4 ${SOCIAL.post.likes}`));
     expect(html.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("data-social-post-caption"));
     expect(html.indexOf("data-social-post-caption")).toBeLessThan(html.indexOf("data-social-comment-trail"));
+    expect(html.indexOf("data-social-comment-trail")).toBeLessThan(html.indexOf("data-social-post-time"));
     expect(html).not.toContain("data-social-post-mobile");
     expect(html).not.toContain("hidden md:flex");
     expect(html).not.toContain("md:hidden");
@@ -1310,9 +1312,11 @@ describe("SocialPostCard 24Frame blend", () => {
       />,
     );
     expect(html).not.toContain("data-social-post-caption");
+    expect(html.slice(0, html.indexOf("data-social-post-media"))).not.toContain("data-social-post-time");
     expect(html.indexOf("Ada Lovelace")).toBeLessThan(html.indexOf("data-social-post-media"));
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-actions"));
     expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf(`4 ${SOCIAL.post.likes}`));
+    expect(html.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("data-social-post-time"));
   });
 
   it("keeps the same stack for text-only posts and hides the trail when N is 0", () => {
@@ -1320,7 +1324,8 @@ describe("SocialPostCard 24Frame blend", () => {
       <SocialPostCard post={cardPost({ commentCount: 0, media: [] })} />,
     );
     expect(html).not.toContain("data-social-post-media");
-    expect(html.indexOf("data-social-post-time")).toBeLessThan(html.indexOf("data-social-post-actions"));
+    expect(html.slice(0, html.indexOf("data-social-post-actions"))).not.toContain("data-social-post-time");
+    expect(html.indexOf("data-social-post-caption")).toBeLessThan(html.indexOf("data-social-post-time"));
     expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf(`4 ${SOCIAL.post.likes}`));
     expect(html.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("data-social-post-caption"));
     expect(html).toContain('data-social-icon="chat-circle"');
@@ -1347,8 +1352,49 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(active.indexOf("data-social-post-caption")).toBeLessThan(
       active.indexOf("data-social-comment-trail"),
     );
+    expect(active.indexOf("data-social-comment-trail")).toBeLessThan(
+      active.indexOf("data-social-post-time"),
+    );
     expect(active).not.toContain("View comments");
     expect(active).not.toContain("text-center");
+  });
+
+  it("keeps under-post time as muted separator chrome without a post hairline", () => {
+    const label = socialFeedRelativeTime(createdAt);
+    expect(label).toMatch(/^\d+d$/);
+    expect(label).not.toMatch(/ago|Yesterday|:/);
+    const html = renderToStaticMarkup(<SocialPostCard post={cardPost()} />);
+    const timeOpen = html.slice(
+      html.indexOf("data-social-post-time"),
+      html.indexOf(">", html.indexOf("data-social-post-time")) + 1,
+    );
+    expect(timeOpen).toContain("text-ink-3");
+    expect(timeOpen).not.toContain("text-ink-2");
+    expect(timeOpen).not.toMatch(/(?:^|\s)text-ink(?:\s|$)/);
+    expect(timeOpen).not.toContain("truncate");
+    expect(housePhoneForbidsTruncate(SOCIAL_POST_TIME_CLASS)).toBe(true);
+    expect(SOCIAL_POST_TIME_CLASS).toContain("break-words");
+    expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/md:|max-md:/);
+    expect(html).not.toContain("divide-y");
+    expect(html).not.toContain("divide-hairline");
+    expect(html).not.toContain("border-b");
+    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border");
+    const lock = readFileSync("docs/design-locks/social-feed-under-post-time-lock-v1.md", "utf8");
+    expect(lock).toContain("social-home-craft-wave-1-lock-v1.md");
+    expect(lock).toContain("text-ink-3");
+    const quiet = renderToStaticMarkup(
+      <SocialPostCard post={cardPost()} permalink={false} />,
+    );
+    expect(quiet).toContain("data-social-post-time");
+    expect(quiet.slice(0, quiet.indexOf("data-social-post-actions"))).not.toContain(
+      "data-social-post-time",
+    );
+    expect(quiet.indexOf("data-social-post-caption")).toBeLessThan(
+      quiet.indexOf("data-social-post-time"),
+    );
+    expect(quiet).not.toContain(`href="${socialPostHref("p1")}"`);
   });
 
   it("does not fork desktop meta-row chrome in source", () => {
@@ -1356,7 +1402,17 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(postCard).toContain("SOCIAL_FEED_ROW_CLASS");
     expect(postCard).toContain("data-social-post-time");
     expect(postCard).toContain("SOCIAL_POST_TIME_CLASS");
+    expect(postCard).toContain("socialFeedRelativeTime");
+    expect(postCard).not.toContain("socialRelativeTime");
     expect(postCard).not.toContain("data-social-post-time=\"\" className=\"t-label");
+    const authorRow = postCard.slice(
+      postCard.indexOf('className="flex min-w-0 items-center gap-2.5"'),
+      postCard.indexOf("{media ?"),
+    );
+    expect(authorRow).not.toContain("data-social-post-time");
+    expect(authorRow).not.toContain("{time}");
+    const row = postCard.slice(postCard.indexOf("className={SOCIAL_FEED_ROW_CLASS}"));
+    expect(row.indexOf("<SocialCommentTrigger post={thread} />")).toBeLessThan(row.indexOf("{time}"));
     expect(postCard).toContain("socialPostHref");
     expect(postCard).toContain("SocialLikeButton");
     expect(postCard).toContain("SocialLikeCount");
