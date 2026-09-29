@@ -49,14 +49,18 @@ describe("Social Home craft Wave 1", () => {
     expect(homeStories).toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
   });
 
-  it("locks media-to-actions ~10, meta rows 4–6, and ~24 before the next author", () => {
+  it("locks media-to-actions ~10, meta rows 4–6, and ~8–12 before the next author", () => {
     expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[10px]");
     expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toContain("gap-[6px]");
-    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-2)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-2)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
+    expect(lock).toContain("social-feed-under-post-time-lock-v1.md");
+    expect(lock).toContain("8–12");
     // Column flex on this row drops the padding on Mobile Safari.
-    // Block keeps the 24. shrink-0 stops the gutter from compressing it.
+    // Block keeps the air. shrink-0 stops the gutter from compressing it.
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).toContain("shrink-0");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("flex-col");
@@ -77,7 +81,7 @@ describe("Social Home craft Wave 1", () => {
     expect(postCard).toContain("className={SOCIAL_FEED_ROW_CLASS}");
     expect(postCard).toContain('className="block min-w-0 shrink-0"');
     const article = postCard.slice(postCard.indexOf("<article"), postCard.indexOf("</article>"));
-    // Shell is the gutter flex item. The 24 lives on the inner row.
+    // Shell is the gutter flex item. The next-author air lives on the inner row.
     expect(article.indexOf('className="block min-w-0 shrink-0"')).toBeGreaterThan(-1);
     expect(article.indexOf('className="block min-w-0 shrink-0"')).toBeLessThan(
       article.indexOf("className={SOCIAL_FEED_ROW_CLASS}"),

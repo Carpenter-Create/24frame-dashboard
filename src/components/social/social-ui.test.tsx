@@ -979,7 +979,8 @@ describe("SocialPostCard media", () => {
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("hello"));
     expect(html).toContain("mt-[10px]");
     expect(html).toContain("gap-[6px]");
-    expect(html).toContain("pb-[var(--space-6)]");
+    expect(html).toContain("pb-[var(--space-2)]");
+    expect(html).not.toContain("pb-[var(--space-6)]");
     expect(html).toContain("-ml-[var(--space-2)]");
     expect(html).toContain("gap-2");
     expect(html).not.toContain("divide-hairline");
@@ -1388,11 +1389,18 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(html).not.toContain("divide-hairline");
     expect(html).not.toContain("border-b");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_POST_TIME_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
+    expect(SOCIAL_POST_TIME_CLASS).toContain("leading-none");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-2)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border");
     const lock = readFileSync("docs/design-locks/social-feed-under-post-time-lock-v1.md", "utf8");
     expect(lock).toContain("social-home-craft-wave-1-lock-v1.md");
     expect(lock).toContain("text-ink-3");
+    expect(lock).toContain("8–12");
+    expect(lock).toContain("pb-[var(--space-2)]");
+    expect(lock).toContain("stacking is **out**");
     const quiet = renderToStaticMarkup(
       <SocialPostCard post={cardPost()} permalink={false} />,
     );
