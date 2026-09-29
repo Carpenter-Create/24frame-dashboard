@@ -13,9 +13,9 @@ import { SOCIAL, SOCIAL_ROUTES, socialCreateHref, socialSearchHref } from "@/lib
 
 const SOCIAL_HOME_ACTIVITY_CTA_CLASS = `${HOUSE_PHONE_STACK_CLASS} gap-[var(--space-4)] md:flex-row md:flex-wrap md:items-center md:justify-center`;
 
-/** Opens write compose from Share something. Falls back when the prompt is not mounted. */
+/** Opens the write sheet from Share something. Falls back when the prompt is not mounted. */
 export function focusSocialHomeComposer(): void {
-  const prompt = document.querySelector<HTMLAnchorElement>("[data-social-composer-prompt-row]");
+  const prompt = document.querySelector<HTMLElement>("[data-social-composer-prompt-row]");
   if (prompt) {
     prompt.click();
     return;
