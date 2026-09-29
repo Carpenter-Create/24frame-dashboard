@@ -267,7 +267,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_HEADER_TRAILING_SLOT_CLASS).toBe("contents");
     expect(leadSrc).toContain("HOUSE_HEADER_TRAILING_SLOT_CLASS");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toBe(
-      "flex min-w-0 items-center gap-[var(--space-3)] md:gap-[var(--space-2)] max-md:shrink-0",
+      "flex min-w-0 items-center gap-[var(--space-3)] md:gap-[var(--space-4)] max-md:shrink-0",
     );
   });
 
@@ -335,7 +335,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(
       /(?:^|\s)gap-\[var\(--space-3\)\](?:\s|$)/,
     );
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-4)]");
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-2)]");
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,

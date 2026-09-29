@@ -92,8 +92,8 @@ export const HOUSE_LEAD_SEARCH_PILL_CLASS =
 // Phone trailing optical rhythm (Adam 2026-09-18 fail after #452).
 // Equal CSS gap was not equal air when glyphs sat in oversized hits
 // beside the avatar. Phone hit hugs --header-control-size (24) so
-// APP_HEADER_TRAILING_CLUSTER_CLASS phone --space-3 / desktop --space-2
-// is edge-to-edge AI · bell · avatar. Do not cancel padding with -mx:
+// APP_HEADER_TRAILING_CLUSTER_CLASS phone --space-3 / desktop --space-4
+// is edge-to-edge AI · bell · waffle · avatar. Do not cancel padding with -mx:
 // that pulled adjacent hits to zero flex width and stacked the glyphs.
 // Do not add phone padding that overflows the control box.
 // Desktop hits follow the same token (44 on the 88 bar).
