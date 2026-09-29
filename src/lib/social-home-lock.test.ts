@@ -910,7 +910,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(publicProfile).not.toContain("SocialAuthorHistory");
     expect(panels).toContain("SocialActivityHistory");
     expect(chrome).not.toContain("h-[140px]");
-    expect(chrome).toContain("HOUSE_PILL_ITEM_CLASS");
+    expect(chrome).toContain("SOCIAL_CHIP_HIT_CLASS");
+    expect(chrome).not.toContain("HOUSE_PILL_ITEM_CLASS");
     expect(chrome).toContain("HOUSE_FILTER_OFF_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_STATS_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_STATS_GRID_CLASS");

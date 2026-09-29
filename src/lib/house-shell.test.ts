@@ -64,6 +64,7 @@ import {
 } from "@/lib/house-shell";
 import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
 import {
+  SOCIAL_CHIP_HIT_CLASS,
   SOCIAL_PILL_ACTIVE_CLASS,
   SOCIAL_PILL_IDLE_CLASS,
   SOCIAL_PROFILE_ROLE_PILL_CLASS,
@@ -333,12 +334,18 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).not.toContain("bg-ink");
     expect(socialTopicRailChipClass(true)).toBe(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS);
     expect(socialTopicRailChipClass(false)).toBe(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
-    expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(HOUSE_PILL_ITEM_CLASS);
-    expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(HOUSE_PILL_MEASURE_CLASS);
+    expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
+    expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain("h-8");
+    expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain(HOUSE_PILL_ITEM_CLASS);
+    expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain(HOUSE_PILL_MEASURE_CLASS);
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain("text-[11px]");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain("py-[5px]");
-    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain(HOUSE_PILL_ITEM_CLASS);
-    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain(HOUSE_PILL_MEASURE_CLASS);
+    expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain("py-[var(--space-2)]");
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain("h-8");
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain(HOUSE_PILL_ITEM_CLASS);
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain(HOUSE_PILL_MEASURE_CLASS);
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain("py-[var(--space-2)]");
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain(HOUSE_FILTER_OFF_CLASS);
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain("bg-surface-muted");
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain("text-[11px]");

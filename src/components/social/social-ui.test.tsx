@@ -361,7 +361,8 @@ describe("Social profile public face", () => {
     expect(withRoles).toContain("bg-surface-muted");
     expect(withRoles).toContain("rounded-full");
     expect(withRoles).toContain("t-body-sm");
-    expect(withRoles).toContain("py-[var(--space-2)]");
+    expect(withRoles).toContain("h-8");
+    expect(withRoles).not.toContain("py-[var(--space-2)]");
     expect(withRoles).not.toContain("text-[11px]");
     expect(withRoles).not.toContain("truncate");
     expect(withRoles.indexOf("data-social-profile-name")).toBeLessThan(
