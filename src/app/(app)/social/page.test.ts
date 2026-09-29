@@ -1,6 +1,26 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createElement } from "react";
 import { renderServerMarkup } from "@/lib/render-server-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// #712 loads post media through next/dynamic so Home stays off the Mux
+// graph. renderToStaticMarkup does not wait for that chunk, so this
+// page test resolves the media face the same way social-ui.test does.
+const dynamicRegistry = vi.hoisted(() => ({
+  resolve: (source: string): ((props: Record<string, unknown>) => unknown) | null =>
+    source ? null : null,
+}));
+
+vi.mock("next/dynamic", () => ({
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    return function SocialDynamic(props: Record<string, unknown>) {
+      const Comp = dynamicRegistry.resolve(source);
+      if (!Comp) return null;
+      return createElement(Comp as never, props);
+    };
+  },
+}));
 
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
@@ -14,7 +34,11 @@ import {
   encodeFollowingWallCursor,
 } from "@/lib/social-home-bounds";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
+import { SocialPostMedia } from "@/components/social/social-post-media";
 import SocialHomePage from "./page";
+
+dynamicRegistry.resolve = (source) =>
+  source.includes("social-post-media") ? (SocialPostMedia as never) : null;
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((to: string) => {
