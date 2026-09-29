@@ -93,10 +93,18 @@ export const SOCIAL_RAIL_PANEL_CLASS = HOUSE_RAIL_PANEL_CLASS;
 export const SOCIAL_FOR_YOU_WIDTH_CLASS = "w-[300px]";
 const socialCenterMaxClass = "lg:max-w-[720px]";
 export const SOCIAL_CENTER_WIDTH_CLASS = `w-full min-w-0 ${socialCenterMaxClass}`;
+// Desktop header → content inset. Measured Home topic row sits 8px
+// under the hairline. Profile cover and the Messages title sat on
+// the frame's 16. One class moves the main column and the For You
+// rail together. Phone keeps pt-4 (16).
+// docs/design-locks/shell-desktop-header-content-inset-lock-v1.md
+export const SOCIAL_DESKTOP_HEADER_INSET_CLASS = "md:pt-[var(--space-2)]";
+
 // Phone keeps --chrome-gutter. Desktop lead stays the dest-rail
 // chrome gutter. Desktop trail is the shell gutter (avatar ink).
+// Desktop top is the shared header inset. Bottom stays 16.
 export const SOCIAL_DESKTOP_FRAME_PAD_CLASS =
-  "w-full py-4 max-md:px-[var(--chrome-gutter)] md:pl-[var(--chrome-gutter)] md:pr-[var(--shell-gutter-inline-end)]";
+  `w-full pt-4 pb-4 ${SOCIAL_DESKTOP_HEADER_INSET_CLASS} max-md:px-[var(--chrome-gutter)] md:pl-[var(--chrome-gutter)] md:pr-[var(--shell-gutter-inline-end)]`;
 
 export const SOCIAL_PAGE_CLASS =
   "flex flex-col gap-[var(--space-4)] pb-[var(--space-12)]";
@@ -124,11 +132,11 @@ export const SOCIAL_HOME_CENTER_CLASS = socialShellCenterClass;
 export const SOCIAL_HOME_SPINE_CLASS = "gap-[var(--space-2)]";
 
 // Topics sit between the header hairline and the composer top rule.
-// The social frame pads 16 above the stack. The spine gap under the
-// pills is 8. Pull the row up by that extra 8 so the air above the
-// pills matches the air below them. Pill hit stays 32.
+// Desktop top air is the shared header inset (8), matching the spine
+// gap, so this host does not pull on desktop. Phone frame top stays
+// 16; the phone-only pull restores equal 8 air. Pill hit stays 32.
 export const SOCIAL_HOME_TOPICS_CLASS =
-  "min-w-0 py-0 -mt-[var(--space-2)]";
+  "min-w-0 py-0 max-md:-mt-[var(--space-2)]";
 
 // Profile desktop row matches Home: this column plus SocialForYouRail
 // at lg+. Explore and Messages use that same row. The center stays

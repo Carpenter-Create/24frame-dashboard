@@ -7,7 +7,8 @@
 **Amends:** [`shell-workspace-waffle-layer-lock-v1.md`](shell-workspace-waffle-layer-lock-v1.md) for **where** the waffle lives. That lock’s Layer 1 tile inventory, entitlement gating, and Social Layer 2 dock stay.  
 **Restores:** the desktop sliding workspace row #699 removed from the header (`presentation="pills"` / `data-app-header-workspace-desktop`).  
 **Does not restore:** the labeled workspace pill (`tone="pill"` / `data-app-header-workspace-pill`).  
-**House split:** `md` (768). Below `md` is the phone/tablet shell. `md` and up is desktop. Same breakpoint as the floating dock (`md:hidden`) and the pre-#699 slider (`hidden md:contents`).
+**House split:** `md` (768). Below `md` is the phone/tablet shell. `md` and up is desktop. Same breakpoint as the floating dock (`md:hidden`) and the pre-#699 slider (`hidden md:contents`).  
+**Companion:** [`shell-desktop-header-content-inset-lock-v1.md`](shell-desktop-header-content-inset-lock-v1.md) — one desktop top inset under this header for the Social column and the For You rail.
 
 ---
 
