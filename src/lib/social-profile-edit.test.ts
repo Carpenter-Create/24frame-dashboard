@@ -147,7 +147,7 @@ describe("Social Profile Edit profile + Bio lock", () => {
     expect(saveSoT).not.toContain("socialHandleDisplayError");
     expect(handleFace).toContain("socialHandleDisplayError");
     expect(handleFace).toContain("socialHandleInputError");
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = readFileSync("src/components/social/social-profile-create-form.tsx", "utf8");
     expect(forms).toContain("socialHandleDisplayError(next, prev)");
     expect(edit).not.toContain("app.24frame.co");
   });

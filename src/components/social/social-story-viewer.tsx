@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
 
-import { SocialStoryReply } from "@/components/social/social-forms";
+import { SocialStoryReply } from "@/components/social/social-story-reply";
 import { SocialStoryActivitySheet } from "@/components/social/social-story-activity-sheet";
 import { SocialStorySaySomething } from "@/components/social/social-story-say";
 import { SocialStorySendSheet } from "@/components/social/social-story-send-sheet";

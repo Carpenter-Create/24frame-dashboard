@@ -103,13 +103,31 @@ function socialRouteEntries(dir: string): string[] {
   return entries;
 }
 
-const SHARED_SHELL = [
-  "src/app/layout.tsx",
-  "src/app/(app)/layout.tsx",
-  "src/components/social/social-forms.tsx",
+const SHARED_SHELL = ["src/app/layout.tsx", "src/app/(app)/layout.tsx"] as const;
+
+const LIGHT_SURFACES = [
+  "src/app/(app)/social/dms/[id]/page.tsx",
+  "src/app/(app)/social/profile/page.tsx",
+  "src/app/(app)/social/groups/page.tsx",
+  "src/app/(app)/social/groups/new/page.tsx",
+  "src/app/(app)/social/stories/[id]/page.tsx",
+  "src/components/social/social-dm-compose.tsx",
+  "src/components/social/social-profile-create-form.tsx",
+  "src/components/social/social-bio-form.tsx",
+  "src/components/social/social-group-forms.tsx",
+  "src/components/social/social-story-reply.tsx",
+  "src/components/social/social-message-button.tsx",
+  "src/components/social/social-profile-photo-form.tsx",
 ] as const;
 
-describe("social-forms Story studio boundary", () => {
+const HEAVY = [
+  "src/components/social/social-create-compose.tsx",
+  "src/lib/social-media-upload.ts",
+  "src/lib/social-compose-video.ts",
+  STUDIO,
+] as const;
+
+describe("social form surface boundary", () => {
   it("keeps Story studio off DM, Profile, and every other non-create Social route", () => {
     const routes = socialRouteEntries(join(ROOT, SOCIAL_APP)).filter((file) => file !== STORY_CREATE);
     expect(routes).toEqual(expect.arrayContaining([
@@ -124,14 +142,32 @@ describe("social-forms Story studio boundary", () => {
     expect(leaks).toEqual([]);
   });
 
-  it("keeps Story create on the studio module, not the social-forms barrel", () => {
+  it("keeps Story create on the studio module", () => {
     const page = readFileSync(STORY_CREATE, "utf8");
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
     expect(page).toContain('import { SocialStoryCompose } from "@/components/social/social-story-studio"');
     expect(page).toContain("<SocialStoryCompose ");
-    expect(forms).not.toContain("social-story-studio");
-    expect(forms).not.toContain("SocialStoryCompose");
+    expect(existsSync(join(ROOT, "src/components/social/social-forms.tsx"))).toBe(false);
     const path = importPath(STORY_CREATE, STUDIO);
     expect(path).toEqual([STORY_CREATE, STUDIO]);
+    expect(importPath(STORY_CREATE, "src/components/social/social-create-compose.tsx")).toBeNull();
+  });
+
+  it("keeps DM, profile-create, bio, group, and story-reply off the create and video-upload module", () => {
+    const leaks = LIGHT_SURFACES.flatMap((entry) =>
+      HEAVY.flatMap((target) => {
+        const path = importPath(entry, target);
+        return path ? [path.join(" -> ")] : [];
+      }),
+    );
+    expect(leaks).toEqual([]);
+    const dm = readFileSync("src/app/(app)/social/dms/[id]/page.tsx", "utf8");
+    const profile = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
+    expect(dm).toContain('from "@/components/social/social-dm-compose"');
+    expect(profile).toContain('from "@/components/social/social-profile-create-form"');
+    expect(importPath("src/components/social/social-create-compose.tsx", STUDIO)).toBeNull();
+    expect(importPath("src/app/(app)/social/create/page.tsx", "src/components/social/social-create-compose.tsx")).toEqual([
+      "src/app/(app)/social/create/page.tsx",
+      "src/components/social/social-create-compose.tsx",
+    ]);
   });
 });

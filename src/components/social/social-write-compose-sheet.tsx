@@ -9,7 +9,7 @@ import {
   HouseScrim,
   useHouseDesktop,
 } from "@/components/chrome/house-overlay";
-import { SocialCreateCompose } from "@/components/social/social-forms";
+import { SocialCreateCompose } from "@/components/social/social-create-compose";
 import { SOCIAL } from "@/lib/social";
 import {
   bindSocialWriteComposeSheetViewport,

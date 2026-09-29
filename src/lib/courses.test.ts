@@ -223,7 +223,18 @@ describe("course lock", () => {
     const consume = readFileSync("src/components/courses/course-consume.tsx", "utf8");
     const lib = readFileSync("src/lib/courses.ts", "utf8");
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = [
+      "src/components/social/social-create-compose.tsx",
+      "src/components/social/social-dm-compose.tsx",
+      "src/components/social/social-bio-form.tsx",
+      "src/components/social/social-group-forms.tsx",
+      "src/components/social/social-profile-create-form.tsx",
+      "src/components/social/social-profile-photo-form.tsx",
+      "src/components/social/social-story-reply.tsx",
+      "src/components/social/social-message-button.tsx",
+    ]
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
     const migration = readFileSync("supabase/migrations/20260912240000_courses.sql", "utf8");
 
     expect(list).toContain("loadDiscoverableCourses");

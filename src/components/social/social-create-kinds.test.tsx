@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-import { SocialCreateCompose } from "./social-forms";
+import { SocialCreateCompose } from "./social-create-compose";
 import { fitSocialWriteComposeField, SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS } from "@/lib/social-chrome";
 import { SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
 import { SOCIAL } from "@/lib/social";
@@ -21,7 +21,7 @@ import { SOCIAL_CREATE_MEDIA_ACCEPT } from "@/lib/social-create-media";
 import { SOCIAL_MEDIA_ACCEPT } from "@/lib/social-media";
 import { stashSocialHomeComposerMedia } from "@/lib/social-home-composer";
 
-const src = readFileSync("src/components/social/social-forms.tsx", "utf8");
+const src = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
 const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
 
 describe("Social create kinds", () => {

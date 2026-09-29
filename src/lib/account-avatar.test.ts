@@ -27,7 +27,7 @@ const layoutSrc = readFileSync(join(here, "../app/(app)/layout.tsx"), "utf8");
 const settingsSrc = readFileSync(join(here, "../components/settings/profile-settings.tsx"), "utf8");
 const formSrc = readFileSync(join(here, "../app/(app)/account/account-profile-form.tsx"), "utf8");
 const socialProfileSrc = readFileSync(join(here, "../app/(app)/social/profile/page.tsx"), "utf8");
-const socialFormsSrc = readFileSync(join(here, "../components/social/social-forms.tsx"), "utf8");
+const socialFormsSrc = readFileSync(join(here, "../components/social/social-profile-photo-form.tsx"), "utf8");
 const uploadSrc = readFileSync(join(here, "../app/(app)/account/actions.ts"), "utf8");
 const photoRouteSrc = readFileSync(join(here, "../app/api/account/photo/route.ts"), "utf8");
 

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { HouseLink } from "@/components/chrome/house-link";
 import { InlineNotice } from "@/components/ui/inline-notice";
-import { SocialProfileCreateForm } from "@/components/social/social-forms";
+import { SocialProfileCreateForm } from "@/components/social/social-profile-create-form";
 import { SocialProfileTabPanels } from "@/components/social/social-profile-tab-panels";
 import { SocialQueryBound } from "@/components/social/social-query-bound";
 import { SocialShareButton } from "@/components/social/social-share-button";

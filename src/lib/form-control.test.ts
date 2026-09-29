@@ -23,7 +23,18 @@ const socialEdit = readFileSync("src/components/social/social-profile-edit.tsx",
 const socialEditName = readFileSync("src/components/social/social-profile-name.tsx", "utf8");
 const socialEditHandle = readFileSync("src/components/social/social-profile-handle-edit.tsx", "utf8");
 const socialBio = readFileSync("src/components/social/social-profile-bio.tsx", "utf8");
-const socialForms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+const socialForms = [
+  "src/components/social/social-create-compose.tsx",
+  "src/components/social/social-dm-compose.tsx",
+  "src/components/social/social-bio-form.tsx",
+  "src/components/social/social-group-forms.tsx",
+  "src/components/social/social-profile-create-form.tsx",
+  "src/components/social/social-profile-photo-form.tsx",
+  "src/components/social/social-story-reply.tsx",
+  "src/components/social/social-message-button.tsx",
+]
+  .map((file) => readFileSync(file, "utf8"))
+  .join("\n");
 const socialExplore = readFileSync("src/app/(app)/social/explore/page.tsx", "utf8");
 const houseLeadSearch = readFileSync("src/components/chrome/house-lead-search.tsx", "utf8");
 const housePageSearch = readFileSync("src/components/chrome/house-page-search.tsx", "utf8");

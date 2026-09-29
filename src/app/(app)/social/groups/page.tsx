@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { HouseEmpty, TextAction } from "@/components/chrome/house";
 import { PageHeader } from "@/components/ui/page-header";
-import { SocialJoinGroupButton } from "@/components/social/social-forms";
+import { SocialJoinGroupButton } from "@/components/social/social-group-forms";
 import { SOCIAL, SOCIAL_ROUTES, socialGroupHref } from "@/lib/social";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { UNPAGINATED_MAX, rangeFor } from "@/lib/list-bounds";

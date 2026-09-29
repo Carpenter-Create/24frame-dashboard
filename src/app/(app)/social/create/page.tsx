@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { SocialCreateCompose } from "@/components/social/social-forms";
+import { SocialCreateCompose } from "@/components/social/social-create-compose";
 import { SocialForYouRail } from "@/components/social/social-for-you";
 import { SocialForYouSkeleton } from "@/components/social/social-skeletons";
 import { SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_LAYOUT_CLASS } from "@/lib/social-chrome";

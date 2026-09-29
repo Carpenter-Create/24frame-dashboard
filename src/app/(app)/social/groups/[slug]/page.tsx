@@ -1,6 +1,7 @@
 import { HouseEmpty } from "@/components/chrome/house";
 import { PageHeader } from "@/components/ui/page-header";
-import { SocialJoinGroupButton, SocialPostCompose } from "@/components/social/social-forms";
+import { SocialPostCompose } from "@/components/social/social-create-compose";
+import { SocialJoinGroupButton } from "@/components/social/social-group-forms";
 import { SocialOptimisticFeed } from "@/components/social/social-optimistic-feed";
 import { signedAvatarUrls } from "@/lib/s3-avatars";
 import { signedSocialMediaByPostId } from "@/lib/s3-social-media";

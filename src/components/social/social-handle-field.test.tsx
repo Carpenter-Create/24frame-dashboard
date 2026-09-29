@@ -49,7 +49,7 @@ describe("SocialHandleField", () => {
   });
 
   it("keeps the required-handle check on the profile submit path", () => {
-    const form = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const form = readFileSync("src/components/social/social-profile-create-form.tsx", "utf8");
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
     const field = readFileSync("src/components/social/social-handle-field.tsx", "utf8");
     expect(form).toContain("socialHandleInputError");
@@ -79,7 +79,7 @@ describe("SocialHandleField", () => {
   });
 
   it("never maps an empty @ draft to a taken error on the create form", () => {
-    const form = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const form = readFileSync("src/components/social/social-profile-create-form.tsx", "utf8");
     expect(form).toContain("socialHandleDisplayError(next, prev)");
     expect(form).not.toContain("socialHandleRequiredError");
   });

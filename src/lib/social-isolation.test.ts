@@ -7,7 +7,18 @@ describe("social isolation lock", () => {
     const provider = readFileSync("src/components/query-provider.tsx", "utf8");
     const keys = readFileSync("src/lib/social-cache-keys.ts", "utf8");
     const redis = readFileSync("src/lib/social-hot-cache.ts", "utf8");
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = [
+      "src/components/social/social-create-compose.tsx",
+      "src/components/social/social-dm-compose.tsx",
+      "src/components/social/social-bio-form.tsx",
+      "src/components/social/social-group-forms.tsx",
+      "src/components/social/social-profile-create-form.tsx",
+      "src/components/social/social-profile-photo-form.tsx",
+      "src/components/social/social-story-reply.tsx",
+      "src/components/social/social-message-button.tsx",
+    ]
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
     const env = readFileSync(".env.example", "utf8");
     expect(layout).toContain("QueryProvider");
     expect(provider).toContain("createAppQueryClient");

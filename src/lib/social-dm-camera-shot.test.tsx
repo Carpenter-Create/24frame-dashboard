@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 
-import { SocialDmCompose } from "@/components/social/social-forms";
+import { SocialDmCompose } from "@/components/social/social-dm-compose";
 
 describe("DM thread composer camera", () => {
   it("places a 24px camera far-right, after send", () => {

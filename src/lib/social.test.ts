@@ -826,17 +826,24 @@ describe("social writes stay on the live spine", () => {
     expect(panels).toContain("SocialActivityHistory");
     expect(pub).not.toContain("SocialAuthorHistory");
     expect(pub).toContain("isLegacySocialProfilePostsTab");
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
+    const photo = readFileSync("src/components/social/social-profile-photo-form.tsx", "utf8");
     expect(forms).toContain("uploadSocialPostMedia");
     expect(forms).not.toContain("originalQuality");
     expect(forms).not.toContain("data-social-create-original-quality");
-    expect(forms).toContain("uploadAccountPhoto");
+    expect(photo).toContain("uploadAccountPhoto");
     expect(forms).toContain("type=\"file\"");
+    expect(photo).toContain("type=\"file\"");
     expect(forms).not.toContain("putAvatarObject");
+    expect(photo).not.toContain("putAvatarObject");
     expect(forms).not.toContain("S3_BUCKET");
+    expect(photo).not.toContain("S3_BUCKET");
     expect(forms).not.toContain("S3_AVATARS_BUCKET");
+    expect(photo).not.toContain("S3_AVATARS_BUCKET");
     expect(forms).not.toContain("from \"@/lib/s3\"");
+    expect(photo).not.toContain("from \"@/lib/s3\"");
     expect(forms).not.toContain("from \"@/lib/cloudfront\"");
+    expect(photo).not.toContain("from \"@/lib/cloudfront\"");
   });
 });
 

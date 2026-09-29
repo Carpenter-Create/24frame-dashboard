@@ -365,7 +365,7 @@ screen; they still freeze the tap **today**.
 | File | Line | Pattern |
 |------|------|---------|
 | `src/components/social/social-engagement.tsx` | 202 | Follow — sibling |
-| `src/components/social/social-forms.tsx` | 222 | Create-profile submit |
+| `src/components/social/social-profile-create-form.tsx` | 60 | Create-profile submit |
 | `src/components/social/social-profile-edit.tsx` | 108 | Done while pending |
 | `src/components/social/social-profile-avatar-sheet.tsx` | 108, 118, 129 | Library / camera / remove |
 | `src/components/social/social-comment-thread.tsx` | 279 | Comment submit (`pending \|\| !body`) — optimistic apply already ran |

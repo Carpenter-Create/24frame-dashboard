@@ -244,7 +244,7 @@ describe("DM thread message format", () => {
     expect(DM_THREAD_COMPOSER_CAMERA_CLASS).not.toContain("shadow");
     expect(DM_THREAD_COMPOSER_CAMERA_CLASS).not.toContain("w-full");
 
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = readFileSync("src/components/social/social-dm-compose.tsx", "utf8");
     const compose = forms.slice(
       forms.indexOf("export function SocialDmCompose"),
       forms.indexOf("export function SocialGroupTitleForm"),
