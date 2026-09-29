@@ -1,6 +1,6 @@
 import { HouseEmpty } from "@/components/chrome/house";
 import { PageHeader } from "@/components/ui/page-header";
-import { SocialGroupCreateForm } from "@/components/social/social-forms";
+import { SocialGroupCreateForm } from "@/components/social/social-group-forms";
 import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession } from "@/lib/social-session";

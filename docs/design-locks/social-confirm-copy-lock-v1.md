@@ -40,8 +40,8 @@ Do not invent these strings in this tip. No confirm `Dialog` exists for them in 
 | Sibling | Closest path | What exists |
 |---------|--------------|-------------|
 | Unfollow | `src/components/social/social-engagement.tsx` | Follow toggle. Toast after a follow persist. No unfollow confirm Dialog. |
-| Leave group | `src/components/social/social-forms.tsx` (`SocialJoinGroupButton`) · `SOCIAL.groups` | Join only. No leave confirm Dialog. |
-| Discard draft | `src/components/social/social-forms.tsx` · `leaveSocialWriteCompose` | Write compose leaves without a discard Dialog. |
+| Leave group | `src/components/social/social-group-forms.tsx` (`SocialJoinGroupButton`) · `SOCIAL.groups` | Join only. No leave confirm Dialog. |
+| Discard draft | `src/components/social/social-create-compose.tsx` · `leaveSocialWriteCompose` | Write compose leaves without a discard Dialog. |
 | Report | — | No report confirm Dialog under `src/components/social`. |
 
 ---

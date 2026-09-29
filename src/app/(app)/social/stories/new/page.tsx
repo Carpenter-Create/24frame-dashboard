@@ -1,6 +1,6 @@
 // Create-story stage.
 // docs/design-locks/create-story-photo-video-fb-layout-lock-v1.5.md
-import { SocialStoryCompose } from "@/components/social/social-forms";
+import { SocialStoryCompose } from "@/components/social/social-story-studio";
 import { socialAvatarHref } from "@/lib/social-edge";
 import { SOCIAL, socialPersonLabel } from "@/lib/social";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";

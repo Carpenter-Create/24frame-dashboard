@@ -7,22 +7,10 @@ import { useRouter } from "next/navigation";
 import { useHouseClient } from "@/components/chrome/house-client-shell";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { InlineNotice } from "@/components/ui/inline-notice";
-import { uploadAccountPhoto } from "@/app/(app)/account/actions";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
-import { AVATAR_ACCEPT, AVATAR_MAX_BYTES, isAvatarContentType } from "@/lib/account-avatar";
 import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
-import {
-  DM_THREAD_COMPOSER_CAMERA_CLASS,
-  DM_THREAD_COMPOSER_CAMERA_GLYPH,
-  DM_THREAD_COMPOSER_CLASS,
-  DM_THREAD_COMPOSER_FIELD_CLASS,
-  DM_THREAD_COMPOSER_ROW_CLASS,
-  DM_THREAD_COMPOSER_SEND_CLASS,
-} from "@/lib/social-dm-thread-format";
 import {
   SOCIAL_ACTION_CLASS,
   SOCIAL_CREATE_AVATAR_CLASS,
@@ -30,7 +18,6 @@ import {
   SOCIAL_PERSON_SECONDARY_CLASS,
   SOCIAL_CREATE_CARD_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
-  SOCIAL_STORY_REPLY_PILL_CLASS,
   SOCIAL_STORY_STAGE_IN_CLASS,
   SOCIAL_WRITE_COMPOSE_CHROME_CLASS,
   SOCIAL_WRITE_COMPOSE_HOST_CLASS,
@@ -87,8 +74,6 @@ import {
   leaveSocialWriteCompose,
   SOCIAL,
   SOCIAL_ROUTES,
-  socialHandleDisplayError,
-  socialHandleInputError,
   type SocialCreateKind,
 } from "@/lib/social";
 import {
@@ -103,19 +88,8 @@ import {
 import { cn } from "@/lib/cn";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import { SocialAvatar } from "./social-avatar";
-import { SocialHandleField } from "./social-handle-field";
 import { SocialIcon } from "./social-icon";
-import {
-  createSocialGroup,
-  createSocialProfile,
-  joinSocialGroup,
-  openSocialDm,
-  sendSocialDm,
-  setSocialDmTitle,
-  updateSocialBio,
-} from "@/app/(app)/social/actions";
-
-export { SocialFollowButton, SocialLikeButton, SocialLikeCount } from "./social-engagement";
+import { FormError } from "./social-form-error";
 
 function revokeBlobUrls(urls: Record<string, string>) {
   for (const url of Object.values(urls)) {
@@ -123,10 +97,6 @@ function revokeBlobUrls(urls: Record<string, string>) {
   }
 }
 
-function FormError({ error }: { error: string }) {
-  if (!error) return null;
-  return <InlineNotice tone="error">{error}</InlineNotice>;
-}
 
 type WriteComposeLocal = {
   localId: string;
@@ -341,60 +311,6 @@ function publishOptimisticPost({
       endSocialPostPublishBusy();
     },
   });
-}
-
-export function SocialProfileCreateForm({
-  handle = "",
-  displayName = "",
-}: {
-  handle?: string;
-  displayName?: string;
-}) {
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-
-  return (
-    <form
-      data-social-profile-form=""
-      className="flex max-w-md flex-col gap-[var(--space-4)]"
-      action={async (formData) => {
-        setPending(true);
-        setError("");
-        const handle = String(formData.get("handle") ?? "");
-        const formatError = socialHandleInputError(handle);
-        if (formatError) {
-          setPending(false);
-          setError(formatError);
-          return;
-        }
-        const result = await createSocialProfile(formData);
-        setPending(false);
-        if (result.error) setError(result.error);
-      }}
-    >
-      <SocialHandleField
-        id="social-handle"
-        name="handle"
-        defaultHandle={handle}
-        onValueChange={(next) => {
-          setError((prev) => socialHandleDisplayError(next, prev));
-        }}
-      />
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="social-display-name">{SOCIAL.profile.displayName}</Label>
-        <Input
-          id="social-display-name"
-          name="display_name"
-          autoComplete="nickname"
-          defaultValue={displayName}
-        />
-      </div>
-      <FormError error={error} />
-      <Button type="submit" disabled={pending}>
-        {SOCIAL.profile.submit}
-      </Button>
-    </form>
-  );
 }
 
 async function uploadSocialMedia(files: ArrayLike<File> | null, current: SocialMediaItem[]) {
@@ -1250,293 +1166,6 @@ export function SocialCreateCompose({
         </button>
       </div>
       <FormError error={formError} />
-    </form>
-  );
-}
-
-export { SocialStoryCompose } from "./social-story-studio";
-
-export function SocialProfilePhotoForm() {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(false);
-
-  async function onPick(file: File | undefined) {
-    if (!file) return;
-    setError("");
-    if (!isAvatarContentType(file.type)) {
-      setError(ACCOUNT_PROFILE.photoType);
-      return;
-    }
-    if (file.size > AVATAR_MAX_BYTES) {
-      setError(ACCOUNT_PROFILE.photoTooLarge);
-      return;
-    }
-    setUploading(true);
-    const body = new FormData();
-    body.set("photo", file);
-    const res = await uploadAccountPhoto(body);
-    setUploading(false);
-    if (fileRef.current) fileRef.current.value = "";
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-  }
-
-  return (
-    <div data-social-profile-photo="" className="flex flex-col gap-[var(--space-2)]">
-      <button
-        type="button"
-        className={TEXT_ACTION_CLASS}
-        disabled={uploading}
-        onClick={() => fileRef.current?.click()}
-      >
-        {uploading ? SOCIAL.profile.uploadingPhoto : SOCIAL.profile.uploadPhoto}
-      </button>
-      <input
-        ref={fileRef}
-        id="social-profile-photo"
-        type="file"
-        accept={AVATAR_ACCEPT}
-        className="sr-only"
-        aria-label={SOCIAL.profile.uploadPhoto}
-        onChange={(e) => void onPick(e.target.files?.[0])}
-      />
-      <FormError error={error} />
-    </div>
-  );
-}
-
-export function SocialBioForm({ bio }: { bio: string }) {
-  const [error, setError] = useState("");
-  return (
-    <form
-      data-social-bio-form=""
-      className="flex max-w-md flex-col gap-[var(--space-3)]"
-      action={async (formData) => {
-        setError("");
-        const result = await updateSocialBio(formData);
-        if (result.error) setError(result.error);
-      }}
-    >
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="social-bio">{SOCIAL.profile.bio}</Label>
-        <Textarea
-          id="social-bio"
-          name="bio"
-          rows={3}
-          defaultValue={bio}
-        />
-      </div>
-      <FormError error={error} />
-      <Button type="submit" variant="secondary">
-        {SOCIAL.profile.bioSubmit}
-      </Button>
-    </form>
-  );
-}
-
-export function SocialJoinGroupButton({
-  groupId,
-  groupSlug,
-}: {
-  groupId: string;
-  groupSlug: string;
-}) {
-  const [error, setError] = useState("");
-  return (
-    <form
-      action={async (formData) => {
-        setError("");
-        const result = await joinSocialGroup(formData);
-        if (result.error) setError(result.error);
-      }}
-    >
-      <input type="hidden" name="group_id" value={groupId} />
-      <input type="hidden" name="group_slug" value={groupSlug} />
-      <Button type="submit" variant="secondary">
-        {SOCIAL.groups.join}
-      </Button>
-      <FormError error={error} />
-    </form>
-  );
-}
-
-export function SocialGroupCreateForm() {
-  const [error, setError] = useState("");
-  return (
-    <form
-      data-social-group-form=""
-      className="flex max-w-md flex-col gap-[var(--space-4)]"
-      action={async (formData) => {
-        setError("");
-        const result = await createSocialGroup(formData);
-        if (result?.error) setError(result.error);
-      }}
-    >
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="social-group-name">{SOCIAL.groupNew.name}</Label>
-        <Input id="social-group-name" name="name" required />
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="social-group-slug">{SOCIAL.groupNew.slug}</Label>
-        <Input id="social-group-slug" name="slug" required />
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="social-group-description">{SOCIAL.groupNew.description}</Label>
-        <Textarea
-          id="social-group-description"
-          name="description"
-          rows={3}
-        />
-      </div>
-      <FormError error={error} />
-      <Button type="submit">{SOCIAL.groupNew.submit}</Button>
-    </form>
-  );
-}
-
-export function SocialStoryReply({
-  peerId,
-  placeholder = SOCIAL.stories.reply,
-}: {
-  peerId: string;
-  placeholder?: string;
-}) {
-  const [error, setError] = useState("");
-  return (
-    <form
-      data-social-story-reply=""
-      className="flex min-w-0 flex-1 flex-col gap-1"
-      action={async (formData) => {
-        setError("");
-        const result = await openSocialDm(formData);
-        if (result?.error) setError(result.error);
-      }}
-    >
-      <input type="hidden" name="peer_id" value={peerId} />
-      <button type="submit" className={SOCIAL_STORY_REPLY_PILL_CLASS}>
-        {placeholder}
-      </button>
-      <FormError error={error} />
-    </form>
-  );
-}
-
-export function SocialMessageButton({ peerId }: { peerId: string }) {
-  const [error, setError] = useState("");
-  return (
-    <form
-      data-social-open-dm=""
-      action={async (formData) => {
-        setError("");
-        const result = await openSocialDm(formData);
-        if (result?.error) setError(result.error);
-      }}
-    >
-      <input type="hidden" name="peer_id" value={peerId} />
-      <Button type="submit">{SOCIAL.member.message}</Button>
-      <FormError error={error} />
-    </form>
-  );
-}
-
-export function SocialDmCompose({ conversationId }: { conversationId: string }) {
-  const [error, setError] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-  return (
-    <form
-      data-social-dm-form=""
-      data-social-dm-composer=""
-      className={DM_THREAD_COMPOSER_CLASS}
-      action={async (formData) => {
-        setError("");
-        const result = await sendSocialDm(formData);
-        if (result?.error) setError(result.error);
-      }}
-    >
-      <input type="hidden" name="conversation_id" value={conversationId} />
-      <div className={DM_THREAD_COMPOSER_ROW_CLASS}>
-        <label className="sr-only" htmlFor="social-dm-body">
-          {SOCIAL.dms.compose}
-        </label>
-        <div className={DM_THREAD_COMPOSER_FIELD_CLASS}>
-          <Input
-            id="social-dm-body"
-            name="body"
-            variant="bare"
-            required
-            autoComplete="off"
-            enterKeyHint="send"
-            placeholder={SOCIAL.dms.threadPlaceholder}
-            className="w-full"
-          />
-        </div>
-        <button type="submit" aria-label={SOCIAL.dms.submit} className={DM_THREAD_COMPOSER_SEND_CLASS}>
-          <SocialIcon name="paper-plane-tilt" size={18} />
-        </button>
-        <button
-          type="button"
-          data-social-dm-camera=""
-          aria-label={SOCIAL.home.attach}
-          className={DM_THREAD_COMPOSER_CAMERA_CLASS}
-          onClick={() => fileRef.current?.click()}
-        >
-          <SocialIcon name="camera" size={DM_THREAD_COMPOSER_CAMERA_GLYPH} className="text-ink" />
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept={SOCIAL_MEDIA_ACCEPT}
-          className="sr-only"
-          tabIndex={-1}
-          data-social-dm-attach-input=""
-          aria-label={SOCIAL.home.attach}
-          onChange={(event) => {
-            // Library open only. No DM media insert on this path.
-            event.currentTarget.value = "";
-          }}
-        />
-      </div>
-      <FormError error={error} />
-    </form>
-  );
-}
-
-export function SocialGroupTitleForm({
-  conversationId,
-  title,
-}: {
-  conversationId: string;
-  title: string | null;
-}) {
-  const [error, setError] = useState("");
-  return (
-    <form
-      data-social-group-title=""
-      className="flex max-w-md flex-col gap-[var(--space-3)]"
-      action={async (formData) => {
-        setError("");
-        const result = await setSocialDmTitle(formData);
-        if (result.error) setError(result.error);
-      }}
-    >
-      <input type="hidden" name="conversation_id" value={conversationId} />
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="social-dm-title">{SOCIAL.dms.titleLabel}</Label>
-        <Input
-          id="social-dm-title"
-          name="title"
-          defaultValue={title ?? ""}
-          autoComplete="off"
-        />
-        <p className="t-body-sm text-ink-3">{SOCIAL.dms.titleHint}</p>
-      </div>
-      <FormError error={error} />
-      <Button type="submit" variant="secondary">
-        {SOCIAL.dms.titleSave}
-      </Button>
     </form>
   );
 }

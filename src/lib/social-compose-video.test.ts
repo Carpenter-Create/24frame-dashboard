@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import {
-  SocialComposeUploadProgress,
-  SocialComposeVideoPreview,
-} from "@/components/social/social-forms";
+import { SocialComposeUploadProgress, SocialComposeVideoPreview } from "@/components/social/social-create-compose";
 
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_IMAGE_MAX_BYTES, SOCIAL_VIDEO_MAX_BYTES } from "@/lib/social-media";
@@ -234,11 +231,11 @@ describe("write compose video attach", () => {
   });
 
   it("shows compose progress and the story frame path, and skips the detached probe", () => {
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
     const upload = readFileSync("src/lib/social-media-upload.ts", "utf8");
     const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
     const textStart = forms.indexOf("export function SocialCreateCompose");
-    const textEnd = forms.indexOf("export { SocialStoryCompose }");
+    const textEnd = forms.length;
     const text = forms.slice(forms.indexOf("function SocialComposeUploadProgress"), textEnd);
     const compose = forms.slice(textStart, textEnd);
     const loopAt = compose.indexOf("for (let index = 0; index < prepared.length");

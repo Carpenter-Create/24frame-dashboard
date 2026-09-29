@@ -38,7 +38,7 @@ describe("social post media upload SoT", () => {
   it("routes post and story videos to Mux and leaves stills on S3", () => {
     const src = readFileSync("src/lib/social-media-upload.ts", "utf8");
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
     const live = readFileSync("src/components/social/social-go-live.tsx", "utf8");
     const studio = readFileSync("src/components/social/social-story-studio.tsx", "utf8");
     expect(src).toContain("createSocialMuxUpload");

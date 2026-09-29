@@ -318,12 +318,12 @@ describe("Social optimistic mutation SoT", () => {
   });
 
   it("keeps one helper for like + composer and leaves follow toast + chip drafts alone", () => {
-    const forms = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const forms = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
     const engagement = readFileSync("src/components/social/social-engagement.tsx", "utf8");
     const likeChunk = engagement.slice(engagement.indexOf("export function SocialLikeButton"));
     const createChunk = forms.slice(
       forms.indexOf("export function SocialCreateCompose"),
-      forms.indexOf("export { SocialStoryCompose }"),
+      forms.length,
     );
     const followChunk = engagement.slice(
       engagement.indexOf("export function SocialFollowButton"),

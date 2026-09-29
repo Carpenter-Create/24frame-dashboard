@@ -34,7 +34,7 @@ describe("Social Create Media SoT", () => {
     const sheet = readFileSync("src/lib/social-create-sheet.ts", "utf8");
     const tiles = readFileSync("src/components/social/social-create-sheet.tsx", "utf8");
     const media = readFileSync("src/components/social/social-create-media.tsx", "utf8");
-    const compose = readFileSync("src/components/social/social-forms.tsx", "utf8");
+    const compose = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
     const profile = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
     const home = readFileSync("src/lib/social-home.ts", "utf8");
     expect(sheet).toContain('id: "media"');
@@ -55,7 +55,7 @@ describe("Social Create Media SoT", () => {
     expect(compose).not.toContain("data-social-create-well");
     const createChunk = compose.slice(
       compose.indexOf("export function SocialCreateCompose"),
-      compose.indexOf("export { SocialStoryCompose }"),
+      compose.length,
     );
     expect(createChunk).toContain("disabled={uploading}");
     expect(createChunk).not.toContain("disabled={uploading ||");

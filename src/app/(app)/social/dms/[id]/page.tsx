@@ -1,7 +1,7 @@
 import { HouseEmpty, TextAction } from "@/components/chrome/house";
 import { PageHeader } from "@/components/ui/page-header";
 import { InlineNotice } from "@/components/ui/inline-notice";
-import { SocialDmCompose, SocialGroupTitleForm } from "@/components/social/social-forms";
+import { SocialDmCompose, SocialGroupTitleForm } from "@/components/social/social-dm-compose";
 import { SocialDmThread, type DmThreadViewMessage } from "@/components/social/social-dm-thread";
 import { SocialDmThreadHeader } from "@/components/social/social-dm-thread-header";
 import { SocialDmThreadStick } from "@/components/social/social-dm-thread-stick";
