@@ -13,6 +13,7 @@ import {
   inboxPeerIds,
   isEligibleBirthDate,
   likeInsertRow,
+  socialLikeCountCopy,
   messageInsertRow,
   normalizeConversationTitle,
   normalizeHandle,
@@ -849,6 +850,10 @@ describe("feed post craft lock 2026-09-21", () => {
     expect(socialPostHref("abc")).toBe("/social/p/abc");
     expect(SOCIAL.post.likesTitle).toBe("Likes");
     expect(SOCIAL.post.likesEmpty).toBe("No likes yet.");
+    expect(SOCIAL.post.likeOne).toBe("like");
+    expect(socialLikeCountCopy(0)).toBeNull();
+    expect(socialLikeCountCopy(1)).toBe("1 like");
+    expect(socialLikeCountCopy(2)).toBe("2 likes");
     expect(SOCIAL_ROUTES.post).toBe("/social/p");
   });
 });

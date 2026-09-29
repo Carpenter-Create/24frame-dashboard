@@ -25,6 +25,8 @@ describe("SocialFeedVideo", () => {
     );
     expect(html).toContain('data-social-mux-player="abc12345xx"');
     expect(html).toContain("data-social-post-video");
+    expect(html).toContain("data-social-play-disc");
+    expect(html).toContain("social-feed-play-disc");
     expect(html).not.toContain("<video");
   });
 
@@ -102,5 +104,21 @@ describe("SocialFeedVideo", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     expect(css).toContain("--media-background-color: var(--surface-muted)");
     expect(css).toContain("--media-object-fit: cover");
+  });
+
+  it("puts a quiet backing disc on the feed play control and skips chromeless faces", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const disc = css.slice(css.indexOf(".social-feed-play-disc"));
+    expect(disc).toContain("::part(center play button)");
+    expect(disc).toContain("border-radius: 9999px");
+    expect(disc).toContain("color-mix(in srgb, var(--ink) 42%, transparent)");
+    const chromeless = renderToStaticMarkup(
+      createElement(SocialFeedVideo, {
+        item: { url: "https://image.mux.com/abc12345/thumbnail.webp", playbackId: "abc12345xx" },
+        chromeless: true,
+      }),
+    );
+    expect(chromeless).not.toContain("data-social-play-disc");
+    expect(chromeless).not.toContain("social-feed-play-disc");
   });
 });

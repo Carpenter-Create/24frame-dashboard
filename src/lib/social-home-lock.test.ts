@@ -13,13 +13,16 @@ import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
   SOCIAL_DESKTOP_MEASURE,
   SOCIAL_FEED_GUTTER_CLASS,
+  SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
+  SOCIAL_FEED_META_ROW_GAP_CLASS,
+  SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS,
   SOCIAL_FEED_ROW_CLASS,
-  SOCIAL_FEED_TAIL_RULE_CLASS,
   SOCIAL_HOME_TOPICS_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTIONS_CLASS,
   SOCIAL_POST_ACTIONS_GAP_CLASS,
+  SOCIAL_POST_ACTIONS_OPTICAL_CLASS,
   SOCIAL_POST_ACTIONS_ROW_CLASS,
   SOCIAL_STORIES_FEED_RULE_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
@@ -352,17 +355,19 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).toContain("SOCIAL_EMPTY_PANEL_CLASS");
     expect(chrome).toContain("SOCIAL_FEED_ROW_CLASS");
     expect(chrome).toContain("SOCIAL_FEED_GUTTER_CLASS");
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col divide-y divide-hairline");
-    expect(SOCIAL_FEED_GUTTER_CLASS).toContain("divide-y divide-hairline");
-    expect(SOCIAL_FEED_TAIL_RULE_CLASS).toBe(
-      "max-md:border-b max-md:border-solid max-md:border-hairline",
-    );
-    expect(SOCIAL_FEED_TAIL_RULE_CLASS.startsWith("max-md:")).toBe(true);
-    expect(SOCIAL_FEED_TAIL_RULE_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_TAIL_RULE_CLASS);
+    expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
+    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-y");
+    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-b");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-hairline");
+    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
+    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[10px]");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[6px]");
     expect(SOCIAL_POST_ACTIONS_GAP_CLASS).toBe("gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toBe("flex flex-row items-center gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
+    expect(SOCIAL_POST_ACTIONS_OPTICAL_CLASS).toBe("-ml-[var(--space-2)]");
     expect(SOCIAL_POST_ACTIONS_ROW_CLASS).toBe("flex items-center gap-2");
     expect(SOCIAL_POST_ACTIONS_ROW_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
     expect(SOCIAL_POST_ACTIONS_ROW_CLASS).not.toContain("gap-3.5");
@@ -377,7 +382,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     );
     expect(SOCIAL_STORIES_FEED_RULE_CLASS.startsWith("max-md:")).toBe(true);
     const postCard = card.slice(card.indexOf("export function SocialPostCard"));
-    expect(postCard).toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
+    expect(postCard).toContain("SOCIAL_POST_ACTIONS_CLASS");
+    expect(postCard).toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
+    expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
     expect(postCard).not.toContain("gap-3.5");
     expect(postCard).not.toContain("gap-4");
     const immersive = readFileSync("src/components/social/social-feed-immersive.tsx", "utf8");
@@ -408,10 +415,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("gap-");
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_ROW_CLASS.replace(SOCIAL_FEED_TAIL_RULE_CLASS, "")).not.toContain("border");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("rounded");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)(?:m[ytb]|my)-/);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("py-[var(--space-4)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("py-[var(--space-4)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("p-[var(--space-4)]");
     expect(SOCIAL_MOBILE_BLEED_CLASS.startsWith("max-md:")).toBe(true);
     expect(SOCIAL_MOBILE_BLEED_CLASS).toContain("-mx-[var(--chrome-gutter)]");
@@ -428,7 +436,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(rail).toContain("SOCIAL_HOME_STORIES_TRACK_CLASS");
     expect(chrome).toContain('export const SOCIAL_HOME_STORIES_TRACK_CLASS = "flex w-max gap-2 px-0 pt-0 pb-2"');
     expect(rail).not.toContain("pr-4 pb-2");
-    expect(card).toContain("SOCIAL_FEED_CHROME_CLASS");
+    expect(card).not.toContain("SOCIAL_FEED_CHROME_CLASS");
+    expect(card).toContain("SOCIAL_FEED_META_ROW_GAP_CLASS");
+    expect(card).toContain("SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS");
     expect(card).toContain("w-full");
     expect(card).toContain("SOCIAL_POST_MEDIA_CLASS");
     expect(card).not.toContain("md:rounded-[8px]");

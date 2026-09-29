@@ -57,7 +57,9 @@ describe("owner post overflow", () => {
     const cardSrc = readFileSync("src/components/social/social-ui.tsx", "utf8");
     const postCard = cardSrc.slice(cardSrc.indexOf("export function SocialPostCard"));
     expect(postCard.indexOf("SocialPostOwnerMenu")).toBeLessThan(postCard.indexOf("data-social-post-actions"));
-    expect(postCard).toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
+    expect(postCard).toContain("SOCIAL_POST_ACTIONS_CLASS");
+    expect(postCard).toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
+    expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
     expect(postCard).not.toContain("gap-3.5");
     expect(postCard).not.toContain("gap-4");
   });

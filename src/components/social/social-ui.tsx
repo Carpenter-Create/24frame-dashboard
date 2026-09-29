@@ -11,12 +11,15 @@ import type { SocialMuxPlaybackPolicy } from "@/lib/social-mux";
 import {
   SOCIAL_ACTION_CLASS,
   SOCIAL_ACTION_SECONDARY_CLASS,
-  SOCIAL_FEED_CHROME_CLASS,
+  SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
+  SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
+  SOCIAL_FEED_META_ROW_GAP_CLASS,
   SOCIAL_FEED_ROW_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
-  SOCIAL_POST_ACTIONS_ROW_CLASS,
+  SOCIAL_POST_ACTIONS_CLASS,
+  SOCIAL_POST_ACTIONS_OPTICAL_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
   SOCIAL_POST_TIME_CLASS,
   SOCIAL_HIGHLIGHT_RING_CLASS,
@@ -535,7 +538,7 @@ export function SocialPostCard({
       data-social-post-href={permalink ? href : undefined}
       className={SOCIAL_FEED_ROW_CLASS}
     >
-      <div className={`flex min-w-0 items-center gap-2.5 ${SOCIAL_FEED_CHROME_CLASS}`}>
+      <div className="flex min-w-0 items-center gap-2.5">
         <SocialAvatar name={post.authorName} photoUrl={post.authorPhotoUrl} size="sm" />
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
           {post.authorHandle ? (
@@ -579,8 +582,16 @@ export function SocialPostCard({
       {immersiveIndex != null ? (
         <SocialFeedImmersive post={post} index={immersiveIndex} onClose={closeImmersive} />
       ) : null}
-      <div className={`flex flex-col gap-1 ${SOCIAL_FEED_CHROME_CLASS}`}>
-        <div data-social-post-actions="" className={SOCIAL_POST_ACTIONS_ROW_CLASS}>
+      <div
+        className={cn(
+          SOCIAL_FEED_META_ROW_GAP_CLASS,
+          media ? SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS : SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
+        )}
+      >
+        <div
+          data-social-post-actions=""
+          className={cn(SOCIAL_POST_ACTIONS_CLASS, SOCIAL_POST_ACTIONS_OPTICAL_CLASS)}
+        >
           {post.canLike ? (
             <SocialLikeButton
               postId={post.id}

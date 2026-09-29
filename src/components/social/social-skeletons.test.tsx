@@ -66,7 +66,7 @@ describe("Social loading skeletons", () => {
     expect(home.indexOf("data-social-stories-skeleton")).toBeLessThan(
       home.indexOf("data-social-feed-skeleton"),
     );
-    expect(home).toContain("divide-y divide-hairline");
+    expect(home).not.toContain("divide-y divide-hairline");
     expect(home).not.toContain("bg-surface-muted py-");
     const topicsSkeleton = home.slice(
       home.indexOf("data-social-home-topics-skeleton"),
@@ -100,7 +100,7 @@ describe("Social loading skeletons", () => {
     expect(profile).not.toContain("md:max-w-[892px]");
     expect(profile).not.toContain("892");
     expect(profile).toContain("bg-surface-muted");
-    expect(profile).toContain("divide-y divide-hairline");
+    expect(profile).not.toContain("divide-y divide-hairline");
     expect(profile).not.toContain("py-[var(--space-2)]");
     expect(profile).not.toContain("bg-surface-muted py-");
     expect(profile).not.toContain("aspect-square");

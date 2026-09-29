@@ -354,31 +354,45 @@ export const SOCIAL_MOBILE_BLEED_CLASS =
 // whose hairline itself is full-bleed.
 export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 
-// Post sits on the page canvas. The list draws the between-post
-// hairline (SOCIAL_FEED_GUTTER_CLASS). No card box. Chrome keeps a
-// 16 inset. On phone the row and its hairline meet the viewport;
-// desktop stays the column width.
-// divide-y skips the last child, so the list tail had no matching
-// rule. This phone-only bottom border sits on the bled row, same
-// box as the mid-feed rules. Desktop does not gain it.
+// Post sits on the page canvas. No card box. One 16 inset for
+// everything except phone full-bleed media: the row restores
+// --chrome-gutter (16) after the phone bleed; desktop uses the
+// frame's single 16 and does not add a second pad.
+// Wave 1 deletes post→post hairlines. Stories→feed seam stays
+// SOCIAL_STORIES_FEED_RULE_CLASS.
+// docs/design-locks/social-home-craft-wave-1-lock-v1.md
 // docs/design-locks/social-mobile-full-bleed-lock-v1.md
-export const SOCIAL_FEED_TAIL_RULE_CLASS =
-  "max-md:border-b max-md:border-solid max-md:border-hairline";
+// ~24 air before the next author lives on the row (padding, so the
+// page background cannot show as a gray band).
+export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-6)]";
+
+// Media → actions ~10. Not the 8/16 scale — the lock names ~10.
+export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-[10px]";
+
+// Likes / caption / comments. 6 sits in the locked 4–6 band.
+export const SOCIAL_FEED_META_ROW_GAP_CLASS = "flex flex-col gap-[6px]";
+
+// Text-only keeps the prior 8 between the author row and actions.
+// Text-only grammar itself stays frozen.
+export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
 
 export const SOCIAL_FEED_ROW_CLASS =
-  `flex flex-col gap-2 bg-surface py-[var(--space-4)] ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS} ${SOCIAL_FEED_TAIL_RULE_CLASS}`;
+  `flex flex-col bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
 
 // Feed media. px-0 inside the row. On phone it cancels the row pad
 // so the frame meets the viewport. Side radius stays 0. Desktop is
-// the column width.
+// the column width. mt-2 is the author → media air (flex gap is gone
+// so this margin is the only author-to-media space).
 export const SOCIAL_POST_MEDIA_CLASS =
-  `flex w-full flex-col gap-2 px-0 ${SOCIAL_MOBILE_BLEED_CLASS}`;
+  `mt-[var(--space-2)] flex w-full flex-col gap-2 px-0 ${SOCIAL_MOBILE_BLEED_CLASS}`;
 
 // Messages inbox hairline. Same phone bleed as the feed. The pad
 // keeps the face and the name inset.
 export const SOCIAL_DM_INBOX_ROW_CLASS =
   `border-b border-hairline py-[var(--space-4)] ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
 
+// Named 16 inset family (--space-4). The feed row does not stack this
+// on the phone bleed pad or the desktop frame pad — one 16 only.
 export const SOCIAL_FEED_CHROME_CLASS = "px-[var(--space-4)]";
 
 // Like · Comment · Share. One triplet on phone and desktop.
@@ -392,6 +406,12 @@ export const SOCIAL_POST_ACTIONS_GAP_CLASS = "gap-2";
 
 export const SOCIAL_POST_ACTIONS_CLASS =
   `flex flex-row items-center ${SOCIAL_POST_ACTIONS_GAP_CLASS}`;
+
+// Glyph is 24 centered in the 40 hit, so the optical edge sits 8
+// inside the hit. Pull the row back by that 8 so the glyph meets the
+// same 16 text edge as likes and caption.
+// docs/design-locks/social-home-craft-wave-1-lock-v1.md
+export const SOCIAL_POST_ACTIONS_OPTICAL_CLASS = "-ml-[var(--space-2)]";
 
 export const SOCIAL_POST_ACTION_HIT_CLASS =
   "inline-flex size-10 shrink-0 items-center justify-center text-ink-2 active:opacity-70";
@@ -508,10 +528,11 @@ export const SOCIAL_POST_TIME_CLASS =
 
 // Adam 2026-09-22 feed chrome. Supersedes #599 Facebook gray gutter
 // (muted band + py slabs above and below every post). Posts sit on
-// the page canvas. One house hairline between rows — Home, Profile
-// Activity, and author history share this list. No grey slab.
-export const SOCIAL_FEED_GUTTER_CLASS =
-  "flex flex-col divide-y divide-hairline";
+// the page canvas. Wave 1 takes the mid-feed post→post hairline OUT.
+// Home, Profile Activity, and author history share this list. No grey
+// slab. No divide. Stories→feed seam is a different rule.
+// docs/design-locks/social-home-craft-wave-1-lock-v1.md
+export const SOCIAL_FEED_GUTTER_CLASS = "flex flex-col";
 
 // Comment thread — house app-sheet rise. Same host/scrim as Create.
 // Composer stays at the bottom. Do not fork a second sheet grammar.
@@ -1128,3 +1149,7 @@ export const SOCIAL_STORY_POSTED_CTA_CLASS =
 
 export const SOCIAL_MUX_PLAYER_CLASS =
   "social-mux-player block size-full overflow-hidden bg-surface-muted object-cover";
+
+// Quiet disc behind the paused-feed play glyph. Not a naked glyph.
+// docs/design-locks/social-home-craft-wave-1-lock-v1.md
+export const SOCIAL_FEED_PLAY_DISC_CLASS = "social-feed-play-disc";

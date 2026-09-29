@@ -30,7 +30,7 @@
 // header trailing optical size (size-6 / 24px). The dock literal
 // (HOUSE_PHONE_CHROME_ICON_CLASS) stays its own declaration — not an
 // alias of HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS. Desktop header
-// glyphs stay size-5 / 20 inside the 44 control.
+// trailing glyphs share the same 24px box. The hit stays 44.
 // Header must NOT re-export the bottom-chrome class. Phosphor rail
 // stays size-4. Not Bold/Fill heavy. Active ink is accent
 // on the chip; idle is ink-2 on both the bar off state and the top
@@ -135,10 +135,11 @@ export const HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS = "text-accent";
 export const HOUSE_PHONE_CHROME_ICON_CLASS = "size-6 shrink-0";
 
 /** Phone header trailing glyph — 24px box.
- *  AI mark + bell + phone search read off this token. Its value is a
- *  standalone literal, not an alias of HOUSE_PHONE_CHROME_ICON_CLASS,
- *  so a dock resize cannot leak into the header. Desktop header
- *  glyphs step to size-5 inside the 44 control. */
+ *  AI mark + bell + phone search + waffle read off this token. Its
+ *  value is a standalone literal, not an alias of
+ *  HOUSE_PHONE_CHROME_ICON_CLASS, so a dock resize cannot leak into
+ *  the header. Desktop trailing glyphs use the same 24px box
+ *  (HOUSE_HEADER_TRAILING_DESKTOP_CLASS). Tap stays 44. */
 export const HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS = "size-6 shrink-0";
 
 /** One phone chrome stroke register — bottom bar + top trailing. Not Bold/Fill. */
@@ -157,18 +158,21 @@ export const HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS = HOUSE_PHONE_CHROME_IDLE_INK
 export const HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS =
   "flex h-9 min-w-9 items-center justify-center rounded-full bg-surface-muted";
 
-/** Phone 24px; desktop header is 20px inside the 44 control.
- *  Not the Phosphor rail (size-4) and not the dock (size-7). */
-export const HOUSE_HEADER_TRAILING_ICON_CLASS = `${HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS} md:size-5`;
+/** Shared 24px box for header trailing glyphs on phone and desktop.
+ *  Own literal, not an alias of the dock class. The dock stays size-6
+ *  on its own declaration. Not the 16px Phosphor rail.
+ *  docs/design-locks/social-home-craft-wave-1-lock-v1.md */
+export const HOUSE_HEADER_TRAILING_ICON_CLASS = "size-6 shrink-0";
 
 /** Phone header trailing instance — Regular size-6 on bottom-bar idle ink.
  *  Hidden from md+, so the ink override does not touch desktop text-ink-3. */
 export const HOUSE_HEADER_TRAILING_PHONE_CLASS = `${HOUSE_HEADER_TRAILING_ICON_CLASS} md:hidden ${HOUSE_PHONE_CHROME_IDLE_INK_CLASS}`;
 
-/** Desktop header trailing instance — size-5 (20). Not the 16px Phosphor rail.
- *  Phone dock stays on HOUSE_PHONE_CHROME_ICON_CLASS (size-6). Not ~18px.
- *  docs/design-locks/social-home-density-craft-sequel-lock-v1.md */
-export const HOUSE_HEADER_TRAILING_DESKTOP_CLASS = "size-5 shrink-0 hidden md:block";
+/** Desktop header trailing instance — same 24px box as phone.
+ *  Wave 1 rematches density M3 size-5. Cluster gap stays space-4.
+ *  Phone dock stays on HOUSE_PHONE_CHROME_ICON_CLASS. Not ~18px.
+ *  docs/design-locks/social-home-craft-wave-1-lock-v1.md */
+export const HOUSE_HEADER_TRAILING_DESKTOP_CLASS = "size-6 shrink-0 hidden md:block";
 
 /** Bottom nav rides the 24px SoT (HOUSE_PHONE_CHROME_ICON_CLASS),
  *  the same optical size as the phone header trailing. The two

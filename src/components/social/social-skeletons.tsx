@@ -13,7 +13,6 @@ import {
   SOCIAL_CREATE_CARD_CLASS,
   SOCIAL_CREATE_WELL_CLASS,
   SOCIAL_DM_INBOX_ROW_CLASS,
-  SOCIAL_FEED_CHROME_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_ROW_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
@@ -107,7 +106,7 @@ export function SocialHomeCenterSkeleton({
       <div data-social-feed-skeleton="" className={SOCIAL_FEED_GUTTER_CLASS}>
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className={SOCIAL_FEED_ROW_CLASS}>
-            <div className={`flex gap-2 ${SOCIAL_FEED_CHROME_CLASS}`}>
+            <div className="flex gap-2">
               <Skeleton className={SOCIAL_AVATAR_SM_CLASS} />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <Skeleton className="h-3.5 w-1/3" />
@@ -195,7 +194,7 @@ export function SocialProfileCenterSkeleton() {
       <div className={SOCIAL_FEED_GUTTER_CLASS}>
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className={SOCIAL_FEED_ROW_CLASS}>
-            <div className={`flex gap-2 ${SOCIAL_FEED_CHROME_CLASS}`}>
+            <div className="flex gap-2">
               <Skeleton className={SOCIAL_AVATAR_SM_CLASS} />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <Skeleton className="h-3.5 w-1/3" />

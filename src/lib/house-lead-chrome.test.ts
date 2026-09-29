@@ -235,12 +235,12 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
   it("locks desktop header height and the sizes that derive from it", () => {
     const tokens = readFileSync("src/app/tokens.css", "utf8");
     expect(tokens).toMatch(/--header-height:\s*88px;/);
-    expect(tokens).toMatch(/--header-avatar-size:\s*44px;/);
+    expect(tokens).toMatch(/--header-avatar-size:\s*28px;/);
     expect(tokens).toMatch(/--header-control-size:\s*44px;/);
     expect(tokens).toMatch(/--header-search-height:\s*48px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*64px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*40px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*24px;/);
+    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*28px;/);
+    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*44px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-search-height:\s*44px;/);
     expect(HOUSE_LEAD_SEARCH_PILL_CLASS).toContain("h-[var(--header-search-height)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");

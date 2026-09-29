@@ -91,10 +91,10 @@ export function SocialPostShareButton({
         aria-label={SOCIAL.post.share}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={tone === "stage" ? cn(SOCIAL_POST_ACTION_HIT_CLASS, "text-band-ink") : "text-ink"}
+        className={cn(SOCIAL_POST_ACTION_HIT_CLASS, tone === "stage" && "text-band-ink")}
         onClick={() => setOpen(true)}
       >
-        <SocialIcon name="paper-plane-tilt" size={tone === "stage" ? SOCIAL_ICON_SIZE_POST_ACTION : 22} />
+        <SocialIcon name="paper-plane-tilt" size={SOCIAL_ICON_SIZE_POST_ACTION} />
       </button>
       {open ? (
         <SocialPostShareSheet

@@ -112,7 +112,9 @@
      SoT. Phone rises 56 to 64 with the 24px trail so the bar is not
      empty air around a larger glyph. */
   --header-height: 88px;
-  --header-avatar-size: 44px;
+  /* Wave 1: avatar ~28 (1.15× the 24 glyph box). Hit stays 44.
+     docs/design-locks/social-home-craft-wave-1-lock-v1.md */
+  --header-avatar-size: 28px;
   --header-control-size: 44px;
   --header-search-height: 48px;
   /* Dest-rail slot. One measure for Aggregation, Social, Education,
@@ -155,8 +157,8 @@
     --sidebar-width-collapsed: 0px;
     --access-rail-width: 0px;
     --header-height: 64px;
-    --header-avatar-size: 40px;
-    --header-control-size: 24px;
+    --header-avatar-size: 28px;
+    --header-control-size: 44px;
     --header-search-height: 44px;
   }
 }
