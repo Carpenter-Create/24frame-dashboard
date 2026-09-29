@@ -21,6 +21,8 @@ import { availableWorkspaceOptions } from "@/lib/workspace-menu";
 import {
   APP_HEADER_LEADING_CLASS,
   APP_HEADER_TRAILING_CLUSTER_CLASS,
+  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
+  APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
 } from "@/lib/workspace-switcher";
 
 export function HouseLeadChrome({
@@ -116,9 +118,30 @@ export function HouseLeadChrome({
               {trailingNav}
             </div>
           ) : null}
+          <div
+            data-app-header-workspace-desktop=""
+            className={APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS}
+          >
+            <WorkspaceSwitcher
+              presentation="pills"
+              current={workspace}
+              options={workspaceOptions}
+              isGcStaff={isGcStaff}
+            />
+          </div>
           <AskAssistantHeaderLink />
           <ActivityBell unread={activityUnread} items={activityItems} workspace={workspace} />
-          <WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />
+          <div
+            data-app-header-workspace-waffle=""
+            className={APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS}
+          >
+            <WorkspaceSwitcher
+              presentation="waffle"
+              current={workspace}
+              options={workspaceOptions}
+              isGcStaff={isGcStaff}
+            />
+          </div>
           {accountMenu}
         </div>
       </header>

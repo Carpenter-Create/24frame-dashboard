@@ -1,16 +1,19 @@
 // Header workspace switch. Lives in lib/, not JSX.
 // docs/design-locks/shell-workspace-waffle-layer-lock-v1.md
-// Trigger is an icon-only waffle in the trailing utility cluster:
-// search · optional (Ask) · bell · waffle · avatar. No Social pill,
-// no workspace-name dropdown, no sliding pills of workspace names.
-// Panel is Layer 1 tiles only, in lock order: Social · Education ·
-// Aggregation (when the existing options gate includes it) · Staff
-// (when isGcStaff). Hide lanes the caller omits. No dead tiles.
-// Social Layer 2 dests stay out of the panel (Home / Explore /
-// Create / Messages / Profile). Account / Settings / Help stay on
-// the avatar menu — same jobs as today. Desktop face is the
-// portaled MenuSurface-class panel. Phone face is the existing
-// app sheet. Same tile inventory.
+// docs/design-locks/shell-desktop-top-nav-slider-waffle-phone-lock-v1.md
+// One Layer 1 inventory. Two faces by host (md = 768).
+// Desktop md+: sliding segmented row of workspace names in the
+// header trailing cluster, before Ask · bell · avatar. No waffle.
+// Phone/tablet max-md: icon-only waffle in the trailing utility
+// cluster — search · optional (Ask) · bell · waffle · avatar.
+// No labeled Social pill. No workspace-name dropdown. No slider
+// on the phone. Panel and slider are Layer 1 only, in lock order:
+// Social · Education · Aggregation (when the existing options gate
+// includes it) · Staff (when isGcStaff). Hide lanes the caller
+// omits. No dead tiles. Social Layer 2 dests stay out (Home /
+// Explore / Create / Messages / Profile). Account / Settings /
+// Help stay on the avatar menu. Phone face is the existing app
+// sheet. Same tile inventory as the desktop slider.
 // Dock dests stay in-workspace only.
 // Leading air (settings back ↔ emblem) is --space-3 (12). Not
 // --space-1. Do not put overflow-hidden on the leading row (#412).
@@ -24,8 +27,8 @@
 // Ask 24Frame AI sits immediately left of the
 // bell and opens the Mercury overlay. Ask AI is header + Home
 // module only (#465). Do not reintroduce a dest hamburger.
-// Sliding-pill hosts and the labeled workspace pill are retired.
-// Do not restore them.
+// Desktop md+ restores the sliding segmented row (hidden md:contents).
+// The labeled workspace pill stays retired. Do not restore tone="pill".
 // No rail / header-lead #321 duplicate. Rail top-left stays the
 // static 24 brand. Do not invent Move / search.
 // Do not return the Social Messages icon to the top bar.
@@ -52,6 +55,13 @@ import {
   HOUSE_LEAD_UNDER_NAV_CLASS,
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
+import {
+  HOUSE_SEGMENTED_ITEM_BASE_CLASS,
+  HOUSE_SEGMENTED_ITEM_OFF_CLASS,
+  HOUSE_SEGMENTED_ITEM_ON_CLASS,
+  HOUSE_SEGMENTED_THUMB_CLASS,
+  HOUSE_SEGMENTED_TRACK_CLASS,
+} from "@/lib/house-shell";
 import {
   APP_SHEET_HOST_CLASS,
   APP_SHEET_SCRIM_CLASS,
@@ -163,6 +173,31 @@ export const APP_HEADER_LEADING_CLASS =
 
 export const WORKSPACE_SWITCHER_HOST_CLASS = "relative min-w-0 overflow-visible";
 
+// Desktop md+ sliding row. Parent display:none below md; contents so
+// the track is a trailing-cluster flex item from md up. Pre-#699 slot.
+export const APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden md:contents";
+
+// Waffle is the phone/tablet face. Hidden from md up.
+export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 md:hidden";
+
+// Desktop segmented track — one continuous muted bar, sliding accent
+// thumb. Same grammar as Top Performing. Full words. shrink-0.
+// Hide unavailable lanes in the caller options. No Layer 2 labels.
+export const WORKSPACE_SWITCHER_SEGMENTS_CLASS = HOUSE_SEGMENTED_TRACK_CLASS;
+
+export const WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS = HOUSE_SEGMENTED_THUMB_CLASS;
+
+export const WORKSPACE_SWITCHER_SEGMENT_CLASS = HOUSE_SEGMENTED_ITEM_BASE_CLASS;
+
+export const WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS = "whitespace-nowrap";
+
+export const WORKSPACE_SWITCHER_SEGMENT_ON_CLASS = HOUSE_SEGMENTED_ITEM_ON_CLASS;
+
+export const WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS = HOUSE_SEGMENTED_ITEM_OFF_CLASS;
+
+export const WORKSPACE_SWITCHER_STATIC_CLASS =
+  "flex min-w-0 items-center px-2 py-1 t-body-sm font-medium text-ink";
+
 export function workspaceSwitcherOptions(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
 ): readonly WorkspaceMenuOption[] {
@@ -205,6 +240,32 @@ export const WORKSPACE_WAFFLE_TILE_CURRENT_CLASS = "bg-surface-muted";
 export const WORKSPACE_WAFFLE_TILE_LABEL_CLASS = "whitespace-normal";
 
 export const WORKSPACE_WAFFLE_ICON_CLASS = "size-6 shrink-0";
+
+export function workspaceSwitcherSegmentClass(selected: boolean): string {
+  return selected
+    ? `${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_ON_CLASS}`
+    : `${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS}`;
+}
+
+export function workspaceSwitcherSegmentTabIndex(selected: boolean): number {
+  return selected ? 0 : -1;
+}
+
+export function workspaceSwitcherNextSegmentIndex(
+  index: number,
+  count: number,
+  direction: 1 | -1,
+): number {
+  if (count <= 0) return 0;
+  return (index + direction + count) % count;
+}
+
+/** Desktop slider segments. Same lanes, order, and gate as the waffle. */
+export function workspaceSliderSegments(
+  options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
+): WorkspaceMenuOption[] {
+  return workspaceWaffleTiles(options);
+}
 
 export function workspaceWaffleTiles(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),

@@ -78,7 +78,8 @@ type Org = { id: string; name: string };
 // flash) and, when collapsed, overrides `--sidebar-width` so the header + main follow.
 // Phone: the rail is gone (hidden + width tokens collapse). Local dests
 // live in HousePhoneBottomNav — client dests on Aggregation, operator
-// dests on Staff. Workspace switch is the header sheet. No hamburger.
+// dests on Staff. Phone workspace switch is the header waffle.
+// Desktop md+ uses the sliding Layer 1 row. No hamburger.
 // One return tree — Social is a flag, not a second shell. Workspace
 // hops keep chrome mounted so the sheet and dock do not freeze.
 // Desktop collapse path is unchanged. Width is `--sidebar-width`.

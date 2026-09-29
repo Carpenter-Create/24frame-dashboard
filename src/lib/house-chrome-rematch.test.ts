@@ -195,7 +195,8 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead.indexOf("</header>")).toBeLessThan(lead.indexOf("data-house-under-nav"));
     expect(lead).toContain('data-education-header-search-host={education ? "phone" : undefined}');
     expect(trailing).toContain("<WorkspaceSwitcher");
-    expect(trailing).not.toContain('presentation="pills"');
+    expect(trailing).toContain('presentation="pills"');
+    expect(trailing).toContain('presentation="waffle"');
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
     expect(trailing).toContain("data-social-header-actions");
@@ -222,13 +223,15 @@ describe("house chrome rematch miss list v1.1", () => {
   });
 
   it("keeps one phone workspace switcher, Staff as its own workspace, one Sporty Blue pill", () => {
-    expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
+    expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
     expect(shell).toContain("<HouseLeadChrome");
     expect(existsSync("src/components/social/social-top-bar.tsx")).toBe(false);
-    expect(lead).not.toContain('presentation="pills"');
+    expect(lead).toContain('presentation="pills"');
+    expect(lead).toContain('presentation="waffle"');
     expect(lead).not.toContain('tone="pill"');
     expect(lead).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
-    expect(lead).toContain("<WorkspaceSwitcher current={workspace} options={workspaceOptions} isGcStaff={isGcStaff} />");
+    expect(lead).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
+    expect(lead).toContain("APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS");
     expect(nav).toContain('if (workspace === "social") return { items: SOCIAL_NAV, staffItems: [] }');
     expect(sideNav).toContain("staffItems");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");

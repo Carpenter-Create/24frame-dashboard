@@ -15,6 +15,7 @@ const lib = readFileSync("src/lib/segmented-track.ts", "utf8");
 
 const CONSUMERS = [
   "src/components/chrome/house-period-presets.tsx",
+  "src/components/chrome/workspace-switcher.tsx",
   "src/components/activity/activity-family-chips.tsx",
   "src/components/reports/reports-ranked.tsx",
   "src/components/reports/reports-controls.tsx",
@@ -101,9 +102,10 @@ describe("SegmentedTrack slide SoT", () => {
 
     const waffle = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
     expect(waffle).toContain("workspaceWaffleTiles");
+    expect(waffle).toContain("workspaceSliderSegments");
     expect(waffle).toContain('data-workspace-waffle=""');
-    expect(waffle).not.toContain("SegmentedTrack");
-    expect(waffle).not.toContain("SEGMENTED_TRACK_PERSIST");
+    expect(waffle).toContain("SegmentedTrack");
+    expect(waffle).toContain("SEGMENTED_TRACK_PERSIST.workspace");
     expect(waffle).not.toContain("HOUSE_FILTER_PILL_CLUSTER_CLASS");
   });
 

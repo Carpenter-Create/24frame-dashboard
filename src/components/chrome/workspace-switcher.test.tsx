@@ -66,11 +66,13 @@ describe("workspace waffle header control", () => {
     expect(html).not.toContain(">Aggregation<");
     expect(html).not.toContain(">Social<");
     expect(html).not.toContain("bg-accent");
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
-    expect(leadSrc).not.toContain('presentation="pills"');
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    expect(leadSrc).toContain('presentation="pills"');
+    expect(leadSrc).toContain('presentation="waffle"');
     expect(leadSrc).not.toContain('tone="pill"');
     expect(leadSrc).not.toContain("data-app-header-workspace-pill");
-    expect(leadSrc).not.toContain("data-app-header-workspace-desktop");
+    expect(leadSrc).toContain("data-app-header-workspace-desktop");
+    expect(leadSrc).toContain("data-app-header-workspace-waffle");
     expect(shellSrc).not.toContain("data-workspace-switcher-rail");
     expect(shellSrc).not.toContain("data-workspace-switcher-lead");
     expect(existsSync("src/components/social/social-top-bar.tsx")).toBe(false);
@@ -82,8 +84,9 @@ describe("workspace waffle header control", () => {
     expect(triggerSrc).not.toContain("CaretDown");
     expect(src).toContain("createPortal");
     expect(src).toContain("workspaceSwitcherMenuStyle");
-    expect(src).not.toContain("SegmentedTrack");
-    expect(src).not.toContain('presentation="pills"');
+    expect(src).toContain("SegmentedTrack");
+    expect(src).toContain('data-workspace-switcher-presentation="pills"');
+    expect(src).not.toContain('tone="pill"');
   });
 
   it("opens Layer 1 tiles on the sheet and the desktop panel — current marked", () => {
@@ -201,7 +204,7 @@ describe("workspace waffle placement", () => {
   it("sits in the utility cluster after the bell and before the avatar", () => {
     expect(leadSrc).toContain("data-brand-emblem");
     expect(leadSrc).toContain("data-app-header-trailing");
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(1);
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
     expect(shellSrc).toContain("<HouseLeadChrome");
     const leading = leadSrc.slice(
       leadSrc.indexOf("data-app-header-leading"),
@@ -216,13 +219,16 @@ describe("workspace waffle placement", () => {
     expect(trailing).toContain("<AskAssistantHeaderLink />");
     expect(trailing).toContain("<ActivityBell");
     expect(trailing).toContain("{accountMenu}");
+    expect(trailing.indexOf('presentation="pills"')).toBeLessThan(
+      trailing.indexOf("<AskAssistantHeaderLink />"),
+    );
     expect(trailing.indexOf("<AskAssistantHeaderLink />")).toBeLessThan(
       trailing.indexOf("<ActivityBell"),
     );
     expect(trailing.indexOf("<ActivityBell")).toBeLessThan(
-      trailing.indexOf("<WorkspaceSwitcher"),
+      trailing.indexOf('presentation="waffle"'),
     );
-    expect(trailing.indexOf("<WorkspaceSwitcher")).toBeLessThan(
+    expect(trailing.indexOf('presentation="waffle"')).toBeLessThan(
       trailing.indexOf("{accountMenu}"),
     );
     expect(trailing).not.toContain("ThemeToggle");
@@ -250,6 +256,38 @@ describe("workspace waffle placement", () => {
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
+  });
+});
+
+describe("desktop sliding workspace row", () => {
+  it("lists Layer 1 lanes only — same inventory as the waffle, no dock tabs", () => {
+    const html = renderToStaticMarkup(
+      <WorkspaceSwitcher presentation="pills" current="social" />,
+    );
+    expect(html).toContain('data-workspace-switcher-presentation="pills"');
+    expect(html).toContain("data-workspace-switcher-pills");
+    expect(html).toContain('data-workspace-switcher-segment="social"');
+    expect(html).toContain('data-workspace-switcher-segment="education"');
+    expect(html).toContain('data-workspace-switcher-segment="aggregation"');
+    expect(html).not.toContain('data-workspace-switcher-segment="home"');
+    expect(html).not.toContain('data-workspace-switcher-segment="staff"');
+    expect(html).not.toContain("data-workspace-waffle");
+    expect(html).not.toContain(">Home<");
+    expect(html).not.toContain(">Explore<");
+    expect(html).not.toContain(">Create<");
+    expect(html).not.toContain(">Messages<");
+    expect(html).not.toContain(">Profile<");
+    expect(html).not.toContain("Co-Productions");
+    const staff = renderToStaticMarkup(
+      <WorkspaceSwitcher
+        presentation="pills"
+        current="staff"
+        isGcStaff
+        options={availableWorkspaceOptions({ isGcStaff: true })}
+      />,
+    );
+    expect(staff).toContain('data-workspace-switcher-segment="staff"');
+    expect(staff).toContain(">Staff<");
   });
 });
 

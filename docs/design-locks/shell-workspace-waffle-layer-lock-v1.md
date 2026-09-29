@@ -7,7 +7,8 @@
 **House:** Coinbase register · Geist · Sporty Blue `#1769FF` · spacing 8/16/24/48 · hairline · **no** drop shadows · Launch-great · quiet redundant-chrome  
 **Supersedes:** `workspace-switcher-sliding-pill-miss-list-v1.md` · `workspace-desktop-sliding-pill-miss-list-v1.md` (sliding-pill / labeled workspace control in header)  
 **Related:** `desktop-avatar-menu-coinbase-lock-v1.md` (avatar MenuSurface — unchanged) · `dashboard-coinbase-shell-miss-list-v1.md` (quiet utilities SoT) · Coinbase shell shots `/workspace/24frame-agg-ux/coinbase-shell-sot/`  
-**No invent** beyond Adam voice in this brief.
+**No invent** beyond Adam voice in this brief.  
+**Amended 2026-09-29:** [`shell-desktop-top-nav-slider-waffle-phone-lock-v1.md`](shell-desktop-top-nav-slider-waffle-phone-lock-v1.md) splits the host. Waffle is **phone/tablet (`max-md`) only**. Desktop (`md+`) restores the Layer 1 sliding workspace row and hides the waffle. Layer 1 inventory, entitlement, and the Social Layer 2 dock in this lock stay.
 
 ---
 
@@ -83,7 +84,7 @@ Layer 2 is **in-Social** only. Switching Aggregation ↔ Social ↔ Education is
 
 - Do **not** put workspaces in the Social dock  
 - Do **not** keep a Social (or any workspace) **labeled pill** in the header  
-- Do **not** restore sliding-pill workspace names in the header  
+- Do **not** restore sliding-pill workspace names on the **phone** header. Desktop `md+` is amended by `shell-desktop-top-nav-slider-waffle-phone-lock-v1.md`  
 - Do **not** invent Layer 3 chrome, new dock tabs, or waffle tile destinations beyond Adam list  
 - Do **not** change entitlement rules  
 - Do **not** restyle avatar menu beyond existing Coinbase avatar lock  
@@ -93,8 +94,10 @@ Layer 2 is **in-Social** only. Switching Aggregation ↔ Social ↔ Education is
 
 ## Gates
 
-**G1.** Header has **no** Social pill / labeled workspace dropdown / sliding-pill names.  
-**G2.** Waffle sits in utility cluster: **search · optional · bell · waffle · avatar**; optical size matches peers.  
+Desktop host face is amended. G1–G2 below apply to the **phone/tablet** header. Desktop `md+` follows `shell-desktop-top-nav-slider-waffle-phone-lock-v1.md`.
+
+**G1.** Phone header has **no** Social pill / labeled workspace dropdown / sliding-pill names.  
+**G2.** On phone/tablet, waffle sits in the utility cluster: **search · optional · bell · waffle · avatar**; optical size matches peers. Desktop hides the waffle.  
 **G3.** Waffle panel = Layer 1 sectioned tiles; current marked; entitlement gating unchanged.  
 **G4.** Social dock remains Layer 2 only (Home/Explore/Create/Messages/Profile); **no** workspaces in dock; slim; icon scale matches header.  
 **G5.** No invent beyond this IA.
