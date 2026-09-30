@@ -1,5 +1,11 @@
 import { SOCIAL_DESKTOP_MEASURE } from "@/lib/social-chrome";
 import { SOCIAL_AVATAR_ROUTE, SOCIAL_MEDIA_ROUTE } from "@/lib/social-edge";
+import {
+  isSocialMuxId,
+  socialMuxPlaybackRequiresTokens,
+  socialMuxThumbnailUrl,
+  type SocialMuxPlaybackPolicy,
+} from "@/lib/social-mux";
 
 // Display-only Social media helpers. Signing stays in s3-avatars /
 // s3-social-media. No upload or recorder changes.
@@ -109,7 +115,7 @@ export const SOCIAL_FEED_VIDEO_MAX_H = "min(70vh, 560px)";
 
 /** No ratio yet. Not a 16:9 slot. */
 export const SOCIAL_FEED_VIDEO_PENDING_CLASS =
-  "relative w-full overflow-hidden bg-surface-muted";
+  "relative w-full shrink-0 overflow-hidden bg-surface-muted";
 
 export type SocialFeedVideoOrientation = "portrait" | "landscape" | "square";
 
@@ -144,13 +150,47 @@ export function socialFeedVideoFrame(input: {
     height > width ? "portrait" : width > height ? "landscape" : "square";
   return {
     orientation,
-    className: "relative mx-auto block max-w-full self-center overflow-hidden bg-surface-muted",
+    // shrink-0: the frame is a column-flex item. Absolute media has no
+    // min-content size, and a column flex item will otherwise collapse
+    // the main size to 0 even when aspect-ratio is set.
+    className: "relative mx-auto block max-w-full shrink-0 self-center overflow-hidden bg-surface-muted",
     style: {
       aspectRatio: `${width} / ${height}`,
       width: `min(100%, calc(${SOCIAL_FEED_VIDEO_MAX_H} * ${width} / ${height}))`,
       maxHeight: SOCIAL_FEED_VIDEO_MAX_H,
     },
   };
+}
+
+/**
+ * Still for an in-feed video. Public thumbs paint immediately.
+ * Signed thumbs stay empty until a thumbnail JWT exists — an unsigned
+ * image.mux.com src is the broken-image glyph.
+ * A video-file URL is not a poster.
+ */
+export function socialFeedVideoPosterSrc(input: {
+  playbackId?: string | null;
+  playbackPolicy?: SocialMuxPlaybackPolicy | null;
+  thumbnailToken?: string | null;
+}): string {
+  const playbackId = input.playbackId ?? "";
+  if (!isSocialMuxId(playbackId)) return "";
+  if (socialMuxPlaybackRequiresTokens(input.playbackPolicy)) {
+    const token = input.thumbnailToken?.trim() ?? "";
+    if (!token) return "";
+    return socialMuxThumbnailUrl(playbackId, token);
+  }
+  return socialMuxThumbnailUrl(playbackId);
+}
+
+/** Any overlap with the viewport, including a zero-height frame sitting in it. */
+export function socialFeedFrameOnScreen(
+  rect: { top: number; bottom: number },
+  viewportHeight: number,
+): boolean {
+  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) return false;
+  if (!Number.isFinite(rect.top) || !Number.isFinite(rect.bottom)) return false;
+  return rect.bottom > 0 && rect.top < viewportHeight;
 }
 
 /** Story viewer lane only. A portrait story stays tall instead of the feed 16:9 crop. */

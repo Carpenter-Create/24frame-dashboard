@@ -9,10 +9,12 @@ vi.mock("next/image", () => ({
   default: ({
     src,
     className,
+    loading,
   }: {
     src: string;
     className?: string;
-  }) => createElement("img", { src, className, alt: "" }),
+    loading?: "eager" | "lazy";
+  }) => createElement("img", { src, className, alt: "", loading }),
 }));
 
 const dynamicRegistry = vi.hoisted(() => ({
@@ -892,6 +894,8 @@ describe("SocialPostCard media", () => {
     );
     expect(still).toContain("aspect-[4/5]");
     expect(still).toContain("object-cover");
+    expect(still).toContain('loading="eager"');
+    expect(still).not.toContain('loading="lazy"');
     expect(still).not.toContain("aspect-square");
 
     const clip = renderToStaticMarkup(
@@ -915,7 +919,10 @@ describe("SocialPostCard media", () => {
     );
     expect(clip).not.toContain("aspect-video");
     expect(clip).not.toContain("aspect-[4/5]");
-    expect(clip).toContain("object-cover");
+    expect(clip).toContain("object-contain");
+    expect(clip).toContain('loading="eager"');
+    expect(clip).toContain('data-social-feed-video-poster=""');
+    expect(clip).toContain("https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp?time=0");
     expect(clip).not.toContain("aspect-square");
     expect(clip).not.toContain("data-social-feed-video-frame=");
 
@@ -940,6 +947,10 @@ describe("SocialPostCard media", () => {
     );
     expect(portrait).toContain('data-social-feed-video-frame="portrait"');
     expect(portrait).toContain("aspect-ratio:1080 / 1920");
+    expect(portrait).toContain("height:auto");
+    expect(portrait).toContain('data-social-feed-video-poster=""');
+    expect(portrait).toContain('loading="eager"');
+    expect(portrait).toContain("https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp?time=0");
     expect(portrait).not.toContain("aspect-video");
     expect(portrait).not.toContain("aspect-[4/5]");
     expect(portrait).not.toContain("aspect-square");
@@ -1194,6 +1205,8 @@ describe("SocialPostCard media", () => {
     expect(cheese).toContain('data-social-mux-player="uNbxnGLKJ00yfbijDO8COxT"');
     expect(cheese).toContain('data-social-mux-playback="pending"');
     expect(cheese).not.toContain("data-social-post-image");
+    expect(cheese).not.toContain("data-social-feed-video-poster");
+    expect(cheese).not.toContain("image.mux.com");
     expect(cheese).not.toContain("<img");
     expect(cheese).not.toContain("<video");
   });

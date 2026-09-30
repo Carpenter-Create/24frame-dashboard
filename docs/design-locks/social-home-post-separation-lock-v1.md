@@ -67,7 +67,9 @@ A portrait video is vertical inside the surface card before the viewer opens it.
 | `height > width` | Portrait. `aspect-ratio` is `width / height`. Not `aspect-video`. Not a 4:5 crop of a taller video |
 | `width > height` | Landscape. Same ratio. Not stretched into the portrait box |
 | `width === height` | Square. That ratio |
-| Cap | `min(70vh, 560px)` still applies. When it binds, the width narrows (`min(100%, calc(cap * width / height))`) so the ratio stays. The picture is not cover-cropped into a landscape slot and not stretched |
+| Cap | `min(70vh, 560px)` still applies. When it binds, the width narrows (`min(100%, calc(cap * width / height))`) so the ratio stays. The picture is not cover-cropped into a landscape slot and not stretched. The still is in flow (`height: auto` on that ratio), not an absolute layer in an empty box |
+| Missing width or height | The picture still paints. Not a 16:9 guess and not an empty reserved box. The still is in flow, `object-contain`, capped at `min(70vh, 560px)`, until real edges exist |
+| Still | A public thumb paints in the card immediately (`loading="eager"`). A signed thumb paints when any part of the frame meets the viewport, including above the fold. It does not wait for the 60% Mux player mount |
 | Phone and desktop | The same function. No host that paints a portrait video as landscape |
 
 Stills stay `socialMediaFrameClass` (4:5 / 16:9). N≥2 stays the shared carousel stage. Explore stays the portrait stage that already shipped.

@@ -59,7 +59,7 @@ function CarouselSlideFace({
       />
     );
   }
-  return <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} />;
+  return <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} loading="eager" />;
 }
 
 export function SocialFeedCarousel({
