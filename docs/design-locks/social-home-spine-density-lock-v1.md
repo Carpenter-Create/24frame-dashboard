@@ -96,7 +96,7 @@ Posts stay on the page canvas (no gray FB gutter slabs). Hairline between rows s
 | **Media frame** | **Full width of Home center** — **no** 16px side inset on the media |
 | Implementation intent | Split padding: chrome keeps `px-16`; media `w-full` / `px-0` (negative margin OK) |
 | Radius | Phone: media side radius **0** (bleed) · Desktop: bleed inside 720, or **8** only if a true surface card returns |
-| Aspect | Keep SoT — **4:5** image / **16:9** video via `socialMediaFrameClass` · never aspect-square |
+| Aspect | Stills stay **4:5** / **16:9** via `socialMediaFrameClass` · never aspect-square. In-feed video uses real width and height (`social-home-post-separation-lock-v1.md`), not a 16:9 slot |
 | Between posts | One hairline only · no muted py slabs |
 
 **FAIL:** Visible empty gutters between media edge and column edge · soft postcard paste.

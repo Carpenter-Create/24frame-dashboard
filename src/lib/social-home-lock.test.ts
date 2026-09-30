@@ -371,13 +371,13 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_ROW_CLASS).toContain("overflow-hidden");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
-    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-4)]");
+    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).toContain("shrink-0");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("flex-col");
-    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[10px]");
-    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[6px]");
+    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[var(--space-4)]");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[var(--space-4)]");
     expect(SOCIAL_POST_ACTIONS_GAP_CLASS).toBe("gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toBe("flex flex-row items-center gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
@@ -440,9 +440,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_ROW_CLASS).toContain("rounded-[var(--radius-lg)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)(?:m[ytb]|my)-/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("py-[var(--space-4)]");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-4)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-2)]");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-4)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("p-[var(--space-4)]");
     expect(SOCIAL_MOBILE_BLEED_CLASS.startsWith("max-md:")).toBe(true);
     expect(SOCIAL_MOBILE_BLEED_CLASS).toContain("-mx-[var(--chrome-gutter)]");

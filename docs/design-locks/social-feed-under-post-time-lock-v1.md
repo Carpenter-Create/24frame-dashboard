@@ -39,7 +39,7 @@ Those two points moved. Cite [`social-home-post-separation-lock-v1.md`](social-h
 
 `SOCIAL_POST_TIME_CLASS` stays `block` + `leading-none`. The permalink link must not inherit body line-height 1.6 — that strut put ~8px under the glyphs.
 
-The 2026-09-29 reading (`pb-[var(--space-2)]`, hairline out, measured ~10 from the time baseline) is **amended**. The earlier Wave 1 `pb-[var(--space-6)]` sat under the time and opened **~32 CSS px** (~34 on the prod screenshot, ~102 device px at 3x). That stacking is **out**. Padding under the time, inside the card, stays `--space-4`. The white gap between cards is the gutter’s `--space-6` (`HOUSE_SECTION_AIR_CLASS`), not row padding. No `divide-y` on the gutter.
+The 2026-09-29 reading (`pb-[var(--space-2)]`, hairline out, measured ~10 from the time baseline) is **amended**. The earlier Wave 1 `pb-[var(--space-6)]` sat under the time and opened **~32 CSS px** (~34 on the prod screenshot, ~102 device px at 3x) because the time link still had a body strut. That stacking is **out**. `leading-none` stays. Padding under the time, inside the card, is `--space-6` (`pb-[var(--space-6)]`) per the post-separation interior-air amend. The white gap between cards is the gutter’s `--space-6` (`HOUSE_SECTION_AIR_CLASS`), not row padding. No `divide-y` on the gutter.
 
 ## Out
 

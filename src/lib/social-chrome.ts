@@ -382,17 +382,19 @@ export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 // The card does not bleed to the phone viewport. The frame gutter is
 // the white side canvas. Do not put SOCIAL_MOBILE_BLEED_CLASS here.
 // overflow-hidden clips media to the card radius.
-// pb space-4 stays under the time, inside the card. It is not the
+// pb space-6 stays under the time, inside the card. It is not the
 // separator. The separator is this card plus the gutter gap.
+// Was space-4. The step up is the house 24, not a new scale.
 // docs/design-locks/social-home-post-separation-lock-v1.md
 // docs/design-locks/social-feed-under-post-time-lock-v1.md
-export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-4)]";
+export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-6)]";
 
-// Media → actions ~10. Not the 8/16 scale — the lock names ~10.
-export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-[10px]";
+// Media → actions. House 16. Was the off-scale 10px.
+export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-[var(--space-4)]";
 
-// Likes / caption / comments. 6 sits in the locked 4–6 band.
-export const SOCIAL_FEED_META_ROW_GAP_CLASS = "flex flex-col gap-[6px]";
+// Actions, then likes / caption / comments / time. House 16.
+// Was the off-scale 6px. Time stays its own line in this stack.
+export const SOCIAL_FEED_META_ROW_GAP_CLASS = "flex flex-col gap-[var(--space-4)]";
 
 // Text-only keeps the prior 8 between the author row and actions.
 // Text-only grammar itself stays frozen.
@@ -411,12 +413,12 @@ export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
 export const SOCIAL_FEED_ROW_CLASS =
   `block shrink-0 overflow-hidden ${HOUSE_MODULE_CLASS} ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS}`;
 
-// Feed media fills the card. px-0. It does not cancel the frame gutter:
+// Feed media fills the card width. px-0. It does not cancel the frame gutter:
 // the card edge is the media edge, and the row clips the corners.
-// mt-2 is the author → media air (flex gap is gone so this margin is
-// the only author-to-media space).
+// mt space-4 is the author → media air (was space-2). Flex gap is gone
+// so this margin is the only author-to-media space.
 export const SOCIAL_POST_MEDIA_CLASS =
-  "mt-[var(--space-2)] flex w-full flex-col gap-2 px-0";
+  "mt-[var(--space-4)] flex w-full flex-col gap-2 px-0";
 
 // Messages inbox list. No full-width hairline — vertical pad is the
 // rhythm. The frame gutter keeps the face inset, so this row does not
@@ -437,7 +439,15 @@ export const SOCIAL_DM_INBOX_UNREAD_DOT_CLASS = "size-2 shrink-0 rounded-full bg
 
 // Named 16 inset family (--space-4). The feed row does not stack this
 // on the phone bleed pad or the desktop frame pad — one 16 only.
+// Author and meta use it. Media stays px-0 on SOCIAL_POST_MEDIA_CLASS.
 export const SOCIAL_FEED_CHROME_CLASS = "px-[var(--space-4)]";
+
+// Card edge → author. Horizontal 16 and top 16. The top was flush.
+export const SOCIAL_FEED_AUTHOR_EDGE_CLASS = `${SOCIAL_FEED_CHROME_CLASS} pt-[var(--space-4)]`;
+
+// Card edge → actions, likes, caption, and time. Same horizontal 16.
+// The media→actions margin is the air above this block.
+export const SOCIAL_FEED_META_EDGE_CLASS = SOCIAL_FEED_CHROME_CLASS;
 
 // Like · Comment · Share. One triplet on phone and desktop.
 // Hit 40, glyph 24 centered, gap 8 between hit edges.

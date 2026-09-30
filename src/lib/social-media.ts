@@ -66,7 +66,7 @@ export type SocialMediaItem = {
   uploadId?: string;
   assetId?: string;
   playbackPolicy?: SocialMuxPlaybackPolicy;
-  /** Source pixels. Feed portrait is 4:5 only when both are present. */
+  /** Source pixels. In-feed video uses both edges for its real ratio. */
   width?: number;
   height?: number;
 };

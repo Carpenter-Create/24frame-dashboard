@@ -25,13 +25,13 @@
 | Width | **Keep** full-bleed: phone viewport L/R **0** · desktop feed-column edges (cite full-bleed) |
 | Max height | **`min(70vh, 560)`** — hard cap on feed media box (photo **and** video face) |
 | Fit | `object-fit: cover` inside capped box · centered · no letterbox grey bars on feed face |
-| Portrait | Tall media crops to the cap — **does not** grow past **560** / **70vh** |
+| Portrait still | Tall stills crop to the cap — **does not** grow past **560** / **70vh** |
 | Landscape | Width fill · height follows aspect **until** cap |
 | Tap | Entire media face is hit → open immersive (§B) · cursor pointer · `aria-label` View photo / View video |
 | Below media (same post) | Actions row → likes meta → caption — all **inset H 16** · must sit **immediately under** capped media (not pushed a viewport away). Current text+media stack: [`social-feed-text-media-caption-below-lock-v1.md`](social-feed-text-media-caption-below-lock-v1.md). [`social-feed-text-media-caption-above-lock-v1.md`](social-feed-text-media-caption-above-lock-v1.md) is superseded. |
 | Caption feed | Username bold + caption `t-body` · visible without hunting under a massive face |
 | Actions | Cite post-actions align — hit **40** · glyph **24** · gap **8** · idle `text-ink-2` |
-| Video | Same cap · Mux-only · poster/frame fills capped box |
+| Video | Same cap `min(70vh, 560)`. In-feed frame is source width and height (`social-home-post-separation-lock-v1.md`). Not a 16:9 slot. When the cap binds, the frame narrows. It does not grow past the cap |
 
 **FAIL:** Uncapped portrait that eats the fold so caption/actions are hard to find or below the fold (`*-massive-*` · `*-below-fold-*`).  
 **PASS:** First fold shows media **and** a readable path to caption/actions (IG proportion · house tokens).

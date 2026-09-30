@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { socialMediaFrameClass } from "@/lib/social-media-display";
+import { socialFeedVideoFrame } from "@/lib/social-media-display";
 import {
   SOCIAL_AVATAR_ROUTE,
   SOCIAL_EDGE_RUNTIME,
@@ -176,8 +176,11 @@ describe("Social Edge media proxies", () => {
       AUTHOR,
     );
     expect(items[0]).toMatchObject({ kind: "video", playbackId: "uNbxnGLKJ00yfbijDO8COxT", width: 1080, height: 1920 });
-    expect(socialMediaFrameClass(items[0] ?? {})).toContain("aspect-[4/5]");
-    expect(socialMediaFrameClass(items[0] ?? {})).not.toContain("aspect-video");
+    const frame = socialFeedVideoFrame(items[0] ?? {});
+    expect(frame?.orientation).toBe("portrait");
+    expect(frame?.style.aspectRatio).toBe("1080 / 1920");
+    expect(frame?.className).not.toContain("aspect-video");
+    expect(frame?.className).not.toContain("aspect-[4/5]");
   });
 });
 

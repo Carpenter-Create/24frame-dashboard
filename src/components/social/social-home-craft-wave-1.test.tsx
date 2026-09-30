@@ -79,17 +79,18 @@ describe("Social Home craft Wave 1", () => {
       "docs/design-locks/social-home-post-separation-lock-v1.md",
       "utf8",
     );
-    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[10px]");
-    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toContain("gap-[6px]");
-    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-4)]");
+    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[var(--space-4)]");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toContain("gap-[var(--space-4)]");
+    expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-4)]");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-2)]");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-4)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
     expect(lock).toContain("social-feed-under-post-time-lock-v1.md");
     expect(lock).toContain("social-home-post-separation-lock-v1.md");
-    expect(separation).toContain("pb-[var(--space-4)]");
+    expect(separation).toContain("pb-[var(--space-6)]");
+    expect(separation).toContain("SOCIAL_FEED_AUTHOR_EDGE_CLASS");
     expect(separation).toContain("HOUSE_SECTION_AIR_CLASS");
     // Column flex on this row drops the padding on Mobile Safari.
     // Block keeps the air. shrink-0 stops the gutter from compressing it.
@@ -103,7 +104,8 @@ describe("Social Home craft Wave 1", () => {
     expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("gap-[var(--space-8)]");
     expect(SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS).toBe("mt-[var(--space-2)]");
-    expect(SOCIAL_POST_MEDIA_CLASS).toContain("mt-[var(--space-2)]");
+    expect(SOCIAL_POST_MEDIA_CLASS).toContain("mt-[var(--space-4)]");
+    expect(SOCIAL_POST_MEDIA_CLASS).not.toContain("mt-[var(--space-2)]");
     // Media fills the card. A block-end negative margin would cancel the air
     // or pull the image past the card.
     expect(SOCIAL_POST_MEDIA_CLASS).not.toContain("-mx-[var(--chrome-gutter)]");

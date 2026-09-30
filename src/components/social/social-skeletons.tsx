@@ -13,6 +13,7 @@ import {
   SOCIAL_CREATE_CARD_CLASS,
   SOCIAL_CREATE_WELL_CLASS,
   SOCIAL_DM_INBOX_ROW_CLASS,
+  SOCIAL_FEED_AUTHOR_EDGE_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_ROW_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
@@ -107,7 +108,7 @@ export function SocialHomeCenterSkeleton({
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="block min-w-0 shrink-0">
             <div className={SOCIAL_FEED_ROW_CLASS}>
-            <div className="flex gap-2">
+            <div className={cn("flex gap-2", SOCIAL_FEED_AUTHOR_EDGE_CLASS)}>
               <Skeleton className={SOCIAL_AVATAR_SM_CLASS} />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <Skeleton className="h-3.5 w-1/3" />
@@ -197,7 +198,7 @@ export function SocialProfileCenterSkeleton() {
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="block min-w-0 shrink-0">
             <div className={SOCIAL_FEED_ROW_CLASS}>
-            <div className="flex gap-2">
+            <div className={cn("flex gap-2", SOCIAL_FEED_AUTHOR_EDGE_CLASS)}>
               <Skeleton className={SOCIAL_AVATAR_SM_CLASS} />
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <Skeleton className="h-3.5 w-1/3" />
