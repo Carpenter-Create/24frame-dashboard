@@ -40,11 +40,12 @@ allowBuilds:
 #   advisory was carried as an ignore on the reasoning that 1.1.16 and 2.1.2 were the newest
 #   of their lines and both still vulnerable — so minimatch@3 had no backport to take.
 #
-#   THAT IS NO LONGER TRUE. The maintainers backported: 1.1.18, 2.1.4, 3.0.6 and 5.0.9 all
-#   carry the fix. Each line can now be raised WITHIN ITS OWN MAJOR, so minimatch@3 keeps the
-#   default-function export it calls.
+#   THAT IS NO LONGER TRUE. The maintainers backported within each major. Floors are 1.1.20,
+#   2.1.6, and 5.0.11 (GHSA-qhr7-859c-m2p7 and GHSA-6j4f-fj2g-mc7p; earlier 1.1.18 / 2.1.4 /
+#   5.0.9 covered GHSA-mh99-v99m-4gvg and GHSA-rgw5-rvv9-x895 only). Each line stays WITHIN
+#   ITS OWN MAJOR, so minimatch@3 keeps the default-function export it calls.
 #
-#   CARET RANGES ARE LOAD-BEARING. A bare '>=1.1.18' is also satisfied by 5.0.9, so pnpm
+#   CARET RANGES ARE LOAD-BEARING. A bare '>=1.1.20' is also satisfied by 5.0.11, so pnpm
 #   resolves every line to 5.x and silently reintroduces exactly the breakage above. Observed
 #   while making this change.
 #
@@ -56,9 +57,9 @@ allowBuilds:
 overrides:
   postcss: '>=8.5.18'
   sharp: '>=0.35.4'
-  brace-expansion@<1.1.18: '^1.1.18'
-  brace-expansion@>=2.0.0 <2.1.4: '^2.1.4'
-  brace-expansion@>=4.0.0 <5.0.9: '^5.0.9'
+  brace-expansion@<1.1.20: '^1.1.20'
+  brace-expansion@>=2.0.0 <2.1.6: '^2.1.6'
+  brace-expansion@>=4.0.0 <5.0.11: '^5.0.11'
   # Range-scoped within major — bare '>=' / unscoped caret can jump lines (see brace-expansion
   # note above). js-yaml is only 4.x here; browserslist is only 4.x; nanoid is only 3.x via postcss.
   js-yaml@>=4.0.0 <4.3.2: '^4.3.2'
