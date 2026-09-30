@@ -1,39 +1,81 @@
 import { describe, expect, it } from "vitest";
 
-import { socialPostOpenShouldGoBack } from "./social-post-open";
+import { socialPostOpenCloseHref } from "./social-post-open";
+
+const origin = "https://24frame.test";
+const post = `${origin}/social/p/p1`;
 
 describe("social post open dismiss", () => {
   it("returns to the feed on a soft-nav intercept", () => {
     expect(
-      socialPostOpenShouldGoBack({
+      socialPostOpenCloseHref({
         dismiss: "back",
         referrer: "",
-        origin: "https://24frame.test",
+        origin,
+        href: post,
       }),
-    ).toBe(true);
+    ).toBe("back");
   });
 
-  it("uses a same-origin referrer on a hard load", () => {
+  it("closes a hard load to the same-origin referrer path", () => {
     expect(
-      socialPostOpenShouldGoBack({
+      socialPostOpenCloseHref({
         dismiss: "home",
-        referrer: "https://24frame.test/social",
-        origin: "https://24frame.test",
+        referrer: `${origin}/social`,
+        origin,
+        href: post,
       }),
-    ).toBe(true);
+    ).toBe("/social");
     expect(
-      socialPostOpenShouldGoBack({
+      socialPostOpenCloseHref({
+        dismiss: "home",
+        referrer: `${origin}/social/u/ada?tab=posts#top`,
+        origin,
+        href: post,
+      }),
+    ).toBe("/social/u/ada?tab=posts#top");
+  });
+
+  it("closes a hard load to home when the referrer cannot leave this post", () => {
+    expect(
+      socialPostOpenCloseHref({
         dismiss: "home",
         referrer: "https://elsewhere.test/social",
-        origin: "https://24frame.test",
+        origin,
+        href: post,
       }),
-    ).toBe(false);
+    ).toBeNull();
     expect(
-      socialPostOpenShouldGoBack({
+      socialPostOpenCloseHref({
         dismiss: "home",
         referrer: null,
-        origin: "https://24frame.test",
+        origin,
+        href: post,
       }),
-    ).toBe(false);
+    ).toBeNull();
+    expect(
+      socialPostOpenCloseHref({
+        dismiss: "home",
+        referrer: post,
+        origin,
+        href: post,
+      }),
+    ).toBeNull();
+    expect(
+      socialPostOpenCloseHref({
+        dismiss: "home",
+        referrer: `${post}#comments`,
+        origin,
+        href: post,
+      }),
+    ).toBeNull();
+    expect(
+      socialPostOpenCloseHref({
+        dismiss: "home",
+        referrer: "not a url",
+        origin,
+        href: post,
+      }),
+    ).toBeNull();
   });
 });

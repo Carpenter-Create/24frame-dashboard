@@ -30,6 +30,7 @@ describe("social feed immersive helpers", () => {
       "[data-social-feed-immersive] [data-social-comment-thread]",
     );
     expect(SOCIAL_IMMERSIVE_NESTED_SHEET_SELECTOR).toContain("[data-social-post-share-sheet]");
+    expect(SOCIAL_IMMERSIVE_NESTED_SHEET_SELECTOR).toContain("[data-social-post-open]");
     let seen = "";
     expect(
       socialImmersiveNestedSheetOpen({

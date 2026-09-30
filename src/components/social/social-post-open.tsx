@@ -42,7 +42,7 @@ import {
   socialMemberHref,
 } from "@/lib/social";
 import {
-  socialPostOpenShouldGoBack,
+  socialPostOpenCloseHref,
   type SocialPostOpenDismiss,
 } from "@/lib/social-post-open";
 
@@ -57,16 +57,17 @@ const NESTED_DISMISS_SELECTOR = [
 function useSocialPostOpenDismiss(dismiss: SocialPostOpenDismiss) {
   const router = useRouter();
   return useCallback(() => {
-    const back = socialPostOpenShouldGoBack({
+    const href = socialPostOpenCloseHref({
       dismiss,
       referrer: document.referrer,
       origin: window.location.origin,
+      href: window.location.href,
     });
-    if (back) {
+    if (href === "back") {
       router.back();
       return;
     }
-    router.push(SOCIAL_ROUTES.home);
+    router.push(href ?? SOCIAL_ROUTES.home);
   }, [dismiss, router]);
 }
 

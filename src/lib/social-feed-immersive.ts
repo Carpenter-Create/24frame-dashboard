@@ -6,10 +6,13 @@
 const IMMERSIVE_CAPTION_LINES = 3;
 const IMMERSIVE_CAPTION_CHARS = 140;
 
-// Comment mounts inside the stage. Share portals to document.body.
-// Either one still owns this Escape.
-export const SOCIAL_IMMERSIVE_NESTED_SHEET_SELECTOR =
-  "[data-social-feed-immersive] [data-social-comment-thread], [data-social-post-share-sheet]";
+// An in-stage comment thread, the Share sheet, or the routed post surface
+// (a body portal, so it is not inside the stage) still owns this Escape.
+export const SOCIAL_IMMERSIVE_NESTED_SHEET_SELECTOR = [
+  "[data-social-feed-immersive] [data-social-comment-thread]",
+  "[data-social-post-share-sheet]",
+  "[data-social-post-open]",
+].join(", ");
 
 // Share sheet and its sent toast sit above the stage. Leave them active.
 export const SOCIAL_IMMERSIVE_KEEP_ABOVE_SELECTOR =
@@ -46,7 +49,7 @@ export function socialImmersiveActiveFocusRoot<T>(share: T | null, comment: T | 
   return share ?? comment ?? stage;
 }
 
-/** Escape dismisses the stage only when no comment or Share sheet is open. */
+/** Escape dismisses the stage only when no comment, Share, or post surface is open. */
 export function socialImmersiveEscapeDismisses(key: string, nestedSheetOpen: boolean): boolean {
   return key === "Escape" && !nestedSheetOpen;
 }
