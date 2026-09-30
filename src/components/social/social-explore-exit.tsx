@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 
+import { SocialIcon } from "@/components/social/social-icon";
 import { SOCIAL, SOCIAL_ROUTES, exploreExitUsesPriorRoute } from "@/lib/social";
 import { SOCIAL_EXPLORE_EXIT_CLASS } from "@/lib/social-chrome";
 
@@ -30,6 +31,9 @@ export function SocialExploreExit() {
       className={SOCIAL_EXPLORE_EXIT_CLASS}
       onClick={onClick}
     >
+      <span aria-hidden="true" className="inline-flex">
+        <SocialIcon name="x" size={16} />
+      </span>
       {SOCIAL.explore.exit}
     </Link>
   );

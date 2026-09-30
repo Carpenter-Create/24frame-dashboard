@@ -306,6 +306,8 @@ describe("Social Explore", () => {
     expect(html).toContain("data-social-explore-item");
     expect(html).toContain("data-social-mux-player");
     expect(html).toContain("object-cover");
+    expect(html).toContain("md:object-contain");
+    expect(html).toContain("data-social-explore-player");
     expect(html).toContain("Night clip");
     expect(html).toContain('href="/social/u/ada"');
     expect(html).toContain("data-social-explore-author");
@@ -326,7 +328,7 @@ describe("Social Explore", () => {
     );
     expect(html).not.toContain("/social/p/");
     expect(html).not.toContain("data-social-explore-image");
-    expect(html).not.toContain("object-contain");
+    expect(html).toContain("social-explore-player");
   });
 
   it("starts a video stream from people, keywords, and hashtags", async () => {

@@ -15,6 +15,10 @@ import { SOCIAL } from "@/lib/social";
 import { socialMuxThumbnailUrl } from "@/lib/social-mux";
 import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+}));
+
 vi.mock("next/dynamic", () => ({
   default: () =>
     function MuxPlayerStub(props: { playbackId?: string; autoPlay?: boolean; muted?: boolean }) {
@@ -26,6 +30,7 @@ vi.mock("next/dynamic", () => ({
     },
 }));
 
+import { SocialExploreExit } from "./social-explore-exit";
 import { SocialExploreForYouStream } from "./social-explore-for-you";
 
 const item: SocialExploreForYouItem = {
@@ -57,6 +62,7 @@ describe("SocialExploreForYouStream", () => {
     expect(SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS).toContain("snap-mandatory");
     expect(html).toContain("snap-start");
     expect(html).toContain("object-cover");
+    expect(html).toContain("md:object-contain");
     expect(html).toContain("bg-[#0A0A0B]");
     expect(html).toContain('data-mux-autoplay="yes"');
     expect(html).toContain('data-mux-muted="yes"');
@@ -128,7 +134,7 @@ describe("SocialExploreForYouStream", () => {
     expect(html.indexOf("data-social-comment-open")).toBeLessThan(html.indexOf("data-social-post-share"));
     expect(html).not.toContain("/social/p/");
     expect(html).not.toContain("line-clamp");
-    expect(html).not.toContain("object-contain");
+    expect(html).toContain("md:object-contain");
     expect(src).toContain("SocialMuxPlayer");
     expect(src).toContain("SocialPostShareButton");
     expect(src).toContain("SocialCommentTrigger");
@@ -224,5 +230,65 @@ describe("SocialExploreForYouStream", () => {
     expect(share).toContain("onClose={() => setOpen(false)}");
     expect(comment).not.toContain("router.push");
     expect(share).not.toContain("router.push");
+  });
+
+  it("contains a desktop portrait video and renders Exit as a control", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialExploreForYouStream, { items: [item], emptyLabel: null }),
+    );
+    const src = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const exitSrc = readFileSync("src/components/social/social-explore-exit.tsx", "utf8");
+    const lock = readFileSync("docs/design-locks/social-explore-for-you-immersive-lock-v2.md", "utf8");
+    const playerAt = html.indexOf("data-social-explore-player");
+    const muxAt = html.indexOf("data-social-mux-player");
+    expect(playerAt).toBeGreaterThan(-1);
+    expect(muxAt).toBeGreaterThan(playerAt);
+    expect(html).toContain("social-explore-player");
+    expect(html).toContain("md:object-contain");
+    expect(html).toContain("object-cover");
+    expect(src).toContain('fit="cover"');
+    expect(src).not.toContain('fit="contain"');
+    const exploreCss = css.slice(css.indexOf(".social-explore-player {"));
+    const phonePlayer = exploreCss.slice(0, exploreCss.indexOf(".social-explore-stage-media {"));
+    expect(phonePlayer).toContain("inset: 0");
+    expect(phonePlayer).not.toContain("9 / 16");
+    const phoneMedia = exploreCss.slice(
+      exploreCss.indexOf(".social-explore-stage-media {"),
+      exploreCss.indexOf("@media (min-width: 768px)"),
+    );
+    expect(phoneMedia).toContain("--media-object-fit: cover");
+    expect(phoneMedia).not.toMatch(/object-fit:\s*contain/);
+    const desktop = exploreCss.slice(exploreCss.indexOf("@media (min-width: 768px)"));
+    const playerRule = desktop.slice(
+      desktop.indexOf(".social-explore-player {"),
+      desktop.indexOf(".social-explore-slide"),
+    );
+    expect(playerRule).toContain("left: 50%");
+    expect(playerRule).toContain("top: 50%");
+    expect(playerRule).toContain("100cqh * 9 / 16");
+    expect(playerRule).toContain("100cqw * 16 / 9");
+    expect(playerRule).not.toContain("cover");
+    expect(desktop).toContain("--media-object-fit: contain");
+    expect(desktop).toContain("object-fit: contain !important");
+
+    const exitHtml = renderToStaticMarkup(createElement(SocialExploreExit));
+    const exitOpen = exitHtml.indexOf("data-social-explore-exit");
+    const exitTag = exitHtml.slice(exitHtml.lastIndexOf("<", exitOpen), exitHtml.indexOf(">", exitOpen) + 1);
+    expect(exitTag.startsWith("<a ")).toBe(true);
+    expect(exitTag).toContain('href="/social"');
+    expect(exitTag).toContain("rounded-full");
+    expect(exitTag).toContain("bg-ink");
+    expect(exitTag).toContain("min-h-[var(--header-control-size)]");
+    expect(exitTag).toContain("md:inline-flex");
+    expect(exitTag).toContain("hidden");
+    expect(exitHtml).toContain(">Exit<");
+    expect(exitHtml).toContain('data-social-icon="x"');
+    expect(exitTag).not.toContain("t-body text-ink md:inline-flex");
+    expect(exitSrc).toContain("exploreExitUsesPriorRoute");
+    expect(exitSrc).toContain("SOCIAL_ROUTES.home");
+    expect(lock).toContain("## A2) Desktop player");
+    expect(lock).toContain("object-fit: cover");
+    expect(lock).toContain("Phone rows in §A stay");
   });
 });
