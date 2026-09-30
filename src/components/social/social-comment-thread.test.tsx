@@ -97,6 +97,9 @@ describe("SocialCommentTrigger", () => {
     expect(html).not.toContain("bg-white");
     expect(thread).not.toContain("HouseDialogFrame");
     expect(thread).not.toContain("document.body.style.overflow");
+    expect(thread).toContain("fieldRef.current.focus({ preventScroll: true })");
+    expect(thread).toContain("socialImmersiveTabWrapIndex");
+    expect(thread).toContain("previouslyFocused.focus({ preventScroll: true })");
   });
 
   it("does not keep a View comments trail in source", () => {

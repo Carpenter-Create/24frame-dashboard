@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 
@@ -17,6 +17,10 @@ import {
   SOCIAL_POST_DRAWER_SUBMIT_CLASS,
   SOCIAL_POST_DRAWER_SURFACE_CLASS,
 } from "@/lib/social-chrome";
+import {
+  socialImmersiveFocusables,
+  socialImmersiveTabWrapIndex,
+} from "@/lib/social-feed-immersive";
 import { socialMemberHref, socialRelativeTime, SOCIAL } from "@/lib/social";
 import {
   applyOptimisticCommentCount,
@@ -47,6 +51,8 @@ export function SocialCommentThread({
   footer?: ReactNode;
 }) {
   const titleId = useId();
+  const hostRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
   const [comments, setComments] = useState<SocialCommentCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,6 +69,45 @@ export function SocialCommentThread({
       document.removeEventListener("keydown", onKey);
     };
   }, [onClose, variant]);
+
+  // The sheet portals to document.body, so it no longer follows the Explore
+  // comment control in tab order. Move focus into the composer and keep Tab there.
+  useEffect(() => {
+    if (variant !== "sheet") return undefined;
+    const host = hostRef.current;
+    if (!host) return undefined;
+    const activeOnOpen = document.activeElement;
+    const previouslyFocused =
+      typeof HTMLElement !== "undefined" &&
+      activeOnOpen instanceof HTMLElement &&
+      !host.contains(activeOnOpen)
+        ? activeOnOpen
+        : null;
+    if (typeof fieldRef.current?.focus === "function") fieldRef.current.focus({ preventScroll: true });
+    else if (typeof host.querySelectorAll === "function") {
+      socialImmersiveFocusables(host)[0]?.focus({ preventScroll: true });
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || typeof host.querySelectorAll !== "function") return;
+      const focusables = socialImmersiveFocusables(host);
+      const active = document.activeElement;
+      const activeEl = typeof HTMLElement !== "undefined" && active instanceof HTMLElement ? active : null;
+      const index = socialImmersiveTabWrapIndex(
+        focusables.length,
+        activeEl ? focusables.indexOf(activeEl) : -1,
+        active instanceof Node && host.contains(active),
+        event.shiftKey,
+      );
+      if (index === null) return;
+      event.preventDefault();
+      focusables[index]?.focus({ preventScroll: true });
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
+    };
+  }, [variant]);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +272,7 @@ export function SocialCommentThread({
       </label>
       <div className={SOCIAL_POST_DRAWER_COMPOSE_FIELD_CLASS}>
         <Textarea
+          ref={fieldRef}
           id="social-comment-body"
           name="body"
           value={body}
@@ -278,6 +324,7 @@ export function SocialCommentThread({
 
   const sheet = (
     <div
+      ref={hostRef}
       data-social-comment-thread=""
       data-social-comment-host="ig-drawer"
       className={SOCIAL_POST_DRAWER_HOST_CLASS}
