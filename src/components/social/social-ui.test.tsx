@@ -37,6 +37,7 @@ vi.mock("next/dynamic", () => ({
 }));
 
 import { HOUSE_CHIP_RAIL_CLASS } from "@/lib/house-chip-rail";
+import { HOUSE_MODULE_CLASS, HOUSE_SECTION_AIR_CLASS } from "@/lib/house-shell";
 import { HOUSE_PHONE_WRAP_CLASS, housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
 import { IDENTITY_AVATAR_CLASS } from "@/lib/house-sheet";
 import { SOCIAL, socialFeedRelativeTime, socialPostHref } from "@/lib/social";
@@ -168,13 +169,14 @@ describe("SocialPostCard faces", () => {
     expect(html).toContain('src="https://s3.example/signed-avatar"');
     expect(html).toContain("Ada Lovelace");
     expect(html).toContain('href="/social/u/ada"');
-    expect(html).toContain("bg-surface");
+    expect(html).toContain(HOUSE_MODULE_CLASS);
     expect(html).toContain(SOCIAL_FEED_ROW_CLASS);
     expect(html).not.toContain("data-social-post-mobile");
     expect(html).not.toContain("hidden md:flex");
     expect(html).not.toContain("md:hidden");
-    expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
     expect(html).not.toContain("/social/u/@");
     expect(html).not.toContain("AL");
     expect(html).not.toContain("data-social-avatar-ring");
@@ -758,15 +760,17 @@ describe("Social profile public face", () => {
     expect(history).toContain("data-social-author-history");
     expect(history).toContain("data-social-author-posts");
     expect(history).toContain(SOCIAL_FEED_GUTTER_CLASS);
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
+    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS}`);
+    expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-y");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("bg-surface-muted");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("py-");
     expect(history).toContain(SOCIAL_FEED_ROW_CLASS);
     expect(history).not.toContain("divide-y divide-hairline");
     expect(history).not.toContain("border border-hairline bg-surface");
-    expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
     expect(postSrc).not.toContain('className="flex flex-col bg-surface md:hidden"');
     expect(postSrc).not.toContain("data-social-post-mobile");
     expect(history).toContain('data-social-post="p1"');
@@ -947,7 +951,9 @@ describe("SocialPostCard media", () => {
     );
     expect(still).toContain("min(70vh,560px)");
     expect(still).toContain('aria-label="View photo"');
-    expect(still).toContain("max-md:-mx-");
+    expect(still).toContain("overflow-hidden");
+    expect(still).toContain(HOUSE_MODULE_CLASS);
+    expect(still).not.toContain("max-md:-mx-");
     expect(clip).toContain('aria-label="View video"');
     expect(clip).toContain("min(70vh,560px)");
   });
@@ -987,8 +993,10 @@ describe("SocialPostCard media", () => {
     expect(html).toContain("-ml-[var(--space-2)]");
     expect(html).toContain("gap-2");
     expect(html).not.toContain("divide-hairline");
-    expect(html).toContain("border-y-2 border-hairline");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("bg-surface-muted");
+    expect(html).toContain(HOUSE_MODULE_CLASS);
+    expect(html).not.toContain("border-y-2");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
   });
 
   it("reads one like as singular and keeps a plural count", () => {
@@ -1261,7 +1269,9 @@ describe("SocialPostCard 24Frame blend", () => {
       />,
     );
     expect(html).toContain(SOCIAL_FEED_ROW_CLASS);
-    expect(html).toContain("max-md:px-[var(--chrome-gutter)]");
+    expect(html).toContain("overflow-hidden");
+    expect(html).toContain("rounded-[var(--radius-lg)]");
+    expect(html).not.toContain("max-md:-mx-[var(--chrome-gutter)]");
     expect(html).not.toContain("px-[var(--space-4)]");
     const mediaOpen = html.slice(
       html.indexOf("data-social-post-media"),
@@ -1269,7 +1279,7 @@ describe("SocialPostCard 24Frame blend", () => {
     );
     expect(mediaOpen).toContain("w-full");
     expect(mediaOpen).toContain("px-0");
-    expect(mediaOpen).toContain("max-md:-mx-[var(--chrome-gutter)]");
+    expect(mediaOpen).not.toContain("max-md:-mx-[var(--chrome-gutter)]");
     expect(mediaOpen).not.toContain("px-[var(--space-4)]");
     const media = html.slice(html.indexOf("data-social-post-media"), html.indexOf("data-social-post-actions"));
     expect(media).not.toContain("md:rounded-[8px]");
@@ -1373,7 +1383,7 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(active).not.toContain("text-center");
   });
 
-  it("keeps under-post time on its own line and separates posts with a hairline", () => {
+  it("keeps under-post time on its own line and separates posts with a surface card", () => {
     const label = socialFeedRelativeTime(createdAt);
     expect(label).toMatch(/^\d+d$/);
     expect(label).not.toMatch(/ago|Yesterday|:/);
@@ -1391,14 +1401,18 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/md:|max-md:/);
     expect(html).not.toContain("divide-y");
     expect(html).not.toContain("divide-hairline");
-    expect(html).toContain("border-y-2 border-hairline");
+    expect(html).not.toContain("border-y-2");
+    expect(html).toContain(HOUSE_MODULE_CLASS);
+    expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
     expect(SOCIAL_POST_TIME_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_POST_TIME_CLASS).toContain("leading-none");
     expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-4)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2 border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
+    expect(SOCIAL_FEED_ROW_CLASS).toContain("shadow-none");
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
     const lock = readFileSync("docs/design-locks/social-feed-under-post-time-lock-v1.md", "utf8");
     const separation = readFileSync(
@@ -1410,8 +1424,11 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(lock).toContain("text-ink-3");
     expect(lock).toContain("stacking is **out**");
     expect(separation).toContain("pb-[var(--space-4)]");
+    expect(separation).toContain("HOUSE_MODULE_CLASS");
+    expect(separation).toContain("HOUSE_SECTION_AIR_CLASS");
     expect(separation).toContain("border-y-2 border-hairline");
-    expect(separation).toContain("superseded");
+    expect(separation).toContain("removed");
+    expect(separation).toContain("double-stacked");
     const quiet = renderToStaticMarkup(
       <SocialPostCard post={cardPost()} permalink={false} />,
     );

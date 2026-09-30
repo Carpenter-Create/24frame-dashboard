@@ -1,46 +1,48 @@
 # [GC][24Frame] LOCK — Social Home post separation v1
 
 **Date:** 2026-09-29 (CT)
-**Status:** **LOCKED** · CoS / Adam
+**Status:** **LOCKED** · CoS / Adam · **Option A** supersedes the #715 2px rule
 **Entity:** Global Content / 24Frame only
-**Amends (these two points only):**
-- [`social-home-craft-wave-1-lock-v1.md`](social-home-craft-wave-1-lock-v1.md) — inter-post hairline DELETE, and ~8–12 next-author air
-- [`social-feed-under-post-time-lock-v1.md`](social-feed-under-post-time-lock-v1.md) — hairline OUT, and ~8–12 air
-**Unchanged:** under-post time stays on its own line below the caption and below the comment trail. Not beside the author name. Stories→feed seam stays [`social-home-stories-feed-hairline-lock-v1.md`](social-home-stories-feed-hairline-lock-v1.md). Text-only grammar stays frozen.
+**Amends:**
+- The #715 `border-y-2 border-hairline` rule on `SOCIAL_FEED_ROW_CLASS`
+- [`social-home-craft-wave-1-lock-v1.md`](social-home-craft-wave-1-lock-v1.md) — inter-post hairline
+- [`social-feed-under-post-time-lock-v1.md`](social-feed-under-post-time-lock-v1.md) — hairline
+- Feed-post viewport bleed in [`social-mobile-full-bleed-lock-v1.md`](social-mobile-full-bleed-lock-v1.md). Stories rail bleed stays
+**Unchanged:** under-post time stays on its own line below the caption and below the comment trail. Not beside the author name. Stories→feed seam stays [`social-home-stories-feed-hairline-lock-v1.md`](social-home-stories-feed-hairline-lock-v1.md). Text-only grammar stays frozen. Mobile Lock A floating dock stays. Dock, header, slider, waffle, and Explore stay.
 
 ## One lock
 
-Between feed posts: **~16–24 CSS px** from the under-post time baseline to the next author, and a **2px** house rule on the top and the bottom of each post. Not a 1px hairline. Not a gray fill band.
+Each feed post is a light-grey rounded surface card on the white page canvas. That is the Aggregation module look. Facebook is a grey page with white cards. This is the inverse. Do not paint the page grey.
 
-Home, Profile Activity, and author history share `SocialPostCard` and `SOCIAL_FEED_ROW_CLASS`. Same separation everywhere that row class applies.
+Home, Profile Activity, and author history share `SocialPostCard` and `SOCIAL_FEED_ROW_CLASS`. The card applies wherever that row class applies. No Home-only fork. Phone and desktop share the card. No `md:` fork for color or radius.
 
-## Air
-
-| Token | Lock |
-|-------|------|
-| Class | `SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS` = `pb-[var(--space-4)]` on `SOCIAL_FEED_ROW_CLASS` |
-| Measured | `--space-4` is 16. Time stays `block` + `leading-none`. ~2px of the em stays below the baseline, so baseline → next author is **~18 CSS px**, inside 16–24 |
-| Why not `--space-6` | 24 of padding plus ~2px measures **~26**, outside the band. The earlier `--space-6` row also opened ~32 CSS px while the time link still inherited line-height 1.6. That stacking stays out |
-| Scope | Phone and desktop share it. No `md:` fork |
-
-## Hairline
+## Card
 
 | Token | Lock |
 |-------|------|
-| Rule | `border-y-2 border-hairline` on `SOCIAL_FEED_ROW_CLASS`. Top and bottom |
-| Superseded | The 1px bottom-only rule (`border-b border-hairline`) is superseded |
-| Weight | **2px**. Not 1px. Not a heavy bar |
-| Color | House `border-hairline` (`--border`, light `#ECEDF0`). Same token as other Social hairlines. No new hex |
-| Contact | No margin between rows. The gutter has no gap, so the bottom rule of post N touches the top rule of post N+1. No white gap between those rules. No padding outside the rules |
-| Phone | Full-bleed. The row already carries `SOCIAL_MOBILE_BLEED_CLASS`. The rules meet the viewport. Content stays inset by `SOCIAL_MOBILE_BLEED_PAD_CLASS` |
-| Desktop | Same class. No `md:` fork. The row is the column width, so the rules span the column |
-| Gutter | `SOCIAL_FEED_GUTTER_CLASS` stays `flex flex-col`. No `divide-y`. A gutter divide would sit inside the column and would double the row rules |
-| Fill | Row stays `bg-surface`. The air is padding inside the rules, so the canvas cannot show as a band. No `bg-surface-muted` fill |
+| Class | `HOUSE_MODULE_CLASS` on `SOCIAL_FEED_ROW_CLASS` |
+| Fill | `bg-surface-muted` |
+| Radius | `rounded-[var(--radius-lg)]`. No new radius |
+| Shadow | `shadow-none` |
+| Clip | `overflow-hidden` on the card, so a full-bleed image does not square off the corners |
+| Sides | The card does not bleed to the phone viewport. `SOCIAL_MOBILE_BLEED_CLASS` is not on the row or on feed media. White canvas shows at the sides. The frame gutter is that canvas |
+| Rule | `border-y-2 border-hairline` is **removed**. The 2px rule double-stacked with the card edge. No second rule on the card |
+
+## Gap
+
+| Token | Lock |
+|-------|------|
+| Class | `HOUSE_SECTION_AIR_CLASS` (`gap-[var(--space-6)]`) on `SOCIAL_FEED_GUTTER_CLASS` |
+| Fill | No grey fill in the gap. The gap shows the white page canvas (`bg-surface` / page `--bg`). No `bg-surface-muted` on the gutter |
+| Size | That gap. No larger gap |
+| Gutter | `flex flex-col` plus the section gap. No `divide-y` |
 
 ## Under-post time
 
-Stays the last chrome line inside the post. Format, color, and `SOCIAL_POST_TIME_CLASS` stay [`social-feed-under-post-time-lock-v1.md`](social-feed-under-post-time-lock-v1.md).
+Stays the last chrome line inside the post, on its own line. Not beside the author. Format, color, and `SOCIAL_POST_TIME_CLASS` stay [`social-feed-under-post-time-lock-v1.md`](social-feed-under-post-time-lock-v1.md).
+
+`SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS` = `pb-[var(--space-4)]` stays padding under that line, inside the card. It is not the separator. The separator is the card plus the gutter gap.
 
 ## Out
 
-Author-row time. Gray FB band fill. Text-only grammar rewrite. Stories→feed seam change. A second card shell. `md:` air fork. `md:` rule fork. `--space-6` row air. The 1px bottom-only `border-b` rule. Padding or margin outside the rules.
+Grey page wash. White cards on a grey canvas. The 2px top and bottom rule. A second rule on the card. Shadow. A Home-only card fork. An `md:` fork for color or radius. Moving the time beside the author. A gap larger than `--space-6`. Dock, header, slider, waffle, or Explore changes.

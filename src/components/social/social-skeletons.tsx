@@ -114,7 +114,7 @@ export function SocialHomeCenterSkeleton({
                 <Skeleton className="h-3 w-2/3" />
               </div>
             </div>
-            <Skeleton className={cn("h-40 w-full", SOCIAL_MOBILE_BLEED_CLASS)} />
+            <Skeleton className="h-40 w-full" />
             </div>
           </div>
         ))}
@@ -204,7 +204,7 @@ export function SocialProfileCenterSkeleton() {
                 <Skeleton className="h-3 w-2/3" />
               </div>
             </div>
-            <Skeleton className={cn("h-40 w-full", SOCIAL_MOBILE_BLEED_CLASS)} />
+            <Skeleton className="h-40 w-full" />
             </div>
           </div>
         ))}

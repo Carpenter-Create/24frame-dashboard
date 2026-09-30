@@ -6,14 +6,14 @@
 **Entity:** Global Content / 24Frame only  
 **Positioning:** **Coinbase shell × IG feed rhythm × FB hint** (FB hint **deferred** — not this wave)  
 **House:** Geist · Sporty Blue `#1769FF` · spacing **8 / 16 / 24 / 48** where on-scale · hairline only where this lock keeps it · **no** drop shadows · Launch-great · Media Immersion · quiet redundant-chrome  
-**Related (do not reopen OUT list):** `social-mobile-full-bleed-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` · `social-home-density-craft-sequel-lock-v1.md` (M3/M4/M7) · `shell-workspace-waffle-layer-lock-v1.md` · `social-home-stories-feed-hairline-lock-v1.md` (Stories→feed seam — not inter-post) · `social-feed-under-post-time-lock-v1.md` (under-post time line) · `social-home-post-separation-lock-v1.md` (**amends** this lock’s inter-post hairline DELETE and its ~8–12 next-author air only)  
+**Related (do not reopen OUT list):** `social-mobile-full-bleed-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` · `social-home-density-craft-sequel-lock-v1.md` (M3/M4/M7) · `shell-workspace-waffle-layer-lock-v1.md` · `social-home-stories-feed-hairline-lock-v1.md` (Stories→feed seam — not inter-post) · `social-feed-under-post-time-lock-v1.md` (under-post time line) · `social-home-post-separation-lock-v1.md` (**amends** inter-post separation: Option A surface card + gutter gap supersedes the #715 2px rule)  
 **No invent** beyond Adam CLEAR Wave 1, except the two points the post-separation lock amends.
 
 ---
 
 ## One lock
 
-Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media→meta stack, **one 16pt content margin**, even trailing icons, and a short free-nit list. **Inter-post hairline and next-author air are amended** by `social-home-post-separation-lock-v1.md` (hairline back on the feed row; air ~16–24). No gray FB fill band. Parked items stay PARK / FREEZE.
+Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media→meta stack, **one 16pt content margin**, even trailing icons, and a short free-nit list. **Inter-post separation is amended** by `social-home-post-separation-lock-v1.md` (Option A: surface card + gutter gap. The 2px rule is removed). No gray FB page wash. Parked items stay PARK / FREEZE.
 
 ---
 
@@ -23,14 +23,14 @@ Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media�
 |-------|------|
 | Media → actions | **~10pt** under media (actions sit close under the media stage) |
 | Likes / caption / comments stack | **4–6pt** between those meta rows |
-| Before next author | **Amended** — cite `social-home-post-separation-lock-v1.md`. Was ~8–12 (`pb-[var(--space-2)]`). Now `pb-[var(--space-4)]` (16), measured ~18. Phone and desktop still share it. The 2026-09-28 **~24pt** / `--space-6` row air stays superseded — it opened ~32 CSS px with the old time strut |
-| Inter-post hairline | **Amended** — cite `social-home-post-separation-lock-v1.md`. Wave 1 deleted it. The 1px bottom-only `border-b border-hairline` is superseded. The feed row is `border-y-2 border-hairline` (2px top and bottom). Still **no** gray FB fill band |
+| Before next author | **Amended** — cite `social-home-post-separation-lock-v1.md`. Padding under the time, inside the card, stays `pb-[var(--space-4)]`. The separator between cards is `HOUSE_SECTION_AIR_CLASS` on the gutter (`gap-[var(--space-6)]`), not row padding. The 2026-09-28 `--space-6` **row** air stays superseded — it opened ~32 CSS px with the old time strut |
+| Inter-post hairline | **Amended** — cite `social-home-post-separation-lock-v1.md` Option A. The 1px bottom-only rule and the #715 `border-y-2 border-hairline` rule are both out. The 2px rule double-stacked with the card edge. The card is `HOUSE_MODULE_CLASS`. The page stays white |
 | Stories → feed seam | **Not** redefined here — cite `social-home-stories-feed-hairline-lock-v1.md` if that section seam remains; this lock kills **post→post** dividers only |
 
-**PASS:** Dense IG-like stack under media · next-author air and post→post hairline per `social-home-post-separation-lock-v1.md` · no inter-post gray fill band.  
+**PASS:** Dense IG-like stack under media · surface card and gutter gap per `social-home-post-separation-lock-v1.md` · white page between cards.  
 **FAIL:** Loose website gaps · FB gray fill strip between posts · actions far under media.
 
-**Amends:** Mid-feed **inter-post** `#ECEDF0` dividers from mobile full-bleed / spine “between posts hairline” intent were **OUT** for post→post in Wave 1. `social-home-post-separation-lock-v1.md` puts the hairline back on the feed row and does not restore a gray fill. Full-bleed **media** L/R on phone **stays**.
+**Amends:** Mid-feed **inter-post** `#ECEDF0` dividers stay **out**. `social-home-post-separation-lock-v1.md` Option A removes the #715 2px rule because it double-stacked with the card. Feed posts do not bleed to the phone viewport. Stories rail bleed stays.
 
 ---
 
@@ -106,7 +106,7 @@ Do **not** ship in Wave 1:
 
 ## Gates
 
-**G1.** Media→actions ~10 · likes/caption/comments 4–6 · next-author air and post→post hairline per `social-home-post-separation-lock-v1.md` (not the Wave 1 ~8–12 / hairline-delete reading).  
+**G1.** Media→actions ~10 · likes/caption/comments 4–6 · surface card and gutter gap per `social-home-post-separation-lock-v1.md` (not the Wave 1 hairline-delete reading, and not the #715 2px rule).  
 **G2.** One **16** content margin (except full-bleed media) · action glyph optical edge aligns to text.  
 **G3.** Trailing icons shared **24** box · same stroke · waffle=bell weight · avatar ~28 · tap **44**.  
 **G4.** Hide 0 likes · `1 like` · even action gaps / 44 taps · play control with backing disc.  
@@ -116,8 +116,8 @@ Do **not** ship in Wave 1:
 
 ## Verify-on-ship
 
-1. Phone and desktop Social Home feed: post→post hairline and ~16–24 CSS px air per `social-home-post-separation-lock-v1.md`; no gray fill band; tight meta under media.  
-2. Inset chrome shares one 16 margin; full-bleed media still edge-to-edge on phone.  
+1. Phone and desktop Social Home feed: surface card and gutter gap per `social-home-post-separation-lock-v1.md`; white page between cards; tight meta under media.  
+2. Inset chrome shares one 16 margin. Feed media meets the card edge. Stories rail bleed stays.  
 3. Header: 24 boxes, waffle matches bell, avatar ~28, 44 taps.  
 4. 0 likes hidden; one like reads “1 like”; play control has backing disc.
 

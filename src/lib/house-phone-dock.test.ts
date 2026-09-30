@@ -12,6 +12,7 @@ import {
   HOUSE_PHONE_DOCK_CHROME_PB_CLASS,
   HOUSE_PHONE_DOCK_CLEARANCE,
 } from "@/lib/house-phone-dock";
+import { HOUSE_MODULE_CLASS, HOUSE_SECTION_AIR_CLASS } from "@/lib/house-shell";
 import { isSocialExplorePath } from "@/lib/social";
 import {
   SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS,
@@ -90,9 +91,10 @@ describe("phone dock clearance", () => {
     );
     expect(shell).toContain("cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad");
     expect(shell).toContain('data-house-lead-scroll=""');
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col");
+    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS}`);
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("house-phone-dock-clearance");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("border-y-2 border-hairline");
+    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
+    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("house-phone-dock-clearance");
   });
 });
