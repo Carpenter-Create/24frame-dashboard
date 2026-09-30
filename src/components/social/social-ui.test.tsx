@@ -987,7 +987,9 @@ describe("SocialPostCard media", () => {
     expect(still).toContain(HOUSE_MODULE_CLASS);
     expect(still).not.toContain("max-md:-mx-");
     expect(clip).toContain('aria-label="View video"');
-    expect(clip).not.toContain("min(70vh,560px)");
+    expect(clip).toContain("min-h-[min(70vh,560px)]");
+    expect(clip).not.toContain("aspect-video");
+    expect(clip).not.toContain("h-[min(70vh,560px,calc(100cqw*9/16))]");
     expect(portrait).toContain("min(70vh, 560px)");
     expect(landscape).toContain("min(70vh, 560px)");
   });

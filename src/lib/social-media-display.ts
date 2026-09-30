@@ -1,5 +1,11 @@
 import { SOCIAL_DESKTOP_MEASURE } from "@/lib/social-chrome";
 import { SOCIAL_AVATAR_ROUTE, SOCIAL_MEDIA_ROUTE } from "@/lib/social-edge";
+import {
+  isSocialMuxId,
+  socialMuxPlaybackRequiresTokens,
+  socialMuxThumbnailUrl,
+  type SocialMuxPlaybackPolicy,
+} from "@/lib/social-mux";
 
 // Display-only Social media helpers. Signing stays in s3-avatars /
 // s3-social-media. No upload or recorder changes.
@@ -107,9 +113,13 @@ export function socialMediaFrameClass(
 /** Same cap as the still face. The video box narrows instead of cropping. */
 export const SOCIAL_FEED_VIDEO_MAX_H = "min(70vh, 560px)";
 
-/** No ratio yet. Not a 16:9 slot. */
+/**
+ * No ratio yet. Not a 16:9 slot.
+ * The absolute player cannot stretch this box, so the hold is the same cap
+ * as a measured frame. The probe replaces it with width / height.
+ */
 export const SOCIAL_FEED_VIDEO_PENDING_CLASS =
-  "relative w-full overflow-hidden bg-surface-muted";
+  "relative w-full min-h-[min(70vh,560px)] overflow-hidden bg-surface-muted";
 
 export type SocialFeedVideoOrientation = "portrait" | "landscape" | "square";
 
@@ -151,6 +161,29 @@ export function socialFeedVideoFrame(input: {
       maxHeight: SOCIAL_FEED_VIDEO_MAX_H,
     },
   };
+}
+
+/**
+ * Pixel-probe src. A direct url wins.
+ * Signed Mux leaves url empty. An unsigned image.mux.com src 403s,
+ * so that path needs the thumbnail JWT. Public playback does not.
+ */
+export function socialFeedVideoProbeSrc(input: {
+  url?: string | null;
+  playbackId?: string | null;
+  playbackPolicy?: SocialMuxPlaybackPolicy | null;
+  thumbnailToken?: string | null;
+}): string | null {
+  const url = input.url?.trim() ?? "";
+  if (url) return url;
+  const playbackId = input.playbackId ?? "";
+  if (!isSocialMuxId(playbackId)) return null;
+  if (socialMuxPlaybackRequiresTokens(input.playbackPolicy)) {
+    const token = input.thumbnailToken?.trim() ?? "";
+    if (!token) return null;
+    return socialMuxThumbnailUrl(playbackId, token);
+  }
+  return socialMuxThumbnailUrl(playbackId);
 }
 
 /** Story viewer lane only. A portrait story stays tall instead of the feed 16:9 crop. */

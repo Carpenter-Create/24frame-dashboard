@@ -10,13 +10,21 @@ import {
   SOCIAL_FEED_VIDEO_PENDING_CLASS,
   SOCIAL_POST_IMAGE_SIZES,
   socialFeedVideoFrame,
+  socialFeedVideoProbeSrc,
   socialMediaFrameClass,
   type SocialFeedVideoFrame,
 } from "@/lib/social-media-display";
+import {
+  isSocialMuxId,
+  loadSocialMuxPlaybackTokens,
+  readSocialMuxPlaybackTokenCache,
+  socialMuxPlaybackRequiresTokens,
+} from "@/lib/social-mux";
 import { SOCIAL } from "@/lib/social";
 
 import { SocialFeedCarousel } from "./social-feed-carousel";
 import { SocialFeedVideo } from "./social-feed-video";
+import { useSocialFollowingMuxRole } from "./social-following-mux-band";
 import { SocialMediaImage } from "./social-media-image";
 
 export function SocialPostMedia({
@@ -100,24 +108,57 @@ function SocialFeedVideoFrame({
 }) {
   const stored = socialFeedVideoFrame(item);
   const [probed, setProbed] = useState<SocialFeedVideoFrame | null>(null);
+  const role = useSocialFollowingMuxRole(muxBandId);
   useEffect(() => {
     if (socialFeedVideoFrame({ width: item.width, height: item.height })) return;
-    if (!item.url || typeof Image === "undefined") return;
+    if (typeof Image === "undefined") return;
     let cancelled = false;
-    const image = new Image();
-    image.onload = () => {
-      if (cancelled) return;
-      const next = socialFeedVideoFrame({
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-      });
-      if (next) setProbed(next);
+    const probe = (src: string) => {
+      const image = new Image();
+      image.onload = () => {
+        if (cancelled) return;
+        const next = socialFeedVideoFrame({
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        });
+        if (next) setProbed(next);
+      };
+      image.src = src;
     };
-    image.src = item.url;
+    const playbackId = item.playbackId;
+    const signed =
+      !!playbackId && isSocialMuxId(playbackId) && socialMuxPlaybackRequiresTokens(item.playbackPolicy);
+    const src = socialFeedVideoProbeSrc({
+      url: item.url,
+      playbackId,
+      playbackPolicy: item.playbackPolicy,
+      thumbnailToken: signed ? readSocialMuxPlaybackTokenCache(playbackId)?.thumbnail : null,
+    });
+    if (src) {
+      probe(src);
+      return () => {
+        cancelled = true;
+      };
+    }
+    // Closed Following slots must not mint. The hold stays until mount or warm.
+    if (!signed || !playbackId) return;
+    if (role !== "unbanded" && role !== "mount" && role !== "warm") return;
+    const controller = new AbortController();
+    void loadSocialMuxPlaybackTokens(playbackId, controller.signal).then((tokens) => {
+      if (cancelled || !tokens) return;
+      const signedSrc = socialFeedVideoProbeSrc({
+        url: "",
+        playbackId,
+        playbackPolicy: item.playbackPolicy,
+        thumbnailToken: tokens.thumbnail,
+      });
+      if (signedSrc) probe(signedSrc);
+    });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [item.url, item.width, item.height]);
+  }, [item.url, item.width, item.height, item.playbackId, item.playbackPolicy, role]);
   const videoFrame = stored ?? probed;
   return (
     <div

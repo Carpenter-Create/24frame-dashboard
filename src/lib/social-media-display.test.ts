@@ -1,12 +1,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { socialMuxThumbnailUrl } from "./social-mux";
 import {
   isAnimatedRasterSrc,
   isLocalMediaPreviewSrc,
   isSessionGatedSocialSrc,
+  SOCIAL_FEED_VIDEO_PENDING_CLASS,
   socialAvatarImageSizes,
   socialFeedVideoFrame,
+  socialFeedVideoProbeSrc,
   socialMediaFrameClass,
   socialStoryMediaFrameClass,
   socialMediaOrientation,
@@ -95,6 +98,29 @@ describe("social media display", () => {
     expect(socialFeedVideoFrame({ height: 1920 })).toBeNull();
     expect(socialFeedVideoFrame({ width: 0, height: 1920 })).toBeNull();
     expect(socialFeedVideoFrame({ width: -1080, height: 1920 })).toBeNull();
+
+    expect(SOCIAL_FEED_VIDEO_PENDING_CLASS).toContain("min-h-[min(70vh,560px)]");
+    expect(SOCIAL_FEED_VIDEO_PENDING_CLASS).not.toContain("aspect-video");
+    expect(SOCIAL_FEED_VIDEO_PENDING_CLASS).not.toContain("aspect-[4/5]");
+    const playbackId = "uNbxnGLKJ00yfbijDO8COxT";
+    expect(socialFeedVideoProbeSrc({ url: "https://image.mux.com/x/thumbnail.webp?time=0" })).toBe(
+      "https://image.mux.com/x/thumbnail.webp?time=0",
+    );
+    expect(
+      socialFeedVideoProbeSrc({ url: "", playbackId, playbackPolicy: "signed" }),
+    ).toBeNull();
+    expect(
+      socialFeedVideoProbeSrc({
+        url: "",
+        playbackId,
+        playbackPolicy: "signed",
+        thumbnailToken: "thumb.jwt",
+      }),
+    ).toBe(socialMuxThumbnailUrl(playbackId, "thumb.jwt"));
+    expect(socialFeedVideoProbeSrc({ url: "", playbackId, playbackPolicy: "public" })).toBe(
+      socialMuxThumbnailUrl(playbackId),
+    );
+    expect(socialFeedVideoProbeSrc({ url: "", playbackId: "short" })).toBeNull();
 
     const src = readFileSync("src/lib/social-media-display.ts", "utf8");
     const fn = src.slice(src.indexOf("export function socialFeedVideoFrame"), src.indexOf("export function socialStoryMediaFrameClass"));
