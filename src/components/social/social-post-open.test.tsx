@@ -52,6 +52,10 @@ describe("SocialPostOpen", () => {
     expect(html).toContain("data-social-post-open-close");
     expect(html).toContain("data-social-comment-panel");
     expect(html).toContain("data-social-comment-composer");
+    expect(html).toContain("rounded-[20px]");
+    expect(html).toContain("rounded-[24px]");
+    expect(html).toContain("bg-surface-muted");
+    expect(html).toContain("bg-accent");
     expect(html).toContain("data-social-like");
     expect(html).toContain("data-social-post-share");
     expect(html).toContain("hello from the post");

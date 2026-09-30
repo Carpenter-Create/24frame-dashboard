@@ -40,7 +40,10 @@ describe("SocialPostShareSheet", () => {
     expect(html).toContain('data-social-post-share-host="ig-drawer"');
     expect(html).toContain("items-end");
     expect(html).toContain("md:items-center");
-    expect(html).toContain("bg-[#181818]");
+    expect(html).toContain("bg-surface");
+    expect(html).not.toContain("bg-[#181818]");
+    expect(html).not.toContain("text-white");
+    expect(src).toContain("SOCIAL_POST_DRAWER_SURFACE_CLASS");
     expect(html).toContain("rounded-t-[16px]");
     expect(html).toContain("md:rounded-[16px]");
     expect(html).toContain("max-h-[90vh]");
@@ -88,7 +91,8 @@ describe("SocialPostShareSheet", () => {
     expect(html).toContain('data-social-post-share-footer="open"');
     expect(html).toContain("data-social-post-share-check");
     expect(html.match(/data-social-post-share-check=/g)?.length).toBe(2);
-    expect(html).toContain("bg-[#1769FF]");
+    expect(html).toContain("bg-accent");
+    expect(html).not.toContain("bg-[#1769FF]");
     expect(html).toContain("size-5");
     expect(html).toContain(SOCIAL.post.writeMessage);
     expect(html).toContain("h-12");

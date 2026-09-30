@@ -9,7 +9,17 @@ import { SocialAvatar } from "@/components/social/social-avatar";
 import { SocialIcon } from "@/components/social/social-icon";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/cn";
 import { displayHandle, SOCIAL } from "@/lib/social";
+import {
+  SOCIAL_POST_DRAWER_GRAB_CLASS,
+  SOCIAL_POST_DRAWER_HOST_CLASS,
+  SOCIAL_POST_DRAWER_ICON_WELL_CLASS,
+  SOCIAL_POST_DRAWER_INPUT_CLASS,
+  SOCIAL_POST_DRAWER_PILL_CLASS,
+  SOCIAL_POST_DRAWER_SUBMIT_CLASS,
+  SOCIAL_POST_DRAWER_SURFACE_CLASS,
+} from "@/lib/social-chrome";
 import {
   postSharePermalink,
   postShareSelectBlocked,
@@ -24,7 +34,8 @@ import {
   type StorySendPerson,
 } from "@/lib/social-story-actions";
 
-// Post Share lock v1. One IG-dark drawer. Select morphs this same drawer.
+// Post Share lock v1. One theme drawer, shared with the in-place comment sheet.
+// Select morphs this same drawer.
 // Phone docks to the bottom. Desktop centers the same sheet.
 // docs/design-locks/social-post-share-sheet-ig-lock-v1.md
 // Cites stories-send-dm-craft-lock-v1.md and house-overlay-dual-host-v1.md.
@@ -171,9 +182,9 @@ export function SocialPostShareSheet({
       {selectedIds.includes(person.id) ? (
         <span
           data-social-post-share-check=""
-          className="absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-[#1769FF] text-white"
+          className="absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-accent text-accent-contrast"
         >
-          <SocialIcon name="check" size={12} className="text-white" />
+          <SocialIcon name="check" size={12} className="text-accent-contrast" />
         </span>
       ) : null}
     </span>
@@ -183,25 +194,22 @@ export function SocialPostShareSheet({
     <div
       data-social-post-share-sheet=""
       data-social-post-share-host="ig-drawer"
-      className="fixed inset-0 z-[60] flex items-end justify-center md:items-center"
+      className={SOCIAL_POST_DRAWER_HOST_CLASS}
     >
       <HouseScrim label={SOCIAL.post.shareClose} onClose={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-10 flex max-h-[90vh] w-full min-h-0 flex-col overflow-hidden rounded-t-[16px] bg-[#181818] p-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-none md:max-w-[420px] md:rounded-[16px]"
+        className={cn(SOCIAL_POST_DRAWER_SURFACE_CLASS, "shadow-none")}
       >
         <h2 id={titleId} className="sr-only">
           {SOCIAL.post.share}
         </h2>
-        <div
-          data-social-post-share-grab=""
-          className="mx-auto mb-4 h-1 w-9 shrink-0 rounded-full bg-white/40"
-        />
+        <div data-social-post-share-grab="" className={SOCIAL_POST_DRAWER_GRAB_CLASS} />
         <div className="flex shrink-0 items-center gap-2">
-          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[20px] bg-[#2A2A2E] px-3">
-            <SocialIcon name="magnifying-glass" size={16} className="shrink-0 text-white/70" />
+          <div className={cn(SOCIAL_POST_DRAWER_PILL_CLASS, "min-w-0 flex-1 gap-2 px-3")}>
+            <SocialIcon name="magnifying-glass" size={16} className="shrink-0 text-ink-2" />
             <label className="sr-only" htmlFor={searchId}>
               {SOCIAL.post.shareSearch}
             </label>
@@ -214,7 +222,7 @@ export function SocialPostShareSheet({
               value={query}
               placeholder={SOCIAL.post.shareSearch}
               autoComplete="off"
-              className="h-10 min-w-0 flex-1 text-white caret-white placeholder:text-white/60"
+              className={SOCIAL_POST_DRAWER_INPUT_CLASS}
               onFocus={holdSheetFieldViewport}
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.preventDefault();
@@ -226,7 +234,7 @@ export function SocialPostShareSheet({
             <button
               type="button"
               data-social-post-share-cancel=""
-              className="h-10 shrink-0 px-2 t-body-sm font-medium text-white"
+              className="h-10 shrink-0 px-2 t-body-sm font-medium text-ink"
               onClick={() => setQuery("")}
             >
               {SOCIAL.post.shareCancel}
@@ -240,7 +248,7 @@ export function SocialPostShareSheet({
         ) : null}
         <div className="mt-4 min-h-0 flex-auto overflow-y-auto">
           {loading ? null : shown.length === 0 && !error ? (
-            <p data-social-post-share-empty="" className="py-8 text-center t-body-sm text-white/70">
+            <p data-social-post-share-empty="" className="py-8 text-center t-body-sm text-ink-2">
               {searching ? SOCIAL.search.noResults : SOCIAL.post.shareEmpty}
             </p>
           ) : searching ? (
@@ -257,8 +265,8 @@ export function SocialPostShareSheet({
                   >
                     {personFace(person, "size-10")}
                     <span className="min-w-0 flex-1">
-                      <span className="block break-words t-body font-medium text-white">{person.name}</span>
-                      <span className="block break-words t-body-sm text-white/60">{displayHandle(person.handle)}</span>
+                      <span className="block break-words t-body font-medium text-ink">{person.name}</span>
+                      <span className="block break-words t-body-sm text-ink-2">{displayHandle(person.handle)}</span>
                     </span>
                   </button>
                 </li>
@@ -277,7 +285,7 @@ export function SocialPostShareSheet({
                   onClick={() => toggle(person.id)}
                 >
                   {personFace(person, "size-14")}
-                  <span className="w-full break-words text-center t-body-sm text-white">{person.name}</span>
+                  <span className="w-full break-words text-center t-body-sm text-ink">{person.name}</span>
                 </button>
               ))}
             </div>
@@ -291,10 +299,10 @@ export function SocialPostShareSheet({
               className="flex min-w-0 flex-col items-center gap-2"
               onClick={() => void copyLink()}
             >
-              <span className="flex size-12 items-center justify-center rounded-full bg-[#2A2A2E] text-white">
+              <span className={SOCIAL_POST_DRAWER_ICON_WELL_CLASS}>
                 <SocialIcon name="link" size={22} />
               </span>
-              <span className="break-words text-center t-body-sm text-white">
+              <span className="break-words text-center t-body-sm text-ink">
                 {copied ? SOCIAL.post.shareCopied : SOCIAL.post.shareCopyLink}
               </span>
             </button>
@@ -304,10 +312,10 @@ export function SocialPostShareSheet({
               className="flex min-w-0 flex-col items-center gap-2"
               onClick={() => void shareSystem()}
             >
-              <span className="flex size-12 items-center justify-center rounded-full bg-[#2A2A2E] text-white">
+              <span className={SOCIAL_POST_DRAWER_ICON_WELL_CLASS}>
                 <SocialIcon name="share-network" size={22} />
               </span>
-              <span className="break-words text-center t-body-sm text-white">{SOCIAL.post.shareTo}</span>
+              <span className="break-words text-center t-body-sm text-ink">{SOCIAL.post.shareTo}</span>
             </button>
           </div>
         )}
@@ -320,7 +328,7 @@ export function SocialPostShareSheet({
             <label className="sr-only" htmlFor={`${searchId}-note`}>
               {SOCIAL.post.writeMessage}
             </label>
-            <div className="mt-4 flex h-10 w-full items-center rounded-[20px] bg-[#2A2A2E] px-4">
+            <div className={cn(SOCIAL_POST_DRAWER_PILL_CLASS, "mt-4 w-full px-4")}>
               <Input
                 id={`${searchId}-note`}
                 type="text"
@@ -330,7 +338,7 @@ export function SocialPostShareSheet({
                 value={note}
                 placeholder={SOCIAL.post.writeMessage}
                 autoComplete="off"
-                className="h-full w-full text-white caret-white placeholder:text-white/60"
+                className={cn(SOCIAL_POST_DRAWER_INPUT_CLASS, "h-full w-full")}
                 onFocus={holdSheetFieldViewport}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") event.preventDefault();
@@ -342,7 +350,7 @@ export function SocialPostShareSheet({
               type="button"
               data-social-post-share-submit=""
               disabled={!selected || sending}
-              className="mt-4 flex h-12 w-full items-center justify-center rounded-[24px] bg-[#1769FF] t-body font-medium text-white disabled:bg-[#2A2A2E] disabled:text-white/40"
+              className={cn(SOCIAL_POST_DRAWER_SUBMIT_CLASS, "mt-4")}
               onClick={() => void send()}
             >
               {SOCIAL.post.send}

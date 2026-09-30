@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-30
 **Status:** LOCKED for this slice. Comment on a post opens that post’s own URL.
-**Scope:** Feed comment icon and the “N comments” trail. The post route `/social/p/[postId]`. Soft-nav intercept `@modal/(.)p/[postId]`. Not Explore For You (that comment stays the in-place thread). Not the Share sheet.
+**Scope:** Feed comment icon and the “N comments” trail. The post route `/social/p/[postId]`. Soft-nav intercept `@modal/(.)p/[postId]`. Explore For You stays on the in-place thread. That thread and the post Share sheet share one drawer.
 
 ## One lock
 
@@ -36,8 +36,14 @@ Facebook card. Ink scrim at 40%. Centered surface card, width `min(92vw, 500px)`
 
 ## Reuse
 
-Comment list, composer, like, and share are the existing controls. This surface is not a HouseOverlay host. Do not restyle AppSheet or HouseDialog into this job.
+Comment list, composer, like, and share are the existing controls. The post URL surface is not a HouseOverlay host. Do not restyle AppSheet or HouseDialog into that job.
+
+## Sheet congruence
+
+The in-place comment sheet and the post Share sheet are one drawer (`SOCIAL_POST_DRAWER_*`). Phone docks to the bottom. Desktop centers the same sheet. Radius 16, grab, hairline, `bg-surface`, ink type, scrim close, no shadow. Search, message, and the comment field are the muted pill. Send and Post are the accent pill. Light and dark follow the tokens. No forced white card. No forced near-black fill.
+
+The post URL composer uses that same pill and button. Its frames stay as locked above.
 
 ## Out
 
-Explore For You navigation. Share sheet grammar. Feed card order. A second comment route.
+Explore For You navigation. Feed card order. A second comment route. A second comment sheet.
