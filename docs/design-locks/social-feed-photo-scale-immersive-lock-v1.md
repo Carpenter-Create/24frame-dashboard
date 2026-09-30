@@ -31,7 +31,7 @@
 | Below media (same post) | Actions row → likes meta → caption — all **inset H 16** · must sit **immediately under** capped media (not pushed a viewport away). Current text+media stack: [`social-feed-text-media-caption-below-lock-v1.md`](social-feed-text-media-caption-below-lock-v1.md). [`social-feed-text-media-caption-above-lock-v1.md`](social-feed-text-media-caption-above-lock-v1.md) is superseded. |
 | Caption feed | Username bold + caption `t-body` · visible without hunting under a massive face |
 | Actions | Cite post-actions align — hit **40** · glyph **24** · gap **8** · idle `text-ink-2` |
-| Video | Same cap `min(70vh, 560)`. In-feed frame is source width and height (`social-home-post-separation-lock-v1.md`). Not a 16:9 slot. When the cap binds, the frame narrows. It does not grow past the cap |
+| Video | Same cap `min(70vh, 560)` on phone and on non-Home desktop. In-feed frame is source width and height (`social-home-post-separation-lock-v1.md`). Not a 16:9 slot. When the cap binds, the frame narrows. It does not grow past the cap. Desktop Home fills the column instead of narrowing — that amend is in the post-separation lock |
 
 **FAIL:** Uncapped portrait that eats the fold so caption/actions are hard to find or below the fold (`*-massive-*` · `*-below-fold-*`).  
 **PASS:** First fold shows media **and** a readable path to caption/actions (IG proportion · house tokens).

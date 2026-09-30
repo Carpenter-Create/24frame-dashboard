@@ -15,7 +15,7 @@ import {
 import { SocialStoriesRail } from "@/components/social/social-stories-rail";
 import { warmStoryRailPlaybackTokens } from "@/lib/social-story-rail-mux-warm";
 import { cn } from "@/lib/cn";
-import { SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_HOME_SPINE_CLASS, SOCIAL_PILL_ACTIVE_CLASS, SOCIAL_PILL_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_DESKTOP_HOME_FEED_CLASS, SOCIAL_DESKTOP_HOME_ROW_CLASS, SOCIAL_HOME_SPINE_CLASS, SOCIAL_PILL_ACTIVE_CLASS, SOCIAL_PILL_CLASS } from "@/lib/social-chrome";
 import { signedAvatarUrls, signedSocialMediaByPostId } from "@/lib/social-edge";
 import { socialFollowingWallView } from "@/lib/social-following-wall";
 import { SocialFollowingWallBound } from "@/components/social/social-following-wall-bound";
@@ -61,7 +61,7 @@ export default async function SocialHomePage({
   const lane = parseSocialHomeLane(sp[SOCIAL_HOME_LANE_PARAM]);
 
   return (
-    <div data-social-home="" className={SOCIAL_HOME_LAYOUT_CLASS}>
+    <div data-social-home="" className={SOCIAL_DESKTOP_HOME_ROW_CLASS}>
       <Suspense fallback={<SocialHomeCenterSkeleton />}>
         <SocialHomeCenter session={session} category={category} cursor={cursor} lane={lane} topic={topic} />
       </Suspense>
@@ -141,7 +141,7 @@ async function SocialHomeCenter({
   const photoUrl = faces.get(ctx.user.id) ?? null;
 
   return (
-    <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={cn(SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_SPINE_CLASS)}>
+    <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={cn(SOCIAL_DESKTOP_HOME_FEED_CLASS, SOCIAL_HOME_SPINE_CLASS)}>
       <div className="sr-only">
         <h1>{SOCIAL.home.title}</h1>
         <p>{SOCIAL.home.subtitle}</p>

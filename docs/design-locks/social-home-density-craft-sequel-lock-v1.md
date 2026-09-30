@@ -28,7 +28,7 @@
 Three density ships (M5 reorder **OUT**):
 
 1. **M3** — Desktop trailing cluster gap **`space-4` (16)** · glyph **`HOUSE_HEADER_TRAILING_DESKTOP` = `size-5` (20)** — house tokens only.  
-2. **M4** — Fold **Following / For you** into Topics as **leading lane chips** · **dual-axis** · **filled-pill** on-state only · **phone gets lane chips** (IA).  
+2. **M4** — Fold **Following / For you** into Topics as **leading lane chips** · phone **dual-axis** · desktop Home **one filled pill** · **filled-pill** on-state only · **phone gets lane chips** (IA).  
 3. **M7** — Feed post actions **`gap-2` (8)** · unify with post-actions-align / immersive row.
 
 ---
@@ -59,11 +59,12 @@ Three density ships (M5 reorder **OUT**):
 | On-state | **Filled-pill only** (existing selected chip / filled-pill grammar) |
 | Forbidden on-state | **Sporty Blue underline** in this rail (no tab-underline grammar here) |
 | Chip height | **32** (Topics SoT) |
-| **Phone IA** | Phone **gets lane chips for the first time** — same dual-axis Topics rail (record as IA; not desktop-only) |
+| **Phone IA** | Phone **gets lane chips for the first time** — same dual-axis Topics rail (record as IA; not desktop-only). Phone still fills the active lane and the active topic together |
+| Desktop Home | **One filled lens.** When the topic is All, the active lane is the filled pill and All is idle. When a topic is selected, that topic is the filled pill and the lane chip is idle. No third lane. Chips, hrefs, and `aria` stay |
 | URLs | Keep `?lane=following` / `?lane=for-you` (or equivalent) via lane chips — do not invent `/social/home` |
 
-**PASS:** One Topics rail · lane chips leading · dual-axis lit · filled-pill only · phone + desktop.  
-**FAIL:** Standalone `SocialHomeTabs` underline strip · underline on-state · phone missing lane chips.
+**PASS:** One Topics rail · lane chips leading · phone dual-axis lit · desktop Home one filled pill · filled-pill only.  
+**FAIL:** Standalone `SocialHomeTabs` underline strip · underline on-state · phone missing lane chips · two filled pills on desktop Home.
 
 ---
 
@@ -113,7 +114,7 @@ Do **not** amend spine / activity-feed stack order in this tip.
 
 **G1.** Sequel tip only after **#699** on main.  
 **G2.** Desktop trailing gap **`space-4` (16)** · glyph **`HOUSE_HEADER_TRAILING_DESKTOP` = `size-5` (20)** · phone dock untouched.  
-**G3.** Following/For you = Topics **leading lane chips** · dual-axis · filled-pill only · **phone included**.  
+**G3.** Following/For you = Topics **leading lane chips** · phone dual-axis · desktop Home one filled pill · filled-pill only · **phone included**.  
 **G4.** Topics **remain above** composer · gap **8** HOLD.  
 **G5.** Post actions **`gap-2` (8)** · shared immersive token · no `gap-3.5` / no density `gap-4`.
 
@@ -122,7 +123,7 @@ Do **not** amend spine / activity-feed stack order in this tip.
 ## Verify-on-ship (after #699 + this tip)
 
 1. Mac desktop header: trailing gap 16 (`space-4`); glyphs `size-5` via `HOUSE_HEADER_TRAILING_DESKTOP`; phone dock unchanged.  
-2. Mac + phone Social Home: no underline Following/For you strip; lane chips lead Topics; lane + topic can both be lit; filled-pill on-state only.  
+2. Phone Social Home: no underline Following/For you strip; lane chips lead Topics; lane + topic can both be lit. Desktop Home: one filled pill. Filled-pill on-state only.  
 3. Above-fold still Topics → composer → Stories → wall; Topics→composer gap 8.  
 4. Feed actions: gap-2 / 8 between hits (align + immersive unify).
 

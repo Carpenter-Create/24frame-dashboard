@@ -11,6 +11,7 @@ import {
 } from "@/lib/social-categories";
 import {
   socialTopicRailChipClass,
+  SOCIAL_HOME_LENS_PHONE_ON_DESKTOP_OFF_CLASS,
   SOCIAL_TOPIC_RAIL_CHIP_CLASS,
   SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS,
   SOCIAL_TOPIC_RAIL_ROWS,
@@ -65,15 +66,18 @@ describe("SocialHomeTopics bank", () => {
     const actingChip = chipMarkup(html, "Acting");
     expect(allChip).toContain('data-social-home-topic-active=""');
     expect(allChip).toContain('aria-current="page"');
-    expect(allChip).toContain(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS);
-    expect(allChip).toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(allChip).toContain(SOCIAL_HOME_LENS_PHONE_ON_DESKTOP_OFF_CLASS);
+    expect(allChip).toContain("max-lg:bg-accent");
+    expect(allChip).toContain("max-lg:text-white");
+    expect(allChip).not.toContain(HOUSE_PILL_SELECTED_CLASS);
     expect(allChip).toContain('href="/social"');
     expect(actingChip).not.toContain("data-social-home-topic-active");
     expect(actingChip).not.toContain("aria-current");
     expect(actingChip).toContain(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
     expect(actingChip).not.toContain(HOUSE_PILL_SELECTED_CLASS);
     expect(actingChip).toContain(`href="${socialHomeAxisHref("following", "Acting")}"`);
-    expect(src).toContain("socialTopicRailChipClass");
+    expect(src).toContain("socialHomeLensChipClass");
+    expect(src).toContain("socialHomeDesktopLensFilled");
     expect(src).toContain("socialHomeAxisHref");
     expect(src).not.toContain("socialHomeLensHref");
     expect(src).not.toContain("socialHomeLaneHref");
@@ -129,7 +133,8 @@ describe("SocialHomeTopics bank", () => {
     const all = chipMarkup(html, SOCIAL_CATEGORY_ALL);
     const acting = chipMarkup(html, "Acting");
     expect(forYou).toContain('data-social-home-lane-active=""');
-    expect(forYou).toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(forYou).toContain(SOCIAL_HOME_LENS_PHONE_ON_DESKTOP_OFF_CLASS);
+    expect(forYou).not.toContain(HOUSE_PILL_SELECTED_CLASS);
     expect(forYou).toContain('href="/social?topic=music&amp;lane=for-you"');
     expect(following).not.toContain("data-social-home-lane-active");
     expect(following).toContain('href="/social?topic=music"');
