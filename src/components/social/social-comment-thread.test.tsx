@@ -49,6 +49,22 @@ describe("SocialCommentTrigger", () => {
     expect(html).toContain('aria-label="Comments"');
     expect(html).toContain("data-social-comment-open");
     expect(html).not.toContain("data-social-comment-trail");
+    expect(html).toContain('href="/social/p/p1"');
+    expect(html).toContain("data-social-comment-href");
+    expect(html).not.toContain("data-social-comment-thread");
+  });
+
+  it("keeps Explore on the in-place sheet", () => {
+    const html = renderToStaticMarkup(
+      <SocialCommentTrigger
+        post={{ id: "p1", commentCount: 2, canComment: true }}
+        icon
+        presentation="sheet"
+      />,
+    );
+    expect(html).toContain("<button");
+    expect(html).not.toContain('href="/social/p/p1"');
+    expect(html).not.toContain("data-social-comment-thread");
   });
 
   it("does not keep a View comments trail in source", () => {

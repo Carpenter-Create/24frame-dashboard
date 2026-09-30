@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 
 import { Close44 } from "@/components/chrome/house";
@@ -34,13 +34,17 @@ export function SocialCommentThread({
   commentCount,
   onClose,
   variant = "sheet",
+  preamble,
+  footer,
 }: {
   postId: string;
   groupSlug?: string | null;
   canComment: boolean;
   commentCount: number;
   onClose?: () => void;
-  variant?: "sheet" | "page";
+  variant?: "sheet" | "page" | "panel";
+  preamble?: ReactNode;
+  footer?: ReactNode;
 }) {
   const titleId = useId();
   const desktop = useHouseDesktop();
@@ -176,7 +180,7 @@ export function SocialCommentThread({
   }
 
   const list = (
-    <div className={variant === "page" ? "flex flex-col gap-3" : "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2"}>
+    <div className={variant === "sheet" ? "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2" : "flex flex-col gap-3"}>
       {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
       {loading ? null : comments.length === 0 ? (
         <p data-social-comment-empty="" className="py-8 text-center t-body-sm text-ink-2">
@@ -237,7 +241,23 @@ export function SocialCommentThread({
     <p className="px-4 py-3 t-body-sm text-ink-2">{SOCIAL.cta.needProfile}</p>
   );
 
-  if (variant === "page") {
+  if (variant === "page" || variant === "panel") {
+    if (variant === "panel") {
+      return (
+        <div
+          data-social-comment-thread=""
+          data-social-comment-panel=""
+          className="flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)]"
+        >
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+            {preamble}
+            {list}
+          </div>
+          {footer}
+          {composer}
+        </div>
+      );
+    }
     return (
       <div data-social-comment-thread="" data-social-comment-page="" className="flex flex-col gap-3">
         <h2 id={titleId} className="t-body font-medium text-ink">

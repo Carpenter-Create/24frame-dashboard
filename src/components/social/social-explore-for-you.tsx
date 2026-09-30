@@ -274,6 +274,7 @@ function SocialExploreForYouSlide({
           }}
           icon
           tone="stage"
+          presentation="sheet"
         />
         <SocialPostShareButton postId={item.postId} tone="stage" />
       </div>

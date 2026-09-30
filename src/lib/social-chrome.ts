@@ -621,6 +621,37 @@ export const SOCIAL_COMMENT_SHEET_SCRIM_CLASS =
 export const SOCIAL_COMMENT_COMPOSER_CLASS =
   "flex items-end gap-2 border-t border-hairline bg-surface px-4 py-3";
 
+// Post comment open. Route surface, not a HouseOverlay host.
+// docs/design-locks/social-post-comment-open-lock-v1.md
+// Phone is a full-viewport column. Desktop media is a row (picture | thread).
+// Desktop text is a centered card on an ink scrim. No shadow.
+export const SOCIAL_POST_OPEN_HOST_CLASS =
+  "fixed inset-0 z-50 flex h-dvh w-full flex-col bg-surface";
+
+export const SOCIAL_POST_OPEN_HOST_MEDIA_CLASS =
+  "md:items-center md:justify-center md:bg-ink";
+
+export const SOCIAL_POST_OPEN_HOST_TEXT_CLASS =
+  "md:items-center md:justify-center md:bg-ink/40";
+
+export const SOCIAL_POST_OPEN_FRAME_CLASS =
+  "relative z-10 flex min-h-0 w-full flex-1 flex-col bg-surface";
+
+export const SOCIAL_POST_OPEN_FRAME_MEDIA_CLASS =
+  "md:h-[min(90dvh,900px)] md:w-[min(96vw,1080px)] md:flex-none md:flex-row md:overflow-hidden md:bg-ink";
+
+export const SOCIAL_POST_OPEN_FRAME_TEXT_CLASS =
+  "md:max-h-[90dvh] md:w-[min(92vw,500px)] md:flex-none md:overflow-hidden md:rounded-[16px] md:border md:border-hairline";
+
+export const SOCIAL_POST_OPEN_MEDIA_PANE_CLASS =
+  "relative h-[min(45dvh,480px)] w-full shrink-0 bg-ink md:h-auto md:min-h-0 md:min-w-0 md:flex-1";
+
+export const SOCIAL_POST_OPEN_RAIL_CLASS =
+  "flex min-h-0 min-w-0 flex-1 flex-col bg-surface";
+
+export const SOCIAL_POST_OPEN_RAIL_MEDIA_CLASS =
+  "md:w-[340px] md:max-w-[40vw] md:flex-none md:border-l md:border-hairline";
+
 export const SOCIAL_ACTIVITY_PILLS_CLASS = HOUSE_SCROLL_ROW_CLASS;
 
 export const SOCIAL_ACTIVITY_COMMENT_SNIPPET_CLASS =

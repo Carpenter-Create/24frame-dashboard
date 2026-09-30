@@ -455,6 +455,14 @@ html:has([data-social-feed-immersive]) [data-house-phone-bottom-nav] {
   max-height: min(70vh, 560px);
 }
 
+/* Comment-open media pane. The feed cap stays on the card carousel.
+   docs/design-locks/social-post-comment-open-lock-v1.md */
+.social-post-open-carousel .social-feed-carousel-slide {
+  height: 100%;
+  max-height: none;
+  background: transparent;
+}
+
 /* Stories posted confirm. The studio host lives in the page scroller;
    the Social lead and phone dock are siblings. Hide them while the
    confirm is up — the same chrome-tax kill as the immersive studio

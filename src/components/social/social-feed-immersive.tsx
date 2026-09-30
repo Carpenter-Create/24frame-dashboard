@@ -36,7 +36,7 @@ import {
 
 // Tap immersive. One fullscreen stage on phone and desktop.
 // docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md
-// Share opens the existing post Share sheet. Comment stays the thread.
+// Share opens the existing post Share sheet. Comment opens the post URL.
 
 export function SocialFeedImmersive({
   post,
