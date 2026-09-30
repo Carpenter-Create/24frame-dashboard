@@ -335,8 +335,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(topics).toContain("HouseChipRail");
     expect(topics).not.toContain("SOCIAL.forYou.topics");
     expect(topics).not.toMatch(/>Topics</);
-    expect(topics).toContain("socialHomeLensChipClass");
-    expect(chrome).toContain("socialTopicRailChipClass");
+    expect(topics).toContain("socialTopicRailChipClass");
     expect(topics).toContain("SOCIAL_CATEGORY_LABELS");
     expect(topics).not.toContain("SOCIAL_FOR_YOU_CARD_CLASS");
     expect(topics).not.toContain("socialInterestTopics");
@@ -1128,10 +1127,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(publicProfile).toContain("SocialDesktopForYouSlot");
     expect(publicProfile).not.toContain("SOCIAL_HOME_CENTER_CLASS");
     expect(ownFace).toContain("SOCIAL_PROFILE_CENTER_CLASS");
-    expect(home).toContain("SOCIAL_DESKTOP_HOME_FEED_CLASS");
-    expect(home).toContain("SOCIAL_DESKTOP_HOME_ROW_CLASS");
-    expect(home).not.toContain("SOCIAL_HOME_CENTER_CLASS");
-    expect(home).not.toContain("SOCIAL_HOME_LAYOUT_CLASS");
+    expect(home).toContain("SOCIAL_HOME_CENTER_CLASS");
     expect(home).toContain("SocialDesktopForYouSlot");
     expect(home).not.toContain("SOCIAL_PROFILE_CENTER_CLASS");
     expect(explore).toContain("SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS");

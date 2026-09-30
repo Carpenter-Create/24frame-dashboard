@@ -25,8 +25,6 @@ import {
   SOCIAL_TOPIC_RAIL_ROWS,
   SOCIAL_TOPIC_RAIL_STACK_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS,
-  SOCIAL_DESKTOP_HOME_FEED_CLASS,
-  SOCIAL_DESKTOP_HOME_ROW_CLASS,
   SOCIAL_HOME_CENTER_CLASS,
   SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_HOME_SPINE_CLASS,
@@ -126,7 +124,7 @@ export function SocialHomeCenterSkeleton({
   );
   if (!topics) return body;
   return (
-    <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={cn(SOCIAL_DESKTOP_HOME_FEED_CLASS, SOCIAL_HOME_SPINE_CLASS)}>
+    <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={cn(SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_SPINE_CLASS)}>
       {body}
     </div>
   );
@@ -153,7 +151,7 @@ function SocialStoriesRailSkeleton({
 
 export function SocialHomeSkeleton() {
   return (
-    <div data-social-home-skeleton="" className={SOCIAL_DESKTOP_HOME_ROW_CLASS}>
+    <div data-social-home-skeleton="" className={SOCIAL_HOME_LAYOUT_CLASS}>
       <SocialHomeCenterSkeleton />
       <SocialForYouSkeleton />
     </div>

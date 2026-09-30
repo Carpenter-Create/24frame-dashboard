@@ -208,8 +208,7 @@ describe("Social home", () => {
       ?? html.match(/class="([^"]+)"[^>]*data-social-home-stack="lock_topics_composer_stories_wall"/)?.[1];
     expect(stackClass).toContain("gap-[var(--space-2)]");
     expect(stackClass).not.toContain("gap-[var(--space-4)]");
-    expect(stackClass).toContain("lg:max-w-[470px]");
-    expect(stackClass).not.toContain("lg:max-w-[720px]");
+    expect(stackClass).toContain("lg:max-w-[720px]");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).not.toContain("/social/create?kind=text");
     expect(html).toContain("data-social-composer-write");
@@ -245,11 +244,8 @@ describe("Social home", () => {
     expect(html).toContain("data-social-stories");
     expect(html).toContain("data-social-following-empty");
     expect(html).toContain("data-social-for-you");
-    expect(html).toContain("lg:max-w-[470px]");
-    expect(html).toContain("lg:max-w-[802px]");
-    expect(html).not.toContain("lg:max-w-[720px]");
-    expect(html).not.toContain("lg:max-w-[1052px]");
-    expect(html).not.toContain("lg:ml-auto");
+    expect(html).toContain("lg:max-w-[720px]");
+    expect(html).toContain("lg:max-w-[1052px]");
     expect(html).toContain("gap-[32px]");
     expect(html).toContain("w-[300px]");
     expect(html).not.toContain("lg:max-w-[600px]");

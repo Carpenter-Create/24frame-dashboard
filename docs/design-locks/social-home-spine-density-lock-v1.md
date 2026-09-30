@@ -119,7 +119,7 @@ Posts stay on the page canvas (no gray FB gutter slabs). Hairline between rows s
 | | Phone (SoT) | Desktop |
 |--|-------------|---------|
 | Judgment | Density **PASS/FAIL here first** | Follow after phone feels full |
-| Center | Full phone canvas width | Profile and Messages stay **720**. Desktop Home feed is **470** (`social-home-post-separation-lock-v1.md`) |
+| Center | Full phone canvas width | Shared center **720** |
 | Composer / Stories / feed | Sections A–C | Same grammar · do not invent a louder desktop |
 | Side rails | **OUT** | Do **not** add FB Contacts/Sponsored/Shortcuts to fill bare · existing For You rail OK if already shipped |
 

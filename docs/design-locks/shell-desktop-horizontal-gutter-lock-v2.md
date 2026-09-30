@@ -98,7 +98,7 @@ In-card pad **16**, section gaps **24**, module radius, Soft-nav, phone `--chrom
 
 **G1.** Desktop left shell gutter = **32** CSS px (viewport → logo leading ink).  
 **G2.** Desktop right shell gutter = **32** CSS px (viewport → avatar trailing ink). **Identical** to G1 — not 44, not 48.  
-**G3.** Content columns that share shell gutters align to the **same** L/R pair; trailing content edge **flush** to avatar trailing ink (Aggregation cards · Profile and Messages For you rails · equivalent full-bleed columns). Desktop Social Home's feed row is start-aligned beside the Lock A rail and does not claim that avatar plane (`social-home-post-separation-lock-v1.md`). Header L/R stay.  
+**G3.** Content columns that share shell gutters align to the **same** L/R pair; trailing content edge **flush** to avatar trailing ink (Aggregation cards · Social For you rail · equivalent full-bleed columns).  
 **G4.** One shared shell gutter SoT across workspaces using house lead chrome — logo/avatar inset does not drift by workspace; L and R use the same token value.  
 **G5.** #661 asymmetric **32/44** gone on desktop shell (`--shell-gutter-inline-end` is **32**, not **44**).  
 **G6.** No Soft-nav invent in the Dev PR.  

@@ -447,35 +447,6 @@ html:has([data-social-feed-immersive]) [data-house-phone-bottom-nav] {
   padding: 12px !important;
 }
 
-/* Desktop Social Home only. Phone keeps socialFeedVideoFrame: the cap
-   narrows portrait width. At lg the frame fills the Home column and
-   keeps width/height. It does not crop into 4:5 and it does not leave
-   a side gutter in the grey card. The existing For You rail sticks.
-   docs/design-locks/social-home-post-separation-lock-v1.md */
-@media (min-width: 1024px) {
-  [data-social-home] [data-social-feed-video-frame] {
-    width: 100% !important;
-    max-width: 100%;
-    max-height: none !important;
-    align-self: stretch;
-  }
-
-  [data-social-home] [data-social-feed-video-frame] [data-social-feed-video-poster] {
-    position: absolute;
-    inset: 0;
-    width: 100% !important;
-    height: 100% !important;
-    max-height: none !important;
-    object-fit: cover;
-  }
-
-  [data-social-home] [data-social-for-you] {
-    position: sticky;
-    top: calc(var(--header-height) + var(--space-2));
-    align-self: flex-start;
-  }
-}
-
 /* Adam lock 2026-09-25. Feed carousel slide cap. Same Media Immersion
    box for every slide so the stage does not jump while swiping.
    Cover crop lives on the media. Width bleed is a chrome class. */
