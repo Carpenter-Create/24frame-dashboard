@@ -51,14 +51,13 @@ export const SOCIAL_FIGMA_HOME_DESKTOP_PRIOR = ["169:964", "169:1281", "164:1136
 // center 720 + gutter 32 + For You 300 = 1052.
 // Adam 2026-09-22: the fixed gutter between center and For You is 32.
 // Adam 2026-09-22 lock: Middle is 720. Pair max is 1052.
-// Lock v2: at lg the shared pair stays that fixed width and its trailing
+// Lock v2: at lg the pair stays that fixed width and its trailing
 // edge sits on the shell gutter so For You lines up with the avatar.
 // Leftover air stays on the lead side of the pair. Do not
-// justify-between the row. Do not pack the shared pair to the start. Do not
-// slide the rail inward. Do not stretch the shared center past 720. For You
+// justify-between the row. Do not pack the pair to the start. Do not
+// slide the rail inward. Do not stretch the center past 720. For You
 // stays 300. Do not full-bleed the inner cards. Phone is full-bleed:
 // the pair cap applies at lg, when the For You rail appears.
-// Desktop Home does not use this pair. It uses SOCIAL_DESKTOP_HOME_ROW_CLASS.
 // Complete class strings below — Tailwind does not see interpolations.
 export const SOCIAL_DESKTOP_MEASURE = {
   gutter: 32,
@@ -71,19 +70,6 @@ export const SOCIAL_CONTENT_PAIR_WIDTH =
   SOCIAL_DESKTOP_MEASURE.center +
   SOCIAL_DESKTOP_MEASURE.gutter +
   SOCIAL_DESKTOP_MEASURE.right;
-
-// Desktop Social Home column. Instagram arrangement: Lock A rail,
-// then this feed, then the existing For You rail. 470 is the feed
-// width. Gutter and rail width stay the shared 32 and 300.
-// 470 + 32 + 300 = 802. The row is start-aligned so the white canyon
-// between the dest rail and the feed does not return. Phone has no
-// max-width. Profile, Messages, and Create stay on the 720 / 1052 pair.
-// Complete class strings — Tailwind does not see interpolations.
-export const SOCIAL_DESKTOP_HOME_CENTER_PX = 470;
-export const SOCIAL_DESKTOP_HOME_ROW_CLASS =
-  "flex w-full items-start gap-[32px] lg:max-w-[802px]";
-export const SOCIAL_DESKTOP_HOME_FEED_CLASS =
-  "flex min-w-0 w-full flex-1 flex-col gap-2 lg:max-w-[470px]";
 export const SOCIAL_FIGMA_PROFILE = ["129:215", "129:415", "129:615"] as const;
 export const SOCIAL_FIGMA_PROFILE_OWN = ["181:230", "181:2000"] as const;
 export const SOCIAL_FIGMA_PROFILE_EDIT = ["180:206", "180:1946", "181:2184"] as const;
@@ -153,10 +139,9 @@ export const SOCIAL_HOME_SPINE_CLASS = "gap-[var(--space-2)]";
 export const SOCIAL_HOME_TOPICS_CLASS =
   "min-w-0 py-0 max-md:-mt-[var(--space-2)]";
 
-// Profile desktop row matches Home's For You rail at lg+: this column
-// plus SocialForYouRail. Messages and Create use that same shared row.
-// Their center stays 720. Desktop Home feed width is
-// SOCIAL_DESKTOP_HOME_FEED_CLASS. Phone stays the full phone canvas.
+// Profile desktop row matches Home: this column plus SocialForYouRail
+// at lg+. Explore and Messages use that same row. The center stays
+// the shared 720. The pair stays tight. Phone stays the full phone canvas.
 export const SOCIAL_PROFILE_CENTER_CLASS = socialShellCenterClass;
 
 // 40px face. Export name stays so search, home, and overview share one SoT.
@@ -835,21 +820,6 @@ export const SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS =
 
 export function socialTopicRailChipClass(selected: boolean): string {
   return selected ? SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS : SOCIAL_TOPIC_RAIL_CHIP_CLASS;
-}
-
-// Phone keeps both axes filled. Desktop Home lights one pill.
-// max-lg is the phone fill. lg is the idle chip. No third lane.
-export const SOCIAL_HOME_LENS_PHONE_ON_DESKTOP_OFF_CLASS =
-  `${SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS} max-lg:bg-accent max-lg:text-white lg:bg-surface-muted lg:text-ink`;
-
-export const SOCIAL_HOME_LENS_PHONE_OFF_DESKTOP_ON_CLASS =
-  `${SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS} max-lg:bg-surface-muted max-lg:text-ink lg:bg-accent lg:text-white`;
-
-export function socialHomeLensChipClass(phoneSelected: boolean, desktopFilled: boolean): string {
-  if (phoneSelected && desktopFilled) return SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS;
-  if (phoneSelected) return SOCIAL_HOME_LENS_PHONE_ON_DESKTOP_OFF_CLASS;
-  if (desktopFilled) return SOCIAL_HOME_LENS_PHONE_OFF_DESKTOP_ON_CLASS;
-  return SOCIAL_TOPIC_RAIL_CHIP_CLASS;
 }
 
 export const SOCIAL_FIRST_WIN_CLASS =

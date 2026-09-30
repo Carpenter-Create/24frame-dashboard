@@ -1,6 +1,6 @@
 # [GC][24Frame] LOCK — Social Home post separation v1
 
-**Date:** 2026-09-29 (CT) · interior air and in-feed video aspect 2026-09-30 (CT) · desktop Home column 2026-09-30 (CT)
+**Date:** 2026-09-29 (CT) · interior air and in-feed video aspect 2026-09-30 (CT)
 **Status:** **LOCKED** · CoS / Adam · **Option A** supersedes the #715 2px rule
 **Entity:** Global Content / 24Frame only
 **Amends:**
@@ -70,28 +70,10 @@ A portrait video is vertical inside the surface card before the viewer opens it.
 | Cap | `min(70vh, 560px)` still applies. When it binds, the width narrows (`min(100%, calc(cap * width / height))`) so the ratio stays. The picture is not cover-cropped into a landscape slot and not stretched. The still is in flow (`height: auto` on that ratio), not an absolute layer in an empty box |
 | Missing width or height | The picture still paints. Not a 16:9 guess and not an empty reserved box. The still is in flow, `object-contain`, capped at `min(70vh, 560px)`, until real edges exist |
 | Still | A public thumb paints in the card immediately (`loading="eager"`). A signed thumb paints when any part of the frame meets the viewport, including above the fold. It does not wait for the 60% Mux player mount |
-| Phone and non-Home desktop | The same function. No host that paints a portrait video as landscape |
-| Desktop Home | The function stays. At `lg`, `[data-social-home]` fills the frame to the column width and drops the cap's width narrowing. Aspect stays width/height. Portrait video is not cropped into 4:5. It is not a narrow strip in a wider grey card. Landscape stays the full card width |
+| Phone and desktop | The same function. No host that paints a portrait video as landscape |
 
 Stills stay `socialMediaFrameClass` (4:5 / 16:9). N≥2 stays the shared carousel stage. Explore stays the portrait stage that already shipped.
 
-## Desktop Home column
-
-Phone is unchanged. Profile, Messages, and Create stay on the shared 720 center and the 1052 end-aligned pair.
-
-| Token | Lock |
-|-------|------|
-| Row | `SOCIAL_DESKTOP_HOME_ROW_CLASS`. Start-aligned. `lg:max-w-[802px]`. Not `lg:ml-auto` |
-| Feed | `SOCIAL_DESKTOP_HOME_FEED_CLASS`. `lg:max-w-[470px]`. Below `lg`, the same full-width column as the shared center |
-| Rail | Existing `SocialForYouRail` (people already loaded, latest course). Sticky at `lg` inside `[data-social-home]`. No invented accounts, Follow control, or recommendation API |
-| Nav | Lock A stays: Home, Explore, Create, Messages, Profile. Floating dock and Soft-nav pills stay. Not an icon rail |
-| Cards | Option A stays. `HOUSE_MODULE_CLASS` on every post. Grey surface, white page, landscape media full width of the card |
-| Stills | Portrait stills stay `object-cover` inside the capped box. No left/right letterbox |
-| Stories | Restyle only a row that already exists. Do not add one |
-| Lens | One filled pill on desktop Home. Phone still fills lane and topic together. See the density sequel |
-
-The shell header gutters stay 32 / 32. This Home row does not claim the avatar trailing plane. Profile and Messages still do.
-
 ## Out
 
-Grey page wash. White cards on a grey canvas. The 2px top and bottom rule. A second rule on the card. Shadow. A Home-only card fork for color or radius. An `md:` fork for color, radius, or the shared in-feed video function. Moving the time beside the author. A gutter gap larger than `--space-6`. A portrait video in a landscape frame. A cover-crop of a portrait video into 16:9 or 4:5. A portrait video narrowed inside a wider grey card on desktop Home. Stretching a video. Choosing the frame from a filename or from `kind`. Dock, header, slider, waffle, or Explore changes. A second filled lens on desktop Home. An invented Suggested-for-you list.
+Grey page wash. White cards on a grey canvas. The 2px top and bottom rule. A second rule on the card. Shadow. A Home-only card fork. An `md:` fork for color, radius, or in-feed video aspect. Moving the time beside the author. A gutter gap larger than `--space-6`. A portrait video in a landscape frame. A cover-crop of a portrait video into 16:9. Stretching a video. Choosing the frame from a filename or from `kind`. Dock, header, slider, waffle, or Explore changes.

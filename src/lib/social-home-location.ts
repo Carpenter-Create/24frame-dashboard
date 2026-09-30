@@ -42,23 +42,6 @@ export function resolveSocialHomeLocation(input: {
 }
 
 /**
- * Desktop Home lights one pill. All is not a second lens beside the lane.
- * A real topic is the lens, and the lane chip stays idle. Phone still
- * fills both axes. No third lane.
- */
-export function socialHomeDesktopLensFilled(input: {
-  axis: "lane" | "topic";
-  lane?: SocialHomeLane;
-  topic?: SocialCategoryLabel;
-  liveLane: SocialHomeLane;
-  liveTopic: SocialCategoryLabel;
-}): boolean {
-  const topicIsAll = input.liveTopic === SOCIAL_CATEGORY_ALL;
-  if (input.axis === "lane") return topicIsAll && input.lane === input.liveLane;
-  return !topicIsAll && input.topic === input.liveTopic;
-}
-
-/**
  * Lane and topic are independent. Following omits `lane` (parse default).
  * For you keeps `?lane=for-you`. A topic keeps `?topic=`. No `/social/home`.
  * docs/design-locks/social-home-density-craft-sequel-lock-v1.md
