@@ -1,7 +1,7 @@
 # [GC][24Frame] LOCK — Explore For You immersive v2
 
 **Date:** 2026-09-26 (CT)  
-**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · **mute control** amend 2026-09-26 · **mute persistence** amend 2026-09-28 (Adam CLEAR · B2 unmute leak) · **desktop header + Exit** amend 2026-09-29 (Adam LOCK AMEND) · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
+**Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · **mute control** amend 2026-09-26 · **mute persistence** amend 2026-09-28 (Adam CLEAR · B2 unmute leak) · **desktop header + Exit** amend 2026-09-29 (Adam LOCK AMEND) · **desktop portrait player** amend 2026-09-29 (Adam LOCK) · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
 **Repo:** `docs/design-locks/social-explore-for-you-immersive-lock-v2.md`  
 **Box:** `/workspace/24frame-agg-ux/social-explore-for-you-immersive-lock-v2.md`  
 **Supersedes:** `social-explore-discovery-lock-v1.md` (IG grid) · **#693 DRAFT wrong shape** — do not invent on grid; ship from this v2  
@@ -22,17 +22,34 @@
 | Token | Lock (one SoT) |
 |-------|----------------|
 | Default | Explore opens **For You** vertical immersive stream |
-| Stage | **Media IS the canvas** · full-bleed edge-to-edge **`object-fit: cover`** · near-black **`#0A0A0B`** letterbox only if the frame is not already covered · **Media Immersion** (not a grid, not a paper card, not a framed letterbox) |
-| Fit | Active item **`object-fit: cover`** · fills stage (vertical-first) |
+| Stage | **Phone:** Media IS the canvas · full-bleed edge-to-edge **`object-fit: cover`** · near-black **`#0A0A0B`** · **Media Immersion** (not a grid, not a paper card, not a framed letterbox). **Desktop `md+`:** that same stage fills the column under the header. The player inside it is the centered portrait frame in §A2, not a cover-fill of the wide column |
+| Fit | **Phone:** Active item **`object-fit: cover`** · fills the viewport stage. **Desktop `md+`:** **`object-fit: contain`** inside the §A2 portrait player |
 | Swipe | Vertical snap · one item per viewport · next/prev For You |
 | Video | Mux-only play surface · autoplay when active · pause when off-screen · cite Mux-only |
 | First visual | **First frame** of the clip (Adam) · public Mux thumbnail `time=0` · signed thumbnail time is the JWT claim `time` `0` · not Mux's default mid-clip still |
 | Media kinds | **Video only** in For You / discovery streams · **photos OUT** of vertical Explore feed |
-| Social shell | **Phone:** Social header **OUT** · stage is viewport-fixed · tab dock may overlay the bottom of the media. **Desktop `md+`:** house header (logo + Layer 1 sliding workspace row) sits **above** the media. Stage fills that column. Labeled **Exit** leaves Explore (prior in-app route, or Social home). Waffle stays hidden. **Both:** **surface dest-rail card OUT** · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
+| Social shell | **Phone:** Social header **OUT** · stage is viewport-fixed · tab dock may overlay the bottom of the media. **Desktop `md+`:** house header (logo + Layer 1 sliding workspace row) sits **above** the media. Stage fills that column. The player is §A2. Labeled **Exit** is a header chip, not a bare text link. It leaves Explore (prior in-app route, or Social home). Header search stays. Waffle stays hidden. **Both:** **surface dest-rail card OUT** · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
 | Fail | Soft grid of thumbs · FB mosaic · dumping user onto Home post unit · photo tiles in For You |
 
 **FAIL:** IG Explore grid as primary (#693 / v1) · photos in vertical Explore.  
-**PASS:** Full-screen vertical **video** · app immersion · swipe For You.
+**PASS:** Full-screen vertical **video** · app immersion · swipe For You. Phone stays cover. Desktop shows the whole vertical inside a portrait frame.
+
+---
+
+## A2) Desktop player (`md+`) — portrait frame
+
+**Amend 2026-09-29.** Phone rows in §A stay. This section does not move the phone stage, phone `object-fit`, the phone dock, or phone header visibility.
+
+| Token | Lock (one SoT) |
+|-------|----------------|
+| Column | The stage still sits **below** the house header. Header stays: logo, Layer 1 slider, Exit. Not a fullscreen trap. Do not hide the header on desktop |
+| Player | Centered **9:16** box in that column. Height fits the column. Width is `9/16` of that height, capped by the column width. Black gutters left and right are the stage **`#0A0A0B`**. No new color token |
+| Vertical | The whole portrait picture is visible. **`object-fit: contain`** inside the player. Cover-cropping a vertical into the wide column is **FAIL** |
+| Landscape | Stays landscape **inside** the player. Black bars above and below, same stage color. Do not stretch. Do not crop the landscape into the portrait frame |
+| Caption | Sits on the portrait box. Phone caption geometry stays |
+| Rail | Trailing rail stays. Phone dock clearance stays |
+| Exit | Label **Exit** (`SOCIAL.explore.exit`). A filled header chip (44 hit), with an X, not a bare text link beside search. Href is Social home (`/social`). A same-origin referrer whose path is not Explore uses history. No open redirect. Header search stays |
+| Phone | Do not apply this box, this contain fit, or Exit below `md` |
 
 ---
 
@@ -109,10 +126,13 @@
 | FB collage / mosaic | Out |
 | Inventing on grid while v2 ships | Do not · supersede via this lock |
 | Photos in vertical For You / discovery | Adam LOCK video-only |
-| Framed letterbox | Media is the canvas · cover, edge to edge |
+| Phone framed letterbox | Phone media is the canvas · cover, edge to edge. Desktop landscape letterbox inside the portrait player is §A2 |
 | Persistent search slab | Discover chrome overlays the media |
 | Social header on phone For You | Phone stays immersive · headerless · dock overlays the media |
 | Desktop For You with no header above the media, or no Exit | Adam 2026-09-29 · desktop is not a viewport trap |
+| Desktop cover-crop of a vertical into the wide column | §A2 · portrait frame · contain |
+| Desktop landscape stretched or cropped into the portrait player | §A2 · letterbox inside the player |
+| Bare text Exit | Exit is a tappable chip. Label stays Exit |
 | Exit, slider, or waffle on phone Explore | Phone face stays immersive |
 | White page well | The page canvas is the media, not paper around a card |
 | Surface dest-rail card on For You | A rounded surface card on the video is a website card · Media Immersion FAIL |
@@ -131,10 +151,10 @@
 1. Explore default = vertical full-screen For You · vertical swipe.  
 2. Open/tap stays in immersive media — never Home feed post face.  
 3. Discovery (people / keywords / hashtags) stays immersive **video** stream.  
-4. Mux-only video · Media Immersion cover stage.  
+4. Mux-only video. Phone Media Immersion cover stage. Desktop portrait player contains the picture (§A2).  
 5. Vertical Explore = **video-only** · photos OUT (§D).  
 6. v1 grid / #693 superseded.  
-7. Media is the canvas. Phone For You keeps the header out and the stage viewport-fixed. Desktop For You puts the house header above the media and a labeled Exit. The surface dest-rail card is out. Search overlays the media. Tab dock may overlay the bottom on phone. No framed letterbox. No white page well. Soft / flat / pasted / framed card fails before glance.  
+7. Media is the canvas. Phone For You keeps the header out, the stage viewport-fixed, and `object-fit: cover`. Desktop For You puts the house header above the media, a centered portrait player in that column, and a labeled Exit chip. The surface dest-rail card is out. Search overlays the media. Header search stays. Tab dock may overlay the bottom on phone. Phone has no framed letterbox. No white page well. Soft / flat / pasted / framed card fails before glance.  
 8. Mute sits at the **top** of the trailing rail, above Like. It stays visible and tappable for the whole active video. Autoplay starts muted on cold session. Empty `audioTracks` do not remove it. Once user unmutes, **session sticky** — stay unmuted across subsequent Explore videos until user mutes. §B2.
 
 ---
@@ -143,6 +163,7 @@
 
 1. Tip cites this v2 lock · Adam glance: TikTok-class video For You · not grid · no photos in stream.  
 2. Design Own→READY · CoS CLEAR Dev · #693 reshaped or replaced to this lock.  
-3. Active For You video shows mute above Like. Tap toggles. Unmute hears audio when the clip has audio. The control does not flash off. Cold session starts muted. Unmute then swipe → next clips stay unmuted until user mutes (no per-clip unmute tax).
+3. Active For You video shows mute above Like. Tap toggles. Unmute hears audio when the clip has audio. The control does not flash off. Cold session starts muted. Unmute then swipe → next clips stay unmuted until user mutes (no per-clip unmute tax).  
+4. Desktop `md+`: a vertical plays inside a centered portrait frame with black gutters. A landscape letterboxes inside that frame. Exit is a chip labeled Exit. Phone Explore is unchanged.
 
 **Ship:** Design Own→READY · CoS routes Dev.

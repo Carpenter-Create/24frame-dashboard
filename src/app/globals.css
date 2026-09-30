@@ -370,14 +370,54 @@ body:has([data-social-write-compose]) :is(#vercel-toolbar, vercel-live-feedback,
   background-color: #0A0A0B;
 }
 
-/* Explore For You. Cover fill. Letterbox is the story stage, not
-   surface-muted. #0A0A0B has no house token.
+/* Explore For You. Phone cover-fills the viewport. Desktop md+ contains
+   the picture in a centered 9:16 player so a vertical is not cover-cropped
+   into the wide column. Landscape letterboxes in that player. Gutters and
+   the letterbox are the stage #0A0A0B — no house token, no new hex.
    docs/design-locks/social-explore-for-you-immersive-lock-v2.md */
+.social-explore-player {
+  position: absolute;
+  inset: 0;
+}
+
 .social-explore-stage-media {
   --media-background-color: #0A0A0B;
   --media-object-fit: cover;
   --media-object-position: center;
   background-color: #0A0A0B;
+}
+
+@media (min-width: 768px) {
+  .social-explore-scroll {
+    container-type: size;
+  }
+
+  .social-explore-player {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    width: min(100%, calc(100cqh * 9 / 16));
+    height: min(100%, calc(100cqw * 16 / 9));
+    transform: translate(-50%, -50%);
+  }
+
+  .social-explore-slide [data-social-explore-caption] {
+    right: auto;
+    left: 50%;
+    width: min(100%, calc(100cqh * 9 / 16));
+    transform: translateX(-50%);
+  }
+
+  .social-explore-stage-media {
+    --media-object-fit: contain;
+  }
+
+  .social-explore-stage-media mux-player,
+  .social-explore-stage-media [data-social-mux-poster],
+  .social-explore-player [data-social-explore-poster] {
+    --media-object-fit: contain !important;
+    object-fit: contain !important;
+  }
 }
 
 html:has([data-social-feed-immersive]) [data-house-lead-stack],

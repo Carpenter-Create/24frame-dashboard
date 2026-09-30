@@ -537,20 +537,23 @@ export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
 export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-words";
 
 // Explore For You v2. The media is the canvas. Same near-black stage as
-// SOCIAL_STORY_STAGE_CLASS. Phone is fixed to the viewport. Desktop
-// fills the column under the house header. No z-index, so the phone
-// dock (z-40) and sheets (z-50) overlay the stage. #0A0A0B has no house
-// token. Not a rounded card, not a paper well. Phone For You is
-// viewport-fixed and headerless. Desktop md+ fills the column under
-// the house header — the stage does not cover that header.
+// SOCIAL_STORY_STAGE_CLASS. Phone is fixed to the viewport and cover-fills
+// it. Desktop md+ keeps that stage in the column under the house header.
+// The desktop player is a centered 9:16 box inside the stage (see
+// .social-explore-player). No z-index, so the phone dock (z-40) and
+// sheets (z-50) overlay the stage. #0A0A0B has no house token. Not a
+// rounded card, not a paper well. Phone For You is viewport-fixed and
+// headerless. Desktop md+ does not cover the house header.
 // The surface dest-rail card stays off this route.
 // Media Immersion Doctrine: soft / flat / pasted / framed card = FAIL.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
 // docs/design-locks/shell-desktop-top-nav-slider-waffle-phone-lock-v1.md
 export const SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS = "hidden md:contents";
 
+// Desktop header chip. Hidden below md so phone Explore has no Exit.
+// Filled ink on the light header so it reads as a control, not body text.
 export const SOCIAL_EXPLORE_EXIT_CLASS =
-  "hidden shrink-0 items-center t-body text-ink md:inline-flex";
+  "hidden h-[var(--header-control-size)] min-h-[var(--header-control-size)] shrink-0 items-center gap-[var(--space-2)] whitespace-nowrap rounded-full bg-ink px-[var(--space-3)] t-body font-medium text-surface md:inline-flex";
 
 export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
   "max-md:fixed max-md:inset-0 overflow-hidden bg-[#0A0A0B] md:absolute md:inset-0";
@@ -559,10 +562,14 @@ export const SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS =
   "absolute inset-0 overflow-hidden bg-[#0A0A0B] text-band-ink";
 
 export const SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS =
-  "absolute inset-0 snap-y snap-mandatory overflow-y-auto overscroll-y-contain";
+  "social-explore-scroll absolute inset-0 snap-y snap-mandatory overflow-y-auto overscroll-y-contain";
 
 export const SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS =
-  "relative h-full min-h-full w-full shrink-0 snap-start snap-always";
+  "social-explore-slide relative h-full min-h-full w-full shrink-0 snap-start snap-always";
+
+// Phone: this box is the slide (full-bleed cover). Desktop geometry is
+// .social-explore-player in globals.css — a centered 9:16 frame.
+export const SOCIAL_EXPLORE_FOR_YOU_PLAYER_CLASS = "social-explore-player";
 
 // Trailing rail. Like · Comment · Share keep hit 40, glyph 24, gap 8.
 // Mute is inserted above Like: glyph 20, same 40 hit. The column is not redrawn.

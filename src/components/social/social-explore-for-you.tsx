@@ -20,6 +20,7 @@ import {
 } from "@/lib/social-mux";
 import {
   SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS,
+  SOCIAL_EXPLORE_FOR_YOU_PLAYER_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS,
@@ -51,6 +52,10 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 // those slides have no tokens, and does not mint every closed slide.
 // Comment and Share close in place. Dismiss does not move the active index
 // and does not leave Explore.
+// Phone keeps fit cover on the full-bleed stage. Desktop md+ sizes
+// .social-explore-player to a centered 9:16 box and forces contain,
+// so a vertical is not cover-cropped into the wide column and a
+// landscape letterboxes inside that box.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
 // docs/design-locks/stories-viewer-mute-control-lock-v1.md
 
@@ -187,25 +192,27 @@ function SocialExploreForYouSlide({
       data-social-explore-active-index={active ? index : undefined}
       className={SOCIAL_EXPLORE_FOR_YOU_SLIDE_CLASS}
     >
-      {active ? (
-        <SocialMuxPlayer
-          playbackId={item.playbackId}
-          playbackPolicy={item.playbackPolicy}
-          initialTokens={item.playbackTokens}
-          fit="cover"
-          chromeless
-          autoPlay={playing}
-          muted={muted}
-          onForcedMute={onForcedMute}
-          className="social-explore-stage-media absolute inset-0 size-full bg-[#0A0A0B] object-cover"
-        />
-      ) : (
-        <ExploreForYouClosedFace
-          playbackId={item.playbackId}
-          playbackPolicy={item.playbackPolicy}
-          playbackTokens={item.playbackTokens}
-        />
-      )}
+      <div data-social-explore-player="" className={SOCIAL_EXPLORE_FOR_YOU_PLAYER_CLASS}>
+        {active ? (
+          <SocialMuxPlayer
+            playbackId={item.playbackId}
+            playbackPolicy={item.playbackPolicy}
+            initialTokens={item.playbackTokens}
+            fit="cover"
+            chromeless
+            autoPlay={playing}
+            muted={muted}
+            onForcedMute={onForcedMute}
+            className="social-explore-stage-media absolute inset-0 size-full bg-[#0A0A0B] object-cover md:object-contain"
+          />
+        ) : (
+          <ExploreForYouClosedFace
+            playbackId={item.playbackId}
+            playbackPolicy={item.playbackPolicy}
+            playbackTokens={item.playbackTokens}
+          />
+        )}
+      </div>
       <button
         type="button"
         data-social-explore-media=""
@@ -295,7 +302,7 @@ function ExploreForYouClosedFace({
           alt=""
           src={signedThumb}
           data-social-explore-poster=""
-          className="pointer-events-none absolute inset-0 size-full object-cover"
+          className="pointer-events-none absolute inset-0 size-full object-cover md:object-contain"
         />
       ) : signed ? null : (
         // eslint-disable-next-line @next/next/no-img-element -- public Mux still, no playback mint
@@ -303,7 +310,7 @@ function ExploreForYouClosedFace({
           alt=""
           src={socialMuxThumbnailUrl(playbackId)}
           data-social-explore-poster=""
-          className="pointer-events-none absolute inset-0 size-full object-cover"
+          className="pointer-events-none absolute inset-0 size-full object-cover md:object-contain"
         />
       )}
     </div>
