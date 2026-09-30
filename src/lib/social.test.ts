@@ -790,7 +790,7 @@ describe("social writes stay on the live spine", () => {
       "src/app/(app)/social/dms/[id]/page.tsx",
       "src/app/(app)/social/leaderboard/page.tsx",
       "src/app/(app)/social/groups/[slug]/page.tsx",
-      "src/app/(app)/social/p/[postId]/page.tsx",
+      "src/components/social/social-post-open-page.tsx",
       "src/app/(app)/social/stories/[id]/page.tsx",
     ];
     for (const file of nodeSurfaces) {
@@ -819,7 +819,7 @@ describe("social writes stay on the live spine", () => {
       "src/app/(app)/social/page.tsx",
       "src/app/(app)/social/profile/page.tsx",
       "src/app/(app)/social/groups/[slug]/page.tsx",
-      "src/app/(app)/social/p/[postId]/page.tsx",
+      "src/components/social/social-post-open-page.tsx",
       "src/app/(app)/social/stories/[id]/page.tsx",
     ];
     for (const file of feed) {

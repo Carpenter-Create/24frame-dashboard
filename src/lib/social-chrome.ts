@@ -607,19 +607,69 @@ export const SOCIAL_POST_TIME_CLASS =
 // docs/design-locks/social-home-craft-wave-1-lock-v1.md
 export const SOCIAL_FEED_GUTTER_CLASS = `flex flex-col ${HOUSE_SECTION_AIR_CLASS}`;
 
-// Comment thread — house app-sheet rise. Same host/scrim as Create.
-// Composer stays at the bottom. Do not fork a second sheet grammar.
-export const SOCIAL_COMMENT_SHEET_HOST_CLASS =
-  "fixed inset-0 z-50 flex h-dvh w-full flex-col justify-end md:hidden";
+// Post Share and the in-place comment sheet are one drawer.
+// Phone docks to the bottom. Desktop centers the same sheet.
+// Surface, ink, and accent follow the theme. No forced white card.
+// No forced near-black fill. Not an AppSheet and not a HouseDialog.
+// docs/design-locks/social-post-comment-open-lock-v1.md
+// docs/design-locks/social-post-share-sheet-ig-lock-v1.md
+export const SOCIAL_POST_DRAWER_HOST_CLASS =
+  "fixed inset-0 z-[60] flex items-end justify-center md:items-center";
 
-export const SOCIAL_COMMENT_SHEET_SURFACE_CLASS =
-  "relative z-10 flex max-h-[90vh] w-full flex-col rounded-t-[16px] bg-surface p-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] app-sheet-rise";
+export const SOCIAL_POST_DRAWER_SURFACE_CLASS =
+  "relative z-10 flex max-h-[90vh] w-full min-h-0 flex-col overflow-hidden rounded-t-[16px] border border-hairline bg-surface p-4 pb-[max(16px,env(safe-area-inset-bottom))] text-ink md:max-w-[420px] md:rounded-[16px]";
 
-export const SOCIAL_COMMENT_SHEET_SCRIM_CLASS =
-  "absolute inset-0 bg-ink/40 app-sheet-scrim-fade";
+export const SOCIAL_POST_DRAWER_GRAB_CLASS =
+  "mx-auto mb-4 h-1 w-9 shrink-0 rounded-full bg-ink/40";
 
-export const SOCIAL_COMMENT_COMPOSER_CLASS =
-  "flex items-end gap-2 border-t border-hairline bg-surface px-4 py-3";
+export const SOCIAL_POST_DRAWER_PILL_CLASS =
+  "flex h-10 min-w-0 items-center rounded-[20px] bg-surface-muted";
+
+export const SOCIAL_POST_DRAWER_INPUT_CLASS =
+  "h-10 min-w-0 flex-1 text-ink caret-ink";
+
+export const SOCIAL_POST_DRAWER_ICON_WELL_CLASS =
+  "flex size-12 items-center justify-center rounded-full bg-surface-muted text-ink";
+
+export const SOCIAL_POST_DRAWER_SUBMIT_CLASS =
+  "flex h-12 w-full items-center justify-center rounded-[24px] bg-accent t-body font-medium text-accent-contrast disabled:bg-surface-muted disabled:text-ink-3";
+
+export const SOCIAL_POST_DRAWER_COMPOSE_FIELD_CLASS =
+  "flex min-h-10 w-full items-end rounded-[20px] bg-surface-muted px-4";
+
+export const SOCIAL_POST_DRAWER_COMPOSE_INPUT_CLASS =
+  "max-h-32 min-h-9 min-w-0 flex-1 resize-none bg-transparent py-2";
+
+// Post comment open. Route surface, not a HouseOverlay host.
+// docs/design-locks/social-post-comment-open-lock-v1.md
+// Phone is a full-viewport column. Desktop media is a row (picture | thread).
+// Desktop text is a centered card on an ink scrim. No shadow.
+export const SOCIAL_POST_OPEN_HOST_CLASS =
+  "fixed inset-0 z-50 flex h-dvh w-full flex-col bg-surface";
+
+export const SOCIAL_POST_OPEN_HOST_MEDIA_CLASS =
+  "md:items-center md:justify-center md:bg-ink";
+
+export const SOCIAL_POST_OPEN_HOST_TEXT_CLASS =
+  "md:items-center md:justify-center md:bg-ink/40";
+
+export const SOCIAL_POST_OPEN_FRAME_CLASS =
+  "relative z-10 flex min-h-0 w-full flex-1 flex-col bg-surface";
+
+export const SOCIAL_POST_OPEN_FRAME_MEDIA_CLASS =
+  "md:h-[min(90dvh,900px)] md:w-[min(96vw,1080px)] md:flex-none md:flex-row md:overflow-hidden md:bg-ink";
+
+export const SOCIAL_POST_OPEN_FRAME_TEXT_CLASS =
+  "md:max-h-[90dvh] md:w-[min(92vw,500px)] md:flex-none md:overflow-hidden md:rounded-[16px] md:border md:border-hairline";
+
+export const SOCIAL_POST_OPEN_MEDIA_PANE_CLASS =
+  "relative h-[min(45dvh,480px)] w-full shrink-0 bg-ink md:h-auto md:min-h-0 md:min-w-0 md:flex-1";
+
+export const SOCIAL_POST_OPEN_RAIL_CLASS =
+  "flex min-h-0 min-w-0 flex-1 flex-col bg-surface";
+
+export const SOCIAL_POST_OPEN_RAIL_MEDIA_CLASS =
+  "md:w-[340px] md:max-w-[40vw] md:flex-none md:border-l md:border-hairline";
 
 export const SOCIAL_ACTIVITY_PILLS_CLASS = HOUSE_SCROLL_ROW_CLASS;
 

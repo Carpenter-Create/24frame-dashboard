@@ -5,7 +5,7 @@ import { ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS, ACCOUNT_SHEET_SURFACE_CLASS } from
 import { APP_SHEET_CHROME_CLASS, APP_SHEET_HOST_CLASS, APP_SHEET_SCRIM_CLASS } from "./house-sheet";
 import { HOUSE_PAGE_SELECT_TRIGGER_LABEL_CLASS } from "./house-page-select";
 import { MENU_SURFACE_CONTENT_CLASS, MENU_SURFACE_ITEM_CLASS, menuSurfaceContentClass } from "./menu-surface";
-import { SOCIAL_COMMENT_SHEET_SURFACE_CLASS, SOCIAL_PROFILE_EDIT_HOST_CLASS } from "./social-chrome";
+import { SOCIAL_PROFILE_EDIT_HOST_CLASS } from "./social-chrome";
 import {
   APP_SHEET_FULL_HOST_CLASS,
   APP_SHEET_LOCK_HOST_CLASS,
@@ -184,8 +184,13 @@ describe("HouseOverlay dual-host lock v1", () => {
       ),
     ).toBe(true);
     expect(overlayClassMixesHosts(APP_SHEET_HOST_CLASS)).toBe(false);
-    expect(SOCIAL_COMMENT_SHEET_SURFACE_CLASS).not.toContain("md:max-w");
-    expect(SOCIAL_COMMENT_SHEET_SURFACE_CLASS).not.toContain("md:rounded");
+    // In-place comments left the AppSheet / HouseDialog fork. They use the
+    // post Share drawer, which is not a house-overlay host.
+    const comments = src("src/components/social/social-comment-thread.tsx");
+    expect(comments).toContain("SOCIAL_POST_DRAWER_SURFACE_CLASS");
+    expect(comments).not.toContain("HouseDialogFrame");
+    expect(comments).not.toContain("data-house-overlay-host");
+    expect(comments).not.toContain("md:hidden");
 
     const account = src("src/components/chrome/account-sheet.tsx");
     expect(account).toContain('data-house-overlay-host="app-sheet"');

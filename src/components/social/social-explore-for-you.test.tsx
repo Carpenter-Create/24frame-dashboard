@@ -226,6 +226,7 @@ describe("SocialExploreForYouStream", () => {
     const share = readFileSync("src/components/social/social-post-share-button.tsx", "utf8");
     expect(explore).not.toContain("useRouter");
     expect(explore).not.toContain("router.push");
+    expect(explore).toContain('presentation="sheet"');
     expect(comment).toContain("onClose={() => setOpen(false)}");
     expect(share).toContain("onClose={() => setOpen(false)}");
     expect(comment).not.toContain("router.push");

@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
-import { Close44 } from "@/components/chrome/house";
-import { HouseDialogFrame, HouseOverlayHead, useHouseDesktop } from "@/components/chrome/house-overlay";
+import { HouseScrim } from "@/components/chrome/house-overlay";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
 import { SocialAvatar } from "@/components/social/social-avatar";
-import { cn } from "@/lib/cn";
 import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
 import {
-  SOCIAL_ACTION_CLASS,
-  SOCIAL_COMMENT_COMPOSER_CLASS,
-  SOCIAL_COMMENT_SHEET_HOST_CLASS,
-  SOCIAL_COMMENT_SHEET_SCRIM_CLASS,
-  SOCIAL_COMMENT_SHEET_SURFACE_CLASS,
+  SOCIAL_POST_DRAWER_COMPOSE_FIELD_CLASS,
+  SOCIAL_POST_DRAWER_COMPOSE_INPUT_CLASS,
+  SOCIAL_POST_DRAWER_GRAB_CLASS,
+  SOCIAL_POST_DRAWER_HOST_CLASS,
+  SOCIAL_POST_DRAWER_SUBMIT_CLASS,
+  SOCIAL_POST_DRAWER_SURFACE_CLASS,
 } from "@/lib/social-chrome";
 import { socialMemberHref, socialRelativeTime, SOCIAL } from "@/lib/social";
 import {
@@ -34,16 +34,19 @@ export function SocialCommentThread({
   commentCount,
   onClose,
   variant = "sheet",
+  preamble,
+  footer,
 }: {
   postId: string;
   groupSlug?: string | null;
   canComment: boolean;
   commentCount: number;
   onClose?: () => void;
-  variant?: "sheet" | "page";
+  variant?: "sheet" | "page" | "panel";
+  preamble?: ReactNode;
+  footer?: ReactNode;
 }) {
   const titleId = useId();
-  const desktop = useHouseDesktop();
   const [comments, setComments] = useState<SocialCommentCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -56,11 +59,8 @@ export function SocialCommentThread({
       if (event.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
     };
   }, [onClose, variant]);
 
@@ -176,7 +176,7 @@ export function SocialCommentThread({
   }
 
   const list = (
-    <div className={variant === "page" ? "flex flex-col gap-3" : "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2"}>
+    <div className={variant === "sheet" ? "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto" : "flex flex-col gap-3"}>
       {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
       {loading ? null : comments.length === 0 ? (
         <p data-social-comment-empty="" className="py-8 text-center t-body-sm text-ink-2">
@@ -217,27 +217,54 @@ export function SocialCommentThread({
     </div>
   );
   const composer = canComment ? (
-    <form data-social-comment-composer="" className={SOCIAL_COMMENT_COMPOSER_CLASS} onSubmit={onSubmit}>
-      <Textarea
-        id="social-comment-body"
-        name="body"
-        value={body}
-        maxLength={COMMENT_BODY_MAX}
-        rows={2}
-        variant="bare"
-        placeholder={SOCIAL.post.commentPlaceholder}
-        className="min-h-9 min-w-0 flex-1 resize-none px-0 py-1"
-        onChange={(event) => setBody(event.target.value)}
-      />
-      <button type="submit" disabled={pending || !body.trim()} className={cn(SOCIAL_ACTION_CLASS, "shrink-0")}>
+    <form
+      data-social-comment-composer=""
+      className={variant === "sheet" ? "flex shrink-0 flex-col gap-4" : "flex flex-col gap-4 px-4 pb-4"}
+      onSubmit={onSubmit}
+    >
+      <label className="sr-only" htmlFor="social-comment-body">
+        {SOCIAL.post.commentPlaceholder}
+      </label>
+      <div className={SOCIAL_POST_DRAWER_COMPOSE_FIELD_CLASS}>
+        <Textarea
+          id="social-comment-body"
+          name="body"
+          value={body}
+          maxLength={COMMENT_BODY_MAX}
+          rows={2}
+          variant="bare"
+          placeholder={SOCIAL.post.commentPlaceholder}
+          className={SOCIAL_POST_DRAWER_COMPOSE_INPUT_CLASS}
+          onChange={(event) => setBody(event.target.value)}
+        />
+      </div>
+      <button type="submit" disabled={pending || !body.trim()} className={SOCIAL_POST_DRAWER_SUBMIT_CLASS}>
         {SOCIAL.post.commentSubmit}
       </button>
     </form>
   ) : (
-    <p className="px-4 py-3 t-body-sm text-ink-2">{SOCIAL.cta.needProfile}</p>
+    <p className={variant === "sheet" ? "t-body-sm text-ink-2" : "px-4 py-3 t-body-sm text-ink-2"}>
+      {SOCIAL.cta.needProfile}
+    </p>
   );
 
-  if (variant === "page") {
+  if (variant === "page" || variant === "panel") {
+    if (variant === "panel") {
+      return (
+        <div
+          data-social-comment-thread=""
+          data-social-comment-panel=""
+          className="flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)]"
+        >
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+            {preamble}
+            {list}
+          </div>
+          {footer}
+          {composer}
+        </div>
+      );
+    }
     return (
       <div data-social-comment-thread="" data-social-comment-page="" className="flex flex-col gap-3">
         <h2 id={titleId} className="t-body font-medium text-ink">
@@ -249,43 +276,28 @@ export function SocialCommentThread({
     );
   }
 
-  if (desktop && onClose) {
-    return (
-      <HouseDialogFrame
-        size="form"
-        titleId={titleId}
-        label={SOCIAL.post.commentsTitle}
-        onClose={onClose}
-        closeLabel={SOCIAL.create.close}
+  const sheet = (
+    <div
+      data-social-comment-thread=""
+      data-social-comment-host="ig-drawer"
+      className={SOCIAL_POST_DRAWER_HOST_CLASS}
+    >
+      <HouseScrim label={SOCIAL.post.shareClose} onClose={onClose ?? (() => undefined)} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`${SOCIAL_POST_DRAWER_SURFACE_CLASS} shadow-none`}
       >
-        <div data-social-comment-thread="">
-          <HouseOverlayHead
-            title={SOCIAL.post.commentsTitle}
-            titleId={titleId}
-            closeLabel={SOCIAL.create.close}
-            onClose={onClose}
-          />
-          {list}
-          {composer}
-        </div>
-      </HouseDialogFrame>
-    );
-  }
-
-  return (
-    <div data-social-comment-thread="" data-house-overlay-host="app-sheet" className={SOCIAL_COMMENT_SHEET_HOST_CLASS} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      <button type="button" className={SOCIAL_COMMENT_SHEET_SCRIM_CLASS} aria-label={SOCIAL.create.close} onClick={onClose} />
-      <div className={SOCIAL_COMMENT_SHEET_SURFACE_CLASS}>
-        <div className="flex h-14 shrink-0 items-center justify-between px-2">
-          <Close44 label={SOCIAL.create.close} onClick={onClose} />
-          <h2 id={titleId} className="t-body font-medium text-ink">
-            {SOCIAL.post.commentsTitle}
-          </h2>
-          <span className="size-11" />
-        </div>
+        <div data-social-comment-grab="" className={SOCIAL_POST_DRAWER_GRAB_CLASS} />
+        <h2 id={titleId} className="mb-4 shrink-0 t-body font-medium text-ink">
+          {SOCIAL.post.commentsTitle}
+        </h2>
         {list}
         {composer}
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(sheet, document.body) : sheet;
 }

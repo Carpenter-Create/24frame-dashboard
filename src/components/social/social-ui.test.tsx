@@ -1493,7 +1493,10 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(quiet.indexOf("data-social-post-caption")).toBeLessThan(
       quiet.indexOf("data-social-post-time"),
     );
-    expect(quiet).not.toContain(`href="${socialPostHref("p1")}"`);
+    const timeTag = quiet.slice(quiet.indexOf("<time"), quiet.indexOf("data-social-post-time"));
+    expect(timeTag).not.toContain("href=");
+    expect(quiet).toContain('data-social-comment-open=""');
+    expect(quiet).toContain(`href="${socialPostHref("p1")}"`);
   });
 
   it("does not fork desktop meta-row chrome in source", () => {

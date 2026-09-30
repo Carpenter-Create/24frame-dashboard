@@ -42,8 +42,19 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...rest }: { href: string; children?: ReactNode }) =>
-    createElement("a", { href, ...rest }, children),
+  default: ({
+    href,
+    children,
+    scroll,
+    ...rest
+  }: {
+    href: string;
+    children?: ReactNode;
+    scroll?: boolean;
+  }) => {
+    void scroll;
+    return createElement("a", { href, ...rest }, children);
+  },
 }));
 
 vi.mock("next/navigation", () => ({

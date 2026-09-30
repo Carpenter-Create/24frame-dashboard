@@ -8,12 +8,19 @@ import { loadSocialSession } from "@/lib/social-session";
 // reuse one auth+client promise instead of starting it in the page.
 // Save hop paints the new own face here — already mounted — so Done
 // never waits on loading.tsx or the profile RSC.
-export default function SocialLayout({ children }: { children: React.ReactNode }) {
+export default function SocialLayout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}) {
   void loadSocialSession();
   return (
     <SocialProfileSaveHop>
       <SocialStoryOpenHold />
       {children}
+      {modal}
     </SocialProfileSaveHop>
   );
 }

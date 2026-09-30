@@ -13,7 +13,7 @@
 
 ## One lock
 
-Tap **Share** on feed/post actions → one **IG-like bottom sheet**: search people · suggested grid · **multi-select** with check · optional message · primary **Send** → lands in DM as a **post share card**. Secondary: **Copy link** · **Share to…** (system). Calm house paint (Sporty Blue checks/CTA only).
+Tap **Share** on feed/post actions → one **IG-like bottom sheet**: search people · suggested grid · **multi-select** with check · optional message · primary **Send** → lands in DM as a **post share card**. Secondary: **Copy link** · **Share to…** (system). Calm house paint (accent checks and CTA only). Light and dark use the surface tokens.
 
 **Comment (separate surface):** Tap **Comment** on the same action row opens the **post comment thread** (not dead · not the Share sheet). Share lock does not own comment chrome.
 
@@ -27,7 +27,7 @@ Tap **Share** on feed/post actions → one **IG-like bottom sheet**: search peop
 | Dead icon | **FAIL** |
 | Host phone | Bottom sheet · top radius **16** · max **90vh** · scrim ink @ **40%** · **no** drop shadow |
 | Host desktop | **One** centered/docked overlay · **same** sheet grammar (not a second pattern · not MenuSurface-only list) |
-| Sheet fill | Near-black **`#181818`** (IG send family · match Stories Send calm dark) |
+| Sheet fill | **`bg-surface`** · ink type · hairline · grab `bg-ink/40` · accent pill. Light and dark follow the tokens. Same drawer as the in-place comment sheet (`SOCIAL_POST_DRAWER_*`). Amended 2026-09-30 — the forced `#181818` fill is out |
 | Pad | H **16** · body scrolls |
 
 ---
@@ -39,9 +39,9 @@ Tap **Share** on feed/post actions → one **IG-like bottom sheet**: search peop
 | Search | Pill height **40** · placeholder **Search** |
 | Create group | **OUT** v1 (no Groups invent) |
 | Suggested | **3-col** grid · avatar **56** · name under · gap **16** |
-| Select | **Multi-select** · Sporty Blue `#1769FF` check **20** on avatar · tap toggles · no further select past **16** |
+| Select | **Multi-select** · accent check **20** on avatar · tap toggles · no further select past **16** |
 | Message | Optional · pill **Write a message…** · height **40** · appears when ≥1 selected (same sheet morph · no second modal) |
-| Send | Full-width pill height **48** · Sporty Blue · **Send** · enabled when ≥1 recipient · empty message OK |
+| Send | Full-width pill height **48** · accent · **Send** · enabled when ≥1 recipient · empty message OK |
 | Success | Dismiss sheet · calm **Sent** confirmation (centered brief) · open/stay per existing DM routes — no invent |
 
 ---

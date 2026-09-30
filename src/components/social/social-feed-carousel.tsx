@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { cn } from "@/lib/cn";
 import { SOCIAL_POST_IMAGE_SIZES } from "@/lib/social-media-display";
 import {
   socialFeedCarouselIndex,
@@ -39,9 +40,11 @@ import { SocialMuxPlayer } from "./social-mux-player";
 function CarouselSlideFace({
   item,
   band,
+  fit,
 }: {
   item: SocialPostMediaItem;
   band: "mount" | "warm" | "closed" | "unbanded";
+  fit: "cover" | "contain";
 }) {
   if (item.kind === "video") {
     if (!socialFeedCarouselVideoUsesMux(item) || !item.playbackId) {
@@ -55,21 +58,38 @@ function CarouselSlideFace({
       <SocialMuxPlayer
         playbackId={item.playbackId}
         playbackPolicy={item.playbackPolicy}
-        className="absolute inset-0 size-full object-cover"
+        fit={fit}
+        className={
+          fit === "contain"
+            ? "social-feed-immersive-media absolute inset-0 size-full object-contain"
+            : "absolute inset-0 size-full object-cover"
+        }
       />
     );
   }
-  return <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} loading="eager" />;
+  return (
+    <SocialMediaImage
+      src={item.url}
+      sizes={SOCIAL_POST_IMAGE_SIZES}
+      loading="eager"
+      fit={fit}
+    />
+  );
 }
 
 export function SocialFeedCarousel({
   items,
   onOpen,
   muxBandId,
+  fit = "cover",
+  frame = "feed",
 }: {
   items: readonly SocialPostMediaItem[];
   onOpen?: (index: number) => void;
   muxBandId?: string;
+  /** Feed cards cover-crop. The comment-open pane contains the picture. */
+  fit?: "cover" | "contain";
+  frame?: "feed" | "pane";
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -111,12 +131,15 @@ export function SocialFeedCarousel({
       role="region"
       aria-roledescription="carousel"
       aria-label={SOCIAL.post.carousel}
-      className={SOCIAL_FEED_CAROUSEL_BLEED_CLASS}
+      className={cn(
+        SOCIAL_FEED_CAROUSEL_BLEED_CLASS,
+        frame === "pane" && "social-post-open-carousel h-full min-h-0",
+      )}
     >
       <div
         ref={trackRef}
         data-social-post-carousel-track=""
-        className={SOCIAL_FEED_CAROUSEL_TRACK_CLASS}
+        className={cn(SOCIAL_FEED_CAROUSEL_TRACK_CLASS, frame === "pane" && "h-full")}
         onScroll={onScroll}
       >
         {items.map((item, slide) => {
@@ -138,7 +161,7 @@ export function SocialFeedCarousel({
               className={SOCIAL_FEED_CAROUSEL_SLIDE_CLASS}
               aria-hidden={slide === index ? undefined : true}
             >
-              <CarouselSlideFace item={item} band={slideRole} />
+              <CarouselSlideFace item={item} band={slideRole} fit={fit} />
               {onOpen ? (
                 <button
                   type="button"
