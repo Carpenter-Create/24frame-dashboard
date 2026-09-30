@@ -5,8 +5,8 @@ import { HouseLink } from "@/components/chrome/house-link";
 import { HouseChipRail } from "@/components/chrome/house-chip-rail";
 import {
   SOCIAL_HOME_TOPICS_CLASS,
-  socialTopicRailChipClass,
   SOCIAL_TOPIC_RAIL_ROWS,
+  socialHomeLensChipClass,
 } from "@/lib/social-chrome";
 import {
   SOCIAL_CATEGORY_ALL,
@@ -14,7 +14,7 @@ import {
   type SocialCategoryLabel,
 } from "@/lib/social-categories";
 import { SOCIAL, type SocialHomeLane } from "@/lib/social";
-import { socialHomeAxisHref } from "@/lib/social-home-location";
+import { socialHomeAxisHref, socialHomeDesktopLensFilled } from "@/lib/social-home-location";
 
 import { useSocialHomeLive } from "./social-home-live";
 
@@ -34,8 +34,8 @@ function laneLabel(lane: SocialHomeLane): string {
   return lane === "for-you" ? SOCIAL.home.forYouTab : SOCIAL.home.followingTab;
 }
 
-// Lane chips lead the Topics rail. Lane and topic light independently.
-// Filled pill only — no underline. Phone uses this same rail.
+// Lane chips lead the Topics rail. Phone fills lane and topic together.
+// Desktop Home fills one lens. Filled pill only — no underline.
 // docs/design-locks/social-home-density-craft-sequel-lock-v1.md
 export function SocialHomeTopics({
   active = SOCIAL_CATEGORY_ALL,
@@ -61,7 +61,15 @@ export function SocialHomeTopics({
                 data-social-home-lane={item.lane}
                 data-social-home-lane-active={selected ? "" : undefined}
                 aria-pressed={selected}
-                className={socialTopicRailChipClass(selected)}
+                className={socialHomeLensChipClass(
+                  selected,
+                  socialHomeDesktopLensFilled({
+                    axis: "lane",
+                    lane: item.lane,
+                    liveLane: live.lane,
+                    liveTopic: live.topic,
+                  }),
+                )}
               >
                 {laneLabel(item.lane)}
               </HouseLink>
@@ -79,7 +87,15 @@ export function SocialHomeTopics({
               data-social-home-topic={item.label}
               data-social-home-topic-active={selected ? "" : undefined}
               aria-current={selected ? "page" : undefined}
-              className={socialTopicRailChipClass(selected)}
+              className={socialHomeLensChipClass(
+                selected,
+                socialHomeDesktopLensFilled({
+                  axis: "topic",
+                  topic: item.label,
+                  liveLane: live.lane,
+                  liveTopic: live.topic,
+                }),
+              )}
             >
               {item.label}
             </HouseLink>

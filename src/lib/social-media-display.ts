@@ -134,10 +134,11 @@ function positivePixel(value: number | null | undefined): value is number {
 }
 
 /**
- * In-feed video box. Phone and desktop share it.
+ * In-feed video box. Phone and non-Home desktop share it.
  * The ratio is width / height. Kind, a filename, and a bare orientation
  * label are not inputs. Missing edges return null — not a 16:9 guess.
  * The cap narrows the width so a portrait video stays portrait.
+ * Desktop Home fills the column in globals.css. This function does not.
  * docs/design-locks/social-home-post-separation-lock-v1.md
  */
 export function socialFeedVideoFrame(input: {
