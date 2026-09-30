@@ -25,6 +25,7 @@ import {
   HOUSE_PILL_SELECTED_CLASS,
   HOUSE_RAIL_PANEL_CLASS,
   HOUSE_SCROLL_ROW_CLASS,
+  HOUSE_SECTION_AIR_CLASS,
 } from "@/lib/house-shell";
 import { HOUSE_VOICE_FOCUS_HOST_CLASS } from "@/lib/form-control";
 import {
@@ -364,36 +365,25 @@ export const SOCIAL_FOR_YOU_CARD_CLASS =
 
 // Phone only. The social frame pads 16. These utilities cancel that
 // gutter so a row meets the viewport. They are max-md, so desktop
-// column inset stays. Do not put them on the composer or Topics.
+// column inset stays. Stories rail uses this. The feed card does not.
+// Do not put them on the composer, Topics, or SOCIAL_FEED_ROW_CLASS.
 export const SOCIAL_MOBILE_BLEED_CLASS =
   "max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))]";
 
-// Restores the 16 the bleed removed, for text and avatars on a row
-// whose hairline itself is full-bleed.
+// Restores the 16 a viewport bleed removed. The feed card does not
+// use it. The frame gutter is the white side canvas.
 export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 
-// Post sits on the page canvas. No card box. One 16 inset for
-// everything except phone full-bleed media: the row restores
-// --chrome-gutter (16) after the phone bleed; desktop uses the
-// frame's single 16 and does not add a second pad.
-// Post rules are border-y-2 border-hairline on this row: 2px top and
-// bottom, house --border. The 1px bottom-only border-b is superseded.
-// The row already bleeds on the phone, so both rules meet the viewport.
-// Not a muted fill. No margin and no padding outside the rules, so the
-// bottom rule touches the next post's top rule. The gutter stays a
-// plain column — a divide there would be inset and would double these
-// rules. Stories→feed seam stays
-// SOCIAL_STORIES_FEED_RULE_CLASS.
-// docs/design-locks/social-home-post-separation-lock-v1.md
-// docs/design-locks/social-mobile-full-bleed-lock-v1.md
-// Air: ~16–24 CSS px from the under-post time baseline to the next
-// avatar. The time is block + leading-none, so the permalink link does
-// not inherit body line-height 1.6 (that strut put ~8px under the
-// glyphs, and --space-6 then opened ~32 CSS px). --space-4 is 16; ~2px
-// of the em stays below the baseline, so the measured gap is ~18.
-// --space-6 would measure ~26 and stays out. Phone and desktop share
-// it. No md fork. Padding, so the page background cannot show as a
-// band between posts.
+// Option A. Each post is a muted surface card on the white page.
+// HOUSE_MODULE_CLASS is the card (radius-lg, surface-muted, no drop shadow).
+// The #715 2px rules are off this row: they double-stacked with the
+// card edge. No second rule. No shadow. Phone and desktop share it.
+// No md fork for color or radius.
+// The card does not bleed to the phone viewport. The frame gutter is
+// the white side canvas. Do not put SOCIAL_MOBILE_BLEED_CLASS here.
+// overflow-hidden clips media to the card radius.
+// pb space-4 stays under the time, inside the card. It is not the
+// separator. The separator is this card plus the gutter gap.
 // docs/design-locks/social-home-post-separation-lock-v1.md
 // docs/design-locks/social-feed-under-post-time-lock-v1.md
 export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-4)]";
@@ -410,22 +400,23 @@ export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
 
 // Block, not column flex. Callers put this on an inner row. The gutter's
 // flex item is the shell (`block min-w-0 shrink-0` on the article), not
-// this padded box. On the phone the row is wider than the gutter (bleed).
-// Mobile Safari drops padding-bottom on that column-flex item, so the
-// caption sits on the next author. The inner row's border box, including
-// this padding, sets the shell's height. A negative margin-bottom on the last
-// child eats this padding the same way — media bleed stays inline (-mx only).
+// this padded box. Mobile Safari drops padding-bottom on that column-flex
+// item, so the caption sits on the next author. The inner row's border box,
+// including this padding, sets the shell's height. A negative margin-bottom
+// on the last child eats this padding the same way.
 // shrink-0 on the shell is the gutter's main axis (vertical): the list
 // scrolls instead of compressing the air.
+// The card is HOUSE_MODULE_CLASS. overflow-hidden clips a full-width
+// image to radius-lg. No viewport bleed. No border-y-2.
 export const SOCIAL_FEED_ROW_CLASS =
-  `block shrink-0 border-y-2 border-hairline bg-surface ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS} ${SOCIAL_MOBILE_BLEED_CLASS} ${SOCIAL_MOBILE_BLEED_PAD_CLASS}`;
+  `block shrink-0 overflow-hidden ${HOUSE_MODULE_CLASS} ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS}`;
 
-// Feed media. px-0 inside the row. On phone it cancels the row pad
-// so the frame meets the viewport. Side radius stays 0. Desktop is
-// the column width. mt-2 is the author → media air (flex gap is gone
-// so this margin is the only author-to-media space).
+// Feed media fills the card. px-0. It does not cancel the frame gutter:
+// the card edge is the media edge, and the row clips the corners.
+// mt-2 is the author → media air (flex gap is gone so this margin is
+// the only author-to-media space).
 export const SOCIAL_POST_MEDIA_CLASS =
-  `mt-[var(--space-2)] flex w-full flex-col gap-2 px-0 ${SOCIAL_MOBILE_BLEED_CLASS}`;
+  "mt-[var(--space-2)] flex w-full flex-col gap-2 px-0";
 
 // Messages inbox list. No full-width hairline — vertical pad is the
 // rhythm. The frame gutter keeps the face inset, so this row does not
@@ -484,11 +475,10 @@ export const SOCIAL_STORIES_FEED_RULE_CLASS =
   "max-md:border-b max-md:border-solid max-md:border-hairline";
 
 // Adam lock 2026-09-25. Feed posts with 2 or more media items use one
-// full-bleed swipe stage. Phone uses the same bleed as the single
-// media face so the stage meets the viewport. Desktop stays the
-// column width. N=1 keeps socialMediaFrameClass. No collage grid.
-export const SOCIAL_FEED_CAROUSEL_BLEED_CLASS =
-  `relative px-0 ${SOCIAL_MOBILE_BLEED_CLASS}`;
+// swipe stage. The stage is the card width. The row's overflow-hidden
+// clips it to the card radius. It does not meet the phone viewport.
+// N=1 keeps socialMediaFrameClass. No collage grid.
+export const SOCIAL_FEED_CAROUSEL_BLEED_CLASS = "relative px-0";
 
 export const SOCIAL_FEED_CAROUSEL_TRACK_CLASS =
   "no-scrollbar flex w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain";
@@ -599,15 +589,13 @@ export const SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS =
 export const SOCIAL_POST_TIME_CLASS =
   "block self-start max-w-full break-words text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-3";
 
-// Adam 2026-09-22 feed chrome. Supersedes #599 Facebook gray gutter
-// (muted band + py slabs above and below every post). Posts sit on
-// the page canvas. The 2px top and bottom rules live on
-// SOCIAL_FEED_ROW_CLASS, not as a gutter divide or a gray fill.
-// Home, Profile Activity, and author history share this list. No grey
-// slab. No divide. Stories→feed seam is a different rule.
+// Option A. The gutter is the white page between surface cards.
+// HOUSE_SECTION_AIR_CLASS is the only gap. No larger gap. No muted
+// fill in the gap. No divide-y — a divide would sit beside the card
+// edge. Home, Profile Activity, and author history share this list.
 // docs/design-locks/social-home-post-separation-lock-v1.md
 // docs/design-locks/social-home-craft-wave-1-lock-v1.md
-export const SOCIAL_FEED_GUTTER_CLASS = "flex flex-col";
+export const SOCIAL_FEED_GUTTER_CLASS = `flex flex-col ${HOUSE_SECTION_AIR_CLASS}`;
 
 // Comment thread — house app-sheet rise. Same host/scrim as Create.
 // Composer stays at the bottom. Do not fork a second sheet grammar.

@@ -8,7 +8,7 @@
 
 ## One lock
 
-The feed post separator is an **under-post relative time** on its own line. It sits **below the caption** (and below the comment trail when that line is present) as the **last chrome line** inside the post. The gap into the next author, and the post→post hairline, are the post-separation lock.
+The feed post separator is an **under-post relative time** on its own line. It sits **below the caption** (and below the comment trail when that line is present) as the **last chrome line** inside the post. How posts separate is the post-separation lock (Option A: surface card + gutter gap).
 
 It is **not** beside the author name.
 
@@ -39,8 +39,8 @@ Those two points moved. Cite [`social-home-post-separation-lock-v1.md`](social-h
 
 `SOCIAL_POST_TIME_CLASS` stays `block` + `leading-none`. The permalink link must not inherit body line-height 1.6 — that strut put ~8px under the glyphs.
 
-The 2026-09-29 reading (`pb-[var(--space-2)]`, hairline out, measured ~10 from the time baseline) is **amended**. The earlier Wave 1 `pb-[var(--space-6)]` sat under the time and opened **~32 CSS px** (~34 on the prod screenshot, ~102 device px at 3x). That stacking is **out**. Post separation uses `--space-4`, not `--space-6`. No `divide-y` on the gutter.
+The 2026-09-29 reading (`pb-[var(--space-2)]`, hairline out, measured ~10 from the time baseline) is **amended**. The earlier Wave 1 `pb-[var(--space-6)]` sat under the time and opened **~32 CSS px** (~34 on the prod screenshot, ~102 device px at 3x). That stacking is **out**. Padding under the time, inside the card, stays `--space-4`. The white gap between cards is the gutter’s `--space-6` (`HOUSE_SECTION_AIR_CLASS`), not row padding. No `divide-y` on the gutter.
 
 ## Out
 
-Author-row time. Clock times. “ago”. A gray fill band. A second post-card fork. Post→post hairline is **in** — see the post-separation lock.
+Author-row time. Clock times. “ago”. A gray page wash. A second post-card fork. The post→post 2px rule is **out** — Option A removed it because it double-stacked with the card. See the post-separation lock.
