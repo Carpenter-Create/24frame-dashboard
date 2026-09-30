@@ -6,6 +6,7 @@ import {
   isLocalMediaPreviewSrc,
   isSessionGatedSocialSrc,
   socialAvatarImageSizes,
+  socialFeedVideoFrame,
   socialMediaFrameClass,
   socialStoryMediaFrameClass,
   socialMediaOrientation,
@@ -65,6 +66,45 @@ describe("social media display", () => {
     expect(socialStoryMediaFrameClass()).toBe("aspect-[9/16] w-full object-cover");
     expect(socialStoryMediaFrameClass()).not.toContain("aspect-video");
     expect(socialStoryMediaFrameClass()).not.toContain("aspect-[4/5]");
+  });
+
+  it("frames an in-feed video from width and height, not a 16:9 or 4:5 guess", () => {
+    const portrait = socialFeedVideoFrame({ width: 1080, height: 1920 });
+    expect(portrait?.orientation).toBe("portrait");
+    expect(portrait?.style.aspectRatio).toBe("1080 / 1920");
+    expect(portrait?.style.width).toBe("min(100%, calc(min(70vh, 560px) * 1080 / 1920))");
+    expect(portrait?.style.maxHeight).toBe("min(70vh, 560px)");
+    expect(portrait?.className).not.toContain("aspect-video");
+    expect(portrait?.className).not.toContain("aspect-[4/5]");
+    expect(portrait?.className).not.toContain("md:");
+    expect(portrait?.className).not.toContain("object-fill");
+
+    const landscape = socialFeedVideoFrame({ width: 1920, height: 1080 });
+    expect(landscape?.orientation).toBe("landscape");
+    expect(landscape?.style.aspectRatio).toBe("1920 / 1080");
+    expect(landscape?.className).not.toContain("aspect-[4/5]");
+
+    const wider = socialFeedVideoFrame({ width: 2000, height: 800 });
+    expect(wider?.orientation).toBe("landscape");
+    expect(wider?.style.aspectRatio).toBe("2000 / 800");
+    expect(wider?.style.aspectRatio).not.toBe("16 / 9");
+
+    expect(socialFeedVideoFrame({ width: 1080, height: 1080 })?.orientation).toBe("square");
+    expect(socialFeedVideoFrame({})).toBeNull();
+    expect(socialFeedVideoFrame({ width: 1080 })).toBeNull();
+    expect(socialFeedVideoFrame({ height: 1920 })).toBeNull();
+    expect(socialFeedVideoFrame({ width: 0, height: 1920 })).toBeNull();
+    expect(socialFeedVideoFrame({ width: -1080, height: 1920 })).toBeNull();
+
+    const src = readFileSync("src/lib/social-media-display.ts", "utf8");
+    const fn = src.slice(src.indexOf("export function socialFeedVideoFrame"), src.indexOf("export function socialStoryMediaFrameClass"));
+    const signature = fn.slice(0, fn.indexOf("{"));
+    expect(signature).not.toContain("kind");
+    expect(signature).not.toContain("orientation");
+    expect(fn).not.toContain(".mp4");
+    expect(fn).not.toContain("filename");
+    expect(fn).not.toContain("aspect-video");
+    expect(fn).not.toContain("aspect-[4/5]");
   });
 
   it("keeps published Social video off the media proxy and native video element", () => {

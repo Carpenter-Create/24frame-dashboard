@@ -73,7 +73,10 @@ function socialMediaAspectRatio(input: SocialMediaFrameInput): number | null {
   return width / height;
 }
 
-/** Portrait → 4:5. Landscape → 16:9. Prefer real w/h when present. */
+/**
+ * Still buckets only. Portrait → 4:5. Landscape → 16:9.
+ * In-feed video does not use this. A video frame is socialFeedVideoFrame.
+ */
 export function socialMediaOrientation(
   input: SocialMediaOrientation | SocialMediaFrameInput = {},
 ): SocialMediaOrientation {
@@ -87,9 +90,9 @@ export function socialMediaOrientation(
 }
 
 /**
- * Feed media frame SoT. Stills, Mux poster, and Mux player.
+ * Still frame SoT. Mux video does not use this class.
  * Height is min(70vh, 560px, aspect height). Width stays the container.
- * Portrait crops inside the cap. Landscape follows aspect until the cap.
+ * Portrait stills crop inside the cap. Landscape stills follow aspect until the cap.
  * docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md
  * Complete class strings — Tailwind does not see interpolations.
  */
@@ -99,6 +102,55 @@ export function socialMediaFrameClass(
   return socialMediaOrientation(orientation) === "portrait"
     ? "aspect-[4/5] h-[min(70vh,560px,calc(100cqw*5/4))] w-full max-h-[min(70vh,560px)] object-cover object-center"
     : "aspect-video h-[min(70vh,560px,calc(100cqw*9/16))] w-full max-h-[min(70vh,560px)] object-cover object-center";
+}
+
+/** Same cap as the still face. The video box narrows instead of cropping. */
+export const SOCIAL_FEED_VIDEO_MAX_H = "min(70vh, 560px)";
+
+/** No ratio yet. Not a 16:9 slot. */
+export const SOCIAL_FEED_VIDEO_PENDING_CLASS =
+  "relative w-full overflow-hidden bg-surface-muted";
+
+export type SocialFeedVideoOrientation = "portrait" | "landscape" | "square";
+
+export type SocialFeedVideoFrame = {
+  orientation: SocialFeedVideoOrientation;
+  className: string;
+  style: {
+    aspectRatio: string;
+    width: string;
+    maxHeight: string;
+  };
+};
+
+function positivePixel(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * In-feed video box. Phone and desktop share it.
+ * The ratio is width / height. Kind, a filename, and a bare orientation
+ * label are not inputs. Missing edges return null — not a 16:9 guess.
+ * The cap narrows the width so a portrait video stays portrait.
+ * docs/design-locks/social-home-post-separation-lock-v1.md
+ */
+export function socialFeedVideoFrame(input: {
+  width?: number | null;
+  height?: number | null;
+}): SocialFeedVideoFrame | null {
+  const { width, height } = input;
+  if (!positivePixel(width) || !positivePixel(height)) return null;
+  const orientation: SocialFeedVideoOrientation =
+    height > width ? "portrait" : width > height ? "landscape" : "square";
+  return {
+    orientation,
+    className: "relative mx-auto block max-w-full self-center overflow-hidden bg-surface-muted",
+    style: {
+      aspectRatio: `${width} / ${height}`,
+      width: `min(100%, calc(${SOCIAL_FEED_VIDEO_MAX_H} * ${width} / ${height}))`,
+      maxHeight: SOCIAL_FEED_VIDEO_MAX_H,
+    },
+  };
 }
 
 /** Story viewer lane only. A portrait story stays tall instead of the feed 16:9 crop. */

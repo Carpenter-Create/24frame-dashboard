@@ -17,9 +17,11 @@ import {
 } from "@/lib/social";
 import { type SocialPostCardModel } from "@/lib/social-author-post-card";
 import {
+  SOCIAL_FEED_AUTHOR_EDGE_CLASS,
   SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
+  SOCIAL_FEED_META_EDGE_CLASS,
   SOCIAL_FEED_META_ROW_GAP_CLASS,
   SOCIAL_FEED_ROW_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
@@ -118,7 +120,7 @@ export function SocialPostCard({
       className="block min-w-0 shrink-0"
     >
       <div className={SOCIAL_FEED_ROW_CLASS}>
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className={cn("flex min-w-0 items-center gap-2.5", SOCIAL_FEED_AUTHOR_EDGE_CLASS)}>
         <SocialAvatar name={post.authorName} photoUrl={post.authorPhotoUrl} size="sm" />
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
           {post.authorHandle ? (
@@ -160,6 +162,7 @@ export function SocialPostCard({
       <div
         className={cn(
           SOCIAL_FEED_META_ROW_GAP_CLASS,
+          SOCIAL_FEED_META_EDGE_CLASS,
           media ? SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS : SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
         )}
       >
