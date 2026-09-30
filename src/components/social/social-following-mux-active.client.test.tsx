@@ -102,14 +102,18 @@ function installObserver() {
   vi.stubGlobal("IntersectionObserver", FakeObserver);
 }
 
-function installFetch() {
+function installFetch(resolveTokens = false) {
   requested.length = 0;
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
     const url = new URL(String(input), "http://local");
     expect(url.pathname).toBe(SOCIAL_MUX_PLAYBACK_ROUTE);
     const id = url.searchParams.get("playbackId");
     if (id) requested.push(id);
-    return new Promise<Response>(() => undefined);
+    if (!resolveTokens) return new Promise<Response>(() => undefined);
+    return Promise.resolve({
+      ok: true,
+      json: async () => ({ playback: "play.jwt", thumbnail: "thumb.jwt", storyboard: "board.jwt" }),
+    } as Response);
   });
 }
 
@@ -194,10 +198,10 @@ describe("Following wall Mux active gate", () => {
     return serializeElement(container as unknown as Parameters<typeof serializeElement>[0]);
   }
 
-  function mount(cards: readonly SocialFollowingWallCard[], observer = true) {
+  function mount(cards: readonly SocialFollowingWallCard[], observer = true, resolveTokens = false) {
     if (observer) installObserver();
     else vi.stubGlobal("IntersectionObserver", undefined);
-    installFetch();
+    installFetch(resolveTokens);
     const host = minimalDocument();
     const node = host.createElement("div");
     host.body.appendChild(node);
@@ -286,6 +290,48 @@ describe("Following wall Mux active gate", () => {
     expect(page).not.toContain(`data-social-mux-player="${SLIDE_THREE}"`);
     expect(page.match(/data-social-mux-slot="warm"/g)?.length).toBe(1);
     expect(page).toContain('data-social-mux-slot="mount"');
+  });
+
+  it("paints a signed still under the player line and does not mount Mux", async () => {
+    mount(
+      [
+        post("lead", SIGNED_NEXT, "signed", [
+          {
+            kind: "video",
+            url: "",
+            contentType: "video/mp4",
+            playbackId: SIGNED_NEXT,
+            playbackPolicy: "signed",
+            width: 1080,
+            height: 1920,
+          },
+        ]),
+      ],
+      true,
+      true,
+    );
+
+    expect(requested).toEqual([]);
+    expect(html()).not.toContain("data-mux-player-stub");
+    expect(html()).not.toContain("data-social-feed-video-poster");
+    expect(html()).toContain('data-social-feed-video-frame="portrait"');
+
+    show({ lead: 0.4 });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(requested).toEqual([SIGNED_NEXT]);
+    const page = html();
+    expect(page).not.toContain("data-mux-player-stub");
+    expect(page).not.toContain(`data-social-mux-player="${SIGNED_NEXT}"`);
+    expect(page).toContain('data-social-feed-video-poster=""');
+    expect(page).toContain("https://image.mux.com/SignedNextPlayback001/thumbnail.webp?token=thumb.jwt");
+    expect(page).toContain('loading="eager"');
+    expect(page).toContain("object-cover");
+    expect(page).not.toContain("aspect-video");
+    expect(page).not.toContain("aspect-[4/5]");
   });
 
   it("mounts the first video and warms the next when IntersectionObserver is missing", () => {

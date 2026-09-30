@@ -6,7 +6,9 @@ import {
   isLocalMediaPreviewSrc,
   isSessionGatedSocialSrc,
   socialAvatarImageSizes,
+  socialFeedFrameOnScreen,
   socialFeedVideoFrame,
+  socialFeedVideoPosterSrc,
   socialMediaFrameClass,
   socialStoryMediaFrameClass,
   socialMediaOrientation,
@@ -74,6 +76,7 @@ describe("social media display", () => {
     expect(portrait?.style.aspectRatio).toBe("1080 / 1920");
     expect(portrait?.style.width).toBe("min(100%, calc(min(70vh, 560px) * 1080 / 1920))");
     expect(portrait?.style.maxHeight).toBe("min(70vh, 560px)");
+    expect(portrait?.className).toContain("shrink-0");
     expect(portrait?.className).not.toContain("aspect-video");
     expect(portrait?.className).not.toContain("aspect-[4/5]");
     expect(portrait?.className).not.toContain("md:");
@@ -105,6 +108,45 @@ describe("social media display", () => {
     expect(fn).not.toContain("filename");
     expect(fn).not.toContain("aspect-video");
     expect(fn).not.toContain("aspect-[4/5]");
+  });
+
+  it("paints a public still immediately and withholds a signed still until the thumbnail token", () => {
+    expect(socialFeedVideoPosterSrc({ playbackId: "abc12345xx" })).toBe(
+      "https://image.mux.com/abc12345xx/thumbnail.webp?time=0",
+    );
+    expect(socialFeedVideoPosterSrc({ playbackId: "abc12345xx", playbackPolicy: "public" })).toBe(
+      "https://image.mux.com/abc12345xx/thumbnail.webp?time=0",
+    );
+    expect(socialFeedVideoPosterSrc({ playbackId: "abc12345xx", playbackPolicy: "signed" })).toBe("");
+    expect(
+      socialFeedVideoPosterSrc({
+        playbackId: "abc12345xx",
+        playbackPolicy: "signed",
+        thumbnailToken: "thumb.jwt",
+      }),
+    ).toBe("https://image.mux.com/abc12345xx/thumbnail.webp?token=thumb.jwt");
+    expect(socialFeedVideoPosterSrc({ playbackId: "short", playbackPolicy: "public" })).toBe("");
+    expect(socialFeedVideoPosterSrc({})).toBe("");
+  });
+
+  it("treats a frame that meets the viewport as on screen, including a zero-height line", () => {
+    expect(socialFeedFrameOnScreen({ top: 120, bottom: 120 }, 800)).toBe(true);
+    expect(socialFeedFrameOnScreen({ top: -40, bottom: 200 }, 800)).toBe(true);
+    expect(socialFeedFrameOnScreen({ top: 0, bottom: 560 }, 700)).toBe(true);
+    expect(socialFeedFrameOnScreen({ top: 900, bottom: 1400 }, 800)).toBe(false);
+    expect(socialFeedFrameOnScreen({ top: -400, bottom: -10 }, 800)).toBe(false);
+    expect(socialFeedFrameOnScreen({ top: 10, bottom: 20 }, 0)).toBe(false);
+  });
+
+  it("keeps Stories and For You thumbnail src on their own posters", () => {
+    const story = readFileSync("src/components/social/social-story-mux-thumb.tsx", "utf8");
+    const explore = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    expect(story).toContain("src={src}");
+    expect(story).toContain('loading="eager"');
+    expect(story).toContain("socialMuxThumbnailUrl");
+    expect(explore).toContain("src={signedThumb}");
+    expect(explore).toContain("src={socialMuxThumbnailUrl(playbackId)}");
+    expect(explore).toContain('data-social-explore-poster=""');
   });
 
   it("keeps published Social video off the media proxy and native video element", () => {

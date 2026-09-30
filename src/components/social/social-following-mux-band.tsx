@@ -30,7 +30,9 @@ import {
 type SocialFollowingMuxBandValue = {
   order: readonly string[];
   activeId: string | null;
+  onScreen: ReadonlySet<string>;
   report: (postId: string, ratio: number | null) => void;
+  markOnScreen: (postId: string) => void;
 };
 
 const SocialFollowingMuxBandContext = createContext<SocialFollowingMuxBandValue | null>(null);
@@ -44,21 +46,30 @@ export function SocialFollowingMuxBand({
 }) {
   const ratios = useRef(new Map<string, number>());
   const orderRef = useRef(order);
+  const onScreenRef = useRef(new Set<string>());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [onScreen, setOnScreen] = useState<ReadonlySet<string>>(() => new Set());
+  const markOnScreen = useCallback((postId: string) => {
+    if (!postId || onScreenRef.current.has(postId)) return;
+    onScreenRef.current.add(postId);
+    setOnScreen(new Set(onScreenRef.current));
+  }, []);
   const report = useCallback((postId: string, ratio: number | null) => {
     if (ratio == null) ratios.current.delete(postId);
     else ratios.current.set(postId, ratio);
+    // Any visible slice can paint a still. The player still waits for 0.6.
+    if (ratio != null && ratio > 0) markOnScreen(postId);
     const next = socialFollowingMuxActiveId(orderRef.current, ratios.current);
     setActiveId((current) => (current === next ? current : next));
-  }, []);
+  }, [markOnScreen]);
   useEffect(() => {
     orderRef.current = order;
     const next = socialFollowingMuxActiveId(order, ratios.current);
     setActiveId((current) => (current === next ? current : next));
   }, [order]);
   const value = useMemo(
-    () => ({ order, activeId, report }),
-    [order, activeId, report],
+    () => ({ order, activeId, onScreen, report, markOnScreen }),
+    [order, activeId, onScreen, report, markOnScreen],
   );
   return (
     <SocialFollowingMuxBandContext.Provider value={value}>{children}</SocialFollowingMuxBandContext.Provider>
@@ -73,6 +84,18 @@ export function useSocialFollowingMuxRole(postId: string | undefined): SocialFol
     activeId: band.activeId,
     order: band.order,
   });
+}
+
+/** True once any part of this post has met the viewport. Sticky. Unbanded is false. */
+export function useSocialFollowingMuxOnScreen(postId: string | undefined): boolean {
+  const band = useContext(SocialFollowingMuxBandContext);
+  if (!postId || !band) return false;
+  return band.onScreen.has(postId);
+}
+
+export function useSocialFollowingMuxMarkOnScreen(): ((postId: string) => void) | null {
+  const band = useContext(SocialFollowingMuxBandContext);
+  return band?.markOnScreen ?? null;
 }
 
 /**

@@ -12,7 +12,9 @@
 
 Social Home **Following** mounts Mux for the video post that is at least 60% on screen (`SOCIAL_FOLLOWING_MUX_ACTIVE_RATIO`). The next video warms one signed JWT and does not mount the player. Every other video stays closed: no Mux JS, no metadata preload, and no signed token mint.
 
-The first page may contain many video posts (`SOCIAL_FOLLOWING_WALL_LIMIT` stays 50). `IntersectionObserver` uses thresholds `0`, `0.6`, `0.75`, and `1` against the viewport. Until a video crosses the line, the wall stays closed.
+The first page may contain many video posts (`SOCIAL_FOLLOWING_WALL_LIMIT` stays 50). `IntersectionObserver` uses thresholds `0`, `0.6`, `0.75`, and `1` against the viewport. Until a video crosses the line, the wall stays closed: no Mux player, no metadata preload.
+
+A still is not the player. When any part of a Home video frame meets the viewport, including above the fold and under 60%, the card may mint one thumbnail JWT and paint that still. It does not wait for a scroll. Videos that have not met the viewport do not mint. Missing width or height still paints that still; it does not become an empty box or a 16:9 guess.
 
 A carousel on that post mounts the visible Mux slide and warms the next Mux slide.
 
