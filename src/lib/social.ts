@@ -644,7 +644,6 @@ export const SOCIAL = {
     goLive: "Go live",
     close: "Close",
     liveTitle: "Go live",
-    liveHint: "Record up to 10 minutes, then post as a video.",
     liveStart: "Start",
     liveStop: "Stop",
     livePost: "Post video",
