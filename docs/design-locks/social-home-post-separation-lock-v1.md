@@ -1,6 +1,6 @@
 # [GC][24Frame] LOCK — Social Home post separation v1
 
-**Date:** 2026-09-29 (CT) · interior air and in-feed video aspect 2026-09-30 (CT)
+**Date:** 2026-09-29 (CT) · interior air and in-feed video aspect 2026-09-30 (CT) · footer density 2026-10-01 (CT)
 **Status:** **LOCKED** · CoS / Adam · **Option A** supersedes the #715 2px rule
 **Entity:** Global Content / 24Frame only
 **Amends:**
@@ -52,8 +52,9 @@ The card was flush at the top and tight under the media. Air uses house spacing 
 | Card edge → author | `SOCIAL_FEED_AUTHOR_EDGE_CLASS` = `px-[var(--space-4)] pt-[var(--space-4)]` |
 | Card edge → actions, likes, caption, time | `SOCIAL_FEED_META_EDGE_CLASS` = `px-[var(--space-4)]` |
 | Author → media | `mt-[var(--space-4)]` on `SOCIAL_POST_MEDIA_CLASS`. Was `--space-2` |
-| Media → actions | `SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS` = `mt-[var(--space-4)]`. Was `mt-[10px]` |
-| Actions → likes / caption / time | `SOCIAL_FEED_META_ROW_GAP_CLASS` = `gap-[var(--space-4)]`. Was `gap-[6px]`. Time stays on its own line |
+| Media → actions | `SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS` = `mt-0`. The 40×40 hit supplies the 8px above the 24px glyph. Was `mt-[var(--space-4)]`, which stacked on that pad |
+| Icon row → likes / caption / time | `SOCIAL_FEED_ACTIONS_META_CLASS` = `flex flex-col` (no gap). The 8px under the glyph, inside the hit, is the visible air. Was a `gap-[var(--space-4)]` on the same stack as the lines below |
+| Likes / caption / comments / time | `SOCIAL_FEED_META_ROW_GAP_CLASS` = `gap-[var(--space-2)]`. Was `gap-[var(--space-4)]`. Copy is `leading-tight` (`SOCIAL_FEED_META_COPY_CLASS`) so the `t-body-sm` 1.6 strut does not reopen the lines. Time stays on its own line, `leading-none` |
 | Time → card bottom | `pb-[var(--space-6)]` on the row. Was `pb-[var(--space-4)]` |
 
 Phone and desktop share these classes. No `md:` fork. Home, Profile Activity, and author history share `SocialPostCard`, so they share this air.

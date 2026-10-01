@@ -21,8 +21,8 @@ Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media�
 
 | Token | Lock |
 |-------|------|
-| Media → actions | **Amended** — cite `social-home-post-separation-lock-v1.md`. `mt-[var(--space-4)]`. The ~10pt gap is out |
-| Likes / caption / comments stack | **Amended** — cite `social-home-post-separation-lock-v1.md`. `gap-[var(--space-4)]`. The 4–6pt gap is out. Time stays on its own line |
+| Media → actions | **Amended** — cite `social-home-post-separation-lock-v1.md`. `mt-0`. The hit pad is the picture-to-icon air. The house-16 margin on top of that pad is out |
+| Likes / caption / comments stack | **Amended** — cite `social-home-post-separation-lock-v1.md`. Icon row to that block has no extra gap. Lines inside the block are `gap-[var(--space-2)]` with `leading-tight`. The house-16 stack gap is out. Time stays on its own line |
 | Before next author | **Amended** — cite `social-home-post-separation-lock-v1.md`. Padding under the time, inside the card, is `pb-[var(--space-6)]`. The separator between cards is `HOUSE_SECTION_AIR_CLASS` on the gutter (`gap-[var(--space-6)]`), not row padding. The old time strut that made a `--space-6` row read as ~32 CSS px stays fixed (`leading-none`) |
 | Inter-post hairline | **Amended** — cite `social-home-post-separation-lock-v1.md` Option A. The 1px bottom-only rule and the #715 `border-y-2 border-hairline` rule are both out. The 2px rule double-stacked with the card edge. The card is `HOUSE_MODULE_CLASS`. The page stays white |
 | Stories → feed seam | **Not** redefined here — cite `social-home-stories-feed-hairline-lock-v1.md` if that section seam remains; this lock kills **post→post** dividers only |

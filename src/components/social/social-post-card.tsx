@@ -17,6 +17,7 @@ import {
 } from "@/lib/social";
 import { type SocialPostCardModel } from "@/lib/social-author-post-card";
 import {
+  SOCIAL_FEED_ACTIONS_META_CLASS,
   SOCIAL_FEED_AUTHOR_EDGE_CLASS,
   SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
@@ -161,7 +162,7 @@ export function SocialPostCard({
       ) : null}
       <div
         className={cn(
-          SOCIAL_FEED_META_ROW_GAP_CLASS,
+          SOCIAL_FEED_ACTIONS_META_CLASS,
           SOCIAL_FEED_META_EDGE_CLASS,
           media ? SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS : SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
         )}
@@ -190,22 +191,24 @@ export function SocialPostCard({
           <SocialCommentTrigger post={thread} icon />
           <SocialPostShareButton postId={post.id} />
         </div>
-        <SocialLikeCount postId={post.id} liked={post.liked} likeCount={post.likeCount} />
-        <SocialPostCaptionPlace
-          postId={post.id}
-          serverBody={post.body}
-          href={href}
-          permalink={permalink}
-          handle={handle}
-        />
-        <SocialCommentTrigger post={thread} />
-        {permalink ? (
-          <Link href={href} className="self-start">
-            {time}
-          </Link>
-        ) : (
-          time
-        )}
+        <div className={SOCIAL_FEED_META_ROW_GAP_CLASS}>
+          <SocialLikeCount postId={post.id} liked={post.liked} likeCount={post.likeCount} />
+          <SocialPostCaptionPlace
+            postId={post.id}
+            serverBody={post.body}
+            href={href}
+            permalink={permalink}
+            handle={handle}
+          />
+          <SocialCommentTrigger post={thread} />
+          {permalink ? (
+            <Link href={href} className="self-start">
+              {time}
+            </Link>
+          ) : (
+            time
+          )}
+        </div>
       </div>
       </div>
     </article>

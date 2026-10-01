@@ -14,8 +14,10 @@ import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
   SOCIAL_DESKTOP_HEADER_INSET_CLASS,
   SOCIAL_DESKTOP_MEASURE,
+  SOCIAL_FEED_ACTIONS_META_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
+  SOCIAL_FEED_META_COPY_CLASS,
   SOCIAL_FEED_META_ROW_GAP_CLASS,
   SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS,
   SOCIAL_FEED_ROW_CLASS,
@@ -376,8 +378,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).toContain("shrink-0");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("flex-col");
-    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-[var(--space-4)]");
-    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[var(--space-4)]");
+    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-0");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[var(--space-2)]");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).not.toContain("gap-[var(--space-4)]");
     expect(SOCIAL_POST_ACTIONS_GAP_CLASS).toBe("gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toBe("flex flex-row items-center gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
@@ -460,8 +463,18 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).toContain('export const SOCIAL_HOME_STORIES_TRACK_CLASS = "flex w-max gap-2 px-0 pt-0 pb-2"');
     expect(rail).not.toContain("pr-4 pb-2");
     expect(card).not.toContain("SOCIAL_FEED_CHROME_CLASS");
+    expect(SOCIAL_FEED_ACTIONS_META_CLASS).toBe("flex flex-col");
+    expect(SOCIAL_FEED_ACTIONS_META_CLASS).not.toMatch(/gap-/);
+    expect(SOCIAL_FEED_META_COPY_CLASS).toBe("leading-tight");
+    expect(card).toContain("SOCIAL_FEED_ACTIONS_META_CLASS");
     expect(card).toContain("SOCIAL_FEED_META_ROW_GAP_CLASS");
     expect(card).toContain("SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS");
+    expect(postCard.indexOf("data-social-post-actions")).toBeLessThan(
+      postCard.indexOf("SOCIAL_FEED_META_ROW_GAP_CLASS"),
+    );
+    expect(immersive).not.toContain("SOCIAL_FEED_ACTIONS_META_CLASS");
+    expect(immersive).not.toContain("SOCIAL_FEED_META_ROW_GAP_CLASS");
+    expect(immersive).toContain("SOCIAL_FEED_IMMERSIVE_DOCK_CLASS");
     expect(postMedia).toContain("w-full");
     expect(postMedia).toContain("SOCIAL_POST_MEDIA_CLASS");
     expect(card).not.toContain("md:rounded-[8px]");

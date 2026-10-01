@@ -17,7 +17,7 @@ import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { POST_BODY_MAX, SOCIAL } from "@/lib/social";
-import { SOCIAL_POST_ACTION_HIT_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_FEED_META_COPY_CLASS, SOCIAL_POST_ACTION_HIT_CLASS } from "@/lib/social-chrome";
 import { THREAD_POPOVER_DELETE_ICON_CLASS, THREAD_POPOVER_ICON_CLASS } from "@/lib/house-sheet";
 import { persistSocialPostCaption, persistSocialPostDelete } from "@/lib/social-optimistic";
 import {
@@ -77,7 +77,7 @@ export function SocialPostCaptionPlace({
       {body}
     </>
   );
-  const className = "t-body-sm text-ink whitespace-pre-wrap break-words";
+  const className = `t-body-sm text-ink whitespace-pre-wrap break-words ${SOCIAL_FEED_META_COPY_CLASS}`;
   if (permalink) {
     return (
       <Link href={href} data-social-post-caption="" className={className}>

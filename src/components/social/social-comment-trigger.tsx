@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { SocialIcon } from "@/components/social/social-icon";
 import { useSocialCommentCount } from "@/components/social/use-social-optimistic";
 import { cn } from "@/lib/cn";
-import { SOCIAL_POST_ACTION_HIT_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_FEED_META_COPY_CLASS, SOCIAL_POST_ACTION_HIT_CLASS } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import { SOCIAL } from "@/lib/social";
 
@@ -47,7 +47,7 @@ export function SocialCommentTrigger({
           className={
             icon
               ? cn(SOCIAL_POST_ACTION_HIT_CLASS, tone === "stage" && "text-band-ink")
-              : "self-start text-left t-body-sm text-ink-2"
+              : `self-start text-left t-body-sm text-ink-2 ${SOCIAL_FEED_META_COPY_CLASS}`
           }
           onClick={() => setOpen(true)}
         >

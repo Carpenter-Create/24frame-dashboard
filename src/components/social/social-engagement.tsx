@@ -26,6 +26,7 @@ import { applyOptimisticFollow } from "@/lib/social-query";
 import {
   SOCIAL_ACTION_CLASS,
   SOCIAL_ACTION_SECONDARY_CLASS,
+  SOCIAL_FEED_META_COPY_CLASS,
   SOCIAL_FOLLOW_COMPACT_CLASS,
   SOCIAL_FOLLOW_COMPACT_IDLE_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
@@ -350,7 +351,7 @@ export function SocialLikeCount({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={SOCIAL.post.likesTitle}
-        className="self-start text-left t-body-sm font-semibold text-ink"
+        className={`self-start text-left t-body-sm font-semibold text-ink ${SOCIAL_FEED_META_COPY_CLASS}`}
         onClick={() => setOpen(true)}
       >
         {label}

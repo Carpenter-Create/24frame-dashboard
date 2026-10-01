@@ -389,12 +389,28 @@ export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 // docs/design-locks/social-feed-under-post-time-lock-v1.md
 export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-6)]";
 
-// Media → actions. House 16. Was the off-scale 10px.
-export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-[var(--space-4)]";
+// Media → actions. No extra margin. The 24px glyph is centered in the
+// 40 hit, so 8px of that hit is the picture-to-icon air. House 16 on
+// top of that pad read as ~24px and made the bottom chrome loose.
+// Text-only keeps SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS (8).
+// docs/design-locks/social-home-post-separation-lock-v1.md
+export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-0";
 
-// Actions, then likes / caption / comments / time. House 16.
-// Was the off-scale 6px. Time stays its own line in this stack.
-export const SOCIAL_FEED_META_ROW_GAP_CLASS = "flex flex-col gap-[var(--space-4)]";
+// Icon row, then the likes / caption / time block. No gap on this
+// wrapper. The visible air under the glyph is the 8px inside the hit
+// (~6–10 once meta leading is counted). A stack gap on this wrapper
+// would sit on top of that pad and reopen the loose gap.
+export const SOCIAL_FEED_ACTIONS_META_CLASS = "flex flex-col";
+
+// Likes, caption, comment trail, under-post time. House 8 between
+// those lines. Was house 16. Time stays its own line. Missing likes
+// or caption drop out, so the gap closes up.
+export const SOCIAL_FEED_META_ROW_GAP_CLASS = "flex flex-col gap-[var(--space-2)]";
+
+// t-body-sm is line-height 1.6. That strut sat on top of the stack gap
+// and opened the likes / caption lines. leading-tight keeps a wrapped
+// caption readable. Time stays SOCIAL_POST_TIME_CLASS (leading-none).
+export const SOCIAL_FEED_META_COPY_CLASS = "leading-tight";
 
 // Text-only keeps the prior 8 between the author row and actions.
 // Text-only grammar itself stays frozen.
