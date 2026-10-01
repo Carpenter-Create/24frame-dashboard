@@ -38,7 +38,12 @@ describe("Social Go live recorder", () => {
     expect(src).not.toContain("IVS");
     expect(src).not.toContain("WebRTC");
     expect(SOCIAL_GO_LIVE_MAX_MS).toBe(600_000);
-    expect(SOCIAL.create.liveHint).toContain("10 minutes");
+    expect(src).not.toContain("liveHint");
+    expect(src).not.toContain("Record up to 10 minutes");
+    expect("liveHint" in SOCIAL.create).toBe(false);
+    expect(src).toContain("SOCIAL.create.goLive");
+    expect(src).toContain("SOCIAL.stories.flipCamera");
+    expect(src).toContain("data-social-go-live-record");
     expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
     expect(src).toContain("data-social-go-live-close");
     expect(src).toContain("takeSocialGoLiveExitHref()");

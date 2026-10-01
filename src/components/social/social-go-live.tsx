@@ -494,7 +494,6 @@ export function SocialGoLive() {
         ) : null}
         {phase === "preview" || phase === "recording" ? (
           <div className="absolute inset-x-0 bottom-8 z-10 flex flex-col items-center gap-3">
-            <p className="t-label text-band-ink/80">{SOCIAL.create.liveHint}</p>
             <button
               type="button"
               data-social-go-live-record=""
