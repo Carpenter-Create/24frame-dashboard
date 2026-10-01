@@ -411,6 +411,23 @@ body:has([data-social-write-compose]) :is(#vercel-toolbar, vercel-live-feedback,
   background-color: #0A0A0B;
 }
 
+/* Phone immersive only. The player mute (and the volume range beside it)
+   sits in the bottom bar under Like / Comment / Share. Hide that cluster
+   below the desktop breakpoint. The stage draws its own top-trailing mute.
+   Desktop and the feed card keep the player bar.
+   docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md */
+@media (max-width: 767px) {
+  [data-social-feed-immersive] mux-player {
+    --mute-button: none;
+    --volume-range: none;
+  }
+
+  [data-social-feed-immersive] mux-player::part(bottom mute button),
+  [data-social-feed-immersive] mux-player::part(bottom volume range) {
+    display: none !important;
+  }
+}
+
 /* Explore For You. Phone cover-fills the viewport. Desktop md+ contains
    the picture in a centered 9:16 player so a vertical is not cover-cropped
    into the wide column. Landscape letterboxes in that player. Gutters and

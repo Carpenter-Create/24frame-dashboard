@@ -98,6 +98,9 @@ describe("SocialFeedVideo", () => {
     expect(player).not.toContain("maxResolution");
     expect(player).not.toContain("minResolution");
     expect(player).not.toContain("renditionOrder");
+    const feed = readFileSync("src/components/social/social-feed-video.tsx", "utf8");
+    expect(feed).toContain("muted = false");
+    expect(feed).toContain("muted={muted}");
   });
 
   it("keeps a missing Mux poster on the house muted canvas, not Mux blue", () => {

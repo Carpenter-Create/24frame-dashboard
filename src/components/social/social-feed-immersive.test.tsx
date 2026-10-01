@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { SOCIAL } from "@/lib/social";
 import {
   SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS,
+  SOCIAL_FEED_IMMERSIVE_MUTE_CLASS,
   SOCIAL_FEED_IMMERSIVE_STAGE_CLASS,
   SOCIAL_POST_ACTION_GLYPH,
   SOCIAL_POST_ACTIONS_ROW_CLASS,
@@ -47,6 +48,7 @@ describe("SocialFeedImmersive", () => {
     expect(html).toContain(SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS);
     expect(SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS).toContain("size-[44px]");
     expect(html).toContain('data-social-icon="x"');
+    expect(html).not.toContain("data-social-feed-immersive-mute");
     expect(html).toContain("data-social-feed-immersive-caption");
     expect(html).toContain("ada");
     expect(html).toContain("hello from the dock");
@@ -139,5 +141,54 @@ describe("SocialFeedImmersive", () => {
     expect(html).not.toContain("<video");
     expect(html).toContain('aria-label="View video"');
     expect(html).not.toContain("data-social-feed-immersive-caption");
+  });
+
+  it("puts phone mute at the top trailing corner, off the social row", () => {
+    const html = renderToStaticMarkup(
+      <SocialFeedImmersive
+        post={{
+          ...post,
+          media: [{ kind: "video", url: "", playbackId: "abc12345xx" }],
+        }}
+        index={0}
+        onClose={() => undefined}
+      />,
+    );
+    const dock = html.slice(html.indexOf("data-social-feed-immersive-dock"));
+    expect(html).toContain("data-social-feed-immersive-mute");
+    expect(html).toContain(SOCIAL_FEED_IMMERSIVE_MUTE_CLASS);
+    expect(html).toContain(`aria-label="${SOCIAL.post.mute}"`);
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('data-social-icon="speaker-high"');
+    expect(html).not.toContain('data-social-icon="speaker-slash"');
+    expect(SOCIAL_FEED_IMMERSIVE_MUTE_CLASS).toContain("right-0");
+    expect(SOCIAL_FEED_IMMERSIVE_MUTE_CLASS).toContain("top-[env(safe-area-inset-top)]");
+    expect(SOCIAL_FEED_IMMERSIVE_MUTE_CLASS).toContain("size-[44px]");
+    expect(SOCIAL_FEED_IMMERSIVE_MUTE_CLASS).toContain("md:hidden");
+    expect(SOCIAL_FEED_IMMERSIVE_MUTE_CLASS).not.toContain("bottom-0");
+    expect(html.indexOf("data-social-feed-immersive-mute")).toBeLessThan(
+      html.indexOf("data-social-feed-immersive-dock"),
+    );
+    expect(dock).toContain("data-social-like");
+    expect(dock).toContain("data-social-comment-open");
+    expect(dock).toContain("data-social-post-share");
+    expect(dock).not.toContain("data-social-feed-immersive-mute");
+    expect(dock.indexOf("data-social-like")).toBeLessThan(dock.indexOf("data-social-comment-open"));
+    expect(dock.indexOf("data-social-comment-open")).toBeLessThan(dock.indexOf("data-social-post-share"));
+    expect(immersiveSrc).toContain("muted={muted}");
+    expect(immersiveSrc).toContain("SOCIAL.post.mute");
+    expect(immersiveSrc).toContain("SOCIAL.post.unmute");
+
+    const ruleAt = css.indexOf("[data-social-feed-immersive] mux-player");
+    const rule = css.slice(ruleAt - 40, ruleAt + 420);
+    expect(rule).toContain("@media (max-width: 767px)");
+    expect(rule).toContain("--mute-button: none");
+    expect(rule).toContain("--volume-range: none");
+    expect(rule).toContain("::part(bottom mute button)");
+    expect(rule).toContain("::part(bottom volume range)");
+    expect(rule).not.toContain("pip");
+    expect(rule).not.toContain("fullscreen");
+    const feedPlayer = css.slice(css.indexOf(".social-mux-player {"), css.indexOf(".social-mux-player {") + 280);
+    expect(feedPlayer).not.toContain("--mute-button");
   });
 });
