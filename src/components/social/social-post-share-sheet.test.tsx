@@ -62,7 +62,8 @@ describe("SocialPostShareSheet", () => {
     const firstHuman = html.indexOf('data-social-post-share-cell="u2"');
     expect(ai).toBeGreaterThan(-1);
     expect(ai).toBeLessThan(firstHuman);
-    expect(html).toContain('href="?ai=1"');
+    expect(html).toContain('href="/social/dms/24frame-ai?post=p1"');
+    expect(html).not.toContain("?ai=1");
     expect(html).toContain("data-social-frame-ai");
     expect(html).toContain("data-house-ai-mark");
     expect(html).toContain("24Frame AI");

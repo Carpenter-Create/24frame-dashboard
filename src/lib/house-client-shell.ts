@@ -4,6 +4,7 @@ import {
   SOCIAL_PROFILE_TAB_PARAM,
   SOCIAL_ROUTES,
 } from "@/lib/social";
+import { socialFrameAiThreadPath } from "@/lib/social-frame-ai";
 import { SOCIAL_FOLLOWING_WALL_CURSOR_PARAM } from "@/lib/social-home-bounds";
 import { readSocialHomeLocation } from "@/lib/social-home-location";
 import { EDUCATION_ROOT, HOME_ROOT, SOCIAL_ROOT, STAFF_ROOT } from "@/lib/workspace";
@@ -92,6 +93,10 @@ export function houseScreenQueryNames(pathname: string): readonly string[] {
   if (path.startsWith("/social/u/") && path.endsWith("/follows")) {
     return [SOCIAL_PROFILE_TAB_PARAM, SOCIAL_FOLLOWS_SEARCH_PARAM];
   }
+  // 24Frame AI thread. post/story must be their own screen. A query this
+  // list does not name shares the inbox key, so /social/dms?ai=1 pushStates
+  // and the overlay never opens.
+  if (path === socialFrameAiThreadPath()) return ["post", "story"];
   // Account Home `?period=` is panel state on the mounted /home screen,
   // same as Social lane/topic. A separate slot painted home/loading.tsx
   // (a short fallback) under the already-selected Revenue chip.
