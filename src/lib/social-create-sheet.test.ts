@@ -46,7 +46,7 @@ describe("Social Create sheet SoT", () => {
     expect(SOCIAL.create.write).toBe("Write");
     expect(SOCIAL.create.goLive).toBe("Go live");
     expect(SOCIAL.create.close).toBe("Close");
-    expect(SOCIAL_ROUTES.createLive).toBe("/social/create/live");
+    expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
   });
 
   it("phone: AppSheet; desktop: HouseDialog — not a promoted sheet", () => {

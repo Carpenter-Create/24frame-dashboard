@@ -32,6 +32,8 @@ import {
   isSocialDmThreadPath,
   exploreExitUsesPriorRoute,
   isSocialExplorePath,
+  isSocialGoLivePath,
+  socialGoLiveLegacyRedirect,
   isSocialWriteComposePath,
   leaveSocialWriteCompose,
   isSocialStoryOpenPath,
@@ -201,6 +203,14 @@ describe("social copy lock", () => {
     expect(isSocialWriteComposePath(SOCIAL_ROUTES.create)).toBe(true);
     expect(isSocialWriteComposePath(`${SOCIAL_ROUTES.create}/`)).toBe(true);
     expect(isSocialWriteComposePath(SOCIAL_ROUTES.createLive)).toBe(false);
+    expect(isSocialGoLivePath(SOCIAL_ROUTES.createLive)).toBe(true);
+    expect(isSocialGoLivePath(`${SOCIAL_ROUTES.createLive}/`)).toBe(true);
+    expect(isSocialGoLivePath(SOCIAL_ROUTES.create)).toBe(false);
+    expect(socialGoLiveLegacyRedirect("/social/create/live")).toBe(SOCIAL_ROUTES.createLive);
+    expect(socialGoLiveLegacyRedirect("/social/create/live/")).toBe(SOCIAL_ROUTES.createLive);
+    expect(socialGoLiveLegacyRedirect(SOCIAL_ROUTES.createLive)).toBeNull();
+    expect(socialGoLiveLegacyRedirect(SOCIAL_ROUTES.create)).toBeNull();
+    expect(readFileSync("src/lib/supabase/middleware.ts", "utf8")).toContain("socialGoLiveLegacyRedirect");
     expect(isSocialWriteComposePath(SOCIAL_ROUTES.home)).toBe(false);
     let pushes = 0;
     leaveSocialWriteCompose(
@@ -507,7 +517,7 @@ describe("profile opt-in", () => {
     expect(parseSocialCreateKind("clip")).toBeNull();
     expect(socialCreateHref("media")).toBe("/social/create?kind=media");
     expect(socialCreateHref("text")).toBe("/social/create?kind=text");
-    expect(SOCIAL_ROUTES.createLive).toBe("/social/create/live");
+    expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
     expect(SOCIAL.create.write).toBe("Write");
     expect(SOCIAL.create.goLive).toBe("Go live");
     expect(SOCIAL.create.close).toBe("Close");

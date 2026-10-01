@@ -66,7 +66,7 @@ describe("SocialCreateSheet", () => {
     expect(html).not.toContain("/social/create?kind=photo");
     expect(html).not.toContain("/social/create?kind=video");
     expect(html).toContain("/social/create?kind=text");
-    expect(html).toContain("/social/create/live");
+    expect(html).toContain("/social/live");
     expect(html).toContain('data-social-icon="image"');
     expect(html).toContain('data-social-icon="pencil-simple"');
     expect(html).toContain('data-social-icon="broadcast"');

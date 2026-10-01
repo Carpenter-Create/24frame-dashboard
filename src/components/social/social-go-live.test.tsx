@@ -5,7 +5,10 @@ import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
 import { SOCIAL_GO_LIVE_MAX_MS } from "@/lib/social-go-live";
 
 const src = readFileSync("src/components/social/social-go-live.tsx", "utf8");
-const page = readFileSync("src/app/(app)/social/create/live/page.tsx", "utf8");
+const page = readFileSync("src/app/(app)/social/live/page.tsx", "utf8");
+const loading = readFileSync("src/app/(app)/social/live/loading.tsx", "utf8");
+const fan = readFileSync("src/components/social/social-create-fan.tsx", "utf8");
+const sheet = readFileSync("src/components/social/social-create-sheet.tsx", "utf8");
 
 describe("Social Go live recorder", () => {
   it("records in-app then posts on the normal video path with a 10:00 cap", () => {
@@ -36,6 +39,24 @@ describe("Social Go live recorder", () => {
     expect(src).not.toContain("WebRTC");
     expect(SOCIAL_GO_LIVE_MAX_MS).toBe(600_000);
     expect(SOCIAL.create.liveHint).toContain("10 minutes");
-    expect(SOCIAL_ROUTES.createLive).toBe("/social/create/live");
+    expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
+    expect(src).toContain("data-social-go-live-close");
+    expect(src).toContain("takeSocialGoLiveExitHref()");
+    expect(src).toContain("router.replace(takeSocialGoLiveExitHref())");
+    expect(src).toContain("clearSocialGoLiveOpener()");
+    expect(src).not.toContain("href={SOCIAL_ROUTES.create}");
+    expect(src).not.toContain('href="/social/create"');
+    expect(loading).toContain("data-house-rsc-fallback");
+    expect(loading).toContain("data-social-go-live-page");
+    expect(loading).not.toContain("SocialCreateSkeleton");
+    expect(loading).not.toContain("Share something");
+    expect(fan).toContain("rememberSocialGoLiveOpener");
+    expect(sheet).toContain("rememberSocialGoLiveOpener");
+    const fanMedia = fan.slice(fan.indexOf('tile.id === "media"'), fan.indexOf('tile.id === "live"'));
+    expect(fanMedia).toContain("openPicker()");
+    expect(fanMedia).not.toContain("rememberSocialGoLiveOpener");
+    const fanLive = fan.slice(fan.indexOf('if (tile.id === "live")'));
+    expect(fanLive.indexOf("rememberSocialGoLiveOpener")).toBeGreaterThan(-1);
+    expect(fanLive.indexOf("rememberSocialGoLiveOpener")).toBeLessThan(fanLive.indexOf("closeFan()"));
   });
 });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { HouseLink } from "@/components/chrome/house-link";
 import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +38,7 @@ import {
   goLiveRemainingMs,
   SOCIAL_GO_LIVE_MAX_MS,
 } from "@/lib/social-go-live";
+import { clearSocialGoLiveOpener, takeSocialGoLiveExitHref } from "@/lib/social-go-live-nav";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
 import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "@/lib/social";
 import {
@@ -410,6 +412,7 @@ export function SocialGoLive() {
         applyOptimisticSocialPost(started.post);
         clipUrlRef.current = null;
         setError("");
+        clearSocialGoLiveOpener();
         router.push(SOCIAL_ROUTES.home);
         return started.post.id;
       },
@@ -447,17 +450,32 @@ export function SocialGoLive() {
           />
         )}
         <div className={SOCIAL_STORY_STUDIO_CHROME_CLASS}>
-          <Link
-            href={SOCIAL_ROUTES.create}
+          <HouseLink
+            href={SOCIAL_ROUTES.home}
             aria-label={SOCIAL.stories.close}
             aria-disabled={posting || undefined}
+            data-social-go-live-close=""
             className={SOCIAL_STORY_STUDIO_ICON_CLASS}
             onClick={(event) => {
-              if (posting) event.preventDefault();
+              if (posting) {
+                event.preventDefault();
+                return;
+              }
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.altKey ||
+                event.ctrlKey ||
+                event.shiftKey
+              ) {
+                return;
+              }
+              event.preventDefault();
+              router.replace(takeSocialGoLiveExitHref());
             }}
           >
             <SocialIcon name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
-          </Link>
+          </HouseLink>
           <span className="t-label font-semibold text-band-ink">{SOCIAL.create.goLive}</span>
           <button
             type="button"
