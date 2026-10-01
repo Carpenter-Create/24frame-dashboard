@@ -23,13 +23,16 @@ import {
 } from "./social-create-fan";
 
 describe("Social Create fan", () => {
-  it("places Media · Write · Go live on a semicircle above the dock", () => {
+  it("places Media · Write · Go live on a 90° arc clustered over the plus", () => {
     expect(SOCIAL_CREATE_TILES.map((tile) => tile.id)).toEqual(["media", "write", "live"]);
-    expect(SOCIAL_CREATE_FAN_ANGLES_DEG).toEqual([140, 90, 40]);
-    expect(SOCIAL_CREATE_FAN_RADIUS_PX).toBe(132);
-    expect(socialCreateFanPoint(140)).toEqual({ x: -101, y: -85 });
-    expect(socialCreateFanPoint(90)).toEqual({ x: 0, y: -132 });
-    expect(socialCreateFanPoint(40)).toEqual({ x: 101, y: -85 });
+    expect(SOCIAL_CREATE_FAN_ANGLES_DEG).toEqual([135, 90, 45]);
+    const [left, top, right] = SOCIAL_CREATE_FAN_ANGLES_DEG;
+    expect(left - right).toBe(90);
+    expect(top).toBe(90);
+    expect(SOCIAL_CREATE_FAN_RADIUS_PX).toBe(100);
+    expect(socialCreateFanPoint(135)).toEqual({ x: -71, y: -71 });
+    expect(socialCreateFanPoint(90)).toEqual({ x: 0, y: -100 });
+    expect(socialCreateFanPoint(45)).toEqual({ x: 71, y: -71 });
 
     const points = socialCreateFanPoints();
     expect(points).toHaveLength(3);
@@ -38,8 +41,11 @@ describe("Social Create fan", () => {
     expect(points[2]?.x).toBeGreaterThan(0);
     expect(points[1]?.y).toBeLessThan(points[0]?.y ?? 0);
     expect(points[1]?.y).toBeLessThan(points[2]?.y ?? 0);
+    // Circle centers stay inside the old ±101 spread, and the 24px
+    // circle clears the dock pill (pill top is 24px above the origin).
     for (const point of points) {
-      expect(point.y).toBeLessThanOrEqual(-80);
+      expect(Math.abs(point.x)).toBeLessThanOrEqual(80);
+      expect(point.y + 24).toBeLessThan(-24);
     }
     expect(socialCreateTileHref("media")).toBe(socialCreateHref("media"));
     expect(socialCreateTileHref("write")).toBe(socialCreateHref("text"));
@@ -61,6 +67,8 @@ describe("Social Create fan", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe("regular");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("whitespace-normal");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("t-body-sm");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("bottom-[calc(100%+var(--space-1))]");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).not.toContain("top-[calc(100%+var(--space-1))]");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("rounded-full");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("border-hairline");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("bg-surface");
