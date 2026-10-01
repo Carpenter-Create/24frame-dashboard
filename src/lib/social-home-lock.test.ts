@@ -15,6 +15,7 @@ import {
   SOCIAL_DESKTOP_HEADER_INSET_CLASS,
   SOCIAL_DESKTOP_MEASURE,
   SOCIAL_FEED_ACTIONS_META_CLASS,
+  SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
   SOCIAL_FEED_META_COPY_CLASS,
@@ -378,9 +379,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_FEED_ROW_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
     expect(SOCIAL_FEED_ROW_CLASS).toContain("shrink-0");
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("flex-col");
-    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-0");
-    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[var(--space-2)]");
+    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("-mt-[var(--space-1)]");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-0");
     expect(SOCIAL_FEED_META_ROW_GAP_CLASS).not.toContain("gap-[var(--space-4)]");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).not.toContain("gap-[var(--space-2)]");
     expect(SOCIAL_POST_ACTIONS_GAP_CLASS).toBe("gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toBe("flex flex-row items-center gap-2");
     expect(SOCIAL_POST_ACTIONS_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
@@ -465,7 +467,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(card).not.toContain("SOCIAL_FEED_CHROME_CLASS");
     expect(SOCIAL_FEED_ACTIONS_META_CLASS).toBe("flex flex-col");
     expect(SOCIAL_FEED_ACTIONS_META_CLASS).not.toMatch(/gap-/);
+    expect(SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS).toBe("-mb-[var(--space-1)]");
     expect(SOCIAL_FEED_META_COPY_CLASS).toBe("leading-tight");
+    expect(postCard).toContain("SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS");
+    expect(SOCIAL_POST_ACTIONS_OPTICAL_CLASS).not.toContain("-mb");
     expect(card).toContain("SOCIAL_FEED_ACTIONS_META_CLASS");
     expect(card).toContain("SOCIAL_FEED_META_ROW_GAP_CLASS");
     expect(card).toContain("SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS");
@@ -473,6 +478,7 @@ describe("Social Home miss list v1 P0 lock", () => {
       postCard.indexOf("SOCIAL_FEED_META_ROW_GAP_CLASS"),
     );
     expect(immersive).not.toContain("SOCIAL_FEED_ACTIONS_META_CLASS");
+    expect(immersive).not.toContain("SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS");
     expect(immersive).not.toContain("SOCIAL_FEED_META_ROW_GAP_CLASS");
     expect(immersive).toContain("SOCIAL_FEED_IMMERSIVE_DOCK_CLASS");
     expect(postMedia).toContain("w-full");
