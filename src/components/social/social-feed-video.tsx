@@ -22,12 +22,14 @@ export function SocialFeedVideo({
   className,
   fit = "cover",
   chromeless = false,
+  muted = false,
   muxBandId,
 }: {
   item: SocialFeedVideoItem;
   className?: string;
   fit?: "cover" | "contain";
   chromeless?: boolean;
+  muted?: boolean;
   muxBandId?: string;
 }) {
   const playable = Boolean(item.playbackId && isSocialMuxId(item.playbackId));
@@ -46,6 +48,7 @@ export function SocialFeedVideo({
         playbackPolicy={item.playbackPolicy}
         fit={fit}
         chromeless={chromeless}
+        muted={muted}
         className={fill}
       />
     );
@@ -64,6 +67,7 @@ export function SocialFeedVideo({
           playbackPolicy={item.playbackPolicy}
           fit={fit}
           chromeless={chromeless}
+          muted={muted}
           className={fill}
         />
       ) : null}

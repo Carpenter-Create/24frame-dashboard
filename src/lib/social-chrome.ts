@@ -559,6 +559,13 @@ export const SOCIAL_FEED_IMMERSIVE_STAGE_CLASS =
 export const SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS =
   "absolute left-0 top-[env(safe-area-inset-top)] z-30 flex size-[44px] min-h-[44px] min-w-[44px] items-center justify-center text-band-ink";
 
+// Phone immersive video. Mux mute sits in the bottom bar, under
+// Like / Comment / Share. This is the phone mute: top-trailing, same
+// row as Close, clear of the dock and of PiP / fullscreen.
+// md:hidden — desktop keeps the mute in the player bar.
+export const SOCIAL_FEED_IMMERSIVE_MUTE_CLASS =
+  "absolute right-0 top-[env(safe-area-inset-top)] z-30 flex size-[44px] min-h-[44px] min-w-[44px] items-center justify-center text-band-ink md:hidden";
+
 export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
   "absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pt-[var(--space-4)]";
 

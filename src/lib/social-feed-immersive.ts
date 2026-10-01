@@ -83,11 +83,17 @@ export function socialImmersiveClearShellInert(nodes: readonly HTMLElement[]): v
 }
 
 export function socialImmersiveFocusables(root: {
-  querySelectorAll(selector: string): Iterable<{ closest(selector: string): unknown }>;
+  querySelectorAll(selector: string): Iterable<{
+    closest(selector: string): unknown;
+    getClientRects?: () => { length: number };
+  }>;
 }): HTMLElement[] {
   const found: HTMLElement[] = [];
   for (const el of root.querySelectorAll(SOCIAL_IMMERSIVE_FOCUSABLE_SELECTOR)) {
     if (el.closest("[inert]")) continue;
+    // display:none (desktop md:hidden mute) has no box. Skip it so Tab
+    // stays on the controls that are actually on screen.
+    if (el.getClientRects && el.getClientRects().length === 0) continue;
     found.push(el as HTMLElement);
   }
   return found;

@@ -16,6 +16,7 @@ import {
   SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS,
   SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS,
   SOCIAL_FEED_IMMERSIVE_DOCK_CLASS,
+  SOCIAL_FEED_IMMERSIVE_MUTE_CLASS,
   SOCIAL_FEED_IMMERSIVE_STAGE_CLASS,
   SOCIAL_POST_ACTION_GLYPH,
   SOCIAL_POST_ACTION_HIT_CLASS,
@@ -49,6 +50,7 @@ export function SocialFeedImmersive({
 }) {
   const item = post.media[index];
   const [expanded, setExpanded] = useState(false);
+  const [muted, setMuted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const body = post.body?.trim() ?? "";
   const needsMore = body.length > 0 && socialImmersiveCaptionNeedsMore(body);
@@ -137,6 +139,7 @@ export function SocialFeedImmersive({
           <SocialFeedVideo
             item={item}
             fit="contain"
+            muted={muted}
             className="social-feed-immersive-media absolute inset-0 size-full object-contain"
           />
         ) : (
@@ -152,6 +155,18 @@ export function SocialFeedImmersive({
       >
         <SocialIcon name="x" size={22} />
       </button>
+      {item.kind === "video" ? (
+        <button
+          type="button"
+          data-social-feed-immersive-mute=""
+          aria-label={muted ? SOCIAL.post.unmute : SOCIAL.post.mute}
+          aria-pressed={muted}
+          className={SOCIAL_FEED_IMMERSIVE_MUTE_CLASS}
+          onClick={() => setMuted((value) => !value)}
+        >
+          <SocialIcon name={muted ? "speaker-slash" : "speaker-high"} size={20} />
+        </button>
+      ) : null}
       <div data-social-feed-immersive-dock="" className={SOCIAL_FEED_IMMERSIVE_DOCK_CLASS}>
         {body ? (
           <div data-social-feed-immersive-caption="">

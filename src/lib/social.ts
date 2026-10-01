@@ -963,6 +963,8 @@ export const SOCIAL = {
     viewPhoto: "View photo",
     viewVideo: "View video",
     closeMedia: "Close",
+    mute: "Mute",
+    unmute: "Unmute",
     captionMore: "more",
     commentPlaceholder: "Write a comment…",
     commentEmpty: "No comments yet.",

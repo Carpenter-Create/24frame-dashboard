@@ -91,4 +91,14 @@ describe("social feed immersive helpers", () => {
     ).toEqual([kept]);
     expect(seen).toBe(SOCIAL_IMMERSIVE_FOCUSABLE_SELECTOR);
   });
+
+  it("skips controls that are not laid out", () => {
+    const shown = { closest: () => null, getClientRects: () => ({ length: 1 }) };
+    const unlaid = { closest: () => null, getClientRects: () => ({ length: 0 }) };
+    expect(
+      socialImmersiveFocusables({
+        querySelectorAll: () => [shown, unlaid],
+      }),
+    ).toEqual([shown]);
+  });
 });
