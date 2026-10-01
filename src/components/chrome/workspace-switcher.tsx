@@ -9,7 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, DotsNine, FilmStrip, Tray, Users } from "@phosphor-icons/react";
+import { BookOpen, DotsNine, FilmStrip, House, Tray, Users } from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
@@ -49,6 +49,9 @@ import {
   WORKSPACE_SWITCHER_STATIC_CLASS,
   WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
   WORKSPACE_WAFFLE_GRID_CLASS,
+  WORKSPACE_WAFFLE_HOME,
+  WORKSPACE_WAFFLE_HOME_ROW_CLASS,
+  WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
   WORKSPACE_WAFFLE_ICON_CLASS,
   WORKSPACE_WAFFLE_TILE_CLASS,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
@@ -56,6 +59,7 @@ import {
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
+  workspaceWaffleHomeDest,
   workspaceSwitcherChromeClearanceBottoms,
   workspaceSwitcherMenuStyle,
   workspaceSwitcherNextSegmentIndex,
@@ -96,6 +100,66 @@ function selectWorkspaceTile(
   markPending?.(dest, event);
   if (navigateOwned?.(dest, event)) return;
   router.push(dest);
+}
+
+function WorkspaceWaffleHomeRow({
+  current,
+  chromePath,
+  onNavigate,
+}: {
+  current: WorkspaceMode;
+  chromePath: string;
+  onNavigate: () => void;
+}) {
+  const { markPending } = useHouseNavPending();
+  const dest = workspaceWaffleHomeDest(chromePath, current);
+  const onHome = overviewLeadSelected("home", chromePath, current);
+  const className = cn(
+    WORKSPACE_WAFFLE_HOME_ROW_CLASS,
+    onHome && WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
+  );
+  const body = (
+    <>
+      <House className={WORKSPACE_WAFFLE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} aria-hidden="true" />
+      <span data-workspace-waffle-home-label="" className={WORKSPACE_WAFFLE_TILE_LABEL_CLASS}>
+        {WORKSPACE_WAFFLE_HOME.label}
+      </span>
+      <AppearanceCheck
+        selected={onHome}
+        className={cn(WORKSPACE_SWITCHER_OPTION_CHECK_CLASS, "ml-auto")}
+      />
+    </>
+  );
+  if (!dest) {
+    return (
+      <button
+        type="button"
+        data-workspace-waffle-home=""
+        data-workspace-waffle-home-current=""
+        aria-current="page"
+        className={className}
+        onClick={onNavigate}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <HouseLink
+      href={dest}
+      prefetch
+      data-workspace-waffle-home=""
+      className={className}
+      onClick={(event) => {
+        workspaceSwitcherPersistLane("home");
+        markPending(dest, event);
+        onNavigate();
+      }}
+    >
+      <HouseNavPendingProbe href={dest} onPending={markPending} />
+      {body}
+    </HouseLink>
+  );
 }
 
 function WorkspaceWaffleTiles({
@@ -412,7 +476,14 @@ export function WorkspaceSwitcher({
           data-workspace-waffle-sheet=""
           className={`relative z-10 ${WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS}`}
         >
-          {faces("phone")}
+          <div data-workspace-waffle-phone="" className="flex flex-col gap-[var(--space-2)]">
+            <WorkspaceWaffleHomeRow
+              current={current}
+              chromePath={chromePath}
+              onNavigate={() => setOpen(false)}
+            />
+            {faces("phone")}
+          </div>
         </div>
       </div>
     </div>

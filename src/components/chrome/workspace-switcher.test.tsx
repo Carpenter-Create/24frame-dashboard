@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+const navigation = vi.hoisted(() => ({ pathname: "/" }));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => navigation.pathname,
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 
@@ -113,11 +115,21 @@ describe("workspace waffle header control", () => {
     expect(html).not.toContain('data-workspace-waffle-tile="home"');
     expect(html).not.toContain('data-workspace-waffle-tile="co-productions"');
     expect(html).not.toContain("Co-Productions");
-    expect(html).not.toContain('href="/home"');
+    expect(popover).not.toContain('href="/home"');
+    expect(popover).not.toContain("data-workspace-waffle-home");
+    expect(popover).not.toContain(">Home<");
+    expect(sheet).toContain('data-workspace-waffle-home=""');
+    expect(sheet).toContain('href="/home"');
+    expect(sheet).toContain(">Home<");
+    expect(sheet.indexOf("data-workspace-waffle-home")).toBeLessThan(
+      sheet.indexOf("data-workspace-waffle-grid"),
+    );
     expect(html).toContain('href="/aggregation/dashboard"');
     expect(html).toContain('href="/education"');
-    expect(html).not.toContain(">Home<");
     expect(html).not.toContain(">Explore<");
+    const dockSrc = readFileSync(join(here, "house-phone-bottom-nav.tsx"), "utf8");
+    expect(dockSrc).not.toContain("data-workspace-waffle-home");
+    expect(dockSrc).not.toContain("WORKSPACE_WAFFLE_HOME");
     expect(html).not.toContain(">Create<");
     expect(html).not.toContain(">Messages<");
     expect(html).not.toContain(">Profile<");
@@ -137,6 +149,43 @@ describe("workspace waffle header control", () => {
     expect(trigger).not.toContain("Social");
     expect(trigger).toContain(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS);
     expect(trigger).not.toContain("bg-accent");
+  });
+
+  it("marks Home current on /home and still links back from the news history", () => {
+    try {
+      navigation.pathname = "/home";
+      const landed = renderToStaticMarkup(
+        <WorkspaceSwitcher current="social" defaultOpen />,
+      );
+      const landedSheet = landed.slice(landed.indexOf("data-workspace-switcher-sheet"));
+      expect(landedSheet).toContain('data-workspace-waffle-home-current=""');
+      expect(landedSheet).not.toContain('href="/home"');
+      expect(landedSheet).toContain(">Home<");
+
+      navigation.pathname = "/home/news";
+      const news = renderToStaticMarkup(
+        <WorkspaceSwitcher current="aggregation" defaultOpen />,
+      );
+      const newsSheet = news.slice(news.indexOf("data-workspace-switcher-sheet"));
+      expect(newsSheet).toContain('data-workspace-waffle-home=""');
+      expect(newsSheet).toContain('href="/home"');
+      expect(newsSheet).not.toContain("data-workspace-waffle-home-current");
+
+      navigation.pathname = "/staff/queue";
+      const staff = renderToStaticMarkup(
+        <WorkspaceSwitcher
+          current="staff"
+          isGcStaff
+          options={availableWorkspaceOptions({ isGcStaff: true })}
+          defaultOpen
+        />,
+      );
+      const staffSheet = staff.slice(staff.indexOf("data-workspace-switcher-sheet"));
+      expect(staffSheet).toContain('href="/home"');
+      expect(staffSheet).toContain('data-workspace-waffle-tile="staff"');
+    } finally {
+      navigation.pathname = "/";
+    }
   });
 
   it("shows Staff only when the existing staff gate includes it", () => {

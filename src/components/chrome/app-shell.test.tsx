@@ -1231,6 +1231,7 @@ describe("AppShell rail-collapse chevron", () => {
       html.indexOf("data-social-explore-stage"),
     );
     expect(desktopHeader).toContain("hidden md:contents");
+    expect(desktopHeader).toContain('data-house-home=""');
     expect(desktopHeader).toContain('data-social-explore-exit=""');
     expect(desktopHeader).toContain('href="/social"');
     expect(desktopHeader).toContain(">Exit<");
