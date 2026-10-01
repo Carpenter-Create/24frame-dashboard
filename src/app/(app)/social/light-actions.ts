@@ -32,6 +32,7 @@ import {
 } from "@/lib/social-post-share";
 import { socialAvatarHref } from "@/lib/social-edge";
 import { loadDmInbox } from "@/lib/social-dms";
+import { isSocialFrameAiTarget } from "@/lib/social-frame-ai";
 import { loadFolloweeIds, loadProfilesByIds, loadStoryById } from "@/lib/social-feed";
 import { ownedMediaItems } from "@/lib/social-media";
 import { isStoryLive } from "@/lib/social-stories";
@@ -173,7 +174,7 @@ export async function sendSocialStoryItem(formData: FormData): Promise<ActionRes
 
   const storyId = String(formData.get("story_id") ?? "").trim();
   const peerId = String(formData.get("peer_id") ?? "").trim();
-  if (!storyId || !peerId) return { error: SOCIAL.stories.sendFailed };
+  if (!storyId || !peerId || isSocialFrameAiTarget(peerId)) return { error: SOCIAL.stories.sendFailed };
 
   const { data: story, error: storyError } = await supabase
     .from("stories")
@@ -280,11 +281,13 @@ export async function sendSocialPostShare(formData: FormData): Promise<PostShare
   // Same allowlist the sheet lists. A stranger never reaches open_or_get.
   // docs/design-locks/social-post-share-sheet-ig-lock-v1.md
   const directory = await loadStorySendDirectory(supabase, user.id);
-  const allowlist = new Set(directory.map((person) => person.id));
+  const allowlist = new Set(
+    directory.filter((person) => !isSocialFrameAiTarget(person.id)).map((person) => person.id),
+  );
   const failedPeerIds: string[] = [];
 
   for (const peerId of peers.ids) {
-    if (!postSharePeerAllowed(peerId, allowlist)) {
+    if (isSocialFrameAiTarget(peerId) || !postSharePeerAllowed(peerId, allowlist)) {
       failedPeerIds.push(peerId);
       continue;
     }

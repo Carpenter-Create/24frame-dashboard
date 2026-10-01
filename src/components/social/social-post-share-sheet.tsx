@@ -5,11 +5,13 @@ import { createPortal } from "react-dom";
 
 import { listStorySendPeople, sendSocialPostShare } from "@/app/(app)/social/light-actions";
 import { HouseScrim } from "@/components/chrome/house-overlay";
+import { SocialFrameAiOpen } from "@/components/social/social-frame-ai-face";
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { SocialIcon } from "@/components/social/social-icon";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Input } from "@/components/ui/input";
 import { displayHandle, SOCIAL } from "@/lib/social";
+import { isSocialFrameAiTarget, pinSocialFrameAiPeople } from "@/lib/social-frame-ai";
 import {
   postSharePermalink,
   postShareSelectBlocked,
@@ -66,7 +68,9 @@ export function SocialPostShareSheet({
   const provided = directory !== undefined;
   const [people, setPeople] = useState<StorySendPerson[]>(directory ? [...directory] : []);
   const [query, setQuery] = useState(initialQuery);
-  const [selectedIds, setSelectedIds] = useState<string[]>(() => postShareSelection(initialSelectedIds));
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+    postShareSelection(initialSelectedIds).filter((id) => !isSocialFrameAiTarget(id)),
+  );
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -107,7 +111,7 @@ export function SocialPostShareSheet({
 
   if (!open) return null;
 
-  const shown = storySendPeopleQuery(people, query);
+  const shown = storySendPeopleQuery(loading ? people : pinSocialFrameAiPeople(people), query);
   const searching = query.trim().length > 0;
   const selected = selectedIds.length > 0;
   const permalink =
@@ -247,39 +251,62 @@ export function SocialPostShareSheet({
             <ul data-social-post-share-results="" className="flex flex-col">
               {shown.map((person) => (
                 <li key={person.id}>
-                  <button
-                    type="button"
-                    data-social-post-share-result={person.id}
-                    disabled={sending || postShareSelectBlocked(selectedIds.length, selectedIds.includes(person.id))}
-                    aria-pressed={selectedIds.includes(person.id)}
-                    className="flex w-full min-w-0 items-center gap-3 py-2 text-left"
-                    onClick={() => toggle(person.id)}
-                  >
-                    {personFace(person, "size-10")}
-                    <span className="min-w-0 flex-1">
-                      <span className="block break-words t-body font-medium text-white">{person.name}</span>
-                      <span className="block break-words t-body-sm text-white/60">{displayHandle(person.handle)}</span>
-                    </span>
-                  </button>
+                  {isSocialFrameAiTarget(person.id) ? (
+                    <SocialFrameAiOpen
+                      className="flex w-full min-w-0 items-center gap-3 py-2 text-left"
+                      faceClassName="size-10"
+                      label={person.name}
+                      labelClassName="block break-words t-body font-medium text-white"
+                      marker={{ "data-social-post-share-result": person.id }}
+                      onOpen={onClose}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      data-social-post-share-result={person.id}
+                      disabled={sending || postShareSelectBlocked(selectedIds.length, selectedIds.includes(person.id))}
+                      aria-pressed={selectedIds.includes(person.id)}
+                      className="flex w-full min-w-0 items-center gap-3 py-2 text-left"
+                      onClick={() => toggle(person.id)}
+                    >
+                      {personFace(person, "size-10")}
+                      <span className="min-w-0 flex-1">
+                        <span className="block break-words t-body font-medium text-white">{person.name}</span>
+                        <span className="block break-words t-body-sm text-white/60">{displayHandle(person.handle)}</span>
+                      </span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           ) : (
             <div data-social-post-share-grid="" className="grid grid-cols-3 gap-4">
-              {shown.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  data-social-post-share-cell={person.id}
-                  disabled={sending || postShareSelectBlocked(selectedIds.length, selectedIds.includes(person.id))}
-                  aria-pressed={selectedIds.includes(person.id)}
-                  className="flex min-w-0 flex-col items-center gap-2"
-                  onClick={() => toggle(person.id)}
-                >
-                  {personFace(person, "size-14")}
-                  <span className="w-full break-words text-center t-body-sm text-white">{person.name}</span>
-                </button>
-              ))}
+              {shown.map((person) =>
+                isSocialFrameAiTarget(person.id) ? (
+                  <SocialFrameAiOpen
+                    key={person.id}
+                    className="flex min-w-0 flex-col items-center gap-2"
+                    faceClassName="size-14"
+                    label={person.name}
+                    labelClassName="w-full break-words text-center t-body-sm text-white"
+                    marker={{ "data-social-post-share-cell": person.id }}
+                    onOpen={onClose}
+                  />
+                ) : (
+                  <button
+                    key={person.id}
+                    type="button"
+                    data-social-post-share-cell={person.id}
+                    disabled={sending || postShareSelectBlocked(selectedIds.length, selectedIds.includes(person.id))}
+                    aria-pressed={selectedIds.includes(person.id)}
+                    className="flex min-w-0 flex-col items-center gap-2"
+                    onClick={() => toggle(person.id)}
+                  >
+                    {personFace(person, "size-14")}
+                    <span className="w-full break-words text-center t-body-sm text-white">{person.name}</span>
+                  </button>
+                ),
+              )}
             </div>
           )}
         </div>

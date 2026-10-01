@@ -57,6 +57,15 @@ describe("SocialStorySendSheet", () => {
     expect(html).toContain("size-14");
     expect(html).toContain('data-social-story-send-cell="u1"');
     expect(html).toContain('data-social-story-send-cell="u2"');
+    const ai = html.indexOf('data-social-story-send-cell="24frame-ai"');
+    const firstHuman = html.indexOf('data-social-story-send-cell="u1"');
+    expect(ai).toBeGreaterThan(-1);
+    expect(ai).toBeLessThan(firstHuman);
+    expect(html).toContain('href="?ai=1"');
+    expect(html).toContain("data-social-frame-ai");
+    expect(html).toContain("data-house-ai-mark");
+    expect(html).toContain("24Frame AI");
+    expect(src).not.toContain("router");
     expect(html).toContain("truncate");
     expect(html).toContain('data-social-story-send-footer="closed"');
     expect(html).toContain("duration-200");
@@ -108,7 +117,7 @@ describe("SocialStorySendSheet", () => {
     expect(html).not.toContain("HouseDialog");
   });
 
-  it("uses the calm empty when nobody is available", () => {
+  it("keeps 24Frame AI when nobody else is available", () => {
     const html = renderToStaticMarkup(
       createElement(SocialStorySendSheet, {
         storyId: "s1",
@@ -117,8 +126,20 @@ describe("SocialStorySendSheet", () => {
         directory: [],
       }),
     );
-    expect(html).toContain("data-social-story-send-empty");
-    expect(html).toContain(SOCIAL.stories.sendEmpty);
+    expect(html).not.toContain("data-social-story-send-empty");
+    expect(html).not.toContain(SOCIAL.stories.sendEmpty);
+    expect(html).toContain('data-social-story-send-cell="24frame-ai"');
+    const missed = renderToStaticMarkup(
+      createElement(SocialStorySendSheet, {
+        storyId: "s1",
+        open: true,
+        onClose: () => undefined,
+        directory: [],
+        initialQuery: "zzzz",
+      }),
+    );
+    expect(missed).toContain("data-social-story-send-empty");
+    expect(missed).toContain(SOCIAL.search.noResults);
   });
 
   it("centers a dark Sent capsule and does not use the bottom notice", () => {

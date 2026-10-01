@@ -39,6 +39,7 @@ import {
   toggleSocialStoryLike,
 } from "./light-actions";
 import { commentInsertRow } from "@/lib/social-comments";
+import { SOCIAL_FRAME_AI_ID } from "@/lib/social-frame-ai";
 
 vi.mock("@/lib/s3-social-media", () => ({
   presignSocialMediaPut: vi.fn(),
@@ -789,6 +790,18 @@ describe("social actions", () => {
     });
   });
 
+  it("does not open a direct conversation when the story peer is 24Frame AI", async () => {
+    const { rpc, inserts } = stub({
+      profile: { id: "u1", handle: "ada", display_name: "Ada", status: "active" },
+    });
+    const form = new FormData();
+    form.set("story_id", "s1");
+    form.set("peer_id", SOCIAL_FRAME_AI_ID);
+    expect(await sendSocialStoryItem(form)).toEqual({ error: SOCIAL.stories.sendFailed });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(inserts).toEqual([]);
+  });
+
   it("sends a post share card to each selected person", async () => {
     const { from, rpc, inserts } = mockPostShare();
     const form = postShareForm(["u2", "u3"], "watch this");
@@ -818,6 +831,17 @@ describe("social actions", () => {
     });
     expect(row.media.some((item) => item.playbackId === "abc12345xx")).toBe(true);
     expect(JSON.stringify(row)).not.toMatch(/\/social\/p\/|https?:/);
+  });
+
+  it("does not open a direct conversation when a post share peer is 24Frame AI", async () => {
+    const { rpc, inserts } = mockPostShare();
+    const result = await sendSocialPostShare(postShareForm([SOCIAL_FRAME_AI_ID, "u2"]));
+    expect(result.failedPeerIds).toContain(SOCIAL_FRAME_AI_ID);
+    const opened = rpc.mock.calls
+      .filter(([name]) => name === "open_or_get_direct_conversation")
+      .map(([, args]) => (args as { p_peer: string }).p_peer);
+    expect(opened).toEqual(["u2"]);
+    expect(inserts).toHaveLength(1);
   });
 
   it("refuses a peer who is not on the story-send allowlist", async () => {

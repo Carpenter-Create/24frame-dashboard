@@ -43,6 +43,7 @@ The Messages list drops the page title block. Chrome is an IG-style list header:
 | Token | Lock |
 |-------|------|
 | Order | Avatar · name · preview line with trailing relative time · unread dot |
+| Pinned first | 24Frame AI stays the first thread. Human rows keep inbox order under it. `social-frame-ai-pin-lock-v1.md` |
 | Hairline | **OUT** — no `border-b` on inbox rows |
 | Rhythm | Vertical padding `--space-3`. No full-bleed rule |
 | Preview | Existing excerpt. Wraps. Does not use line-clamp |
