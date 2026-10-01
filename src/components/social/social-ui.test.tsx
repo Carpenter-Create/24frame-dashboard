@@ -1031,7 +1031,12 @@ describe("SocialPostCard media", () => {
     expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf("data-social-post-caption"));
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("hello"));
     expect(html).toContain("mt-[var(--space-4)]");
-    expect(html).toContain("gap-[var(--space-4)]");
+    expect(html).toContain("-mt-[var(--space-1)]");
+    expect(html).toContain("-mb-[var(--space-1)]");
+    expect(html).toContain("gap-0");
+    expect(html).not.toContain("gap-[var(--space-2)]");
+    expect(html).not.toContain("gap-[var(--space-4)]");
+    expect(html).toContain("leading-tight");
     expect(html).toContain("pt-[var(--space-4)]");
     expect(html).toContain("px-[var(--space-4)]");
     expect(html).toContain("pb-[var(--space-6)]");

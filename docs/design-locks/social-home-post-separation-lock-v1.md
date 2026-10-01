@@ -1,6 +1,6 @@
 # [GC][24Frame] LOCK — Social Home post separation v1
 
-**Date:** 2026-09-29 (CT) · interior air and in-feed video aspect 2026-09-30 (CT)
+**Date:** 2026-09-29 (CT) · interior air and in-feed video aspect 2026-09-30 (CT) · footer density 2026-10-01 (CT), line-space pass the same day
 **Status:** **LOCKED** · CoS / Adam · **Option A** supersedes the #715 2px rule
 **Entity:** Global Content / 24Frame only
 **Amends:**
@@ -52,8 +52,9 @@ The card was flush at the top and tight under the media. Air uses house spacing 
 | Card edge → author | `SOCIAL_FEED_AUTHOR_EDGE_CLASS` = `px-[var(--space-4)] pt-[var(--space-4)]` |
 | Card edge → actions, likes, caption, time | `SOCIAL_FEED_META_EDGE_CLASS` = `px-[var(--space-4)]` |
 | Author → media | `mt-[var(--space-4)]` on `SOCIAL_POST_MEDIA_CLASS`. Was `--space-2` |
-| Media → actions | `SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS` = `mt-[var(--space-4)]`. Was `mt-[10px]` |
-| Actions → likes / caption / time | `SOCIAL_FEED_META_ROW_GAP_CLASS` = `gap-[var(--space-4)]`. Was `gap-[6px]`. Time stays on its own line |
+| Media → actions | `SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS` = `-mt-[var(--space-1)]`. The 40×40 hit's top pad is 8px; this pull leaves ~4px from the picture to the 24px glyph. Horizontal inset stays `px-[var(--space-4)]`. Was `mt-0`, which still showed the full pad |
+| Icon row → likes / caption / time | `SOCIAL_FEED_ACTIONS_META_CLASS` = `flex flex-col` (no gap). `SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS` = `-mb-[var(--space-1)]` on the feed action row only, so glyph → text ink is ~2–4px. The hit stays 40×40. The immersive dock does not use the pull |
+| Likes / caption / comments / time | `SOCIAL_FEED_META_ROW_GAP_CLASS` = `gap-0`. Copy is `leading-tight` (`SOCIAL_FEED_META_COPY_CLASS`), one line-space (about 1.25), not a paragraph gap. Was `gap-[var(--space-2)]`. Time stays on its own line, `leading-none` |
 | Time → card bottom | `pb-[var(--space-6)]` on the row. Was `pb-[var(--space-4)]` |
 
 Phone and desktop share these classes. No `md:` fork. Home, Profile Activity, and author history share `SocialPostCard`, so they share this air.
