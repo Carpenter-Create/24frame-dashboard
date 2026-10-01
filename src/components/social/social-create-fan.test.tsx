@@ -73,9 +73,17 @@ describe("SocialCreateFan", () => {
     expect(html).toContain("aria-label=\"Close\"");
     expect(html).not.toContain("bg-transparent");
     expect(html).not.toContain("bg-ink/40");
-    expect(html).toMatch(/--social-create-fan-x:\s*-101px/);
-    expect(html).toMatch(/--social-create-fan-y:\s*-132px/);
-    expect(html).toMatch(/--social-create-fan-x:\s*101px/);
+    expect(html).toMatch(/--social-create-fan-x:\s*-71px/);
+    expect(html).toMatch(/--social-create-fan-y:\s*-100px/);
+    expect(html).toMatch(/--social-create-fan-x:\s*71px/);
+    const media = html.slice(
+      html.indexOf('data-social-create-fan-item="media"'),
+      html.indexOf('data-social-create-fan-item="write"'),
+    );
+    const write = html.slice(html.indexOf('data-social-create-fan-item="write"'));
+    expect(media).toContain("bottom-[calc(100%+var(--space-1))]");
+    expect(media).not.toContain("space-3");
+    expect(write).toContain("bottom-[calc(100%+var(--space-3))]");
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe("regular");
     expect(html).not.toContain("data-social-create-sheet");
     expect(html).not.toContain('role="dialog"');

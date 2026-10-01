@@ -27,6 +27,7 @@ import {
   SOCIAL_CREATE_FAN_ITEM_CLASS,
   SOCIAL_CREATE_FAN_LABEL_CLASS,
   SOCIAL_CREATE_FAN_MENU_CLASS,
+  SOCIAL_CREATE_FAN_WRITE_LABEL_CLASS,
   SOCIAL_CREATE_FAN_PLUS_CLASS,
   SOCIAL_CREATE_FAN_SCRIM_CLASS,
   SOCIAL_CREATE_FAN_STAGGER_MS,
@@ -177,7 +178,10 @@ export function SocialCreateFan({
                 aria-hidden
               />
             </span>
-            <span data-social-create-fan-label="" className={SOCIAL_CREATE_FAN_LABEL_CLASS}>
+            <span
+              data-social-create-fan-label=""
+              className={tile.id === "write" ? SOCIAL_CREATE_FAN_WRITE_LABEL_CLASS : SOCIAL_CREATE_FAN_LABEL_CLASS}
+            >
               {tile.label}
             </span>
           </>
