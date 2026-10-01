@@ -16,7 +16,9 @@ import {
 } from "@/lib/social";
 import type { SocialPhosphorIconName } from "@/lib/social-icons";
 
-// Social Create chooser. Phone is AppSheet. Desktop is HouseDialog
+// Desktop rail Create dialog. Phone dock + does not mount this —
+// it fans Media · Write · Go live (social-create-fan).
+// Narrow host is still AppSheet. Desktop is HouseDialog
 // (short form, 480) — not an AppSheet promoted into a modal.
 // HouseOverlay dual-host lock v1. Same tiles both hosts.
 // Register: Coinbase institutional — modern trust, calm precision,
@@ -27,8 +29,8 @@ import type { SocialPhosphorIconName } from "@/lib/social-icons";
 // Not Mercury-stiff. Not LinkedIn-grey. Not a cold fintech vault.
 // Not loud IG/FB. Not a Pinterest skin. Not an X FAB flyout.
 // Not iMessage frost. Not iMessage’s vertical + attachment list.
-// One SoT for the sheet + tile primitive. Social-only door
-// (dock dest · desktop composer). Never in the house header.
+// One SoT for the desktop dialog + the shared tile list.
+// Phone dock reads the same tiles through the fan. Never in the house header.
 // Tiles: Media · Write · Go live. Media opens a mixed roll immediately.
 
 export const SOCIAL_CREATE_TILES = [

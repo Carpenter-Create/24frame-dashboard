@@ -4,7 +4,7 @@
 **Status:** **LOCKED** · Design READY · Adam phone FAIL on the floating card · path stays `docs/design-locks/write-compose-immersive-icons-lock-v1.md`  
 **Box:** `/workspace/24frame-agg-ux/write-compose-immersive-icons-lock-v1.md` — checked 2026-09-25; that file was not in the tree. This lock records the Design READY tokens.  
 **FAIL shot:** `/workspace/24frame-agg-ux/write-compose-sheet-adam-fail-2026-09-25.png`  
-**Parent:** `docs/design-locks/share-something-text-write-direct-lock-v1.md` — Home Photo and Camera stay. + still opens the Create sheet.
+**Parent:** `docs/design-locks/share-something-text-write-direct-lock-v1.md` — Home Photo and Camera stay. Phone dock + fans Media · Write · Go live (`docs/design-locks/social-create-fan-lock-v1.md`).
 **Share something entry (2026-09-29):** presentation is `docs/design-locks/share-something-write-compose-sheet-lock-v1.md`, not this full-viewport page. This lock still governs `/social/create?kind=text` and the craft inside the sheet (icons, X, Post, house light). The sheet does not unmount Social chrome; the scrim covers Home.
 
 ## One lock
