@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { HouseEmpty, TextAction } from "@/components/chrome/house";
 import { PageHeader } from "@/components/ui/page-header";
 import { InlineNotice } from "@/components/ui/inline-notice";
@@ -28,6 +30,11 @@ import {
 } from "@/lib/social-dm-thread-format";
 import { loadDmParticipants, loadDmThreadMessages } from "@/lib/social-dms";
 import { loadProfilesByIds } from "@/lib/social-feed";
+import {
+  isSocialFrameAiTarget,
+  readSocialFrameAiShareSearch,
+  socialFrameAiThreadHref,
+} from "@/lib/social-frame-ai";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession } from "@/lib/social-session";
 import { markSocialDmRead } from "../../actions";
@@ -45,6 +52,9 @@ export default async function SocialDmThreadPage({
     searchParams ? searchParams : Promise.resolve({} as Record<string, string | string[] | undefined>),
   ]);
   const { ctx, supabase } = session;
+  if (isSocialFrameAiTarget(id)) {
+    redirect(socialFrameAiThreadHref(readSocialFrameAiShareSearch(sp)));
+  }
   const cursor = parseDmThreadCursorParam(sp[SOCIAL_DM_THREAD_CURSOR_PARAM]);
   const profile = await ensureOwnSocialProfile(supabase, ctx.user);
 

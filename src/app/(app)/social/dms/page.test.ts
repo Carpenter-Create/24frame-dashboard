@@ -147,7 +147,7 @@ describe("social DMs", () => {
     const group = html.indexOf('data-social-dm-kind="group"');
     expect(ai).toBeGreaterThan(-1);
     expect(ai).toBeLessThan(group);
-    expect(html).toContain('href="/social/dms?ai=1"');
+    expect(html).toContain('href="/social/dms/24frame-ai"');
     expect(html).toContain("data-social-frame-ai-face");
     expect(html).toContain("data-house-ai-mark");
     expect(html).toContain("24Frame AI");
@@ -169,7 +169,7 @@ describe("social DMs", () => {
     expect(html).not.toContain(SOCIAL.dms.empty);
     expect(html).toContain('data-social-dm-kind="frame-ai"');
     expect(html).toContain("24Frame AI");
-    expect(html).toContain('href="/social/dms?ai=1"');
+    expect(html).toContain('href="/social/dms/24frame-ai"');
     expect(html).toContain("data-social-frame-ai-face");
     expect(html).toContain("data-social-dms-start");
     expect(html).toContain(`aria-label="${SOCIAL.dms.newMessage}"`);

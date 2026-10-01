@@ -77,6 +77,12 @@ describe("house client shell SoT", () => {
     expect(houseScreenKey("/home", "?period=ytd")).toBe("/home");
     expect(houseScreenKey("/home", "?period=2026-09")).toBe("/home");
     expect(houseScreenKey("/", "?period=ytd")).toBe("/");
+    expect(houseScreenKey("/social/dms", "?ai=1")).toBe("/social/dms");
+    expect(houseHrefKey("/social/dms?ai=1")).toBe(houseHrefKey("/social/dms"));
+    expect(houseScreenKey("/social/dms/24frame-ai")).toBe("/social/dms/24frame-ai");
+    expect(houseScreenKey("/social/dms/24frame-ai")).not.toBe(houseScreenKey("/social/dms", "?ai=1"));
+    expect(houseScreenKey("/social/dms/24frame-ai", "?post=p1")).toBe("/social/dms/24frame-ai?post=p1");
+    expect(houseScreenKey("/social/dms/24frame-ai", "?story=s1")).toBe("/social/dms/24frame-ai?story=s1");
     expect(houseHomePeriodHop("/home", "/home?period=ytd")).toBe(true);
     expect(houseHomePeriodHop("/home?period=ytd", "/home")).toBe(true);
     expect(houseHomePeriodHop("/home?period=ytd", "/home?period=2026-09")).toBe(true);

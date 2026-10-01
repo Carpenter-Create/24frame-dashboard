@@ -228,6 +228,7 @@ export function SocialStorySendSheet({
                       label={person.name}
                       labelClassName="block break-words t-body font-medium text-white"
                       marker={{ "data-social-story-send-result": person.id }}
+                      storyId={storyId}
                       onOpen={onClose}
                     />
                   ) : (
@@ -260,6 +261,7 @@ export function SocialStorySendSheet({
                     label={person.name}
                     labelClassName="w-full break-words text-center t-body-sm text-white"
                     marker={{ "data-social-story-send-cell": person.id }}
+                    storyId={storyId}
                     onOpen={onClose}
                   />
                 ) : (

@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { HouseAiMark } from "@/components/chrome/house-ai-mark";
 import { cn } from "@/lib/cn";
-import { socialFrameAiOpenHref } from "@/lib/social-frame-ai";
+import { socialFrameAiThreadHref } from "@/lib/social-frame-ai";
 import { SOCIAL_FRAME_AI_FACE_CLASS } from "@/lib/social-chrome";
 
 // Pinned 24Frame AI face. House sparkle on the person-avatar circle.
@@ -25,6 +25,8 @@ export function SocialFrameAiOpen({
   labelClassName,
   marker,
   onOpen,
+  postId,
+  storyId,
 }: {
   className: string;
   faceClassName: string;
@@ -32,10 +34,12 @@ export function SocialFrameAiOpen({
   labelClassName: string;
   marker: Record<string, string>;
   onOpen: () => void;
+  postId?: string;
+  storyId?: string;
 }) {
   return (
     <Link
-      href={socialFrameAiOpenHref()}
+      href={socialFrameAiThreadHref({ postId, storyId })}
       className={className}
       data-social-frame-ai=""
       onClick={onOpen}

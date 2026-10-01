@@ -23,6 +23,7 @@ import {
   type AskGlobeeStoredMessage,
   type AskGlobeeThumb,
 } from "@/lib/ask-globee-conversations";
+import { socialFrameAiContinuingConversation } from "@/lib/social-frame-ai";
 import { userMenuAvatarInitial } from "@/lib/user-menu";
 import { UNPAGINATED_MAX, rangeFor } from "@/lib/list-bounds";
 import { loadMyFindings } from "@/lib/my-lists";
@@ -182,6 +183,29 @@ export async function loadAskAiOverlay(threadId?: string | null): Promise<{
     conversations,
     conversation,
     messages: (messageRows ?? []) as AskGlobeeStoredMessage[],
+  };
+}
+
+/** Social Messages thread. Same Ask rows as the overlay. Latest conversation only. */
+export async function loadSocialFrameAiThread(): Promise<{
+  ready: boolean;
+  conversationId: string | null;
+  messages: AskGlobeeStoredMessage[];
+}> {
+  const landing = await loadAskAiOverlay(null);
+  if (!canRenderAskGlobeeLanding(landing.surface)) {
+    return { ready: false, conversationId: null, messages: [] };
+  }
+  const latest = socialFrameAiContinuingConversation(landing.conversations);
+  if (!latest) return { ready: true, conversationId: null, messages: [] };
+  const thread = await loadAskAiOverlay(latest.id);
+  if (!canRenderAskGlobeeLanding(thread.surface) || !thread.conversation) {
+    return { ready: false, conversationId: null, messages: [] };
+  }
+  return {
+    ready: true,
+    conversationId: thread.conversation.id,
+    messages: thread.messages,
   };
 }
 

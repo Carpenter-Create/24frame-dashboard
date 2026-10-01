@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { SocialDmPostShare } from "@/components/social/social-dm-post-share";
 import { SocialDmStoryShare } from "@/components/social/social-dm-story-share";
+import { SocialFrameAiFace } from "@/components/social/social-frame-ai-face";
+import { SOCIAL_FRAME_AI_ID } from "@/lib/social-frame-ai";
 import { cn } from "@/lib/cn";
 import type { SocialMuxPlaybackPolicy } from "@/lib/social-mux";
 import { POST_SHARE_CARD_WIDTH_CLASS } from "@/lib/social-post-share";
@@ -55,13 +57,26 @@ export type DmThreadViewMessage = DmThreadClusterMessage & {
   text: string | null;
   story: DmThreadStoryShareView | null;
   post: DmThreadPostShareView | null;
+  marker?: "opener" | "thinking";
 };
 
-function Bubble({ mine, text, marker }: { mine: boolean; text: string; marker: "bubble" | "comment" }) {
+function Bubble({
+  mine,
+  text,
+  marker,
+  flag,
+}: {
+  mine: boolean;
+  text: string;
+  marker: "bubble" | "comment";
+  flag?: "opener" | "thinking";
+}) {
   return (
     <p
       data-social-dm-bubble={marker === "bubble" ? "" : undefined}
       data-social-dm-story-comment={marker === "comment" ? "" : undefined}
+      data-social-frame-ai-opener={flag === "opener" ? "" : undefined}
+      data-social-frame-ai-thinking={flag === "thinking" ? "" : undefined}
       className={dmThreadBubbleClass(mine)}
     >
       {text}
@@ -77,7 +92,9 @@ function ThreadMessage({ message }: { message: DmThreadViewMessage }) {
         data-social-dm-story-group=""
         className={cn("flex flex-col gap-2", message.mine ? "items-end" : "items-start")}
       >
-        {story.comment ? <Bubble mine={message.mine} text={story.comment} marker="comment" /> : null}
+        {story.comment ? (
+          <Bubble mine={message.mine} text={story.comment} marker="comment" flag={message.marker} />
+        ) : null}
         {story.line ? (
           <p
             data-social-dm-story-line=""
@@ -106,7 +123,9 @@ function ThreadMessage({ message }: { message: DmThreadViewMessage }) {
         data-social-dm-post-group=""
         className={cn("flex flex-col gap-2", message.mine ? "items-end" : "items-start")}
       >
-        {post.comment ? <Bubble mine={message.mine} text={post.comment} marker="bubble" /> : null}
+        {post.comment ? (
+          <Bubble mine={message.mine} text={post.comment} marker="bubble" flag={message.marker} />
+        ) : null}
         {post.line ? (
           <p
             data-social-dm-post-line=""
@@ -133,7 +152,7 @@ function ThreadMessage({ message }: { message: DmThreadViewMessage }) {
     );
   }
   if (!message.text) return null;
-  return <Bubble mine={message.mine} text={message.text} marker="bubble" />;
+  return <Bubble mine={message.mine} text={message.text} marker="bubble" flag={message.marker} />;
 }
 
 export function SocialDmThread({
@@ -197,12 +216,16 @@ export function SocialDmThread({
               )}
             >
               {block.showAvatar ? (
-                <SocialAvatar
-                  name={first.senderName}
-                  photoUrl={first.senderPhotoUrl}
-                  size="sm"
-                  className={DM_THREAD_AVATAR_CLASS}
-                />
+                first.senderId === SOCIAL_FRAME_AI_ID ? (
+                  <SocialFrameAiFace className={DM_THREAD_AVATAR_CLASS} />
+                ) : (
+                  <SocialAvatar
+                    name={first.senderName}
+                    photoUrl={first.senderPhotoUrl}
+                    size="sm"
+                    className={DM_THREAD_AVATAR_CLASS}
+                  />
+                )
               ) : null}
               <div className={dmThreadStackClass(block.mine)}>
                 {block.messages.map((message) => (

@@ -34,8 +34,8 @@ import type {
 // keys on posts.media. Title S3 / S3_BUCKET stay film-only.
 // Group DMs reuse Pack 4 conversations.kind=group. Gated community
 // groups.min_level spaces stay a different surface.
-// Ask 24Frame AI is the shell overlay (`?ai=1`), not a /messages route.
-// Social Messages pins that opener first. DMs are /social/dms only.
+// Header Ask 24Frame AI stays the shell overlay (`?ai=1`).
+// Social Messages opens /social/dms/24frame-ai. Human DMs stay /social/dms.
 // Courses are company/admin publish only. Members browse placeholders.
 
 export const SOCIAL_ROUTES = {

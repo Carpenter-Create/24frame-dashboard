@@ -258,6 +258,7 @@ export function SocialPostShareSheet({
                       label={person.name}
                       labelClassName="block break-words t-body font-medium text-white"
                       marker={{ "data-social-post-share-result": person.id }}
+                      postId={postId}
                       onOpen={onClose}
                     />
                   ) : (
@@ -290,6 +291,7 @@ export function SocialPostShareSheet({
                     label={person.name}
                     labelClassName="w-full break-words text-center t-body-sm text-white"
                     marker={{ "data-social-post-share-cell": person.id }}
+                    postId={postId}
                     onOpen={onClose}
                   />
                 ) : (

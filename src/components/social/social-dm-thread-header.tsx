@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { SocialAvatar } from "@/components/social/social-avatar";
@@ -19,24 +20,28 @@ export function SocialDmThreadHeader({
   href,
   photoUrl,
   avatarName,
+  face,
 }: {
   label: string;
   href: string | null;
   photoUrl: string | null;
   avatarName: string;
+  face?: ReactNode;
 }) {
-  const face = avatarName ? (
-    <SocialAvatar
-      name={avatarName}
-      photoUrl={photoUrl}
-      size="sm"
-      className={DM_THREAD_HEADER_AVATAR_CLASS}
-    />
-  ) : null;
+  const portrait =
+    face ??
+    (avatarName ? (
+      <SocialAvatar
+        name={avatarName}
+        photoUrl={photoUrl}
+        size="sm"
+        className={DM_THREAD_HEADER_AVATAR_CLASS}
+      />
+    ) : null);
   const name = <span className={DM_THREAD_HEADER_LABEL_CLASS}>{label}</span>;
   const peer = (
     <>
-      {face}
+      {portrait}
       {name}
     </>
   );
