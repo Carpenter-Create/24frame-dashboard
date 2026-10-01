@@ -5,7 +5,8 @@
 // Emblem owns the phone left next to the workspace trigger.
 // No hamburger — leading or trailing.
 // Destinations live in HousePhoneBottomNav (in-workspace only).
-// Emblem is a workspace-home link, not the rail.
+// Phone emblem returns to Home (/home), the industry news feed.
+// Desktop wordmark stays the workspace home. Neither opens the rail.
 // Phone grammar IA A:
 //   Left inline: [emblem]. No workspace word.
 //   Trailing: [search if needed] [24Frame AI] [bell] [waffle] [avatar]

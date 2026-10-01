@@ -8,6 +8,8 @@ import {
   APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
+  WORKSPACE_WAFFLE_HOME,
+  workspaceWaffleHomeDest,
   WORKSPACE_SWITCHER_SEGMENTS_CLASS,
   workspaceSliderSegments,
   workspaceSwitcherNextSegmentIndex,
@@ -194,9 +196,20 @@ describe("workspace switcher lock", () => {
     expect(workspaceWaffleTiles(availableWorkspaceOptions().slice(0, 1)).map((tile) => tile.mode)).toEqual([
       "aggregation",
     ]);
-    expect(phoneWorkspaceSwitcherPrefetchHrefs()).toEqual(
-      workspaceWaffleTiles().map((tile) => tile.href),
-    );
+    expect(phoneWorkspaceSwitcherPrefetchHrefs()).toEqual([
+      "/home",
+      ...workspaceWaffleTiles().map((tile) => tile.href),
+    ]);
+    expect(WORKSPACE_WAFFLE_HOME).toEqual({ id: "home", label: "Home", href: "/home" });
+    expect(workspaceWaffleHomeDest("/social", "social")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/social/explore", "social")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/education", "education")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/aggregation/dashboard", "aggregation")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/staff/queue", "staff")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/co-productions", "aggregation")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/settings", "social")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/home/news", "aggregation")).toBe("/home");
+    expect(workspaceWaffleHomeDest("/home", "aggregation")).toBeNull();
     expect(workspaceSliderSegments().map((tile) => tile.mode)).toEqual(
       workspaceWaffleTiles().map((tile) => tile.mode),
     );

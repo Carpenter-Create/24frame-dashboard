@@ -16,6 +16,7 @@ import {
   HOUSE_LEAD_UNDER_NAV_CLASS,
 } from "@/lib/house-lead-chrome";
 import { PRODUCT_NAME } from "@/lib/product";
+import { OVERVIEW_HREF } from "@/lib/overview";
 import { clampWorkspaceMode, workspaceHome, type WorkspaceMode } from "@/lib/workspace";
 import { availableWorkspaceOptions } from "@/lib/workspace-menu";
 import {
@@ -24,6 +25,31 @@ import {
   APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
 } from "@/lib/workspace-switcher";
+
+function HouseLeadMark({
+  href,
+  className,
+  prefetch,
+  home = false,
+}: {
+  href: string;
+  className: string;
+  prefetch?: boolean;
+  home?: boolean;
+}) {
+  return (
+    <HouseLink
+      href={href}
+      prefetch={prefetch}
+      aria-label={PRODUCT_NAME}
+      data-brand-emblem=""
+      data-house-home={home ? "" : undefined}
+      className={className}
+    >
+      <BrandLogo />
+    </HouseLink>
+  );
+}
 
 export function HouseLeadChrome({
   workspace: requestedWorkspace,
@@ -85,15 +111,17 @@ export function HouseLeadChrome({
               HOUSE_LEAD_SLOT_CLASS,
             )}
           >
-            <HouseLink
+            <HouseLeadMark
+              href={OVERVIEW_HREF}
+              prefetch
+              home
+              className={cn(HOUSE_LEAD_LOGO_CLASS, "md:hidden")}
+            />
+            <HouseLeadMark
               href={workspaceHome(workspace)}
               prefetch={social ? true : undefined}
-              aria-label={PRODUCT_NAME}
-              data-brand-emblem=""
-              className={HOUSE_LEAD_LOGO_CLASS}
-            >
-              <BrandLogo />
-            </HouseLink>
+              className="hidden shrink-0 items-center md:inline-flex"
+            />
             {search ? (
               <div
                 data-house-lead-search=""

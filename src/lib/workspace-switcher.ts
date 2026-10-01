@@ -7,14 +7,19 @@
 // Phone/tablet max-md: icon-only waffle in the trailing utility
 // cluster — search · optional (Ask) · bell · waffle · avatar.
 // No labeled Social pill. No workspace-name dropdown. No slider
-// on the phone. Panel and slider are Layer 1 only, in lock order:
-// Social · Education · Aggregation (when the existing options gate
-// includes it) · Staff (when isGcStaff). Hide lanes the caller
-// omits. No dead tiles. Social Layer 2 dests stay out (Home /
-// Explore / Create / Messages / Profile). Account / Settings /
+// on the phone. Tiles and the desktop slider are Layer 1 only, in
+// lock order: Social · Education · Aggregation (when the existing
+// options gate includes it) · Staff (when isGcStaff). Hide lanes
+// the caller omits. No dead tiles. Social Layer 2 dests stay out
+// of the tiles and the slider (Explore / Create / Messages /
+// Profile, and Social's own Home at /social). Account / Settings /
 // Help stay on the avatar menu. Phone face is the existing app
 // sheet. Same tile inventory as the desktop slider.
-// Dock dests stay in-workspace only.
+// Phone sheet only: a Home row above those tiles returns to the
+// house homepage (/home), which carries the industry news feed.
+// That row is not a Layer 1 tile, not a desktop slider segment,
+// and not a Social dock tab. Desktop md+ stays on the slider and
+// does not list Home. Dock dests stay in-workspace only.
 // Leading air (settings back ↔ emblem) is --space-3 (12). Not
 // --space-1. Do not put overflow-hidden on the leading row (#412).
 // Phone trailing: [search if needed] [24Frame AI] [bell]
@@ -72,7 +77,12 @@ import {
   availableWorkspaceOptions,
   type WorkspaceMenuOption,
 } from "@/lib/workspace-menu";
-import { overviewLeadShouldNavigate, type OverviewLeadPillId } from "@/lib/overview";
+import {
+  OVERVIEW_HREF,
+  OVERVIEW_PAGE,
+  overviewLeadShouldNavigate,
+  type OverviewLeadPillId,
+} from "@/lib/overview";
 import {
   persistWorkspaceCookie,
   resolveWorkspaceMode,
@@ -220,6 +230,22 @@ export const WORKSPACE_WAFFLE_FORBIDDEN_LABELS = [
   "Profile",
 ] as const;
 
+/**
+ * Phone waffle sheet only. House homepage — the industry news feed
+ * lives on this route. Not a waffle tile and not a slider segment.
+ * Social dock Home stays /social.
+ */
+export const WORKSPACE_WAFFLE_HOME = {
+  id: "home",
+  label: OVERVIEW_PAGE.title,
+  href: OVERVIEW_HREF,
+} as const;
+
+export const WORKSPACE_WAFFLE_HOME_ROW_CLASS =
+  "mx-[var(--space-2)] flex min-h-12 items-center gap-[var(--space-3)] rounded-[12px] px-[var(--space-3)] text-left t-body-sm text-ink";
+
+export const WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS = "bg-surface-muted";
+
 /** Quiet circular hit — same box as the bell. Open wash is muted, not accent fill. */
 export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
   `${HOUSE_THEME_TOGGLE_CLASS} relative hover:bg-surface-muted`;
@@ -298,6 +324,23 @@ export function workspacePillClickDest(input: {
   return workspaceHome(option.mode);
 }
 
+/**
+ * Phone sheet Home row dest, or null when the shell is already on
+ * exact /home. /home/news still returns /home. Does not write the
+ * workspace cookie.
+ */
+export function workspaceWaffleHomeDest(
+  shellPath: string,
+  workspace: WorkspaceMode,
+): string | null {
+  return workspacePillClickDest({
+    shellPath,
+    workspace,
+    pill: { id: WORKSPACE_WAFFLE_HOME.id, href: WORKSPACE_WAFFLE_HOME.href },
+    options: [],
+  });
+}
+
 /** Persist the workspace cookie for a lane hop. Home and Co-Productions do not write. */
 export function workspaceSwitcherPersistLane(
   id: OverviewLeadPillId,
@@ -310,5 +353,8 @@ export function workspaceSwitcherPersistLane(
 export function phoneWorkspaceSwitcherPrefetchHrefs(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
 ): string[] {
-  return workspaceWaffleTiles(options).map((tile) => tile.href);
+  return [
+    WORKSPACE_WAFFLE_HOME.href,
+    ...workspaceWaffleTiles(options).map((tile) => tile.href),
+  ];
 }

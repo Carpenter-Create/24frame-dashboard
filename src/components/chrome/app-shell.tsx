@@ -350,8 +350,9 @@ export function AppShell({
           needed) · 24Frame AI · bell · waffle · avatar. Theme is the
           avatar drill.
           Ask AI is header + Home module only
-          (#465). Emblem links workspace
-          home; it does not open the rail. Desktop keeps the sliding
+          (#465). Phone emblem returns to Home (/home). Desktop
+          wordmark stays the workspace home. Neither opens the rail.
+          Desktop keeps the sliding
           workspace row, then Ask · bell · avatar. No waffle. Brand sits on the full-width top, not a
           second rail chrome. Period stays on the Dashboard org row.
           No org switcher on any route. Aggregation mid-lead stays

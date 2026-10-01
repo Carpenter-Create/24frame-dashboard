@@ -408,10 +408,11 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(APP_HEADER_LEADING_CLASS).toContain("gap-[var(--space-3)]");
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
 
-    for (const workspace of ["aggregation", "social", "education"] as const) {
+    for (const workspace of ["aggregation", "social", "education", "staff"] as const) {
       const html = renderToStaticMarkup(
         createElement(HouseLeadChrome, {
           workspace,
+          isGcStaff: workspace === "staff",
           accountMenu: createElement("div", { "data-user-menu-host": "" }),
         }),
       );
@@ -423,7 +424,13 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).toContain("data-brand-logo");
       expect(html).toContain('data-brand-logo-mark="emblem"');
       expect(html).toContain("/brand/24frame-emblem.svg");
+      const homeAt = html.indexOf('data-house-home=""');
+      const phoneMark = html.slice(html.lastIndexOf("<a", homeAt), html.indexOf(">", homeAt) + 1);
+      expect(phoneMark).toContain('href="/home"');
+      expect(phoneMark).toContain("md:hidden");
+      expect(phoneMark).not.toContain("md:inline-flex");
       expect(html).toContain(`href="${workspaceHome(workspace)}"`);
+      expect(html).toContain("hidden shrink-0 items-center md:inline-flex");
       const leading = html.slice(
         html.indexOf("data-app-header-leading"),
         html.indexOf("data-app-header-trailing"),
