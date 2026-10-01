@@ -89,13 +89,13 @@ export function SocialCreateFan({
   }, [closing, hidden, open, present]);
 
   useEffect(() => {
-    if (open || !present) return undefined;
+    if (open || !present || !closing) return undefined;
     const id = window.setTimeout(() => {
       setPresent(false);
       setClosing(false);
     }, SOCIAL_CREATE_FAN_DISMISS_MS);
     return () => window.clearTimeout(id);
-  }, [open, present]);
+  }, [closing, open, present]);
 
   useEffect(() => {
     if (!present) return undefined;
