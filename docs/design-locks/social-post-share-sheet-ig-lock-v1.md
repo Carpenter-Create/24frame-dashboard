@@ -6,7 +6,7 @@
 **Box:** `/workspace/24frame-agg-ux/social-post-share-sheet-ig-lock-v1.md`  
 **Refs:** `/workspace/24frame-agg-ux/ig-send-refs/02-share-sheet-grid.png` · `04-select-message-send.png` · `06-dm-story-card.png` (grammar)  
 **Cite:** Immersive Social · launch-great · Coinbase calm (not parody) · Media Immersion  
-**Related:** `stories-send-dm-craft-lock-v1.md` (Stories Send — separate entry) · `dm-thread-message-format-lock-v1.md` · `dm-thread-immersive-real-estate-lock-v1.md` · `dm-compose-immersive-ia-lock-v1.md` · `house-overlay-dual-host-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` (icon row only — **do not** reopen spacing)  
+**Related:** `stories-send-dm-craft-lock-v1.md` (Stories Send — separate entry) · `social-frame-ai-pin-lock-v1.md` (first grid cell opens 24Frame AI; not a recipient) · `dm-thread-message-format-lock-v1.md` · `dm-thread-immersive-real-estate-lock-v1.md` · `dm-compose-immersive-ia-lock-v1.md` · `house-overlay-dual-host-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` (icon row only — **do not** reopen spacing)  
 **Out:** #681 spacing · Design PR · invent repost cycle · Groups product
 
 ---

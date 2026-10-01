@@ -460,6 +460,11 @@ export const SOCIAL_DM_INBOX_ROW_CLASS = "py-[var(--space-3)]";
 
 export const SOCIAL_DM_INBOX_UNREAD_DOT_CLASS = "size-2 shrink-0 rounded-full bg-accent";
 
+// Pinned 24Frame AI face. Same circle as a person avatar. The sparkle
+// is half the face. docs/design-locks/social-frame-ai-pin-lock-v1.md
+export const SOCIAL_FRAME_AI_FACE_CLASS =
+  "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted text-accent";
+
 // Named 16 inset family (--space-4). The feed row does not stack this
 // on the phone bleed pad or the desktop frame pad — one 16 only.
 // Author and meta use it. Media stays px-0 on SOCIAL_POST_MEDIA_CLASS.

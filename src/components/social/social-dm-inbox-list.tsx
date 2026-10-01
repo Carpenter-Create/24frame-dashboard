@@ -20,8 +20,10 @@ import {
   socialDmInboxMatchesQuery,
   type SocialDmInboxListRow,
 } from "@/lib/social-dm-inbox-list";
+import { SOCIAL_FRAME_AI_KIND, isSocialFrameAiTarget } from "@/lib/social-frame-ai";
 
 import { SocialConversationFaces } from "./social-conversation-faces";
+import { SocialFrameAiFace } from "./social-frame-ai-face";
 import { SocialIcon } from "./social-icon";
 
 export function SocialDmInboxList({
@@ -107,7 +109,11 @@ export function SocialDmInboxList({
               className="flex items-center gap-[var(--space-3)]"
               data-social-dm-kind={row.kind}
             >
-              <SocialConversationFaces people={row.people} />
+              {isSocialFrameAiTarget(row.id) || row.kind === SOCIAL_FRAME_AI_KIND ? (
+                <SocialFrameAiFace />
+              ) : (
+                <SocialConversationFaces people={row.people} />
+              )}
               <div className="min-w-0 flex-1">
                 <p
                   className={cn(

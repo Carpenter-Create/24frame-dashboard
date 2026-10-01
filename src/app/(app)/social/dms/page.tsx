@@ -19,6 +19,7 @@ import {
 import { loadDmInbox, loadDmStoryInboxLines } from "@/lib/social-dms";
 import { loadProfilesByIds } from "@/lib/social-feed";
 import { socialDmInboxTitle, type SocialDmInboxListRow } from "@/lib/social-dm-inbox-list";
+import { pinSocialFrameAiInbox } from "@/lib/social-frame-ai";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession, type SocialSession } from "@/lib/social-session";
 
@@ -59,7 +60,7 @@ async function SocialDmsInbox({ session }: { session: SocialSession }) {
   const peers = loadedPeers;
   if (profile) peers.set(profile.id, profile);
 
-  const listRows: SocialDmInboxListRow[] = rows.map((row) => {
+  const listRows: SocialDmInboxListRow[] = pinSocialFrameAiInbox(rows.map((row) => {
     const others = dmInboxDisplayPeerIds(row, viewerId).map((id) => {
       const peer = peers.get(id);
       return {
@@ -83,7 +84,7 @@ async function SocialDmsInbox({ session }: { session: SocialSession }) {
       unreadCount: row.unread_count,
       people: others,
     };
-  });
+  }));
 
   const notice: ReactNode =
     inbox.truncated && profile ? (

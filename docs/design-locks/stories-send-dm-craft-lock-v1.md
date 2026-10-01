@@ -16,7 +16,8 @@
 **Supersedes:** v1.4 (no pause-behind-sheet rule) · v1.3 white AppSheet soft sheet · bottom toast · list-only picker · missing same-sheet morph · missing DM comment placement  
 **Keeps:** v1.4 sheet morph · self · live `SocialFeedVideo` / same-host fullscreen · no raw URL · #677 · heart untouched · no #664 fold  
 **Accent parody:** IG blue → house **Sporty Blue `#1769FF`** only (Send CTA · selection check). Everything else matches IG dark send chrome from refs.  
-**Out of scope:** #664 · thumbs · public comments thread · share-to-feed / Copy link / Add to story / Facebook / OS Share row · inventing a **second** modal after select · inventing soft house sheet chrome
+**Out of scope:** #664 · thumbs · public comments thread · share-to-feed / Copy link / Add to story / Facebook / OS Share row · inventing a **second** modal after select · inventing soft house sheet chrome  
+**Amended:** `social-frame-ai-pin-lock-v1.md` pins 24Frame AI as the first grid cell. That cell opens the overlay. It is not a send recipient.
 
 ---
 

@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { SocialFrameAiOpen } from "@/components/social/social-frame-ai-face";
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { SocialIcon } from "@/components/social/social-icon";
 import { InlineNotice } from "@/components/ui/inline-notice";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { listStorySendPeople, sendSocialStoryItem } from "@/app/(app)/social/light-actions";
 import { HouseScrim } from "@/components/chrome/house-overlay";
 import { displayHandle, SOCIAL } from "@/lib/social";
+import { isSocialFrameAiTarget, pinSocialFrameAiPeople } from "@/lib/social-frame-ai";
 import {
   storySendPeopleQuery,
   storySendToast,
@@ -53,7 +55,9 @@ export function SocialStorySendSheet({
   const provided = directory !== undefined;
   const [people, setPeople] = useState<StorySendPerson[]>(directory ? [...directory] : []);
   const [query, setQuery] = useState(initialQuery);
-  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialSelectedId && !isSocialFrameAiTarget(initialSelectedId) ? initialSelectedId : null,
+  );
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!provided);
@@ -86,7 +90,7 @@ export function SocialStorySendSheet({
 
   if (!open) return null;
 
-  const shown = storySendPeopleQuery(people, query);
+  const shown = storySendPeopleQuery(loading ? people : pinSocialFrameAiPeople(people), query);
   const searching = query.trim().length > 0;
   const selected = selectedId !== null && people.some((person) => person.id === selectedId);
 
@@ -217,39 +221,62 @@ export function SocialStorySendSheet({
             <ul data-social-story-send-results="" className="flex flex-col">
               {shown.map((person) => (
                 <li key={person.id}>
-                  <button
-                    type="button"
-                    data-social-story-send-result={person.id}
-                    disabled={sending}
-                    aria-pressed={selectedId === person.id}
-                    className="flex w-full min-w-0 items-center gap-3 py-2 text-left"
-                    onClick={() => toggle(person.id)}
-                  >
-                    {personFace(person, "size-10")}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate t-body font-medium text-white">{person.name}</span>
-                      <span className="block truncate t-body-sm text-white/60">{displayHandle(person.handle)}</span>
-                    </span>
-                  </button>
+                  {isSocialFrameAiTarget(person.id) ? (
+                    <SocialFrameAiOpen
+                      className="flex w-full min-w-0 items-center gap-3 py-2 text-left"
+                      faceClassName="size-10"
+                      label={person.name}
+                      labelClassName="block break-words t-body font-medium text-white"
+                      marker={{ "data-social-story-send-result": person.id }}
+                      onOpen={onClose}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      data-social-story-send-result={person.id}
+                      disabled={sending}
+                      aria-pressed={selectedId === person.id}
+                      className="flex w-full min-w-0 items-center gap-3 py-2 text-left"
+                      onClick={() => toggle(person.id)}
+                    >
+                      {personFace(person, "size-10")}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate t-body font-medium text-white">{person.name}</span>
+                        <span className="block truncate t-body-sm text-white/60">{displayHandle(person.handle)}</span>
+                      </span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           ) : (
             <div data-social-story-send-grid="" className="grid grid-cols-3 gap-4">
-              {shown.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  data-social-story-send-cell={person.id}
-                  disabled={sending}
-                  aria-pressed={selectedId === person.id}
-                  className="flex min-w-0 flex-col items-center gap-2"
-                  onClick={() => toggle(person.id)}
-                >
-                  {personFace(person, "size-14")}
-                  <span className="w-full truncate text-center t-body-sm text-white">{person.name}</span>
-                </button>
-              ))}
+              {shown.map((person) =>
+                isSocialFrameAiTarget(person.id) ? (
+                  <SocialFrameAiOpen
+                    key={person.id}
+                    className="flex min-w-0 flex-col items-center gap-2"
+                    faceClassName="size-14"
+                    label={person.name}
+                    labelClassName="w-full break-words text-center t-body-sm text-white"
+                    marker={{ "data-social-story-send-cell": person.id }}
+                    onOpen={onClose}
+                  />
+                ) : (
+                  <button
+                    key={person.id}
+                    type="button"
+                    data-social-story-send-cell={person.id}
+                    disabled={sending}
+                    aria-pressed={selectedId === person.id}
+                    className="flex min-w-0 flex-col items-center gap-2"
+                    onClick={() => toggle(person.id)}
+                  >
+                    {personFace(person, "size-14")}
+                    <span className="w-full truncate text-center t-body-sm text-white">{person.name}</span>
+                  </button>
+                ),
+              )}
             </div>
           )}
         </div>

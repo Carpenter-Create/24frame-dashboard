@@ -141,7 +141,16 @@ describe("social DMs", () => {
     expect(html).toContain("w-[300px]");
     expect(html).toContain("lg:flex");
     expect(html).not.toContain("892");
-    expect(html).not.toContain("24Frame");
+    const title = html.slice(html.indexOf("data-social-dms-title"), html.indexOf("data-social-dms-start"));
+    expect(title).not.toContain("24Frame");
+    const ai = html.indexOf('data-social-dm-kind="frame-ai"');
+    const group = html.indexOf('data-social-dm-kind="group"');
+    expect(ai).toBeGreaterThan(-1);
+    expect(ai).toBeLessThan(group);
+    expect(html).toContain('href="/social/dms?ai=1"');
+    expect(html).toContain("data-social-frame-ai-face");
+    expect(html).toContain("data-house-ai-mark");
+    expect(html).toContain("24Frame AI");
     expect(rpc).toHaveBeenCalledWith("get_dm_inbox", { p_limit: 51 });
     expect(html).not.toContain("data-social-dms-truncated");
   });
@@ -156,8 +165,12 @@ describe("social DMs", () => {
     } as never);
 
     const html = await renderServerMarkup(await SocialDmsPage());
-    expect(html).toContain("data-social-dms-empty");
-    expect(html).toContain(SOCIAL.dms.empty);
+    expect(html).not.toContain("data-social-dms-empty");
+    expect(html).not.toContain(SOCIAL.dms.empty);
+    expect(html).toContain('data-social-dm-kind="frame-ai"');
+    expect(html).toContain("24Frame AI");
+    expect(html).toContain('href="/social/dms?ai=1"');
+    expect(html).toContain("data-social-frame-ai-face");
     expect(html).toContain("data-social-dms-start");
     expect(html).toContain(`aria-label="${SOCIAL.dms.newMessage}"`);
     expect(html).not.toContain(`>${SOCIAL.dms.newMessage}<`);

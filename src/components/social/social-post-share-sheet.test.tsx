@@ -58,6 +58,14 @@ describe("SocialPostShareSheet", () => {
     expect(html).toContain("size-14");
     expect(html).toContain('data-social-post-share-cell="u2"');
     expect(html).toContain('data-social-post-share-cell="u3"');
+    const ai = html.indexOf('data-social-post-share-cell="24frame-ai"');
+    const firstHuman = html.indexOf('data-social-post-share-cell="u2"');
+    expect(ai).toBeGreaterThan(-1);
+    expect(ai).toBeLessThan(firstHuman);
+    expect(html).toContain('href="?ai=1"');
+    expect(html).toContain("data-social-frame-ai");
+    expect(html).toContain("data-house-ai-mark");
+    expect(html).toContain("24Frame AI");
     expect(html).toContain(SOCIAL.post.shareCopyLink);
     expect(html).toContain(SOCIAL.post.shareTo);
     expect(html).toContain('data-social-post-share-footer="closed"');
