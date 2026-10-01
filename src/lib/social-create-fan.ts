@@ -57,8 +57,16 @@ export const SOCIAL_CREATE_FAN_CIRCLE_CLASS =
 
 // Soft surface pill above the circle, on the outer side of the arc.
 // Full words, no truncate. Dark ink on surface — readable on any photo.
+// Write sits one step higher (space-3). At radius 100 the three pills
+// otherwise meet.
+const SOCIAL_CREATE_FAN_LABEL_PILL =
+  "w-max -translate-x-1/2 whitespace-normal rounded-full border border-hairline bg-surface px-[var(--space-2)] py-px text-center t-body-sm text-ink";
+
 export const SOCIAL_CREATE_FAN_LABEL_CLASS =
-  "absolute left-1/2 bottom-[calc(100%+var(--space-1))] w-max -translate-x-1/2 whitespace-normal rounded-full border border-hairline bg-surface px-[var(--space-2)] py-px text-center t-body-sm text-ink";
+  `absolute left-1/2 bottom-[calc(100%+var(--space-1))] ${SOCIAL_CREATE_FAN_LABEL_PILL}`;
+
+export const SOCIAL_CREATE_FAN_WRITE_LABEL_CLASS =
+  `absolute left-1/2 bottom-[calc(100%+var(--space-3))] ${SOCIAL_CREATE_FAN_LABEL_PILL}`;
 
 export const SOCIAL_CREATE_FAN_ICON_CLASS = HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS;
 

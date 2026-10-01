@@ -15,6 +15,7 @@ import {
   SOCIAL_CREATE_FAN_ICON_CLASS,
   SOCIAL_CREATE_FAN_LABEL_CLASS,
   SOCIAL_CREATE_FAN_MOTION_MS,
+  SOCIAL_CREATE_FAN_WRITE_LABEL_CLASS,
   SOCIAL_CREATE_FAN_RADIUS_PX,
   SOCIAL_CREATE_FAN_SCRIM_CLASS,
   SOCIAL_CREATE_FAN_STAGGER_MS,
@@ -69,6 +70,9 @@ describe("Social Create fan", () => {
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("t-body-sm");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("bottom-[calc(100%+var(--space-1))]");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).not.toContain("top-[calc(100%+var(--space-1))]");
+    expect(SOCIAL_CREATE_FAN_WRITE_LABEL_CLASS).toContain("bottom-[calc(100%+var(--space-3))]");
+    expect(SOCIAL_CREATE_FAN_WRITE_LABEL_CLASS).toContain("rounded-full");
+    expect(SOCIAL_CREATE_FAN_WRITE_LABEL_CLASS).toContain("bg-surface");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("rounded-full");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("border-hairline");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("bg-surface");
