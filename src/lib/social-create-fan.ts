@@ -5,6 +5,9 @@ import { HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS } from "@/lib/house-phone-shell";
 // button. Desktop rail keeps the Create dialog.
 // Soft circles and Regular glyphs match the dock stroke. No accent fill.
 // Side items sit high enough that a label under the circle clears the pill.
+// Contrast pass (Adam PASS, same day): while open, a soft ink wash and
+// a light blur sit over the feed, under the dock. Labels sit on soft
+// surface pills so the words read on a photo. Not the house 40% sheet.
 
 export const SOCIAL_CREATE_FAN_RADIUS_PX = 132;
 
@@ -49,9 +52,14 @@ export const SOCIAL_CREATE_FAN_ITEM_CLASS =
 export const SOCIAL_CREATE_FAN_CIRCLE_CLASS =
   "flex size-12 items-center justify-center rounded-full border border-hairline bg-surface text-ink-2 shadow-[var(--elevation-float)] active:bg-surface-muted";
 
+// Soft surface pill. Snug vertical pad so the side labels still clear the dock.
+// Full words, no truncate. Dark ink on surface — readable on any photo.
 export const SOCIAL_CREATE_FAN_LABEL_CLASS =
-  "absolute left-1/2 top-[calc(100%+var(--space-1))] w-max -translate-x-1/2 whitespace-normal text-center t-body-sm text-ink";
+  "absolute left-1/2 top-[calc(100%+var(--space-1))] w-max -translate-x-1/2 whitespace-normal rounded-full border border-hairline bg-surface px-[var(--space-2)] py-px text-center t-body-sm text-ink";
 
 export const SOCIAL_CREATE_FAN_ICON_CLASS = HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS;
 
-export const SOCIAL_CREATE_FAN_SCRIM_CLASS = "fixed inset-0 z-30 bg-transparent";
+// Under the dock (z-40). Dims and softens the feed only. Lighter than
+// the house sheet wash (ink/40, no blur). Tap dismisses.
+export const SOCIAL_CREATE_FAN_SCRIM_CLASS =
+  "social-create-fan-scrim fixed inset-0 z-30 bg-ink/25 backdrop-blur-sm";

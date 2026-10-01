@@ -12,10 +12,11 @@ Tapping the floating dock **+** fans **Media · Write · Go live** in a semicirc
 
 | Surface | Lock |
 |---------|------|
-| Dock + | Toggle. Open rotates the plus 45° toward ×. Tap + again, tap outside, or Escape dismisses |
+| Dock + | Toggle. Open rotates the plus 45° toward ×. Tap + again, tap the scrim, tap outside, or Escape dismisses |
 | Arc | Media left, Write top, Go live right. Same three actions and hrefs. Media still opens the mixed roll |
-| Craft | Soft surface circles, hairline, dock float shadow, Regular 24px glyphs, ink-2. Labels under each circle, full words |
-| Motion | Scale out from the + and back. Reduced motion skips the transition |
+| Craft | Soft surface circles, hairline, dock float shadow, Regular 24px glyphs, ink-2. Each label sits on a soft surface pill (hairline, full words, no truncate) |
+| Contrast | While open, a soft ink wash at 25% and a light blur cover the feed under the dock. The dock pill and the circles stay clear. Not the house sheet’s 40% wash and not a sheet |
+| Motion | Scale out from the + and back. The scrim fades with the fan. Reduced motion skips the transition |
 | Other dock items | Home, Explore, Messages, Profile stay |
 | Desktop rail Create | Existing Create dialog stays. This lock is the phone dock |
 | Home composer | Share something, Photo, and Camera stay. They do not open this fan |
