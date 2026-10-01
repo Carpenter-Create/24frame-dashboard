@@ -374,7 +374,9 @@ describe("mobileNavDestinations", () => {
     expect(isSocialTabActive("/social/stories/new", SOCIAL_NAV[0])).toBe(false);
     expect(isSocialTabActive("/social/stories/story-1", SOCIAL_NAV[0])).toBe(false);
     expect(isSocialTabActive("/social/create", SOCIAL_NAV[2])).toBe(true);
-    expect(isSocialTabActive("/social/create/live", SOCIAL_NAV[2])).toBe(true);
+    expect(isSocialTabActive("/social/live", SOCIAL_NAV[2])).toBe(true);
+    expect(isSocialTabActive("/social/live/", SOCIAL_NAV[2])).toBe(true);
+    expect(isSocialTabActive("/social/live", SOCIAL_NAV[0])).toBe(false);
     expect(isSocialTabActive("/social/u/maya", SOCIAL_NAV[4])).toBe(true);
     expect(isSocialTabActive("/social/profile/edit", SOCIAL_NAV[4])).toBe(true);
     expect(isSocialTabActive("/social/profile/edit/bio", SOCIAL_NAV[4])).toBe(true);

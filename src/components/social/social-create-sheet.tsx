@@ -33,6 +33,7 @@ import {
   type SocialCreateTileId,
 } from "@/lib/social-create-sheet";
 import { SOCIAL_ICON_SIZE_CREATE_TILE } from "@/lib/social-icons";
+import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
 import { SOCIAL } from "@/lib/social";
 
 type CreateTriggerProps = {
@@ -60,7 +61,12 @@ export function SocialCreateTile({
       href={tile.href}
       data-social-create-tile={tile.id}
       className={SOCIAL_CREATE_TILE_CLASS}
-      onClick={onPick}
+      onClick={() => {
+        if (tile.id === "live") {
+          rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+        }
+        onPick?.();
+      }}
     >
       <span data-social-create-tile-well="" className={SOCIAL_CREATE_TILE_WELL_CLASS}>
         <SocialIcon

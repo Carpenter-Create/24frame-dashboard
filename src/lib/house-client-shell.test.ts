@@ -102,18 +102,18 @@ describe("house client shell SoT", () => {
   });
 
   it("does not keep live camera dests mounted", () => {
-    expect(houseShouldKeepAlive("/social/create/live")).toBe(false);
+    expect(houseShouldKeepAlive("/social/live")).toBe(false);
     expect(houseShouldKeepAlive("/social/stories/new")).toBe(false);
     expect(houseShouldKeepAlive("/social")).toBe(true);
-    expect(houseShouldClientNavigate("/social/create/live", ["/social/create/live"])).toBe(false);
+    expect(houseShouldClientNavigate("/social/live", ["/social/live"])).toBe(false);
   });
 
   it("does not pushState-exit a cold create screen", () => {
     expect(houseMayClientOwnHop("/social/stories/new", "/social/stories/new")).toBe(false);
     expect(houseMayClientOwnHop("/social", "/social/stories/new")).toBe(false);
     expect(houseMayClientOwnHop("/social/stories/new", "/social")).toBe(false);
-    expect(houseMayClientOwnHop("/social/create/live", "/social/create/live")).toBe(false);
-    expect(houseMayClientOwnHop("/social/create/live", "/social")).toBe(false);
+    expect(houseMayClientOwnHop("/social/live", "/social/live")).toBe(false);
+    expect(houseMayClientOwnHop("/social/live", "/social")).toBe(false);
     expect(houseMayClientOwnHop("/social", "/social")).toBe(true);
     expect(houseMayClientOwnHop("/social", "/social/explore")).toBe(true);
     const provider = readFileSync("src/components/chrome/house-client-shell.tsx", "utf8");
@@ -270,7 +270,7 @@ describe("houseCanIngest — stable-ingest guard", () => {
 
   it("blocks ingest for non-keepalive dests", () => {
     expect(
-      houseCanIngest("/social/create/live", "/social/create/live", "/social/create/live", false, false, false),
+      houseCanIngest("/social/live", "/social/live", "/social/live", false, false, false),
     ).toBe(false);
   });
 });
@@ -673,20 +673,40 @@ describe("Social rail cache flips", () => {
   });
 
   it("paints a non-keepalive dest instead of an empty slot", () => {
-    const live = railTree("/social/create/live");
+    const live = railTree("/social/live");
     const applied = houseApplyCachedChild({
       seen: null,
-      nextKey: "/social/create/live",
-      activeKey: "/social/create/live",
-      nextPath: "/social/create/live",
+      nextKey: "/social/live",
+      activeKey: "/social/live",
+      nextPath: "/social/live",
       child: live,
       fallback: false,
       nodes: {},
       order: [],
     });
-    expect(applied.nodes["/social/create/live"]).toBeUndefined();
+    expect(applied.nodes["/social/live"]).toBeUndefined();
     expect(applied.displayKey).toBeNull();
     expect(applied.showIngress).toBe(true);
+  });
+
+  it("restores a cached opener when leaving go live instead of a blank slot", () => {
+    const home = railTree("/social");
+    const stale = railTree("live-camera");
+    const applied = houseApplyCachedChild({
+      seen: { key: "/social/live", snapshot: null, child: stale },
+      nextKey: "/social",
+      activeKey: "/social",
+      nextPath: "/social",
+      child: stale,
+      fallback: false,
+      nodes: { "/social": home },
+      order: ["/social"],
+    });
+    expect(applied.childrenStale).toBe(true);
+    expect(applied.displayKey).toBe("/social");
+    expect(applied.nodes["/social"]).toBe(home);
+    expect(applied.showIngress).toBe(false);
+    expect(applied.nodes["/social/live"]).toBeUndefined();
   });
 
   it("drops a painted key that has no slot so Home is not a warm hop to white", () => {

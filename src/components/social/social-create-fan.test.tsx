@@ -59,7 +59,7 @@ describe("SocialCreateFan", () => {
     expect(html).toContain(SOCIAL.create.goLive);
     expect(html).toContain('href="/social/create?kind=media"');
     expect(html).toContain('href="/social/create?kind=text"');
-    expect(html).toContain('href="/social/create/live"');
+    expect(html).toContain('href="/social/live"');
     expect(html).toContain("data-social-create-media-input");
     expect(html).toContain(`accept="${SOCIAL_CREATE_MEDIA_ACCEPT}"`);
     expect(html).toContain('data-social-create-fan-scrim=""');

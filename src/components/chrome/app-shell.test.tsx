@@ -1184,7 +1184,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(home).toContain("data-house-lead-chrome");
     expect(home).toContain("data-house-phone-bottom-nav");
 
-    navigation.pathname = "/social/create/live";
+    navigation.pathname = "/social/live";
     const live = renderShell();
     expect(live).not.toContain("data-social-write-compose");
     expect(live).toContain("data-house-phone-bottom-nav");

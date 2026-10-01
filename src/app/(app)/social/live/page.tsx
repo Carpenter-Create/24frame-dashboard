@@ -3,6 +3,9 @@ import { SOCIAL } from "@/lib/social";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession } from "@/lib/social-session";
 
+// Direct camera route. Not a child of /social/create — that segment's
+// prefetched write page flashed before the camera and stayed on the stack.
+
 export const runtime = "nodejs";
 
 export default async function SocialGoLivePage() {

@@ -18,6 +18,7 @@ import { Broadcast, Image, PencilSimple, type Icon } from "@phosphor-icons/react
 import { useSocialCreateMediaPick } from "@/components/social/social-create-media";
 import { HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT } from "@/lib/house-phone-shell";
 import { SOCIAL } from "@/lib/social";
+import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
 import { SOCIAL_CREATE_TILES } from "@/lib/social-create-sheet";
 import {
   SOCIAL_CREATE_FAN_ANCHOR_CLASS,
@@ -215,7 +216,12 @@ export function SocialCreateFan({
             data-open={open ? "" : undefined}
             style={style}
             className={SOCIAL_CREATE_FAN_ITEM_CLASS}
-            onClick={closeFan}
+            onClick={() => {
+              if (tile.id === "live") {
+                rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+              }
+              closeFan();
+            }}
           >
             {body}
           </Link>

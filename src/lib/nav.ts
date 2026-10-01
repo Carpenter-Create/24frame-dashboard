@@ -31,7 +31,7 @@ import { ATTENTION_HREF } from "@/lib/findings";
 import { GC_DELIVERIES_HREF, GC_LICENSING_STATUS } from "@/lib/gc-deliveries";
 import { QUEUE_HREF } from "@/lib/queue";
 import { REPORTS_HREF, REPORTS_PAGE } from "@/lib/reports";
-import { SOCIAL_ROUTES } from "@/lib/social";
+import { isSocialGoLivePath, SOCIAL_ROUTES } from "@/lib/social";
 import { TITLES_HREF } from "@/lib/title-public-id";
 import {
   isAggregationNavActive,
@@ -198,6 +198,13 @@ export function isSocialTabActive(pathname: string, item: NavItem): boolean {
       pathname === SOCIAL_ROUTES.profile ||
       pathname.startsWith(`${SOCIAL_ROUTES.profile}/`) ||
       pathname.startsWith(`${SOCIAL_ROUTES.profileByHandle}/`)
+    );
+  }
+  if (item.href === SOCIAL_ROUTES.create) {
+    return (
+      pathname === SOCIAL_ROUTES.create ||
+      isSocialGoLivePath(pathname) ||
+      pathname.startsWith(`${SOCIAL_ROUTES.create}/`)
     );
   }
   return isClientNavActive(pathname, item);

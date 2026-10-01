@@ -43,7 +43,9 @@ export const SOCIAL_ROUTES = {
   explore: "/social/explore",
   search: "/social/search",
   create: "/social/create",
-  createLive: "/social/create/live",
+  // Sibling of write compose. A child of /social/create reused the
+  // prefetched write page, then close returned to that sheet.
+  createLive: "/social/live",
   stories: "/social/stories",
   storiesNew: "/social/stories/new",
   profile: "/social/profile",
@@ -67,6 +69,19 @@ export function isSocialStoryCreatePath(pathname: string): boolean {
 export function isSocialWriteComposePath(pathname: string): boolean {
   const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
   return path === SOCIAL_ROUTES.create;
+}
+
+/** In-app Go live camera. Not write compose. */
+export function isSocialGoLivePath(pathname: string): boolean {
+  const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  return path === SOCIAL_ROUTES.createLive;
+}
+
+/** Old nested camera URL. Middleware moves it before write compose can paint. */
+export function socialGoLiveLegacyRedirect(pathname: string): string | null {
+  const path = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  if (path !== "/social/create/live") return null;
+  return SOCIAL_ROUTES.createLive;
 }
 
 /** First tap leaves write compose for Social home. A warm house hop wins; otherwise push. */
