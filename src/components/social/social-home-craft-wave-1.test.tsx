@@ -9,9 +9,11 @@ import {
 } from "@/lib/house-phone-shell";
 import { HOUSE_HEADER_TRAILING_HIT_CLASS } from "@/lib/house-lead-chrome";
 import {
+  SOCIAL_FEED_ACTIONS_META_CLASS,
   SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
+  SOCIAL_FEED_META_COPY_CLASS,
   SOCIAL_FEED_META_ROW_GAP_CLASS,
   SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS,
   SOCIAL_FEED_PLAY_DISC_CLASS,
@@ -74,19 +76,26 @@ describe("Social Home craft Wave 1", () => {
     expect(homeStories).toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
   });
 
-  it("packs media-to-actions and the likes/caption/time stack, and keeps padding under the time inside the card", () => {
+  it("opens media-to-actions and the likes/caption/time stack to a 1.5 line-space, and keeps padding under the time inside the card", () => {
     const separation = readFileSync(
       "docs/design-locks/social-home-post-separation-lock-v1.md",
       "utf8",
     );
-    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("-mt-[var(--space-1)]");
-    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-0");
+    expect(SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS).toBe("mt-0");
+    expect(SOCIAL_FEED_ACTIONS_META_CLASS).toBe("flex flex-col gap-[var(--space-1)]");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).toBe("flex flex-col gap-[var(--space-1)]");
+    expect(SOCIAL_FEED_META_COPY_CLASS).toBe("leading-normal");
+    expect(SOCIAL_FEED_META_ROW_GAP_CLASS).not.toContain("gap-0");
     expect(SOCIAL_FEED_META_ROW_GAP_CLASS).not.toContain("gap-[var(--space-2)]");
     expect(SOCIAL_FEED_META_ROW_GAP_CLASS).not.toContain("gap-[var(--space-4)]");
-    expect(separation).toContain("-mt-[var(--space-1)]");
-    expect(separation).toContain("gap-0");
-    expect(separation).toContain("-mb-[var(--space-1)]");
-    expect(separation).toContain("leading-tight");
+    expect(separation).toContain("`mt-0`");
+    expect(separation).toContain("gap-[var(--space-1)]");
+    expect(separation).toContain("leading-normal");
+    expect(separation).not.toMatch(
+      /SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS` = `-mt-\[var\(--space-1\)\]`/,
+    );
+    expect(separation).not.toMatch(/SOCIAL_FEED_META_ROW_GAP_CLASS` = `gap-0`/);
+    expect(separation).not.toMatch(/SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS` = `-mb-/);
     expect(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS).toBe("pb-[var(--space-6)]");
     expect(SOCIAL_FEED_ROW_CLASS).toContain(SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS);
     expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
