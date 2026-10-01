@@ -46,7 +46,7 @@ export function useSocialCreateMediaPick(options?: {
       accept={accept}
       multiple={multiple}
       capture={options?.capture}
-      className="sr-only"
+      className="pointer-events-none sr-only"
       data-social-create-media-input=""
       data-social-create-media-capture={options?.capture}
       aria-label={label}

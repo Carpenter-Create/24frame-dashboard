@@ -106,7 +106,9 @@ describe("Share something write compose sheet", () => {
     expect(sheetSrc).not.toContain("SocialCreateSheet");
     expect(sheetSrc).not.toContain("backdrop-blur");
     expect(sheetSrc).not.toContain("shadow-[");
-    expect(navSrc).toContain("SocialCreateSheet");
-    expect(navSrc).toContain('data-social-create-sheet="dest"');
+    expect(navSrc).toContain("SocialCreateFan");
+    expect(navSrc).toContain('data-social-create-fan-trigger=""');
+    expect(navSrc).not.toContain("SocialCreateSheet");
+    expect(navSrc).not.toContain('data-social-create-sheet="dest"');
   });
 });

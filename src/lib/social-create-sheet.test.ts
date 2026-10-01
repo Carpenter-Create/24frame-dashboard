@@ -118,8 +118,10 @@ describe("Social Create sheet SoT", () => {
     const switcher = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
     const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
     const sheet = readFileSync("src/components/social/social-create-sheet.tsx", "utf8");
-    expect(dests).toContain("SocialCreateSheet");
-    expect(dests).toContain('data-social-create-sheet="dest"');
+    expect(dests).toContain("SocialCreateFan");
+    expect(dests).toContain('data-social-create-fan-trigger=""');
+    expect(dests).not.toContain("SocialCreateSheet");
+    expect(dests).not.toContain("data-social-create-sheet");
     expect(dests).toContain("housePhoneDestIsCreate");
     expect(dests).not.toContain("SocialCreateMenu");
     expect(rail).toContain("SocialCreateSheet");

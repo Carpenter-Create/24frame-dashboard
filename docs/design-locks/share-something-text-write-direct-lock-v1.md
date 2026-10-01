@@ -4,6 +4,7 @@
 **Status:** **LOCKED** · Adam FAIL on the Create sheet hop · Design no PR · path stays `docs/design-locks/share-something-text-write-direct-lock-v1.md`  
 **Box:** `/workspace/24frame-agg-ux/share-something-text-write-direct-lock-v1.md` — checked 2026-09-25; that file was not in the tree. This lock records the approved SoT from the CLEAR.  
 **Cite:** Home composer FB-row v1.6 stays. Photo and Camera icons stay. Create sheet stays on bottom-nav + and other Create entries.
+**Dock + superseded (2026-10-01):** the phone dock + fans Media · Write · Go live. See `docs/design-locks/social-create-fan-lock-v1.md`. Desktop rail Create stays the dialog.
 **Entry presentation superseded (2026-09-29):** the Home prompt + avatar open that same write compose in a bottom sheet. See `docs/design-locks/share-something-write-compose-sheet-lock-v1.md`. Kind, attach, Photo, Camera, and Create + in this lock stay. Deep link and the Create Write tile still use `/social/create?kind=text`.
 
 ## One lock

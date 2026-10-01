@@ -139,8 +139,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(existsSync("src/components/chrome/mobile-nav.tsx")).toBe(false);
     expect(existsSync("src/components/social/social-phone-dests.tsx")).toBe(false);
     expect(existsSync("src/components/chrome/house-phone-dest-chips.tsx")).toBe(false);
-    expect(bottomNavSrc).toContain("SocialCreateSheet");
-    expect(bottomNavSrc).toContain('data-social-create-sheet="dest"');
+    expect(bottomNavSrc).toContain("SocialCreateFan");
+    expect(bottomNavSrc).toContain('data-social-create-fan-trigger=""');
+    expect(bottomNavSrc).not.toContain("SocialCreateSheet");
+    expect(bottomNavSrc).not.toContain('data-social-create-sheet="dest"');
     expect(bottomNavSrc).not.toContain("HousePhoneDestChips");
 
     for (const workspace of ["aggregation", "education", "social"] as const) {
@@ -525,7 +527,9 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     );
     expect(social).toContain(`href="${SOCIAL_ROUTES.home}"`);
     expect(social).toContain("data-house-phone-dest-create");
-    expect(social).toContain('data-social-create-sheet="dest"');
+    expect(social).toContain('data-social-create-fan-trigger=""');
+    expect(social).not.toContain("data-social-create-sheet");
+    expect(social).not.toContain("data-social-create-fan-item");
 
     navigation.pathname = SOCIAL_ROUTES.home;
     const socialFeed = renderToStaticMarkup(

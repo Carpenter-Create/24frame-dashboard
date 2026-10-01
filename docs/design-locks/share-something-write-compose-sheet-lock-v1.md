@@ -35,4 +35,4 @@ Create chooser on this hit · full-page navigation as the Share something entry 
 
 ## Done-when
 
-Tapping Share something opens write compose in the bottom sheet over Home, with the body focused, and dismiss returns to that Home. Photo and Camera on the Home row stay. + still opens the Create sheet.
+Tapping Share something opens write compose in the bottom sheet over Home, with the body focused, and dismiss returns to that Home. Photo and Camera on the Home row stay. Phone dock + fans Media · Write · Go live (`docs/design-locks/social-create-fan-lock-v1.md`). Desktop rail Create stays the dialog.
