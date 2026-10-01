@@ -63,8 +63,16 @@ describe("SocialCreateFan", () => {
     expect(html).toContain("data-social-create-media-input");
     expect(html).toContain(`accept="${SOCIAL_CREATE_MEDIA_ACCEPT}"`);
     expect(html).toContain('data-social-create-fan-scrim=""');
-    expect(html).toContain("bg-transparent");
+    expect(html).toContain('data-social-create-fan-label=""');
+    expect(html).toMatch(
+      /data-social-create-fan-label="" class="[^"]*rounded-full[^"]*bg-surface[^"]*text-ink/,
+    );
+    expect(html).toContain("bg-ink/25");
+    expect(html).toContain("backdrop-blur-sm");
+    expect(html).toMatch(/data-social-create-fan-scrim="" data-open=""/);
     expect(html).toContain("aria-label=\"Close\"");
+    expect(html).not.toContain("bg-transparent");
+    expect(html).not.toContain("bg-ink/40");
     expect(html).toMatch(/--social-create-fan-x:\s*-101px/);
     expect(html).toMatch(/--social-create-fan-y:\s*-132px/);
     expect(html).toMatch(/--social-create-fan-x:\s*101px/);

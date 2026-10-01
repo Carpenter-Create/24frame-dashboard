@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS, HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT } from "./house-phone-shell";
+import {
+  HOUSE_PHONE_BOTTOM_NAV_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT,
+} from "./house-phone-shell";
 import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "./social";
 import { SOCIAL_CREATE_TILES } from "./social-create-sheet";
 import {
@@ -57,10 +61,25 @@ describe("Social Create fan", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe("regular");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("whitespace-normal");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("t-body-sm");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("rounded-full");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("border-hairline");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("bg-surface");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("px-[var(--space-2)]");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("text-ink");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).not.toContain("truncate");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).not.toContain("uppercase");
-    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("bg-transparent");
-    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-ink");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).not.toContain("bg-accent");
+    expect(SOCIAL_CREATE_FAN_LABEL_CLASS).not.toContain("text-surface");
+    // Soft wash under the dock. Lighter than the house sheet, and not a clear hit-target.
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("bg-ink/25");
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("backdrop-blur-sm");
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("z-30");
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("social-create-fan-scrim");
+    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("z-40");
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-transparent");
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-ink/40");
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-ink/60");
+    expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("rounded-t-");
     expect(SOCIAL.create.media).toBe("Media");
     expect(SOCIAL.create.write).toBe("Write");
     expect(SOCIAL.create.goLive).toBe("Go live");
@@ -73,12 +92,14 @@ describe("Social Create fan", () => {
     const globals = readFileSync("src/app/globals.css", "utf8");
     expect(globals).toContain(".social-create-fan-item[data-open]");
     expect(globals).toContain(".social-create-fan-plus[data-open]");
+    expect(globals).toContain(".social-create-fan-scrim[data-open]");
     expect(globals).toContain("rotate(45deg)");
     expect(globals).toContain("var(--social-create-fan-x)");
     expect(globals).toContain("cubic-bezier(0.22, 1.15, 0.36, 1)");
     const reduced = globals.slice(globals.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
     expect(reduced).toContain(".social-create-fan-item");
     expect(reduced).toContain(".social-create-fan-plus");
+    expect(reduced).toContain(".social-create-fan-scrim");
     expect(reduced).toContain("transition: none !important");
     const fan = readFileSync("src/components/social/social-create-fan.tsx", "utf8");
     const dock = readFileSync("src/components/chrome/house-phone-bottom-nav.tsx", "utf8");

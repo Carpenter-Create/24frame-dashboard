@@ -296,6 +296,15 @@ body {
   transform: translate(-50%, -50%) translate(var(--social-create-fan-x), var(--social-create-fan-y)) scale(1);
 }
 
+.social-create-fan-scrim {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.social-create-fan-scrim[data-open] {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-sheet-rise,
   .app-sheet-scrim-fade,
@@ -308,7 +317,8 @@ body {
     transform: none;
   }
   .social-create-fan-plus,
-  .social-create-fan-item {
+  .social-create-fan-item,
+  .social-create-fan-scrim {
     transition: none !important;
   }
 }

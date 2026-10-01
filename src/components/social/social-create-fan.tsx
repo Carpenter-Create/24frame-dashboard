@@ -225,6 +225,7 @@ export function SocialCreateFan({
       type="button"
       aria-label={SOCIAL.create.close}
       data-social-create-fan-scrim=""
+      data-open={open ? "" : undefined}
       className={SOCIAL_CREATE_FAN_SCRIM_CLASS}
       onClick={closeFan}
     />
