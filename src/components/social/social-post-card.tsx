@@ -18,7 +18,6 @@ import {
 import { type SocialPostCardModel } from "@/lib/social-author-post-card";
 import {
   SOCIAL_FEED_ACTIONS_META_CLASS,
-  SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS,
   SOCIAL_FEED_AUTHOR_EDGE_CLASS,
   SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
@@ -170,11 +169,7 @@ export function SocialPostCard({
       >
         <div
           data-social-post-actions=""
-          className={cn(
-            SOCIAL_POST_ACTIONS_CLASS,
-            SOCIAL_POST_ACTIONS_OPTICAL_CLASS,
-            SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS,
-          )}
+          className={cn(SOCIAL_POST_ACTIONS_CLASS, SOCIAL_POST_ACTIONS_OPTICAL_CLASS)}
         >
           {post.canLike ? (
             <SocialLikeButton

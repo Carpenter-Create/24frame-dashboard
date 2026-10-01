@@ -390,31 +390,34 @@ export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-6)]";
 
 // Media → actions. The 24px glyph sits 8px down inside the 40 hit.
-// Pull the footer up by 4 so the picture-to-glyph air is ~4px.
-// The hit stays 40×40 (the top 4 overlaps the picture; the glyph does not).
+// mt-0 leaves that pad as the picture-to-glyph air (~8px).
+// The #725 -mt space-1 pull (~4px, and the top of the hit overlapping
+// the picture) is out. A positive margin is the old paragraph air.
+// The hit stays 40×40 and no longer overlaps the picture.
 // Text-only keeps SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS (8).
 // docs/design-locks/social-home-post-separation-lock-v1.md
-export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "-mt-[var(--space-1)]";
+export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-0";
 
-// Icon row, then the likes / caption / time block. No gap on this
-// wrapper. Feed card only — the immersive dock does not use it.
-export const SOCIAL_FEED_ACTIONS_META_CLASS = "flex flex-col";
+// Icon row, then the likes / caption / time block. space-1 (4px)
+// so the text is not glued to the glyphs. The 8px pad under the
+// glyph stays inside the 40 hit. The #725 -mb space-1 pull is out:
+// it drew the copy up into that pad. Feed card only — the immersive
+// dock does not use this class.
+export const SOCIAL_FEED_ACTIONS_META_CLASS =
+  "flex flex-col gap-[var(--space-1)]";
 
-// Feed card action row only. Cancels 4px of the 8px pad under the glyph
-// so glyph → text ink is ~2–4px. Tap target stays 40×40. Not the
-// horizontal optical class, and not the immersive row.
-export const SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS = "-mb-[var(--space-1)]";
+// Likes, caption, comment trail, under-post time. 1.5 line-space:
+// space-1 between the line boxes, leading-normal (1.5) on the copy.
+// Not the #725 gap-0 collision, and not the space-2 / space-4
+// paragraph gaps. Missing likes or caption drop out. Time stays
+// its own line.
+export const SOCIAL_FEED_META_ROW_GAP_CLASS =
+  "flex flex-col gap-[var(--space-1)]";
 
-// Likes, caption, comment trail, under-post time. One line-space:
-// the line boxes touch (gap-0) and leading-tight (1.25) is the
-// 1–1.5 rhythm. Was an 8px flex gap, which read as paragraph air.
-// Missing likes or caption drop out. Time stays its own line.
-export const SOCIAL_FEED_META_ROW_GAP_CLASS = "flex flex-col gap-0";
-
-// t-body-sm is line-height 1.6. That strut is a second gap between
-// these lines. leading-tight is the single line-space. Time stays
-// SOCIAL_POST_TIME_CLASS (leading-none).
-export const SOCIAL_FEED_META_COPY_CLASS = "leading-tight";
+// t-body-sm is line-height 1.6. leading-tight (1.25) was the #725
+// single line-space and the lines read as one block. leading-normal
+// is 1.5. Time stays SOCIAL_POST_TIME_CLASS (leading-none).
+export const SOCIAL_FEED_META_COPY_CLASS = "leading-normal";
 
 // Text-only keeps the prior 8 between the author row and actions.
 // Text-only grammar itself stays frozen.
