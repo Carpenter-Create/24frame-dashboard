@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Clock } from "@phosphor-icons/react";
 
+import { useHousePathname } from "@/components/chrome/house-client-shell";
+import { HouseLink } from "@/components/chrome/house-link";
 import { Input } from "@/components/ui/input";
 import { ASK_GLOBEE, askGlobeeThreadHref } from "@/lib/ask-globee";
 import {
   ASK_AI_OVERLAY_PHONE_HISTORY_CLASS,
   ASK_AI_OVERLAY_PHONE_HISTORY_LIST_CLASS,
+  askAiOverlayHref,
+  currentAskAiSearch,
 } from "@/lib/ask-ai-overlay";
 import {
   filterAskGlobeeHistory,
@@ -20,6 +24,7 @@ import {
   MOBILE_CHROME_ICON_BUTTON_CLASS,
   MOBILE_CHROME_ICON_CLASS,
 } from "@/lib/mobile-chrome";
+import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { cn } from "@/lib/cn";
 import { useAskGlobeeChrome } from "./ask-globee-chrome";
@@ -101,6 +106,8 @@ function HistoryGroup({
   now?: Date;
   onSelect?: () => void;
 }) {
+  const router = useRouter();
+  const pathname = useHousePathname();
   return (
     <div className="flex flex-col gap-[var(--space-3)]">
       <p className="t-label text-ink-3">{label}</p>
@@ -111,11 +118,19 @@ function HistoryGroup({
           const current = row.id === currentId;
           return (
             <li key={row.id}>
-              <Link
+              <HouseLink
                 href={href}
                 data-ask-globee-history-row=""
                 data-ask-globee-history-current={current ? "" : undefined}
-                onClick={onSelect}
+                onClick={(event) => {
+                  // Next must see ?ai= (the overlay reads it), so never a shell
+                  // hop. Keep the screen's own query, as opening the overlay
+                  // does; the bare ?ai= href dropped it.
+                  if (houseNavIgnorePendingClick(event)) return;
+                  event.preventDefault();
+                  onSelect?.();
+                  router.push(askAiOverlayHref(pathname, currentAskAiSearch(), row.id));
+                }}
                 className={cn(
                   "flex items-center justify-between gap-[var(--space-4)] px-[var(--space-3)] py-[var(--space-2)]",
                   current ? "border border-hairline bg-transparent" : null,
@@ -125,7 +140,7 @@ function HistoryGroup({
                 <span className="shrink-0 t-body-sm text-ink-3">
                   {formatAskGlobeeHistoryTime(row.updated_at, now)}
                 </span>
-              </Link>
+              </HouseLink>
             </li>
           );
         })}

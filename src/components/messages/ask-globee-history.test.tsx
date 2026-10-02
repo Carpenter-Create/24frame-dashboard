@@ -2,7 +2,13 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Rows navigate with the router (see HistoryGroup). Static markup has no app router.
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/social",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+}));
 
 import { ASK_GLOBEE } from "@/lib/ask-globee";
 import { AskGlobeeHistoryClock, AskGlobeeHistoryPanel } from "./ask-globee-history";
