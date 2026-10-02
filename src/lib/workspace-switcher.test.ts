@@ -32,7 +32,12 @@ import {
   WORKSPACE_SWITCHER_MENU_GAP_PX,
   workspaceSwitcherOptions,
   WORKSPACE_WAFFLE_FORBIDDEN_LABELS,
+  WORKSPACE_WAFFLE_GRID_CLASS,
+  WORKSPACE_WAFFLE_HOME_ROW_CLASS,
+  WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
   WORKSPACE_WAFFLE_ORDER,
+  WORKSPACE_WAFFLE_PHONE_STACK_CLASS,
+  WORKSPACE_WAFFLE_TILE_CLASS,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
   WORKSPACE_WAFFLE_TILE_LABEL_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
@@ -223,6 +228,30 @@ describe("workspace switcher lock", () => {
     expect(WORKSPACE_WAFFLE_TILE_LABEL_CLASS).toBe("whitespace-normal");
     expect(housePhoneForbidsTruncate(WORKSPACE_WAFFLE_TILE_LABEL_CLASS)).toBe(true);
     expect(WORKSPACE_WAFFLE_TILE_LABEL_CLASS).not.toContain("truncate");
+  });
+
+  it("tones the phone Home row down onto the grid inset", () => {
+    expect(WORKSPACE_WAFFLE_HOME_ROW_CLASS).toContain("mx-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_HOME_ROW_CLASS).toContain("px-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_HOME_ROW_CLASS).toContain("py-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_HOME_ROW_CLASS).not.toContain("min-h-12");
+    expect(WORKSPACE_WAFFLE_HOME_ROW_CLASS).not.toContain("px-[var(--space-3)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("px-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS).toBe("bg-surface-muted/60");
+    expect(WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS).not.toBe(WORKSPACE_WAFFLE_TILE_CURRENT_CLASS);
+    expect(WORKSPACE_WAFFLE_TILE_CURRENT_CLASS).toBe("bg-surface-muted");
+    expect(WORKSPACE_WAFFLE_PHONE_STACK_CLASS).toBe("flex flex-col");
+    expect(WORKSPACE_WAFFLE_PHONE_STACK_CLASS).not.toContain("gap-");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("px-[var(--space-4)]");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("pb-[var(--space-1)]");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("pt-[var(--space-2)]");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("max-md:py-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("gap-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("max-md:gap-[var(--space-3)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("max-md:pb-0");
+    expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("py-[var(--space-3)]");
+    expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("max-md:py-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("min-h-16");
   });
 
   it("keeps full workspace names — no Agg/Edu", () => {

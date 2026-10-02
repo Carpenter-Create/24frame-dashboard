@@ -35,6 +35,8 @@ import {
   WORKSPACE_SWITCHER_ABSENT,
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_WAFFLE_FORBIDDEN_LABELS,
+  WORKSPACE_WAFFLE_HOME_ROW_CLASS,
+  WORKSPACE_WAFFLE_PHONE_STACK_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   workspaceWaffleTiles,
@@ -119,6 +121,9 @@ describe("workspace waffle header control", () => {
     expect(popover).not.toContain("data-workspace-waffle-home");
     expect(popover).not.toContain(">Home<");
     expect(sheet).toContain('data-workspace-waffle-home=""');
+    expect(sheet).toContain(WORKSPACE_WAFFLE_HOME_ROW_CLASS);
+    expect(sheet).toContain(WORKSPACE_WAFFLE_PHONE_STACK_CLASS);
+    expect(popover).not.toContain("data-workspace-waffle-phone");
     expect(sheet).toContain('href="/home"');
     expect(sheet).toContain(">Home<");
     expect(sheet.indexOf("data-workspace-waffle-home")).toBeLessThan(

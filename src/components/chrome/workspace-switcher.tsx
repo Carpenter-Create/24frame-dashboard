@@ -52,6 +52,7 @@ import {
   WORKSPACE_WAFFLE_HOME,
   WORKSPACE_WAFFLE_HOME_ROW_CLASS,
   WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_PHONE_STACK_CLASS,
   WORKSPACE_WAFFLE_ICON_CLASS,
   WORKSPACE_WAFFLE_TILE_CLASS,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
@@ -476,7 +477,7 @@ export function WorkspaceSwitcher({
           data-workspace-waffle-sheet=""
           className={`relative z-10 ${WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS}`}
         >
-          <div data-workspace-waffle-phone="" className="flex flex-col gap-[var(--space-2)]">
+          <div data-workspace-waffle-phone="" className={WORKSPACE_WAFFLE_PHONE_STACK_CLASS}>
             <WorkspaceWaffleHomeRow
               current={current}
               chromePath={chromePath}

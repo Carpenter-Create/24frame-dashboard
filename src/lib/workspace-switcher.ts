@@ -162,8 +162,11 @@ export function workspaceSwitcherChromeClearanceBottoms(
   );
 }
 
+// Desktop panel keeps pt space-2 / pb space-1. Phone sheet overrides
+// to py space-2 (8px) so the label sits in the 8–12 band without a
+// second flex gap under it.
 export const WORKSPACE_SWITCHER_HEADER_CLASS =
-  "px-[var(--space-4)] pb-[var(--space-1)] pt-[var(--space-2)] t-label text-ink-3";
+  "px-[var(--space-4)] pb-[var(--space-1)] pt-[var(--space-2)] max-md:py-[var(--space-2)] t-label text-ink-3";
 
 /** Sporty Blue check on the current Layer 1 tile. */
 export const WORKSPACE_SWITCHER_OPTION_CHECK_CLASS = "text-accent";
@@ -241,10 +244,21 @@ export const WORKSPACE_WAFFLE_HOME = {
   href: OVERVIEW_HREF,
 } as const;
 
+// Phone sheet only. Outer mx space-2 matches the grid's px space-2,
+// so the bar shares the tile edges (sheet pad + that inset). Inner
+// px space-2 puts the house icon on the same left line as the
+// Workspaces label (header px space-4 inside the sheet pad).
+// py space-2 is a list row — not min-h-12. Selected wash is
+// surface-muted at 60%, quieter than a tile's full muted fill.
+// The accent check stays. Icon weight stays the workspace idle stroke.
 export const WORKSPACE_WAFFLE_HOME_ROW_CLASS =
-  "mx-[var(--space-2)] flex min-h-12 items-center gap-[var(--space-3)] rounded-[12px] px-[var(--space-3)] text-left t-body-sm text-ink";
+  "mx-[var(--space-2)] flex items-center gap-[var(--space-3)] rounded-[12px] px-[var(--space-2)] py-[var(--space-2)] text-left t-body-sm text-ink";
 
-export const WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS = "bg-surface-muted";
+export const WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS = "bg-surface-muted/60";
+
+// No column gap. Label air is the header's phone py. A flex gap on
+// top of that padding was the band between Home and the grid.
+export const WORKSPACE_WAFFLE_PHONE_STACK_CLASS = "flex flex-col";
 
 /** Quiet circular hit — same box as the bell. Open wash is muted, not accent fill. */
 export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
@@ -255,11 +269,13 @@ export const WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS = "bg-surface-muted";
 export const WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS =
   `${WORKSPACE_SWITCHER_PANEL_CLASS} max-md:hidden`;
 
+// Desktop gap stays space-2. Phone gap is space-3 (12px). Phone drops
+// the extra bottom pad; the sheet pad is the bottom inset.
 export const WORKSPACE_WAFFLE_GRID_CLASS =
-  "grid grid-cols-2 gap-[var(--space-2)] px-[var(--space-2)] pb-[var(--space-2)]";
+  "grid grid-cols-2 gap-[var(--space-2)] px-[var(--space-2)] pb-[var(--space-2)] max-md:gap-[var(--space-3)] max-md:pb-0";
 
 export const WORKSPACE_WAFFLE_TILE_CLASS =
-  "relative flex min-h-16 flex-col items-center justify-center gap-[var(--space-1)] rounded-[12px] px-[var(--space-2)] py-[var(--space-3)] text-center t-body-sm text-ink";
+  "relative flex min-h-16 flex-col items-center justify-center gap-[var(--space-1)] rounded-[12px] px-[var(--space-2)] py-[var(--space-3)] text-center t-body-sm text-ink max-md:py-[var(--space-2)]";
 
 export const WORKSPACE_WAFFLE_TILE_CURRENT_CLASS = "bg-surface-muted";
 
