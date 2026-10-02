@@ -36,6 +36,7 @@ import {
   HOUSE_RAIL_PANEL_CLASS,
 } from "@/lib/house-shell";
 import { isHelpPath } from "@/lib/help";
+import { SettingsReturnRecorder } from "@/components/settings/settings-return-recorder";
 import { isSettingsPath, SETTINGS_RAIL_PAD_CLASS } from "@/lib/settings";
 import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
@@ -294,6 +295,7 @@ export function AppShell({
     <AskAiOverlayProvider>
     <AskAssistantChromeProvider>
     {cookieSync}
+    <SettingsReturnRecorder />
     <HousePhoneAppShell
       chrome={chrome}
       workspace={workspace}

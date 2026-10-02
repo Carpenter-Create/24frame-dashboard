@@ -112,6 +112,16 @@ describe("house client shell SoT", () => {
     expect(houseShouldKeepAlive("/social/live")).toBe(false);
     expect(houseShouldKeepAlive("/social/stories/new")).toBe(false);
     expect(houseShouldKeepAlive("/social")).toBe(true);
+    expect(houseShouldKeepAlive("/settings")).toBe(false);
+    expect(houseShouldKeepAlive("/settings/profile")).toBe(false);
+    expect(houseShouldKeepAlive("/settings/preferences/theme")).toBe(false);
+    expect(houseMayClientOwnHop("/settings/profile", "/settings")).toBe(false);
+    expect(houseMayClientOwnHop("/settings", "/social")).toBe(false);
+    expect(houseMayClientOwnHop("/social", "/settings")).toBe(false);
+    expect(houseCanIngest("/settings", "/settings", "/settings", false, false, false)).toBe(false);
+    expect(
+      houseCanIngest("/settings/profile", "/settings/profile", "/settings/profile", false, false, false),
+    ).toBe(false);
     expect(houseShouldClientNavigate("/social/live", ["/social/live"])).toBe(false);
   });
 

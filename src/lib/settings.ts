@@ -72,11 +72,16 @@
 // Desktop: section rail + pane. Mobile: list → push.
 // Spacing 8 / 16 / 24 / 48 (Mercury density). Design polish may follow.
 
+import { DASHBOARD_HREF } from "@/lib/dashboard-admin";
 import { HOUSE_CARD_PAD, HOUSE_MODULE_CLASS } from "@/lib/house-shell";
 import { MOBILE_CHROME_LEAD_PAD_CLASS } from "@/lib/mobile-chrome";
 import { ASK_ASSISTANT } from "@/lib/product";
-import { DASHBOARD_HREF } from "@/lib/dashboard-admin";
 import { USER_MENU } from "@/lib/user-menu";
+import {
+  parseWorkspaceCookie,
+  workspaceCookieValue,
+  workspaceHome,
+} from "@/lib/workspace";
 
 export const SETTINGS = {
   title: "Settings",
@@ -272,13 +277,18 @@ export const SETTINGS_PREF_BLOCK_CLASS =
 export const SETTINGS_PREF_TITLE_CLASS = "t-heading text-ink";
 
 // Mobile Settings page-lead back = News PageHeader ArrowLeft SoT.
-// settingsHeaderBack() is the routing SoT: hub → Back (client history
-// when there is an in-app referrer; dashboard land only as fallback),
-// hub section → Settings, drill-in pane → parent section. Hidden at
-// md, where the Settings rail stays. Do not hard-label the hub "Home"
-// — Settings is account chrome from any surface, not a Home-owned
-// workspace. News stays "Home". Do not put a caret in HouseLeadChrome.
-// Do not fork a third back glyph.
+// settingsHeaderBack() is the pane-parent SoT: hub → Back,
+// hub section → Settings, drill-in pane → parent section. The hub
+// exit is settingsHubExitHref()
+// — the route recorded on entry, else the workspace cookie home.
+// document.referrer and history.back() are not that exit. Referrer
+// does not move on client hops, and shell pushState copies the flight
+// tree, so Back no-ops on the same page or lands on Aggregation.
+// The static hub href is only the unknown-workspace fallback
+// (Aggregation dashboard). Hidden at md, where the Settings rail stays.
+// Do not hard-label the hub "Home" — Settings is account chrome from
+// any surface, not a Home-owned workspace. News stays "Home". Do not
+// put a caret in HouseLeadChrome. Do not fork a third back glyph.
 export const SETTINGS_HEADER_PAD_CLASS = MOBILE_CHROME_LEAD_PAD_CLASS;
 export const SETTINGS_PAGE_LEAD_BACK_CLASS = "md:hidden";
 
@@ -343,7 +353,7 @@ export function settingsHeaderBack(pathname: string | null | undefined): {
   return { href: SETTINGS.href, label: SETTINGS.title };
 }
 
-/** Same-origin document.referrer = usable in-app history for hub Back. */
+/** Same-origin document.referrer = usable in-app history for Activity / Help Back. */
 export function settingsHubHasInAppReferrer(
   referrer: string | null | undefined,
   origin: string,
@@ -354,6 +364,91 @@ export function settingsHubHasInAppReferrer(
   } catch {
     return false;
   }
+}
+
+// Entry route for the Settings hub exit. sessionStorage, not
+// document.referrer (stale across client hops) and not the shell
+// history stack (pushState makes Back a same-page no-op).
+export const SETTINGS_RETURN_STORAGE = "frame_settings_return";
+
+const settingsReturnListeners = new Set<() => void>();
+
+export function subscribeSettingsReturn(listener: () => void): () => void {
+  settingsReturnListeners.add(listener);
+  return () => {
+    settingsReturnListeners.delete(listener);
+  };
+}
+
+/** In-app path worth restoring. Settings drills are not an entry. */
+export function settingsReturnPath(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\")) return null;
+  const noHash = trimmed.split("#")[0] ?? "";
+  if (!noHash.startsWith("/")) return null;
+  const pathOnly = noHash.split("?")[0] || "/";
+  let decoded = pathOnly;
+  try {
+    decoded = decodeURIComponent(pathOnly);
+  } catch {
+    return null;
+  }
+  if (!decoded.startsWith("/") || decoded.startsWith("//") || decoded.includes("\\")) return null;
+  if (decoded.includes("://")) return null;
+  if (isSettingsPath(decoded)) return null;
+  return noHash;
+}
+
+/** Path to store when `toHref` enters Settings from outside it. */
+export function settingsReturnToRemember(fromHref: string, toHref: string): string | null {
+  if (fromHref === toHref) return null;
+  const destPath = toHref.split("#")[0]?.split("?")[0] || "/";
+  if (!isSettingsPath(destPath)) return null;
+  return settingsReturnPath(fromHref);
+}
+
+export function rememberSettingsReturnPath(value: string): void {
+  const path = settingsReturnPath(value);
+  if (!path || typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(SETTINGS_RETURN_STORAGE, path);
+  } catch {
+    // Private mode. The workspace cookie home remains the exit.
+    return;
+  }
+  for (const listener of settingsReturnListeners) listener();
+}
+
+export function readSettingsReturnPath(): string | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    return settingsReturnPath(sessionStorage.getItem(SETTINGS_RETURN_STORAGE));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hub exit. Remembered entry route, else the workspace cookie home.
+ * Aggregation dashboard only when that cookie is missing or aggregation.
+ */
+export function settingsHubExitHref(input: {
+  remembered?: string | null;
+  workspaceCookie?: string | null;
+}): string {
+  const remembered = settingsReturnPath(input.remembered);
+  if (remembered) return remembered;
+  return workspaceHome(parseWorkspaceCookie(input.workspaceCookie));
+}
+
+export function readSettingsHubExitHref(): string {
+  const workspaceCookie =
+    typeof document === "undefined" ? null : workspaceCookieValue(document.cookie);
+  return settingsHubExitHref({
+    remembered: readSettingsReturnPath(),
+    workspaceCookie,
+  });
 }
 
 function pathSection(pathname: string): SettingsHubSection | null {

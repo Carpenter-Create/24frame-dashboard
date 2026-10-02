@@ -11,6 +11,7 @@ import {
   STAFF_PATH_PREFIXES,
   WORKSPACE_COOKIE,
   WORKSPACE_MODES,
+  workspaceCookieValue,
   workspaceCookieWrite,
   workspaceHome,
 } from "./workspace";
@@ -33,6 +34,12 @@ describe("workspace mode", () => {
     expect(workspaceHome("aggregation")).toBe("/aggregation/dashboard");
     expect(workspaceHome("staff")).toBe("/staff/queue");
     expect(workspaceHome("education")).not.toBe("/social/courses");
+    expect(workspaceCookieValue(null)).toBeNull();
+    expect(workspaceCookieValue("")).toBeNull();
+    expect(workspaceCookieValue("other=1")).toBeNull();
+    expect(workspaceCookieValue("24frame_workspace=social")).toBe("social");
+    expect(workspaceCookieValue("a=b; 24frame_workspace=education")).toBe("education");
+    expect(workspaceCookieValue("24frame_workspace=")).toBeNull();
   });
 
   it("lets pathname win on destination routes and cookie win on shared ones", () => {
