@@ -20,7 +20,11 @@ import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track"
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { overviewLeadActiveIndex, overviewLeadSelected } from "@/lib/overview";
 import { clampWorkspaceMode, resolveWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
-import { prefetchHrefList, type HouseNavClickLike } from "@/lib/house-nav-pending";
+import {
+  houseNavIgnorePendingClick,
+  prefetchHrefList,
+  type HouseNavClickLike,
+} from "@/lib/house-nav-pending";
 import {
   HouseNavPendingProbe,
   useHouseNavPending,
@@ -159,7 +163,7 @@ function WorkspaceWaffleHomeExit({
         // that instance; unmount drops the fetch. The cache then
         // refuses the previous workspace body and will not refresh,
         // so /home stays chrome + dock with an empty center.
-        // Tiles already router.push. Home must too.
+        // Unselected tiles own the hop the same way, then close.
         workspaceSwitcherPersistLane("home");
         markPending(dest, event);
         onNavigate();
@@ -231,8 +235,25 @@ function WorkspaceWaffleTiles({
                 aria-selected={false}
                 className={className}
                 onClick={(event) => {
-                  workspaceSwitcherPersistLane(tile.mode, staffGate);
-                  markPending(tile.href, event);
+                  // Sheet close unmounts this anchor. Next schedules the
+                  // Link hop in startTransition, so the close runs first
+                  // and drops the fetch. The address can commit the next
+                  // workspace while this shell stays — Education body,
+                  // Social URL. Own the hop, then close. Same as Home.
+                  // Modified clicks stay on the anchor.
+                  if (houseNavIgnorePendingClick(event)) return;
+                  selectWorkspaceTile(
+                    current,
+                    tile,
+                    tiles,
+                    router,
+                    pathname,
+                    staffGate,
+                    markPending,
+                    event,
+                    house?.navigateOwned,
+                  );
+                  event.preventDefault();
                   onNavigate();
                 }}
               >
