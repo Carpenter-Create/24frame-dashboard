@@ -274,8 +274,11 @@ export const WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS =
 export const WORKSPACE_WAFFLE_GRID_CLASS =
   "grid grid-cols-2 gap-[var(--space-2)] px-[var(--space-2)] pb-[var(--space-2)] max-md:gap-[var(--space-3)] max-md:pb-0";
 
+// Desktop py stays space-3. Phone top pad is space-1 so the section
+// label's space-2 air plus this pad is about 12px before the icon.
+// Phone bottom pad stays space-2.
 export const WORKSPACE_WAFFLE_TILE_CLASS =
-  "relative flex min-h-16 flex-col items-center justify-center gap-[var(--space-1)] rounded-[12px] px-[var(--space-2)] py-[var(--space-3)] text-center t-body-sm text-ink max-md:py-[var(--space-2)]";
+  "relative flex min-h-16 flex-col items-center justify-center gap-[var(--space-1)] rounded-[12px] px-[var(--space-2)] py-[var(--space-3)] text-center t-body-sm text-ink max-md:pb-[var(--space-2)] max-md:pt-[var(--space-1)]";
 
 export const WORKSPACE_WAFFLE_TILE_CURRENT_CLASS = "bg-surface-muted";
 

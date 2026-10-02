@@ -250,7 +250,9 @@ describe("workspace switcher lock", () => {
     expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("max-md:gap-[var(--space-3)]");
     expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("max-md:pb-0");
     expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("py-[var(--space-3)]");
-    expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("max-md:py-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("max-md:pt-[var(--space-1)]");
+    expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("max-md:pb-[var(--space-2)]");
+    expect(WORKSPACE_WAFFLE_TILE_CLASS).not.toContain("max-md:py-");
     expect(WORKSPACE_WAFFLE_TILE_CLASS).toContain("min-h-16");
   });
 
