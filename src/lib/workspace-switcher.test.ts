@@ -8,6 +8,8 @@ import {
   APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
+  prefetchWorkspaceWaffleIntent,
+  workspaceWaffleIntentPrefetchHrefs,
   WORKSPACE_WAFFLE_HOME,
   workspaceWaffleHomeDest,
   WORKSPACE_SWITCHER_SEGMENTS_CLASS,
@@ -218,6 +220,33 @@ describe("workspace switcher lock", () => {
     expect(phoneWorkspaceSwitcherPrefetchHrefs()).toEqual([
       "/home",
       ...workspaceWaffleTiles().map((tile) => tile.href),
+    ]);
+    expect(workspaceWaffleIntentPrefetchHrefs()).toEqual([
+      "/social",
+      "/education",
+      "/aggregation/dashboard",
+    ]);
+    expect(
+      workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true })),
+    ).toEqual(["/social", "/education", "/aggregation/dashboard", "/staff/queue"]);
+    expect(
+      workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true }), "social"),
+    ).toEqual(["/education", "/aggregation/dashboard", "/staff/queue"]);
+    expect(workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions(), "aggregation")).toEqual([
+      "/social",
+      "/education",
+    ]);
+    const prefetch = vi.fn();
+    expect(
+      prefetchWorkspaceWaffleIntent(prefetch, [
+        "/aggregation/dashboard",
+        "/staff/queue",
+        "/aggregation/dashboard",
+      ]),
+    ).toEqual(["/aggregation/dashboard", "/staff/queue"]);
+    expect(prefetch.mock.calls).toEqual([
+      ["/aggregation/dashboard", { kind: "full" }],
+      ["/staff/queue", { kind: "full" }],
     ]);
     expect(WORKSPACE_WAFFLE_HOME).toEqual({ id: "home", label: "Home", href: "/home" });
     expect(WORKSPACE_WAFFLE_HOME.label).not.toBe("Industry news");

@@ -192,6 +192,20 @@ describe("workspace waffle header control", () => {
     expect(html).not.toContain("/account/workspace");
     expect(src).toContain("prefetchHrefList");
     expect(src).toContain("phoneWorkspaceSwitcherPrefetchHrefs");
+    expect(src).toContain("prefetchWorkspaceWaffleIntent");
+    expect(src).toContain("workspaceWaffleIntentPrefetchHrefs");
+    expect(lanes).toContain('kind: WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND');
+    const tilesFn = src.slice(
+      src.indexOf("function WorkspaceWaffleTiles"),
+      src.indexOf("function WorkspaceSlider"),
+    );
+    expect(tilesFn).toContain("onPointerDown={() => onIntent(tile.href)}");
+    expect(tilesFn).toContain("onPointerEnter={() => onIntent(tile.href)}");
+    expect(tilesFn).toContain("<HouseLink");
+    expect(tilesFn).not.toContain("router.push");
+    expect(src).toContain("onPointerDown={() => {");
+    expect(src).toContain("if (open) return;");
+    expect(src).toContain("warmWorkspaceWaffleIntent(router.prefetch, intentKey.split(");
     expect(src).toContain("workspaceSwitcherPersistLane");
     expect(src).not.toContain("persistWorkspaceCookie");
     expect(lanes).toContain("workspaceHome(option.mode)");
