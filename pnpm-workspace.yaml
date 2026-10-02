@@ -66,8 +66,16 @@ overrides:
   browserslist@<=4.28.6: '^4.28.7'
   nanoid@>=3.0.0 <3.3.17: '^3.3.17'
 
-# No auditConfig.ignoreGhsas. The brace-expansion exception that lived here is gone because
-# the advisory is fixed rather than tolerated — `pnpm audit --audit-level high` passes on its
-# own merits. If an exception is ever needed again, declare it here rather than lowering the
-# gate in CI: an exception you can see in a config file is a decision; one carried by
-# weakening the threshold is a habit.
+# Audit exceptions are declared here rather than by lowering the gate in CI: an exception you
+# can see in a config file is a decision; one carried by weakening the threshold is a habit.
+# (The old brace-expansion exception is gone; that advisory is fixed, not tolerated.)
+#
+# node-forge GHSA-86w9-cpqp-85rv (high, 2026-10-02) — founder decision pending in the PR that
+# added it. No patched release exists: the registry's latest is 1.4.0 and GitHub lists no
+# fixed version, so no override can satisfy it. It is reached only through the mobile app's
+# Expo tooling (@24frame/mobile > expo > @expo/cli, and @expo/code-signing-certificates);
+# nothing in the web app depends on it. When node-forge ships a fix, delete this entry and
+# add a range-scoped floor under overrides instead.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-86w9-cpqp-85rv
