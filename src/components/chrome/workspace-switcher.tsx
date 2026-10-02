@@ -9,7 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, DotsNine, FilmStrip, House, Tray, Users } from "@phosphor-icons/react";
+import { ArrowLeft, BookOpen, DotsNine, FilmStrip, Tray, Users } from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
@@ -123,7 +123,7 @@ function WorkspaceWaffleHomeExit({
   );
   const body = (
     <>
-      <House
+      <ArrowLeft
         className={WORKSPACE_WAFFLE_HOME_ICON_CLASS}
         weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
         aria-hidden="true"

@@ -147,6 +147,16 @@ describe("workspace waffle header control", () => {
     expect(home).toContain(WORKSPACE_WAFFLE_HOME_EXIT_CLASS);
     expect(home).toContain(WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS);
     expect(home).toContain(WORKSPACE_WAFFLE_HOME_ICON_CLASS);
+    const exitFn = src.slice(
+      src.indexOf("function WorkspaceWaffleHomeExit"),
+      src.indexOf("function WorkspaceWaffleTiles"),
+    );
+    expect(exitFn).toContain("<ArrowLeft");
+    expect(exitFn).toContain("WORKSPACE_WAFFLE_HOME_ICON_CLASS");
+    expect(exitFn).not.toMatch(/<House[\s/>]/);
+    expect(exitFn).not.toContain("CaretLeft");
+    expect(exitFn).not.toContain("lucide-react");
+    expect(home).toContain(">Home<");
     expect(home).not.toContain(WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS);
     expect(home).not.toContain("min-h-12");
     expect(home).not.toContain("bg-surface-muted");

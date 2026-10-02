@@ -16,8 +16,9 @@
 // Help stay on the avatar menu. Phone face is the existing app
 // sheet. Same tile inventory as the desktop slider.
 // Phone sheet only: Home is quiet header-exit chrome under the
-// sheet top — house icon + "Home", text-sm, muted. No banner fill
-// and no full-width bar. Exact /home gets a tiny muted check.
+// sheet top — ArrowLeft (page-lead back) + "Home", text-sm, muted.
+// No house glyph. No banner fill and no full-width bar. Exact
+// /home gets a tiny muted check.
 // Not a Layer 1 tile, not a desktop slider segment, and not a
 // Social dock tab. WORKSPACES + the 2×2 sit below. Desktop md+
 // stays on the slider and does not list Home. Dock dests stay
@@ -252,7 +253,7 @@ export const WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS = "text-ink-3";
 
 export const WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS = "text-ink-2";
 
-/** Smaller than the tile glyphs (`WORKSPACE_WAFFLE_ICON_CLASS`). */
+/** Page-lead back arrow. Same 16px box as PageHeader ArrowLeft. */
 export const WORKSPACE_WAFFLE_HOME_ICON_CLASS = "size-4 shrink-0";
 
 /** Muted mark on the header exit. Not the accent tile check. */
