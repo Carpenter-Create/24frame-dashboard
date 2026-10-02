@@ -9,7 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, DotsNine, FilmStrip, House, Tray, Users } from "@phosphor-icons/react";
+import { ArrowLeft, BookOpen, DotsNine, FilmStrip, Tray, Users } from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
@@ -50,8 +50,11 @@ import {
   WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
   WORKSPACE_WAFFLE_GRID_CLASS,
   WORKSPACE_WAFFLE_HOME,
-  WORKSPACE_WAFFLE_HOME_ROW_CLASS,
-  WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_HOME_CHECK_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS,
+  WORKSPACE_WAFFLE_HOME_ICON_CLASS,
   WORKSPACE_WAFFLE_ICON_CLASS,
   WORKSPACE_WAFFLE_TILE_CLASS,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
@@ -102,7 +105,7 @@ function selectWorkspaceTile(
   router.push(dest);
 }
 
-function WorkspaceWaffleHomeRow({
+function WorkspaceWaffleHomeExit({
   current,
   chromePath,
   onNavigate,
@@ -113,21 +116,20 @@ function WorkspaceWaffleHomeRow({
 }) {
   const { markPending } = useHouseNavPending();
   const dest = workspaceWaffleHomeDest(chromePath, current);
-  const onHome = overviewLeadSelected("home", chromePath, current);
+  const onHome = dest === null;
   const className = cn(
-    WORKSPACE_WAFFLE_HOME_ROW_CLASS,
-    onHome && WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
+    WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
+    onHome ? WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS : WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS,
   );
   const body = (
     <>
-      <House className={WORKSPACE_WAFFLE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} aria-hidden="true" />
-      <span data-workspace-waffle-home-label="" className={WORKSPACE_WAFFLE_TILE_LABEL_CLASS}>
-        {WORKSPACE_WAFFLE_HOME.label}
-      </span>
-      <AppearanceCheck
-        selected={onHome}
-        className={cn(WORKSPACE_SWITCHER_OPTION_CHECK_CLASS, "ml-auto")}
+      <ArrowLeft
+        className={WORKSPACE_WAFFLE_HOME_ICON_CLASS}
+        weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
+        aria-hidden="true"
       />
+      <span data-workspace-waffle-home-label="">{WORKSPACE_WAFFLE_HOME.label}</span>
+      <AppearanceCheck selected={onHome} className={WORKSPACE_WAFFLE_HOME_CHECK_CLASS} />
     </>
   );
   if (!dest) {
@@ -476,8 +478,8 @@ export function WorkspaceSwitcher({
           data-workspace-waffle-sheet=""
           className={`relative z-10 ${WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS}`}
         >
-          <div data-workspace-waffle-phone="" className="flex flex-col gap-[var(--space-2)]">
-            <WorkspaceWaffleHomeRow
+          <div data-workspace-waffle-phone="" className="flex flex-col">
+            <WorkspaceWaffleHomeExit
               current={current}
               chromePath={chromePath}
               onNavigate={() => setOpen(false)}

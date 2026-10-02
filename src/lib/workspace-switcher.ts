@@ -15,11 +15,14 @@
 // Profile, and Social's own Home at /social). Account / Settings /
 // Help stay on the avatar menu. Phone face is the existing app
 // sheet. Same tile inventory as the desktop slider.
-// Phone sheet only: a Home row above those tiles returns to the
-// house homepage (/home), which carries the industry news feed.
-// That row is not a Layer 1 tile, not a desktop slider segment,
-// and not a Social dock tab. Desktop md+ stays on the slider and
-// does not list Home. Dock dests stay in-workspace only.
+// Phone sheet only: Home is quiet header-exit chrome under the
+// sheet top — ArrowLeft (page-lead back) + "Home", text-sm, muted.
+// No house glyph. No banner fill and no full-width bar. Exact
+// /home gets a tiny muted check.
+// Not a Layer 1 tile, not a desktop slider segment, and not a
+// Social dock tab. WORKSPACES + the 2×2 sit below. Desktop md+
+// stays on the slider and does not list Home. Dock dests stay
+// in-workspace only.
 // Leading air (settings back ↔ emblem) is --space-3 (12). Not
 // --space-1. Do not put overflow-hidden on the leading row (#412).
 // Phone trailing: [search if needed] [24Frame AI] [bell]
@@ -241,10 +244,20 @@ export const WORKSPACE_WAFFLE_HOME = {
   href: OVERVIEW_HREF,
 } as const;
 
-export const WORKSPACE_WAFFLE_HOME_ROW_CLASS =
-  "mx-[var(--space-2)] flex min-h-12 items-center gap-[var(--space-3)] rounded-[12px] px-[var(--space-3)] text-left t-body-sm text-ink";
+// Phone sheet header exit. Hugs its label — not a list bar.
+// Idle is muted; exact /home steps up one ink stop. No fill.
+export const WORKSPACE_WAFFLE_HOME_EXIT_CLASS =
+  "inline-flex w-fit max-w-full items-center gap-[var(--space-2)] self-start px-[var(--space-4)] py-[var(--space-1)] text-left t-body-sm";
 
-export const WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS = "bg-surface-muted";
+export const WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS = "text-ink-3";
+
+export const WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS = "text-ink-2";
+
+/** Page-lead back arrow. Same 16px box as PageHeader ArrowLeft. */
+export const WORKSPACE_WAFFLE_HOME_ICON_CLASS = "size-4 shrink-0";
+
+/** Muted mark on the header exit. Not the accent tile check. */
+export const WORKSPACE_WAFFLE_HOME_CHECK_CLASS = "size-3 shrink-0 text-ink-3";
 
 /** Quiet circular hit — same box as the bell. Open wash is muted, not accent fill. */
 export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
@@ -325,7 +338,7 @@ export function workspacePillClickDest(input: {
 }
 
 /**
- * Phone sheet Home row dest, or null when the shell is already on
+ * Phone sheet Home exit dest, or null when the shell is already on
  * exact /home. /home/news still returns /home. Does not write the
  * workspace cookie.
  */
