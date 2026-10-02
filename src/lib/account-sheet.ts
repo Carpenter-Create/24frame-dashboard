@@ -286,3 +286,48 @@ export function accountSheetIdentity(
 export function destinationClickClosesSheet(pathname: string, href: string): boolean {
   return pathname === href;
 }
+
+/** Present on the phone sheet and the desktop dropdown host. */
+export const ACCOUNT_MENU_ROOT_ATTR = "data-account-menu-root";
+
+type AccountMenuClickNode = {
+  parentNode?: AccountMenuClickNode | null;
+  tagName?: string;
+  getAttribute?: (name: string) => string | null;
+};
+
+function clickAttr(node: AccountMenuClickNode, name: string): string | null {
+  if (typeof node.getAttribute !== "function") return null;
+  return node.getAttribute(name);
+}
+
+/**
+ * True when the event target is a same-document destination inside the
+ * account menu. The house shell's capture click calls stopPropagation
+ * once a hop is owned (`stay` on the Theme page, or a painted Theme
+ * screen). The row's React onClick never runs, so the full-screen host
+ * stays over the Light / Dark / Auto picker. A document capture listener
+ * still runs after that stopPropagation and uses this check to close.
+ * Hash and empty hrefs are not destinations. Modified clicks are ignored
+ * by the listener, not here.
+ */
+export function accountMenuDestinationClick(target: EventTarget | null): boolean {
+  if (target === null || typeof target !== "object") return false;
+  let cursor: AccountMenuClickNode | null = target as AccountMenuClickNode;
+  let anchor: AccountMenuClickNode | null = null;
+  while (cursor) {
+    if ((cursor.tagName ?? "").toUpperCase() === "A") {
+      const href = clickAttr(cursor, "href");
+      if (href && !href.startsWith("#")) anchor = cursor;
+      break;
+    }
+    cursor = cursor.parentNode ?? null;
+  }
+  if (!anchor) return false;
+  let root: AccountMenuClickNode | null = anchor;
+  while (root) {
+    if (clickAttr(root, ACCOUNT_MENU_ROOT_ATTR) !== null) return true;
+    root = root.parentNode ?? null;
+  }
+  return false;
+}
