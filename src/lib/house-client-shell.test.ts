@@ -20,6 +20,7 @@ import {
   houseLayer1Hop,
   houseMayClientOwnHop,
   houseNavHop,
+  houseOutletNeedsRecovery,
   housePaintedKeys,
   houseReadScroll,
   houseReconcileOwnedHref,
@@ -111,6 +112,16 @@ describe("house client shell SoT", () => {
     expect(houseShouldKeepAlive("/social/live")).toBe(false);
     expect(houseShouldKeepAlive("/social/stories/new")).toBe(false);
     expect(houseShouldKeepAlive("/social")).toBe(true);
+    expect(houseShouldKeepAlive("/settings")).toBe(false);
+    expect(houseShouldKeepAlive("/settings/profile")).toBe(false);
+    expect(houseShouldKeepAlive("/settings/preferences/theme")).toBe(false);
+    expect(houseMayClientOwnHop("/settings/profile", "/settings")).toBe(false);
+    expect(houseMayClientOwnHop("/settings", "/social")).toBe(false);
+    expect(houseMayClientOwnHop("/social", "/settings")).toBe(false);
+    expect(houseCanIngest("/settings", "/settings", "/settings", false, false, false)).toBe(false);
+    expect(
+      houseCanIngest("/settings/profile", "/settings/profile", "/settings/profile", false, false, false),
+    ).toBe(false);
     expect(houseShouldClientNavigate("/social/live", ["/social/live"])).toBe(false);
   });
 
@@ -842,6 +853,100 @@ describe("Social rail cache flips", () => {
     expect(provider).toContain("houseCommitHop");
     expect(provider).toContain("if (hop === \"next\") return false");
     expect(provider).toContain("applied.waitForSlot");
+    expect(provider).toContain("houseOutletNeedsRecovery");
+    expect(provider).toContain("HOUSE_OUTLET_RECOVERY_MS");
+  });
+
+  it("loads Home when a cross-land hop leaves the center empty", () => {
+    const social = { screen: "social" };
+    const home = { screen: "home" };
+    const booted = cacheStep(null, "/social", social, {}, []);
+    const settled = cacheStep(booted.seen, "/social", social, booted.nodes, booted.order);
+    const held = houseApplyCachedChild({
+      seen: settled.seen,
+      nextKey: "/home",
+      activeKey: "/home",
+      nextPath: "/home",
+      child: social,
+      fallback: false,
+      nodes: settled.nodes,
+      order: settled.order,
+    });
+    expect(held.nodes["/home"]).toBeUndefined();
+    expect(held.displayKey).toBeNull();
+    expect(held.waitForSlot).toBe(true);
+    expect(houseBlankOutlet(held.displayKey, held.showIngress, "/home", "/home", held.waitForSlot)).toBe(
+      "none",
+    );
+    expect(
+      houseOutletNeedsRecovery({
+        displayKey: held.displayKey,
+        showIngress: held.showIngress,
+        waitForSlot: held.waitForSlot,
+        activeKey: "/home",
+        nextKey: "/home",
+      }),
+    ).toBe(true);
+
+    const loading = houseApplyCachedChild({
+      seen: held.seen,
+      nextKey: "/home",
+      activeKey: "/home",
+      nextPath: "/home",
+      child: { screen: "home-loading" },
+      fallback: true,
+      nodes: held.nodes,
+      order: held.order,
+    });
+    expect(loading.displayKey).toBeNull();
+    expect(loading.showIngress).toBe(true);
+    expect(loading.nodes["/home"]).toBeUndefined();
+    expect(
+      houseOutletNeedsRecovery({
+        displayKey: loading.displayKey,
+        showIngress: loading.showIngress,
+        waitForSlot: loading.waitForSlot,
+        activeKey: "/home",
+        nextKey: "/home",
+      }),
+    ).toBe(true);
+    expect(
+      houseOutletNeedsRecovery({
+        displayKey: null,
+        showIngress: true,
+        waitForSlot: false,
+        activeKey: "/social",
+        nextKey: "/social",
+      }),
+    ).toBe(false);
+
+    const landed = houseApplyCachedChild({
+      seen: loading.seen,
+      nextKey: "/home",
+      activeKey: "/home",
+      nextPath: "/home",
+      child: home,
+      fallback: false,
+      nodes: loading.nodes,
+      order: loading.order,
+    });
+    expect(landed.childrenStale).toBe(false);
+    expect(landed.displayKey).toBe("/home");
+    expect(landed.nodes["/home"]).toBe(home);
+    expect(landed.showIngress).toBe(false);
+    expect(landed.nodes["/social"]).toBe(social);
+    expect(
+      houseOutletNeedsRecovery({
+        displayKey: landed.displayKey,
+        showIngress: landed.showIngress,
+        waitForSlot: landed.waitForSlot,
+        activeKey: "/home",
+        nextKey: "/home",
+      }),
+    ).toBe(false);
+    expect(houseBlankOutlet(landed.displayKey, landed.showIngress, "/home", "/home", landed.waitForSlot)).toBe(
+      "none",
+    );
   });
 
   it("marks warm history so Next does not restore the previous flight tree", () => {

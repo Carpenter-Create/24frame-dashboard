@@ -7,6 +7,7 @@ import {
 import { socialFrameAiThreadPath } from "@/lib/social-frame-ai";
 import { SOCIAL_FOLLOWING_WALL_CURSOR_PARAM } from "@/lib/social-home-bounds";
 import { readSocialHomeLocation } from "@/lib/social-home-location";
+import { isSettingsPath } from "@/lib/settings";
 import { EDUCATION_ROOT, HOME_ROOT, SOCIAL_ROOT, STAFF_ROOT } from "@/lib/workspace";
 
 // House client-shell SoT.
@@ -16,7 +17,8 @@ import { EDUCATION_ROOT, HOME_ROOT, SOCIAL_ROOT, STAFF_ROOT } from "@/lib/worksp
 //
 // Client-owned: Social hot paths + last-visited workspace lands.
 // Still RSC: auth gate, first document, Aggregation/Education/Staff first
-// visit, and any dest that has never been painted this session.
+// visit, Settings (account chrome — Back is a real Next hop, not a
+// cached pushState), and any dest that has never been painted this session.
 
 export const HOUSE_CLIENT_SHELL = {
   cacheCap: 8,
@@ -28,6 +30,16 @@ export const HOUSE_CLIENT_SHELL = {
 
 /** Blank outlet recovery. Retries until a slot or ingress paints. */
 export const HOUSE_BLANK_OUTLET_RETRY_MS = 50;
+
+/**
+ * Cross-land hop left the shell on the new URL with no committed
+ * screen. Immediate refresh aborts the in-flight RSC and must not
+ * accept the previous workspace as this page. One later refresh
+ * loads the route when that hop never paints — waffle ← Home
+ * unmounts its link, Next can drop the fetch, and Home's loading
+ * shell is an empty box, so chrome stays and the body stays white.
+ */
+export const HOUSE_OUTLET_RECOVERY_MS = 800;
 
 const HOUSE_EXACT_SCREENS = new Set<string>([
   SOCIAL_ROUTES.home,
@@ -54,6 +66,10 @@ export function isHouseClientOwnedPath(pathname: string): boolean {
 export function houseShouldKeepAlive(pathname: string): boolean {
   // Live capture keeps camera/mic on mount. Hidden keep-alive would
   // leave the stream open after a dock tap. Cold RSC remounts those dests.
+  // Settings is cold too. A warm slot between /settings and a pane
+  // pushStates the previous tree under the new URL — Back stays on
+  // the same page. Account chrome is not a workspace land.
+  if (isSettingsPath(pathname)) return false;
   return pathname !== SOCIAL_ROUTES.createLive && pathname !== SOCIAL_ROUTES.storiesNew;
 }
 
@@ -511,6 +527,27 @@ export function houseBlankOutlet(
   if (activeKey !== nextKey) return "load";
   // Next is already on this URL and the slot is empty. Revalidate, then accept the settled tree.
   return "refresh";
+}
+
+/**
+ * True when the URL matches and the center still has no screen.
+ * Caller schedules one delayed refresh. Do not refresh on the same
+ * tick — that aborts a healthy hop. Home ingress counts: its
+ * loading shell paints nothing, so a hop that never leaves it is
+ * the blank Home page. Other workspaces show a real skeleton.
+ */
+export function houseOutletNeedsRecovery(input: {
+  displayKey: string | null;
+  showIngress: boolean;
+  waitForSlot: boolean;
+  activeKey: string;
+  nextKey: string;
+}): boolean {
+  if (input.displayKey !== null) return false;
+  if (input.activeKey !== input.nextKey) return false;
+  if (input.waitForSlot) return true;
+  const path = input.activeKey.split("?")[0] || "/";
+  return input.showIngress && houseWorkspaceLandKey(path) === HOME_ROOT;
 }
 
 export function houseApplyCachedChild<T>(input: {

@@ -15,11 +15,14 @@
 // Profile, and Social's own Home at /social). Account / Settings /
 // Help stay on the avatar menu. Phone face is the existing app
 // sheet. Same tile inventory as the desktop slider.
-// Phone sheet only: a Home row above those tiles returns to the
-// house homepage (/home), which carries the industry news feed.
-// That row is not a Layer 1 tile, not a desktop slider segment,
-// and not a Social dock tab. Desktop md+ stays on the slider and
-// does not list Home. Dock dests stay in-workspace only.
+// Phone sheet only: Home is quiet header-exit chrome under the
+// sheet top — ArrowLeft (page-lead back) + "Home", text-sm, muted.
+// No house glyph. No banner fill and no full-width bar. Exact
+// /home gets a tiny muted check.
+// Not a Layer 1 tile, not a desktop slider segment, and not a
+// Social dock tab. WORKSPACES + the 2×2 sit below. Desktop md+
+// stays on the slider and does not list Home. Dock dests stay
+// in-workspace only.
 // Leading air (settings back ↔ emblem) is --space-3 (12). Not
 // --space-1. Do not put overflow-hidden on the leading row (#412).
 // Phone trailing: [search if needed] [24Frame AI] [bell]
@@ -52,7 +55,13 @@
 // mid-lead slot (same Facebook-compact geometry as Social).
 // Persist with workspaceSwitcherPersistLane → persistWorkspaceCookie.
 // Do not invent a second cookie. Unselected waffle tiles are
-// Link + prefetch; prefetchHrefList warms the entitled homes on mount.
+// Link + prefetch. That full prefetch belongs to the anchor; closing
+// the sheet unmounts it and cancels the task, so a fast Staff or
+// Aggregation tap still waits on the dynamic RSC. Mount
+// prefetchHrefList is AUTO — loading.js only. Intent prefetch is
+// router-owned and kind full: waffle pointerdown, open, and tile
+// pointerdown / enter. Skip the current land. Painted lands still
+// soft-swap through HouseLink. Do not router.push over that.
 // Do not invent /education, /account/workspace, or /settings/workspace.
 
 import {
@@ -162,8 +171,14 @@ export function workspaceSwitcherChromeClearanceBottoms(
   );
 }
 
+// Phone sheet rhythm, variant C. The sheet surface already pads
+// --space-4 (16), so this label does not add a second side inset.
+// pt --space-3 (12) plus the exit's pb --space-1 (4) is 16 after
+// Home — no 14 token; the next step above the previous 12.
+// pb --space-3 (12) is the gap before the grid. Weight and color
+// stay t-label / text-ink-3.
 export const WORKSPACE_SWITCHER_HEADER_CLASS =
-  "px-[var(--space-4)] pb-[var(--space-1)] pt-[var(--space-2)] t-label text-ink-3";
+  "pb-[var(--space-3)] pt-[var(--space-3)] t-label text-ink-3";
 
 /** Sporty Blue check on the current Layer 1 tile. */
 export const WORKSPACE_SWITCHER_OPTION_CHECK_CLASS = "text-accent";
@@ -241,10 +256,22 @@ export const WORKSPACE_WAFFLE_HOME = {
   href: OVERVIEW_HREF,
 } as const;
 
-export const WORKSPACE_WAFFLE_HOME_ROW_CLASS =
-  "mx-[var(--space-2)] flex min-h-12 items-center gap-[var(--space-3)] rounded-[12px] px-[var(--space-3)] text-left t-body-sm text-ink";
+// Phone sheet header exit. Hugs its label — not a list bar.
+// Idle is muted; exact /home steps up one ink stop. No fill.
+// No horizontal pad: the sheet's --space-4 is the side inset, so
+// the chevron lines up with WORKSPACES and the tiles.
+export const WORKSPACE_WAFFLE_HOME_EXIT_CLASS =
+  "inline-flex w-fit max-w-full items-center gap-[var(--space-2)] self-start py-[var(--space-1)] text-left t-body-sm";
 
-export const WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS = "bg-surface-muted";
+export const WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS = "text-ink-3";
+
+export const WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS = "text-ink-2";
+
+/** Page-lead back arrow. Same 16px box as PageHeader ArrowLeft. */
+export const WORKSPACE_WAFFLE_HOME_ICON_CLASS = "size-4 shrink-0";
+
+/** Muted mark on the header exit. Not the accent tile check. */
+export const WORKSPACE_WAFFLE_HOME_CHECK_CLASS = "size-3 shrink-0 text-ink-3";
 
 /** Quiet circular hit — same box as the bell. Open wash is muted, not accent fill. */
 export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
@@ -252,11 +279,15 @@ export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
 
 export const WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS = "bg-surface-muted";
 
+// Same tiles, no sheet pad. --space-4 keeps the side inset once
+// the shared rows stop adding their own.
 export const WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS =
-  `${WORKSPACE_SWITCHER_PANEL_CLASS} max-md:hidden`;
+  `${WORKSPACE_SWITCHER_PANEL_CLASS} px-[var(--space-4)] max-md:hidden`;
 
+// Variant C. gap --space-3 (12). No extra px — the sheet pad is the
+// 16 side inset. pb --space-4 (16) plus that pad is the modest close.
 export const WORKSPACE_WAFFLE_GRID_CLASS =
-  "grid grid-cols-2 gap-[var(--space-2)] px-[var(--space-2)] pb-[var(--space-2)]";
+  "grid grid-cols-2 gap-[var(--space-3)] pb-[var(--space-4)]";
 
 export const WORKSPACE_WAFFLE_TILE_CLASS =
   "relative flex min-h-16 flex-col items-center justify-center gap-[var(--space-1)] rounded-[12px] px-[var(--space-2)] py-[var(--space-3)] text-center t-body-sm text-ink";
@@ -325,7 +356,7 @@ export function workspacePillClickDest(input: {
 }
 
 /**
- * Phone sheet Home row dest, or null when the shell is already on
+ * Phone sheet Home exit dest, or null when the shell is already on
  * exact /home. /home/news still returns /home. Does not write the
  * workspace cookie.
  */
@@ -357,4 +388,35 @@ export function phoneWorkspaceSwitcherPrefetchHrefs(
     WORKSPACE_WAFFLE_HOME.href,
     ...workspaceWaffleTiles(options).map((tile) => tile.href),
   ];
+}
+
+/** Next router.prefetch kind. AUTO warms loading.js. Full fetches the RSC. */
+export const WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND = "full" as const;
+
+/**
+ * Homes a waffle tap can open, minus the land already showing.
+ * Staff is included only when `options` already entitled it.
+ */
+export function workspaceWaffleIntentPrefetchHrefs(
+  options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
+  current?: WorkspaceMode,
+): string[] {
+  return workspaceWaffleTiles(options)
+    .filter((tile) => tile.mode !== current)
+    .map((tile) => tile.href);
+}
+
+export function prefetchWorkspaceWaffleIntent(
+  prefetch: (href: string, options: { kind: typeof WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND }) => void,
+  hrefs: readonly string[],
+): string[] {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const href of hrefs) {
+    if (seen.has(href)) continue;
+    seen.add(href);
+    unique.push(href);
+    prefetch(href, { kind: WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND });
+  }
+  return unique;
 }

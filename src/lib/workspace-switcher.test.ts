@@ -8,6 +8,8 @@ import {
   APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
+  prefetchWorkspaceWaffleIntent,
+  workspaceWaffleIntentPrefetchHrefs,
   WORKSPACE_WAFFLE_HOME,
   workspaceWaffleHomeDest,
   WORKSPACE_SWITCHER_SEGMENTS_CLASS,
@@ -22,6 +24,8 @@ import {
   WORKSPACE_SWITCHER,
   WORKSPACE_SWITCHER_ABSENT,
   WORKSPACE_SWITCHER_HEADER_CLASS,
+  WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
+  WORKSPACE_WAFFLE_GRID_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
   WORKSPACE_SWITCHER_PANEL_CLASS,
@@ -32,6 +36,12 @@ import {
   WORKSPACE_SWITCHER_MENU_GAP_PX,
   workspaceSwitcherOptions,
   WORKSPACE_WAFFLE_FORBIDDEN_LABELS,
+  WORKSPACE_WAFFLE_HOME_CHECK_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS,
+  WORKSPACE_WAFFLE_HOME_ICON_CLASS,
+  WORKSPACE_WAFFLE_ICON_CLASS,
   WORKSPACE_WAFFLE_ORDER,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
   WORKSPACE_WAFFLE_TILE_LABEL_CLASS,
@@ -110,6 +120,17 @@ describe("workspace switcher lock", () => {
   it("keeps the Workspaces panel portaled and the current check accent", () => {
     expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("t-label");
     expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("text-ink-3");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("pt-[var(--space-3)]");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("pb-[var(--space-3)]");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).not.toMatch(/px-/);
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).not.toMatch(/font-/);
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("py-[var(--space-1)]");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toMatch(/px-/);
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("grid-cols-2");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("gap-[var(--space-3)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("pb-[var(--space-4)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).not.toMatch(/px-/);
+    expect(WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS).toContain("px-[var(--space-4)]");
     expect(WORKSPACE_SWITCHER_OPTION_CHECK_CLASS).toBe("text-accent");
     expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("border-hairline");
     expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("fixed");
@@ -200,7 +221,51 @@ describe("workspace switcher lock", () => {
       "/home",
       ...workspaceWaffleTiles().map((tile) => tile.href),
     ]);
+    expect(workspaceWaffleIntentPrefetchHrefs()).toEqual([
+      "/social",
+      "/education",
+      "/aggregation/dashboard",
+    ]);
+    expect(
+      workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true })),
+    ).toEqual(["/social", "/education", "/aggregation/dashboard", "/staff/queue"]);
+    expect(
+      workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true }), "social"),
+    ).toEqual(["/education", "/aggregation/dashboard", "/staff/queue"]);
+    expect(workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions(), "aggregation")).toEqual([
+      "/social",
+      "/education",
+    ]);
+    const prefetch = vi.fn();
+    expect(
+      prefetchWorkspaceWaffleIntent(prefetch, [
+        "/aggregation/dashboard",
+        "/staff/queue",
+        "/aggregation/dashboard",
+      ]),
+    ).toEqual(["/aggregation/dashboard", "/staff/queue"]);
+    expect(prefetch.mock.calls).toEqual([
+      ["/aggregation/dashboard", { kind: "full" }],
+      ["/staff/queue", { kind: "full" }],
+    ]);
     expect(WORKSPACE_WAFFLE_HOME).toEqual({ id: "home", label: "Home", href: "/home" });
+    expect(WORKSPACE_WAFFLE_HOME.label).not.toBe("Industry news");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("t-body-sm");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("self-start");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("w-fit");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toContain("min-h-");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toMatch(/bg-/);
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toContain("rounded-");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS).toBe("text-ink-3");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS).toBe("text-ink-2");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS).not.toMatch(/bg-/);
+    expect(WORKSPACE_WAFFLE_HOME_ICON_CLASS).toBe("size-4 shrink-0");
+    expect(WORKSPACE_WAFFLE_ICON_CLASS).toBe("size-6 shrink-0");
+    expect(WORKSPACE_WAFFLE_HOME_CHECK_CLASS).toBe("size-3 shrink-0 text-ink-3");
+    expect(WORKSPACE_WAFFLE_HOME_CHECK_CLASS).not.toContain("text-accent");
+    expect(src).not.toContain("WORKSPACE_WAFFLE_HOME_ROW_CLASS");
+    expect(src).not.toContain("min-h-12");
     expect(workspaceWaffleHomeDest("/social", "social")).toBe("/home");
     expect(workspaceWaffleHomeDest("/social/explore", "social")).toBe("/home");
     expect(workspaceWaffleHomeDest("/education", "education")).toBe("/home");

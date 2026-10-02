@@ -101,6 +101,24 @@ export function parseWorkspaceCookie(value: string | undefined | null): Workspac
   return "aggregation";
 }
 
+/** Value of `24frame_workspace` inside a Cookie header, or null when absent. */
+export function workspaceCookieValue(header: string | null | undefined): string | null {
+  if (!header) return null;
+  const needle = `${WORKSPACE_COOKIE}=`;
+  for (const part of header.split(";")) {
+    const row = part.trim();
+    if (!row.startsWith(needle)) continue;
+    const raw = row.slice(needle.length);
+    if (!raw) return null;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return null;
+}
+
 export function workspaceHome(mode: WorkspaceMode): string {
   if (mode === "social") return SOCIAL_ROOT;
   if (mode === "education") return EDUCATION_ROOT;

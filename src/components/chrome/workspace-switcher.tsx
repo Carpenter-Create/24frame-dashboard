@@ -9,7 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, DotsNine, FilmStrip, House, Tray, Users } from "@phosphor-icons/react";
+import { ArrowLeft, BookOpen, DotsNine, FilmStrip, Tray, Users } from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
@@ -20,7 +20,11 @@ import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track"
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { overviewLeadActiveIndex, overviewLeadSelected } from "@/lib/overview";
 import { clampWorkspaceMode, resolveWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
-import { prefetchHrefList, type HouseNavClickLike } from "@/lib/house-nav-pending";
+import {
+  houseNavIgnorePendingClick,
+  prefetchHrefList,
+  type HouseNavClickLike,
+} from "@/lib/house-nav-pending";
 import {
   HouseNavPendingProbe,
   useHouseNavPending,
@@ -50,8 +54,11 @@ import {
   WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
   WORKSPACE_WAFFLE_GRID_CLASS,
   WORKSPACE_WAFFLE_HOME,
-  WORKSPACE_WAFFLE_HOME_ROW_CLASS,
-  WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_HOME_CHECK_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS,
+  WORKSPACE_WAFFLE_HOME_ICON_CLASS,
   WORKSPACE_WAFFLE_ICON_CLASS,
   WORKSPACE_WAFFLE_TILE_CLASS,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
@@ -59,7 +66,9 @@ import {
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
+  prefetchWorkspaceWaffleIntent,
   workspaceWaffleHomeDest,
+  workspaceWaffleIntentPrefetchHrefs,
   workspaceSwitcherChromeClearanceBottoms,
   workspaceSwitcherMenuStyle,
   workspaceSwitcherNextSegmentIndex,
@@ -102,7 +111,7 @@ function selectWorkspaceTile(
   router.push(dest);
 }
 
-function WorkspaceWaffleHomeRow({
+function WorkspaceWaffleHomeExit({
   current,
   chromePath,
   onNavigate,
@@ -111,23 +120,24 @@ function WorkspaceWaffleHomeRow({
   chromePath: string;
   onNavigate: () => void;
 }) {
+  const router = useRouter();
+  const house = useHouseClient();
   const { markPending } = useHouseNavPending();
   const dest = workspaceWaffleHomeDest(chromePath, current);
-  const onHome = overviewLeadSelected("home", chromePath, current);
+  const onHome = dest === null;
   const className = cn(
-    WORKSPACE_WAFFLE_HOME_ROW_CLASS,
-    onHome && WORKSPACE_WAFFLE_HOME_ROW_CURRENT_CLASS,
+    WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
+    onHome ? WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS : WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS,
   );
   const body = (
     <>
-      <House className={WORKSPACE_WAFFLE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} aria-hidden="true" />
-      <span data-workspace-waffle-home-label="" className={WORKSPACE_WAFFLE_TILE_LABEL_CLASS}>
-        {WORKSPACE_WAFFLE_HOME.label}
-      </span>
-      <AppearanceCheck
-        selected={onHome}
-        className={cn(WORKSPACE_SWITCHER_OPTION_CHECK_CLASS, "ml-auto")}
+      <ArrowLeft
+        className={WORKSPACE_WAFFLE_HOME_ICON_CLASS}
+        weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
+        aria-hidden="true"
       />
+      <span data-workspace-waffle-home-label="">{WORKSPACE_WAFFLE_HOME.label}</span>
+      <AppearanceCheck selected={onHome} className={WORKSPACE_WAFFLE_HOME_CHECK_CLASS} />
     </>
   );
   if (!dest) {
@@ -151,9 +161,18 @@ function WorkspaceWaffleHomeRow({
       data-workspace-waffle-home=""
       className={className}
       onClick={(event) => {
+        // Sheet close unmounts this anchor. A <Link> hop is owned by
+        // that instance; unmount drops the fetch. The cache then
+        // refuses the previous workspace body and will not refresh,
+        // so /home stays chrome + dock with an empty center.
+        // Unselected tiles own the hop the same way, then close.
         workspaceSwitcherPersistLane("home");
         markPending(dest, event);
         onNavigate();
+        if (event.defaultPrevented) return;
+        if (house?.navigateOwned(dest, event)) return;
+        event.preventDefault();
+        router.push(dest);
       }}
     >
       <HouseNavPendingProbe href={dest} onPending={markPending} />
@@ -162,18 +181,29 @@ function WorkspaceWaffleHomeRow({
   );
 }
 
+function warmWorkspaceWaffleIntent(
+  prefetch: ReturnType<typeof useRouter>["prefetch"],
+  hrefs: readonly string[],
+) {
+  prefetchWorkspaceWaffleIntent((href, options) => {
+    prefetch(href, { kind: options.kind } as Parameters<typeof prefetch>[1]);
+  }, hrefs);
+}
+
 function WorkspaceWaffleTiles({
   tiles,
   current,
   chromePath,
   staffGate,
   onNavigate,
+  onIntent,
 }: {
   tiles: readonly WorkspaceMenuOption[];
   current: WorkspaceMode;
   chromePath: string;
   staffGate: boolean;
   onNavigate: () => void;
+  onIntent: (href: string) => void;
 }) {
   const router = useRouter();
   const pathname = useHousePathname();
@@ -217,9 +247,28 @@ function WorkspaceWaffleTiles({
                 data-workspace-waffle-tile={tile.mode}
                 aria-selected={false}
                 className={className}
+                onPointerDown={() => onIntent(tile.href)}
+                onPointerEnter={() => onIntent(tile.href)}
                 onClick={(event) => {
-                  workspaceSwitcherPersistLane(tile.mode, staffGate);
-                  markPending(tile.href, event);
+                  // Sheet close unmounts this anchor. Next schedules the
+                  // Link hop in startTransition, so the close runs first
+                  // and drops the fetch. The address can commit the next
+                  // workspace while this shell stays — Education body,
+                  // Social URL. Own the hop, then close. Same as Home.
+                  // Modified clicks stay on the anchor.
+                  if (houseNavIgnorePendingClick(event)) return;
+                  selectWorkspaceTile(
+                    current,
+                    tile,
+                    tiles,
+                    router,
+                    pathname,
+                    staffGate,
+                    markPending,
+                    event,
+                    house?.navigateOwned,
+                  );
+                  event.preventDefault();
                   onNavigate();
                 }}
               >
@@ -386,10 +435,25 @@ export function WorkspaceSwitcher({
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
   const tiles = workspaceWaffleTiles(options);
   const chromePath = activePath || pathname;
+  const routeWorkspace = resolveWorkspaceMode(chromePath, current);
+  const intentHrefs = workspaceWaffleIntentPrefetchHrefs(options, routeWorkspace);
+  const intentKey = intentHrefs.join("\n");
+  const warmedIntent = useRef<string | null>(null);
 
   useEffect(() => {
     prefetchHrefList(router.prefetch, phoneWorkspaceSwitcherPrefetchHrefs(options));
   }, [options, router]);
+
+  useEffect(() => {
+    if (!open) {
+      warmedIntent.current = null;
+      return;
+    }
+    if (warmedIntent.current === intentKey) return;
+    warmedIntent.current = intentKey;
+    if (!intentKey) return;
+    warmWorkspaceWaffleIntent(router.prefetch, intentKey.split("\n"));
+  }, [open, intentKey, router]);
 
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -439,6 +503,10 @@ export function WorkspaceSwitcher({
     return <WorkspaceSlider current={current} options={options} isGcStaff={staffGate} />;
   }
 
+  const warmIntent = (hrefs: readonly string[]) => {
+    warmWorkspaceWaffleIntent(router.prefetch, hrefs);
+  };
+
   const faces = (key: string) => (
     <WorkspaceWaffleTiles
       key={key}
@@ -447,6 +515,7 @@ export function WorkspaceSwitcher({
       chromePath={chromePath}
       staffGate={staffGate}
       onNavigate={() => setOpen(false)}
+      onIntent={(href) => warmIntent([href])}
     />
   );
 
@@ -476,8 +545,8 @@ export function WorkspaceSwitcher({
           data-workspace-waffle-sheet=""
           className={`relative z-10 ${WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS}`}
         >
-          <div data-workspace-waffle-phone="" className="flex flex-col gap-[var(--space-2)]">
-            <WorkspaceWaffleHomeRow
+          <div data-workspace-waffle-phone="" className="flex flex-col">
+            <WorkspaceWaffleHomeExit
               current={current}
               chromePath={chromePath}
               onNavigate={() => setOpen(false)}
@@ -504,6 +573,14 @@ export function WorkspaceSwitcher({
         aria-label={WORKSPACE_SWITCHER.heading}
         aria-expanded={open}
         aria-haspopup="dialog"
+        onPointerEnter={() => {
+          if (open) return;
+          warmIntent(intentHrefs);
+        }}
+        onPointerDown={() => {
+          if (open) return;
+          warmIntent(intentHrefs);
+        }}
         onClick={() => setOpen((next) => !next)}
         className={cn(WORKSPACE_WAFFLE_TRIGGER_CLASS, open && WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS)}
       >

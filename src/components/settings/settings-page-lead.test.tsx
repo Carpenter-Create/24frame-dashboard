@@ -174,6 +174,9 @@ describe("SettingsPageLead", () => {
     expect(hubBackSrc).toContain("settingsHubHasInAppReferrer");
     expect(hubBackSrc).toContain("settingsHeaderBack");
     expect(hubBackSrc).toContain("document.referrer");
+    expect(hubBackSrc).toContain("readSettingsHubExitHref()");
+    expect(hubBackSrc).toContain("router.push(dest)");
+    expect(hubBackSrc).toContain("if (historyBack)");
     expect(hubBackSrc).toContain("href?: string");
     expect(hubBackSrc).toContain("label?: string");
     expect(hubBackSrc).not.toContain('label: "Home"');

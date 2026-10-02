@@ -17,9 +17,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   HOUSE_BLANK_OUTLET_RETRY_MS,
   HOUSE_CLIENT_SHELL,
+  HOUSE_OUTLET_RECOVERY_MS,
   houseApplyCachedChild,
   houseBlankOutlet,
   houseBlankOutletRepeats,
+  houseOutletNeedsRecovery,
   houseClientHistoryState,
   houseCommitHop,
   houseExactHref,
@@ -270,6 +272,7 @@ export function HouseScreenCache({ children }: { children: ReactNode }) {
   // A blank outlet revalidates first. The next kick treats an unchanged
   // tree as this URL's screen so the retry does not run forever.
   const [settledKey, setSettledKey] = useState<string | null>(null);
+  const recoveredOutlet = useRef<string | null>(null);
   const acceptStale = settledKey === activeKey && activeKey === nextKey;
   const applied = houseApplyCachedChild({
     seen: childSeen,
@@ -311,12 +314,37 @@ export function HouseScreenCache({ children }: { children: ReactNode }) {
       nextKey,
       applied.waitForSlot,
     );
-    if (action === "none") return;
     if (action === "load") {
       // One push. An interval of the same href aborts the RSC hop,
       // so the slot stays blank and the click looks stuck.
       if (house?.href) router.push(house.href);
       return;
+    }
+    if (action === "none") {
+      const recover = houseOutletNeedsRecovery({
+        displayKey,
+        showIngress,
+        waitForSlot: applied.waitForSlot,
+        activeKey,
+        nextKey,
+      });
+      if (!recover) {
+        if (displayKey !== null) recoveredOutlet.current = null;
+        return;
+      }
+      // One later refresh. Not the same tick — that aborts the hop
+      // and must not accept the previous workspace as this screen.
+      if (recoveredOutlet.current === activeKey) return;
+      let ticks = 0;
+      const need = Math.max(1, Math.round(HOUSE_OUTLET_RECOVERY_MS / HOUSE_BLANK_OUTLET_RETRY_MS));
+      const id = window.setInterval(() => {
+        ticks += 1;
+        if (ticks < need) return;
+        window.clearInterval(id);
+        recoveredOutlet.current = activeKey;
+        router.refresh();
+      }, HOUSE_BLANK_OUTLET_RETRY_MS);
+      return () => window.clearInterval(id);
     }
     if (!houseBlankOutletRepeats(action)) return;
     let kicks = 0;
