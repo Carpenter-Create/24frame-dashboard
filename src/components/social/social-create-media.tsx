@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, type MouseEvent } from "react";
-import Link from "next/link";
+import { HouseLink } from "@/components/chrome/house-link";
 
 import { SocialIcon } from "@/components/social/social-icon";
 import {
@@ -71,7 +71,7 @@ export function SocialCreateMediaTile({
 
   return (
     <>
-      <Link
+      <HouseLink
         href={tile.href}
         data-social-create-tile={tile.id}
         data-social-create-media-tile=""
@@ -86,7 +86,7 @@ export function SocialCreateMediaTile({
           />
         </span>
         <span className={SOCIAL_CREATE_TILE_LABEL_CLASS}>{tile.label}</span>
-      </Link>
+      </HouseLink>
       {input}
     </>
   );

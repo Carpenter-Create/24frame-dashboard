@@ -9,7 +9,7 @@ import {
   type ReactElement,
 } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import { HouseLink } from "@/components/chrome/house-link";
 
 import { Close44 } from "@/components/chrome/house";
 import { useHouseDesktop } from "@/components/chrome/house-overlay";
@@ -57,7 +57,7 @@ export function SocialCreateTile({
   }
 
   return (
-    <Link
+    <HouseLink
       href={tile.href}
       data-social-create-tile={tile.id}
       className={SOCIAL_CREATE_TILE_CLASS}
@@ -76,7 +76,7 @@ export function SocialCreateTile({
         />
       </span>
       <span className={SOCIAL_CREATE_TILE_LABEL_CLASS}>{tile.label}</span>
-    </Link>
+    </HouseLink>
   );
 }
 
