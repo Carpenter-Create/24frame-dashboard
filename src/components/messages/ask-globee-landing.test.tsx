@@ -94,7 +94,9 @@ describe("AskGlobeeLanding", () => {
     expect(html).not.toContain(ASK_GLOBEE.stopHint);
     expect(html).not.toContain(ASK_GLOBEE.escToCancel);
     expect(src).toContain("startAskGlobeeConversation");
-    expect(src).toContain("router.push(href)");
+    expect(src).toContain(
+      "router.push(askAiOverlayHref(pathname, currentAskAiSearch(), result.conversationId))",
+    );
     expect(src).toContain("askGlobeeThreadHref");
     expect(src).not.toContain("AskGlobeeThinking");
     expect(src).not.toContain("data-ask-globee-thinking");
@@ -160,7 +162,9 @@ describe("AskGlobeeLanding", () => {
     expect(src).toContain("send(activation.send)");
     expect(src).toContain("askGlobeeComposerSubmit(prompt)");
     expect(src).toContain("startAskGlobeeConversation");
-    expect(src).toContain("router.push(href)");
+    expect(src).toContain(
+      "router.push(askAiOverlayHref(pathname, currentAskAiSearch(), result.conversationId))",
+    );
     expect(src).toContain("askGlobeeThreadHref");
     expect(src).toContain("aria-pressed={pressed}");
     expect(src).not.toContain("askGlobeeUsesModel");

@@ -9,6 +9,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // These tests drive the real house shell through a warm hop and check what
 // chrome does next.
 
+// Next resolves an href against the browser's address
+// (dispatchNavigateAction), so `?ai=…` keeps only the path.
+const resolveHref = vi.hoisted(() => (href: string) => {
+  const url = new URL(href, `${location.origin}${location.pathname}${location.search}`);
+  return `${url.pathname}${url.search}`;
+});
+
 const nav = vi.hoisted(() => ({
   pathname: "/social",
   search: "",
@@ -20,8 +27,8 @@ const nav = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => {
   const router = {
-    push: nav.push,
-    replace: nav.replace,
+    push: (href: string) => nav.push(resolveHref(href)),
+    replace: (href: string) => nav.replace(resolveHref(href)),
     refresh: nav.refresh,
     prefetch: nav.prefetch,
   };
@@ -67,10 +74,7 @@ vi.mock("next/link", async () => {
             if (event.defaultPrevented) return;
             if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
-            // Next resolves the href against the browser's address
-            // (dispatchNavigateAction), so `?ai=…` keeps only the path.
-            const url = new URL(href, `${location.origin}${location.pathname}${location.search}`);
-            nav.push(`${url.pathname}${url.search}`);
+            nav.push(resolveHref(href));
           },
         },
         children,
@@ -99,13 +103,20 @@ vi.mock("next/dynamic", () => ({
     },
 }));
 
+const askActions = vi.hoisted(() => ({ startedId: "" }));
+
 vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
   loadAskAiOverlay: () => new Promise(() => undefined),
+  startAskGlobeeConversation: async () => ({ conversationId: askActions.startedId }),
+  renameAskGlobeeConversation: vi.fn(),
+  pinAskGlobeeConversation: vi.fn(),
+  deleteAskGlobeeConversation: vi.fn(),
 }));
 
 import { MessageLink } from "@/app/(app)/aggregation/messages/message-link";
 import { AskAssistantChromeProvider, useAskGlobeeChrome } from "@/components/messages/ask-globee-chrome";
 import { AskGlobeeHistoryPanel } from "@/components/messages/ask-globee-history";
+import { AskGlobeeLanding } from "@/components/messages/ask-globee-landing";
 import { NewsSourceChips } from "@/components/news/news-sources-filter";
 import { SocialCreateFan } from "@/components/social/social-create-fan";
 import { SocialCreateTile } from "@/components/social/social-create-sheet";
@@ -119,6 +130,7 @@ import { useAccountMenuOpen } from "./account-sheet";
 import { AskAiOverlayProvider, useAskAiOverlay } from "./ask-ai-overlay";
 import { HousePathProvider, useHouseClient } from "./house-client-shell";
 import { HouseLink } from "./house-link";
+import { MessagesAppHeader } from "./messages-app-header";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
 const miniDocument = minimalDocument();
@@ -245,6 +257,15 @@ function findLink(href: string): MiniNode {
     stack.push(...node.childNodes);
   }
   throw new Error(`no link to ${href}`);
+}
+
+function findByAttribute(name: string): MiniNode {
+  const stack: MiniNode[] = [miniDocument.body as unknown as MiniNode];
+  for (let node = stack.pop(); node; node = stack.pop()) {
+    if (node.nodeType === 1 && node.hasAttribute?.(name)) return node;
+    stack.push(...node.childNodes);
+  }
+  throw new Error(`no element with ${name}`);
 }
 
 type FakeClick = {
@@ -745,6 +766,65 @@ describe("Ask AI history rows", () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(nav.push).not.toHaveBeenCalled();
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Ask AI landing and thread header keep the screen's query", () => {
+  const THREAD = "7c1d9e4b-3a2f-4b6c-8d5e-1f0a2b3c4d5e";
+
+  // The overlay over a screen the shell reached by a warm hop, with its
+  // own query. Next still thinks it shows /social.
+  function renderOverScreen(node: ReactNode) {
+    houseSyncPainted(["/social", "/social/profile"]);
+    render(createElement(HousePathProvider, null, createElement(HouseProbe), node));
+    warmHop("/social/profile?tab=media");
+  }
+
+  function renderThreadHeader() {
+    renderOverScreen(
+      createElement(
+        AskAssistantChromeProvider,
+        // children ride as the third argument (react/no-children-prop).
+        {
+          initialChrome: { id: THREAD, title: "Delivery status", pinned_at: null },
+        } as ComponentProps<typeof AskAssistantChromeProvider>,
+        createElement(MessagesAppHeader, { surface: "ask-globee-thread" }),
+      ),
+    );
+  }
+
+  it("thread header Back opens the landing on that screen, through Next", () => {
+    renderThreadHeader();
+
+    const event = click(findLink("?ai=1"));
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(nav.push).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledWith("/social/profile?tab=media&ai=1");
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+  });
+
+  it("thread header Back leaves a modified click to the browser", () => {
+    renderThreadHeader();
+
+    const event = click(findLink("?ai=1"), { metaKey: true });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("a new conversation from the landing opens on that screen, through Next", async () => {
+    askActions.startedId = THREAD;
+    renderOverScreen(createElement(AskGlobeeLanding));
+
+    click(findByAttribute("data-ask-globee-chip"));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(nav.push).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledWith(`/social/profile?tab=media&ai=${THREAD}`);
     expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
   });
 });
