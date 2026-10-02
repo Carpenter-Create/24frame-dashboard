@@ -13,7 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowsIn, ArrowsOut } from "@phosphor-icons/react";
 
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
@@ -48,6 +48,7 @@ import { APP_SHEET_SCRIM_CLASS } from "@/lib/house-sheet";
 import { AskAssistantChromeProvider, useAskGlobeeChrome } from "@/components/messages/ask-globee-chrome";
 import { Close44 } from "./house";
 import { HouseAiMark } from "./house-ai-mark";
+import { useHousePathname } from "./house-client-shell";
 
 const AskGlobeeLanding = dynamic(() =>
   import("@/components/messages/ask-globee-landing").then((m) => m.AskGlobeeLanding),
@@ -93,7 +94,9 @@ export function useAskAiOverlay() {
 }
 
 export function AskAiOverlayProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+  // Shell path, not Next's. A warm hop never tells Next it moved, so
+  // usePathname would open and close the overlay on the previous screen.
+  const pathname = useHousePathname();
   const router = useRouter();
   const [optimistic, setOptimistic] = useState<AskAiOverlayState | null>(() => {
     const url = readAskAiOverlay(currentAskAiSearch());
