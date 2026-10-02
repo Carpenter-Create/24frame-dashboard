@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 
+import { pickActiveMembership } from "@/lib/active-org";
 import {
   AGGREGATION_VIEW_AS_COOKIE,
   applyAggregationViewAs,
@@ -81,7 +82,7 @@ export const getOrgContext = cache(async (): Promise<OrgContext | null> => {
   );
 
   const cookieOrg = cookieStore.get("gc_active_org")?.value ?? null;
-  const activeRow = rows.find((m) => m.organizations.id === cookieOrg) ?? rows[0] ?? null;
+  const activeRow = pickActiveMembership(rows, cookieOrg);
   const activeRole = activeRow?.role ?? null;
   const isGcStaff = !!gcStaffRes.data;
 
