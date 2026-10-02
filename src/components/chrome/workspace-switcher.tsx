@@ -166,13 +166,15 @@ function WorkspaceWaffleHomeExit({
         // refuses the previous workspace body and will not refresh,
         // so /home stays chrome + dock with an empty center.
         // Unselected tiles own the hop the same way, then close.
+        // Modified clicks stay on the anchor, same as tiles.
+        if (houseNavIgnorePendingClick(event)) return;
         workspaceSwitcherPersistLane("home");
         markPending(dest, event);
         onNavigate();
         if (event.defaultPrevented) return;
-        if (house?.navigateOwned(dest, event)) return;
+        if (!house?.navigateOwned(dest, event)) router.push(dest);
+        // Prevent either way, or HouseLink owns the hop a second time.
         event.preventDefault();
-        router.push(dest);
       }}
     >
       <HouseNavPendingProbe href={dest} onPending={markPending} />

@@ -35,10 +35,18 @@ vi.mock("next/navigation", () => {
 vi.mock("next/link", async () => {
   const { createElement } = await import("react");
   const NEXT_ONLY_PROPS = new Set(["prefetch", "scroll", "replace"]);
-  type LinkClick = { defaultPrevented: boolean; preventDefault(): void };
+  type LinkClick = {
+    defaultPrevented: boolean;
+    preventDefault(): void;
+    metaKey: boolean;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+  };
   return {
     // Same click contract as next/dist/client/app-dir/link.js: the caller's
     // onClick first, then a Next navigation unless the click was prevented.
+    // Modified clicks are left to the browser (a new tab).
     default: function Link(
       props: { href: string; onClick?: (event: LinkClick) => void; children?: ReactNode } & Record<
         string,
@@ -57,6 +65,7 @@ vi.mock("next/link", async () => {
           onClick: (event: LinkClick) => {
             onClick?.(event);
             if (event.defaultPrevented) return;
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
             nav.push(href);
           },
@@ -87,6 +96,7 @@ import { useAccountMenuOpen } from "./account-sheet";
 import { AskAiOverlayProvider, useAskAiOverlay } from "./ask-ai-overlay";
 import { HousePathProvider, useHouseClient } from "./house-client-shell";
 import { HouseLink } from "./house-link";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 
 const miniDocument = minimalDocument();
 // The shell's instanceof checks need DOM classes. Every mini node is one class.
@@ -118,7 +128,14 @@ function closest(this: MiniNode, selector: string): MiniNode | null {
   return closestFrom(this, selector);
 }
 
-const miniElementProto = MiniElement.prototype as { closest?: typeof closest };
+// The open waffle measures its trigger and the chrome above it.
+const ZERO_RECT = { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0, x: 0, y: 0 };
+
+const miniElementProto = MiniElement.prototype as {
+  closest?: typeof closest;
+  getBoundingClientRect?: () => typeof ZERO_RECT;
+};
+const miniDocumentQueries = miniDocument as unknown as { querySelectorAll?: () => never[] };
 
 // The shell reads location and writes history. Node has neither.
 const shellLocation = { origin: "https://app.test", pathname: "/social", search: "" };
@@ -176,8 +193,9 @@ function warmHop(href: string) {
   });
 }
 
+// Searches body, so sheets portaled out of the React root are found too.
 function findLink(href: string): MiniNode {
-  const stack: MiniNode[] = [container as unknown as MiniNode];
+  const stack: MiniNode[] = [miniDocument.body as unknown as MiniNode];
   for (let node = stack.pop(); node; node = stack.pop()) {
     if (node.tagName === "A" && node.getAttribute?.("href") === href) return node;
     stack.push(...node.childNodes);
@@ -202,9 +220,13 @@ type FakeClick = {
 
 // In production React's root is document (next/dist/client/app-index.js),
 // so stopPropagation in the shell's capture listener also cancels React's
-// onClick dispatch. Same order here: document listeners first, then the
-// React root unless propagation was stopped.
-function click(target: MiniNode): FakeClick {
+// onClick dispatch. Same order here: document listeners first, then React —
+// body for portaled sheets, the root for everything else (each ignores the
+// other's targets) — unless propagation was stopped.
+function click(
+  target: MiniNode,
+  modifiers: Partial<Pick<FakeClick, "altKey" | "ctrlKey" | "metaKey" | "shiftKey">> = {},
+): FakeClick {
   const event: FakeClick = {
     type: "click",
     target,
@@ -213,6 +235,7 @@ function click(target: MiniNode): FakeClick {
     ctrlKey: false,
     metaKey: false,
     shiftKey: false,
+    ...modifiers,
     timeStamp: 0,
     defaultPrevented: false,
     propagationStopped: false,
@@ -225,7 +248,9 @@ function click(target: MiniNode): FakeClick {
   };
   act(() => {
     miniDocument.dispatchEvent(event as unknown as Event);
-    if (!event.propagationStopped) container.dispatchEvent(event as unknown as Event);
+    if (event.propagationStopped) return;
+    miniDocument.body.dispatchEvent(event as unknown as Event);
+    container.dispatchEvent(event as unknown as Event);
   });
   return event;
 }
@@ -243,6 +268,9 @@ beforeEach(() => {
   probe.ai = null;
   probe.menu = null;
   miniElementProto.closest = closest;
+  miniElementProto.getBoundingClientRect = () => ZERO_RECT;
+  miniDocumentQueries.querySelectorAll = () => [];
+  vi.stubGlobal("innerWidth", 390);
   vi.stubGlobal("Element", MiniElement);
   vi.stubGlobal("HTMLElement", MiniElement);
   vi.stubGlobal("HTMLAnchorElement", MiniElement);
@@ -264,7 +292,50 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   delete miniElementProto.closest;
+  delete miniElementProto.getBoundingClientRect;
+  delete miniDocumentQueries.querySelectorAll;
   vi.unstubAllGlobals();
+});
+
+describe("waffle Home exit on a warm hop", () => {
+  function renderWaffle() {
+    houseSyncPainted(["/social", "/home"]);
+    render(
+      createElement(
+        HousePathProvider,
+        null,
+        createElement(HouseProbe),
+        createElement(WorkspaceSwitcher, {
+          current: "social",
+          presentation: "waffle",
+          defaultOpen: true,
+        }),
+      ),
+    );
+  }
+
+  it("pushes history once and closes the sheet", () => {
+    renderWaffle();
+
+    const event = click(findLink("/home"));
+
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+    expect(shellHistory.pushState.mock.calls[0]?.[2]).toBe("/home");
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+    expect(probe.house?.pathname).toBe("/home");
+    expect(() => findLink("/home")).toThrow();
+  });
+
+  it("leaves a modified click to the browser", () => {
+    renderWaffle();
+
+    const event = click(findLink("/home"), { metaKey: true });
+
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
 });
 
 describe("warm hops keep the link's own click handler", () => {
