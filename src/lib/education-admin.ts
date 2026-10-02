@@ -3,8 +3,9 @@ import { UNPAGINATED_MAX, rangeFor } from "@/lib/list-bounds";
 import { COURSE_MEMBER_SELECT, outlineForDisplay } from "@/lib/courses";
 import type { CourseDetail, CourseLessonRow, CourseModuleRow, CourseRow } from "@/lib/courses";
 
-// Staff-only outline. Uses the service-role client after a gc_staff check
-// in the operator action/page. Course RLS stays free of is_gc_staff.
+// Staff-only outline. Uses the service-role client after a gc_staff check:
+// isEducationStaff in the manage layout and course page, and
+// requireEducationStaff in the actions. Course RLS stays free of is_gc_staff.
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
