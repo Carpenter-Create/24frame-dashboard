@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { USER_MENU, USER_MENU_ACTIONS, USER_MENU_PHONE_ACTIONS } from "@/lib/user-menu";
@@ -47,6 +50,8 @@ import {
   ACCOUNT_SHEET_STAGE_CLASS,
   ACCOUNT_SHEET_SURFACE_CLASS,
   ACCOUNT_SHEET_VERSION_CLASS,
+  ACCOUNT_MENU_ROOT_ATTR,
+  accountMenuDestinationClick,
   accountSheetIdentity,
   destinationClickClosesSheet,
 } from "./account-sheet";
@@ -354,5 +359,56 @@ describe("account sheet destination close", () => {
     expect(destinationClickClosesSheet("/", "/settings/organization")).toBe(false);
     expect(destinationClickClosesSheet("/help", "/help")).toBe(true);
     expect(destinationClickClosesSheet("/settings/profile", "/help")).toBe(false);
+  });
+});
+
+type ClickNode = {
+  parentNode?: ClickNode | null;
+  tagName?: string;
+  getAttribute?: (name: string) => string | null;
+};
+
+function clickNode(tagName: string, attrs: Record<string, string>, parent: ClickNode | null): ClickNode {
+  return {
+    tagName,
+    parentNode: parent,
+    getAttribute: (name) => (Object.prototype.hasOwnProperty.call(attrs, name) ? (attrs[name] ?? null) : null),
+  };
+}
+
+describe("account menu destination click", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+
+  it("treats the Theme glyph inside the menu as the Theme destination", () => {
+    const root = clickNode("DIV", { [ACCOUNT_MENU_ROOT_ATTR]: "" }, null);
+    const link = clickNode("A", { href: "/settings/preferences/theme" }, root);
+    const glyph = clickNode("svg", {}, link);
+    expect(accountMenuDestinationClick(glyph as unknown as EventTarget)).toBe(true);
+    expect(accountMenuDestinationClick(link as unknown as EventTarget)).toBe(true);
+  });
+
+  it("ignores clicks that are not a menu destination", () => {
+    const root = clickNode("DIV", { [ACCOUNT_MENU_ROOT_ATTR]: "" }, null);
+    const outside = clickNode("A", { href: "/settings/preferences/theme" }, null);
+    const logout = clickNode("BUTTON", {}, root);
+    const hash = clickNode("A", { href: "#theme" }, root);
+    const text = clickNode("", {}, clickNode("A", { href: "/help" }, root));
+    expect(accountMenuDestinationClick(outside as unknown as EventTarget)).toBe(false);
+    expect(accountMenuDestinationClick(logout as unknown as EventTarget)).toBe(false);
+    expect(accountMenuDestinationClick(hash as unknown as EventTarget)).toBe(false);
+    expect(accountMenuDestinationClick(text as unknown as EventTarget)).toBe(true);
+    expect(accountMenuDestinationClick(null)).toBe(false);
+  });
+
+  it("closes from document capture and follows the house path, not Next's pathname", () => {
+    const src = readFileSync(join(here, "../components/chrome/account-sheet.tsx"), "utf8");
+    expect(src).toContain("const pathname = useHousePathname()");
+    expect(src).not.toContain("const pathname = usePathname()");
+    expect(src).toContain('document.addEventListener("click", onClick, true)');
+    expect(src).toContain("accountMenuDestinationClick(event.target)");
+    expect(src).toContain("houseNavIgnorePendingClick(event)");
+    expect(src).toContain("event.defaultPrevented");
+    expect(src).toContain("queueMicrotask(closeIfOwned)");
+    expect(src).toContain("ACCOUNT_MENU_ROOT_ATTR");
   });
 });

@@ -9,7 +9,6 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { usePathname } from "next/navigation";
 import { CaretRight, Gear, Moon, Question, SignOut, Sun } from "@phosphor-icons/react";
 
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
@@ -28,6 +27,7 @@ import {
   SheetGroup,
   SheetGroupItem,
 } from "./house";
+import { useHousePathname } from "./house-client-shell";
 import { HouseLink } from "./house-link";
 import {
   ACCOUNT_MENU_DROPDOWN_ACCENT_CLASS,
@@ -69,9 +69,12 @@ import {
   ACCOUNT_SHEET_STAGE_CLASS,
   ACCOUNT_SHEET_SURFACE_CLASS,
   ACCOUNT_SHEET_VERSION_CLASS,
+  ACCOUNT_MENU_ROOT_ATTR,
+  accountMenuDestinationClick,
   accountSheetIdentity,
   destinationClickClosesSheet,
 } from "@/lib/account-sheet";
+import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
 import { HOUSE_HEADER_TRAILING_AVATAR_CLASS } from "@/lib/house-lead-chrome";
 import { menuHostClass } from "@/lib/menu-host";
 import { APP_SHEET_SCRIM_CLASS, SHEET_GROUP_CHEVRON_CLASS } from "@/lib/house-sheet";
@@ -134,7 +137,10 @@ function AccountMenuTrigger({
 }
 
 function useAccountMenuOpen() {
-  const pathname = usePathname();
+  // Owned hops pushState with __NA and leave Next's pathname where it
+  // was. Keying this menu to that pathname left the full-screen host
+  // mounted over the Theme picker after the first visit.
+  const pathname = useHousePathname();
   const [openedOn, setOpenedOn] = useState<string | null>(null);
   const open = openedOn !== null && openedOn === pathname;
   return {
@@ -150,11 +156,29 @@ function useAccountMenuDismiss(onClose: () => void, lockOverflow: boolean) {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
+    // Capture on document, not the menu node. The house shell listener
+    // calls stopPropagation on an owned Theme click before the event
+    // reaches the link, so the row onClick never runs. Other document
+    // capture listeners still run. Close only after that listener has
+    // preventDefault — the shell already owns the hop. A microtask sees
+    // the flag even when this listener was registered first. Closing
+    // inside the click would unmount the link before a real Next hop.
+    const onClick = (event: MouseEvent) => {
+      if (houseNavIgnorePendingClick(event)) return;
+      if (!accountMenuDestinationClick(event.target)) return;
+      const closeIfOwned = () => {
+        if (event.defaultPrevented) onClose();
+      };
+      if (event.defaultPrevented) closeIfOwned();
+      else queueMicrotask(closeIfOwned);
+    };
     document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onClick, true);
     const previous = document.body.style.overflow;
     if (lockOverflow) document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClick, true);
       if (lockOverflow) document.body.style.overflow = previous;
     };
   }, [onClose, lockOverflow]);
@@ -668,6 +692,7 @@ export function AccountSheet({
       aria-modal="true"
       aria-label={ACCOUNT_SHEET.sheet}
       data-account-sheet=""
+      {...{ [ACCOUNT_MENU_ROOT_ATTR]: "" }}
       data-account-menu-face="main"
       data-house-overlay-host="app-sheet"
       data-menu-family="A"
@@ -718,6 +743,7 @@ export function AccountMenuDropdown({
       aria-modal="true"
       aria-label={ACCOUNT_SHEET.sheet}
       data-user-menu-desktop-panel=""
+      {...{ [ACCOUNT_MENU_ROOT_ATTR]: "" }}
       data-house-overlay-host="menu-surface"
       data-menu-family="desktop"
       className={ACCOUNT_MENU_DROPDOWN_HOST_CLASS}

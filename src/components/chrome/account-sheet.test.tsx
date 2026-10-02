@@ -14,6 +14,7 @@ vi.mock("@/app/actions", () => ({ signOut: vi.fn() }));
 
 import { NAV, GC_NAV, MOBILE_NAV } from "@/lib/nav";
 import {
+  ACCOUNT_MENU_ROOT_ATTR,
   ACCOUNT_MENU_DROPDOWN_ACCENT_CLASS,
   ACCOUNT_MENU_DROPDOWN_DISMISS_CLASS,
   ACCOUNT_MENU_DROPDOWN_HOST_CLASS,
@@ -749,6 +750,9 @@ describe("AccountMenuDropdown Coinbase grammar", () => {
     expect(src).toContain("accountMenuDropdownAlignEnd");
     expect(src).toContain("useDesktopAccountMenuAlignEnd");
     expect(src).toContain("useAccountMenuDismiss(onClose, false)");
+    expect(src).toContain("useHousePathname()");
+    expect(html).toContain(`${ACCOUNT_MENU_ROOT_ATTR}=""`);
+    expect(renderSheet()).toContain(`${ACCOUNT_MENU_ROOT_ATTR}=""`);
     expect(tokens).toContain("--accent: #1769ff;");
     expect(renderSheet()).toContain("data-menu-surface-accent");
     expect(renderSheet()).toContain("data-sheet-group");
