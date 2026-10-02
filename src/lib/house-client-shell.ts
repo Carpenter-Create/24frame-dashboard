@@ -29,6 +29,16 @@ export const HOUSE_CLIENT_SHELL = {
 /** Blank outlet recovery. Retries until a slot or ingress paints. */
 export const HOUSE_BLANK_OUTLET_RETRY_MS = 50;
 
+/**
+ * Cross-land hop left the shell on the new URL with no committed
+ * screen. Immediate refresh aborts the in-flight RSC and must not
+ * accept the previous workspace as this page. One later refresh
+ * loads the route when that hop never paints — waffle ← Home
+ * unmounts its link, Next can drop the fetch, and Home's loading
+ * shell is an empty box, so chrome stays and the body stays white.
+ */
+export const HOUSE_OUTLET_RECOVERY_MS = 800;
+
 const HOUSE_EXACT_SCREENS = new Set<string>([
   SOCIAL_ROUTES.home,
   SOCIAL_ROUTES.explore,
@@ -511,6 +521,27 @@ export function houseBlankOutlet(
   if (activeKey !== nextKey) return "load";
   // Next is already on this URL and the slot is empty. Revalidate, then accept the settled tree.
   return "refresh";
+}
+
+/**
+ * True when the URL matches and the center still has no screen.
+ * Caller schedules one delayed refresh. Do not refresh on the same
+ * tick — that aborts a healthy hop. Home ingress counts: its
+ * loading shell paints nothing, so a hop that never leaves it is
+ * the blank Home page. Other workspaces show a real skeleton.
+ */
+export function houseOutletNeedsRecovery(input: {
+  displayKey: string | null;
+  showIngress: boolean;
+  waitForSlot: boolean;
+  activeKey: string;
+  nextKey: string;
+}): boolean {
+  if (input.displayKey !== null) return false;
+  if (input.activeKey !== input.nextKey) return false;
+  if (input.waitForSlot) return true;
+  const path = input.activeKey.split("?")[0] || "/";
+  return input.showIngress && houseWorkspaceLandKey(path) === HOME_ROOT;
 }
 
 export function houseApplyCachedChild<T>(input: {

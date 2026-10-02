@@ -114,6 +114,8 @@ function WorkspaceWaffleHomeExit({
   chromePath: string;
   onNavigate: () => void;
 }) {
+  const router = useRouter();
+  const house = useHouseClient();
   const { markPending } = useHouseNavPending();
   const dest = workspaceWaffleHomeDest(chromePath, current);
   const onHome = dest === null;
@@ -153,9 +155,18 @@ function WorkspaceWaffleHomeExit({
       data-workspace-waffle-home=""
       className={className}
       onClick={(event) => {
+        // Sheet close unmounts this anchor. A <Link> hop is owned by
+        // that instance; unmount drops the fetch. The cache then
+        // refuses the previous workspace body and will not refresh,
+        // so /home stays chrome + dock with an empty center.
+        // Tiles already router.push. Home must too.
         workspaceSwitcherPersistLane("home");
         markPending(dest, event);
         onNavigate();
+        if (event.defaultPrevented) return;
+        if (house?.navigateOwned(dest, event)) return;
+        event.preventDefault();
+        router.push(dest);
       }}
     >
       <HouseNavPendingProbe href={dest} onPending={markPending} />
