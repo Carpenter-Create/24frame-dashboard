@@ -156,6 +156,10 @@ describe("workspace waffle header control", () => {
     expect(exitFn).toContain("event.preventDefault()");
     expect(exitFn).toContain("router.push(dest)");
     expect(exitFn).toContain("house?.navigateOwned(dest, event)");
+    const ignoreAt = exitFn.indexOf("houseNavIgnorePendingClick(event)");
+    const preventAt = exitFn.indexOf("event.preventDefault()");
+    expect(ignoreAt).toBeGreaterThan(-1);
+    expect(preventAt).toBeGreaterThan(ignoreAt);
     expect(exitFn).not.toMatch(/<House[\s/>]/);
     expect(exitFn).not.toContain("CaretLeft");
     expect(exitFn).not.toContain("lucide-react");

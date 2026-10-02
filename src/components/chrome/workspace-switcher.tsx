@@ -20,7 +20,11 @@ import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track"
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { overviewLeadActiveIndex, overviewLeadSelected } from "@/lib/overview";
 import { clampWorkspaceMode, resolveWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
-import { prefetchHrefList, type HouseNavClickLike } from "@/lib/house-nav-pending";
+import {
+  houseNavIgnorePendingClick,
+  prefetchHrefList,
+  type HouseNavClickLike,
+} from "@/lib/house-nav-pending";
 import {
   HouseNavPendingProbe,
   useHouseNavPending,
@@ -165,6 +169,9 @@ function WorkspaceWaffleHomeExit({
         onNavigate();
         if (event.defaultPrevented) return;
         if (house?.navigateOwned(dest, event)) return;
+        // navigateOwned returns false for modifier clicks so the anchor
+        // can open /home in a new tab. Do not turn those into router.push.
+        if (houseNavIgnorePendingClick(event)) return;
         event.preventDefault();
         router.push(dest);
       }}
