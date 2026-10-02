@@ -32,6 +32,12 @@ import {
   WORKSPACE_SWITCHER_MENU_GAP_PX,
   workspaceSwitcherOptions,
   WORKSPACE_WAFFLE_FORBIDDEN_LABELS,
+  WORKSPACE_WAFFLE_HOME_CHECK_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS,
+  WORKSPACE_WAFFLE_HOME_ICON_CLASS,
+  WORKSPACE_WAFFLE_ICON_CLASS,
   WORKSPACE_WAFFLE_ORDER,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
   WORKSPACE_WAFFLE_TILE_LABEL_CLASS,
@@ -201,6 +207,23 @@ describe("workspace switcher lock", () => {
       ...workspaceWaffleTiles().map((tile) => tile.href),
     ]);
     expect(WORKSPACE_WAFFLE_HOME).toEqual({ id: "home", label: "Home", href: "/home" });
+    expect(WORKSPACE_WAFFLE_HOME.label).not.toBe("Industry news");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("t-body-sm");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("self-start");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("w-fit");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toContain("min-h-");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toMatch(/bg-/);
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toContain("rounded-");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS).toBe("text-ink-3");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS).toBe("text-ink-2");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS).not.toMatch(/bg-/);
+    expect(WORKSPACE_WAFFLE_HOME_ICON_CLASS).toBe("size-4 shrink-0");
+    expect(WORKSPACE_WAFFLE_ICON_CLASS).toBe("size-6 shrink-0");
+    expect(WORKSPACE_WAFFLE_HOME_CHECK_CLASS).toBe("size-3 shrink-0 text-ink-3");
+    expect(WORKSPACE_WAFFLE_HOME_CHECK_CLASS).not.toContain("text-accent");
+    expect(src).not.toContain("WORKSPACE_WAFFLE_HOME_ROW_CLASS");
+    expect(src).not.toContain("min-h-12");
     expect(workspaceWaffleHomeDest("/social", "social")).toBe("/home");
     expect(workspaceWaffleHomeDest("/social/explore", "social")).toBe("/home");
     expect(workspaceWaffleHomeDest("/education", "education")).toBe("/home");

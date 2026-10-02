@@ -35,6 +35,12 @@ import {
   WORKSPACE_SWITCHER_ABSENT,
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_WAFFLE_FORBIDDEN_LABELS,
+  WORKSPACE_WAFFLE_GRID_CLASS,
+  WORKSPACE_WAFFLE_HOME_CHECK_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS,
+  WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS,
+  WORKSPACE_WAFFLE_HOME_ICON_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   workspaceWaffleTiles,
@@ -51,6 +57,15 @@ const userMenuSrc = readFileSync(join(here, "../../lib/user-menu.ts"), "utf8");
 
 function tileIds(html: string): string[] {
   return [...html.matchAll(/data-workspace-waffle-tile="([^"]+)"/g)].map((row) => row[1] ?? "");
+}
+
+function homeExit(html: string): string {
+  const marker = 'data-workspace-waffle-home=""';
+  const start = html.indexOf(marker);
+  const tagStart = html.lastIndexOf("<", start);
+  const closer = html.startsWith("<button", tagStart) ? "</button>" : "</a>";
+  const end = html.indexOf(closer, tagStart);
+  return html.slice(tagStart, end + closer.length);
 }
 
 describe("workspace waffle header control", () => {
@@ -121,8 +136,31 @@ describe("workspace waffle header control", () => {
     expect(sheet).toContain('data-workspace-waffle-home=""');
     expect(sheet).toContain('href="/home"');
     expect(sheet).toContain(">Home<");
+    expect(sheet).not.toContain("Industry news");
     expect(sheet.indexOf("data-workspace-waffle-home")).toBeLessThan(
+      sheet.indexOf("data-workspace-switcher-header"),
+    );
+    expect(sheet.indexOf("data-workspace-switcher-header")).toBeLessThan(
       sheet.indexOf("data-workspace-waffle-grid"),
+    );
+    const home = homeExit(sheet);
+    expect(home).toContain(WORKSPACE_WAFFLE_HOME_EXIT_CLASS);
+    expect(home).toContain(WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS);
+    expect(home).toContain(WORKSPACE_WAFFLE_HOME_ICON_CLASS);
+    expect(home).not.toContain(WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS);
+    expect(home).not.toContain("min-h-12");
+    expect(home).not.toContain("bg-surface-muted");
+    expect(home).not.toContain("text-accent");
+    expect(home).not.toContain("data-appearance-check");
+    expect(home).not.toContain('role="option"');
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("grid-cols-2");
+    const panelJsx = src.slice(
+      src.indexOf("data-workspace-switcher-popover"),
+      src.indexOf("data-workspace-switcher-sheet"),
+    );
+    expect(panelJsx).not.toContain("WorkspaceWaffleHomeExit");
+    expect(src.slice(src.indexOf("data-workspace-switcher-sheet"))).toContain(
+      "WorkspaceWaffleHomeExit",
     );
     expect(html).toContain('href="/aggregation/dashboard"');
     expect(html).toContain('href="/education"');
@@ -161,6 +199,14 @@ describe("workspace waffle header control", () => {
       expect(landedSheet).toContain('data-workspace-waffle-home-current=""');
       expect(landedSheet).not.toContain('href="/home"');
       expect(landedSheet).toContain(">Home<");
+      const landedHome = homeExit(landedSheet);
+      expect(landedHome).toContain(WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS);
+      expect(landedHome).toContain(WORKSPACE_WAFFLE_HOME_CHECK_CLASS);
+      expect(landedHome).toContain("data-appearance-check");
+      expect(landedHome).not.toContain("bg-surface-muted");
+      expect(landedHome).not.toContain("text-accent");
+      expect(landedHome).not.toContain("min-h-12");
+      expect(landedHome).not.toContain('role="option"');
 
       navigation.pathname = "/home/news";
       const news = renderToStaticMarkup(
