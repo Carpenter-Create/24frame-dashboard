@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { HouseLink } from "@/components/chrome/house-link";
 
 import { HouseAiMark } from "@/components/chrome/house-ai-mark";
 import { cn } from "@/lib/cn";
@@ -38,7 +38,7 @@ export function SocialFrameAiOpen({
   storyId?: string;
 }) {
   return (
-    <Link
+    <HouseLink
       href={socialFrameAiThreadHref({ postId, storyId })}
       className={className}
       data-social-frame-ai=""
@@ -47,6 +47,6 @@ export function SocialFrameAiOpen({
     >
       <SocialFrameAiFace className={faceClassName} />
       <span className={labelClassName}>{label}</span>
-    </Link>
+    </HouseLink>
   );
 }

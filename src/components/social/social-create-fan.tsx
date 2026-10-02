@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import { HouseLink } from "@/components/chrome/house-link";
 import { Broadcast, Image, PencilSimple, type Icon } from "@phosphor-icons/react";
 
 import { useSocialCreateMediaPick } from "@/components/social/social-create-media";
@@ -189,7 +189,7 @@ export function SocialCreateFan({
         );
         if (tile.id === "media") {
           return (
-            <Link
+            <HouseLink
               key={tile.id}
               href={tile.href}
               role="menuitem"
@@ -204,11 +204,11 @@ export function SocialCreateFan({
               }}
             >
               {body}
-            </Link>
+            </HouseLink>
           );
         }
         return (
-          <Link
+          <HouseLink
             key={tile.id}
             href={tile.href}
             role="menuitem"
@@ -224,7 +224,7 @@ export function SocialCreateFan({
             }}
           >
             {body}
-          </Link>
+          </HouseLink>
         );
       })}
     </div>

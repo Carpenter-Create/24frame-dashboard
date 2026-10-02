@@ -101,7 +101,14 @@ vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
 }));
 
 import { MessageLink } from "@/app/(app)/aggregation/messages/message-link";
-import { houseSyncPainted, resetHousePaintedForTests } from "@/lib/house-client-shell";
+import { NewsSourceChips } from "@/components/news/news-sources-filter";
+import { SocialCreateFan } from "@/components/social/social-create-fan";
+import { SocialCreateTile } from "@/components/social/social-create-sheet";
+import { SocialFrameAiOpen } from "@/components/social/social-frame-ai-face";
+import { houseHrefKey, houseSyncPainted, resetHousePaintedForTests } from "@/lib/house-client-shell";
+import { NEWS_HREF, NEWS_SOURCE_FILTER_SOURCES, newsHistoryHref } from "@/lib/news";
+import { SOCIAL_CREATE_TILES } from "@/lib/social-create-sheet";
+import { socialFrameAiThreadHref } from "@/lib/social-frame-ai";
 import { minimalDocument } from "@/test/minimal-document";
 import { useAccountMenuOpen } from "./account-sheet";
 import { AskAiOverlayProvider, useAskAiOverlay } from "./ask-ai-overlay";
@@ -145,6 +152,8 @@ const ZERO_RECT = { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0, x
 const miniElementProto = MiniElement.prototype as {
   closest?: typeof closest;
   getBoundingClientRect?: () => typeof ZERO_RECT;
+  click?: () => void;
+  querySelectorAll?: () => never[];
 };
 const miniDocumentQueries = miniDocument as unknown as { querySelectorAll?: () => never[] };
 
@@ -189,6 +198,25 @@ function AccountMenuProbe() {
     probe.menu = menu;
   });
   return null;
+}
+
+const createMiniElement = miniDocument.createElement;
+
+// The Create fan writes CSS custom properties (style.setProperty) and the
+// News track queries its items. Only those tests opt in.
+function richerMiniElements() {
+  miniElementProto.querySelectorAll = () => [];
+  miniDocument.createElement = ((tag: string) => {
+    const el = createMiniElement.call(miniDocument, tag);
+    const style = el.style as Record<string, unknown>;
+    style.setProperty = (name: string, value: string) => {
+      style[name] = value;
+    };
+    style.removeProperty = (name: string) => {
+      delete style[name];
+    };
+    return el;
+  }) as typeof miniDocument.createElement;
 }
 
 let container: ReturnType<typeof miniDocument.createElement>;
@@ -305,6 +333,9 @@ afterEach(() => {
   container.remove();
   delete miniElementProto.closest;
   delete miniElementProto.getBoundingClientRect;
+  delete miniElementProto.click;
+  delete miniElementProto.querySelectorAll;
+  miniDocument.createElement = createMiniElement;
   delete miniDocumentQueries.querySelectorAll;
   vi.unstubAllGlobals();
 });
@@ -526,5 +557,116 @@ describe("24Frame AI after a warm hop", () => {
 
     expect(nav.replace).toHaveBeenCalledTimes(1);
     expect(nav.replace).toHaveBeenCalledWith("/social/profile");
+  });
+});
+
+describe("Social, AI and News links keep their click handler on warm hops", () => {
+  const WRITE = SOCIAL_CREATE_TILES.find((tile) => tile.id === "write")!;
+  const MEDIA = SOCIAL_CREATE_TILES.find((tile) => tile.id === "media")!;
+
+
+  function renderInShell(node: ReactNode) {
+    render(createElement(HousePathProvider, null, createElement(HouseProbe), node));
+  }
+
+  function renderFan() {
+    richerMiniElements();
+    renderInShell(
+      createElement(SocialCreateFan, {
+        defaultOpen: true,
+        trigger: createElement("button", { type: "button" }, "Create"),
+      }),
+    );
+  }
+
+  it("Create sheet Write tile: runs onPick, then the shell owns the hop", () => {
+    houseSyncPainted(["/social", houseHrefKey(WRITE.href)]);
+    const onPick = vi.fn();
+    renderInShell(createElement(SocialCreateTile, { tile: WRITE, onPick }));
+
+    const event = click(findLink(WRITE.href));
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("Create sheet Media tile: opens the picker and never hops", () => {
+    houseSyncPainted(["/social", houseHrefKey(MEDIA.href)]);
+    const pick = vi.fn();
+    miniElementProto.click = pick;
+    renderInShell(createElement(SocialCreateTile, { tile: MEDIA }));
+
+    const event = click(findLink(MEDIA.href));
+
+    expect(pick).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("Create fan Write item: closes the fan, then the shell owns the hop", () => {
+    houseSyncPainted(["/social", houseHrefKey(WRITE.href)]);
+    renderFan();
+    expect(findLink(WRITE.href).getAttribute?.("data-open")).toBe("");
+
+    click(findLink(WRITE.href));
+
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(findLink(WRITE.href).getAttribute?.("data-open")).toBeNull();
+  });
+
+  it("Create fan Media item: opens the picker and never hops", () => {
+    houseSyncPainted(["/social", houseHrefKey(MEDIA.href)]);
+    const pick = vi.fn();
+    miniElementProto.click = pick;
+    renderFan();
+
+    const event = click(findLink(MEDIA.href));
+
+    expect(pick).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("24Frame AI face: runs onOpen, then the shell owns the hop", () => {
+    const href = socialFrameAiThreadHref();
+    houseSyncPainted(["/social", houseHrefKey(href)]);
+    const onOpen = vi.fn();
+    renderInShell(
+      createElement(SocialFrameAiOpen, {
+        className: "",
+        faceClassName: "",
+        label: "24Frame AI",
+        labelClassName: "",
+        marker: {},
+        onOpen,
+      }),
+    );
+
+    click(findLink(href));
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("News source pill: selects in place and never hops", () => {
+    const source = NEWS_SOURCE_FILTER_SOURCES[0]!;
+    const href = newsHistoryHref([source.id]);
+    houseSyncPainted(["/social", NEWS_HREF]);
+    const onSelect = vi.fn();
+    richerMiniElements();
+    renderInShell(createElement(NewsSourceChips, { selected: [], onSelect }));
+
+    const event = click(findLink(href));
+
+    expect(onSelect).toHaveBeenCalledWith([source.id]);
+    expect(event.defaultPrevented).toBe(true);
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
   });
 });

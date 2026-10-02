@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { HouseLink } from "@/components/chrome/house-link";
 import type { MouseEvent } from "react";
 
 import { SegmentedTrack } from "@/components/ui/segmented-track";
@@ -65,7 +65,7 @@ export function NewsSourceChips({
             const on = segmentedItemOn(index, selectedIndex);
             const next = selectNewsSourceFilter(option.id);
             return (
-              <Link
+              <HouseLink
                 key={option.id}
                 href={newsHistoryHref(next)}
                 scroll={false}
@@ -81,7 +81,7 @@ export function NewsSourceChips({
                 onClick={(event) => onSourceClick(event, () => onSelect(next))}
               >
                 {option.label}
-              </Link>
+              </HouseLink>
             );
           })
         }
