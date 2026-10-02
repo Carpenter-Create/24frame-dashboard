@@ -22,6 +22,8 @@ import {
   WORKSPACE_SWITCHER,
   WORKSPACE_SWITCHER_ABSENT,
   WORKSPACE_SWITCHER_HEADER_CLASS,
+  WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
+  WORKSPACE_WAFFLE_GRID_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
   WORKSPACE_SWITCHER_PANEL_CLASS,
@@ -116,6 +118,17 @@ describe("workspace switcher lock", () => {
   it("keeps the Workspaces panel portaled and the current check accent", () => {
     expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("t-label");
     expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("text-ink-3");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("pt-[var(--space-3)]");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).toContain("pb-[var(--space-3)]");
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).not.toMatch(/px-/);
+    expect(WORKSPACE_SWITCHER_HEADER_CLASS).not.toMatch(/font-/);
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("py-[var(--space-1)]");
+    expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toMatch(/px-/);
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("grid-cols-2");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("gap-[var(--space-3)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("pb-[var(--space-4)]");
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).not.toMatch(/px-/);
+    expect(WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS).toContain("px-[var(--space-4)]");
     expect(WORKSPACE_SWITCHER_OPTION_CHECK_CLASS).toBe("text-accent");
     expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("border-hairline");
     expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("fixed");

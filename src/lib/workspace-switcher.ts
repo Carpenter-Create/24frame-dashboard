@@ -165,8 +165,14 @@ export function workspaceSwitcherChromeClearanceBottoms(
   );
 }
 
+// Phone sheet rhythm, variant C. The sheet surface already pads
+// --space-4 (16), so this label does not add a second side inset.
+// pt --space-3 (12) plus the exit's pb --space-1 (4) is 16 after
+// Home — no 14 token; the next step above the previous 12.
+// pb --space-3 (12) is the gap before the grid. Weight and color
+// stay t-label / text-ink-3.
 export const WORKSPACE_SWITCHER_HEADER_CLASS =
-  "px-[var(--space-4)] pb-[var(--space-1)] pt-[var(--space-2)] t-label text-ink-3";
+  "pb-[var(--space-3)] pt-[var(--space-3)] t-label text-ink-3";
 
 /** Sporty Blue check on the current Layer 1 tile. */
 export const WORKSPACE_SWITCHER_OPTION_CHECK_CLASS = "text-accent";
@@ -246,8 +252,10 @@ export const WORKSPACE_WAFFLE_HOME = {
 
 // Phone sheet header exit. Hugs its label — not a list bar.
 // Idle is muted; exact /home steps up one ink stop. No fill.
+// No horizontal pad: the sheet's --space-4 is the side inset, so
+// the chevron lines up with WORKSPACES and the tiles.
 export const WORKSPACE_WAFFLE_HOME_EXIT_CLASS =
-  "inline-flex w-fit max-w-full items-center gap-[var(--space-2)] self-start px-[var(--space-4)] py-[var(--space-1)] text-left t-body-sm";
+  "inline-flex w-fit max-w-full items-center gap-[var(--space-2)] self-start py-[var(--space-1)] text-left t-body-sm";
 
 export const WORKSPACE_WAFFLE_HOME_EXIT_IDLE_CLASS = "text-ink-3";
 
@@ -265,11 +273,15 @@ export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
 
 export const WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS = "bg-surface-muted";
 
+// Same tiles, no sheet pad. --space-4 keeps the side inset once
+// the shared rows stop adding their own.
 export const WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS =
-  `${WORKSPACE_SWITCHER_PANEL_CLASS} max-md:hidden`;
+  `${WORKSPACE_SWITCHER_PANEL_CLASS} px-[var(--space-4)] max-md:hidden`;
 
+// Variant C. gap --space-3 (12). No extra px — the sheet pad is the
+// 16 side inset. pb --space-4 (16) plus that pad is the modest close.
 export const WORKSPACE_WAFFLE_GRID_CLASS =
-  "grid grid-cols-2 gap-[var(--space-2)] px-[var(--space-2)] pb-[var(--space-2)]";
+  "grid grid-cols-2 gap-[var(--space-3)] pb-[var(--space-4)]";
 
 export const WORKSPACE_WAFFLE_TILE_CLASS =
   "relative flex min-h-16 flex-col items-center justify-center gap-[var(--space-1)] rounded-[12px] px-[var(--space-2)] py-[var(--space-3)] text-center t-body-sm text-ink";
