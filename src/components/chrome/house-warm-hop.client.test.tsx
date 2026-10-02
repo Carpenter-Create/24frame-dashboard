@@ -67,7 +67,10 @@ vi.mock("next/link", async () => {
             if (event.defaultPrevented) return;
             if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
-            nav.push(href);
+            // Next resolves the href against the browser's address
+            // (dispatchNavigateAction), so `?ai=…` keeps only the path.
+            const url = new URL(href, `${location.origin}${location.pathname}${location.search}`);
+            nav.push(`${url.pathname}${url.search}`);
           },
         },
         children,
@@ -101,6 +104,8 @@ vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
 }));
 
 import { MessageLink } from "@/app/(app)/aggregation/messages/message-link";
+import { AskAssistantChromeProvider, useAskGlobeeChrome } from "@/components/messages/ask-globee-chrome";
+import { AskGlobeeHistoryPanel } from "@/components/messages/ask-globee-history";
 import { NewsSourceChips } from "@/components/news/news-sources-filter";
 import { SocialCreateFan } from "@/components/social/social-create-fan";
 import { SocialCreateTile } from "@/components/social/social-create-sheet";
@@ -668,5 +673,78 @@ describe("Social, AI and News links keep their click handler on warm hops", () =
     expect(event.defaultPrevented).toBe(true);
     expect(shellHistory.pushState).not.toHaveBeenCalled();
     expect(nav.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("Ask AI history rows", () => {
+  const THREAD = "0f8e2c1a-5b7d-4e3f-9a6b-2c4d6e8f0a1b";
+  const NOW = new Date("2026-10-02T12:00:00Z");
+  const ROWS = [
+    {
+      id: THREAD,
+      title: "Delivery status",
+      pinned_at: null,
+      created_at: "2026-10-01T09:00:00Z",
+      updated_at: "2026-10-01T09:00:00Z",
+    },
+  ];
+  const chrome: { historyOpen: boolean; setHistoryOpen: ((open: boolean) => void) | null } = {
+    historyOpen: false,
+    setHistoryOpen: null,
+  };
+
+  function ChromeProbe() {
+    const { historyOpen, setHistoryOpen } = useAskGlobeeChrome();
+    useEffect(() => {
+      chrome.historyOpen = historyOpen;
+      chrome.setHistoryOpen = setHistoryOpen;
+    });
+    return null;
+  }
+
+  // History open over a screen the shell reached by a warm hop, with its
+  // own query. Next still thinks it shows /social.
+  function renderHistory() {
+    houseSyncPainted(["/social", "/social/profile"]);
+    render(
+      createElement(
+        HousePathProvider,
+        null,
+        createElement(HouseProbe),
+        createElement(
+          AskAssistantChromeProvider,
+          null,
+          createElement(ChromeProbe),
+          createElement(AskGlobeeHistoryPanel, { conversations: ROWS, now: NOW }),
+        ),
+      ),
+    );
+    warmHop("/social/profile?tab=media");
+    act(() => chrome.setHistoryOpen?.(true));
+    expect(chrome.historyOpen).toBe(true);
+  }
+
+  it("opens the thread through Next and keeps the screen's own query", () => {
+    renderHistory();
+
+    const event = click(findLink(`?ai=${THREAD}`));
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(chrome.historyOpen).toBe(false);
+    expect(nav.push).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledWith(`/social/profile?tab=media&ai=${THREAD}`);
+    // The warm hop only. A shell pushState here would hide ?ai= from the
+    // overlay, which reads Next's search params.
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a modified click to the browser", () => {
+    renderHistory();
+
+    const event = click(findLink(`?ai=${THREAD}`), { metaKey: true });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
   });
 });
