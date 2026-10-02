@@ -66,7 +66,9 @@ import {
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
+  prefetchWorkspaceWaffleIntent,
   workspaceWaffleHomeDest,
+  workspaceWaffleIntentPrefetchHrefs,
   workspaceSwitcherChromeClearanceBottoms,
   workspaceSwitcherMenuStyle,
   workspaceSwitcherNextSegmentIndex,
@@ -179,18 +181,29 @@ function WorkspaceWaffleHomeExit({
   );
 }
 
+function warmWorkspaceWaffleIntent(
+  prefetch: ReturnType<typeof useRouter>["prefetch"],
+  hrefs: readonly string[],
+) {
+  prefetchWorkspaceWaffleIntent((href, options) => {
+    prefetch(href, { kind: options.kind } as Parameters<typeof prefetch>[1]);
+  }, hrefs);
+}
+
 function WorkspaceWaffleTiles({
   tiles,
   current,
   chromePath,
   staffGate,
   onNavigate,
+  onIntent,
 }: {
   tiles: readonly WorkspaceMenuOption[];
   current: WorkspaceMode;
   chromePath: string;
   staffGate: boolean;
   onNavigate: () => void;
+  onIntent: (href: string) => void;
 }) {
   const router = useRouter();
   const pathname = useHousePathname();
@@ -234,6 +247,8 @@ function WorkspaceWaffleTiles({
                 data-workspace-waffle-tile={tile.mode}
                 aria-selected={false}
                 className={className}
+                onPointerDown={() => onIntent(tile.href)}
+                onPointerEnter={() => onIntent(tile.href)}
                 onClick={(event) => {
                   // Sheet close unmounts this anchor. Next schedules the
                   // Link hop in startTransition, so the close runs first
@@ -420,10 +435,25 @@ export function WorkspaceSwitcher({
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
   const tiles = workspaceWaffleTiles(options);
   const chromePath = activePath || pathname;
+  const routeWorkspace = resolveWorkspaceMode(chromePath, current);
+  const intentHrefs = workspaceWaffleIntentPrefetchHrefs(options, routeWorkspace);
+  const intentKey = intentHrefs.join("\n");
+  const warmedIntent = useRef<string | null>(null);
 
   useEffect(() => {
     prefetchHrefList(router.prefetch, phoneWorkspaceSwitcherPrefetchHrefs(options));
   }, [options, router]);
+
+  useEffect(() => {
+    if (!open) {
+      warmedIntent.current = null;
+      return;
+    }
+    if (warmedIntent.current === intentKey) return;
+    warmedIntent.current = intentKey;
+    if (!intentKey) return;
+    warmWorkspaceWaffleIntent(router.prefetch, intentKey.split("\n"));
+  }, [open, intentKey, router]);
 
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -473,6 +503,10 @@ export function WorkspaceSwitcher({
     return <WorkspaceSlider current={current} options={options} isGcStaff={staffGate} />;
   }
 
+  const warmIntent = (hrefs: readonly string[]) => {
+    warmWorkspaceWaffleIntent(router.prefetch, hrefs);
+  };
+
   const faces = (key: string) => (
     <WorkspaceWaffleTiles
       key={key}
@@ -481,6 +515,7 @@ export function WorkspaceSwitcher({
       chromePath={chromePath}
       staffGate={staffGate}
       onNavigate={() => setOpen(false)}
+      onIntent={(href) => warmIntent([href])}
     />
   );
 
@@ -538,6 +573,14 @@ export function WorkspaceSwitcher({
         aria-label={WORKSPACE_SWITCHER.heading}
         aria-expanded={open}
         aria-haspopup="dialog"
+        onPointerEnter={() => {
+          if (open) return;
+          warmIntent(intentHrefs);
+        }}
+        onPointerDown={() => {
+          if (open) return;
+          warmIntent(intentHrefs);
+        }}
         onClick={() => setOpen((next) => !next)}
         className={cn(WORKSPACE_WAFFLE_TRIGGER_CLASS, open && WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS)}
       >

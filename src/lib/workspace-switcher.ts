@@ -55,7 +55,13 @@
 // mid-lead slot (same Facebook-compact geometry as Social).
 // Persist with workspaceSwitcherPersistLane → persistWorkspaceCookie.
 // Do not invent a second cookie. Unselected waffle tiles are
-// Link + prefetch; prefetchHrefList warms the entitled homes on mount.
+// Link + prefetch. That full prefetch belongs to the anchor; closing
+// the sheet unmounts it and cancels the task, so a fast Staff or
+// Aggregation tap still waits on the dynamic RSC. Mount
+// prefetchHrefList is AUTO — loading.js only. Intent prefetch is
+// router-owned and kind full: waffle pointerdown, open, and tile
+// pointerdown / enter. Skip the current land. Painted lands still
+// soft-swap through HouseLink. Do not router.push over that.
 // Do not invent /education, /account/workspace, or /settings/workspace.
 
 import {
@@ -382,4 +388,35 @@ export function phoneWorkspaceSwitcherPrefetchHrefs(
     WORKSPACE_WAFFLE_HOME.href,
     ...workspaceWaffleTiles(options).map((tile) => tile.href),
   ];
+}
+
+/** Next router.prefetch kind. AUTO warms loading.js. Full fetches the RSC. */
+export const WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND = "full" as const;
+
+/**
+ * Homes a waffle tap can open, minus the land already showing.
+ * Staff is included only when `options` already entitled it.
+ */
+export function workspaceWaffleIntentPrefetchHrefs(
+  options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
+  current?: WorkspaceMode,
+): string[] {
+  return workspaceWaffleTiles(options)
+    .filter((tile) => tile.mode !== current)
+    .map((tile) => tile.href);
+}
+
+export function prefetchWorkspaceWaffleIntent(
+  prefetch: (href: string, options: { kind: typeof WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND }) => void,
+  hrefs: readonly string[],
+): string[] {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const href of hrefs) {
+    if (seen.has(href)) continue;
+    seen.add(href);
+    unique.push(href);
+    prefetch(href, { kind: WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND });
+  }
+  return unique;
 }
