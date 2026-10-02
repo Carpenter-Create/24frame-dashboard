@@ -142,6 +142,9 @@ export function useAccountMenuOpen() {
   // mounted over the Theme picker after the first visit.
   const pathname = useHousePathname();
   const [openedOn, setOpenedOn] = useState<string | null>(null);
+  // Leaving the page closes the menu for good. Keeping openedOn reopened
+  // it on a later hop back to that page.
+  if (openedOn !== null && openedOn !== pathname) setOpenedOn(null);
   const open = openedOn !== null && openedOn === pathname;
   return {
     pathname,

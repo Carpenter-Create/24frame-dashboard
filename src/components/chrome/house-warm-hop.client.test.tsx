@@ -397,8 +397,8 @@ describe("warm hops keep the link's own click handler", () => {
 });
 
 describe("account menu after a warm hop", () => {
-  it("closes when a warm hop leaves the page it opened on", () => {
-    houseSyncPainted(["/social", "/settings"]);
+  function renderMenu() {
+    houseSyncPainted(["/social", "/home"]);
     render(
       createElement(
         HousePathProvider,
@@ -409,9 +409,23 @@ describe("account menu after a warm hop", () => {
     );
     act(() => probe.menu?.openMenu());
     expect(probe.menu?.open).toBe(true);
+  }
 
-    warmHop("/settings");
+  it("closes when a warm hop leaves the page it opened on", () => {
+    renderMenu();
 
+    warmHop("/home");
+
+    expect(probe.menu?.open).toBe(false);
+  });
+
+  it("stays closed when a later warm hop returns to that page", () => {
+    renderMenu();
+    warmHop("/home");
+
+    warmHop("/social");
+
+    expect(probe.house?.pathname).toBe("/social");
     expect(probe.menu?.open).toBe(false);
   });
 });
