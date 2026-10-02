@@ -16,8 +16,13 @@ import {
   type AskGlobeeChipMark,
 } from "@/lib/ask-globee";
 import { startAskGlobeeConversation } from "@/app/(app)/aggregation/messages/ask-globee-actions";
+import { useHousePathname } from "@/components/chrome/house-client-shell";
 import { Input } from "@/components/ui/input";
-import { ASK_AI_OVERLAY_PHONE_SCROLL_CLASS } from "@/lib/ask-ai-overlay";
+import {
+  ASK_AI_OVERLAY_PHONE_SCROLL_CLASS,
+  askAiOverlayHref,
+  currentAskAiSearch,
+} from "@/lib/ask-ai-overlay";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT, type PhosphorIcon } from "@/lib/phosphor-icon";
 
 const CHIP_MARK_ICON: Record<AskGlobeeChipMark, PhosphorIcon> = {
@@ -46,6 +51,7 @@ export function AskGlobeeLanding({
   displayName?: string | null;
 }) {
   const router = useRouter();
+  const pathname = useHousePathname();
   const [prompt, setPrompt] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,12 +63,11 @@ export function AskGlobeeLanding({
     setError(null);
     setPending(true);
     const result = await startAskGlobeeConversation(value);
-    if (result.conversationId) {
-      const href = askGlobeeThreadHref(result.conversationId);
-      if (href) {
-        router.push(href);
-        return;
-      }
+    if (result.conversationId && askGlobeeThreadHref(result.conversationId)) {
+      // Open the thread on this screen with its own query (a bare ?ai=<id>
+      // dropped it), through Next: the overlay reads Next's search params.
+      router.push(askAiOverlayHref(pathname, currentAskAiSearch(), result.conversationId));
+      return;
     }
     setPending(false);
     if (result.error) setError(result.error);

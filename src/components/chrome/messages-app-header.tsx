@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { useHousePathname } from "./house-client-shell";
 import { HouseLink } from "./house-link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -32,6 +33,8 @@ import {
   THREAD_POPOVER_ICON_CLASS,
 } from "@/lib/house-sheet";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
+import { askAiOverlayHref, currentAskAiSearch } from "@/lib/ask-ai-overlay";
+import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
 import { Input } from "@/components/ui/input";
 import {
   ASK_GLOBEE,
@@ -62,6 +65,13 @@ function MessagesThreadHeader({ title }: { title: string }) {
   const [renameValue, setRenameValue] = useState(title);
   const pinned = !!chrome?.pinned_at;
   const threadTitle = chrome?.title ?? title;
+  const pathname = useHousePathname();
+
+  // The AI landing on this screen. Keep the screen's own query (a bare ?ai=1
+  // dropped it), and go through Next: the overlay reads Next's search params.
+  function openLanding() {
+    router.push(askAiOverlayHref(pathname, currentAskAiSearch()));
+  }
 
   function downloadThread() {
     if (!chrome) return;
@@ -86,6 +96,11 @@ function MessagesThreadHeader({ title }: { title: string }) {
         <HouseLink
           href={askGlobeeLandingHref()}
           aria-label={ASK_GLOBEE.backLabel}
+          onClick={(event) => {
+            if (houseNavIgnorePendingClick(event)) return;
+            event.preventDefault();
+            openLanding();
+          }}
           className="flex size-4 shrink-0 items-center justify-center text-ink max-md:text-ink-3"
         >
           <CaretLeft className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
@@ -233,7 +248,7 @@ function MessagesThreadHeader({ title }: { title: string }) {
                 if (!("error" in result)) {
                   setDeleteOpen(false);
                   setChrome(null);
-                  router.push(askGlobeeLandingHref());
+                  openLanding();
                 }
               });
             }}
