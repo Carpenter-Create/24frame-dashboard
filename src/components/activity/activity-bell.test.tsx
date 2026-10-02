@@ -91,7 +91,7 @@ describe("ActivityBell", () => {
     expect(html).toContain("data-activity-bell-sheet");
     expect(html).toContain("data-activity-bell-view-all");
     expect(html).toContain(
-      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" href="${ACTIVITY_HREF}"`,
+      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" data-house-link="" href="${ACTIVITY_HREF}"`,
     );
     expect(html).toContain(ACTIVITY_PAGE.viewAll);
     expect(html).toContain(ACTIVITY_BELL_VIEW_ALL_CLASS);
@@ -149,10 +149,10 @@ describe("ActivityBell", () => {
       }),
     );
     expect(social).toContain(
-      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" href="${activityHref({ family: "social" })}"`,
+      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" data-house-link="" href="${activityHref({ family: "social" })}"`,
     );
     expect(social).not.toContain(
-      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" href="${ACTIVITY_HREF}"`,
+      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" data-house-link="" href="${ACTIVITY_HREF}"`,
     );
 
     nav.pathname = "/aggregation/dashboard";
@@ -165,7 +165,7 @@ describe("ActivityBell", () => {
       }),
     );
     expect(aggregation).toContain(
-      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" href="${activityHref({ family: "aggregation" })}"`,
+      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" data-house-link="" href="${activityHref({ family: "aggregation" })}"`,
     );
 
     nav.pathname = "/education";
@@ -178,7 +178,7 @@ describe("ActivityBell", () => {
       }),
     );
     expect(education).toContain(
-      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" href="${activityHref({ family: "education" })}"`,
+      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" data-house-link="" href="${activityHref({ family: "education" })}"`,
     );
 
     nav.pathname = "/home";
@@ -191,7 +191,7 @@ describe("ActivityBell", () => {
       }),
     );
     expect(home).toContain(
-      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" href="${ACTIVITY_HREF}"`,
+      `data-activity-bell-view-all="" class="${ACTIVITY_BELL_VIEW_ALL_CLASS}" data-house-link="" href="${ACTIVITY_HREF}"`,
     );
     expect(home).not.toContain("family=aggregation");
     nav.pathname = "/aggregation/dashboard";

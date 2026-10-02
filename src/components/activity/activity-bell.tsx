@@ -2,11 +2,11 @@
 
 import { Suspense, use, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell } from "@phosphor-icons/react";
 
 import { Close44 } from "@/components/chrome/house";
+import { HouseLink } from "@/components/chrome/house-link";
 import { ActivityFeedRow } from "@/components/activity/activity-feed-row";
 import { useOwnNotificationsRealtime } from "@/components/activity/use-own-notifications-realtime";
 import {
@@ -411,14 +411,14 @@ function ActivityBellBody({
           ))}
         </div>
       )}
-      <Link
+      <HouseLink
         href={viewAllHref}
         data-activity-bell-view-all=""
         className={ACTIVITY_BELL_VIEW_ALL_CLASS}
         onClick={onClose}
       >
         {ACTIVITY_PAGE.viewAll}
-      </Link>
+      </HouseLink>
     </>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { HouseLink } from "@/components/chrome/house-link";
 import { retireLiveNotification } from "@/lib/notifications-realtime";
 
 import { markNotificationsRead } from "./actions";
@@ -12,7 +12,8 @@ import { markNotificationsRead } from "./actions";
 // client acts on it. "Read" = seen (clicking to open the title is a clear signal you've seen
 // it); "still needs fixing" lives on the title itself, not here. If already read, it's a plain
 // Link (Next prefetch preserved). The explicit per-row "Mark as read" button still handles
-// dismissing a message without opening it.
+// dismissing a message without opening it. HouseLink, so this onClick still runs when the
+// destination is a warm (already painted) screen.
 export function MessageLink({
   id,
   href,
@@ -29,7 +30,7 @@ export function MessageLink({
   const router = useRouter();
   const [, start] = useTransition();
   return (
-    <Link
+    <HouseLink
       href={href}
       className={className}
       onClick={(e) => {
@@ -43,6 +44,6 @@ export function MessageLink({
       }}
     >
       {children}
-    </Link>
+    </HouseLink>
   );
 }

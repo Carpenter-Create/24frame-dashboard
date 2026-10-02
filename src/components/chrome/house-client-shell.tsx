@@ -232,6 +232,11 @@ function HousePathProviderCore({
         return;
       }
       if (houseHrefKey(dest) !== screenKey) captureLeadScroll(screenKey);
+      // HouseLink owns its hop in its own onClick, after the caller's
+      // handler. Owning it here first stops propagation, and React's root
+      // is document, so that handler never ran: menus stayed open and the
+      // workspace cookie was never written.
+      if (anchor.hasAttribute("data-house-link")) return;
       if (!api.navigateOwned(dest, event)) return;
       event.preventDefault();
       event.stopPropagation();

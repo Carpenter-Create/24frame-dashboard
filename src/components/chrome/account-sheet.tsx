@@ -9,7 +9,6 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { usePathname } from "next/navigation";
 import { CaretRight, Gear, Moon, Question, SignOut, Sun } from "@phosphor-icons/react";
 
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
@@ -28,6 +27,7 @@ import {
   SheetGroup,
   SheetGroupItem,
 } from "./house";
+import { useHousePathname } from "./house-client-shell";
 import { HouseLink } from "./house-link";
 import {
   ACCOUNT_MENU_DROPDOWN_ACCENT_CLASS,
@@ -133,8 +133,10 @@ function AccountMenuTrigger({
   );
 }
 
-function useAccountMenuOpen() {
-  const pathname = usePathname();
+// Open until the shell's pathname moves. A warm hop never tells Next it
+// moved, so usePathname kept the menu open over the new screen.
+export function useAccountMenuOpen() {
+  const pathname = useHousePathname();
   const [openedOn, setOpenedOn] = useState<string | null>(null);
   const open = openedOn !== null && openedOn === pathname;
   return {

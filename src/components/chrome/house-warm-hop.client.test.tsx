@@ -32,6 +32,44 @@ vi.mock("next/navigation", () => {
   };
 });
 
+vi.mock("next/link", async () => {
+  const { createElement } = await import("react");
+  const NEXT_ONLY_PROPS = new Set(["prefetch", "scroll", "replace"]);
+  type LinkClick = { defaultPrevented: boolean; preventDefault(): void };
+  return {
+    // Same click contract as next/dist/client/app-dir/link.js: the caller's
+    // onClick first, then a Next navigation unless the click was prevented.
+    default: function Link(
+      props: { href: string; onClick?: (event: LinkClick) => void; children?: ReactNode } & Record<
+        string,
+        unknown
+      >,
+    ) {
+      const { href, onClick, children, ...rest } = props;
+      const anchorProps = Object.fromEntries(
+        Object.entries(rest).filter(([key]) => !NEXT_ONLY_PROPS.has(key)),
+      );
+      return createElement(
+        "a",
+        {
+          ...anchorProps,
+          href,
+          onClick: (event: LinkClick) => {
+            onClick?.(event);
+            if (event.defaultPrevented) return;
+            event.preventDefault();
+            nav.push(href);
+          },
+        },
+        children,
+      );
+    },
+    useLinkStatus: () => ({ pending: false }),
+  };
+});
+
+vi.mock("@/app/actions", () => ({ signOut: vi.fn() }));
+
 vi.mock("next/dynamic", () => ({
   default: () =>
     function DynamicStub() {
@@ -45,12 +83,42 @@ vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
 
 import { houseSyncPainted, resetHousePaintedForTests } from "@/lib/house-client-shell";
 import { minimalDocument } from "@/test/minimal-document";
+import { useAccountMenuOpen } from "./account-sheet";
 import { AskAiOverlayProvider, useAskAiOverlay } from "./ask-ai-overlay";
 import { HousePathProvider, useHouseClient } from "./house-client-shell";
+import { HouseLink } from "./house-link";
 
 const miniDocument = minimalDocument();
 // The shell's instanceof checks need DOM classes. Every mini node is one class.
 const MiniElement = miniDocument.createElement("a").constructor;
+
+type MiniNode = {
+  nodeType: number;
+  tagName?: string;
+  parentNode: MiniNode | null;
+  childNodes: MiniNode[];
+  getAttribute?(name: string): string | null;
+  hasAttribute?(name: string): boolean;
+};
+
+// The shell's click interceptor finds the anchor with closest("a[href]").
+function closestFrom(start: MiniNode, selector: string): MiniNode | null {
+  const match = /^([a-z]*)(?:\[([^\]]+)\])?$/i.exec(selector);
+  if (!match) throw new Error(`closest stub cannot match ${selector}`);
+  const [, tag, attr] = match;
+  for (let node: MiniNode | null = start; node && node.nodeType === 1; node = node.parentNode) {
+    if ((!tag || node.tagName === tag.toUpperCase()) && (!attr || node.hasAttribute?.(attr))) {
+      return node;
+    }
+  }
+  return null;
+}
+
+function closest(this: MiniNode, selector: string): MiniNode | null {
+  return closestFrom(this, selector);
+}
+
+const miniElementProto = MiniElement.prototype as { closest?: typeof closest };
 
 // The shell reads location and writes history. Node has neither.
 const shellLocation = { origin: "https://app.test", pathname: "/social", search: "" };
@@ -67,7 +135,8 @@ const shellHistory = {
 const probe: {
   house: ReturnType<typeof useHouseClient>;
   ai: ReturnType<typeof useAskAiOverlay> | null;
-} = { house: null, ai: null };
+  menu: ReturnType<typeof useAccountMenuOpen> | null;
+} = { house: null, ai: null, menu: null };
 
 // Probes record hook values after each commit. act() flushes the effect.
 function HouseProbe() {
@@ -86,6 +155,14 @@ function AskAiProbe() {
   return null;
 }
 
+function AccountMenuProbe() {
+  const menu = useAccountMenuOpen();
+  useEffect(() => {
+    probe.menu = menu;
+  });
+  return null;
+}
+
 let container: ReturnType<typeof miniDocument.createElement>;
 let root: Root;
 
@@ -99,6 +176,60 @@ function warmHop(href: string) {
   });
 }
 
+function findLink(href: string): MiniNode {
+  const stack: MiniNode[] = [container as unknown as MiniNode];
+  for (let node = stack.pop(); node; node = stack.pop()) {
+    if (node.tagName === "A" && node.getAttribute?.("href") === href) return node;
+    stack.push(...node.childNodes);
+  }
+  throw new Error(`no link to ${href}`);
+}
+
+type FakeClick = {
+  type: "click";
+  target: MiniNode;
+  button: number;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  timeStamp: number;
+  defaultPrevented: boolean;
+  propagationStopped: boolean;
+  preventDefault(): void;
+  stopPropagation(): void;
+};
+
+// In production React's root is document (next/dist/client/app-index.js),
+// so stopPropagation in the shell's capture listener also cancels React's
+// onClick dispatch. Same order here: document listeners first, then the
+// React root unless propagation was stopped.
+function click(target: MiniNode): FakeClick {
+  const event: FakeClick = {
+    type: "click",
+    target,
+    button: 0,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    timeStamp: 0,
+    defaultPrevented: false,
+    propagationStopped: false,
+    preventDefault() {
+      event.defaultPrevented = true;
+    },
+    stopPropagation() {
+      event.propagationStopped = true;
+    },
+  };
+  act(() => {
+    miniDocument.dispatchEvent(event as unknown as Event);
+    if (!event.propagationStopped) container.dispatchEvent(event as unknown as Event);
+  });
+  return event;
+}
+
 beforeEach(() => {
   resetHousePaintedForTests();
   nav.pathname = "/social";
@@ -110,6 +241,8 @@ beforeEach(() => {
   shellHistory.pushState.mockClear();
   probe.house = null;
   probe.ai = null;
+  probe.menu = null;
+  miniElementProto.closest = closest;
   vi.stubGlobal("Element", MiniElement);
   vi.stubGlobal("HTMLElement", MiniElement);
   vi.stubGlobal("HTMLAnchorElement", MiniElement);
@@ -130,7 +263,86 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  delete miniElementProto.closest;
   vi.unstubAllGlobals();
+});
+
+describe("warm hops keep the link's own click handler", () => {
+  function renderLink(link: ReactNode) {
+    render(createElement(HousePathProvider, null, createElement(HouseProbe), link));
+  }
+
+  it("runs a HouseLink onClick, then the shell owns the hop", () => {
+    houseSyncPainted(["/social", "/home"]);
+    const onClick = vi.fn();
+    renderLink(createElement(HouseLink, { href: "/home", onClick }, "Home"));
+
+    const event = click(findLink("/home"));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+    expect(shellHistory.pushState.mock.calls[0]?.[2]).toBe("/home");
+    expect(probe.house?.pathname).toBe("/home");
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("lets a HouseLink onClick take the click over", () => {
+    houseSyncPainted(["/social", "/home"]);
+    const takeOver = vi.fn((event: { preventDefault(): void }) => event.preventDefault());
+    renderLink(createElement(HouseLink, { href: "/home", onClick: takeOver }, "Home"));
+
+    click(findLink("/home"));
+
+    expect(takeOver).toHaveBeenCalledTimes(1);
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(probe.house?.pathname).toBe("/social");
+  });
+
+  it("hands a cold hop to Next after the HouseLink onClick", () => {
+    houseSyncPainted(["/social"]);
+    const onClick = vi.fn();
+    renderLink(createElement(HouseLink, { href: "/education", onClick }, "Education"));
+
+    click(findLink("/education"));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledWith("/education");
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+  });
+
+  it("still owns warm hops on raw links", () => {
+    houseSyncPainted(["/social", "/home"]);
+    renderLink(createElement("a", { href: "/home" }, "Home"));
+
+    const event = click(findLink("/home"));
+
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("account menu after a warm hop", () => {
+  it("closes when a warm hop leaves the page it opened on", () => {
+    houseSyncPainted(["/social", "/settings"]);
+    render(
+      createElement(
+        HousePathProvider,
+        null,
+        createElement(HouseProbe),
+        createElement(AccountMenuProbe),
+      ),
+    );
+    act(() => probe.menu?.openMenu());
+    expect(probe.menu?.open).toBe(true);
+
+    warmHop("/settings");
+
+    expect(probe.menu?.open).toBe(false);
+  });
 });
 
 describe("24Frame AI after a warm hop", () => {
