@@ -156,6 +156,14 @@ describe("workspace waffle header control", () => {
     expect(exitFn).toContain("event.preventDefault()");
     expect(exitFn).toContain("router.push(dest)");
     expect(exitFn).toContain("house?.navigateOwned(dest, event)");
+    const idleTile = src.slice(src.indexOf("if (!selected)"), src.indexOf('data-workspace-waffle-current=""'));
+    expect(idleTile).toContain("houseNavIgnorePendingClick(event)");
+    expect(idleTile).toContain("selectWorkspaceTile(");
+    expect(idleTile).toContain("event.preventDefault()");
+    expect(idleTile).toContain("onNavigate()");
+    expect(idleTile.indexOf("selectWorkspaceTile(")).toBeLessThan(idleTile.indexOf("event.preventDefault()"));
+    expect(idleTile.indexOf("event.preventDefault()")).toBeLessThan(idleTile.indexOf("onNavigate()"));
+    expect(idleTile).toContain("markPending");
     expect(exitFn).not.toMatch(/<House[\s/>]/);
     expect(exitFn).not.toContain("CaretLeft");
     expect(exitFn).not.toContain("lucide-react");
