@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { HouseEmpty } from "@/components/chrome/house";
 import { PageHeader } from "@/components/ui/page-header";
@@ -8,6 +8,7 @@ import {
   EDUCATION_MANAGE_HREF,
   canStartEducationEncode,
 } from "@/lib/education";
+import { isEducationStaff } from "@/lib/education-staff";
 import { signedEducationCoverUrl } from "@/lib/s3-education";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,6 +19,9 @@ export default async function GcEducationCoursePage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  // The (operator) layout's gate does not stop this page rendering.
+  // Check before the service-role read below.
+  if (!(await isEducationStaff())) redirect("/");
   const { slug } = await params;
   const detail = await loadEducationAdminDetail(createAdminClient(), slug);
 
