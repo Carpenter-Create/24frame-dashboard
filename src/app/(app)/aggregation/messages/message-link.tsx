@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { useHouseClient } from "@/components/chrome/house-client-shell";
 import { HouseLink } from "@/components/chrome/house-link";
 import { retireLiveNotification } from "@/lib/notifications-realtime";
 
@@ -28,6 +29,7 @@ export function MessageLink({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const house = useHouseClient();
   const [, start] = useTransition();
   return (
     <HouseLink
@@ -39,7 +41,9 @@ export function MessageLink({
         start(async () => {
           await markNotificationsRead([id]);
           retireLiveNotification(id);
-          router.push(href);
+          // After a warm hop Next's address can already be href, and a push
+          // to it changes nothing. The shell owns warm and stale hops.
+          if (!house?.navigateOwned(href)) router.push(href);
         });
       }}
     >

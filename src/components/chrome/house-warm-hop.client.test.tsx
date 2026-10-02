@@ -1,6 +1,6 @@
 import "@/test/minimal-document";
 
-import { act, createElement, useEffect, type ReactNode } from "react";
+import { act, createElement, useEffect, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +79,16 @@ vi.mock("next/link", async () => {
 
 vi.mock("@/app/actions", () => ({ signOut: vi.fn() }));
 
+const notifications = vi.hoisted(() => ({ read: [] as string[][] }));
+
+vi.mock("@/app/(app)/aggregation/messages/actions", () => ({
+  markNotificationsRead: async (ids: string[]) => {
+    notifications.read.push(ids);
+  },
+}));
+
+vi.mock("@/lib/notifications-realtime", () => ({ retireLiveNotification: () => undefined }));
+
 vi.mock("next/dynamic", () => ({
   default: () =>
     function DynamicStub() {
@@ -90,6 +100,7 @@ vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
   loadAskAiOverlay: () => new Promise(() => undefined),
 }));
 
+import { MessageLink } from "@/app/(app)/aggregation/messages/message-link";
 import { houseSyncPainted, resetHousePaintedForTests } from "@/lib/house-client-shell";
 import { minimalDocument } from "@/test/minimal-document";
 import { useAccountMenuOpen } from "./account-sheet";
@@ -267,6 +278,7 @@ beforeEach(() => {
   probe.house = null;
   probe.ai = null;
   probe.menu = null;
+  notifications.read = [];
   miniElementProto.closest = closest;
   miniElementProto.getBoundingClientRect = () => ZERO_RECT;
   miniDocumentQueries.querySelectorAll = () => [];
@@ -295,6 +307,54 @@ afterEach(() => {
   delete miniElementProto.getBoundingClientRect;
   delete miniDocumentQueries.querySelectorAll;
   vi.unstubAllGlobals();
+});
+
+describe("unread notification rows", () => {
+  function renderRow(href: string, painted: string[]) {
+    houseSyncPainted(painted);
+    render(
+      createElement(
+        HousePathProvider,
+        null,
+        createElement(HouseProbe),
+        createElement(
+          MessageLink,
+          // children ride as the third argument (react/no-children-prop).
+          { id: "n-1", href, unread: true } as ComponentProps<typeof MessageLink>,
+          "Open",
+        ),
+      ),
+    );
+  }
+
+  async function settleMarkRead() {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it("marks read, then reaches the screen Next still thinks it shows", async () => {
+    renderRow("/social", ["/social", "/home"]);
+    warmHop("/home");
+    expect(probe.house?.pathname).toBe("/home");
+
+    click(findLink("/social"));
+    await settleMarkRead();
+
+    expect(notifications.read).toEqual([["n-1"]]);
+    expect(probe.house?.pathname).toBe("/social");
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("marks read, then hands a cold destination to Next", async () => {
+    renderRow("/education", ["/social"]);
+
+    click(findLink("/education"));
+    await settleMarkRead();
+
+    expect(notifications.read).toEqual([["n-1"]]);
+    expect(nav.push).toHaveBeenCalledWith("/education");
+  });
 });
 
 describe("waffle Home exit on a warm hop", () => {
