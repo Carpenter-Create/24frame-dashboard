@@ -8,6 +8,8 @@ import { useHouseClient } from "./house-client-shell";
 // One house nav primitive. Chrome, dock, rails, and Social tabs must use
 // this — not raw next/link. Warm dests stay on the mounted tree; cold dests
 // still go through Next for the first RSC paint.
+// The caller's onClick runs first and may preventDefault to take the click
+// over. Callers must not call navigateOwned too: this owns the hop.
 
 export function HouseLink({
   href,

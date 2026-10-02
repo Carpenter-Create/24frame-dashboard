@@ -136,12 +136,15 @@ function AccountMenuTrigger({
   );
 }
 
-function useAccountMenuOpen() {
+export function useAccountMenuOpen() {
   // Owned hops pushState with __NA and leave Next's pathname where it
   // was. Keying this menu to that pathname left the full-screen host
   // mounted over the Theme picker after the first visit.
   const pathname = useHousePathname();
   const [openedOn, setOpenedOn] = useState<string | null>(null);
+  // Leaving the page closes the menu for good. Keeping openedOn reopened
+  // it on a later hop back to that page.
+  if (openedOn !== null && openedOn !== pathname) setOpenedOn(null);
   const open = openedOn !== null && openedOn === pathname;
   return {
     pathname,
