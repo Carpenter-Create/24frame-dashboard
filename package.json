@@ -46,7 +46,7 @@
     "exceljs": "^4.4.0",
     "geist": "^1.6.1",
     "hls.js": "^1.7.3",
-    "next": "16.3.5",
+    "next": "16.3.6",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
@@ -71,7 +71,7 @@
     "@types/topojson-client": "^3.1.5",
     "@types/topojson-specification": "^1.0.5",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
+    "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

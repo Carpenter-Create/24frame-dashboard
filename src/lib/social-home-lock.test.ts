@@ -214,7 +214,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(postCard).toContain("data-social-post-time");
     expect(postCard).toContain("SocialLikeCount");
     expect(postCard).toContain("SocialCommentTrigger");
-    expect(pkg).toContain('"next": "16.3.5"');
+    expect(pkg).toContain('"next": "16.3.6"');
     expect(existsSync("src/components/social/social-mobile-dock.tsx")).toBe(false);
     expect(home).not.toContain("Reels");
     expect(explore).not.toContain("Reels");
