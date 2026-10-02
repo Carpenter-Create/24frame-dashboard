@@ -54,14 +54,18 @@ import {
   SETTINGS_RAIL_CHEVRON_CLASS,
   SETTINGS_RAIL_PAD_CLASS,
   isSettingsPath,
+  SETTINGS_RETURN_STORAGE,
   settingsDrillParentLabel,
   settingsHeaderBack,
+  settingsHubExitHref,
   settingsHubHasInAppReferrer,
   settingsHubNav,
   settingsHubSection,
   settingsLandHref,
   settingsPaneTitle,
   settingsRailActive,
+  settingsReturnPath,
+  settingsReturnToRemember,
 } from "./settings";
 
 const RETIRED_SETTINGS_PATHS = [
@@ -356,6 +360,68 @@ describe("settings hub lock", () => {
     expect(settingsSrc).toContain("News PageHeader ArrowLeft");
     expect(settingsSrc).toContain("hub → Back");
     expect(settingsSrc).not.toContain("hub → Home");
+  });
+
+  it("exits to the entry route, else the workspace cookie home", () => {
+    expect(SETTINGS_RETURN_STORAGE).toBe("frame_settings_return");
+    expect(settingsReturnPath("/social")).toBe("/social");
+    expect(settingsReturnPath("/social/explore?q=ada")).toBe("/social/explore?q=ada");
+    expect(settingsReturnPath("/education/manage")).toBe("/education/manage");
+    expect(settingsReturnPath("/staff/queue")).toBe("/staff/queue");
+    expect(settingsReturnPath("/home?period=ytd")).toBe("/home?period=ytd");
+    expect(settingsReturnPath("/co-productions")).toBe("/co-productions");
+    expect(settingsReturnPath("/settings")).toBeNull();
+    expect(settingsReturnPath("/settings/profile")).toBeNull();
+    expect(settingsReturnPath("/settings/preferences/theme?x=1")).toBeNull();
+    expect(settingsReturnPath("//evil.example")).toBeNull();
+    expect(settingsReturnPath("/\\evil")).toBeNull();
+    expect(settingsReturnPath("https://evil.example/social")).toBeNull();
+    expect(settingsReturnPath("/%2F%2Fevil.example")).toBeNull();
+    expect(settingsReturnPath("")).toBeNull();
+    expect(settingsReturnPath(null)).toBeNull();
+
+    expect(settingsReturnToRemember("/social/explore", "/settings")).toBe("/social/explore");
+    expect(settingsReturnToRemember("/education", "/settings/profile")).toBe("/education");
+    expect(settingsReturnToRemember("/staff/queue", "/settings/security")).toBe("/staff/queue");
+    expect(settingsReturnToRemember("/settings", "/settings/profile")).toBeNull();
+    expect(settingsReturnToRemember("/settings/profile", "/settings")).toBeNull();
+    expect(settingsReturnToRemember("/social", "/social")).toBeNull();
+    expect(settingsReturnToRemember("/social", "/help")).toBeNull();
+
+    expect(settingsHubExitHref({ remembered: "/social/explore", workspaceCookie: "aggregation" })).toBe(
+      "/social/explore",
+    );
+    expect(settingsHubExitHref({ remembered: "/education", workspaceCookie: "aggregation" })).toBe(
+      "/education",
+    );
+    expect(settingsHubExitHref({ remembered: "/staff/avails", workspaceCookie: "social" })).toBe(
+      "/staff/avails",
+    );
+    expect(settingsHubExitHref({ remembered: "/settings/profile", workspaceCookie: "social" })).toBe(
+      "/social",
+    );
+    expect(settingsHubExitHref({ remembered: null, workspaceCookie: "social" })).toBe("/social");
+    expect(settingsHubExitHref({ remembered: null, workspaceCookie: "education" })).toBe("/education");
+    expect(settingsHubExitHref({ remembered: null, workspaceCookie: "staff" })).toBe("/staff/queue");
+    expect(settingsHubExitHref({ remembered: null, workspaceCookie: "aggregation" })).toBe(
+      "/aggregation/dashboard",
+    );
+    expect(settingsHubExitHref({ remembered: null, workspaceCookie: null })).toBe(
+      "/aggregation/dashboard",
+    );
+    expect(settingsHubExitHref({ remembered: "https://evil.example", workspaceCookie: "education" })).toBe(
+      "/education",
+    );
+
+    const hubBack = readFileSync("src/components/settings/settings-hub-back-link.tsx", "utf8");
+    expect(hubBack).toContain("readSettingsHubExitHref()");
+    expect(hubBack).toContain("router.push(dest)");
+    expect(hubBack).toContain("if (historyBack)");
+    const recorder = readFileSync("src/components/settings/settings-return-recorder.tsx", "utf8");
+    expect(recorder).toContain("settingsReturnToRemember");
+    expect(recorder).toContain("rememberSettingsReturnPath");
+    const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
+    expect(shell).toContain("SettingsReturnRecorder");
   });
 
   it("uses in-app referrer for hub Back and falls back off-origin", () => {

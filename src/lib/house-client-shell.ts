@@ -7,6 +7,7 @@ import {
 import { socialFrameAiThreadPath } from "@/lib/social-frame-ai";
 import { SOCIAL_FOLLOWING_WALL_CURSOR_PARAM } from "@/lib/social-home-bounds";
 import { readSocialHomeLocation } from "@/lib/social-home-location";
+import { isSettingsPath } from "@/lib/settings";
 import { EDUCATION_ROOT, HOME_ROOT, SOCIAL_ROOT, STAFF_ROOT } from "@/lib/workspace";
 
 // House client-shell SoT.
@@ -16,7 +17,8 @@ import { EDUCATION_ROOT, HOME_ROOT, SOCIAL_ROOT, STAFF_ROOT } from "@/lib/worksp
 //
 // Client-owned: Social hot paths + last-visited workspace lands.
 // Still RSC: auth gate, first document, Aggregation/Education/Staff first
-// visit, and any dest that has never been painted this session.
+// visit, Settings (account chrome — Back is a real Next hop, not a
+// cached pushState), and any dest that has never been painted this session.
 
 export const HOUSE_CLIENT_SHELL = {
   cacheCap: 8,
@@ -64,6 +66,10 @@ export function isHouseClientOwnedPath(pathname: string): boolean {
 export function houseShouldKeepAlive(pathname: string): boolean {
   // Live capture keeps camera/mic on mount. Hidden keep-alive would
   // leave the stream open after a dock tap. Cold RSC remounts those dests.
+  // Settings is cold too. A warm slot between /settings and a pane
+  // pushStates the previous tree under the new URL — Back stays on
+  // the same page. Account chrome is not a workspace land.
+  if (isSettingsPath(pathname)) return false;
   return pathname !== SOCIAL_ROUTES.createLive && pathname !== SOCIAL_ROUTES.storiesNew;
 }
 
