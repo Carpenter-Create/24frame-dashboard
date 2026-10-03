@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { socialFeedVideoFrame } from "@/lib/social-media-display";
 import {
   SOCIAL_AVATAR_ROUTE,
-  SOCIAL_EDGE_RUNTIME,
   SOCIAL_MEDIA_ROUTE,
   SOCIAL_NODE_RUNTIME,
   socialAvatarFaces,
@@ -185,14 +184,17 @@ describe("Social Edge media proxies", () => {
 });
 
 describe("Social Edge vs Node runtime lock", () => {
-  it("edges public profile, follows, search, and the handle redirect", () => {
+  it("runs public profile, follows, search, and the handle redirect on Node", () => {
+    // Founder decision 2026-10-03: the 24Frame AI overlay opens on these
+    // pages and its Claude Platform on AWS client is Node-only.
     const publicProfile = readFileSync("src/app/(app)/social/u/[handle]/page.tsx", "utf8");
     const explore = readFileSync("src/app/(app)/social/explore/page.tsx", "utf8");
     const search = readFileSync("src/app/(app)/social/search/page.tsx", "utf8");
     const follows = readFileSync("src/app/(app)/social/u/[handle]/follows/page.tsx", "utf8");
     const members = readFileSync("src/app/(app)/social/members/[handle]/page.tsx", "utf8");
     for (const src of [publicProfile, search, follows, members]) {
-      expect(src).toContain('export const runtime = "edge"');
+      expect(src).toContain('export const runtime = "nodejs"');
+      expect(src).not.toContain('export const runtime = "edge"');
       expect(src).not.toContain("@/lib/s3-avatars");
       expect(src).not.toContain("@/lib/s3-social-media");
       expect(src).not.toContain("@/lib/social-mux-server");
@@ -222,7 +224,6 @@ describe("Social Edge vs Node runtime lock", () => {
     expect(explore).toContain("socialAvatarHref");
     expect(explore).not.toContain("socialAvatarFaces");
     expect(follows).toContain("socialAvatarFaces");
-    expect(SOCIAL_EDGE_RUNTIME).toBe("edge");
   });
 
   it("keeps writes, signing, and MediaRecorder on Node", () => {

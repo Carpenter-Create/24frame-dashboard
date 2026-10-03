@@ -12,11 +12,15 @@ import {
   type SocialMuxPlaybackPolicy,
 } from "@/lib/social-mux";
 
-// Auth-light Social reads can run on Vercel Edge. AWS signing cannot.
-// Same-origin Node routes re-sign avatars/media so the Edge HTML does
-// not import @aws-sdk. No new env — KV / Upstash names stay as on main.
+// Same-origin proxy hrefs for Social avatars and media. Pages emit these
+// instead of signing; Node routes re-sign. No new env — KV / Upstash names
+// stay as on main.
+//
+// Founder decision 2026-10-03: every Social page runs on Node.js. The public
+// profile, follows, search and member redirect left Vercel Edge because the
+// 24Frame AI overlay opens on them and its Claude Platform on AWS client
+// (@anthropic-ai/aws-sdk) is Node-only.
 
-export const SOCIAL_EDGE_RUNTIME = "edge" as const;
 export const SOCIAL_NODE_RUNTIME = "nodejs" as const;
 
 export const SOCIAL_AVATAR_ROUTE = "/api/social/avatar";

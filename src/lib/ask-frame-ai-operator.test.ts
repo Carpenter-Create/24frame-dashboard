@@ -5,11 +5,11 @@ import type { ClientHomeFinding, ClientHomeTitle } from "@/lib/dashboard-home";
 import {
   ASK_FRAME_AI_MODEL_ID,
   answerAskFrameAiPrompt,
-  readOperatorApiKey,
   splitAskFrameAiModelText,
   type AskFrameAiModelClient,
 } from "./ask-frame-ai-operator";
 import { executeAskFrameAiTool, type AskFrameAiCorpus } from "./ask-frame-ai-tools";
+import type { ClaudeConfig } from "./claude-client";
 
 const ORG = "org-1";
 const TEST_KEY = "test-operator-key";
@@ -80,12 +80,45 @@ function scriptedClient(
   };
 }
 
-describe("readOperatorApiKey", () => {
-  it("fails closed on a missing or blank key", () => {
-    expect(readOperatorApiKey({})).toBeNull();
-    expect(readOperatorApiKey({ ANTHROPIC_API_KEY: "" })).toBeNull();
-    expect(readOperatorApiKey({ ANTHROPIC_API_KEY: "   " })).toBeNull();
-    expect(readOperatorApiKey({ ANTHROPIC_API_KEY: TEST_KEY })).toBe(TEST_KEY);
+describe("operator provider", () => {
+  const AWS_ENV = {
+    CLAUDE_AWS_REGION: "us-east-1",
+    CLAUDE_AWS_ACCESS_KEY_ID: "AKIATESTCLAUDE",
+    CLAUDE_AWS_SECRET_ACCESS_KEY: "test-secret",
+    CLAUDE_AWS_WORKSPACE_ID: "wrkspc_test",
+  };
+
+  async function providerFor(env: Record<string, string>): Promise<ClaudeConfig | null> {
+    let seen: ClaudeConfig | null = null;
+    await answerAskFrameAiPrompt({
+      prompt: "How many titles are in my catalog?",
+      corpus: CORPUS,
+      env,
+      modelClient: async (_round, config) => {
+        seen = config;
+        return { stop_reason: "end_turn", content: [{ type: "text", text: "Your catalog has 4 titles." }] };
+      },
+    });
+    return seen;
+  }
+
+  it("calls Claude Platform on AWS when the workspace is configured", async () => {
+    expect(await providerFor({ ...AWS_ENV, ANTHROPIC_API_KEY: TEST_KEY })).toMatchObject({
+      provider: "aws",
+      region: "us-east-1",
+      workspaceId: "wrkspc_test",
+    });
+  });
+
+  it("uses the cutover key until then, and fails closed with neither", async () => {
+    expect(await providerFor({ ANTHROPIC_API_KEY: TEST_KEY })).toEqual({
+      provider: "direct",
+      apiKey: TEST_KEY,
+    });
+    expect(await providerFor({ ANTHROPIC_API_KEY: "   " })).toBeNull();
+    await expect(
+      answerAskFrameAiPrompt({ prompt: "x", corpus: CORPUS, env: {}, modelClient: vi.fn() }),
+    ).resolves.toEqual({ error: ASK_FRAME_AI.unavailable });
   });
 });
 

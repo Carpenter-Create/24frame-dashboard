@@ -22,6 +22,8 @@
     "hygiene:bundle-report": "node scripts/hygiene/bundle-report.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/aws-sdk": "^0.7.7",
+    "@anthropic-ai/sdk": "^0.131.0",
     "@aws-sdk/client-dynamodb": "^3.1134.0",
     "@aws-sdk/client-mediaconvert": "^3.1104.0",
     "@aws-sdk/client-s3": "^3.1090.0",

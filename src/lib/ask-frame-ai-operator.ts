@@ -1,6 +1,9 @@
 import "server-only";
 
+import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
+
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
+import { createClaudeClient, readClaudeConfig, type ClaudeConfig } from "@/lib/claude-client";
 import { ASSISTANT_NAME, PRODUCT_NAME } from "@/lib/product";
 import type { AskFrameAiAnswer } from "@/lib/ask-frame-ai-answer";
 import {
@@ -9,16 +12,13 @@ import {
   type AskFrameAiCorpus,
 } from "@/lib/ask-frame-ai-tools";
 
-// Catalog-grounded operator. Reads ANTHROPIC_API_KEY so the provider seam can
-// be swapped later. v1 talks to the Anthropic Messages API only.
+// Catalog-grounded operator. The provider (Claude Platform on AWS, or the
+// cutover API key) comes from lib/claude-client.
 
 export const ASK_FRAME_AI_MODEL_ID = "claude-sonnet-5";
 export const ASK_FRAME_AI_MODEL_MAX_TOKENS = 1024;
 export const ASK_FRAME_AI_MODEL_MAX_ROUNDS = 4;
 export const ASK_FRAME_AI_HISTORY_MAX = 8;
-
-const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
 
 export const ASK_FRAME_AI_SYSTEM = [
   `You are ${ASSISTANT_NAME}, a catalog operator for this signed-in client's ${PRODUCT_NAME} catalog only.`,
@@ -64,15 +64,10 @@ export type AskFrameAiModelResponse = {
 
 export type AskFrameAiModelClient = (
   round: AskFrameAiModelRound,
-  apiKey: string,
+  config: ClaudeConfig,
 ) => Promise<AskFrameAiModelResponse>;
 
 export type AskFrameAiOperatorEnv = Record<string, string | undefined>;
-
-export function readOperatorApiKey(env: AskFrameAiOperatorEnv = process.env): string | null {
-  const key = env.ANTHROPIC_API_KEY?.trim() ?? "";
-  return key.length > 0 ? key : null;
-}
 
 export function splitAskFrameAiModelText(text: string): Pick<AskFrameAiAnswer, "lead" | "follow"> {
   const trimmed = text.trim();
@@ -85,27 +80,19 @@ export function splitAskFrameAiModelText(text: string): Pick<AskFrameAiAnswer, "
 
 export async function requestAskFrameAiModel(
   round: AskFrameAiModelRound,
-  apiKey: string,
+  config: ClaudeConfig,
 ): Promise<AskFrameAiModelResponse> {
-  const response = await fetch(ANTHROPIC_MESSAGES_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION,
-    },
-    body: JSON.stringify({
-      model: round.model,
-      max_tokens: round.max_tokens,
-      system: round.system,
-      tools: round.tools,
-      messages: round.messages,
-    }),
+  const response = await createClaudeClient(config).messages.create({
+    model: round.model,
+    max_tokens: round.max_tokens,
+    system: round.system,
+    tools: round.tools,
+    // Assistant turns are the API's own content blocks echoed back, so
+    // tool_use always carries input. The local type keeps it optional for
+    // scripted test rounds.
+    messages: round.messages as MessageParam[],
   });
-  if (!response.ok) {
-    throw new Error("24Frame AI model request failed.");
-  }
-  return (await response.json()) as AskFrameAiModelResponse;
+  return response as AskFrameAiModelResponse;
 }
 
 function historyMessages(history: AskFrameAiHistoryTurn[], prompt: string): AnthropicMessage[] {
@@ -145,8 +132,8 @@ export async function answerAskFrameAiPrompt({
   env?: AskFrameAiOperatorEnv;
   modelClient?: AskFrameAiModelClient;
 }): Promise<AskFrameAiOperatorResult> {
-  const apiKey = readOperatorApiKey(env);
-  if (!apiKey) {
+  const config = readClaudeConfig(env);
+  if (!config) {
     return { error: ASK_FRAME_AI.unavailable };
   }
 
@@ -162,7 +149,7 @@ export async function answerAskFrameAiPrompt({
           tools: ASK_FRAME_AI_TOOLS,
           messages,
         },
-        apiKey,
+        config,
       );
     } catch {
       return { error: ASK_FRAME_AI.unavailable };

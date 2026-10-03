@@ -23,6 +23,35 @@ const TEST_KEY = "test-operator-key";
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 
+// Every Claude provider name, so the runner's own environment never picks
+// the provider these tests expect.
+function clearClaudeEnv(): void {
+  for (const name of [
+    "ANTHROPIC_API_KEY",
+    "CLAUDE_AWS_REGION",
+    "CLAUDE_AWS_ACCESS_KEY_ID",
+    "CLAUDE_AWS_SECRET_ACCESS_KEY",
+    "CLAUDE_AWS_WORKSPACE_ID",
+  ]) {
+    delete process.env[name];
+  }
+}
+
+// The Claude SDK reads a real fetch Response (status, headers, JSON body).
+function modelResponse(body: Record<string, unknown>): Response {
+  return new Response(
+    JSON.stringify({
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: ASK_FRAME_AI_MODEL_ID,
+      usage: { input_tokens: 1, output_tokens: 1 },
+      ...body,
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}
+
 function ctx({
   isGcStaff = false,
   hasOrg = true,
@@ -146,7 +175,7 @@ describe("startAskFrameAiConversation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
-    delete process.env.ANTHROPIC_API_KEY;
+    clearClaudeEnv();
   });
 
   it("refuses Access and never loads conversations or findings", async () => {
@@ -215,7 +244,7 @@ describe("completeAskFrameAiTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
-    delete process.env.ANTHROPIC_API_KEY;
+    clearClaudeEnv();
   });
 
   it("sends What is blocking a title on the model path and does not persist emptyBlocking", async () => {
@@ -228,20 +257,14 @@ describe("completeAskFrameAiTurn", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("pro");
     fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      .mockResolvedValueOnce(modelResponse({
           stop_reason: "tool_use",
           content: [{ type: "tool_use", id: "toolu_1", name: "get_blockers", input: {} }],
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+        }))
+      .mockResolvedValueOnce(modelResponse({
           stop_reason: "end_turn",
           content: [{ type: "text", text: "Harbor Cut is missing a synopsis." }],
-        }),
-      });
+        }));
 
     await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({});
     expect(rpc).toHaveBeenCalledWith("my_findings", {
@@ -281,24 +304,18 @@ describe("completeAskFrameAiTurn", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("premium");
     fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      .mockResolvedValueOnce(modelResponse({
           stop_reason: "tool_use",
           content: [
             { type: "tool_use", id: "toolu_att", name: "get_attention", input: {} },
             { type: "tool_use", id: "toolu_block", name: "get_blockers", input: {} },
             { type: "tool_use", id: "toolu_next", name: "get_submit_next", input: {} },
           ],
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+        }))
+      .mockResolvedValueOnce(modelResponse({
           stop_reason: "end_turn",
           content: [{ type: "text", text: "Harbor Cut needs a synopsis." }],
-        }),
-      });
+        }));
 
     await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({});
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -355,20 +372,14 @@ describe("completeAskFrameAiTurn", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("pro");
     fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      .mockResolvedValueOnce(modelResponse({
           stop_reason: "tool_use",
           content: [{ type: "tool_use", id: "toolu_1", name: "get_catalog_summary", input: {} }],
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+        }))
+      .mockResolvedValueOnce(modelResponse({
           stop_reason: "end_turn",
           content: [{ type: "text", text: "Your catalog has 1 title." }],
-        }),
-      });
+        }));
 
     await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({});
     expect(inserted[0]?.row).toMatchObject({
@@ -407,7 +418,7 @@ describe("appendAskFrameAiTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
-    delete process.env.ANTHROPIC_API_KEY;
+    clearClaudeEnv();
   });
 
   it("appends both turns to the same conversation", async () => {
@@ -415,13 +426,10 @@ describe("appendAskFrameAiTurn", () => {
     process.env.ANTHROPIC_API_KEY = TEST_KEY;
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("pro");
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(modelResponse({
         stop_reason: "end_turn",
         content: [{ type: "text", text: "Harbor Cut is missing a synopsis." }],
-      }),
-    });
+      }));
 
     await expect(appendAskFrameAiTurn(THREAD, "What is blocking a title")).resolves.toEqual({});
     expect(inserted.some((row) => row.table === "ai_conversations")).toBe(false);

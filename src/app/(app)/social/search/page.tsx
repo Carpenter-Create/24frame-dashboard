@@ -18,7 +18,7 @@ import { loadFolloweeIds, loadPeopleSearch, loadSuggestedPeople } from "@/lib/so
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession, type SocialSession } from "@/lib/social-session";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export default async function SocialSearchPage({
   searchParams,

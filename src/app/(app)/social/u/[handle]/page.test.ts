@@ -624,7 +624,7 @@ describe("Social public profile", () => {
 
     const src = readFileSync("src/app/(app)/social/u/[handle]/page.tsx", "utf8");
     expect(src).toContain("socialAvatarHref");
-    expect(src).toContain('export const runtime = "edge"');
+    expect(src).toContain('export const runtime = "nodejs"');
     expect(src).toContain("loadAuthorActivityPosts");
     expect(src).toContain("SocialProfileTabPanels");
     expect(readFileSync("src/components/social/social-profile-tab-panels.tsx", "utf8")).toContain(
