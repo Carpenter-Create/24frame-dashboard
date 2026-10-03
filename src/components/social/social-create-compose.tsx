@@ -143,11 +143,17 @@ export function SocialComposeVideoPreview({
     // it plays only long enough for iOS to paint, then holds that frame.
     const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     node.loop = !still;
+    let reported = false;
     const reportPixels = () => {
       const pixels = composeVideoUploadPixels({ width: node.videoWidth, height: node.videoHeight });
-      if (pixels) onPixelsRef.current?.(pixels);
+      if (!pixels) return;
+      reported = true;
+      onPixelsRef.current?.(pixels);
     };
+    // WebKit blob clips can still read 0 x 0 at loadeddata; the size shows up
+    // once muted playback runs, and upload waits for it.
     const hold = () => {
+      if (!reported) reportPixels();
       if (!still || node.videoWidth <= 0 || node.currentTime < frame) return;
       node.pause();
     };

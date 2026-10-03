@@ -222,6 +222,12 @@ describe("write compose video attach", () => {
     const hold = text.slice(text.indexOf("const hold = "), text.indexOf("const present"));
     expect(hold).toContain("if (!still ||");
     expect(hold).toContain("node.pause()");
+    // Pixels still arrive when WebKit only sizes the clip once playback runs.
+    expect(hold).toContain("if (!reported) reportPixels();");
+    expect(hold.indexOf("reportPixels()")).toBeLessThan(hold.indexOf("if (!still ||"));
+    const report = text.slice(text.indexOf("const reportPixels"), text.indexOf("const hold = "));
+    expect(report).toContain("if (!pixels) return;");
+    expect(report).toContain("reported = true;");
     const present = text.slice(text.indexOf("const present"), text.indexOf('addEventListener("loadedmetadata"'));
     expect(present).toContain("reportPixels()");
     // The seek paints a frame even when autoplay is refused.
