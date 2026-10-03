@@ -38,3 +38,9 @@ e3441ece37d7a769865f5371268b011d8bfc6da9:scripts/security/l7-chain-of-title-gate
 # not a credential. Later commits on that branch prefix `md5:`.
 0d21074bbec3a86a48cbddf933e973917b8ee85b:scripts/db/rematch-migration-ledger-20260928.sql:generic-api-key:81
 
+# Founder-classified (PR #757). The topic-tagging runbook listed the four
+# Mux env names on one line, with no values; the rule read one name as the
+# value of the one before. Later commits put one name per line.
+07ce8fcb7d66f71b39bd81a0d0efc42edcd10b0c:docs/infra/social-topic-tagging.md:generic-api-key:88
+941e81913bfa3040de83717e2b990f020a49c666:docs/infra/social-topic-tagging.md:generic-api-key:123
+
