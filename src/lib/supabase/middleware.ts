@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { pickActiveMembership } from "@/lib/active-org";
+import { APP_GATE_REDIRECT, appAccessBlocked, isAppGatedPath } from "@/lib/app-access";
 import { signInNextParam } from "@/lib/auth-callback-next";
 import {
   socialGoLiveLegacyRedirect,
@@ -70,9 +73,20 @@ export async function updateSession(request: NextRequest) {
     // land as pages.
     const next = path.startsWith("/api/")
       ? null
-      : signInNextParam(`${signInLandingPath(path)}${request.nextUrl.search}`);
+      : signInNextParam(`${inAppPath(path)}${request.nextUrl.search}`);
     if (next) url.searchParams.set("next", next);
     return NextResponse.redirect(url);
+  }
+
+  if (user && (await appPageLoadBlocked(request, supabase, user.id))) {
+    const url = request.nextUrl.clone();
+    url.pathname = APP_GATE_REDIRECT;
+    url.search = "";
+    const redirected = NextResponse.redirect(url, 307);
+    for (const cookie of response.cookies.getAll()) {
+      redirected.cookies.set(cookie);
+    }
+    return redirected;
   }
 
   const liveLegacy = socialGoLiveLegacyRedirect(path);
@@ -89,11 +103,44 @@ export async function updateSession(request: NextRequest) {
   return applySocialVanityRewrite(request, response);
 }
 
-// Profile share links (/@handle, and the retired /social/@handle and
-// /social/u/@handle) carry an `@`, which the next allowlist rejects. Send
-// them back as the in-app profile route the vanity URL serves.
-function signInLandingPath(path: string): string {
+// The in-app route a path serves. Profile share links (/@handle, and the
+// retired /social/@handle and /social/u/@handle) serve the in-app profile.
+// Sign-in needs this because the next allowlist rejects `@`.
+function inAppPath(path: string): string {
   return socialProfileRewriteTarget(socialProfileLegacyPublicRedirect(path) ?? path) ?? path;
+}
+
+// The (app) layout's access gate, applied before a full page load renders.
+// The layout's own redirect streams after the page has painted (a meta
+// refresh), so the page shows first. In-app (RSC) navigations and server
+// actions skip this lookup; the layout gate still covers them. A failed
+// lookup leaves the decision to the layout gate.
+async function appPageLoadBlocked(
+  request: NextRequest,
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<boolean> {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  if (request.headers.get("rsc") === "1") return false;
+  if (!isAppGatedPath(inAppPath(request.nextUrl.pathname))) return false;
+
+  const lookup = await Promise.all([
+    supabase
+      .from("memberships")
+      .select("organizations(id, status)")
+      .eq("user_id", userId)
+      .eq("status", "active"),
+    supabase.from("gc_staff").select("user_id").eq("user_id", userId).maybeSingle(),
+  ]).catch(() => null);
+  if (!lookup) return false;
+  const [memberships, staff] = lookup;
+  if (memberships.error || staff.error) return false;
+
+  const rows = (memberships.data ?? []).flatMap((m) =>
+    m.organizations ? [{ organizations: m.organizations }] : [],
+  );
+  const picked = pickActiveMembership(rows, request.cookies.get("gc_active_org")?.value ?? null);
+  return appAccessBlocked(picked?.organizations ?? null, !!staff.data);
 }
 
 function applySocialVanityRewrite(request: NextRequest, response: NextResponse): NextResponse {

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { ACCOUNT_PHOTO_HREF } from "@/lib/account-avatar";
 import type { ActivityItem } from "@/lib/activity";
+import { APP_GATE_REDIRECT, appAccessBlocked } from "@/lib/app-access";
 import { resolveMessagesSurface, type MessagesSurface } from "@/lib/ask-globee";
 import { loadActivityBellItems } from "@/lib/my-lists";
 import { getActiveOrgTier } from "@/lib/org-tier";
@@ -33,14 +34,13 @@ export type AppShellChrome = {
 };
 
 // Same gates the (app) layout used to await before {children}. Middleware
-// already bounces an empty session. This still enforces mid-onboarding.
+// already bounces an empty session, and mid-onboarding on full page loads.
+// This still enforces mid-onboarding on in-app navigations.
 // Call from a Suspense sibling so Social loading.tsx can paint first.
 export async function enforceAppAccess(): Promise<OrgContext> {
   const ctx = await getOrgContext();
   if (!ctx) redirect("/login");
-  if (ctx.activeOrg && ctx.activeOrg.status !== "active" && !ctx.isGcStaff) {
-    redirect("/onboarding");
-  }
+  if (appAccessBlocked(ctx.activeOrg, ctx.isGcStaff)) redirect(APP_GATE_REDIRECT);
   return ctx;
 }
 

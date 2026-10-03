@@ -76,6 +76,15 @@ overrides:
 # Expo tooling (@24frame/mobile > expo > @expo/cli, and @expo/code-signing-certificates);
 # nothing in the web app depends on it. When node-forge ships a fix, delete this entry and
 # add a range-scoped floor under overrides instead.
+#
+# braces GHSA-vfj7-8cjw-p6xm (high, 2026-10-03) — founder-approved on #752. No patched release
+# exists: the advisory names >=3.0.4 and the registry's latest is 3.0.3, so no override can
+# satisfy it. Reached only through tooling, by way of micromatch: ESLint (eslint-config-next >
+# @next/eslint-plugin-next > fast-glob, a web devDependency) and the mobile app's Metro bundler
+# (expo > @expo/cli > metro-file-map). The DoS needs attacker-written glob patterns; these come
+# from tool config only. When braces ships 3.0.4, delete this entry and add a range-scoped floor
+# under overrides instead ('braces@<3.0.4': '^3.0.4').
 auditConfig:
   ignoreGhsas:
     - GHSA-86w9-cpqp-85rv
+    - GHSA-vfj7-8cjw-p6xm

@@ -1,7 +1,7 @@
 // Which membership the app treats as the active org.
 //
-// The app sends a user whose active org is not "active" to onboarding
-// (enforceAppAccess), and the onboarding welcome sends anyone with an active
+// The app sends a user whose active org is mid-onboarding to onboarding
+// (appAccessBlocked), and the onboarding welcome sends anyone with an active
 // org back to the app. Picking a non-active org while an active one exists
 // made the two redirect into each other forever. So the gc_active_org cookie
 // chooses among active orgs first, and a non-active org is picked only when
