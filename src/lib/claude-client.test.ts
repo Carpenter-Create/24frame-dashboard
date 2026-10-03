@@ -102,6 +102,9 @@ describe("createClaudeClient", () => {
     const fetchMock = vi.fn().mockResolvedValue(okMessage());
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("ANTHROPIC_AWS_BASE_URL", "https://elsewhere.example");
+    // The cutover key and a stray bearer stay in the env during cutover.
+    vi.stubEnv("ANTHROPIC_API_KEY", "cutover-key");
+    vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "stray-bearer");
 
     const config = readClaudeConfig(AWS_ENV);
     if (!config) throw new Error("expected a config");
