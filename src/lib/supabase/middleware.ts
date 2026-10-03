@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { signInNextParam } from "@/lib/auth-callback-next";
 import {
   socialGoLiveLegacyRedirect,
   socialProfileLegacyPublicRedirect,
@@ -64,6 +65,11 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
+    // Sign-in lands back on the page that was asked for. API calls never
+    // land as pages.
+    const next = path.startsWith("/api/") ? null : signInNextParam(`${path}${request.nextUrl.search}`);
+    if (next) url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
 

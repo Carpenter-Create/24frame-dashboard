@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 
+import { signInNextParam } from "@/lib/auth-callback-next";
 import {
   DASHBOARD_SIGN_IN_RATE_LIMITED,
   DASHBOARD_SIGN_IN_SEND_FAILED,
@@ -34,6 +35,8 @@ export async function requestMagicLink(
 ): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim();
   if (!email) return { ok: false, message: "Enter your email address." };
+  // The page a signed-out visit asked for. Re-checked: the form is client input.
+  const next = signInNextParam(formData.get("next")?.toString());
 
   const hdrs = await headers();
   const origin = hdrs.get("origin");
@@ -41,7 +44,7 @@ export async function requestMagicLink(
 
   try {
     await assertDashboardSignInAllowed({ email, ip });
-    await issueDashboardSignInLink({ email, requestOrigin: origin });
+    await issueDashboardSignInLink({ email, requestOrigin: origin, ...(next ? { next } : {}) });
   } catch (err) {
     if (err instanceof DashboardSignInRateLimitError) {
       return { ok: false, message: DASHBOARD_SIGN_IN_RATE_LIMITED };

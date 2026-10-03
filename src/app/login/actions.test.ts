@@ -33,6 +33,39 @@ function form(fields: Record<string, string>): FormData {
   return data;
 }
 
+describe("requestMagicLink next", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(headers).mockResolvedValue({
+      get: (name: string) => (name === "origin" ? "https://app.24frame.co" : null),
+    } as unknown as Awaited<ReturnType<typeof headers>>);
+    vi.mocked(assertDashboardSignInAllowed).mockResolvedValue(undefined);
+    vi.mocked(issueDashboardSignInLink).mockResolvedValue(undefined);
+  });
+
+  it("carries a safe next into the sign-in link", async () => {
+    await requestMagicLink(
+      { ok: false, message: "" },
+      form({ email: "jane@acmefilms.com", next: "/social/u/ada?tab=media" }),
+    );
+
+    expect(issueDashboardSignInLink).toHaveBeenCalledWith({
+      email: "jane@acmefilms.com",
+      requestOrigin: "https://app.24frame.co",
+      next: "/social/u/ada?tab=media",
+    });
+  });
+
+  it("drops an off-site next", async () => {
+    await requestMagicLink(
+      { ok: false, message: "" },
+      form({ email: "jane@acmefilms.com", next: "//evil.example/x" }),
+    );
+
+    expect(vi.mocked(issueDashboardSignInLink).mock.calls[0]?.[0]).not.toHaveProperty("next");
+  });
+});
+
 describe("requestMagicLink", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AUTH_DEFAULT_NEXT, safeAuthCallbackNext } from "./auth-callback-next";
+import { AUTH_DEFAULT_NEXT, safeAuthCallbackNext, signInNextParam } from "./auth-callback-next";
 
 describe("safeAuthCallbackNext (P0-1)", () => {
   it("allows same-origin path-relative URLs and defaults to /home", () => {
@@ -36,5 +36,22 @@ describe("safeAuthCallbackNext (P0-1)", () => {
     expect(safeAuthCallbackNext("/%40attacker")).toBe("/home");
     expect(safeAuthCallbackNext("/queue%0d%0aLocation:%20https://evil.example")).toBe("/home");
     expect(safeAuthCallbackNext("/que\nue")).toBe("/home");
+  });
+});
+
+describe("signInNextParam", () => {
+  it("keeps a safe page and drops the default land", () => {
+    expect(signInNextParam("/social/u/ada?tab=media")).toBe("/social/u/ada?tab=media");
+    expect(signInNextParam(["/staff/queue", "/other"])).toBe("/staff/queue");
+    expect(signInNextParam("/home")).toBeNull();
+    expect(signInNextParam("/")).toBeNull();
+    expect(signInNextParam(null)).toBeNull();
+    expect(signInNextParam(undefined)).toBeNull();
+  });
+
+  it("drops anything safeAuthCallbackNext rejects", () => {
+    for (const raw of ["//evil.example/x", "https://evil.example", "/%40attacker", "/a\\b"]) {
+      expect(signInNextParam(raw)).toBeNull();
+    }
   });
 });
