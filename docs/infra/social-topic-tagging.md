@@ -243,9 +243,17 @@ and `aws lambda get-function --function-name 24frame-social-topic-tag
 
 All alarms email the SNS topic. Confirm the email subscription first.
 
+The log filters below match a plain phrase, so they work with Lambda's
+default text log format, which puts a timestamp, request id and level
+before each line. Lambda only creates the log group on the first run, so
+create it first; if the dry run already ran, `create-log-group` says the
+group exists, which is fine.
+
 ```sh
 LOG_GROUP=/aws/lambda/24frame-social-topic-tag
 TOPIC_ARN=arn:aws:sns:us-west-2:ACCOUNT_ID:24frame-social-topic-alerts
+
+aws logs create-log-group --region us-west-2 --log-group-name $LOG_GROUP
 
 # 1. Crashes or bad settings (missing env): the run itself fails.
 aws cloudwatch put-metric-alarm --region us-west-2 \
@@ -257,24 +265,28 @@ aws cloudwatch put-metric-alarm --region us-west-2 \
   --treat-missing-data notBreaching --alarm-actions $TOPIC_ARN
 
 # 2. Posts failing (an outage of Claude, Mux, S3 or the database, or a
-#    wrong setting). One stuck post makes 12 failures an hour; this fires
-#    above 36, so one bad post does not page you.
+#    wrong setting). A run gives each post up to 90 seconds and starts
+#    posts for 3 minutes, so even a service that hangs fails at least 2
+#    posts a run when 2 or more are waiting: 22 or more an hour. One stuck
+#    post fails at most 13 times an hour. This fires at 20, so an outage
+#    pages you and one bad post does not. With only one post waiting, an
+#    outage looks like one stuck post until a second post arrives.
 aws logs put-metric-filter --region us-west-2 --log-group-name $LOG_GROUP \
   --filter-name post-failures \
-  --filter-pattern '{ $.msg = "social topic post failed" }' \
+  --filter-pattern '"social topic post failed"' \
   --metric-transformations metricName=PostFailures,metricNamespace=24Frame/SocialTopic,metricValue=1
 aws cloudwatch put-metric-alarm --region us-west-2 \
   --alarm-name 24frame-social-topic-post-failures \
   --namespace 24Frame/SocialTopic --metric-name PostFailures \
-  --statistic Sum --period 3600 --evaluation-periods 1 --threshold 36 \
-  --comparison-operator GreaterThanThreshold \
+  --statistic Sum --period 3600 --evaluation-periods 1 --threshold 20 \
+  --comparison-operator GreaterThanOrEqualToThreshold \
   --treat-missing-data notBreaching --alarm-actions $TOPIC_ARN
 
 # 3. The schedule stopped (rule disabled by mistake, permission lost):
 #    no finished run in 30 minutes.
 aws logs put-metric-filter --region us-west-2 --log-group-name $LOG_GROUP \
   --filter-name runs \
-  --filter-pattern '{ $.msg = "social topic tagging done" }' \
+  --filter-pattern '"social topic tagging done"' \
   --metric-transformations metricName=Runs,metricNamespace=24Frame/SocialTopic,metricValue=1
 aws cloudwatch put-metric-alarm --region us-west-2 \
   --alarm-name 24frame-social-topic-heartbeat \
@@ -288,7 +300,7 @@ aws cloudwatch disable-alarm-actions --region us-west-2 \
 # 4. Unusable answers spiking (Claude refusing or cut off on many posts).
 aws logs put-metric-filter --region us-west-2 --log-group-name $LOG_GROUP \
   --filter-name unusable \
-  --filter-pattern '{ $.msg = "social topic unusable answer" }' \
+  --filter-pattern '"social topic unusable answer"' \
   --metric-transformations metricName=Unusable,metricNamespace=24Frame/SocialTopic,metricValue=1
 aws cloudwatch put-metric-alarm --region us-west-2 \
   --alarm-name 24frame-social-topic-unusable \

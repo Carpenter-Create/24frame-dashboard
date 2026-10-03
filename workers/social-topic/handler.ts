@@ -38,7 +38,7 @@ import type { Database } from "../../src/lib/supabase/database.types";
 // Function timeout is 5 minutes. A post gets at most 90 seconds
 // (SOCIAL_TOPIC_POST_DEADLINE_MS), so stop starting new posts after 3.
 const BATCH_SIZE = 40;
-const BUDGET_MS = 3 * 60 * 1000;
+export const SOCIAL_TOPIC_RUN_BUDGET_MS = 3 * 60 * 1000;
 // S3 calls give up rather than hang the run. requestTimeout only warns
 // unless throwOnRequestTimeout is set; socketTimeout covers a stalled body.
 export const SOCIAL_TOPIC_S3_REQUEST_HANDLER = {
@@ -97,7 +97,7 @@ export async function handler(event?: Record<string, unknown> | null): Promise<S
     return report;
   }
 
-  const summary = await runSocialTopicBatch({ ...deps, now: new Date(), batchSize: BATCH_SIZE, budgetMs: BUDGET_MS });
+  const summary = await runSocialTopicBatch({ ...deps, now: new Date(), batchSize: BATCH_SIZE, budgetMs: SOCIAL_TOPIC_RUN_BUDGET_MS });
   console.log(
     JSON.stringify({ msg: "social topic tagging done", build: process.env.SOCIAL_TOPIC_BUILD ?? "unknown", ...summary }),
   );
