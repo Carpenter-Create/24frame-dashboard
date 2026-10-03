@@ -22,7 +22,7 @@ const CLIENT = {} as Anthropic;
 const SINCE = "2026-09-26T12:00:00.000Z";
 const MIN_AGE_EDGE = "2026-10-03T11:58:00.000Z";
 const EMPTY = { data: [], error: null };
-const NO_STRAYS = { strayTracksDeleted: 0, strayErrors: 0 };
+const NO_STRAYS = { strayChecked: 0, strayTracksDeleted: 0, strayErrors: 0 };
 
 type Result = { data: unknown[] | null; error: { message: string } | null };
 
@@ -179,13 +179,13 @@ describe("runSocialTopicBatch", () => {
       ["is", "category_tagged_at", null],
       ["is", "group_id", null],
       ["neq", "status", "active"],
-      ["contains", "media", [{ provider: "mux" }]],
+      ["contains", "media", '[{"provider":"mux"}]'],
       ["or", `created_at.gte."${SINCE}",edited_at.gte."${SINCE}"`],
       ["order", "created_at", { ascending: false }],
       ["limit", 20],
     ]);
-    expect(vi.mocked(cleanupSocialPostTopicTracks).mock.calls[0]?.[0]).toMatchObject({ post: removed });
-    expect(summary).toMatchObject({ strayTracksDeleted: 2, strayErrors: 0 });
+    expect(vi.mocked(cleanupSocialPostTopicTracks).mock.calls[0]?.[0]).toMatchObject({ post: removed, now: NOW });
+    expect(summary).toMatchObject({ strayChecked: 1, strayTracksDeleted: 2, strayErrors: 0 });
     expect(tagSocialPostTopic).not.toHaveBeenCalled();
   });
 
@@ -196,13 +196,13 @@ describe("runSocialTopicBatch", () => {
 
     const summary = await runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 60_000 });
 
-    expect(summary).toMatchObject({ error: 0, strayErrors: 1, strayTracksDeleted: 0 });
+    expect(summary).toMatchObject({ error: 0, strayChecked: 1, strayErrors: 1, strayTracksDeleted: 0 });
     expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("social topic stray cleanup failed"));
 
     const failing = fakeAdmin(EMPTY, { data: null, error: { message: "timeout" } });
     expect(
       await runSocialTopicBatch({ admin: failing.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 60_000 }),
-    ).toMatchObject({ error: 0, strayErrors: 1 });
+    ).toMatchObject({ error: 0, strayChecked: 0, strayErrors: 1 });
     errorLog.mockRestore();
   });
 
@@ -257,5 +257,34 @@ describe("runSocialTopicBatch", () => {
       runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 1000 }),
     ).rejects.toThrow("Topic select failed: permission denied");
     expect(tagSocialPostTopic).not.toHaveBeenCalled();
+  });
+});
+
+describe("PostgREST filters as the real client builds them", () => {
+  it("sends a jsonb containment filter for Mux posts and a quoted window", async () => {
+    const { createClient } = await import("@supabase/supabase-js");
+    const urls: string[] = [];
+    const client = createClient("https://db.test", "test-key", {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (async (input: RequestInfo | URL) => {
+          urls.push(String(input));
+          return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+        }) as typeof fetch,
+      },
+    });
+    const { SOCIAL_TOPIC_MUX_MEDIA_FILTER } = await import("./social-topic-run");
+
+    await client
+      .from("posts")
+      .select("id")
+      .contains("media", SOCIAL_TOPIC_MUX_MEDIA_FILTER)
+      .or(`created_at.gte."${SINCE}",edited_at.gte."${SINCE}"`)
+      .not("author_id", "in", "(11111111-1111-4111-8111-111111111111)");
+
+    const params = new URL(urls[0]!).searchParams;
+    expect(params.get("media")).toBe('cs.[{"provider":"mux"}]');
+    expect(params.get("or")).toBe(`(created_at.gte."${SINCE}",edited_at.gte."${SINCE}")`);
+    expect(params.get("author_id")).toBe("not.in.(11111111-1111-4111-8111-111111111111)");
   });
 });

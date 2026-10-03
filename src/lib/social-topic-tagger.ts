@@ -121,6 +121,9 @@ export async function decideSocialPostTopic(args: {
       createdAt: post.created_at,
       now,
       requestSubtitles: args.requestSubtitles ?? socialTopicMayTranscribe(post, now),
+      // The eval passes requestSubtitles: false and never waits. The worker
+      // always waits for a transcript it already started.
+      waitForPreparing: args.requestSubtitles !== false,
       signal: args.signal,
     },
     args.mediaDeps,
@@ -221,12 +224,16 @@ async function deleteTaggerTracks(
 }
 
 /**
- * For a post the tagger will no longer classify (removed or hidden): delete
- * its leftover caption tracks. No model call, no write. `pending` is true
- * while a track is still being made, for a later run.
+ * For a post the tagger will no longer classify (removed or hidden, which
+ * no user can undo): delete its leftover caption tracks, with no model
+ * call. Once none is still being made, the post is stamped so later runs
+ * move on to other posts; while one is, `pending` is true and a later run
+ * comes back for it.
  */
 export async function cleanupSocialPostTopicTracks(args: {
+  admin: SupabaseClient<Database>;
   post: Pick<SocialTopicPost, "id" | "author_id" | "media">;
+  now: Date;
   mediaDeps?: SocialTopicMediaDeps;
   signal?: AbortSignal;
 }): Promise<{ deleted: number; pending: boolean }> {
@@ -239,5 +246,15 @@ export async function cleanupSocialPostTopicTracks(args: {
     args.mediaDeps,
   );
   const deleted = await deleteTaggerTracks(args.mediaDeps, stray.cleanup, args.post.id, args.signal);
-  return { deleted, pending: stray.pending };
+  if (stray.pending) return { deleted, pending: true };
+  args.signal?.throwIfAborted();
+  const { error } = await args.admin
+    .from("posts")
+    .update({ category_tagged_at: args.now.toISOString() })
+    .eq("id", args.post.id)
+    .is("category_tagged_at", null)
+    // Never an active post: those go through tagging.
+    .neq("status", "active");
+  if (error) throw new Error(`Stray stamp failed: ${error.message}`);
+  return { deleted, pending: false };
 }

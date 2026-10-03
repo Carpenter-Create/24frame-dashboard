@@ -181,10 +181,13 @@ async function videoFrames(item: MuxVideo, asset: MuxAssetData, deps: SocialTopi
 
 /**
  * Media signals for one post. `createdAt` decides whether the tagger still
- * waits for a preparing video. The eval script passes requestSubtitles:
- * false so it never starts a transcription. `signal` stops a post the run
- * has given up on before its next Mux or S3 call, so abandoned work ends
- * within one call's timeout.
+ * waits for a preparing video. `requestSubtitles` lets it start a new
+ * transcript; `waitForPreparing` (default: the same) makes it wait for a
+ * transcript already being made, so a track it started is always read and
+ * deleted before the post is stamped. The eval script passes
+ * requestSubtitles: false, so it neither starts nor waits. `signal` stops a
+ * post the run has given up on before its next Mux or S3 call, so abandoned
+ * work ends within one call's timeout.
  *
  * Every video must be ready before any transcript is read or requested, and
  * a post gets one transcript, from its first video with audio. So the tagger
@@ -198,11 +201,13 @@ export async function gatherSocialTopicMedia(
     createdAt: string;
     now: Date;
     requestSubtitles: boolean;
+    waitForPreparing?: boolean;
     signal?: AbortSignal;
   },
   deps: SocialTopicMediaDeps = SOCIAL_TOPIC_LIVE_MEDIA_DEPS,
 ): Promise<SocialTopicMedia> {
   const waitedOut = post.now.getTime() - Date.parse(post.createdAt) >= SOCIAL_TOPIC_MEDIA_WAIT_MS;
+  const waitForPreparing = post.waitForPreparing ?? post.requestSubtitles;
 
   const videos = new Map<SocialMediaItem, ReadyVideo>();
   for (const item of post.items) {
@@ -211,6 +216,16 @@ export async function gatherSocialTopicMedia(
     const video = await readyMuxAsset(item, post.authorId, waitedOut, deps);
     if (video === "wait") return { status: "wait" };
     if (video) videos.set(item, video);
+  }
+  // A caption track the tagger started is still being made: wait, so it is
+  // read and deleted before the stamp, never left on a stamped post.
+  if (
+    waitForPreparing &&
+    [...videos.values()].some(({ asset }) =>
+      asset.tracks?.some((track) => isTaggerTrack(track) && track.status === "preparing"),
+    )
+  ) {
+    return { status: "wait" };
   }
 
   // The transcript wait is not tied to the post's age: a post first seen
@@ -227,7 +242,7 @@ export async function gatherSocialTopicMedia(
     if (text?.status === "ready" && text.id) {
       post.signal?.throwIfAborted();
       transcript = await deps.fetchTranscript(item.playbackId, text.id);
-    } else if (post.requestSubtitles && text?.status === "preparing") {
+    } else if (waitForPreparing && text?.status === "preparing") {
       return { status: "wait" };
     } else if (post.requestSubtitles && !text && audio?.id) {
       post.signal?.throwIfAborted();

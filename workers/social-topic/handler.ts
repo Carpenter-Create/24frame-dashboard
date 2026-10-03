@@ -76,5 +76,10 @@ export async function handler(): Promise<SocialTopicRunSummary | { skipped: "dis
   if (attempted > 0 && summary.error === attempted) {
     throw new Error(`every attempted post failed (${summary.error})`);
   }
+  // Same for leftover caption-track cleanup: a pass that fails entirely
+  // (its select, or every post it checked) fails the run, so it is seen.
+  if (summary.strayErrors > 0 && summary.strayErrors >= summary.strayChecked) {
+    throw new Error(`stray caption-track cleanup failed (${summary.strayErrors})`);
+  }
   return summary;
 }

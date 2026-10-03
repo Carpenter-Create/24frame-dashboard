@@ -3,6 +3,7 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { SOCIAL_MUX_PROVIDER } from "@/lib/social-mux";
 import type { SocialTopicMediaDeps } from "@/lib/social-topic-media";
 import {
   cleanupSocialPostTopicTracks,
@@ -39,11 +40,16 @@ export const SOCIAL_TOPIC_CANDIDATE_PAGES = 3;
 export const SOCIAL_TOPIC_STRAY_BATCH = 20;
 
 const SOCIAL_TOPIC_POST_COLUMNS = "id, author_id, body, media, created_at, edited_at";
+// Posts with at least one Mux video in media.
+export const SOCIAL_TOPIC_MUX_MEDIA_FILTER = JSON.stringify([{ provider: SOCIAL_MUX_PROVIDER }]);
 
 export type SocialTopicRunSummary = Record<SocialTopicOutcome | "error" | "deferred", number> & {
   selected: number;
-  /** Leftover caption tracks deleted on removed or hidden posts. */
+  /** Removed or hidden posts checked for leftover caption tracks. */
+  strayChecked: number;
+  /** Leftover caption tracks deleted on those posts. */
   strayTracksDeleted: number;
+  /** Failed checks, plus 1 when the stray select itself failed. */
   strayErrors: number;
 };
 
@@ -120,6 +126,7 @@ export async function runSocialTopicBatch(args: {
     raced: 0,
     error: 0,
     deferred: 0,
+    strayChecked: 0,
     strayTracksDeleted: 0,
     strayErrors: 0,
   };
@@ -165,8 +172,8 @@ export async function runSocialTopicBatch(args: {
 /**
  * Removed or hidden video posts in the window that the tagger never stamped
  * may still carry a caption track it requested. Delete those tracks. The
- * post is never classified or written; it is checked again next run while
- * it stays in the window.
+ * post is never classified; once nothing is left to delete it is stamped,
+ * so the next run reaches older ones.
  */
 async function cleanStrayTracks(
   admin: SupabaseClient<Database>,
@@ -183,7 +190,9 @@ async function cleanStrayTracks(
     .is("category_tagged_at", null)
     .is("group_id", null)
     .neq("status", "active")
-    .contains("media", [{ provider: "mux" }])
+    // jsonb containment: postgrest-js turns an array into a Postgres array
+    // literal, so the JSON text is passed as a string.
+    .contains("media", SOCIAL_TOPIC_MUX_MEDIA_FILTER)
     .or(windowFilter(since))
     .order("created_at", { ascending: false })
     .limit(SOCIAL_TOPIC_STRAY_BATCH);
@@ -194,9 +203,10 @@ async function cleanStrayTracks(
   }
   for (const post of data ?? []) {
     if (!hasTime()) return;
+    summary.strayChecked += 1;
     try {
       const result = await withDeadline(
-        (signal) => cleanupSocialPostTopicTracks({ post, mediaDeps, signal }),
+        (signal) => cleanupSocialPostTopicTracks({ admin, post, now: new Date(nowMs), mediaDeps, signal }),
         deadlineMs,
       );
       summary.strayTracksDeleted += result.deleted;

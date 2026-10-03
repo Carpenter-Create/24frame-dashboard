@@ -32,6 +32,7 @@ const SUMMARY = {
   raced: 0,
   error: 0,
   deferred: 0,
+  strayChecked: 0,
   strayTracksDeleted: 0,
   strayErrors: 0,
 };
@@ -100,6 +101,17 @@ describe("social topic Lambda handler", () => {
       ...SUMMARY, selected: 0, tagged: 0, declined: 0, wait: 0, raced: 0, error: 0, deferred: 0,
     });
     await expect(handler()).resolves.toMatchObject({ selected: 0 });
+  });
+
+  it("fails the invocation when stray caption-track cleanup fails entirely", async () => {
+    // The stray select failed: nothing checked, one error.
+    vi.mocked(runSocialTopicBatch).mockResolvedValue({ ...SUMMARY, strayChecked: 0, strayErrors: 1 });
+    await expect(handler()).rejects.toThrow("stray caption-track cleanup failed (1)");
+    vi.mocked(runSocialTopicBatch).mockResolvedValue({ ...SUMMARY, strayChecked: 2, strayErrors: 2 });
+    await expect(handler()).rejects.toThrow("stray caption-track cleanup failed (2)");
+    // Some checks worked: the run succeeds and logs the failures.
+    vi.mocked(runSocialTopicBatch).mockResolvedValue({ ...SUMMARY, strayChecked: 3, strayErrors: 1 });
+    await expect(handler()).resolves.toMatchObject({ strayErrors: 1 });
   });
 
   it("makes S3 timeouts throw instead of only warning", () => {

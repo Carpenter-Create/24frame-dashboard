@@ -550,6 +550,30 @@ describe("gatherSocialTopicMedia: posts with more than one video", () => {
     expect(deps.requestSubtitles.mock.calls).toEqual([[ASSET_B, "audioTrack01"]]);
   });
 
+  it("waits for a tagger track still being made on any video when told to wait", async () => {
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockImplementation(
+      assets({}, { tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("preparing"), id: "textTrack002" }] }),
+    );
+    const call = (waitForPreparing: boolean) =>
+      gatherSocialTopicMedia(
+        {
+          items: [videoItem(), secondVideo()],
+          authorId: AUTHOR,
+          createdAt: YOUNG,
+          now: NOW,
+          requestSubtitles: false,
+          waitForPreparing,
+          signal: undefined,
+        },
+        deps,
+      );
+
+    expect(await call(true)).toEqual({ status: "wait" });
+    expect(await call(false)).toMatchObject({ status: "ready", transcript: TRANSCRIPT, cleanup: [OUR_TRACK] });
+    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+  });
+
   it("lists every tagger track for deletion, and never one still preparing", async () => {
     const deps = fakeDeps();
     deps.retrieveAsset.mockImplementation(
@@ -565,7 +589,13 @@ describe("gatherSocialTopicMedia: posts with more than one video", () => {
         { tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("preparing"), id: "textTrack002" }] },
       ),
     );
-    expect(await gather([videoItem(), secondVideo()], deps)).toMatchObject({ transcript: TRANSCRIPT, cleanup: [] });
+    // The tagger's own track on the second video is still being made: wait,
+    // never stamp past it. Read as it is now (the eval), nothing is deleted.
+    expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
+    expect(await gather([videoItem(), secondVideo()], deps, { requestSubtitles: false })).toMatchObject({
+      transcript: TRANSCRIPT,
+      cleanup: [],
+    });
   });
 
   it("stops before its next Mux or S3 call once the run gives up on the post", async () => {
