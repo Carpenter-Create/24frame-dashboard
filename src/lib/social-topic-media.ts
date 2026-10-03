@@ -112,12 +112,16 @@ type ReadyVideo = { item: MuxVideo; asset: MuxAssetData };
  * The author's own ready asset for a video, null when the tagger reads
  * nothing from it, or "wait" while it is still preparing.
  */
-async function readyMuxAsset(
+/**
+ * The author's own Mux asset behind a video item, or null when the tagger
+ * reads nothing from it: no asset id, a deleted asset, or an asset that is
+ * not the author's upload played by this playback id. Other errors throw.
+ */
+async function ownedMuxAsset(
   item: SocialMediaItem & { playbackId: string },
   authorId: string,
-  waitedOut: boolean,
   deps: SocialTopicMediaDeps,
-): Promise<ReadyVideo | null | "wait"> {
+): Promise<{ item: MuxVideo; asset: MuxAssetData } | null> {
   if (!item.assetId) return null;
   let asset: MuxAssetData;
   try {
@@ -128,17 +132,29 @@ async function readyMuxAsset(
     throw error;
   }
   // Only the author's own upload, played by this playback id. A post that
-  // names someone else's asset gets no frames, no transcript, and no
-  // transcription request.
+  // names someone else's asset gets no frames, no transcript, no
+  // transcription request, and no track deletes.
   if (
     !socialMuxPassthroughBoundToUser(asset.passthrough, authorId) ||
     !asset.playback_ids?.some((playback) => playback.id === item.playbackId)
   ) {
     return null;
   }
-  if (asset.status === "errored") return null;
-  if (asset.status !== "ready") return waitedOut ? null : "wait";
   return { item: { ...item, assetId: item.assetId }, asset };
+}
+
+/** The author's own ready asset for a video, null when the tagger reads nothing from it, or "wait". */
+async function readyMuxAsset(
+  item: SocialMediaItem & { playbackId: string },
+  authorId: string,
+  waitedOut: boolean,
+  deps: SocialTopicMediaDeps,
+): Promise<ReadyVideo | null | "wait"> {
+  const owned = await ownedMuxAsset(item, authorId, deps);
+  if (!owned) return null;
+  if (owned.asset.status === "errored") return null;
+  if (owned.asset.status !== "ready") return waitedOut ? null : "wait";
+  return owned;
 }
 
 function isTaggerTrack(track: SocialMuxTrack): track is SocialMuxTrack & { id: string } {
@@ -254,4 +270,33 @@ export async function gatherSocialTopicMedia(
   }
 
   return { status: "ready", images: images.slice(0, SOCIAL_TOPIC_MAX_IMAGES), transcript, cleanup };
+}
+
+/**
+ * The tagger's own caption tracks on a post it will no longer classify (the
+ * author removed it, or staff hid it). Ready or errored tracks are listed
+ * for deletion; `pending` is true while one is still being made, so a later
+ * run deletes it.
+ */
+export async function socialTopicStrayTracks(
+  post: { items: readonly SocialMediaItem[]; authorId: string; signal?: AbortSignal },
+  deps: SocialTopicMediaDeps = SOCIAL_TOPIC_LIVE_MEDIA_DEPS,
+): Promise<{ cleanup: SocialTopicTrackRef[]; pending: boolean }> {
+  const cleanup: SocialTopicTrackRef[] = [];
+  let pending = false;
+  for (const item of post.items) {
+    if (!isSocialMuxMediaItem(item)) continue;
+    post.signal?.throwIfAborted();
+    const owned = await ownedMuxAsset(item, post.authorId, deps);
+    if (!owned) continue;
+    for (const track of owned.asset.tracks ?? []) {
+      if (!isTaggerTrack(track)) continue;
+      if (track.status === "ready" || track.status === "errored") {
+        cleanup.push({ assetId: owned.item.assetId, trackId: track.id });
+      } else if (track.status === "preparing") {
+        pending = true;
+      }
+    }
+  }
+  return { cleanup, pending };
 }

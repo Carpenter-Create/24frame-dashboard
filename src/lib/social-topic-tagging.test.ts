@@ -15,6 +15,9 @@ import {
   SOCIAL_TOPIC_SYSTEM,
   SOCIAL_TOPIC_TRANSCRIPT_MAX_CHARS,
   socialTopicHashtags,
+  socialTopicMayTranscribe,
+  SOCIAL_TOPIC_MAX_AGE_MS,
+  SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS,
   socialTopicResultSchema,
   socialTopicWrite,
   type SocialTopicContentBlock,
@@ -299,5 +302,27 @@ describe("isSocialTopicTaggingEnabled", () => {
     expect(isSocialTopicTaggingEnabled()).toBe(true);
     vi.stubEnv("SOCIAL_TOPIC_TAGGING", "ON");
     expect(isSocialTopicTaggingEnabled()).toBe(false);
+  });
+});
+
+describe("socialTopicMayTranscribe", () => {
+  const NOW = new Date("2026-10-03T12:00:00.000Z");
+  const ago = (ms: number) => new Date(NOW.getTime() - ms).toISOString();
+
+  it("allows a new transcript for an unedited post until the last day of the window", () => {
+    expect(SOCIAL_TOPIC_MAX_AGE_MS - SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS).toBe(24 * 60 * 60 * 1000);
+    expect(socialTopicMayTranscribe({ created_at: ago(5 * 60 * 1000), edited_at: null }, NOW)).toBe(true);
+    expect(socialTopicMayTranscribe({ created_at: ago(SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS - 1), edited_at: null }, NOW)).toBe(
+      true,
+    );
+    expect(socialTopicMayTranscribe({ created_at: ago(SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS), edited_at: null }, NOW)).toBe(
+      false,
+    );
+  });
+
+  it("never asks for a new transcript for an edited post", () => {
+    expect(
+      socialTopicMayTranscribe({ created_at: ago(5 * 60 * 1000), edited_at: ago(60 * 1000) }, NOW),
+    ).toBe(false);
   });
 });

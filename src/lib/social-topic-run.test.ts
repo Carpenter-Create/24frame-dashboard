@@ -2,59 +2,80 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/social-topic-tagger", () => ({ tagSocialPostTopic: vi.fn() }));
+vi.mock("@/lib/social-topic-tagger", () => ({
+  tagSocialPostTopic: vi.fn(),
+  cleanupSocialPostTopicTracks: vi.fn(),
+}));
 
-import { tagSocialPostTopic } from "@/lib/social-topic-tagger";
+import { cleanupSocialPostTopicTracks, tagSocialPostTopic } from "@/lib/social-topic-tagger";
 import type { Database } from "@/lib/supabase/database.types";
 
-import { runSocialTopicBatch, SOCIAL_TOPIC_POST_DEADLINE_MS } from "./social-topic-run";
+import {
+  runSocialTopicBatch,
+  SOCIAL_TOPIC_CANDIDATE_PAGE,
+  SOCIAL_TOPIC_MAX_PER_AUTHOR,
+  SOCIAL_TOPIC_POST_DEADLINE_MS,
+} from "./social-topic-run";
 
 const NOW = new Date("2026-10-03T12:00:00.000Z");
 const CLIENT = {} as Anthropic;
+const SINCE = "2026-09-26T12:00:00.000Z";
+const MIN_AGE_EDGE = "2026-10-03T11:58:00.000Z";
+const EMPTY = { data: [], error: null };
+const NO_STRAYS = { strayTracksDeleted: 0, strayErrors: 0 };
 
-function post(id: string) {
-  return { id, author_id: "author", body: "caption", media: [], created_at: "2026-10-03T11:00:00.000Z" };
+type Result = { data: unknown[] | null; error: { message: string } | null };
+
+function post(id: string, author = `author-${id}`, createdAt = "2026-10-03T11:00:00.000Z") {
+  return { id, author_id: author, body: "caption", media: [], created_at: createdAt, edited_at: null };
 }
 
-function fakeAdmin(result: { data: unknown[] | null; error: { message: string } | null }) {
-  const calls: unknown[][] = [];
-  const query: Record<string, (...args: unknown[]) => unknown> = {};
-  for (const name of ["select", "is", "eq", "gte", "lte", "order", "limit"]) {
-    query[name] = (...args) => {
-      calls.push([name, ...args]);
-      return name === "limit" ? Promise.resolve(result) : query;
-    };
-  }
-  const from = vi.fn(() => query);
-  return { calls, from, admin: { from } as unknown as SupabaseClient<Database> };
+/** Each from() builds one query; its limit() resolves the next queued result (then empty). */
+function fakeAdmin(...results: Result[]) {
+  const queries: unknown[][][] = [];
+  const from = vi.fn(() => {
+    const calls: unknown[][] = [];
+    queries.push(calls);
+    const result = results.shift() ?? EMPTY;
+    const query: Record<string, (...args: unknown[]) => unknown> = {};
+    for (const name of ["select", "is", "eq", "neq", "or", "lte", "lt", "not", "contains", "order", "limit"]) {
+      query[name] = (...args) => {
+        calls.push([name, ...args]);
+        return name === "limit" ? Promise.resolve(result) : query;
+      };
+    }
+    return query;
+  });
+  return { queries, from, admin: { from } as unknown as SupabaseClient<Database> };
 }
 
 beforeEach(() => {
   vi.mocked(tagSocialPostTopic).mockReset();
+  vi.mocked(cleanupSocialPostTopicTracks).mockReset().mockResolvedValue({ deleted: 0, pending: false });
 });
 
 describe("runSocialTopicBatch", () => {
-  it("selects recent untagged top-level active posts, newest first", async () => {
-    const db = fakeAdmin({ data: [], error: null });
+  it("selects untagged top-level active posts created or edited in the window, newest first", async () => {
+    const db = fakeAdmin(EMPTY);
 
     await runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 1000 });
 
     expect(db.from).toHaveBeenCalledWith("posts");
-    expect(db.calls).toEqual([
-      ["select", "id, author_id, body, media, created_at"],
+    expect(db.queries[0]).toEqual([
+      ["select", "id, author_id, body, media, created_at, edited_at"],
       ["is", "category", null],
       ["is", "category_tagged_at", null],
       ["is", "group_id", null],
       ["eq", "status", "active"],
-      ["gte", "created_at", "2026-09-26T12:00:00.000Z"],
-      ["lte", "created_at", "2026-10-03T11:58:00.000Z"],
+      ["or", `created_at.gte."${SINCE}",edited_at.gte."${SINCE}"`],
+      ["lte", "created_at", MIN_AGE_EDGE],
       ["order", "created_at", { ascending: false }],
-      ["limit", 40],
+      ["limit", SOCIAL_TOPIC_CANDIDATE_PAGE],
     ]);
   });
 
   it("tags each post and counts every outcome, continuing past a failure", async () => {
-    const db = fakeAdmin({ data: ["a", "b", "c", "d", "e"].map(post), error: null });
+    const db = fakeAdmin({ data: ["a", "b", "c", "d", "e"].map((id) => post(id)), error: null });
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(tagSocialPostTopic)
       .mockResolvedValueOnce("tagged")
@@ -71,15 +92,61 @@ describe("runSocialTopicBatch", () => {
       budgetMs: 60_000,
     });
 
-    expect(summary).toEqual({ selected: 5, tagged: 1, declined: 1, wait: 1, raced: 1, error: 1, deferred: 0 });
+    expect(summary).toEqual({
+      selected: 5,
+      tagged: 1,
+      declined: 1,
+      wait: 1,
+      raced: 1,
+      error: 1,
+      deferred: 0,
+      ...NO_STRAYS,
+    });
     expect(vi.mocked(tagSocialPostTopic).mock.calls.map(([args]) => args.post.id)).toEqual(["a", "b", "c", "d", "e"]);
     expect(vi.mocked(tagSocialPostTopic).mock.calls[0]?.[0]).toMatchObject({ client: CLIENT, now: NOW });
     expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('"postId":"b"'));
     errorLog.mockRestore();
   });
 
-  it("defers the rest once the time budget is spent", async () => {
-    const db = fakeAdmin({ data: ["a", "b", "c"].map(post), error: null });
+  it(`takes at most ${SOCIAL_TOPIC_MAX_PER_AUTHOR} posts per author, and pages past a flooding author`, async () => {
+    // A full first page from one author, then other authors' older posts.
+    const flood = Array.from({ length: SOCIAL_TOPIC_CANDIDATE_PAGE }, (_, index) =>
+      post(`f${index}`, "flooder", new Date(Date.parse("2026-10-03T11:50:00.000Z") - index * 1000).toISOString()),
+    );
+    const last = flood[flood.length - 1]!.created_at;
+    const db = fakeAdmin(
+      { data: flood, error: null },
+      { data: [post("a", "alice", "2026-10-02T09:00:00.000Z"), post("b", "bob", "2026-10-01T09:00:00.000Z")], error: null },
+    );
+    vi.mocked(tagSocialPostTopic).mockResolvedValue("tagged");
+
+    const summary = await runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 60_000 });
+
+    expect(vi.mocked(tagSocialPostTopic).mock.calls.map(([args]) => args.post.id)).toEqual(["f0", "f1", "f2", "a", "b"]);
+    expect(summary.selected).toBe(5);
+    // The second page starts strictly before the first page's oldest row
+    // and leaves the capped author out.
+    expect(db.queries[1]).toEqual(
+      expect.arrayContaining([
+        ["lt", "created_at", last],
+        ["not", "author_id", "in", "(flooder)"],
+      ]),
+    );
+    expect(db.queries[1]).not.toContainEqual(["lte", "created_at", MIN_AGE_EDGE]);
+  });
+
+  it("stops at the batch size", async () => {
+    const db = fakeAdmin({ data: ["a", "b", "c", "d"].map((id) => post(id)), error: null });
+    vi.mocked(tagSocialPostTopic).mockResolvedValue("tagged");
+
+    const summary = await runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 2, budgetMs: 60_000 });
+
+    expect(summary.selected).toBe(2);
+    expect(vi.mocked(tagSocialPostTopic).mock.calls.map(([args]) => args.post.id)).toEqual(["a", "b"]);
+  });
+
+  it("defers the rest once the time budget is spent, and skips stray cleanup", async () => {
+    const db = fakeAdmin({ data: ["a", "b", "c"].map((id) => post(id)), error: null });
     let time = 0;
     vi.mocked(tagSocialPostTopic).mockImplementation(async () => {
       time += 600;
@@ -96,12 +163,53 @@ describe("runSocialTopicBatch", () => {
     });
 
     expect(summary).toMatchObject({ selected: 3, tagged: 2, deferred: 1 });
+    expect(db.from).toHaveBeenCalledTimes(1);
+    expect(cleanupSocialPostTopicTracks).not.toHaveBeenCalled();
+  });
+
+  it("then deletes leftover caption tracks on removed or hidden video posts", async () => {
+    const removed = { id: "gone", author_id: "alice", media: [{ provider: "mux" }] };
+    const db = fakeAdmin(EMPTY, { data: [removed], error: null });
+    vi.mocked(cleanupSocialPostTopicTracks).mockResolvedValue({ deleted: 2, pending: false });
+
+    const summary = await runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 60_000 });
+
+    expect(db.queries[1]).toEqual([
+      ["select", "id, author_id, media"],
+      ["is", "category_tagged_at", null],
+      ["is", "group_id", null],
+      ["neq", "status", "active"],
+      ["contains", "media", [{ provider: "mux" }]],
+      ["or", `created_at.gte."${SINCE}",edited_at.gte."${SINCE}"`],
+      ["order", "created_at", { ascending: false }],
+      ["limit", 20],
+    ]);
+    expect(vi.mocked(cleanupSocialPostTopicTracks).mock.calls[0]?.[0]).toMatchObject({ post: removed });
+    expect(summary).toMatchObject({ strayTracksDeleted: 2, strayErrors: 0 });
+    expect(tagSocialPostTopic).not.toHaveBeenCalled();
+  });
+
+  it("counts a failed stray cleanup apart from tagging errors", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const db = fakeAdmin(EMPTY, { data: [{ id: "gone", author_id: "alice", media: [] }], error: null });
+    vi.mocked(cleanupSocialPostTopicTracks).mockRejectedValue(new Error("Mux track delete failed (503)"));
+
+    const summary = await runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 60_000 });
+
+    expect(summary).toMatchObject({ error: 0, strayErrors: 1, strayTracksDeleted: 0 });
+    expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("social topic stray cleanup failed"));
+
+    const failing = fakeAdmin(EMPTY, { data: null, error: { message: "timeout" } });
+    expect(
+      await runSocialTopicBatch({ admin: failing.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 60_000 }),
+    ).toMatchObject({ error: 0, strayErrors: 1 });
+    errorLog.mockRestore();
   });
 
   it("gives up on a post that runs past its deadline and moves on", async () => {
     vi.useFakeTimers();
     try {
-      const db = fakeAdmin({ data: ["slow", "next"].map(post), error: null });
+      const db = fakeAdmin({ data: ["slow", "next"].map((id) => post(id)), error: null });
       const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
       // The slow post fails only after the run has moved on: that late
       // rejection must stay handled (vitest fails on an unhandled one).

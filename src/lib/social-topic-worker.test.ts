@@ -24,7 +24,17 @@ const ENV = {
   MUX_PRIVATE_KEY: "mux-private",
 };
 
-const SUMMARY = { selected: 2, tagged: 1, declined: 1, wait: 0, raced: 0, error: 0, deferred: 0 };
+const SUMMARY = {
+  selected: 2,
+  tagged: 1,
+  declined: 1,
+  wait: 0,
+  raced: 0,
+  error: 0,
+  deferred: 0,
+  strayTracksDeleted: 0,
+  strayErrors: 0,
+};
 
 beforeEach(() => {
   for (const [name, value] of Object.entries(ENV)) vi.stubEnv(name, value);
@@ -76,18 +86,18 @@ describe("social topic Lambda handler", () => {
 
     // A slow outage: three posts time out, the budget defers the rest.
     vi.mocked(runSocialTopicBatch).mockResolvedValue({
-      selected: 40, tagged: 0, declined: 0, wait: 0, raced: 0, error: 3, deferred: 37,
+      ...SUMMARY, selected: 40, tagged: 0, declined: 0, wait: 0, raced: 0, error: 3, deferred: 37,
     });
     await expect(handler()).rejects.toThrow("every attempted post failed (3)");
   });
 
   it("succeeds when any attempted post did not fail, or nothing was tried", async () => {
     vi.mocked(runSocialTopicBatch).mockResolvedValue({
-      selected: 40, tagged: 0, declined: 0, wait: 1, raced: 0, error: 2, deferred: 37,
+      ...SUMMARY, selected: 40, tagged: 0, declined: 0, wait: 1, raced: 0, error: 2, deferred: 37,
     });
     await expect(handler()).resolves.toMatchObject({ error: 2 });
     vi.mocked(runSocialTopicBatch).mockResolvedValue({
-      selected: 0, tagged: 0, declined: 0, wait: 0, raced: 0, error: 0, deferred: 0,
+      ...SUMMARY, selected: 0, tagged: 0, declined: 0, wait: 0, raced: 0, error: 0, deferred: 0,
     });
     await expect(handler()).resolves.toMatchObject({ selected: 0 });
   });

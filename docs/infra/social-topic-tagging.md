@@ -23,11 +23,17 @@ are proposals for Adam to confirm.
   posts that:
   - have no topic and no earlier look;
   - are not group posts, and are active;
-  - are between 2 minutes and 7 days old.
+  - are at least 2 minutes old, and were posted or had their caption
+    edited in the last 7 days.
 
-  Posts are handled newest first. One post gets at most 90 seconds. It
-  stops starting new posts after 3 minutes, so a run ends inside the
-  5-minute timeout; the rest wait for the next run.
+  Posts are handled newest first, **at most 3 per author per run**, so
+  one account posting heavily cannot take every run or the spend. One
+  post gets at most 90 seconds. It stops starting new posts after
+  3 minutes, so a run ends inside the 5-minute timeout; the rest wait for
+  the next run.
+- **Then, with time left,** it checks up to 20 removed or hidden video
+  posts from the same window for a caption track it asked for before the
+  post went away, and deletes it. It never classifies or writes them.
 - **For each post it reads:**
   - caption and hashtags;
   - the author's crafts;
@@ -43,9 +49,13 @@ are proposals for Adam to confirm.
   the transcript, then **deletes that caption track** before stamping the
   post. A video still preparing after an hour is classified from its
   caption. Captions someone adds another way are read but never deleted.
+  It asks for no new transcript for an edited post, or in the last day of
+  the 7-day window (so the track is read and deleted while the post is
+  still selected).
 - **No captions for viewers** (Adam lock: no auto captions). The Social
-  player keeps captions hidden and has no captions control, so a caption
-  track never shows, even in the minutes before the tagger deletes it.
+  player keeps captions hidden, has no captions control and turns off the
+  `c` captions key, so a caption track never shows, even in the minutes
+  before the tagger deletes it.
   If Mux refuses to delete a track, the post is stamped anyway and the
   log shows `{"msg":"social topic track not deleted",...}`; the track
   stays hidden.
@@ -57,15 +67,23 @@ are proposals for Adam to confirm.
     `category_source = 'ai'`, the confidence, the classifier version and
     `category_tagged_at`.
   - Below the threshold, "none", a refusal or an unreadable answer:
-    `category_tagged_at` only, so the post is never classified twice.
+    `category_tagged_at` only, so the post is not classified again until
+    its caption changes.
+  - **A caption edit re-tags the post** (founder decision): the database
+    clears the AI topic and its look when the author edits the caption,
+    and the next run re-tags it from the new caption, photos and video
+    frames, with no new transcript. If the caption changes while a post is
+    being classified, that result is not written; the next run reads the
+    new caption.
   - **Errors leave the post untouched** for the next run: a Claude, Mux,
     S3 or database error (a missing bucket included), a timeout, or a
     caption-track delete that failed for a reason worth retrying. Only a
     permanent miss (a deleted image or Mux asset, a video Mux will not
     transcribe) is read as no media. When a post passes its 90 seconds,
     its work is cancelled: it requests, deletes and writes nothing more.
-- **What it never touches:** an author's own topic, group posts, or
-  stories.
+- **What it never touches:** a topic recorded as the author's, group
+  posts, or stories. Nobody picks a topic: the database refuses a topic
+  on any post a user saves.
 
 ## Proposed resources (not created)
 
@@ -235,7 +253,8 @@ aws lambda update-function-code --region us-west-2 \
 - **Logs.** CloudWatch, log group `/aws/lambda/24frame-social-topic-tag`.
   Each run logs `{"msg":"social topic tagging done", ...}` with counts:
   selected, tagged, declined (no confident topic), wait, raced, error,
-  deferred.
+  deferred, strayTracksDeleted and strayErrors (leftover caption tracks
+  on removed or hidden posts).
 - **Failures.** One post's error is logged
   (`{"msg":"social topic post failed","postId":...}`), counted in
   `error`, and retried next run; the run still succeeds. A run fails only

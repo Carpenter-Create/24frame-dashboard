@@ -3,10 +3,11 @@
 -- category_tagged_at. Nobody picks a topic (Adam lock): a client insert
 -- carries no topic and no provenance, and after insert only service_role
 -- (the background topic tagger) may change them. Shape rules hold on every
--- write. An author's caption edit still works.
+-- write. An author's caption edit still works, and it clears an AI topic
+-- so the post is re-tagged.
 
 begin;
-select plan(26);
+select plan(30);
 
 select set_config('t.author', gen_random_uuid()::text, false);
 select set_config('t.post', gen_random_uuid()::text, false);
@@ -188,6 +189,32 @@ select throws_ok(
   $sql$, current_setting('t.post2')),
   'P0001', 'post fields are not client-writable',
   'a caption edit cannot clear category_source');
+
+-- A caption edit reopens tagging: the AI topic and the look are cleared.
+select lives_ok(
+  format($sql$
+    update public.posts set body = 'a new subject entirely' where id = %L
+  $sql$, current_setting('t.post')),
+  'author edits the caption of an AI-tagged post');
+select results_eq(
+  format($sql$
+    select category, category_source, category_confidence::text,
+           category_logic_version, category_tagged_at
+    from public.posts where id = %L
+  $sql$, current_setting('t.post')),
+  $$ values (null::text, null::text, null::text, null::text, null::timestamptz) $$,
+  'a caption edit clears the AI topic and the look, so the post is re-tagged');
+select lives_ok(
+  format($sql$
+    update public.posts set body = 'recorded music, new words' where id = %L
+  $sql$, current_setting('t.post2')),
+  'author edits the caption of a post with an author topic');
+select results_eq(
+  format($sql$
+    select category, category_source from public.posts where id = %L
+  $sql$, current_setting('t.post2')),
+  $$ values ('Music'::text, 'author'::text) $$,
+  'an author topic stays after a caption edit');
 
 select * from finish();
 rollback;

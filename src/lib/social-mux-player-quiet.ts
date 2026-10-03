@@ -94,6 +94,9 @@ export function mountQuietMuxPlayer(
   // the topic tagger's before it is deleted. The quiet player has no
   // captions control, so viewers cannot turn one on.
   player.setAttribute("default-hidden-captions", "");
+  // "noc" turns off the "c" captions hotkey, so a focused player cannot
+  // turn a track on either.
+  player.setAttribute("hotkeys", "noc");
   host.appendChild(player);
   assignConnectedMuxPlayer(player, props);
   return player;

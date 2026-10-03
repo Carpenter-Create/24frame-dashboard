@@ -115,7 +115,8 @@ Service-role writes to the post's topic columns only (exception in
 `docs/domain-spec.md` §20). Video transcripts are for tagging only: the
 caption track the tagger creates is deleted once read, so viewers do not
 get captions from it. Adam lock: no auto captions on Social, for authors
-or viewers; the Social player keeps captions hidden. Off until
+or viewers; the Social player keeps captions hidden. Nobody picks a
+topic; a caption edit re-tags the post (no new transcript). Off until
 `SOCIAL_TOPIC_TAGGING=on`, which
 waits for the founder's accuracy test. The provenance migration, the
 Lambda, its role and its schedule are founder-applied and **not

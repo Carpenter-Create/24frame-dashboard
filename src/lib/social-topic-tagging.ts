@@ -26,6 +26,26 @@ export const SOCIAL_TOPIC_TRANSCRIPT_MAX_CHARS = 6000;
 export const SOCIAL_TOPIC_MAX_IMAGES = 4;
 export const SOCIAL_TOPIC_NONE = "none";
 
+// New posts, and posts whose caption was edited, within this window. Older
+// posts are a founder-run backfill, not the scheduled job.
+export const SOCIAL_TOPIC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// No new transcript in the last day of the window, so the tagger's caption
+// track is read and deleted while the post is still selected.
+export const SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS = SOCIAL_TOPIC_MAX_AGE_MS - 24 * 60 * 60 * 1000;
+
+/**
+ * Whether the tagger may ask Mux for a new transcript of this post. Never
+ * for an edited post (founder decision 2026-10-03: a caption edit re-tags
+ * without a new transcript), and never near the end of the window.
+ */
+export function socialTopicMayTranscribe(
+  post: { created_at: string; edited_at: string | null },
+  now: Date,
+): boolean {
+  if (post.edited_at) return false;
+  return now.getTime() - Date.parse(post.created_at) < SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS;
+}
+
 /** Background tagging runs only when SOCIAL_TOPIC_TAGGING is exactly "on". */
 export function isSocialTopicTaggingEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return env.SOCIAL_TOPIC_TAGGING?.trim() === "on";

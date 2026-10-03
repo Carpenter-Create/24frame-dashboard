@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   for (const label of labels) {
     const { data: post, error } = await admin
       .from("posts")
-      .select("id, author_id, body, media, created_at")
+      .select("id, author_id, body, media, created_at, edited_at")
       .eq("id", label.postId)
       .maybeSingle();
     if (error || !post) {

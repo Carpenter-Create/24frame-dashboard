@@ -10,6 +10,7 @@ import { parseSocialProfileRoles, socialProfileRoleLabel } from "@/lib/social-pr
 import {
   gatherSocialTopicMedia,
   SOCIAL_TOPIC_LIVE_MEDIA_DEPS,
+  socialTopicStrayTracks,
   type SocialTopicMediaDeps,
   type SocialTopicTrackRef,
 } from "@/lib/social-topic-media";
@@ -20,6 +21,7 @@ import {
   SOCIAL_TOPIC_MIN_CONFIDENCE,
   SOCIAL_TOPIC_MODEL_ID,
   SOCIAL_TOPIC_SYSTEM,
+  socialTopicMayTranscribe,
   socialTopicResultSchema,
   socialTopicWrite,
   type SocialTopicInput,
@@ -32,7 +34,8 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 // author cannot write topic provenance after insert, and the tagger is the
 // founder-approved exception to 24Frame AI's user-JWT rule (domain-spec
 // section 20). It reads one post and writes only that post's topic columns,
-// and only while the post has no topic and has not been looked at.
+// and only while the post has no topic, has not been looked at, and still
+// has the caption it read (a caption edit clears the topic and re-tags it).
 
 export type SocialTopicPost = {
   id: string;
@@ -40,6 +43,7 @@ export type SocialTopicPost = {
   body: string | null;
   media: Json | null;
   created_at: string;
+  edited_at: string | null;
 };
 
 export type SocialTopicOutcome = "tagged" | "declined" | "wait" | "raced";
@@ -116,7 +120,7 @@ export async function decideSocialPostTopic(args: {
       authorId: post.author_id,
       createdAt: post.created_at,
       now,
-      requestSubtitles: args.requestSubtitles ?? true,
+      requestSubtitles: args.requestSubtitles ?? socialTopicMayTranscribe(post, now),
       signal: args.signal,
     },
     args.mediaDeps,
@@ -163,20 +167,49 @@ export async function tagSocialPostTopic(args: {
   if (!decided) return "wait";
   // The tagger's caption tracks go before the stamp. A delete that fails for
   // a reason worth retrying leaves the post for the next run, which reads
-  // the same track again. A track Mux will not delete is logged and the post
-  // is stamped anyway: the Social player keeps captions hidden, and another
-  // paid classification every run would not help.
-  const deps = args.mediaDeps ?? SOCIAL_TOPIC_LIVE_MEDIA_DEPS;
-  for (const track of decided.cleanup) {
-    args.signal?.throwIfAborted();
+  // the same track again.
+  await deleteTaggerTracks(args.mediaDeps, decided.cleanup, args.post.id, args.signal);
+  args.signal?.throwIfAborted();
+  let write = args.admin
+    .from("posts")
+    .update(decided.write)
+    .eq("id", args.post.id)
+    // Never over an author's topic, and never twice.
+    .is("category", null)
+    .is("category_tagged_at", null);
+  // Only the caption it read: an edit while it ran makes this a race, and
+  // the next run reads the new caption.
+  write = args.post.edited_at ? write.eq("edited_at", args.post.edited_at) : write.is("edited_at", null);
+  const { data, error } = await write.select("id");
+  if (error) throw new Error(`Topic write failed: ${error.message}`);
+  if (!data || data.length === 0) return "raced";
+  return decided.write.category ? "tagged" : "declined";
+}
+
+/**
+ * Delete the tagger's caption tracks. A track Mux will not delete (a
+ * permanent 4xx) is logged and skipped: the Social player keeps captions
+ * hidden, and retrying the post every run would not help. Other errors throw.
+ */
+async function deleteTaggerTracks(
+  mediaDeps: SocialTopicMediaDeps | undefined,
+  tracks: readonly SocialTopicTrackRef[],
+  postId: string,
+  signal?: AbortSignal,
+): Promise<number> {
+  const deps = mediaDeps ?? SOCIAL_TOPIC_LIVE_MEDIA_DEPS;
+  let deleted = 0;
+  for (const track of tracks) {
+    signal?.throwIfAborted();
     try {
       await deps.deleteTrack(track.assetId, track.trackId);
+      deleted += 1;
     } catch (error) {
       if (!isSocialMuxPermanentError(error)) throw error;
       console.warn(
         JSON.stringify({
           msg: "social topic track not deleted",
-          postId: args.post.id,
+          postId,
           assetId: track.assetId,
           trackId: track.trackId,
           error: error instanceof Error ? error.message : String(error),
@@ -184,16 +217,27 @@ export async function tagSocialPostTopic(args: {
       );
     }
   }
-  args.signal?.throwIfAborted();
-  const { data, error } = await args.admin
-    .from("posts")
-    .update(decided.write)
-    .eq("id", args.post.id)
-    // Never over an author's topic, and never twice.
-    .is("category", null)
-    .is("category_tagged_at", null)
-    .select("id");
-  if (error) throw new Error(`Topic write failed: ${error.message}`);
-  if (!data || data.length === 0) return "raced";
-  return decided.write.category ? "tagged" : "declined";
+  return deleted;
+}
+
+/**
+ * For a post the tagger will no longer classify (removed or hidden): delete
+ * its leftover caption tracks. No model call, no write. `pending` is true
+ * while a track is still being made, for a later run.
+ */
+export async function cleanupSocialPostTopicTracks(args: {
+  post: Pick<SocialTopicPost, "id" | "author_id" | "media">;
+  mediaDeps?: SocialTopicMediaDeps;
+  signal?: AbortSignal;
+}): Promise<{ deleted: number; pending: boolean }> {
+  const stray = await socialTopicStrayTracks(
+    {
+      items: ownedMediaItems(args.post.media, args.post.author_id, "posts"),
+      authorId: args.post.author_id,
+      signal: args.signal,
+    },
+    args.mediaDeps,
+  );
+  const deleted = await deleteTaggerTracks(args.mediaDeps, stray.cleanup, args.post.id, args.signal);
+  return { deleted, pending: stray.pending };
 }

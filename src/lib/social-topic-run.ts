@@ -4,27 +4,96 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { SocialTopicMediaDeps } from "@/lib/social-topic-media";
-import { tagSocialPostTopic, type SocialTopicOutcome } from "@/lib/social-topic-tagger";
+import {
+  cleanupSocialPostTopicTracks,
+  tagSocialPostTopic,
+  type SocialTopicOutcome,
+  type SocialTopicPost,
+} from "@/lib/social-topic-tagger";
+import { SOCIAL_TOPIC_MAX_AGE_MS } from "@/lib/social-topic-tagging";
 import type { Database } from "@/lib/supabase/database.types";
 
 // One scheduled run of the topic tagger (workers/social-topic, every 5
-// minutes). Selects recent posts with no topic and no look yet, newest
-// first, and tags them one at a time until the batch or the time budget
-// runs out; the rest wait for the next run.
+// minutes). Selects recent posts with no topic and no look yet (new, or
+// whose caption was edited inside the window), newest first, at most
+// SOCIAL_TOPIC_MAX_PER_AUTHOR per author, and tags them one at a time
+// until the batch or the time budget runs out; the rest wait for the next
+// run. Then, with time left, it deletes leftover caption tracks on posts
+// that were removed or hidden before the tagger could read them.
 
 // A post gets a moment for its media to land before the first look.
 export const SOCIAL_TOPIC_MIN_AGE_MS = 2 * 60 * 1000;
-// New posts only. Older posts are a founder-run backfill, not this job.
-export const SOCIAL_TOPIC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 // One post gets at most 90 seconds (two 40-second model attempts plus
 // media). Past that it counts as an error and is retried next run. The
 // post's signal is aborted too, which cancels its model call and stops it
 // from requesting a transcript, deleting a track, or writing.
 export const SOCIAL_TOPIC_POST_DEADLINE_MS = 90_000;
+// One author's posts per run, so a flood from one profile cannot take every
+// run, or the Claude and transcription spend, from everyone else.
+export const SOCIAL_TOPIC_MAX_PER_AUTHOR = 3;
+// Candidates are read in pages; an author at the cap is left out of the
+// next page so other authors' older posts are reached.
+export const SOCIAL_TOPIC_CANDIDATE_PAGE = 100;
+export const SOCIAL_TOPIC_CANDIDATE_PAGES = 3;
+// Removed or hidden video posts checked for leftover caption tracks per run.
+export const SOCIAL_TOPIC_STRAY_BATCH = 20;
+
+const SOCIAL_TOPIC_POST_COLUMNS = "id, author_id, body, media, created_at, edited_at";
 
 export type SocialTopicRunSummary = Record<SocialTopicOutcome | "error" | "deferred", number> & {
   selected: number;
+  /** Leftover caption tracks deleted on removed or hidden posts. */
+  strayTracksDeleted: number;
+  strayErrors: number;
 };
+
+/** Untagged posts in the window: created, or caption-edited, since `since`. */
+function windowFilter(since: string): string {
+  return `created_at.gte."${since}",edited_at.gte."${since}"`;
+}
+
+async function selectSocialTopicBatch(
+  admin: SupabaseClient<Database>,
+  nowMs: number,
+  batchSize: number,
+): Promise<SocialTopicPost[]> {
+  const since = new Date(nowMs - SOCIAL_TOPIC_MAX_AGE_MS).toISOString();
+  let before = new Date(nowMs - SOCIAL_TOPIC_MIN_AGE_MS).toISOString();
+  let firstPage = true;
+  const chosen: SocialTopicPost[] = [];
+  const perAuthor = new Map<string, number>();
+
+  for (let page = 0; page < SOCIAL_TOPIC_CANDIDATE_PAGES && chosen.length < batchSize; page += 1) {
+    const capped = [...perAuthor].filter(([, count]) => count >= SOCIAL_TOPIC_MAX_PER_AUTHOR).map(([id]) => id);
+    let query = admin
+      .from("posts")
+      .select(SOCIAL_TOPIC_POST_COLUMNS)
+      .is("category", null)
+      .is("category_tagged_at", null)
+      .is("group_id", null)
+      .eq("status", "active")
+      .or(windowFilter(since));
+    query = firstPage ? query.lte("created_at", before) : query.lt("created_at", before);
+    if (capped.length > 0) query = query.not("author_id", "in", `(${capped.join(",")})`);
+    const { data, error } = await query
+      .order("created_at", { ascending: false })
+      .limit(SOCIAL_TOPIC_CANDIDATE_PAGE);
+    if (error) throw new Error(`Topic select failed: ${error.message}`);
+
+    const rows = data ?? [];
+    for (const post of rows) {
+      const count = perAuthor.get(post.author_id) ?? 0;
+      if (count >= SOCIAL_TOPIC_MAX_PER_AUTHOR) continue;
+      perAuthor.set(post.author_id, count + 1);
+      chosen.push(post);
+      if (chosen.length >= batchSize) break;
+    }
+    if (rows.length < SOCIAL_TOPIC_CANDIDATE_PAGE) break;
+    before = rows[rows.length - 1]!.created_at;
+    firstPage = false;
+  }
+  return chosen;
+}
 
 export async function runSocialTopicBatch(args: {
   admin: SupabaseClient<Database>;
@@ -40,29 +109,21 @@ export async function runSocialTopicBatch(args: {
   const clock = args.clock ?? Date.now;
   const started = clock();
   const nowMs = args.now.getTime();
-  const { data: posts, error } = await args.admin
-    .from("posts")
-    .select("id, author_id, body, media, created_at")
-    .is("category", null)
-    .is("category_tagged_at", null)
-    .is("group_id", null)
-    .eq("status", "active")
-    .gte("created_at", new Date(nowMs - SOCIAL_TOPIC_MAX_AGE_MS).toISOString())
-    .lte("created_at", new Date(nowMs - SOCIAL_TOPIC_MIN_AGE_MS).toISOString())
-    .order("created_at", { ascending: false })
-    .limit(args.batchSize);
-  if (error) throw new Error(`Topic select failed: ${error.message}`);
+  const deadlineMs = args.postDeadlineMs ?? SOCIAL_TOPIC_POST_DEADLINE_MS;
+  const posts = await selectSocialTopicBatch(args.admin, nowMs, args.batchSize);
 
   const summary: SocialTopicRunSummary = {
-    selected: posts?.length ?? 0,
+    selected: posts.length,
     tagged: 0,
     declined: 0,
     wait: 0,
     raced: 0,
     error: 0,
     deferred: 0,
+    strayTracksDeleted: 0,
+    strayErrors: 0,
   };
-  for (const post of posts ?? []) {
+  for (const post of posts) {
     if (clock() - started > args.budgetMs) {
       summary.deferred += 1;
       continue;
@@ -79,7 +140,7 @@ export async function runSocialTopicBatch(args: {
               mediaDeps: args.mediaDeps,
               signal,
             }),
-          args.postDeadlineMs ?? SOCIAL_TOPIC_POST_DEADLINE_MS,
+          deadlineMs,
         )
       ] += 1;
     } catch (cause) {
@@ -94,7 +155,62 @@ export async function runSocialTopicBatch(args: {
       );
     }
   }
+
+  if (clock() - started <= args.budgetMs) {
+    await cleanStrayTracks(args.admin, nowMs, args.mediaDeps, summary, () => clock() - started <= args.budgetMs, deadlineMs);
+  }
   return summary;
+}
+
+/**
+ * Removed or hidden video posts in the window that the tagger never stamped
+ * may still carry a caption track it requested. Delete those tracks. The
+ * post is never classified or written; it is checked again next run while
+ * it stays in the window.
+ */
+async function cleanStrayTracks(
+  admin: SupabaseClient<Database>,
+  nowMs: number,
+  mediaDeps: SocialTopicMediaDeps | undefined,
+  summary: SocialTopicRunSummary,
+  hasTime: () => boolean,
+  deadlineMs: number,
+): Promise<void> {
+  const since = new Date(nowMs - SOCIAL_TOPIC_MAX_AGE_MS).toISOString();
+  const { data, error } = await admin
+    .from("posts")
+    .select("id, author_id, media")
+    .is("category_tagged_at", null)
+    .is("group_id", null)
+    .neq("status", "active")
+    .contains("media", [{ provider: "mux" }])
+    .or(windowFilter(since))
+    .order("created_at", { ascending: false })
+    .limit(SOCIAL_TOPIC_STRAY_BATCH);
+  if (error) {
+    summary.strayErrors += 1;
+    console.error(JSON.stringify({ msg: "social topic stray select failed", error: error.message }));
+    return;
+  }
+  for (const post of data ?? []) {
+    if (!hasTime()) return;
+    try {
+      const result = await withDeadline(
+        (signal) => cleanupSocialPostTopicTracks({ post, mediaDeps, signal }),
+        deadlineMs,
+      );
+      summary.strayTracksDeleted += result.deleted;
+    } catch (cause) {
+      summary.strayErrors += 1;
+      console.error(
+        JSON.stringify({
+          msg: "social topic stray cleanup failed",
+          postId: post.id,
+          error: cause instanceof Error ? cause.message : String(cause),
+        }),
+      );
+    }
+  }
 }
 
 async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
