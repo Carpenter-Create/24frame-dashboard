@@ -85,6 +85,40 @@ export async function publishSocialMediaItems(
   return { ok: true, items: ready };
 }
 
+// Before Save: signing a photo PUT, the browser PUT itself (reported by the
+// client), or asking Mux for a video upload or its finished asset. The member
+// sees one generic message, so the cause lives here. Fields are the error
+// name, HTTP status, network cause code, and the error text cut to 200
+// characters. That text is ours or the provider's; none of these paths put
+// keys or URLs in it.
+export type SocialMediaUploadStep = "presign" | "s3-put" | "mux-create" | "mux-put" | "mux-finalize";
+
+export function logSocialMediaUploadFailure(
+  lane: SocialMediaLane,
+  step: SocialMediaUploadStep,
+  error: unknown,
+): void {
+  const failure = error as {
+    name?: unknown;
+    message?: unknown;
+    status?: unknown;
+    cause?: { code?: unknown } | null;
+    $metadata?: { httpStatusCode?: unknown };
+  } | null;
+  const status = failure?.$metadata?.httpStatusCode ?? failure?.status;
+  console.error(
+    JSON.stringify({
+      msg: "social media upload failed",
+      lane,
+      step,
+      name: typeof failure?.name === "string" ? failure.name : null,
+      status: typeof status === "number" ? status : null,
+      cause: typeof failure?.cause?.code === "string" ? failure.cause.code : null,
+      detail: typeof failure?.message === "string" ? failure.message.slice(0, 200) : null,
+    }),
+  );
+}
+
 // Step, name, and status only: never keys, ETags, or credentials.
 function logPublishFailure(lane: SocialMediaLane, step: "head" | "copy", error: unknown): void {
   const failure = error as { name?: unknown; $metadata?: { httpStatusCode?: unknown } } | null;

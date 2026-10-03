@@ -22,7 +22,7 @@ import {
   type SocialMediaItem,
 } from "@/lib/social-media";
 import { presignSocialMediaPut } from "@/lib/s3-social-media";
-import { publishSocialMediaItems } from "@/lib/social-media-publish";
+import { logSocialMediaUploadFailure, publishSocialMediaItems } from "@/lib/social-media-publish";
 import { isSocialMuxId, SOCIAL_MUX_PROVIDER, SocialMuxUploadNotBoundError } from "@/lib/social-mux";
 import {
   createSocialMuxDirectUpload,
@@ -274,9 +274,26 @@ export async function presignSocialMediaUpload(formData: FormData): Promise<{
   try {
     const url = await presignSocialMediaPut(key, checked.contentType, byteLength);
     return { key, url, kind: checked.kind, contentType: checked.contentType };
-  } catch {
+  } catch (error) {
+    logSocialMediaUploadFailure(lane, "presign", error);
     return { error: SOCIAL.home.uploadFailed };
   }
+}
+
+/**
+ * The browser's PUT to S3 or Mux failed, so the server never saw it. Logs the
+ * step, lane, and status only; the client sends nothing else.
+ */
+export async function reportSocialMediaUploadFailure(formData: FormData): Promise<void> {
+  const { profileId } = await ownProfile();
+  if (!profileId) return;
+  const step = String(formData.get("step") ?? "");
+  if (step !== "s3-put" && step !== "mux-put") return;
+  const status = Number(formData.get("status") ?? "");
+  logSocialMediaUploadFailure(parseSocialMediaLane(String(formData.get("lane") ?? "")), step, {
+    name: "UploadPutFailed",
+    status: Number.isInteger(status) && status >= 0 && status <= 599 ? status : null,
+  });
 }
 
 export async function createSocialMuxUpload(formData: FormData): Promise<{
@@ -317,7 +334,8 @@ export async function createSocialMuxUpload(formData: FormData): Promise<{
       kind: checked.kind,
       contentType: checked.contentType,
     };
-  } catch {
+  } catch (error) {
+    logSocialMediaUploadFailure(lane, "mux-create", error);
     return { error: SOCIAL.home.uploadFailed };
   }
 }
@@ -359,6 +377,11 @@ export async function finalizeSocialMuxUpload(formData: FormData): Promise<{
     if (error instanceof SocialMuxUploadNotBoundError) {
       return { error: SOCIAL.home.mediaForbidden };
     }
+    logSocialMediaUploadFailure(
+      isOwnedSocialMediaKey(key, user.id, "stories") ? "stories" : "posts",
+      "mux-finalize",
+      error,
+    );
     return { error: SOCIAL.home.videoPreparing };
   }
 }

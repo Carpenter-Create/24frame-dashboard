@@ -243,7 +243,10 @@ describe("social Mux server: topic tagging reads", () => {
     vi.stubGlobal("fetch", fetchMock);
     const signal = AbortSignal.timeout(1000);
 
-    await expect(retrieveSocialMuxAsset(ASSET_ID, { signal })).rejects.toThrow("Asset not found");
+    await expect(retrieveSocialMuxAsset(ASSET_ID, { signal })).rejects.toMatchObject({
+      message: "Asset not found",
+      status: 404,
+    });
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
   });
 

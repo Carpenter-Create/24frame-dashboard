@@ -27,6 +27,7 @@ import {
   createSocialMuxUpload,
   finalizeSocialMuxUpload,
   presignSocialMediaUpload,
+  reportSocialMediaUploadFailure,
   updateSocialBio,
 } from "./actions";
 import {
@@ -1479,6 +1480,116 @@ describe("social actions", () => {
 
     vi.mocked(finalizeSocialMuxDirectUpload).mockRejectedValue(new Error("Mux playback id is still preparing"));
     expect(await finalizeSocialMuxUpload(finish)).toEqual({ error: SOCIAL.home.videoPreparing });
+  });
+
+  it("logs why an upload step failed, without keys or URLs", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    const object = "22222222-2222-4222-8222-222222222222";
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    stub({ profile: { id: author } });
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(object);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const lines = () => logged.mock.calls.map(([line]) => JSON.parse(String(line)));
+
+    // muxRequest attaches the HTTP status to its error.
+    vi.mocked(createSocialMuxDirectUpload).mockRejectedValueOnce(
+      Object.assign(new Error("Plan asset limit reached"), { status: 402 }),
+    );
+    const start = new FormData();
+    start.set("content_type", "video/mp4");
+    start.set("byte_length", "1200");
+    start.set("lane", "stories");
+    expect(await createSocialMuxUpload(start)).toEqual({ error: SOCIAL.home.uploadFailed });
+    expect(lines()).toEqual([
+      {
+        msg: "social media upload failed",
+        lane: "stories",
+        step: "mux-create",
+        name: "Error",
+        status: 402,
+        cause: null,
+        detail: "Plan asset limit reached",
+      },
+    ]);
+
+    logged.mockClear();
+    vi.mocked(finalizeSocialMuxDirectUpload).mockRejectedValueOnce(
+      Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } }),
+    );
+    const finish = new FormData();
+    finish.set("upload_id", "zd01Pe2bNpYhxbrwYABgFE");
+    finish.set("key", `stories/${author}/${object}.mp4`);
+    finish.set("content_type", "video/mp4");
+    expect(await finalizeSocialMuxUpload(finish)).toEqual({ error: SOCIAL.home.videoPreparing });
+    expect(lines()).toEqual([
+      {
+        msg: "social media upload failed",
+        lane: "stories",
+        step: "mux-finalize",
+        name: "TypeError",
+        status: null,
+        cause: "ECONNRESET",
+        detail: "fetch failed",
+      },
+    ]);
+
+    logged.mockClear();
+    vi.mocked(finalizeSocialMuxDirectUpload).mockRejectedValueOnce(new SocialMuxUploadNotBoundError());
+    expect(await finalizeSocialMuxUpload(finish)).toEqual({ error: SOCIAL.home.mediaForbidden });
+    expect(logged).not.toHaveBeenCalled();
+
+    vi.mocked(presignSocialMediaPut).mockRejectedValueOnce(
+      Object.assign(new Error("Access Denied"), { name: "AccessDenied", $metadata: { httpStatusCode: 403 } }),
+    );
+    const photo = new FormData();
+    photo.set("content_type", "image/jpeg");
+    photo.set("byte_length", "1200");
+    expect(await presignSocialMediaUpload(photo)).toEqual({ error: SOCIAL.home.uploadFailed });
+    expect(lines()).toEqual([
+      {
+        msg: "social media upload failed",
+        lane: "posts",
+        step: "presign",
+        name: "AccessDenied",
+        status: 403,
+        cause: null,
+        detail: "Access Denied",
+      },
+    ]);
+    logged.mockRestore();
+  });
+
+  it("logs a browser PUT failure the client reports, and only a known step", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    stub({ profile: { id: author } });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const report = (fields: Record<string, string>) => {
+      const form = new FormData();
+      for (const [name, value] of Object.entries(fields)) form.set(name, value);
+      return reportSocialMediaUploadFailure(form);
+    };
+
+    await report({ step: "mux-put", lane: "stories", status: "0", url: "https://storage.example/x" });
+    await report({ step: "s3-put", lane: "posts", status: "403" });
+    await report({ step: "s3-put", lane: "posts", status: "9000" });
+    await report({ step: "copy", lane: "posts", status: "500" });
+    await report({ step: "presign", lane: "posts", status: "500" });
+    expect(logged.mock.calls.map(([line]) => JSON.parse(String(line)))).toEqual([
+      {
+        msg: "social media upload failed",
+        lane: "stories",
+        step: "mux-put",
+        name: "UploadPutFailed",
+        status: 0,
+        cause: null,
+        detail: null,
+      },
+      expect.objectContaining({ lane: "posts", step: "s3-put", status: 403 }),
+      expect.objectContaining({ lane: "posts", step: "s3-put", status: null }),
+    ]);
+    expect(logged.mock.calls.some(([line]) => String(line).includes("storage.example"))).toBe(false);
+    logged.mockRestore();
   });
 
   it("opens a Mux upload on the stories lane and finalizes that key", async () => {

@@ -45,10 +45,8 @@ import {
   commitSocialComposeMediaItem,
   composeSlotMayUpload,
   composeVideoUploadPixels,
-  paintSocialComposeVideoPoster,
   planSocialComposeAttach,
   SOCIAL_COMPOSE_PIXEL_WAIT_MS,
-  type SocialComposePosterCanvas,
   type SocialComposeSourcePixels,
 } from "@/lib/social-compose-video";
 import {
@@ -130,7 +128,6 @@ export function SocialComposeVideoPreview({
   onPixels?: (pixels: SocialComposeSourcePixels) => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const [poster, setPoster] = useState<string | null>(null);
   const onPixelsRef = useRef(onPixels);
 
   useEffect(() => {
@@ -142,26 +139,20 @@ export function SocialComposeVideoPreview({
     if (!node) return;
     bindStoryReviewVideo(node, src);
     const frame = storyReviewFrameSeconds();
-    let held = false;
+    // A muted loop, so a picked clip reads as video. With Reduce Motion on,
+    // it plays only long enough for iOS to paint, then holds that frame.
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    node.loop = !still;
     const reportPixels = () => {
       const pixels = composeVideoUploadPixels({ width: node.videoWidth, height: node.videoHeight });
       if (pixels) onPixelsRef.current?.(pixels);
     };
-    const paint = () => {
-      if (node.videoWidth <= 0) return;
-      const canvas = node.ownerDocument.createElement("canvas");
-      const url = paintSocialComposeVideoPoster(node, canvas as unknown as SocialComposePosterCanvas);
-      if (url) setPoster(url);
-    };
-    // iOS paints a blob only after muted playback. Pause on the review frame
-    // and keep that JPEG above the element so the clip cannot run out to grey.
-    const holdFrame = () => {
-      if (held || node.videoWidth <= 0 || node.currentTime < frame) return;
-      held = true;
-      reportPixels();
-      paint();
+    const hold = () => {
+      if (!still || node.videoWidth <= 0 || node.currentTime < frame) return;
       node.pause();
     };
+    // iOS paints a blob only after muted playback, and the seek paints a
+    // frame even when Low Power Mode refuses autoplay.
     const present = () => {
       reportPixels();
       if (node.currentTime < frame) {
@@ -175,13 +166,13 @@ export function SocialComposeVideoPreview({
     };
     node.addEventListener("loadedmetadata", reportPixels);
     node.addEventListener("loadeddata", present);
-    node.addEventListener("timeupdate", holdFrame);
+    node.addEventListener("timeupdate", hold);
     if (node.videoWidth > 0) reportPixels();
     if (node.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) present();
     return () => {
       node.removeEventListener("loadedmetadata", reportPixels);
       node.removeEventListener("loadeddata", present);
-      node.removeEventListener("timeupdate", holdFrame);
+      node.removeEventListener("timeupdate", hold);
     };
   }, [src]);
 
@@ -193,19 +184,20 @@ export function SocialComposeVideoPreview({
         src={storyReviewMediaSrc(src)}
         className="absolute inset-0 size-full object-cover"
         autoPlay
+        loop
         playsInline
         muted
         preload="auto"
       />
-      {poster ? (
-        // eslint-disable-next-line @next/next/no-img-element -- held review frame above the paused element
-        <img
-          data-social-create-video-poster=""
-          src={poster}
-          alt=""
-          className="absolute inset-0 size-full object-cover"
-        />
-      ) : null}
+      <span
+        data-social-create-video-badge=""
+        className="pointer-events-none absolute left-[var(--space-2)] top-[var(--space-2)] z-10 inline-flex items-center rounded-full bg-surface p-[var(--space-2)] text-ink-2"
+      >
+        <span aria-hidden="true" className="inline-flex">
+          <SocialIcon name="video-camera" size={16} />
+        </span>
+        <span className="sr-only">{SOCIAL.home.videoKind}</span>
+      </span>
     </>
   );
 }
@@ -1121,7 +1113,7 @@ export function SocialCreateCompose({
         </ul>
       ) : null}
       <div className="flex flex-col gap-1.5 md:gap-2">
-        <label className="t-label font-medium text-ink-2 md:t-body-sm" htmlFor="social-create-body">
+        <label className="sr-only" htmlFor="social-create-body">
           {SOCIAL.create.caption}
         </label>
         <div data-social-create-dictate="" data-house-voice-host="" className={HOUSE_VOICE_FIELD_HOST_CLASS}>

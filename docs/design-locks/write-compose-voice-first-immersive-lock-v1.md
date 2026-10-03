@@ -298,7 +298,7 @@ Instagram **New post** grammar only: **visible media preview above caption**. Ca
 | Caption | Primary write focal point under preview · house light · **no** CAPTION label · **no** bordered form well · expandable field / bottom bar grown for type |
 | Voice hero | **Yields** — kind=text already has **no** empty 220 (§0.3) · when media attached keep preview-above-caption · do **not** restore empty disc on media remove (return to §0.3 caption-primary) |
 | Remove | Control **on/near** preview (corner hit **40** · glyph **20** X or trash · or quiet “Remove” beside preview) — never text-only **Photo · Remove** with **no** image |
-| Video | Same preview slot · show poster/frame · play chevron optional calm · not a second layout |
+| Video | Same preview slot · muted `playsInline` loop (founder 2026-10-03, "Loop, muted"); Reduce Motion holds one frame · small video-camera glyph, top-left · not a second layout |
 | House | Light `#FFFFFF` stage · Sporty Blue only for Post / active — **OUT** IG dark theme |
 
 **FAIL:** `write-compose-photo-attach-no-preview-adam-fail-2026-09-25.png` — “Photo · Remove” text row · no preview face.  
