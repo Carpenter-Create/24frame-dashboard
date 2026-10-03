@@ -74,13 +74,22 @@ beforeEach(() => {
 });
 
 describe("app access gate on full page loads", () => {
-  it("sends a member whose org is not active to onboarding before the page renders", async () => {
-    for (const status of ["registered", "awaiting_payment", "payment_lapsed", "closed"]) {
+  it("sends a member whose org is mid-onboarding to onboarding before the page renders", async () => {
+    for (const status of ["registered", "awaiting_payment"]) {
       db.memberships = { data: orgs(status), error: null };
       const res = await visit("/aggregation/titles?tab=all");
 
       expect(res.status, status).toBe(307);
       expect(sentTo(res), status).toBe("/onboarding");
+    }
+  });
+
+  // domain-spec §17: a closed org keeps the dashboard to see statements.
+  it("keeps lapsed and closed orgs on the dashboard", async () => {
+    for (const status of ["payment_lapsed", "closed"]) {
+      db.memberships = { data: orgs(status), error: null };
+
+      expect(sentTo(await visit("/aggregation/reports")), status).toBeNull();
     }
   });
 
@@ -133,8 +142,9 @@ describe("app access gate on full page loads", () => {
     db.memberships = { data: orgs("active", "registered"), error: null };
     expect(sentTo(await visit("/home", { headers: cookie }))).toBeNull();
 
-    db.memberships = { data: orgs("registered", "payment_lapsed"), error: null };
+    db.memberships = { data: orgs("closed", "registered"), error: null };
     expect(sentTo(await visit("/home", { headers: cookie }))).toBe("/onboarding");
+    expect(sentTo(await visit("/home"))).toBeNull();
   });
 
   it("leaves the decision to the layout gate when a lookup fails", async () => {

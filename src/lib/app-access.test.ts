@@ -3,8 +3,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { APP_GATE_REDIRECT, APP_SEGMENTS, appAccessBlocked, isAppGatedPath } from "./app-access";
+import { Constants } from "./supabase/database.types";
 
-const STATUSES = ["registered", "awaiting_payment", "active", "payment_lapsed", "closed"] as const;
+const STATUSES = Constants.public.Enums.org_status;
+const ONBOARDING = ["registered", "awaiting_payment"];
 
 type Route = { kind: "page" | "route"; path: string };
 
@@ -30,11 +32,25 @@ const appHandlers = appRoutes.filter((route) => route.kind === "route").map((rou
 const otherRoutes = routes("src/app").map((route) => route.path);
 
 describe("appAccessBlocked", () => {
-  it("sends a client org that is not active to onboarding, and never GC staff", () => {
+  it("sends a client org mid-onboarding to onboarding, and never GC staff", () => {
+    expect(STATUSES.length).toBeGreaterThan(ONBOARDING.length);
     for (const status of STATUSES) {
-      expect(appAccessBlocked({ status }, false), status).toBe(status !== "active");
+      expect(appAccessBlocked({ status }, false), status).toBe(ONBOARDING.includes(status));
       expect(appAccessBlocked({ status }, true), `staff, ${status}`).toBe(false);
     }
+  });
+
+  // domain-spec §8 and §17: distribution and the revenue tail continue, and
+  // a closed org keeps the dashboard to see statements and payouts.
+  it("keeps lapsed and closed orgs in the app", () => {
+    expect(appAccessBlocked({ status: "payment_lapsed" }, false)).toBe(false);
+    expect(appAccessBlocked({ status: "closed" }, false)).toBe(false);
+  });
+
+  it("treats a status it does not know as unfinished", () => {
+    const unknown = { status: "suspended" } as unknown as { status: "active" };
+
+    expect(appAccessBlocked(unknown, false)).toBe(true);
   });
 
   // Social stays reachable without an org.

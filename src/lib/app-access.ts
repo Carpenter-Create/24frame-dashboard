@@ -1,18 +1,33 @@
+import type { Database } from "@/lib/supabase/database.types";
+
 // Who may use the signed-in app, and which paths are the app.
 //
 // Middleware applies this before a full page load renders. The (app) layout
 // applies it again (enforceAppAccess) for in-app navigations, which
 // middleware leaves alone.
 
+type OrgStatus = Database["public"]["Enums"]["org_status"];
+
 export const APP_GATE_REDIRECT = "/onboarding";
 
-// An org that is not active yet (or any more) finishes onboarding before the
-// app. GC staff are exempt.
+// An org that has not finished onboarding (agreement and first payment)
+// finishes it before the app. A lapsed or closed org keeps the dashboard:
+// distribution and the revenue tail continue (domain-spec §3, §8, §17).
+// A status missing here is treated as unfinished.
+const APP_STATUS_IN: Record<OrgStatus, boolean> = {
+  registered: false,
+  awaiting_payment: false,
+  active: true,
+  payment_lapsed: true,
+  closed: true,
+};
+
+// GC staff are exempt.
 export function appAccessBlocked(
-  activeOrg: { status: string } | null,
+  activeOrg: { status: OrgStatus } | null,
   isGcStaff: boolean,
 ): boolean {
-  return !!activeOrg && activeOrg.status !== "active" && !isGcStaff;
+  return !!activeOrg && APP_STATUS_IN[activeOrg.status] !== true && !isGcStaff;
 }
 
 // Top-level segments with pages in the (app) route group, (operator)

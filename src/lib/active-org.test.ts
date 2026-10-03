@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { pickActiveMembership } from "./active-org";
+import { appAccessBlocked } from "./app-access";
 
 const STATUSES = ["registered", "awaiting_payment", "active", "payment_lapsed", "closed"] as const;
 type Status = (typeof STATUSES)[number];
@@ -40,7 +41,7 @@ describe("pickActiveMembership", () => {
     expect(pickActiveMembership([], "a")).toBeNull();
   });
 
-  // enforceAppAccess sends a non-active pick to /onboarding; the onboarding
+  // The app gate sends a mid-onboarding pick to /onboarding; the onboarding
   // welcome sends anyone with an active org back to /. Both at once is a loop.
   it("never sends the app to onboarding when onboarding would send it back", () => {
     for (const first of STATUSES) {
@@ -48,7 +49,7 @@ describe("pickActiveMembership", () => {
         for (const cookie of [null, "a", "b"]) {
           const rows = [membership("a", first), membership("b", second)];
           const picked = pickActiveMembership(rows, cookie);
-          const appToOnboarding = !!picked && picked.organizations.status !== "active";
+          const appToOnboarding = appAccessBlocked(picked?.organizations ?? null, false);
           const onboardingToApp = rows.some((row) => row.organizations.status === "active");
 
           expect(
