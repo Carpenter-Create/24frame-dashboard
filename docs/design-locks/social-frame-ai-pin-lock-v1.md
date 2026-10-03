@@ -48,7 +48,7 @@
 |-------|------|
 | Route | `/social/dms/24frame-ai` |
 | Chrome | DM thread header, message column, composer. Placeholder `Message…`. House sparkle for 24Frame AI. Back returns to Messages |
-| Brain | `startAskGlobeeConversation`, `appendAskGlobeeTurn`, `completeAskGlobeeTurn`. Same rows, same operator. Latest Ask conversation by `updated_at` |
+| Brain | `startAskFrameAiConversation`, `appendAskFrameAiTurn`, `completeAskFrameAiTurn`. Same rows, same operator. Latest Ask conversation by `updated_at` |
 | Opener | `What's on your mind?` once, when the thread has no stored messages. Display only. Not written. Not sent |
 | History | Stored turns render as bubbles. No opener |
 | Gate | If Ask is not unlocked, the thread still opens. Existing included / upgrade copy. No opener. No local reply |
