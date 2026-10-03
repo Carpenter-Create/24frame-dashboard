@@ -120,7 +120,10 @@ NEXT_PUBLIC_SUPABASE_URL=          # same value as Vercel
 SUPABASE_SERVICE_ROLE_KEY=         # same value as Vercel
 MEDIA_AWS_REGION=                  # same value as Vercel
 S3_MEDIA_SOURCE_BUCKET=            # same value as Vercel
-MUX_TOKEN_ID= MUX_TOKEN_SECRET= MUX_SIGNING_KEY= MUX_PRIVATE_KEY=   # same as Vercel (same Mux environment as Social uploads)
+MUX_TOKEN_ID=                      # same value as Vercel; same Mux environment as Social uploads
+MUX_TOKEN_SECRET=                  # same value as Vercel
+MUX_SIGNING_KEY=                   # same value as Vercel
+MUX_PRIVATE_KEY=                   # same value as Vercel
 ```
 
 **No AWS keys on the function.** The role signs Claude and S3 requests.
