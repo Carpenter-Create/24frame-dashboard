@@ -91,6 +91,20 @@ out RSS.
 
 ---
 
+## 24Frame AI on Claude Platform on AWS (authorized; not created)
+
+Adam lock 2026-10-03: Claude calls go through **Claude Platform on
+AWS** (Anthropic-operated, AWS IAM and billing), not Amazon Bedrock and
+not a self-built model. Dedicated `CLAUDE_AWS_*` — never reuse title,
+media, finance, news, SES, or education credentials. `ANTHROPIC_API_KEY`
+is the cutover fallback only, removed after the founder verifies.
+
+Founder runbook:
+[`docs/infra/claude-platform-aws.md`](../infra/claude-platform-aws.md).
+Workspace and IAM user are **not created**. Founder applies.
+
+---
+
 ## Not authority
 
 - [`docs/HANDOFF.md`](../HANDOFF.md) — historical handoff; preserve as evidence; do not act on its branch, SHA, production, or task statements without fresh verification.
