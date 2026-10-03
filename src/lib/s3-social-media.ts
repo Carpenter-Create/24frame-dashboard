@@ -165,9 +165,9 @@ export async function readSocialMediaObject(
 }
 
 /**
- * readSocialMediaObject, except that an error other than a missing object
- * throws, so topic tagging retries the post instead of reading it as having
- * no image.
+ * readSocialMediaObject, except that only a closed key reads as null.
+ * Anything else that is not a readable image throws, so topic tagging
+ * retries the post instead of reading it as having no image.
  */
 export async function readSocialMediaObjectOrThrow(
   key: string,
@@ -176,19 +176,13 @@ export async function readSocialMediaObjectOrThrow(
   return readSocialMediaObjectFrom(mediaClient(), key);
 }
 
-// The object itself is gone. A missing bucket (NoSuchBucket, also a 404)
-// is configuration, so it throws.
-function isMissingObject(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const { name } = error as { name?: unknown };
-  return name === "NoSuchKey" || name === "NotFound";
-}
-
 /**
  * The same read through a caller's own client. The topic-tagging Lambda
  * passes an S3Client signed by its execution role, so it carries no
- * MEDIA_AWS_* keys. Null for a missing, empty, oversized, or non-image
- * object; any other error throws.
+ * MEDIA_AWS_* keys. Null only for a closed key. Saving a post checks the
+ * object and nothing deletes it, so a missing, empty, oversized, or
+ * non-image object is configuration (the wrong bucket) and throws, like
+ * any other error.
  */
 export async function readSocialMediaObjectFrom(
   media: { bucket: string; s3: S3Client },
@@ -196,17 +190,12 @@ export async function readSocialMediaObjectFrom(
 ): Promise<{ bytes: Uint8Array; contentType: string } | null> {
   if (isForbiddenMediaKey(key)) return null;
   const { bucket, s3 } = media;
-  let response;
-  try {
-    response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-  } catch (error) {
-    if (isMissingObject(error)) return null;
-    throw error;
-  }
+  const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   const bytes = await response.Body?.transformToByteArray();
-  if (!bytes || bytes.byteLength === 0 || bytes.byteLength > SOCIAL_IMAGE_MAX_BYTES) return null;
+  if (!bytes || bytes.byteLength === 0) throw new Error("Media object is empty");
+  if (bytes.byteLength > SOCIAL_IMAGE_MAX_BYTES) throw new Error("Media object is too large");
   const contentType = imageTypeForStoredObject(key, response.ContentType);
-  if (!contentType) return null;
+  if (!contentType) throw new Error("Media object is not an image");
   return { bytes, contentType };
 }
 

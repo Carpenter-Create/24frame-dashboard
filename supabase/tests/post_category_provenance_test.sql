@@ -3,12 +3,13 @@
 -- category_tagged_at. Nobody picks a topic (Adam lock): a client insert
 -- carries no topic and no provenance, and after insert only service_role
 -- (the background topic tagger) may change them. Shape rules hold on every
--- write. An author's caption edit still works. It clears an AI topic, or a
--- look with no topic, so the post is re-tagged; an author topic and a topic
--- recorded before provenance existed stay.
+-- write. An author's caption edit still works. It clears the look on a post
+-- with an AI topic or no topic, so the post is re-tagged; the AI topic stays
+-- until the tagger replaces or removes it. An author topic and a topic
+-- recorded before provenance existed are never reopened.
 
 begin;
-select plan(36);
+select plan(39);
 
 select set_config('t.author', gen_random_uuid()::text, false);
 select set_config('t.post', gen_random_uuid()::text, false);
@@ -29,6 +30,11 @@ select ok(
       and indexname = 'posts_category_untagged_idx'
   ),
   'untagged-post index exists');
+select ok(
+  (select indexdef from pg_indexes
+   where schemaname = 'public' and indexname = 'posts_category_untagged_idx')
+    like '%category_source = ''ai''%',
+  'the waiting-post index includes AI-tagged posts reopened by a caption edit');
 select ok(
   not has_function_privilege('authenticated', 'public.protect_post_category_provenance()', 'EXECUTE'),
   'authenticated cannot execute the provenance trigger function');
@@ -124,7 +130,7 @@ select throws_ok(
     values (%L, 'ai without anything', 'Music', 'ai')
   $sql$, current_setting('t.author')),
   '23514', null,
-  'an AI topic needs category_tagged_at, confidence and a version');
+  'an AI topic needs a confidence and a version');
 select throws_ok(
   format($sql$
     insert into public.posts (author_id, body, category, category_source, category_tagged_at)
@@ -147,15 +153,12 @@ select throws_ok(
   $sql$, current_setting('t.author')),
   '23514', null,
   'an author source needs a topic');
-select throws_ok(
-  format($sql$
-    update public.posts
-    set category = 'Music', category_source = 'ai', category_confidence = 0.912,
-        category_logic_version = 'topics-v1'
-    where id = %L
-  $sql$, current_setting('t.post')),
-  '23514', null,
-  'an AI topic needs category_tagged_at');
+select ok(
+  not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.posts'::regclass and conname = 'posts_category_ai_tagged_at'
+  ),
+  'an AI topic may wait for a re-check without category_tagged_at');
 select throws_ok(
   format($sql$
     update public.posts
@@ -205,7 +208,7 @@ select throws_ok(
   'P0001', 'post fields are not client-writable',
   'a caption edit cannot clear category_source');
 
--- A caption edit reopens tagging: the AI topic and the look are cleared.
+-- A caption edit reopens tagging: the look is cleared, the AI topic stays.
 select lives_ok(
   format($sql$
     update public.posts set body = 'a new subject entirely' where id = %L
@@ -217,8 +220,9 @@ select results_eq(
            category_logic_version, category_tagged_at
     from public.posts where id = %L
   $sql$, current_setting('t.post')),
-  $$ values (null::text, null::text, null::text, null::text, null::timestamptz) $$,
-  'a caption edit clears the AI topic and the look, so the post is re-tagged');
+  $$ values ('Music'::text, 'ai'::text, '0.912'::text,
+            'topics-v1:claude-sonnet-5-5'::text, null::timestamptz) $$,
+  'a caption edit clears only the look; the AI topic stays until the re-tag');
 select lives_ok(
   format($sql$
     update public.posts set body = 'recorded music, new words' where id = %L
@@ -252,6 +256,28 @@ select results_eq(
   $sql$, current_setting('t.declined')),
   $$ values (null::text, null::timestamptz) $$,
   'a caption edit clears a look with no topic, so the post is re-tagged');
+
+-- The re-tag replaces the waiting AI topic in one write, or removes it.
+reset role;
+set local role service_role;
+select set_config('request.jwt.claims',
+  json_build_object('role', 'service_role')::text, true);
+
+select lives_ok(
+  format($sql$
+    update public.posts
+    set category = 'Directors', category_source = 'ai', category_confidence = 0.85,
+        category_logic_version = 'topics-v1:claude-sonnet-5-5', category_tagged_at = now()
+    where id = %L and category_tagged_at is null
+  $sql$, current_setting('t.post')),
+  'the tagger replaces the AI topic of a reopened post');
+select results_eq(
+  format($sql$
+    select category, category_tagged_at is not null
+    from public.posts where id = %L
+  $sql$, current_setting('t.post')),
+  $$ values ('Directors'::text, true) $$,
+  'the new AI topic and its look are stored');
 
 select * from finish();
 rollback;

@@ -7,13 +7,18 @@ are tagged from caption and frames; the tagger never changes a video), and
 AWS Lambda rather than Vercel cron.
 
 - EventBridge rule `24frame-social-topic-tag`, `rate(5 minutes)` → this
-  handler. Reserved concurrency 1. Asynchronous retries 0; failed runs go
-  to the on-failure queue `24frame-social-topic-failures`.
+  handler. The rule is the only on/off switch (created disabled).
+  Reserved concurrency 1. Asynchronous retries 0: the next run is the
+  retry. CloudWatch alarms on crashes, failing posts, a stopped schedule
+  and unusable answers.
 - Execution role only for AWS: `aws-external-anthropic:CreateInference` on
-  the Claude workspace, `s3:GetObject` and prefix-limited `s3:ListBucket`
-  on the Social media bucket's `posts/*`, `sqs:SendMessage` on the failure
-  queue. No static AWS keys on the function.
-- Off unless `SOCIAL_TOPIC_TAGGING=on` on the function.
+  the tagging workspace, `s3:GetObject` on the Social media bucket's
+  `posts/*`. No static AWS keys on the function. Its own read-only Mux
+  token and signing key.
+- `{"dryRun": true}` checks the database, Mux, S3 and Claude without
+  tagging or writing anything.
+- Images are tagged with the git commit (`--build-arg GIT_SHA`); each
+  run logs it as `build`.
 
 Entry: `workers/social-topic/handler.ts` → `runSocialTopicBatch` in
 `src/lib/social-topic-run.ts`. Build: `workers/social-topic/Dockerfile`.

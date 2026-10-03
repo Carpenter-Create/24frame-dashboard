@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
-import { SocialMuxRequestError, type MuxAssetData } from "@/lib/social-mux-server";
+import type { MuxAssetData } from "@/lib/social-mux-server";
 import {
   SOCIAL_TOPIC_FRAME_WIDTH,
   SOCIAL_TOPIC_MEDIA_WAIT_MS,
@@ -24,6 +24,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import {
   classifySocialTopic,
   decideSocialPostTopic,
+  SOCIAL_TOPIC_CUT_OFF_RETRY_MS,
   SOCIAL_TOPIC_REQUEST_MAX_RETRIES,
   SOCIAL_TOPIC_REQUEST_TIMEOUT_MS,
   tagSocialPostTopic,
@@ -34,6 +35,7 @@ const NOW = new Date("2026-10-03T12:00:00.000Z");
 const STAMP = NOW.toISOString();
 // Five minutes old: still inside the media wait.
 const YOUNG = new Date(NOW.getTime() - 5 * 60 * 1000).toISOString();
+const TWO_HOURS_AGO = new Date(NOW.getTime() - 2 * 60 * 60 * 1000).toISOString();
 
 const AUTHOR = "6f1c2d3e-4a5b-4c6d-8e7f-8091a2b3c4d5";
 const STRANGER = "0a1b2c3d-4e5f-4a6b-9c7d-8e9fa0b1c2d3";
@@ -99,7 +101,7 @@ function fakeAdmin({
     const result =
       table === "profiles" ? { data: crafts === undefined ? null : { crafts }, error: craftsError } : write;
     const query: Record<string, (...args: unknown[]) => unknown> = {};
-    for (const name of ["select", "update", "eq", "is", "maybeSingle"]) {
+    for (const name of ["select", "update", "eq", "is", "or", "maybeSingle"]) {
       query[name] = (...args) => {
         log.push([name, ...args]);
         return name === terminal ? Promise.resolve(result) : query;
@@ -115,8 +117,10 @@ function expectGuardedWrite(log: unknown[][] | undefined, values: SocialTopicWri
   expect(log).toEqual(
     expect.arrayContaining([
       ["eq", "id", POST_ID],
-      ["is", "category", null],
       ["is", "category_tagged_at", null],
+      // No topic, or an AI topic a caption edit reopened. Never an author's
+      // topic, or one recorded before provenance (a topic with no source).
+      ["or", "category.is.null,category_source.eq.ai"],
       // Only the caption it read: an unedited post must still be unedited.
       ["is", "edited_at", null],
     ]),
@@ -181,7 +185,10 @@ describe("classifySocialTopic", () => {
   it("asks Sonnet 5.5 with the topic prompt, low effort, and a structured format", async () => {
     const model = fakeClient(answer("Directors", 0.88));
 
-    expect(await classifySocialTopic(model.client, INPUT)).toEqual({ topic: "Directors", confidence: 0.88 });
+    expect(await classifySocialTopic(model.client, INPUT)).toEqual({
+      result: { topic: "Directors", confidence: 0.88 },
+      unusable: null,
+    });
 
     expect(model.create).toHaveBeenCalledTimes(1);
     expect(model.request()).toMatchObject({
@@ -216,7 +223,9 @@ describe("classifySocialTopic", () => {
       ["null", null],
     ];
     for (const [text, expected] of cases) {
-      expect(await classifySocialTopic(fakeClient(reply(text)).client, INPUT), text).toEqual(expected);
+      expect(await classifySocialTopic(fakeClient(reply(text)).client, INPUT), text).toEqual(
+        expected ? { result: expected, unusable: null } : { result: null, unusable: "unreadable" },
+      );
     }
   });
 
@@ -230,22 +239,30 @@ describe("classifySocialTopic", () => {
     expect(() => format.parse('{"topic":"Cooking","confidence":0.9}')).toThrow();
   });
 
-  it("returns null for a refusal, a cut-off, or an answer outside the schema", async () => {
-    for (const response of [
-      answer("Acting", 0.99, "refusal"),
-      answer("Acting", 0.99, "max_tokens"),
-      reply('{"topic":"Acting","confid'),
-      answer("Cooking", 0.9),
-      reply("I can't help classify this content."),
-      { stop_reason: "end_turn", content: [] },
-    ]) {
-      expect(await classifySocialTopic(fakeClient(response).client, INPUT)).toBeNull();
+  it("says why there is no usable answer: a refusal, a cut-off, or an unreadable answer", async () => {
+    const cases: [ParseResponse, string][] = [
+      // A well-formed answer still does not count past a refusal or a cut-off.
+      [answer("Acting", 0.99, "refusal"), "refusal"],
+      [answer("Acting", 0.99, "max_tokens"), "cut_off"],
+      [reply('{"topic":"Acting","confid', "max_tokens"), "cut_off"],
+      [answer("Acting", 0.99, "model_context_window_exceeded"), "cut_off"],
+      [reply('{"topic":"Acting","confid'), "unreadable"],
+      [answer("Cooking", 0.9), "unreadable"],
+      [reply("I can't help classify this content."), "unreadable"],
+      [{ stop_reason: "end_turn", content: [] }, "unreadable"],
+      [answer("Acting", 0.99, "stop_sequence"), "unreadable"],
+    ];
+    for (const [response, unusable] of cases) {
+      expect(await classifySocialTopic(fakeClient(response).client, INPUT), JSON.stringify(response)).toEqual({
+        result: null,
+        unusable,
+      });
     }
   });
 
   // The real SDK: a refusal with text must not throw (messages.parse did),
   // or the post would be retried every run. An API error still throws.
-  it("returns null for a real refusal and throws on an API error", async () => {
+  it("reports a real refusal or cut-off and throws on an API error", async () => {
     const sdk = (body: unknown, status = 200) =>
       new Anthropic({
         apiKey: "test-key",
@@ -270,10 +287,14 @@ describe("classifySocialTopic", () => {
 
     expect(
       await classifySocialTopic(sdk(message("refusal", "I can't help classify this content.")), INPUT),
-    ).toBeNull();
+    ).toEqual({ result: null, unusable: "refusal" });
+    expect(await classifySocialTopic(sdk(message("max_tokens", '{"topic":"Dir')), INPUT)).toEqual({
+      result: null,
+      unusable: "cut_off",
+    });
     expect(
       await classifySocialTopic(sdk(message("end_turn", '{"topic":"Directors","confidence":0.9}')), INPUT),
-    ).toEqual({ topic: "Directors", confidence: 0.9 });
+    ).toEqual({ result: { topic: "Directors", confidence: 0.9 }, unusable: null });
     await expect(
       classifySocialTopic(sdk({ type: "error", error: { type: "api_error", message: "boom" } }, 500), INPUT),
     ).rejects.toThrow();
@@ -315,7 +336,7 @@ describe("decideSocialPostTopic", () => {
         mediaDeps: fakeDeps(),
       });
 
-      expect(decided).toEqual({ write: NO_TOPIC, result: null });
+      expect(decided).toEqual({ write: NO_TOPIC, result: null, unusable: null, imageCount: 0 });
       expect(model.create).not.toHaveBeenCalled();
       expect(db.from).not.toHaveBeenCalled();
     }
@@ -371,7 +392,7 @@ describe("decideSocialPostTopic", () => {
     const png = await sharp({ create: { width: 16, height: 8, channels: 3, background: "#336699" } }).png().toBuffer();
     deps.readImage.mockResolvedValue({ bytes: png, contentType: "image/png" });
 
-    await decideSocialPostTopic({
+    const decided = await decideSocialPostTopic({
       admin: fakeAdmin().admin,
       client: model.client,
       post: post({ body: null, media: [imageItem(STRANGER_IMAGE_KEY), imageItem(OWN_IMAGE_KEY)] }),
@@ -380,6 +401,7 @@ describe("decideSocialPostTopic", () => {
     });
 
     expect(deps.readImage.mock.calls).toEqual([[OWN_IMAGE_KEY]]);
+    expect(decided?.imageCount).toBe(1);
     const content = model.request().messages[0]!.content;
     expect(content.filter((block) => block.type === "image")).toHaveLength(1);
     expect(content).toContainEqual({ type: "text", text: "Image 1" });
@@ -399,6 +421,7 @@ describe("decideSocialPostTopic", () => {
     });
 
     expect(decided?.write.category).toBe("Cinematography");
+    expect(decided?.imageCount).toBe(3);
     // 15%, 50%, and 85% into the 20-second video.
     expect(deps.fetchFrame.mock.calls).toEqual(
       [3, 10, 17].map((time) => [PLAYBACK_ID, { time, width: SOCIAL_TOPIC_FRAME_WIDTH }]),
@@ -464,24 +487,22 @@ describe("decideSocialPostTopic", () => {
     );
   });
 
-  it("returns the model's answer beside the write and honours a custom threshold", async () => {
+  it("returns the model's answer, or why it was unusable, beside the write", async () => {
     const args = { admin: fakeAdmin().admin, post: post(), now: NOW, mediaDeps: fakeDeps() };
 
-    const strict = await decideSocialPostTopic({ ...args, client: fakeClient(answer("Producers", 0.6)).client });
-    expect(strict).toEqual({ write: NO_TOPIC, result: { topic: "Producers", confidence: 0.6 } });
+    const low = await decideSocialPostTopic({ ...args, client: fakeClient(answer("Producers", 0.6)).client });
+    expect(low).toEqual({
+      write: NO_TOPIC,
+      result: { topic: "Producers", confidence: 0.6 },
+      unusable: null,
+      imageCount: 0,
+    });
 
-    const loose = await decideSocialPostTopic({
+    const refused = await decideSocialPostTopic({
       ...args,
-      client: fakeClient(answer("Producers", 0.6)).client,
-      minConfidence: 0.5,
+      client: fakeClient(answer("Producers", 0.99, "refusal")).client,
     });
-    expect(loose?.write).toEqual({
-      category: "Producers",
-      category_source: "ai",
-      category_confidence: 0.6,
-      category_logic_version: SOCIAL_TOPIC_LOGIC_VERSION,
-      category_tagged_at: STAMP,
-    });
+    expect(refused).toEqual({ write: NO_TOPIC, result: null, unusable: "refusal", imageCount: 0 });
   });
 });
 
@@ -508,12 +529,11 @@ describe("tagSocialPostTopic", () => {
     });
   });
 
-  it("stamps the look alone and declines for none, low confidence, or a refusal", async () => {
-    for (const response of [
-      answer("none", 0.95),
-      answer("Cinematography", 0.79),
-      answer("Cinematography", 0.99, "refusal"),
-    ]) {
+  // A re-tag after a caption edit goes through the same write, so a look
+  // with no topic also clears every column of the old AI topic.
+  it("stamps the look alone and declines for none or low confidence", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (const response of [answer("none", 0.95), answer("Cinematography", 0.79)]) {
       const db = fakeAdmin();
       const outcome = await tagSocialPostTopic({
         admin: db.admin,
@@ -526,6 +546,88 @@ describe("tagSocialPostTopic", () => {
       expect(outcome, JSON.stringify(response)).toBe("declined");
       expectGuardedWrite(db.ops.posts, NO_TOPIC);
     }
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("stamps an unusable answer like none, counts it apart, and logs why", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const cases: [ParseResponse, string][] = [
+      [answer("Cinematography", 0.99, "refusal"), "refusal"],
+      [answer("Cinematography", 0.99, "max_tokens"), "cut_off"],
+      [answer("Cooking", 0.99), "unreadable"],
+    ];
+    for (const [response, reason] of cases) {
+      warn.mockClear();
+      const db = fakeAdmin();
+      const model = fakeClient(response);
+      const outcome = await tagSocialPostTopic({
+        admin: db.admin,
+        client: model.client,
+        // Past the cut-off retry hour, so a cut-off is stamped too.
+        post: post({ created_at: TWO_HOURS_AGO }),
+        now: NOW,
+        mediaDeps: fakeDeps(),
+      });
+
+      expect(outcome, reason).toBe("unusable");
+      // Not retried: a retry bills again for the same answer.
+      expect(model.create).toHaveBeenCalledTimes(1);
+      expectGuardedWrite(db.ops.posts, NO_TOPIC);
+      expect(warn.mock.calls).toEqual([
+        [JSON.stringify({ msg: "social topic unusable answer", postId: POST_ID, reason })],
+      ]);
+    }
+
+    // Raced: nothing was stamped, so nothing is logged; the next run reads it.
+    warn.mockClear();
+    const raced = fakeAdmin({ write: { data: [], error: null } });
+    expect(
+      await tagSocialPostTopic({
+        admin: raced.admin,
+        client: fakeClient(answer("Acting", 0.99, "refusal")).client,
+        post: post(),
+        now: NOW,
+        mediaDeps: fakeDeps(),
+      }),
+    ).toBe("raced");
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("retries a cut-off answer for an hour after the post or its edit, writing nothing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const justUnderAnHour = new Date(NOW.getTime() - SOCIAL_TOPIC_CUT_OFF_RETRY_MS + 1000).toISOString();
+    for (const row of [
+      post(),
+      post({ created_at: justUnderAnHour }),
+      // An edit restarts the hour, however old the post.
+      post({ created_at: TWO_HOURS_AGO, edited_at: YOUNG }),
+    ]) {
+      const db = fakeAdmin();
+      await expect(
+        tagSocialPostTopic({
+          admin: db.admin,
+          client: fakeClient(answer("Cinematography", 0.99, "max_tokens")).client,
+          post: row,
+          now: NOW,
+          mediaDeps: fakeDeps(),
+        }),
+      ).rejects.toThrow("Claude answer was cut off");
+      expect(db.ops.posts).toBeUndefined();
+    }
+    // A refusal is not retried, however young the post.
+    const refused = fakeAdmin();
+    expect(
+      await tagSocialPostTopic({
+        admin: refused.admin,
+        client: fakeClient(answer("Cinematography", 0.99, "refusal")).client,
+        post: post(),
+        now: NOW,
+        mediaDeps: fakeDeps(),
+      }),
+    ).toBe("unusable");
+    warn.mockRestore();
   });
 
   it("reports a race when the guarded update matches no row", async () => {
@@ -578,8 +680,14 @@ describe("tagSocialPostTopic", () => {
     expect(db.ops.posts).toBeUndefined();
   });
 
-  it("leaves the post untouched on a Mux error worth retrying, and tags past a deleted video", async () => {
-    for (const error of [new SocialMuxRequestError("Mux request failed (503)", 503), new Error("fetch failed")]) {
+  // A missing asset too: nothing in the app deletes one, so it points at
+  // configuration, and the post waits for the fix instead of losing its frames.
+  it("leaves the post untouched on any Mux error, a missing asset included", async () => {
+    for (const error of [
+      new Error("Mux request failed (503)"),
+      new Error("Mux request failed (404)"),
+      new Error("fetch failed"),
+    ]) {
       const db = fakeAdmin();
       const model = fakeClient();
       const deps = fakeDeps();
@@ -597,33 +705,6 @@ describe("tagSocialPostTopic", () => {
       expect(model.create).not.toHaveBeenCalled();
       expect(db.ops.posts).toBeUndefined();
     }
-
-    // A deleted asset will not come back: the post is classified without it.
-    const db = fakeAdmin();
-    const model = fakeClient();
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockRejectedValue(new SocialMuxRequestError("Mux request failed (404)", 404));
-
-    const outcome = await tagSocialPostTopic({
-      admin: db.admin,
-      client: model.client,
-      post: post({ media: [videoItem()] }),
-      now: NOW,
-      mediaDeps: deps,
-    });
-
-    expect(outcome).toBe("tagged");
-    expect(deps.fetchFrame).not.toHaveBeenCalled();
-    expect(model.request().messages[0]!.content).toEqual(
-      buildSocialTopicContent({ caption: post().body, crafts: [], images: [] }),
-    );
-    expectGuardedWrite(db.ops.posts, {
-      category: "Cinematography",
-      category_source: "ai",
-      category_confidence: 0.92,
-      category_logic_version: SOCIAL_TOPIC_LOGIC_VERSION,
-      category_tagged_at: STAMP,
-    });
   });
 
   it("writes nothing once the run has given up on the post", async () => {
@@ -713,5 +794,45 @@ describe("tagSocialPostTopic", () => {
         mediaDeps: fakeDeps(),
       }),
     ).rejects.toThrow("Topic write failed: permission denied");
+  });
+});
+
+describe("the guarded write as the real client sends it", () => {
+  it("PATCHes only a post with no look and no topic or an AI topic, with every column of a no-topic look", async () => {
+    const { createClient } = await import("@supabase/supabase-js");
+    const edited = "2026-10-03T11:58:30.123456+00:00";
+    const writes: { url: URL; body: unknown }[] = [];
+    const admin = createClient<Database>("https://db.test", "test-key", {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = new URL(String(input));
+          if (init?.method === "PATCH") writes.push({ url, body: JSON.parse(String(init.body)) });
+          // profiles: no row; posts: the one row the write matched.
+          const rows = url.pathname.endsWith("/posts") ? [{ id: POST_ID }] : [];
+          return new Response(JSON.stringify(rows), { status: 200, headers: { "content-type": "application/json" } });
+        }) as typeof fetch,
+      },
+    });
+
+    const outcome = await tagSocialPostTopic({
+      admin,
+      client: fakeClient(answer("none", 0.9)).client,
+      post: post({ edited_at: edited }),
+      now: NOW,
+      mediaDeps: fakeDeps(),
+    });
+
+    expect(outcome).toBe("declined");
+    expect(writes).toHaveLength(1);
+    const [{ url, body }] = writes as [{ url: URL; body: unknown }];
+    expect(url.pathname).toBe("/rest/v1/posts");
+    // A re-tag deciding none removes the old AI topic, not just the stamp.
+    expect(body).toEqual(NO_TOPIC);
+    expect(url.searchParams.get("id")).toBe(`eq.${POST_ID}`);
+    expect(url.searchParams.get("category_tagged_at")).toBe("is.null");
+    expect(url.searchParams.getAll("or")).toEqual(["(category.is.null,category_source.eq.ai)"]);
+    expect(url.searchParams.has("category")).toBe(false);
+    expect(url.searchParams.get("edited_at")).toBe(`eq.${edited}`);
   });
 });

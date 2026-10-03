@@ -1,5 +1,5 @@
 import { SOCIAL_CATEGORY_TOPICS } from "@/lib/social-categories";
-import { SOCIAL_TOPIC_NONE } from "@/lib/social-topic-tagging";
+import { SOCIAL_TOPIC_NONE, socialTopicWrite, type SocialTopicResult } from "@/lib/social-topic-tagging";
 
 // Accuracy test for AI topic tagging (docs/infra/social-topic-tagging.md).
 // The founder hand-labels posts; scripts/social-topic-eval.ts runs the
@@ -11,8 +11,8 @@ export type SocialTopicLabel = { postId: string; topic: string };
 export type SocialTopicEvalRow = {
   postId: string;
   expected: string;
-  predicted: string;
-  confidence: number;
+  /** The model's answer; null when it gave no usable one or was not asked. */
+  result: SocialTopicResult | null;
 };
 
 export type SocialTopicThresholdScore = {
@@ -30,6 +30,8 @@ export type SocialTopicThresholdScore = {
 };
 
 const VALID = new Set<string>([...SOCIAL_CATEGORY_TOPICS, SOCIAL_TOPIC_NONE]);
+// socialTopicWrite stamps a time; the score ignores it.
+const SCORED_AT = new Date(0);
 
 /** Parse `post_id,topic` lines. Header optional; topic must be a locked label or "none". */
 export function parseSocialTopicLabels(csv: string): { labels: SocialTopicLabel[]; errors: string[] } {
@@ -55,16 +57,19 @@ export function parseSocialTopicLabels(csv: string): { labels: SocialTopicLabel[
   return { labels, errors };
 }
 
+/** Each threshold scored with the live rule: the topic socialTopicWrite would store. */
 export function scoreSocialTopicEval(
   rows: readonly SocialTopicEvalRow[],
   thresholds: readonly number[],
 ): SocialTopicThresholdScore[] {
   const withTopic = rows.filter((row) => row.expected !== SOCIAL_TOPIC_NONE).length;
   return thresholds.map((threshold) => {
-    const tagged = rows.filter(
-      (row) => row.predicted !== SOCIAL_TOPIC_NONE && row.confidence >= threshold,
-    );
-    const correct = tagged.filter((row) => row.predicted === row.expected).length;
+    const stored = rows.map((row) => ({
+      expected: row.expected,
+      topic: socialTopicWrite(row.result, SCORED_AT, threshold).category,
+    }));
+    const tagged = stored.filter((row) => row.topic !== null);
+    const correct = tagged.filter((row) => row.topic === row.expected).length;
     return {
       threshold,
       tagged: tagged.length,

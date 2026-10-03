@@ -1,9 +1,12 @@
 # 24Frame Social topic tagging — AWS Lambda container image (x86_64).
 # Build from repo root (founder / CoS; never from CI):
+#   SHA=$(git rev-parse HEAD)
 #   docker build --platform linux/amd64 --provenance=false \
-#     -f workers/social-topic/Dockerfile -t 24frame-social-topic .
+#     --build-arg GIT_SHA=$SHA \
+#     -f workers/social-topic/Dockerfile -t 24frame-social-topic:$SHA .
 # --provenance=false keeps the manifest in a format Lambda accepts.
 # See docs/infra/social-topic-tagging.md for the ECR push and Lambda update.
+# src/lib/social-topic-bundle.test.ts builds the same bundle on every test run.
 
 # Build: install from the lockfile, then bundle the handler. sharp stays out
 # of the bundle (native), so its Linux build is copied in below.
@@ -27,6 +30,9 @@ RUN mkdir -p /out/node_modules/@img \
 
 FROM public.ecr.aws/lambda/nodejs:22
 COPY --from=build /out/ ${LAMBDA_TASK_ROOT}/
-# Fail the build, not the first invocation, if sharp cannot load.
-RUN node -e "require(process.env.LAMBDA_TASK_ROOT + '/node_modules/sharp')"
+# Fail the build, not the first invocation, if the bundle or sharp cannot load.
+RUN node -e "require(process.env.LAMBDA_TASK_ROOT + '/index.js'); require(process.env.LAMBDA_TASK_ROOT + '/node_modules/sharp')"
+# Each run logs this as build.
+ARG GIT_SHA=unknown
+ENV SOCIAL_TOPIC_BUILD=$GIT_SHA
 CMD ["index.handler"]

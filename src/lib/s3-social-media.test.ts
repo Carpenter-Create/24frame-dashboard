@@ -27,6 +27,7 @@ vi.mock("@/lib/social-media-cloudfront", () => ({
 
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
+import { SOCIAL_IMAGE_MAX_BYTES } from "@/lib/social-media";
 import { isMediaCloudfrontConfigured, signSocialMediaCloudfrontUrl } from "@/lib/social-media-cloudfront";
 import {
   MEDIA_AWS_ENV,
@@ -189,7 +190,7 @@ describe("s3-social-media isolated lane", () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it("reads a missing object as null but throws other errors for topic tagging to retry", async () => {
+  it("throws every read error for topic tagging to retry, a missing object included", async () => {
     const missing = Object.assign(new Error("The specified key does not exist."), {
       name: "NoSuchKey",
       $metadata: { httpStatusCode: 404 },
@@ -201,9 +202,12 @@ describe("s3-social-media isolated lane", () => {
     const throttled = Object.assign(new Error("Slow Down"), { name: "SlowDown", $metadata: { httpStatusCode: 503 } });
     const media = { bucket: "role-bucket", s3: new S3Client({}) };
 
+    // Nothing deletes a Social image and Save heads it: a missing object is
+    // the wrong bucket, not a deleted image.
     mockSend.mockRejectedValueOnce(missing);
-    await expect(readSocialMediaObjectFrom(media, KEY)).resolves.toBeNull();
-    // A missing bucket is configuration, not a deleted image.
+    await expect(readSocialMediaObjectFrom(media, KEY)).rejects.toThrow("key does not exist");
+    mockSend.mockRejectedValueOnce(missing);
+    await expect(readSocialMediaObjectOrThrow(KEY)).rejects.toThrow("key does not exist");
     const noBucket = Object.assign(new Error("The specified bucket does not exist"), {
       name: "NoSuchBucket",
       $metadata: { httpStatusCode: 404 },
@@ -219,8 +223,34 @@ describe("s3-social-media isolated lane", () => {
     expect((mockSend.mock.calls[0]?.[0] as GetObjectCommand).input.Bucket).toBe("role-bucket");
 
     // The page read still treats every error as no image.
+    mockSend.mockRejectedValueOnce(missing);
+    await expect(readSocialMediaObject(KEY)).resolves.toBeNull();
     mockSend.mockRejectedValueOnce(throttled);
     await expect(readSocialMediaObject(KEY)).resolves.toBeNull();
+  });
+
+  it("throws for topic tagging on an empty, oversized, or non-image object; the page read gets null", async () => {
+    const body = (bytes: Uint8Array) => ({ transformToByteArray: async () => bytes });
+    const cases = [
+      { key: KEY, object: { ContentType: "image/jpeg", Body: body(new Uint8Array()) }, message: "empty" },
+      { key: KEY, object: { ContentType: "image/jpeg" }, message: "empty" },
+      {
+        key: KEY,
+        object: { ContentType: "image/jpeg", Body: body(new Uint8Array(SOCIAL_IMAGE_MAX_BYTES + 1)) },
+        message: "too large",
+      },
+      {
+        key: `posts/${USER}/${OBJECT}`,
+        object: { ContentType: "application/octet-stream", Body: body(new Uint8Array([1])) },
+        message: "not an image",
+      },
+    ];
+    for (const { key, object, message } of cases) {
+      mockSend.mockResolvedValueOnce(object);
+      await expect(readSocialMediaObjectOrThrow(key)).rejects.toThrow(message);
+      mockSend.mockResolvedValueOnce(object);
+      await expect(readSocialMediaObject(key)).resolves.toBeNull();
+    }
   });
 
   it("throws for topic tagging when the media keys are missing, and skips forbidden keys", async () => {

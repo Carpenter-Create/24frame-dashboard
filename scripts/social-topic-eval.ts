@@ -45,7 +45,7 @@ async function main(): Promise<void> {
       .eq("id", label.postId)
       .maybeSingle();
     if (error || !post) {
-      console.warn(`skip ${label.postId}: not found`);
+      console.warn(`skip ${label.postId}: ${error ? `read failed: ${error.message}` : "not found"}`);
       skipped += 1;
       continue;
     }
@@ -53,24 +53,26 @@ async function main(): Promise<void> {
     const now = new Date(Math.max(Date.now(), Date.parse(post.created_at) + SOCIAL_TOPIC_MEDIA_WAIT_MS));
     let decided;
     try {
-      decided = await decideSocialPostTopic({
-        admin,
-        client,
-        post,
-        now,
-        minConfidence: 0,
-      });
+      decided = await decideSocialPostTopic({ admin, client, post, now });
     } catch (cause) {
       // Not scored: a read or model error says nothing about accuracy.
       console.warn(`skip ${post.id}: ${cause instanceof Error ? cause.message : String(cause)}`);
       skipped += 1;
       continue;
     }
-    const predicted = decided?.result?.topic ?? SOCIAL_TOPIC_NONE;
-    const confidence = decided?.result?.confidence ?? 0;
-    rows.push({ postId: post.id, expected: label.topic, predicted, confidence });
+    if (!decided) {
+      console.warn(`skip ${post.id}: video still preparing`);
+      skipped += 1;
+      continue;
+    }
+    rows.push({ postId: post.id, expected: label.topic, result: decided.result });
+    const predicted = decided.result?.topic ?? SOCIAL_TOPIC_NONE;
+    const confidence = decided.result ? decided.result.confidence.toFixed(2) : "-";
     const mark = predicted === label.topic ? "ok   " : "MISS ";
-    console.log(`${mark}${post.id}  expected=${label.topic}  got=${predicted} (${confidence.toFixed(2)})`);
+    const unusable = decided.unusable ? `  unusable=${decided.unusable}` : "";
+    console.log(
+      `${mark}${post.id}  expected=${label.topic}  got=${predicted} (${confidence})  images=${decided.imageCount}${unusable}`,
+    );
   }
 
   console.log(`\n${SOCIAL_TOPIC_LOGIC_VERSION}: ${rows.length} posts scored, ${skipped} skipped`);

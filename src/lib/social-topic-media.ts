@@ -6,7 +6,6 @@ import { isSocialMuxMediaItem, type SocialMediaItem } from "@/lib/social-media";
 import { socialMuxPassthroughBoundToUser } from "@/lib/social-mux";
 import {
   fetchSocialMuxFrame,
-  isSocialMuxPermanentError,
   retrieveSocialMuxAsset,
   SOCIAL_MUX_TOPIC_TIMEOUT_MS,
   type MuxAssetData,
@@ -22,12 +21,19 @@ import { SOCIAL_TOPIC_MAX_IMAGES, type SocialTopicImage } from "@/lib/social-top
 // video still preparing after SOCIAL_TOPIC_MEDIA_WAIT_MS is classified
 // without its frames.
 //
-// Read errors throw, so the post is left untouched and retried. Only a
-// permanent miss (a missing object, a Mux 4xx such as a deleted asset) reads
-// as no media.
+// Read errors throw, so the post is left untouched and retried. That
+// includes a missing Mux asset or frame and a missing S3 image: nothing in
+// the app deletes them and saving a post checks both, so a miss is
+// configuration (keys from another Mux environment, the wrong bucket). Only
+// Mux's own answers read as no media: an errored video, or one that is not
+// the author's. An image the decoder cannot read is skipped; a retry would
+// read the same bytes.
 
 export const SOCIAL_TOPIC_MEDIA_WAIT_MS = 60 * 60 * 1000;
 export const SOCIAL_TOPIC_IMAGE_MAX_EDGE = 1024;
+// 50 megapixels covers a 48 MP phone photo; about 200 MB decoded, well
+// inside the worker's 1024 MB. Larger images are skipped, not retried.
+export const SOCIAL_TOPIC_IMAGE_MAX_INPUT_PIXELS = 50_000_000;
 export const SOCIAL_TOPIC_FRAME_WIDTH = 768;
 export const SOCIAL_TOPIC_FRAME_POINTS = [0.15, 0.5, 0.85] as const;
 
@@ -47,9 +53,14 @@ export const SOCIAL_TOPIC_LIVE_MEDIA_DEPS: SocialTopicMediaDeps = {
 };
 
 /** Downscale to SOCIAL_TOPIC_IMAGE_MAX_EDGE and re-encode as JPEG (first frame of a GIF). */
-export async function socialTopicJpeg(bytes: Uint8Array): Promise<string | null> {
+export async function socialTopicJpeg(
+  bytes: Uint8Array,
+  maxInputPixels: number = SOCIAL_TOPIC_IMAGE_MAX_INPUT_PIXELS,
+): Promise<string | null> {
   try {
-    const out = await sharp(bytes, { animated: false })
+    // Refuse an image over the pixel limit before decoding it, so one huge
+    // image cannot exhaust the worker's memory.
+    const out = await sharp(bytes, { animated: false, limitInputPixels: maxInputPixels })
       .rotate()
       .resize({
         width: SOCIAL_TOPIC_IMAGE_MAX_EDGE,
@@ -73,8 +84,8 @@ type ReadyVideo = { item: MuxVideo; asset: MuxAssetData };
 /**
  * The author's own ready asset for a video, null when the tagger reads
  * nothing from it, or "wait" while it is still preparing. Nothing is read
- * from an asset with no asset id, a deleted asset, or an asset that is not
- * the author's upload played by this playback id. Other errors throw.
+ * from an asset with no asset id, an errored asset, or an asset that is not
+ * the author's upload played by this playback id. A failed lookup throws.
  */
 async function readyMuxAsset(
   item: SocialMediaItem & { playbackId: string },
@@ -83,14 +94,7 @@ async function readyMuxAsset(
   deps: SocialTopicMediaDeps,
 ): Promise<ReadyVideo | null | "wait"> {
   if (!item.assetId) return null;
-  let asset: MuxAssetData;
-  try {
-    asset = await deps.retrieveAsset(item.assetId);
-  } catch (error) {
-    // A deleted asset will not come back; anything else is retried.
-    if (isSocialMuxPermanentError(error)) return null;
-    throw error;
-  }
+  const asset = await deps.retrieveAsset(item.assetId);
   // Only the author's own upload, played by this playback id. A post that
   // names someone else's asset gets no frames.
   if (

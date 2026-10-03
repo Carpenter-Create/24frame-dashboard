@@ -2,7 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/social-topic-tagger", () => ({
+vi.mock("@/lib/social-topic-tagger", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/social-topic-tagger")>()),
   tagSocialPostTopic: vi.fn(),
 }));
 
@@ -21,6 +22,9 @@ const CLIENT = {} as Anthropic;
 const SINCE = "2026-09-26T12:00:00.000Z";
 const MIN_AGE_EDGE = "2026-10-03T11:58:00.000Z";
 const EMPTY = { data: [], error: null };
+// No topic or an AI topic, created or caption-edited in the window: one
+// `or` param, since PostgREST does not document how repeated ones combine.
+const CANDIDATES = `and(or(category.is.null,category_source.eq.ai),or(created_at.gte."${SINCE}",edited_at.gte."${SINCE}"))`;
 
 type Result = { data: unknown[] | null; error: { message: string } | null };
 
@@ -52,7 +56,7 @@ beforeEach(() => {
 });
 
 describe("runSocialTopicBatch", () => {
-  it("selects untagged top-level active posts created or edited in the window, newest first", async () => {
+  it("selects unlooked top-level active posts with no topic or an AI topic, created or edited in the window, newest first", async () => {
     const db = fakeAdmin(EMPTY);
 
     await runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 1000 });
@@ -60,11 +64,10 @@ describe("runSocialTopicBatch", () => {
     expect(db.from).toHaveBeenCalledWith("posts");
     expect(db.queries[0]).toEqual([
       ["select", "id, author_id, body, media, created_at, edited_at"],
-      ["is", "category", null],
       ["is", "category_tagged_at", null],
       ["is", "group_id", null],
       ["eq", "status", "active"],
-      ["or", `created_at.gte."${SINCE}",edited_at.gte."${SINCE}"`],
+      ["or", CANDIDATES],
       ["lte", "created_at", MIN_AGE_EDGE],
       ["order", "created_at", { ascending: false }],
       ["limit", SOCIAL_TOPIC_CANDIDATE_PAGE],
@@ -72,12 +75,13 @@ describe("runSocialTopicBatch", () => {
   });
 
   it("tags each post and counts every outcome, continuing past a failure", async () => {
-    const db = fakeAdmin({ data: ["a", "b", "c", "d", "e"].map((id) => post(id)), error: null });
+    const db = fakeAdmin({ data: ["a", "b", "c", "d", "e", "f"].map((id) => post(id)), error: null });
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(tagSocialPostTopic)
       .mockResolvedValueOnce("tagged")
       .mockRejectedValueOnce(new Error("model down"))
       .mockResolvedValueOnce("declined")
+      .mockResolvedValueOnce("unusable")
       .mockResolvedValueOnce("wait")
       .mockResolvedValueOnce("raced");
 
@@ -90,15 +94,16 @@ describe("runSocialTopicBatch", () => {
     });
 
     expect(summary).toEqual({
-      selected: 5,
+      selected: 6,
       tagged: 1,
       declined: 1,
+      unusable: 1,
       wait: 1,
       raced: 1,
       error: 1,
       deferred: 0,
     });
-    expect(vi.mocked(tagSocialPostTopic).mock.calls.map(([args]) => args.post.id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(vi.mocked(tagSocialPostTopic).mock.calls.map(([args]) => args.post.id)).toEqual(["a", "b", "c", "d", "e", "f"]);
     expect(vi.mocked(tagSocialPostTopic).mock.calls[0]?.[0]).toMatchObject({ client: CLIENT, now: NOW });
     expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('"postId":"b"'));
     errorLog.mockRestore();
@@ -217,7 +222,7 @@ describe("runSocialTopicBatch", () => {
 });
 
 describe("PostgREST filters as the real client builds them", () => {
-  it("sends a quoted window, then leaves a capped author out of the next page", async () => {
+  it("sends one candidate filter with a quoted window, then leaves a capped author out of the next page", async () => {
     const { createClient } = await import("@supabase/supabase-js");
     const flooder = "11111111-1111-4111-8111-111111111111";
     const flood = Array.from({ length: SOCIAL_TOPIC_CANDIDATE_PAGE }, (_, index) =>
@@ -243,10 +248,17 @@ describe("PostgREST filters as the real client builds them", () => {
 
     expect(urls).toHaveLength(2);
     const [first, second] = urls.map((url) => new URL(url).searchParams);
-    expect(first?.get("or")).toBe(`(created_at.gte."${SINCE}",edited_at.gte."${SINCE}")`);
+    // Exactly one `or` param, the topic and window conditions ANDed inside it.
+    expect(first?.getAll("or")).toEqual([
+      `(and(or(category.is.null,category_source.eq.ai),or(created_at.gte."${SINCE}",edited_at.gte."${SINCE}")))`,
+    ]);
+    expect(first?.has("category")).toBe(false);
+    expect(first?.get("category_tagged_at")).toBe("is.null");
+    expect(first?.get("group_id")).toBe("is.null");
+    expect(first?.get("status")).toBe("eq.active");
     expect(first?.get("created_at")).toBe(`lte.${MIN_AGE_EDGE}`);
     expect(first?.has("author_id")).toBe(false);
-    expect(second?.get("or")).toBe(`(created_at.gte."${SINCE}",edited_at.gte."${SINCE}")`);
+    expect(second?.getAll("or")).toEqual(first?.getAll("or"));
     expect(second?.get("created_at")).toBe(`lt.${flood[flood.length - 1]!.created_at}`);
     expect(second?.get("author_id")).toBe(`not.in.(${flooder})`);
   });

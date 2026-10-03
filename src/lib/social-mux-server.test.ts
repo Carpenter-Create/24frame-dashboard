@@ -6,11 +6,9 @@ import {
   createSocialMuxDirectUpload,
   fetchSocialMuxFrame,
   finalizeSocialMuxDirectUpload,
-  isSocialMuxPermanentError,
   mintSocialMuxPlaybackTokens,
   retrieveSocialMuxAsset,
   signedPlaybackIdFromAsset,
-  SocialMuxRequestError,
   socialMuxSettingsFromUploadInput,
 } from "./social-mux-server";
 
@@ -237,18 +235,7 @@ describe("social Mux server: topic tagging reads", () => {
     vi.unstubAllEnvs();
   });
 
-  it("treats a 4xx other than auth, timeout, and rate limit as permanent", () => {
-    for (const status of [400, 404, 409, 410, 412, 422]) {
-      expect(isSocialMuxPermanentError(new SocialMuxRequestError("x", status)), String(status)).toBe(true);
-    }
-    for (const status of [401, 403, 408, 429, 500, 502, 503]) {
-      expect(isSocialMuxPermanentError(new SocialMuxRequestError("x", status)), String(status)).toBe(false);
-    }
-    expect(isSocialMuxPermanentError(new Error("Mux request failed (404)"))).toBe(false);
-    expect(isSocialMuxPermanentError(new DOMException("timed out", "TimeoutError"))).toBe(false);
-  });
-
-  it("carries the HTTP status on a failed API call, and passes a caller's signal", async () => {
+  it("throws Mux's message on a failed API call, and passes a caller's signal", async () => {
     stubMuxEnv();
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: { messages: ["Asset not found"] } }), { status: 404 }),
@@ -256,14 +243,11 @@ describe("social Mux server: topic tagging reads", () => {
     vi.stubGlobal("fetch", fetchMock);
     const signal = AbortSignal.timeout(1000);
 
-    const error = await retrieveSocialMuxAsset(ASSET_ID, { signal }).catch((cause: unknown) => cause);
-
-    expect(error).toBeInstanceOf(SocialMuxRequestError);
-    expect(error).toMatchObject({ message: "Asset not found", status: 404 });
+    await expect(retrieveSocialMuxAsset(ASSET_ID, { signal })).rejects.toThrow("Asset not found");
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
   });
 
-  it("reads a frame, null when Mux says it is gone, and throws otherwise", async () => {
+  it("reads a frame, and throws on any failed read, a 404 included", async () => {
     stubMuxEnv();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -274,14 +258,21 @@ describe("social Mux server: topic tagging reads", () => {
     expect(frameUrl).toMatch(/^https:\/\/image\.mux\.com\/.+\/thumbnail\.jpg\?token=/);
     expect(frameInit.signal).toBeInstanceOf(AbortSignal);
 
-    fetchMock.mockResolvedValueOnce(new Response("", { status: 404 }));
-    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).resolves.toBeNull();
-
-    for (const status of [403, 429, 500]) {
+    // Nothing deletes a Social asset: a 4xx is configuration, not a gone frame.
+    for (const status of [400, 403, 404, 410, 429, 500]) {
       fetchMock.mockResolvedValueOnce(new Response("", { status }));
-      await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toMatchObject({ status });
+      await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toThrow(
+        `Mux image request failed (${status})`,
+      );
     }
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(), { status: 200 }));
+    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toThrow("no bytes");
     fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
     await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toThrow("fetch failed");
+
+    // Only an id that is not a Mux id reads nothing, without a request.
+    const calls = fetchMock.mock.calls.length;
+    await expect(fetchSocialMuxFrame("not a mux id", { time: 3, width: 768 })).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(calls);
   });
 });

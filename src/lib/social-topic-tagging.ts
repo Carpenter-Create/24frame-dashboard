@@ -18,9 +18,12 @@ export const SOCIAL_TOPIC_MODEL_ID = "claude-sonnet-5-5";
 export const SOCIAL_TOPIC_PROMPT_VERSION = "topics-v1";
 export const SOCIAL_TOPIC_LOGIC_VERSION = `${SOCIAL_TOPIC_PROMPT_VERSION}:${SOCIAL_TOPIC_MODEL_ID}`;
 // Provisional. The accuracy test in docs/infra/social-topic-tagging.md sets
-// it before SOCIAL_TOPIC_TAGGING is turned on.
+// it before the schedule is turned on.
 export const SOCIAL_TOPIC_MIN_CONFIDENCE = 0.8;
-export const SOCIAL_TOPIC_MAX_TOKENS = 2048;
+// The answer is a few dozen tokens, but thinking counts against this too.
+// Room enough that a cut-off answer is rare; one that still happens is
+// retried (social-topic-tagger).
+export const SOCIAL_TOPIC_MAX_TOKENS = 8192;
 export const SOCIAL_TOPIC_CAPTION_MAX_CHARS = 2000;
 export const SOCIAL_TOPIC_MAX_IMAGES = 4;
 export const SOCIAL_TOPIC_NONE = "none";
@@ -28,11 +31,6 @@ export const SOCIAL_TOPIC_NONE = "none";
 // New posts, and posts whose caption was edited, within this window. Older
 // posts are a founder-run backfill, not the scheduled job.
 export const SOCIAL_TOPIC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-
-/** Background tagging runs only when SOCIAL_TOPIC_TAGGING is exactly "on". */
-export function isSocialTopicTaggingEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return env.SOCIAL_TOPIC_TAGGING?.trim() === "on";
-}
 
 // What each locked label covers, for the model only. Never shown to users.
 export const SOCIAL_TOPIC_DEFINITIONS: Record<SocialCategoryTopic, string> = {

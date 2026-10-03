@@ -71,31 +71,6 @@ function muxAuthHeader(): string {
   return `Basic ${Buffer.from(token).toString("base64")}`;
 }
 
-/** A Mux response that was not OK. `status` is the HTTP status. */
-export class SocialMuxRequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "SocialMuxRequestError";
-  }
-}
-
-/**
- * A Mux answer that will not change on retry: a 4xx other than auth (401,
- * 403), timeout (408), and rate limit (429). Network errors, 5xx, and those
- * are worth retrying.
- */
-export function isSocialMuxPermanentError(error: unknown): boolean {
-  return (
-    error instanceof SocialMuxRequestError &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    ![401, 403, 408, 429].includes(error.status)
-  );
-}
-
 async function muxRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${MUX_API}${path}`, {
     ...init,
@@ -109,10 +84,7 @@ async function muxRequest<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const json = (await response.json().catch(() => null)) as { data?: T; error?: { messages?: string[] } } | null;
   if (!response.ok || !json?.data) {
-    throw new SocialMuxRequestError(
-      json?.error?.messages?.[0] ?? `Mux request failed (${response.status})`,
-      response.status,
-    );
+    throw new Error(json?.error?.messages?.[0] ?? `Mux request failed (${response.status})`);
   }
   return json.data;
 }
@@ -185,8 +157,9 @@ export async function mintSocialMuxPlaybackTokens(
 
 // Topic tagging (lib/social-topic-media). Server reads only: short-lived
 // tokens, never handed to a browser. Each call gives up after
-// SOCIAL_MUX_TOPIC_TIMEOUT_MS. A permanent miss (isSocialMuxPermanentError)
-// reads as null; anything else throws, so the post is retried.
+// SOCIAL_MUX_TOPIC_TIMEOUT_MS. Any failed read throws, a 4xx included, so
+// the post is retried: nothing deletes a Social asset, so a miss is
+// configuration (keys from another Mux environment), not a gone video.
 const SOCIAL_MUX_SERVER_READ_EXPIRATION = "10m";
 const MUX_IMAGE = "https://image.mux.com";
 export const SOCIAL_MUX_TOPIC_TIMEOUT_MS = 15_000;
@@ -198,18 +171,7 @@ function socialMuxSigner(): Mux {
   });
 }
 
-async function socialMuxServerRead(url: string, what: string): Promise<Response | null> {
-  const response = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
-  });
-  if (response.ok) return response;
-  const error = new SocialMuxRequestError(`Mux ${what} request failed (${response.status})`, response.status);
-  if (isSocialMuxPermanentError(error)) return null;
-  throw error;
-}
-
-/** One JPEG still at `time` seconds, `width` px wide, or null. */
+/** One JPEG still at `time` seconds, `width` px wide. Null only for an id that is not a Mux id. */
 export async function fetchSocialMuxFrame(
   playbackId: string,
   frame: { time: number; width: number },
@@ -222,13 +184,14 @@ export async function fetchSocialMuxFrame(
     expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
     params: { time: String(frame.time), width: String(frame.width) },
   });
-  const response = await socialMuxServerRead(
-    `${MUX_IMAGE}/${playbackId}/thumbnail.jpg?token=${encodeURIComponent(token)}`,
-    "image",
-  );
-  if (!response) return null;
+  const response = await fetch(`${MUX_IMAGE}/${playbackId}/thumbnail.jpg?token=${encodeURIComponent(token)}`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`Mux image request failed (${response.status})`);
   const bytes = new Uint8Array(await response.arrayBuffer());
-  return bytes.byteLength > 0 ? bytes : null;
+  if (bytes.byteLength === 0) throw new Error("Mux image request returned no bytes");
+  return bytes;
 }
 
 export function signedPlaybackIdFromAsset(asset: MuxAssetData): string | null {

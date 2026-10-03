@@ -928,8 +928,9 @@ tradeoff honestly, hand off. Being plain about the limit *is* the trustworthy mo
   locked topic or none is discarded. It reads only the author's own media and never changes a
   video. No video transcripts for now (founder decision 2026-10-03); no auto captions on Social.
   Nobody picks a topic: the database refuses one on any post a user saves, and a caption
-  edit clears an AI topic so the post is re-tagged. A topic recorded before provenance existed
-  stays, like an author's topic. Runbook: `docs/infra/social-topic-tagging.md`.
+  edit reopens an AI-tagged post for a re-tag; the AI topic stays until the tagger replaces or
+  removes it. A topic recorded before provenance existed is never reopened, like an author's
+  topic. Runbook: `docs/infra/social-topic-tagging.md`.
 - **Reach is scoped tools, not table access:** `get_titles`, `get_deliveries`, `get_findings`,
   `get_statements`. The AI composes from tool results.
 - **Prompt injection is not hypothetical.** Clients upload metadata sheets; a cell can say

@@ -2,11 +2,12 @@ import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SocialMediaItem } from "@/lib/social-media";
-import { SocialMuxRequestError, type MuxAssetData } from "@/lib/social-mux-server";
+import type { MuxAssetData } from "@/lib/social-mux-server";
 import { SOCIAL_TOPIC_MAX_IMAGES } from "@/lib/social-topic-tagging";
 
 import {
   gatherSocialTopicMedia,
+  SOCIAL_TOPIC_IMAGE_MAX_INPUT_PIXELS,
   SOCIAL_TOPIC_MEDIA_WAIT_MS,
   socialTopicJpeg,
   type SocialTopicMediaDeps,
@@ -34,7 +35,7 @@ function readyAsset(overrides: Partial<MuxAssetData> = {}): MuxAssetData {
 }
 
 function muxError(status: number) {
-  return new SocialMuxRequestError(`Mux request failed (${status})`, status);
+  return new Error(`Mux request failed (${status})`);
 }
 
 function imageItem(n: number): SocialMediaItem {
@@ -86,6 +87,25 @@ async function solidPng(width: number, height: number): Promise<Uint8Array> {
     .toBuffer();
 }
 
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/** A tiny PNG whose header claims width x height, so nothing large is ever built. */
+async function pngClaiming(width: number, height: number): Promise<Uint8Array> {
+  const png = Buffer.from(await solidPng(1, 1));
+  // IHDR starts at byte 8: length (4), "IHDR" (4), width (4), height (4), then 5 more bytes and the CRC.
+  png.writeUInt32BE(width, 16);
+  png.writeUInt32BE(height, 20);
+  png.writeUInt32BE(crc32(png.subarray(12, 29)), 29);
+  return png;
+}
+
 async function decode(base64: string) {
   const { format, width, height } = await sharp(Buffer.from(base64, "base64")).metadata();
   return { format, width, height };
@@ -98,6 +118,22 @@ describe("socialTopicJpeg", () => {
 
     const tall = await socialTopicJpeg(await solidPng(500, 2000));
     expect(await decode(tall!)).toEqual({ format: "jpeg", width: 256, height: 1024 });
+  });
+
+  it("refuses an image over the pixel limit, and reads one at or under it", async () => {
+    const image = await solidPng(100, 100);
+    expect(await socialTopicJpeg(image, 9_999)).toBeNull();
+    expect(await decode((await socialTopicJpeg(image, 10_000))!)).toEqual({ format: "jpeg", width: 100, height: 100 });
+  });
+
+  it("caps decoding at 50 MP by default, above a 48 MP phone photo", async () => {
+    expect(SOCIAL_TOPIC_IMAGE_MAX_INPUT_PIXELS).toBe(50_000_000);
+    expect(8064 * 6048).toBeLessThan(SOCIAL_TOPIC_IMAGE_MAX_INPUT_PIXELS);
+    // A file claiming 8000 x 7000 (56 MP, about 224 MB decoded) is refused
+    // from its header, without building anything that large.
+    const huge = await pngClaiming(8000, 7000);
+    expect((await sharp(huge).metadata()).width).toBe(8000);
+    expect(await socialTopicJpeg(huge)).toBeNull();
   });
 
   it("never enlarges a small image", async () => {
@@ -139,10 +175,11 @@ describe("socialTopicJpeg", () => {
 });
 
 describe("gatherSocialTopicMedia: images", () => {
-  it("reads images as numbered JPEGs and skips ones it cannot read", async () => {
+  it("reads images as numbered JPEGs, skipping a closed key and bytes it cannot decode", async () => {
     const deps = fakeDeps();
     const png = await solidPng(40, 20);
     deps.readImage.mockImplementation(async (key) => {
+      // The reader's null: a closed key, never a missing object.
       if (key.endsWith("/2.png")) return null;
       if (key.endsWith("/3.png")) return { bytes: new TextEncoder().encode("garbage"), contentType: "image/png" };
       return { bytes: png, contentType: "image/png" };
@@ -237,7 +274,7 @@ describe("gatherSocialTopicMedia: Mux video", () => {
     expect(media).toMatchObject({ status: "ready", images: times.map(videoFrame) });
   });
 
-  it("skips a frame Mux says is gone", async () => {
+  it("skips a frame the reader returns nothing for", async () => {
     const deps = fakeDeps();
     deps.fetchFrame.mockImplementation(async (_playbackId, { time }) => (time === 10 ? null : frameBytes(time)));
 
@@ -247,15 +284,16 @@ describe("gatherSocialTopicMedia: Mux video", () => {
     });
   });
 
-  it("throws on a frame read error at any age, so the post is retried", async () => {
-    const deps = fakeDeps();
-    deps.fetchFrame.mockRejectedValueOnce(new Error("Mux image request failed (503)"));
-    await expect(gather([videoItem()], deps)).rejects.toThrow("Mux image request failed (503)");
-
-    deps.fetchFrame.mockRejectedValueOnce(new Error("Mux image request failed (502)"));
-    await expect(gather([videoItem()], deps, { createdAt: WAITED_OUT })).rejects.toThrow(
-      "Mux image request failed (502)",
-    );
+  it("throws on any failed frame read at any age, a 404 included, so the post is retried", async () => {
+    for (const createdAt of [YOUNG, WAITED_OUT]) {
+      for (const status of [404, 403, 503]) {
+        const deps = fakeDeps();
+        deps.fetchFrame.mockRejectedValueOnce(new Error(`Mux image request failed (${status})`));
+        await expect(gather([videoItem()], deps, { createdAt })).rejects.toThrow(
+          `Mux image request failed (${status})`,
+        );
+      }
+    }
   });
 
   it("waits for a preparing asset while the post is young", async () => {
@@ -282,22 +320,19 @@ describe("gatherSocialTopicMedia: Mux video", () => {
     expect(deps.fetchFrame).not.toHaveBeenCalled();
   });
 
-  it("rethrows a failed asset lookup at any age, and drops a deleted asset", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockRejectedValue(muxError(503));
-    await expect(gather([videoItem()], deps)).rejects.toThrow("Mux request failed (503)");
-    await expect(gather([videoItem()], deps, { createdAt: WAITED_OUT })).rejects.toThrow("Mux request failed (503)");
-
-    for (const status of [401, 403, 429]) {
-      deps.retrieveAsset.mockRejectedValueOnce(muxError(status));
-      await expect(gather([videoItem()], deps, { createdAt: WAITED_OUT })).rejects.toThrow(`(${status})`);
+  it("rethrows any failed asset lookup at any age, a 404 included", async () => {
+    // Nothing deletes a Social asset: a 404 is keys from another Mux
+    // environment, not a gone video.
+    const errors = [404, 400, 401, 403, 429, 503].map(muxError).concat(new Error("fetch failed"));
+    for (const createdAt of [YOUNG, WAITED_OUT]) {
+      for (const error of errors) {
+        const deps = fakeDeps();
+        deps.retrieveAsset.mockRejectedValueOnce(error);
+        await expect(gather([imageItem(1), videoItem()], deps, { createdAt })).rejects.toThrow(error.message);
+        expect(deps.readImage).not.toHaveBeenCalled();
+        expect(deps.fetchFrame).not.toHaveBeenCalled();
+      }
     }
-    deps.retrieveAsset.mockRejectedValueOnce(new Error("fetch failed"));
-    await expect(gather([videoItem()], deps, { createdAt: WAITED_OUT })).rejects.toThrow("fetch failed");
-
-    deps.retrieveAsset.mockRejectedValueOnce(muxError(404));
-    expect(await gather([videoItem()], deps)).toEqual(NOTHING);
-    expect(deps.fetchFrame).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -427,10 +462,15 @@ describe("gatherSocialTopicMedia: posts with more than one video", () => {
 });
 
 describe("topic media fixes", () => {
-  it("throws on an image read error instead of reading it as no image", async () => {
-    const deps = fakeDeps();
-    deps.readImage.mockRejectedValue(new Error("Access Denied"));
-    await expect(gather([imageItem(1)], deps)).rejects.toThrow("Access Denied");
+  it("throws on an image read error at any age instead of reading it as no image, a missing object included", async () => {
+    const missing = Object.assign(new Error("The specified key does not exist."), { name: "NoSuchKey" });
+    for (const createdAt of [YOUNG, WAITED_OUT]) {
+      for (const error of [new Error("Access Denied"), missing]) {
+        const deps = fakeDeps();
+        deps.readImage.mockRejectedValueOnce(error);
+        await expect(gather([imageItem(1)], deps, { createdAt })).rejects.toThrow(error.message);
+      }
+    }
   });
 
   it("turns transparent pixels white, not black", async () => {

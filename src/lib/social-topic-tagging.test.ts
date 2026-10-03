@@ -1,10 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { SOCIAL_CATEGORY_TOPICS } from "@/lib/social-categories";
 
 import {
   buildSocialTopicContent,
-  isSocialTopicTaggingEnabled,
   SOCIAL_TOPIC_CAPTION_MAX_CHARS,
   SOCIAL_TOPIC_DEFINITIONS,
   SOCIAL_TOPIC_LOGIC_VERSION,
@@ -49,10 +48,6 @@ function noTopic(now: Date = NOW) {
     category_tagged_at: now.toISOString(),
   };
 }
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
 
 describe("socialTopicResultSchema", () => {
   it("allows exactly the 15 locked topics plus none", () => {
@@ -279,24 +274,5 @@ describe("socialTopicWrite", () => {
     const low: SocialTopicResult = { topic: "Financing", confidence: 0.6 };
     expect(socialTopicWrite(low, NOW, Number.NaN)).toEqual(noTopic());
     expect(socialTopicWrite({ topic: "Financing", confidence: 0.9 }, NOW, Number.NaN).category).toBe("Financing");
-  });
-});
-
-describe("isSocialTopicTaggingEnabled", () => {
-  it("is on only for exactly \"on\", ignoring surrounding whitespace", () => {
-    for (const value of ["on", " on", "on\n", "\ton "]) {
-      expect(isSocialTopicTaggingEnabled({ SOCIAL_TOPIC_TAGGING: value }), JSON.stringify(value)).toBe(true);
-    }
-    for (const value of [undefined, "", " ", "ON", "On", "true", "1", "yes", "o n", "onn", "on,off", "off"]) {
-      expect(isSocialTopicTaggingEnabled({ SOCIAL_TOPIC_TAGGING: value }), JSON.stringify(value)).toBe(false);
-    }
-    expect(isSocialTopicTaggingEnabled({})).toBe(false);
-  });
-
-  it("reads process.env by default", () => {
-    vi.stubEnv("SOCIAL_TOPIC_TAGGING", " on ");
-    expect(isSocialTopicTaggingEnabled()).toBe(true);
-    vi.stubEnv("SOCIAL_TOPIC_TAGGING", "ON");
-    expect(isSocialTopicTaggingEnabled()).toBe(false);
   });
 });

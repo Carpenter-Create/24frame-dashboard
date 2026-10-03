@@ -4,16 +4,21 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { SocialTopicMediaDeps } from "@/lib/social-topic-media";
-import { tagSocialPostTopic, type SocialTopicOutcome, type SocialTopicPost } from "@/lib/social-topic-tagger";
+import {
+  SOCIAL_TOPIC_OPEN_FILTER,
+  tagSocialPostTopic,
+  type SocialTopicOutcome,
+  type SocialTopicPost,
+} from "@/lib/social-topic-tagger";
 import { SOCIAL_TOPIC_MAX_AGE_MS } from "@/lib/social-topic-tagging";
 import type { Database } from "@/lib/supabase/database.types";
 
 // One scheduled run of the topic tagger (workers/social-topic, every 5
-// minutes). Selects recent posts with no topic and no look yet (new, or
-// whose caption was edited inside the window), newest first, at most
-// SOCIAL_TOPIC_MAX_PER_AUTHOR per author, and tags them one at a time
-// until the batch or the time budget runs out; the rest wait for the next
-// run.
+// minutes). Selects recent posts with no look yet and no topic or an AI
+// topic (new, or whose caption was edited inside the window), newest
+// first, at most SOCIAL_TOPIC_MAX_PER_AUTHOR per author, and tags them one
+// at a time until the batch or the time budget runs out; the rest wait for
+// the next run.
 
 // A post gets a moment for its media to land before the first look.
 export const SOCIAL_TOPIC_MIN_AGE_MS = 2 * 60 * 1000;
@@ -36,9 +41,13 @@ export type SocialTopicRunSummary = Record<SocialTopicOutcome | "error" | "defer
   selected: number;
 };
 
-/** Untagged posts in the window: created, or caption-edited, since `since`. */
-function windowFilter(since: string): string {
-  return `created_at.gte."${since}",edited_at.gte."${since}"`;
+/**
+ * No topic or an AI topic, and created or caption-edited since `since`.
+ * One `or` param holding both conditions: PostgREST does not document how
+ * repeated `or` params combine.
+ */
+function candidateFilter(since: string): string {
+  return `and(or(${SOCIAL_TOPIC_OPEN_FILTER}),or(created_at.gte."${since}",edited_at.gte."${since}"))`;
 }
 
 async function selectSocialTopicBatch(
@@ -57,11 +66,10 @@ async function selectSocialTopicBatch(
     let query = admin
       .from("posts")
       .select(SOCIAL_TOPIC_POST_COLUMNS)
-      .is("category", null)
       .is("category_tagged_at", null)
       .is("group_id", null)
       .eq("status", "active")
-      .or(windowFilter(since));
+      .or(candidateFilter(since));
     query = firstPage ? query.lte("created_at", before) : query.lt("created_at", before);
     if (capped.length > 0) query = query.not("author_id", "in", `(${capped.join(",")})`);
     const { data, error } = await query
@@ -105,6 +113,7 @@ export async function runSocialTopicBatch(args: {
     selected: posts.length,
     tagged: 0,
     declined: 0,
+    unusable: 0,
     wait: 0,
     raced: 0,
     error: 0,
