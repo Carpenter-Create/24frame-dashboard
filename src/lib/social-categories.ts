@@ -5,7 +5,9 @@
 // Topics bank must already match it. One SoT for Home rail, profile
 // Topics picker, and every other Topics chip surface. Do not reorder
 // per device or per consumer. Do not fork a second localeCompare.
-// Home only. Do not persist onto Explore or any other job.
+// Home only. Do not persist onto Explore or any other job. One writer
+// besides the author: the founder-approved AI topic tagger
+// (lib/social-topic-tagger) sets posts.category to one of these labels.
 // All resets. Re-tap of the active topic returns All.
 // Do not consolidate, rename, or invent cousins.
 

@@ -130,7 +130,7 @@ describe("SOCIAL_PROFILE_COVER_LOCK_A", () => {
 
   it("routes cover saves through the posts stills lane", () => {
     const media = readFileSync("src/lib/social-media.ts", "utf8");
-    expect(media).toContain("profileCoverKeyFromMedia");
+    expect(media).toContain("profileCoverItemFromMedia");
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
     expect(actions).toContain("saveSocialProfileCover");
     expect(actions).toContain("cover_key");

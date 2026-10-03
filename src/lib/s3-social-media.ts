@@ -1,14 +1,23 @@
 import "server-only";
 
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  CopyObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import {
   isForbiddenMediaBucket,
   isForbiddenMediaKey,
+  parseSocialMediaObjectKey,
+  parseSocialMediaStagingKey,
   SOCIAL_IMAGE_MAX_BYTES,
   SOCIAL_MEDIA_PUT_TTL_SECONDS,
   SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS,
+  socialMediaExtension,
   socialMediaKindFor,
   socialMediaMaxBytes,
   type SocialMediaContentType,
@@ -92,6 +101,12 @@ export async function presignSocialMediaPut(
   if (isForbiddenMediaKey(key)) {
     throw new Error("Media key is not allowed");
   }
+  // Upload keys only, with the extension the signed type maps to. A key a
+  // row can hold is written only by copySocialMediaObject.
+  const staging = parseSocialMediaStagingKey(key);
+  if (!staging || staging.ext !== socialMediaExtension(contentType)) {
+    throw new Error("Media key is not allowed");
+  }
   const kind = socialMediaKindFor(contentType);
   if (!kind || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > socialMediaMaxBytes(kind)) {
     throw new Error("Media content length is not allowed");
@@ -112,17 +127,20 @@ export async function presignSocialMediaPut(
   );
 }
 
+/** Null when the object is missing or the HEAD fails; onError sees the failure. */
 export async function headSocialMediaObject(
   key: string,
-): Promise<{ bytes: number; contentType: string | null } | null> {
+  onError?: (error: unknown) => void,
+): Promise<{ bytes: number; contentType: string | null; etag: string | null } | null> {
   if (isForbiddenMediaKey(key)) return null;
   try {
     const { bucket, s3 } = mediaClient();
     const out = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     if (out.ContentLength == null || !Number.isFinite(out.ContentLength)) return null;
     const contentType = out.ContentType?.split(";")[0]?.trim().toLowerCase() || null;
-    return { bytes: out.ContentLength, contentType };
-  } catch {
+    return { bytes: out.ContentLength, contentType, etag: out.ETag ?? null };
+  } catch (error) {
+    onError?.(error);
     return null;
   }
 }
@@ -143,6 +161,44 @@ export async function presignSocialMediaGet(key: string): Promise<string> {
   );
 }
 
+/**
+ * Publish copy: an upload key to the same author's posts/ or stories/ key.
+ * Pinned to the ETag that HEAD checked, never overwrites, and REPLACE keeps
+ * only the checked type, so nothing the uploader sent rides along. EXCLUDE
+ * skips annotations, which would need their own permissions.
+ */
+export async function copySocialMediaObject(input: {
+  sourceKey: string;
+  etag: string;
+  destinationKey: string;
+  contentType: SocialMediaContentType;
+}): Promise<void> {
+  const source = parseSocialMediaStagingKey(input.sourceKey);
+  const destination = parseSocialMediaObjectKey(input.destinationKey);
+  if (
+    !source ||
+    !destination ||
+    source.lane !== destination.lane ||
+    source.userId !== destination.userId ||
+    !input.etag
+  ) {
+    throw new Error("Media copy is not allowed");
+  }
+  const { bucket, s3 } = mediaClient();
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: input.destinationKey,
+      CopySource: `${bucket}/${input.sourceKey.split("/").map(encodeURIComponent).join("/")}`,
+      CopySourceIfMatch: input.etag,
+      IfNoneMatch: "*",
+      MetadataDirective: "REPLACE",
+      ContentType: input.contentType,
+      AnnotationDirective: "EXCLUDE",
+    }),
+  );
+}
+
 function imageTypeForStoredObject(key: string, header: string | undefined): string | null {
   const normalized = header?.split(";")[0]?.trim().toLowerCase() ?? "";
   if (socialMediaKindFor(normalized) === "image") return normalized;
@@ -153,22 +209,50 @@ function imageTypeForStoredObject(key: string, header: string | undefined): stri
   return null;
 }
 
-/** Server-side read of one media object. Null when the key is closed, empty, or not an image. */
+/** Server-side read of one media object. Null when the key is closed, empty, or not an image, or on any error. */
 export async function readSocialMediaObject(
   key: string,
 ): Promise<{ bytes: Uint8Array; contentType: string } | null> {
-  if (isForbiddenMediaKey(key)) return null;
   try {
-    const { bucket, s3 } = mediaClient();
-    const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-    const bytes = await response.Body?.transformToByteArray();
-    if (!bytes || bytes.byteLength === 0 || bytes.byteLength > SOCIAL_IMAGE_MAX_BYTES) return null;
-    const contentType = imageTypeForStoredObject(key, response.ContentType);
-    if (!contentType) return null;
-    return { bytes, contentType };
+    return await readSocialMediaObjectOrThrow(key);
   } catch {
     return null;
   }
+}
+
+/**
+ * readSocialMediaObject, except that only a closed key reads as null.
+ * Anything else that is not a readable image throws, so topic tagging
+ * retries the post instead of reading it as having no image.
+ */
+export async function readSocialMediaObjectOrThrow(
+  key: string,
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  if (isForbiddenMediaKey(key)) return null;
+  return readSocialMediaObjectFrom(mediaClient(), key);
+}
+
+/**
+ * The same read through a caller's own client. The topic-tagging Lambda
+ * passes an S3Client signed by its execution role, so it carries no
+ * MEDIA_AWS_* keys. Null only for a closed key. Saving a post checks the
+ * object and nothing deletes it, so a missing, empty, oversized, or
+ * non-image object is configuration (the wrong bucket) and throws, like
+ * any other error.
+ */
+export async function readSocialMediaObjectFrom(
+  media: { bucket: string; s3: S3Client },
+  key: string,
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  if (isForbiddenMediaKey(key)) return null;
+  const { bucket, s3 } = media;
+  const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const bytes = await response.Body?.transformToByteArray();
+  if (!bytes || bytes.byteLength === 0) throw new Error("Media object is empty");
+  if (bytes.byteLength > SOCIAL_IMAGE_MAX_BYTES) throw new Error("Media object is too large");
+  const contentType = imageTypeForStoredObject(key, response.ContentType);
+  if (!contentType) throw new Error("Media object is not an image");
+  return { bytes, contentType };
 }
 
 export async function signedSocialMediaUrl(key: string): Promise<string | null> {

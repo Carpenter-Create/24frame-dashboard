@@ -206,8 +206,21 @@ describe("social isolation lock", () => {
     expect(migration).toContain("Do not add org_id or is_gc_staff");
     expect(migration).not.toMatch(/is_gc_staff\s*\(/);
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
-    expect(actions).toContain("mediaItemsForInsert(formData.get(\"media\"), user.id)");
-    expect(actions).toContain("mediaItemsForInsert(formData.get(\"media\"), user.id, \"stories\")");
+    expect(actions).toContain("mediaItemsForPublish(formData.get(\"media\"), user.id)");
+    expect(actions).toContain("mediaItemsForPublish(formData.get(\"media\"), user.id, \"stories\")");
+    // Every save stores only the server's published copy, never the upload key.
+    for (const action of [
+      "writeSocialPost",
+      "createSocialStory",
+      "saveSocialProfileCover",
+      "saveSocialWelcomeVideo",
+    ]) {
+      const start = actions.indexOf(`export async function ${action}(`);
+      const body = actions.slice(start, actions.indexOf("\nexport ", start + 1));
+      expect(start, action).toBeGreaterThan(-1);
+      expect(body, action).toContain("await publishSocialMediaItems(");
+      expect(body, action).toContain("published.items");
+    }
     const sign = readFileSync("src/lib/s3-social-media.ts", "utf8");
     expect(sign).toContain("socialMediaProxies(media, authorId, lane)");
     expect(sign).toContain("socialMediaProxiesByPostId(posts)");

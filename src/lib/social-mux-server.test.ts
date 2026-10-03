@@ -4,8 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SocialMuxUploadNotBoundError } from "./social-mux";
 import {
   createSocialMuxDirectUpload,
+  fetchSocialMuxFrame,
   finalizeSocialMuxDirectUpload,
   mintSocialMuxPlaybackTokens,
+  retrieveSocialMuxAsset,
   signedPlaybackIdFromAsset,
   socialMuxSettingsFromUploadInput,
 } from "./social-mux-server";
@@ -215,5 +217,62 @@ describe("social Mux server client", () => {
         playback_ids: [{ id: PLAYBACK_ID, policy: "public" }],
       }),
     ).toBeNull();
+  });
+});
+
+describe("social Mux server: topic tagging reads", () => {
+  function stubMuxEnv() {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const pem = privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    vi.stubEnv("MUX_SIGNING_KEY", "signing-key-id");
+    vi.stubEnv("MUX_PRIVATE_KEY", Buffer.from(pem).toString("base64"));
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("throws Mux's message on a failed API call, and passes a caller's signal", async () => {
+    stubMuxEnv();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { messages: ["Asset not found"] } }), { status: 404 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const signal = AbortSignal.timeout(1000);
+
+    await expect(retrieveSocialMuxAsset(ASSET_ID, { signal })).rejects.toThrow("Asset not found");
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
+  });
+
+  it("reads a frame, and throws on any failed read, a 404 included", async () => {
+    stubMuxEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).resolves.toEqual(new Uint8Array([1, 2, 3]));
+    const [frameUrl, frameInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(frameUrl).toMatch(/^https:\/\/image\.mux\.com\/.+\/thumbnail\.jpg\?token=/);
+    expect(frameInit.signal).toBeInstanceOf(AbortSignal);
+
+    // Nothing deletes a Social asset: a 4xx is configuration, not a gone frame.
+    for (const status of [400, 403, 404, 410, 429, 500]) {
+      fetchMock.mockResolvedValueOnce(new Response("", { status }));
+      await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toThrow(
+        `Mux image request failed (${status})`,
+      );
+    }
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(), { status: 200 }));
+    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toThrow("no bytes");
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toThrow("fetch failed");
+
+    // Only an id that is not a Mux id reads nothing, without a request.
+    const calls = fetchMock.mock.calls.length;
+    await expect(fetchSocialMuxFrame("not a mux id", { time: 3, width: 768 })).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(calls);
   });
 });

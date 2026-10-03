@@ -105,6 +105,29 @@ Workspace and IAM user are **not created**. Founder applies.
 
 ---
 
+## Social topic tagging (authorized; off)
+
+Adam lock: a background job gives each new Social post one of the 15
+locked topics, or none, with Claude Sonnet 5.5; nobody picks a topic.
+It runs on AWS Lambda (`24frame-social-topic-tag`, EventBridge every 5
+minutes), not Vercel cron, with an execution role and no AWS keys.
+Service-role writes to the post's topic columns only (exception in
+`docs/domain-spec.md` §20). No video transcripts for now (Adam
+decision): videos are tagged from caption and frames, and the tagger
+never changes a video. Transcripts return in a later PR that transcribes
+the audio separately, with a length cap. Adam lock: no auto captions on
+Social, for authors or viewers. Nobody picks a topic; a caption edit
+re-tags the post and the AI topic stays until replaced, except a topic
+recorded before this change, which is never reopened. Off until the
+founder enables the EventBridge rule (the only on/off switch), which
+waits for the founder's accuracy test. The tagger has its own Claude
+workspace and spend limit and its own read-only Mux token. The
+provenance migration, the Lambda, its role, its schedule and its alarms
+are founder-applied and **not created**. Backfill of older posts is a later founder-run step.
+Runbook: [`docs/infra/social-topic-tagging.md`](../infra/social-topic-tagging.md).
+
+---
+
 ## Not authority
 
 - [`docs/HANDOFF.md`](../HANDOFF.md) — historical handoff; preserve as evidence; do not act on its branch, SHA, production, or task statements without fresh verification.

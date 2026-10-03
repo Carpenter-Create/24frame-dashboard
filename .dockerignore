@@ -1,0 +1,14 @@
+# Build context for workers/*/Dockerfile (built from repo root). Those
+# Dockerfiles copy only package.json, pnpm-lock.yaml, pnpm-workspace.yaml,
+# tsconfig.json, src/lib and their own workers/ folder. Keep secrets, local
+# builds and the mobile app out of the context.
+.git
+**/node_modules
+.next
+**/.env
+**/.env.*
+**/secrets
+coverage
+**/*.test.ts
+**/*.test.tsx
+apps/

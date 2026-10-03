@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { useHouseClient } from "@/components/chrome/house-client-shell";
 
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
 import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
@@ -34,7 +33,6 @@ import {
   SOCIAL_WRITE_COMPOSE_PROGRESS_TRACK_CLASS,
   SOCIAL_WRITE_COMPOSE_X_CLASS,
 } from "@/lib/social-chrome";
-import { SOCIAL_CATEGORY_TOPICS } from "@/lib/social-categories";
 import {
   SOCIAL_MEDIA_ACCEPT,
   SOCIAL_MEDIA_MAX_ITEMS,
@@ -1144,17 +1142,6 @@ export function SocialCreateCompose({
             onValue={setBody}
           />
         </div>
-      </div>
-      <div className="sr-only">
-        <Label htmlFor="social-create-category">{SOCIAL.home.topic}</Label>
-        <select id="social-create-category" name="category" defaultValue="">
-          <option value=""></option>
-          {SOCIAL_CATEGORY_TOPICS.map((label) => (
-            <option key={label} value={label}>
-              {label}
-            </option>
-          ))}
-        </select>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <button

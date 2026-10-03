@@ -4,7 +4,7 @@
 -- persist. No org_id. Do not apply the companion migration to prod here.
 
 begin;
-select plan(18);
+select plan(20);
 
 select set_config('t.author', gen_random_uuid()::text, false);
 select set_config('t.other',  gen_random_uuid()::text, false);
@@ -113,6 +113,37 @@ select ok(
     'stories'
   ),
   'foreign stories key is rejected');
+
+-- Browser upload keys (<lane>/upload/<author>/<object>) are copy sources
+-- only. Rows hold the server's published copy, never an upload key.
+select ok(
+  not public.social_media_keys_owned(
+    jsonb_build_array(
+      jsonb_build_object(
+        'kind', 'image',
+        'key', 'posts/upload/' || current_setting('t.author') || '/'
+          || current_setting('t.object') || '.jpg',
+        'contentType', 'image/jpeg'
+      )
+    ),
+    current_setting('t.author')::uuid,
+    'posts'
+  ),
+  'own posts upload key is rejected');
+select ok(
+  not public.social_media_keys_owned(
+    jsonb_build_array(
+      jsonb_build_object(
+        'kind', 'image',
+        'key', 'stories/upload/' || current_setting('t.author') || '/'
+          || current_setting('t.object') || '.jpg',
+        'contentType', 'image/jpeg'
+      )
+    ),
+    current_setting('t.author')::uuid,
+    'stories'
+  ),
+  'own stories upload key is rejected');
 
 insert into public.profiles (id, handle, display_name)
 values

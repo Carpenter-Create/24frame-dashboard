@@ -234,7 +234,7 @@ Residual, not a pretend-mp4 path:
 - Empty `blob.type` on some Safari versions — persist the probed house type.
 - A Chrome-recorded webm story may not play in Safari’s viewer. This slice does not remux and does not use AWS IVS / Chime / Elemental.
 
-Story Post and photo Post share one browser PUT: `uploadStoryMedia` → `presignSocialMediaUpload` → `PUT` to `24frame-media-source-prod` (us-west-2). The PUT options match post stills: `Content-Type` only, no abort signal. `presignSocialMediaPut` sets `requestChecksumCalculation: "WHEN_REQUIRED"`, so the signed URL has no `x-amz-checksum-*` query params. A failed PUT logs `story-put` with the HTTP status, status text, and body, or the thrown error when the browser never gets a response. A presign failure shows “Those attachments could not be stored.” A PUT or network failure still shows “The file could not be stored.” `createSocialStory` errors pass through unchanged.
+Story Post and photo Post share one browser PUT: `uploadStoryMedia` → `presignSocialMediaUpload` → `PUT` to an upload key in `24frame-media-source-prod` (us-west-2); Save stores a server copy (see "Social photo publishing" below). The PUT options match post stills: `Content-Type` only, no abort signal. `presignSocialMediaPut` sets `requestChecksumCalculation: "WHEN_REQUIRED"`, so the signed URL has no `x-amz-checksum-*` query params. A failed PUT logs `story-put` with the HTTP status, status text, and body, or the thrown error when the browser never gets a response. A presign failure shows “Those attachments could not be stored.” A PUT or network failure still shows “The file could not be stored.” `createSocialStory` errors pass through unchanged.
 
 Live preflight on 2026-09-24: that bucket allows `PUT` from `http://localhost:3000` only. The eb56af preview origin gets **403** and no `Access-Control-Allow-Origin`, which makes `fetch` throw before a status exists. Do not use a production origin as the isolation check. Applying bucket CORS is CoS/Adam, not a Dev prod apply. S3 has no `*.vercel.app` origin form; preview hosts need `*` on their own rule. `put-bucket-cors` replaces the whole config, so the localhost rule stays in the same call. Do not run this from CI.
 
@@ -258,6 +258,50 @@ aws s3api put-bucket-cors --bucket 24frame-media-source-prod --region us-west-2 
   ]
 }'
 ```
+
+---
+
+## Trigger: Social photo publishing (upload keys, published copies)
+
+**When:** Changing Social media upload, post / story / cover / welcome Save, the media bucket policy, or `MEDIA_AWS_*` permissions.
+
+A published photo cannot change after Save. The browser PUTs only to a temporary upload key. Save copies the checked bytes on the server to a new key that no upload URL can write. Rows store only that key.
+
+- **Upload key** (presigned PUT only): `<lane>/upload/<uid>/<uuid>.<ext>`, lane `posts` or `stories`. `presignSocialMediaPut` refuses any other shape, and an extension that does not match the signed type. The DB CHECK (`social_media_keys_owned`), `isOwnedSocialMediaKey`, the media read grant, and the topic tagger all refuse upload keys.
+- **Published key** (rows, viewers, tagger): `<lane>/<uid>/<id>.<ext>`, the shape rows already held. `id` is a random UUID drawn at Save, never derived from the upload key or its ETag: the client knows both, and could otherwise point a directly written row at a key before Save fills it. A double submit or a failed insert leaves an extra copy, kept like upload objects. Never presigned.
+- **Publish copy** (`publishSocialMediaItems` in `src/lib/social-media-publish.ts`) runs on post, story, cover, and welcome Save. It HEADs every upload and checks size and type; nothing is copied unless all pass. Then one `CopyObject` per item: `CopySourceIfMatch` = the checked ETag, `IfNoneMatch: *`, `MetadataDirective: REPLACE` with the checked `ContentType`, `AnnotationDirective: EXCLUDE`. Mux items pass through. Strict: only the author's own upload key for that lane is a copy source; a published-shape key is refused. A welcome video (up to 250 MB) is copied inside the Save request; if that Save times out, raise the route's `maxDuration` in a follow-up.
+- **Failure:** a failed copy shows "The file could not be stored." A failed HEAD of an upload (missing object, denied, throttled) shows the missing-file message ("Choose a photo or video first." on a post). Each logs one line, `msg: "social media publish failed"`, with the lane, the step (`head` or `copy`), the S3 error name, and the HTTP status. Never keys or ETags.
+- **Permissions:** `MEDIA_AWS_*` needs `s3:PutObject` (presign, copy destination) and `s3:GetObject` (HEAD, copy source) on `posts/*` and `stories/*`, which it already uses. Under SSE-KMS it also needs `kms:Decrypt` and `kms:GenerateDataKey` on the bucket key. No `s3:GetObjectVersion` and no annotation permissions.
+- **Before or right after deploy (founder):** prove the exact copy with the production principal. Until it works, photo Saves show "The file could not be stored." and log `step: "copy"`: `put-object` to `posts/upload/<uid>/<uuidA>.jpg`, then `copy-object` to `posts/<uid>/<uuidB>.jpg` with `--copy-source-if-match`, `--if-none-match '*'`, `--metadata-directive REPLACE`, `--content-type image/jpeg`, `--annotation-directive EXCLUDE`. Repeat the copy and expect 412.
+- **Per-user prefixes:** one member's media spans `posts/<uid>/`, `stories/<uid>/`, `posts/upload/<uid>/`, and `stories/upload/<uid>/`. A per-user export, erasure, or audit covers all four.
+- **Upload objects are kept.** No lifecycle or expiry. Any expiry deletes data and is a founder decision.
+- **Next PR:** location (EXIF / GPS) stripping on publish. Until then published copies, and the kept uploads, carry the original metadata.
+
+**REQUIRED founder step after deploy: bucket policy.** New code cannot stop an older deployment from signing a PUT to a published key, or a PUT URL signed before the deploy (valid 900 s). This statement does. It denies every presigned or browser-form write outside the two upload prefixes, from any principal. The server's header-signed `CopyObject` still passes. Never apply it from code or CI.
+
+```json
+{
+  "Sid": "DenyBrowserWritesOutsideSocialStaging",
+  "Effect": "Deny",
+  "Principal": "*",
+  "Action": "s3:PutObject",
+  "NotResource": [
+    "arn:aws:s3:::24frame-media-source-prod/posts/upload/*",
+    "arn:aws:s3:::24frame-media-source-prod/stories/upload/*"
+  ],
+  "Condition": { "StringNotEquals": { "s3:authType": "REST-HEADER" } }
+}
+```
+
+Apply order:
+
+1. Deploy. Confirm a new photo post PUTs to `posts/upload/...` and the row holds a different `posts/<uid>/...` key.
+2. `aws s3api get-bucket-policy` and keep the output. `put-bucket-policy` replaces the whole document, so merge this statement into it.
+3. Confirm a published-key PUT URL signed before the deploy now gets 403, and a new upload still works.
+
+Applied before the deploy, it 403s today's uploads. Once applied, Preview and local runs of branches without this change cannot upload photos. That is intended.
+
+Rollback order: remove the statement first (`put-bucket-policy` with the saved document), then revert the code. Reverting first makes the old code's uploads 403. Removing the statement reopens writes to published keys.
 
 ---
 

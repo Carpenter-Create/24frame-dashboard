@@ -82,8 +82,12 @@ code (`https://aws-external-anthropic.{region}.api.aws`), so an
    }
    ```
 
-   Topic tagging's backfill will add the batch actions
-   (`CreateBatchInference`, `GetBatchInference`) in its own PR.
+   The Social topic-tagging Lambda does not use this user: its own
+   execution role gets `CreateInference` on a separate tagging workspace
+   with its own spend limit (`docs/infra/social-topic-tagging.md`), so
+   tagging can never use up 24Frame AI's budget. The topic backfill will add
+   the batch actions (`CreateBatchInference`, `GetBatchInference`) in
+   its own PR.
 5. **Vercel.** Create an access key for the user. Add the four
    `CLAUDE_AWS_*` values to Production and Preview, then redeploy.
 6. **Verify, then retire the cutover key.** On a Pro or Premium org,

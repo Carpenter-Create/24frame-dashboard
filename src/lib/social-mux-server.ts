@@ -52,9 +52,11 @@ type MuxUploadData = {
   } | null;
 };
 
-type MuxAssetData = {
+export type MuxAssetData = {
   id?: string;
   status?: string;
+  duration?: number;
+  passthrough?: string | null;
   playback_ids?: Array<{ id?: string; policy?: string }>;
 };
 
@@ -122,9 +124,12 @@ export async function retrieveSocialMuxUpload(uploadId: string): Promise<MuxUplo
   return muxRequest<MuxUploadData>(`/video/v1/uploads/${uploadId}`);
 }
 
-export async function retrieveSocialMuxAsset(assetId: string): Promise<MuxAssetData> {
+export async function retrieveSocialMuxAsset(
+  assetId: string,
+  init?: Pick<RequestInit, "signal">,
+): Promise<MuxAssetData> {
   if (!isSocialMuxId(assetId)) throw new Error("Mux asset id is invalid");
-  return muxRequest<MuxAssetData>(`/video/v1/assets/${assetId}`);
+  return muxRequest<MuxAssetData>(`/video/v1/assets/${assetId}`, init);
 }
 
 export async function mintSocialMuxPlaybackTokens(
@@ -148,6 +153,45 @@ export async function mintSocialMuxPlaybackTokens(
     throw new Error("Mux playback token was not minted");
   }
   return { playback, thumbnail, storyboard };
+}
+
+// Topic tagging (lib/social-topic-media). Server reads only: short-lived
+// tokens, never handed to a browser. Each call gives up after
+// SOCIAL_MUX_TOPIC_TIMEOUT_MS. Any failed read throws, a 4xx included, so
+// the post is retried: nothing deletes a Social asset, so a miss is
+// configuration (keys from another Mux environment), not a gone video.
+const SOCIAL_MUX_SERVER_READ_EXPIRATION = "10m";
+const MUX_IMAGE = "https://image.mux.com";
+export const SOCIAL_MUX_TOPIC_TIMEOUT_MS = 15_000;
+
+function socialMuxSigner(): Mux {
+  return new Mux({
+    jwtSigningKey: requireMuxEnv("MUX_SIGNING_KEY"),
+    jwtPrivateKey: requireMuxEnv("MUX_PRIVATE_KEY"),
+  });
+}
+
+/** One JPEG still at `time` seconds, `width` px wide. Null only for an id that is not a Mux id. */
+export async function fetchSocialMuxFrame(
+  playbackId: string,
+  frame: { time: number; width: number },
+): Promise<Uint8Array | null> {
+  if (!isSocialMuxId(playbackId)) return null;
+  // Signed thumbnails carry time and width in the token; the URL takes no
+  // other query parameters.
+  const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
+    type: "thumbnail",
+    expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
+    params: { time: String(frame.time), width: String(frame.width) },
+  });
+  const response = await fetch(`${MUX_IMAGE}/${playbackId}/thumbnail.jpg?token=${encodeURIComponent(token)}`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`Mux image request failed (${response.status})`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength === 0) throw new Error("Mux image request returned no bytes");
+  return bytes;
 }
 
 export function signedPlaybackIdFromAsset(asset: MuxAssetData): string | null {
