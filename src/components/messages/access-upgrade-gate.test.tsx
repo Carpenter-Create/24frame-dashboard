@@ -6,37 +6,37 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/messages",
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
-  appendAskGlobeeTurn: vi.fn(),
-  setAskGlobeeThumb: vi.fn(),
+vi.mock("@/app/(app)/aggregation/messages/ask-frame-ai-actions", () => ({
+  appendAskFrameAiTurn: vi.fn(),
+  setAskFrameAiThumb: vi.fn(),
 }));
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { AccessUpgradeGate } from "./access-upgrade-gate";
-import { AskGlobeeThread } from "./ask-globee-thread";
+import { AskFrameAiThread } from "./ask-frame-ai-thread";
 
 const THREAD = "2f1c8b6a-4d3e-4a11-9c22-7b8e1d0a5f44";
 
 describe("AccessUpgradeGate", () => {
-  it("renders Ask Globee at display size with the two locked lines and Upgrade", () => {
+  it("renders 24Frame AI at display size with the two locked lines and Upgrade", () => {
     const html = renderToStaticMarkup(<AccessUpgradeGate />);
 
-    expect(html).toContain('data-ask-globee-gate=""');
-    expect(html).toContain('data-ask-globee-headline=""');
+    expect(html).toContain('data-ask-frame-ai-gate=""');
+    expect(html).toContain('data-ask-frame-ai-headline=""');
     expect(html).toContain("t-display");
-    expect(html).toContain(ASK_GLOBEE.headline);
-    expect(html).toContain(ASK_GLOBEE.analyze);
-    expect(html).toContain(ASK_GLOBEE.included);
-    expect(html).toContain(ASK_GLOBEE.upgrade);
-    expect(html).toContain(`href="${ASK_GLOBEE.upgradeHref}"`);
-    expect(html).not.toContain(ASK_GLOBEE.headerSearchHint);
+    expect(html).toContain(ASK_FRAME_AI.headline);
+    expect(html).toContain(ASK_FRAME_AI.analyze);
+    expect(html).toContain(ASK_FRAME_AI.included);
+    expect(html).toContain(ASK_FRAME_AI.upgrade);
+    expect(html).toContain(`href="${ASK_FRAME_AI.upgradeHref}"`);
+    expect(html).not.toContain(ASK_FRAME_AI.headerSearchHint);
     expect(html).not.toContain("SearchField");
   });
 
   it("does not render a ghost conversation, blur, chips, composer, or the Pro thread", () => {
     const html = renderToStaticMarkup(<AccessUpgradeGate />);
     const thread = renderToStaticMarkup(
-      <AskGlobeeThread
+      <AskFrameAiThread
         initials="A"
         conversation={{
           id: THREAD,
@@ -68,24 +68,24 @@ describe("AccessUpgradeGate", () => {
       />,
     );
 
-    expect(html).not.toContain("data-ask-globee-thread");
-    expect(html).not.toContain("data-ask-globee-composer");
-    expect(html).not.toContain("data-ask-globee-history");
-    expect(html).not.toContain(ASK_GLOBEE.threadTitle);
-    expect(html).not.toContain(ASK_GLOBEE.answerLead);
-    expect(html).not.toContain(ASK_GLOBEE.attribution);
-    expect(html).not.toContain(ASK_GLOBEE.composerPlaceholder);
-    expect(html).not.toContain(ASK_GLOBEE.need);
-    expect(html).not.toContain(ASK_GLOBEE.tryLabel);
-    expect(html).not.toContain("data-ask-globee-landing");
-    expect(html).not.toContain("data-ask-globee-chip");
-    for (const label of ASK_GLOBEE.tryPrompts) {
+    expect(html).not.toContain("data-ask-frame-ai-thread");
+    expect(html).not.toContain("data-ask-frame-ai-composer");
+    expect(html).not.toContain("data-ask-frame-ai-history");
+    expect(html).not.toContain(ASK_FRAME_AI.threadTitle);
+    expect(html).not.toContain(ASK_FRAME_AI.answerLead);
+    expect(html).not.toContain(ASK_FRAME_AI.attribution);
+    expect(html).not.toContain(ASK_FRAME_AI.composerPlaceholder);
+    expect(html).not.toContain(ASK_FRAME_AI.need);
+    expect(html).not.toContain(ASK_FRAME_AI.tryLabel);
+    expect(html).not.toContain("data-ask-frame-ai-landing");
+    expect(html).not.toContain("data-ask-frame-ai-chip");
+    for (const label of ASK_FRAME_AI.tryPrompts) {
       expect(html).not.toContain(label);
     }
     expect(html).not.toMatch(/blur|backdrop-blur|ghost/i);
     expect(html).not.toContain("chip");
 
-    expect(thread).toContain("data-ask-globee-thread");
-    expect(html).not.toContain("data-ask-globee-user-row");
+    expect(thread).toContain("data-ask-frame-ai-thread");
+    expect(html).not.toContain("data-ask-frame-ai-user-row");
   });
 });

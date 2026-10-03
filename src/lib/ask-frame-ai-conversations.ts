@@ -1,10 +1,10 @@
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 
-export { askGlobeeDownloadFilename } from "@/lib/ask-globee-download";
+export { askFrameAiDownloadFilename } from "@/lib/ask-frame-ai-download";
 
-export type AskGlobeeThumb = "up" | "down";
+export type AskFrameAiThumb = "up" | "down";
 
-export type AskGlobeeHistoryRow = {
+export type AskFrameAiHistoryRow = {
   id: string;
   title: string;
   pinned_at: string | null;
@@ -12,17 +12,19 @@ export type AskGlobeeHistoryRow = {
   updated_at: string;
 };
 
-export type AskGlobeeStoredMessage = {
+export type AskFrameAiStoredMessage = {
   id: string;
+  // "globee" is the stored conversation_role value for 24Frame AI turns.
+  // The name is retired in code and copy; the database value stays.
   role: "user" | "globee";
   body: string;
   lead: string | null;
   follow: string | null;
-  thumbs: AskGlobeeThumb | null;
+  thumbs: AskFrameAiThumb | null;
   created_at: string;
 };
 
-export function askGlobeeOpenUserTurn(
+export function askFrameAiOpenUserTurn(
   messages: ReadonlyArray<{ role: "user" | "globee"; body: string }>,
 ): string | null {
   const last = messages.at(-1);
@@ -31,7 +33,7 @@ export function askGlobeeOpenUserTurn(
   return next.length > 0 ? next : null;
 }
 
-export function sortAskGlobeeHistory<T extends { pinned_at: string | null; updated_at: string }>(
+export function sortAskFrameAiHistory<T extends { pinned_at: string | null; updated_at: string }>(
   rows: T[],
 ): T[] {
   return [...rows].sort((a, b) => {
@@ -45,15 +47,15 @@ export function sortAskGlobeeHistory<T extends { pinned_at: string | null; updat
   });
 }
 
-export function askGlobeeAnswerText(lead: string, follow: string | null): string {
+export function askFrameAiAnswerText(lead: string, follow: string | null): string {
   const nextFollow = follow?.trim();
   return nextFollow ? `${lead}\n${nextFollow}` : lead;
 }
 
-export function nextAskGlobeeThumb(
-  current: AskGlobeeThumb | null,
-  clicked: AskGlobeeThumb,
-): AskGlobeeThumb | null {
+export function nextAskFrameAiThumb(
+  current: AskFrameAiThumb | null,
+  clicked: AskFrameAiThumb,
+): AskFrameAiThumb | null {
   return current === clicked ? null : clicked;
 }
 
@@ -61,7 +63,7 @@ function startOfLocalDay(value: Date): number {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
 }
 
-function formatAskGlobeeClock(value: Date): string {
+function formatAskFrameAiClock(value: Date): string {
   const raw = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -73,34 +75,34 @@ function formatAskGlobeeClock(value: Date): string {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
-export function isAskGlobeeHistoryThisWeek(iso: string, now = new Date()): boolean {
+export function isAskFrameAiHistoryThisWeek(iso: string, now = new Date()): boolean {
   return startOfLocalDay(new Date(iso)) > startOfLocalDay(now) - WEEK_MS;
 }
 
-export function filterAskGlobeeHistory<T extends { title: string }>(rows: T[], query: string): T[] {
+export function filterAskFrameAiHistory<T extends { title: string }>(rows: T[], query: string): T[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return rows;
   return rows.filter((row) => row.title.toLowerCase().includes(needle));
 }
 
-export function groupAskGlobeeHistory<T extends { updated_at: string }>(
+export function groupAskFrameAiHistory<T extends { updated_at: string }>(
   rows: T[],
   now = new Date(),
 ): { thisWeek: T[]; allThreads: T[] } {
   const thisWeek: T[] = [];
   const allThreads: T[] = [];
   for (const row of rows) {
-    if (isAskGlobeeHistoryThisWeek(row.updated_at, now)) thisWeek.push(row);
+    if (isAskFrameAiHistoryThisWeek(row.updated_at, now)) thisWeek.push(row);
     else allThreads.push(row);
   }
   return { thisWeek, allThreads };
 }
 
-export function formatAskGlobeeHistoryTime(iso: string, now = new Date()): string {
+export function formatAskFrameAiHistoryTime(iso: string, now = new Date()): string {
   const then = new Date(iso);
   const thenDay = startOfLocalDay(then);
   const nowDay = startOfLocalDay(now);
-  if (thenDay === nowDay) return formatAskGlobeeClock(then);
+  if (thenDay === nowDay) return formatAskFrameAiClock(then);
   if (thenDay === nowDay - DAY_MS) return "Yesterday";
   if (thenDay > nowDay - WEEK_MS && thenDay < nowDay) {
     return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(then);
@@ -109,6 +111,6 @@ export function formatAskGlobeeHistoryTime(iso: string, now = new Date()): strin
 }
 
 // Help-desk leftover. Do not render on the 247:295 thread answer (247:378).
-export function formatAskGlobeeAttribution(iso: string): string {
-  return `${ASK_GLOBEE.attributionName} · ${formatAskGlobeeClock(new Date(iso))}`;
+export function formatAskFrameAiAttribution(iso: string): string {
+  return `${ASK_FRAME_AI.attributionName} · ${formatAskFrameAiClock(new Date(iso))}`;
 }

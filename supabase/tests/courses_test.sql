@@ -87,7 +87,7 @@ select ok(
   'donor conversations (DMs) exist');
 select ok(
   to_regclass('public.ai_conversations') is not null,
-  'ai_conversations still present (Ask Globee not renamed back)');
+  'ai_conversations still present (24Frame AI not renamed back)');
 
 select ok(
   not exists (

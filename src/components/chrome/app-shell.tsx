@@ -9,14 +9,14 @@ import { SettingsRail } from "./settings-rail";
 import { HouseLeadChrome } from "./house-lead-chrome";
 import { HouseLeadSearch } from "./house-lead-search";
 import { RailCollapse } from "./rail-collapse";
-import { AskAssistantChromeProvider } from "@/components/messages/ask-globee-chrome";
+import { AskAssistantChromeProvider } from "@/components/messages/ask-frame-ai-chrome";
 import { SocialExploreExit } from "@/components/social/social-explore-exit";
 import { AskAiOverlayProvider } from "./ask-ai-overlay";
 import { cn } from "@/lib/cn";
 import { isAccountChromeNoRailPath } from "@/lib/account-chrome";
 import { isActivityPath, type ActivityItem } from "@/lib/activity";
 import type { AppShellChrome } from "@/lib/app-shell-chrome";
-import type { MessagesSurface } from "@/lib/ask-globee";
+import type { MessagesSurface } from "@/lib/ask-frame-ai";
 import {
   RAIL_COLLAPSE_WIDTH_VAR,
   RAIL_WIDTH_CLASS,

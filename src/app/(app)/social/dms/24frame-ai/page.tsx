@@ -1,5 +1,5 @@
 import { SocialFrameAiThread } from "@/components/social/social-frame-ai-thread";
-import { loadSocialFrameAiThread } from "@/app/(app)/aggregation/messages/ask-globee-actions";
+import { loadSocialFrameAiThread } from "@/app/(app)/aggregation/messages/ask-frame-ai-actions";
 import { loadSocialFrameAiShare } from "@/lib/social-frame-ai-share";
 import { readSocialFrameAiShareSearch } from "@/lib/social-frame-ai";
 import { requireSocialSession } from "@/lib/social-session";

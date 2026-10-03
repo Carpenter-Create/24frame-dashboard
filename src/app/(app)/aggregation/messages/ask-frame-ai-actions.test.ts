@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgTier } from "@/lib/org-tier";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { UNPAGINATED_MAX } from "@/lib/list-bounds";
-import { ASK_GLOBEE_MODEL_ID } from "@/lib/ask-globee-operator";
+import { ASK_FRAME_AI_MODEL_ID } from "@/lib/ask-frame-ai-operator";
 import {
-  appendAskGlobeeTurn,
-  completeAskGlobeeTurn,
-  startAskGlobeeConversation,
-} from "./ask-globee-actions";
+  appendAskFrameAiTurn,
+  completeAskFrameAiTurn,
+  startAskFrameAiConversation,
+} from "./ask-frame-ai-actions";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/supabase/context", () => ({ getOrgContext: vi.fn() }));
@@ -142,7 +142,7 @@ function stubWriteClient({
   return { from, rpc, inserted };
 }
 
-describe("startAskGlobeeConversation", () => {
+describe("startAskFrameAiConversation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
@@ -154,7 +154,7 @@ describe("startAskGlobeeConversation", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("access");
 
-    await expect(startAskGlobeeConversation("What needs attention")).resolves.toEqual({
+    await expect(startAskFrameAiConversation("What needs attention")).resolves.toEqual({
       error: "Not authorized.",
     });
     expect(vi.mocked(createClient)).not.toHaveBeenCalled();
@@ -168,7 +168,7 @@ describe("startAskGlobeeConversation", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("pro");
 
-    await expect(startAskGlobeeConversation("What is blocking a title")).resolves.toEqual({
+    await expect(startAskFrameAiConversation("What is blocking a title")).resolves.toEqual({
       conversationId: THREAD,
     });
     expect(rpc).not.toHaveBeenCalled();
@@ -186,9 +186,9 @@ describe("startAskGlobeeConversation", () => {
     });
     expect(inserted.some((row) => row.row.role === "globee")).toBe(false);
     const payload = JSON.stringify(inserted);
-    expect(payload).not.toContain(ASK_GLOBEE.emptyBlocking);
-    expect(payload).not.toContain(ASK_GLOBEE.emptySubmitNext);
-    expect(payload).not.toContain(ASK_GLOBEE.capability);
+    expect(payload).not.toContain(ASK_FRAME_AI.emptyBlocking);
+    expect(payload).not.toContain(ASK_FRAME_AI.emptySubmitNext);
+    expect(payload).not.toContain(ASK_FRAME_AI.capability);
     expect(payload).not.toContain("Winter Line");
     expect(payload).not.toContain("Harbor Lights");
   });
@@ -198,7 +198,7 @@ describe("startAskGlobeeConversation", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("pro");
 
-    await expect(startAskGlobeeConversation("How many titles are in my catalog?")).resolves.toEqual({
+    await expect(startAskFrameAiConversation("How many titles are in my catalog?")).resolves.toEqual({
       conversationId: THREAD,
     });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -207,11 +207,11 @@ describe("startAskGlobeeConversation", () => {
       role: "user",
       body: "How many titles are in my catalog?",
     });
-    expect(JSON.stringify(inserted)).not.toContain(ASK_GLOBEE.capability);
+    expect(JSON.stringify(inserted)).not.toContain(ASK_FRAME_AI.capability);
   });
 });
 
-describe("completeAskGlobeeTurn", () => {
+describe("completeAskFrameAiTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
@@ -243,7 +243,7 @@ describe("completeAskGlobeeTurn", () => {
         }),
       });
 
-    await expect(completeAskGlobeeTurn(THREAD)).resolves.toEqual({});
+    await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({});
     expect(rpc).toHaveBeenCalledWith("my_findings", {
       p_limit: UNPAGINATED_MAX + 1,
       p_org_id: "org-1",
@@ -255,11 +255,11 @@ describe("completeAskGlobeeTurn", () => {
       lead: "Harbor Cut is missing a synopsis.",
       org_id: "org-1",
     });
-    expect(inserted[0]?.row.lead).not.toBe(ASK_GLOBEE.emptyBlocking);
+    expect(inserted[0]?.row.lead).not.toBe(ASK_FRAME_AI.emptyBlocking);
     const payload = JSON.stringify(inserted);
-    expect(payload).not.toContain(ASK_GLOBEE.emptyBlocking);
-    expect(payload).not.toContain(ASK_GLOBEE.emptySubmitNext);
-    expect(payload).not.toContain(ASK_GLOBEE.capability);
+    expect(payload).not.toContain(ASK_FRAME_AI.emptyBlocking);
+    expect(payload).not.toContain(ASK_FRAME_AI.emptySubmitNext);
+    expect(payload).not.toContain(ASK_FRAME_AI.capability);
     expect(payload).not.toContain(OTHER_ORG_FINDING);
     expect(payload).not.toContain("ORPHAN_FINDING");
     expect(payload).not.toContain("Winter Line");
@@ -267,7 +267,7 @@ describe("completeAskGlobeeTurn", () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://api.anthropic.com/v1/messages");
     const body = JSON.parse(String(init.body));
-    expect(body.model).toBe(ASK_GLOBEE_MODEL_ID);
+    expect(body.model).toBe(ASK_FRAME_AI_MODEL_ID);
     const toolRound = JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body));
     expect(JSON.stringify(toolRound)).not.toContain(OTHER_ORG_FINDING);
     expect(JSON.stringify(toolRound)).not.toContain("ORPHAN_FINDING");
@@ -300,7 +300,7 @@ describe("completeAskGlobeeTurn", () => {
         }),
       });
 
-    await expect(completeAskGlobeeTurn(THREAD)).resolves.toEqual({});
+    await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({});
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(inserted[0]?.row).toMatchObject({
       role: "globee",
@@ -321,12 +321,12 @@ describe("completeAskGlobeeTurn", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("pro");
 
-    await expect(completeAskGlobeeTurn(THREAD)).resolves.toEqual({
-      error: ASK_GLOBEE.unavailable,
+    await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({
+      error: ASK_FRAME_AI.unavailable,
     });
     expect(inserted).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(ASK_GLOBEE.unavailable).not.toBe(ASK_GLOBEE.capability);
+    expect(ASK_FRAME_AI.unavailable).not.toBe(ASK_FRAME_AI.capability);
   });
 
   it("fails closed on a chip prompt when the operator key is missing", async () => {
@@ -338,13 +338,13 @@ describe("completeAskGlobeeTurn", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("pro");
 
-    await expect(completeAskGlobeeTurn(THREAD)).resolves.toEqual({
-      error: ASK_GLOBEE.unavailable,
+    await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({
+      error: ASK_FRAME_AI.unavailable,
     });
     expect(inserted).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(ASK_GLOBEE.unavailable).not.toBe(ASK_GLOBEE.emptyBlocking);
-    expect(ASK_GLOBEE.unavailable).not.toBe(ASK_GLOBEE.capability);
+    expect(ASK_FRAME_AI.unavailable).not.toBe(ASK_FRAME_AI.emptyBlocking);
+    expect(ASK_FRAME_AI.unavailable).not.toBe(ASK_FRAME_AI.capability);
   });
 
   it("answers unmapped free text from the model path instead of the capability stub", async () => {
@@ -370,18 +370,18 @@ describe("completeAskGlobeeTurn", () => {
         }),
       });
 
-    await expect(completeAskGlobeeTurn(THREAD)).resolves.toEqual({});
+    await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({});
     expect(inserted[0]?.row).toMatchObject({
       role: "globee",
       lead: "Your catalog has 1 title.",
     });
-    expect(JSON.stringify(inserted)).not.toContain(ASK_GLOBEE.capability);
+    expect(JSON.stringify(inserted)).not.toContain(ASK_FRAME_AI.capability);
     expect(JSON.stringify(inserted)).not.toContain(OTHER_ORG_FINDING);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://api.anthropic.com/v1/messages");
     const body = JSON.parse(String(init.body));
-    expect(body.model).toBe(ASK_GLOBEE_MODEL_ID);
+    expect(body.model).toBe(ASK_FRAME_AI_MODEL_ID);
     expect(JSON.stringify(body)).not.toContain(OTHER_ORG_FINDING);
     const toolRound = JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body));
     expect(JSON.stringify(toolRound)).not.toContain(OTHER_ORG_FINDING);
@@ -393,7 +393,7 @@ describe("completeAskGlobeeTurn", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("access");
 
-    await expect(completeAskGlobeeTurn(THREAD)).resolves.toEqual({
+    await expect(completeAskFrameAiTurn(THREAD)).resolves.toEqual({
       error: "Not authorized.",
     });
     expect(vi.mocked(createClient)).not.toHaveBeenCalled();
@@ -403,7 +403,7 @@ describe("completeAskGlobeeTurn", () => {
   });
 });
 
-describe("appendAskGlobeeTurn", () => {
+describe("appendAskFrameAiTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
@@ -423,7 +423,7 @@ describe("appendAskGlobeeTurn", () => {
       }),
     });
 
-    await expect(appendAskGlobeeTurn(THREAD, "What is blocking a title")).resolves.toEqual({});
+    await expect(appendAskFrameAiTurn(THREAD, "What is blocking a title")).resolves.toEqual({});
     expect(inserted.some((row) => row.table === "ai_conversations")).toBe(false);
     expect(inserted.map((row) => row.row.role)).toEqual(["user", "globee"]);
     expect(inserted[0]?.row).toMatchObject({
@@ -435,7 +435,7 @@ describe("appendAskGlobeeTurn", () => {
       role: "globee",
       lead: "Harbor Cut is missing a synopsis.",
     });
-    expect(inserted[1]?.row.lead).not.toBe(ASK_GLOBEE.emptyBlocking);
+    expect(inserted[1]?.row.lead).not.toBe(ASK_FRAME_AI.emptyBlocking);
     expect(fetchMock).toHaveBeenCalled();
   });
 
@@ -444,7 +444,7 @@ describe("appendAskGlobeeTurn", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(getActiveOrgTier).mockResolvedValue("access");
 
-    await expect(appendAskGlobeeTurn(THREAD, "What needs attention")).resolves.toEqual({
+    await expect(appendAskFrameAiTurn(THREAD, "What needs attention")).resolves.toEqual({
       error: "Not authorized.",
     });
     expect(vi.mocked(createClient)).not.toHaveBeenCalled();

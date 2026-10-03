@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 import { signedAvatarUrls } from "@/lib/s3-avatars";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { SOCIAL } from "@/lib/social";
 import SocialLeaderboardPage from "./page";
 
@@ -142,7 +142,7 @@ describe("Social leaderboard", () => {
     expect(html).toContain("Member");
     expect(html).not.toContain("data-leaderboard-private");
     expect(html).not.toContain("Globee");
-    expect(html).not.toContain(ASK_GLOBEE.headline);
+    expect(html).not.toContain(ASK_FRAME_AI.headline);
     expect(html).not.toContain("—");
   });
 

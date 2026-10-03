@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { PRODUCT_NAME, SOCIAL_WORKSPACE } from "@/lib/product";
 import {
   conversationRoomLabel,
@@ -361,7 +361,7 @@ describe("social copy lock", () => {
       expect(blob).not.toContain(banned);
     }
     expect(blob).not.toContain("Globee");
-    expect(ASK_GLOBEE.headline).toBe("Ask 24Frame AI");
+    expect(ASK_FRAME_AI.headline).toBe("Ask 24Frame AI");
   });
 });
 

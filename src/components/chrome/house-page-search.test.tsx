@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
 import { HOUSE_LEAD_SEARCH_PILL_CLASS } from "@/lib/house-lead-chrome";
 import { HOUSE_SEARCH_PILL_CLASS } from "@/lib/house-shell";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { GC_LICENSING_STATUS } from "@/lib/gc-deliveries";
 import { TITLES_CATALOG } from "@/lib/titles-catalog";
 
@@ -76,10 +76,10 @@ describe("HousePageSearch", () => {
     expect(deliveries).toContain("HousePageSearch");
     expect(deliveries).toContain("GC_LICENSING_STATUS.searchPlaceholder");
     expect(messages).toContain("HousePageSearch");
-    expect(messages).toContain("ASK_GLOBEE.headerSearchPlaceholder");
-    expect(messages).toContain("ASK_GLOBEE.headerSearchHint");
+    expect(messages).toContain("ASK_FRAME_AI.headerSearchPlaceholder");
+    expect(messages).toContain("ASK_FRAME_AI.headerSearchHint");
     expect(GC_LICENSING_STATUS.searchPlaceholder).toBeTruthy();
-    expect(ASK_GLOBEE.headerSearchHint).toBe("⌘K");
+    expect(ASK_FRAME_AI.headerSearchHint).toBe("⌘K");
 
     expect(src).not.toContain("lucide-react");
     for (const path of PRODUCTION_PATHS) {

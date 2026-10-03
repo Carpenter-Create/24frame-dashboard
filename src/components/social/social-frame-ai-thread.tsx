@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
-  appendAskGlobeeTurn,
-  completeAskGlobeeTurn,
-  startAskGlobeeConversation,
-} from "@/app/(app)/aggregation/messages/ask-globee-actions";
+  appendAskFrameAiTurn,
+  completeAskFrameAiTurn,
+  startAskFrameAiConversation,
+} from "@/app/(app)/aggregation/messages/ask-frame-ai-actions";
 import { SocialDmThread, type DmThreadViewMessage } from "@/components/social/social-dm-thread";
 import { SocialDmThreadHeader } from "@/components/social/social-dm-thread-header";
 import { SocialDmThreadStick } from "@/components/social/social-dm-thread-stick";
@@ -17,17 +17,17 @@ import { SocialIcon } from "@/components/social/social-icon";
 import { FormError } from "@/components/social/social-form-error";
 import { Input } from "@/components/ui/input";
 import {
-  ASK_GLOBEE,
-  ASK_GLOBEE_FETCHING_HOLD_MS,
-  askGlobeeComposerSubmit,
-  askGlobeeThinkingPhase,
-  askGlobeeThinkingVerb,
-} from "@/lib/ask-globee";
+  ASK_FRAME_AI,
+  ASK_FRAME_AI_FETCHING_HOLD_MS,
+  askFrameAiComposerSubmit,
+  askFrameAiThinkingPhase,
+  askFrameAiThinkingVerb,
+} from "@/lib/ask-frame-ai";
 import {
-  askGlobeeAnswerText,
-  askGlobeeOpenUserTurn,
-  type AskGlobeeStoredMessage,
-} from "@/lib/ask-globee-conversations";
+  askFrameAiAnswerText,
+  askFrameAiOpenUserTurn,
+  type AskFrameAiStoredMessage,
+} from "@/lib/ask-frame-ai-conversations";
 import { ASSISTANT_NAME } from "@/lib/product";
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_MEDIA_ACCEPT } from "@/lib/social-media";
@@ -59,7 +59,7 @@ export function SocialFrameAiThread({
 }: {
   ready: boolean;
   conversationId: string | null;
-  messages: AskGlobeeStoredMessage[];
+  messages: AskFrameAiStoredMessage[];
   share: SocialFrameAiShare | null;
 }) {
   const router = useRouter();
@@ -78,7 +78,7 @@ export function SocialFrameAiThread({
       ? pendingText
       : null;
   const openUserId =
-    ready && conversationId && askGlobeeOpenUserTurn(messages) ? (messages.at(-1)?.id ?? null) : null;
+    ready && conversationId && askFrameAiOpenUserTurn(messages) ? (messages.at(-1)?.id ?? null) : null;
   const [finishedUserId, setFinishedUserId] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState("");
   const finishing = openUserId !== null && finishedUserId !== openUserId && completeError === "";
@@ -87,8 +87,8 @@ export function SocialFrameAiThread({
   useEffect(() => {
     if (!busy) return;
     const id = window.setTimeout(() => {
-      setThinkingElapsedMs(ASK_GLOBEE_FETCHING_HOLD_MS);
-    }, ASK_GLOBEE_FETCHING_HOLD_MS);
+      setThinkingElapsedMs(ASK_FRAME_AI_FETCHING_HOLD_MS);
+    }, ASK_FRAME_AI_FETCHING_HOLD_MS);
     return () => window.clearTimeout(id);
   }, [busy]);
 
@@ -97,7 +97,7 @@ export function SocialFrameAiThread({
     if (completingIdRef.current === openUserId) return;
     completingIdRef.current = openUserId;
     let cancelled = false;
-    void completeAskGlobeeTurn(conversationId).then((result) => {
+    void completeAskFrameAiTurn(conversationId).then((result) => {
       if (cancelled) return;
       if ("error" in result && result.error) {
         setCompleteError(result.error);
@@ -117,7 +117,7 @@ export function SocialFrameAiThread({
     share,
     pending: busy,
     pendingText: shownPending,
-    thinkingText: askGlobeeThinkingVerb(askGlobeeThinkingPhase(thinkingElapsedMs)),
+    thinkingText: askFrameAiThinkingVerb(askFrameAiThinkingPhase(thinkingElapsedMs)),
   });
 
   return (
@@ -132,14 +132,14 @@ export function SocialFrameAiThread({
       <SocialDmThread messages={rows} />
       {ready ? null : (
         <div data-social-frame-ai-gate="" className="flex flex-col items-center gap-[var(--space-2)] px-4 py-6">
-          <p className="t-body text-center text-ink">{ASK_GLOBEE.analyze}</p>
-          <p className="t-body-sm text-center text-ink-3">{ASK_GLOBEE.included}</p>
+          <p className="t-body text-center text-ink">{ASK_FRAME_AI.analyze}</p>
+          <p className="t-body-sm text-center text-ink-3">{ASK_FRAME_AI.included}</p>
           <Link
-            href={ASK_GLOBEE.upgradeHref}
-            data-ask-globee-upgrade=""
+            href={ASK_FRAME_AI.upgradeHref}
+            data-ask-frame-ai-upgrade=""
             className="inline-flex h-9 items-center justify-center rounded-full bg-accent px-3.5 t-body-sm font-medium text-accent-contrast transition hover:opacity-90"
           >
-            {ASK_GLOBEE.upgrade}
+            {ASK_FRAME_AI.upgrade}
           </Link>
         </div>
       )}
@@ -150,7 +150,7 @@ export function SocialFrameAiThread({
         className={DM_THREAD_COMPOSER_CLASS}
         onSubmit={(event) => {
           event.preventDefault();
-          const next = askGlobeeComposerSubmit(draft);
+          const next = askFrameAiComposerSubmit(draft);
           if (!next || busy) return;
           setError("");
           setPending(true);
@@ -211,15 +211,15 @@ export function SocialFrameAiThread({
 
   async function sendTurn(next: string) {
     if (!ready) {
-      const started = await startAskGlobeeConversation(next);
+      const started = await startAskFrameAiConversation(next);
       setPending(false);
       setPendingText(null);
       setDraft(next);
-      setError(started.error ?? ASK_GLOBEE.unavailable);
+      setError(started.error ?? ASK_FRAME_AI.unavailable);
       return;
     }
     if (conversationId) {
-      const result = await appendAskGlobeeTurn(conversationId, next);
+      const result = await appendAskFrameAiTurn(conversationId, next);
       setPending(false);
       if ("error" in result && result.error) {
         setPendingText(null);
@@ -230,16 +230,16 @@ export function SocialFrameAiThread({
       router.refresh();
       return;
     }
-    const started = await startAskGlobeeConversation(next);
+    const started = await startAskFrameAiConversation(next);
     if (!started.conversationId) {
       setPending(false);
       setPendingText(null);
       setDraft(next);
-      setError(started.error ?? ASK_GLOBEE.unavailable);
+      setError(started.error ?? ASK_FRAME_AI.unavailable);
       return;
     }
     setStartedId(started.conversationId);
-    const done = await completeAskGlobeeTurn(started.conversationId);
+    const done = await completeAskFrameAiTurn(started.conversationId);
     setPending(false);
     if ("error" in done && done.error) {
       setError(done.error);
@@ -250,7 +250,7 @@ export function SocialFrameAiThread({
 
 function viewMessages(input: {
   ready: boolean;
-  messages: readonly AskGlobeeStoredMessage[];
+  messages: readonly AskFrameAiStoredMessage[];
   share: SocialFrameAiShare | null;
   pending: boolean;
   pendingText: string | null;
@@ -269,7 +269,7 @@ function viewMessages(input: {
   }
   for (const message of input.messages) {
     const mine = message.role === "user";
-    const text = mine ? message.body : askGlobeeAnswerText(message.lead ?? message.body, message.follow);
+    const text = mine ? message.body : askFrameAiAnswerText(message.lead ?? message.body, message.follow);
     if (!text.trim()) continue;
     rows.push(textMessage(message.id, mine, text, message.created_at));
   }

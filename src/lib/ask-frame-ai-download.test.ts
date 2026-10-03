@@ -3,18 +3,18 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import {
-  ASK_GLOBEE_DOWNLOAD,
-  ASK_GLOBEE_DOWNLOAD_CONTENT_TYPE,
-  askGlobeeDownloadBlob,
-  askGlobeeDownloadFilename,
-  buildAskGlobeeDownloadPdf,
-  parseAskGlobeeDownloadInk,
-  stackAskGlobeeDownloadFacts,
-} from "./ask-globee-download";
+  ASK_FRAME_AI_DOWNLOAD,
+  ASK_FRAME_AI_DOWNLOAD_CONTENT_TYPE,
+  askFrameAiDownloadBlob,
+  askFrameAiDownloadFilename,
+  buildAskFrameAiDownloadPdf,
+  parseAskFrameAiDownloadInk,
+  stackAskFrameAiDownloadFacts,
+} from "./ask-frame-ai-download";
 
-const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ask-globee-download.ts"), "utf8");
+const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ask-frame-ai-download.ts"), "utf8");
 
 function pdfString(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("latin1");
@@ -26,18 +26,18 @@ function pdfVisibleText(bytes: Uint8Array): string {
     .join("");
 }
 
-describe("askGlobeeDownloadFilename", () => {
-  it("names the file globee-{slug}.pdf from the live title, not .txt", () => {
-    expect(askGlobeeDownloadFilename("What needs attention")).toBe("24Frame-what-needs-attention.pdf");
-    expect(askGlobeeDownloadFilename("What needs attention")).not.toMatch(/\.txt$/);
-    expect(askGlobeeDownloadFilename("   ")).toBe("24Frame-conversation.pdf");
+describe("askFrameAiDownloadFilename", () => {
+  it("names the file 24Frame-{slug}.pdf from the live title, not .txt", () => {
+    expect(askFrameAiDownloadFilename("What needs attention")).toBe("24Frame-what-needs-attention.pdf");
+    expect(askFrameAiDownloadFilename("What needs attention")).not.toMatch(/\.txt$/);
+    expect(askFrameAiDownloadFilename("   ")).toBe("24Frame-conversation.pdf");
   });
 
   it("slugs the Winter Line fixture title as a filename example only", () => {
-    expect(askGlobeeDownloadFilename(ASK_GLOBEE.threadTitle)).toBe(
+    expect(askFrameAiDownloadFilename(ASK_FRAME_AI.threadTitle)).toBe(
       "24Frame-whats-blocking-the-winter-line.pdf",
     );
-    expect(askGlobeeDownloadFilename("Harbor Cut needs a synopsis")).toBe(
+    expect(askFrameAiDownloadFilename("Harbor Cut needs a synopsis")).toBe(
       "24Frame-harbor-cut-needs-a-synopsis.pdf",
     );
     expect(src).not.toContain("Winter Line");
@@ -45,29 +45,29 @@ describe("askGlobeeDownloadFilename", () => {
   });
 });
 
-describe("askGlobee download ink", () => {
+describe("askFrameAi download ink", () => {
   it("stacks live lead/follow and drops bullets and raw **", () => {
     expect(
-      stackAskGlobeeDownloadFacts("Harbor Cut is missing **Genre**.", "- Genre is required before it can go live."),
+      stackAskFrameAiDownloadFacts("Harbor Cut is missing **Genre**.", "- Genre is required before it can go live."),
     ).toEqual(["Harbor Cut is missing **Genre**.", "Genre is required before it can go live."]);
 
-    const spans = parseAskGlobeeDownloadInk("Harbor Cut is missing **Genre**.");
+    const spans = parseAskFrameAiDownloadInk("Harbor Cut is missing **Genre**.");
     expect(spans).toEqual([
       { text: "Harbor Cut is missing ", medium: false },
       { text: "Genre", medium: true },
       { text: ".", medium: false },
     ]);
     expect(spans.map((span) => span.text).join("")).not.toContain("**");
-    expect(parseAskGlobeeDownloadInk("Synopsis is required.")).toEqual([
+    expect(parseAskFrameAiDownloadInk("Synopsis is required.")).toEqual([
       { text: "Synopsis", medium: true },
       { text: " is required.", medium: false },
     ]);
   });
 });
 
-describe("buildAskGlobeeDownloadPdf", () => {
+describe("buildAskFrameAiDownloadPdf", () => {
   it("writes a 24Frame letter PDF from the live turn, never Mercury", () => {
-    const bytes = buildAskGlobeeDownloadPdf({
+    const bytes = buildAskFrameAiDownloadPdf({
       title: "What needs attention",
       userPrompt: "What needs attention",
       initials: "ac",
@@ -77,9 +77,9 @@ describe("buildAskGlobeeDownloadPdf", () => {
     const raw = pdfString(bytes);
     const text = pdfVisibleText(bytes);
 
-    expect(ASK_GLOBEE_DOWNLOAD_CONTENT_TYPE).toBe("application/pdf");
-    expect(ASK_GLOBEE_DOWNLOAD.contentType).toBe("application/pdf");
-    expect(askGlobeeDownloadBlob({
+    expect(ASK_FRAME_AI_DOWNLOAD_CONTENT_TYPE).toBe("application/pdf");
+    expect(ASK_FRAME_AI_DOWNLOAD.contentType).toBe("application/pdf");
+    expect(askFrameAiDownloadBlob({
       title: "What needs attention",
       userPrompt: "What needs attention",
       initials: "ac",
@@ -88,7 +88,7 @@ describe("buildAskGlobeeDownloadPdf", () => {
     }).type).toBe("application/pdf");
     expect(bytes[0]).toBe(0x25);
     expect(raw.startsWith("%PDF-")).toBe(true);
-    expect(raw).toContain(`/MediaBox [0 0 ${ASK_GLOBEE_DOWNLOAD.pageWidth} ${ASK_GLOBEE_DOWNLOAD.pageHeight}]`);
+    expect(raw).toContain(`/MediaBox [0 0 ${ASK_FRAME_AI_DOWNLOAD.pageWidth} ${ASK_FRAME_AI_DOWNLOAD.pageHeight}]`);
     expect(text).toContain("24Frame");
     expect(text).toContain("24Frame AI");
     expect(text).toContain("What needs attention");
@@ -109,7 +109,7 @@ describe("buildAskGlobeeDownloadPdf", () => {
   });
 
   it("writes the full thread, not one answer, and never invents a title", () => {
-    const bytes = buildAskGlobeeDownloadPdf({
+    const bytes = buildAskFrameAiDownloadPdf({
       title: "What needs attention",
       initials: "ac",
       messages: [
@@ -149,12 +149,12 @@ describe("buildAskGlobeeDownloadPdf", () => {
       { role: "user" as const, body: `User turn ${index} asks about Harbor Cut.` },
       {
         role: "globee" as const,
-        body: `Globee turn ${index} answers about Harbor Cut.`,
-        lead: `Globee turn ${index} answers about Harbor Cut.`,
+        body: `Assistant turn ${index} answers about Harbor Cut.`,
+        lead: `Assistant turn ${index} answers about Harbor Cut.`,
         follow: null,
       },
     ]).flat();
-    const bytes = buildAskGlobeeDownloadPdf({
+    const bytes = buildAskFrameAiDownloadPdf({
       title: "What needs attention",
       initials: "AC",
       messages,
@@ -165,24 +165,24 @@ describe("buildAskGlobeeDownloadPdf", () => {
     expect(text).toContain("24Frame");
     expect(text).toContain("24Frame AI");
     expect(text).toContain("User turn 0 asks about Harbor Cut.");
-    expect(text).toContain("Globee turn 0 answers about Harbor Cut.");
+    expect(text).toContain("Assistant turn 0 answers about Harbor Cut.");
     expect(text).toContain("User turn 15 asks about Harbor Cut.");
-    expect(text).toContain("Globee turn 15 answers about Harbor Cut.");
+    expect(text).toContain("Assistant turn 15 answers about Harbor Cut.");
     expect((raw.match(/\/Type \/Page /g) ?? []).length).toBeGreaterThan(1);
     expect(raw).toMatch(/\/Count [2-9]/);
-    expect(raw).toContain(`/MediaBox [0 0 ${ASK_GLOBEE_DOWNLOAD.pageWidth} ${ASK_GLOBEE_DOWNLOAD.pageHeight}]`);
+    expect(raw).toContain(`/MediaBox [0 0 ${ASK_FRAME_AI_DOWNLOAD.pageWidth} ${ASK_FRAME_AI_DOWNLOAD.pageHeight}]`);
   });
 
   it("uses the fixture title and lead only when they are the live turn", () => {
-    const bytes = buildAskGlobeeDownloadPdf({
-      title: ASK_GLOBEE.threadTitle,
-      userPrompt: ASK_GLOBEE.userPrompt,
+    const bytes = buildAskFrameAiDownloadPdf({
+      title: ASK_FRAME_AI.threadTitle,
+      userPrompt: ASK_FRAME_AI.userPrompt,
       initials: "AC",
-      lead: ASK_GLOBEE.answerLead,
-      follow: ASK_GLOBEE.answerFollow,
+      lead: ASK_FRAME_AI.answerLead,
+      follow: ASK_FRAME_AI.answerFollow,
     });
     const text = pdfVisibleText(bytes);
-    expect(text).toContain(ASK_GLOBEE.threadTitle);
+    expect(text).toContain(ASK_FRAME_AI.threadTitle);
     expect(text).toContain("Genre");
     expect(text).toContain("Synopsis");
     expect(text).toContain("Runtime");

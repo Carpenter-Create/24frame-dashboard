@@ -40,27 +40,27 @@ import {
   toggleAskAiOverlay,
   type AskAiOverlayState,
 } from "@/lib/ask-ai-overlay";
-import { ASK_GLOBEE, canRenderAskGlobeeLanding, type MessagesSurface } from "@/lib/ask-globee";
-import type { AskGlobeeHistoryRow, AskGlobeeStoredMessage } from "@/lib/ask-globee-conversations";
-import { loadAskAiOverlay } from "@/app/(app)/aggregation/messages/ask-globee-actions";
+import { ASK_FRAME_AI, canRenderAskFrameAiLanding, type MessagesSurface } from "@/lib/ask-frame-ai";
+import type { AskFrameAiHistoryRow, AskFrameAiStoredMessage } from "@/lib/ask-frame-ai-conversations";
+import { loadAskAiOverlay } from "@/app/(app)/aggregation/messages/ask-frame-ai-actions";
 import { DIALOG_HEADER_CLASS } from "@/components/ui/dialog";
 import { APP_SHEET_SCRIM_CLASS } from "@/lib/house-sheet";
-import { AskAssistantChromeProvider, useAskGlobeeChrome } from "@/components/messages/ask-globee-chrome";
+import { AskAssistantChromeProvider, useAskFrameAiChrome } from "@/components/messages/ask-frame-ai-chrome";
 import { Close44 } from "./house";
 import { HouseAiMark } from "./house-ai-mark";
 import { useHousePathname } from "./house-client-shell";
 
-const AskGlobeeLanding = dynamic(() =>
-  import("@/components/messages/ask-globee-landing").then((m) => m.AskGlobeeLanding),
+const AskFrameAiLanding = dynamic(() =>
+  import("@/components/messages/ask-frame-ai-landing").then((m) => m.AskFrameAiLanding),
 );
-const AskGlobeeThread = dynamic(() =>
-  import("@/components/messages/ask-globee-thread").then((m) => m.AskGlobeeThread),
+const AskFrameAiThread = dynamic(() =>
+  import("@/components/messages/ask-frame-ai-thread").then((m) => m.AskFrameAiThread),
 );
-const AskGlobeeHistoryClock = dynamic(() =>
-  import("@/components/messages/ask-globee-history").then((m) => m.AskGlobeeHistoryClock),
+const AskFrameAiHistoryClock = dynamic(() =>
+  import("@/components/messages/ask-frame-ai-history").then((m) => m.AskFrameAiHistoryClock),
 );
-const AskGlobeeHistoryPanel = dynamic(() =>
-  import("@/components/messages/ask-globee-history").then((m) => m.AskGlobeeHistoryPanel),
+const AskFrameAiHistoryPanel = dynamic(() =>
+  import("@/components/messages/ask-frame-ai-history").then((m) => m.AskFrameAiHistoryPanel),
 );
 const AccessUpgradeGate = dynamic(() =>
   import("@/components/messages/access-upgrade-gate").then((m) => m.AccessUpgradeGate),
@@ -201,12 +201,12 @@ function AskAiOverlayUrlBound({
 
 function AskAiOverlayPanel() {
   const { open, expanded, threadId, closeAskAi, toggleAskAiExpanded } = useAskAiOverlay();
-  const [surface, setSurface] = useState<MessagesSurface>("ask-globee-landing");
+  const [surface, setSurface] = useState<MessagesSurface>("ask-frame-ai-landing");
   const [initials, setInitials] = useState("?");
   const [displayName, setDisplayName] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<AskGlobeeHistoryRow[]>([]);
-  const [conversation, setConversation] = useState<AskGlobeeHistoryRow | null>(null);
-  const [messages, setMessages] = useState<AskGlobeeStoredMessage[]>([]);
+  const [conversations, setConversations] = useState<AskFrameAiHistoryRow[]>([]);
+  const [conversation, setConversation] = useState<AskFrameAiHistoryRow | null>(null);
+  const [messages, setMessages] = useState<AskFrameAiStoredMessage[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -246,10 +246,10 @@ function AskAiOverlayPanel() {
   }, [expanded, open]);
 
   const threadSurface: MessagesSurface =
-    threadId && conversation ? "ask-globee-thread" : surface;
-  const showThread = threadSurface === "ask-globee-thread" && conversation;
-  const showLanding = canRenderAskGlobeeLanding(surface) && !showThread;
-  const showGate = !canRenderAskGlobeeLanding(surface) && surface !== "staff-inbox";
+    threadId && conversation ? "ask-frame-ai-thread" : surface;
+  const showThread = threadSurface === "ask-frame-ai-thread" && conversation;
+  const showLanding = canRenderAskFrameAiLanding(surface) && !showThread;
+  const showGate = !canRenderAskFrameAiLanding(surface) && surface !== "staff-inbox";
 
   const shell = open ? (
     <AskAssistantChromeProvider
@@ -349,19 +349,19 @@ function AskAiOverlayChrome({
   closeAskAi: () => void;
   toggleAskAiExpanded: () => void;
 }) {
-  const { conversations, historyOpen, setHistoryOpen } = useAskGlobeeChrome();
+  const { conversations, historyOpen, setHistoryOpen } = useAskFrameAiChrome();
 
   return (
     <div data-ask-ai-overlay-chrome="" className={cn(DIALOG_HEADER_CLASS, "shrink-0")}>
       <div className="flex min-w-0 items-center gap-[var(--space-3)]">
         <HouseAiMark className={ASK_AI_OVERLAY_MARK_CLASS} />
         <h2 className="truncate t-heading text-ink">
-          {showLanding ? ASK_GLOBEE.newConversationLabel : ASK_AI_OVERLAY.dialog}
+          {showLanding ? ASK_FRAME_AI.newConversationLabel : ASK_AI_OVERLAY.dialog}
         </h2>
       </div>
       <div className="flex items-center gap-[var(--space-2)]">
         {showLanding ? (
-          <AskGlobeeHistoryClock
+          <AskFrameAiHistoryClock
             conversations={conversations}
             open={historyOpen}
             onOpenChange={setHistoryOpen}
@@ -408,14 +408,14 @@ function AskAiOverlayBody({
   showThread: boolean;
   showLanding: boolean;
   showGate: boolean;
-  conversations: AskGlobeeHistoryRow[];
+  conversations: AskFrameAiHistoryRow[];
   currentId: string | null;
   initials: string;
-  conversation: AskGlobeeHistoryRow | null;
-  messages: AskGlobeeStoredMessage[];
+  conversation: AskFrameAiHistoryRow | null;
+  messages: AskFrameAiStoredMessage[];
   displayName: string | null;
 }) {
-  const { historyOpen, setHistoryOpen } = useAskGlobeeChrome();
+  const { historyOpen, setHistoryOpen } = useAskFrameAiChrome();
 
   useEffect(() => {
     setHistoryOpen(false);
@@ -425,7 +425,7 @@ function AskAiOverlayBody({
     <div data-ask-ai-overlay-body="" className={ASK_AI_OVERLAY_BODY_CLASS}>
       {showThread ? (
         <div data-ask-ai-overlay-thread-chrome="" className="shrink-0 px-[var(--space-4)] pt-[var(--space-2)]">
-          <MessagesAppHeader surface="ask-globee-thread" />
+          <MessagesAppHeader surface="ask-frame-ai-thread" />
         </div>
       ) : null}
       <div
@@ -434,9 +434,9 @@ function AskAiOverlayBody({
           historyOpen && showThread ? "max-md:hidden" : null,
         )}
       >
-        {showLanding ? <AskGlobeeLanding displayName={displayName} /> : null}
+        {showLanding ? <AskFrameAiLanding displayName={displayName} /> : null}
         {showThread && conversation ? (
-          <AskGlobeeThread
+          <AskFrameAiThread
             initials={initials}
             conversation={conversation}
             messages={messages}
@@ -450,7 +450,7 @@ function AskAiOverlayBody({
           data-ask-ai-overlay-phone-history=""
           className={ASK_AI_OVERLAY_PHONE_HISTORY_HOST_CLASS}
         >
-          <AskGlobeeHistoryPanel conversations={conversations} currentId={currentId} />
+          <AskFrameAiHistoryPanel conversations={conversations} currentId={currentId} />
         </div>
       ) : null}
     </div>

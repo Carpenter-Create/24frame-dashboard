@@ -1,5 +1,5 @@
 // Product chrome. Shell, login, document title, onboarding, portal,
-// and download brand hang off these. Identifiers stay (ask-globee,
+// and download brand hang off these. Identifiers stay (ask-frame-ai,
 // /messages, is_gc_staff). Parent entity is Holdings LLC only.
 //
 // One 24Frame account. Three workspace destinations: Aggregation

@@ -2,7 +2,7 @@ import { ASK_ASSISTANT, ASSISTANT_NAME } from "@/lib/product";
 import { HOME_GREETING_BARE, homeGreetingFirst } from "@/lib/home-greeting";
 import { USER_MENU } from "@/lib/user-menu";
 
-// Ask Globee copy and gating. Lives in lib/, not JSX.
+// 24Frame AI copy and gating. Lives in lib/, not JSX.
 // Access sees the upgrade gate only. Pro/Premium see the 7:73 landing, then
 // 247:295 chrome on a persisted thread. Landing chips are suggested prompts —
 // same catalog-grounded operator as unmapped free text. Landing persists the
@@ -14,20 +14,20 @@ import { USER_MENU } from "@/lib/user-menu";
 // Tools may still use the findings lookup internally. Winter Line fixture
 // strings stay here as a do-not-render lock. No checkout.
 
-export type AskGlobeeTier = "access" | "pro" | "premium";
+export type AskFrameAiTier = "access" | "pro" | "premium";
 
-export type AskGlobeeThinkingPhase = "fetching" | "finding";
+export type AskFrameAiThinkingPhase = "fetching" | "finding";
 
 // Readable hold on fetching before finding chrome. House 8/16/24/48 scale.
-export const ASK_GLOBEE_FETCHING_HOLD_MS = 1000;
+export const ASK_FRAME_AI_FETCHING_HOLD_MS = 1000;
 
 export type MessagesSurface =
   | "staff-inbox"
   | "access-gate"
-  | "ask-globee-landing"
-  | "ask-globee-thread";
+  | "ask-frame-ai-landing"
+  | "ask-frame-ai-thread";
 
-export const ASK_GLOBEE_TRY_PROMPTS = [
+export const ASK_FRAME_AI_TRY_PROMPTS = [
   "What needs attention",
   "What is blocking a title",
   "What should I submit next",
@@ -35,15 +35,15 @@ export const ASK_GLOBEE_TRY_PROMPTS = [
 
 // Quiet leading marks for the first three try chips (Figma 462:502).
 // Copy stays on tryPrompts; marks attach by index only.
-export const ASK_GLOBEE_CHIP_MARKS = ["alert", "slash", "send"] as const;
+export const ASK_FRAME_AI_CHIP_MARKS = ["alert", "slash", "send"] as const;
 
-export type AskGlobeeChipMark = (typeof ASK_GLOBEE_CHIP_MARKS)[number];
+export type AskFrameAiChipMark = (typeof ASK_FRAME_AI_CHIP_MARKS)[number];
 
-export function askGlobeeChipMark(index: number): AskGlobeeChipMark | null {
-  return ASK_GLOBEE_CHIP_MARKS[index] ?? null;
+export function askFrameAiChipMark(index: number): AskFrameAiChipMark | null {
+  return ASK_FRAME_AI_CHIP_MARKS[index] ?? null;
 }
 
-export const ASK_GLOBEE = {
+export const ASK_FRAME_AI = {
   pageTitle: ASK_ASSISTANT,
   headline: ASK_ASSISTANT,
   // Leftover 7:73 greeting — do not render on landing. Do not invent a replacement.
@@ -52,7 +52,7 @@ export const ASK_GLOBEE = {
   tryLabel: "Try one of these",
   // Mercury-direct landing. House "Hi" + first name, never Hey / invented names.
   greetingAsk: "How can I be helpful?",
-  tryPrompts: ASK_GLOBEE_TRY_PROMPTS,
+  tryPrompts: ASK_FRAME_AI_TRY_PROMPTS,
   historyLabel: "History",
   historySearchPlaceholder: "Search past conversations",
   thisWeekLabel: "This week",
@@ -73,7 +73,7 @@ export const ASK_GLOBEE = {
   composerPlaceholder: "Ask a question or give a command.",
   // Landing 7:73 + 462:502 — same line, no period. Thread 247:295 keeps the period.
   composerPlaceholderMobile: "Ask a question or give a command",
-  globeeMark: "AI",
+  frameAiMark: "AI",
   copyLabel: "Copy",
   downloadLabel: "Download",
   downloadPdfLabel: "Download PDF",
@@ -106,13 +106,13 @@ export const ASK_GLOBEE = {
   unavailable: `${ASSISTANT_NAME} is unavailable right now. Try again, or ask what needs attention.`,
 } as const;
 
-export const ASK_GLOBEE_QUERY = "q";
-export const ASK_GLOBEE_THREAD_QUERY = "thread";
-export const ASK_GLOBEE_TITLE_MAX = 80;
+export const ASK_FRAME_AI_QUERY = "q";
+export const ASK_FRAME_AI_THREAD_QUERY = "thread";
+export const ASK_FRAME_AI_TITLE_MAX = 80;
 
 const THREAD_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function isAskGlobeeThreadId(value: string): boolean {
+export function isAskFrameAiThreadId(value: string): boolean {
   return THREAD_ID_RE.test(value);
 }
 
@@ -130,79 +130,79 @@ function readSearchValue(
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function readAskGlobeePrompt(
+export function readAskFrameAiPrompt(
   search: { get(name: string): string | null } | Record<string, string | string[] | undefined>,
 ): string | null {
-  return readSearchValue(search, ASK_GLOBEE_QUERY);
+  return readSearchValue(search, ASK_FRAME_AI_QUERY);
 }
 
-export function readAskGlobeeThreadId(
+export function readAskFrameAiThreadId(
   search: { get(name: string): string | null } | Record<string, string | string[] | undefined>,
 ): string | null {
   const overlay = readSearchValue(search, "ai");
-  if (overlay && isAskGlobeeThreadId(overlay)) return overlay;
-  const value = readSearchValue(search, ASK_GLOBEE_THREAD_QUERY);
-  return value && isAskGlobeeThreadId(value) ? value : null;
+  if (overlay && isAskFrameAiThreadId(overlay)) return overlay;
+  const value = readSearchValue(search, ASK_FRAME_AI_THREAD_QUERY);
+  return value && isAskFrameAiThreadId(value) ? value : null;
 }
 
-export function askGlobeeThreadHref(threadId: string): string | null {
+export function askFrameAiThreadHref(threadId: string): string | null {
   const next = threadId.trim();
-  if (!isAskGlobeeThreadId(next)) return null;
+  if (!isAskFrameAiThreadId(next)) return null;
   return `?ai=${encodeURIComponent(next)}`;
 }
 
-export function askGlobeeLandingHref(): string {
+export function askFrameAiLandingHref(): string {
   return "?ai=1";
 }
 
 /** `Hi, {First}. How can I be helpful?` when a first name exists; otherwise the ask. */
-export function askGlobeeLandingGreeting(input: {
+export function askFrameAiLandingGreeting(input: {
   firstName?: string | null;
   displayName?: string | null;
 } = {}): string {
   const first = homeGreetingFirst(input);
-  return first ? `${HOME_GREETING_BARE}, ${first}. ${ASK_GLOBEE.greetingAsk}` : ASK_GLOBEE.greetingAsk;
+  return first ? `${HOME_GREETING_BARE}, ${first}. ${ASK_FRAME_AI.greetingAsk}` : ASK_FRAME_AI.greetingAsk;
 }
 
-export function askGlobeeComposerSubmit(prompt: string): string | null {
+export function askFrameAiComposerSubmit(prompt: string): string | null {
   const next = prompt.trim();
   return next.length > 0 ? next : null;
 }
 
-export function askGlobeeConversationTitle(prompt: string, max = ASK_GLOBEE_TITLE_MAX): string {
+export function askFrameAiConversationTitle(prompt: string, max = ASK_FRAME_AI_TITLE_MAX): string {
   const next = prompt.trim().replace(/\s+/g, " ");
   if (next.length <= max) return next;
   if (max <= 1) return next.slice(0, max);
   return `${next.slice(0, max - 1).trimEnd()}…`;
 }
 
-export function askGlobeeSelectedChip(prompt: string): (typeof ASK_GLOBEE_TRY_PROMPTS)[number] | null {
+export function askFrameAiSelectedChip(prompt: string): (typeof ASK_FRAME_AI_TRY_PROMPTS)[number] | null {
   const normalized = prompt.trim().toLowerCase();
-  return ASK_GLOBEE_TRY_PROMPTS.find((label) => label.toLowerCase() === normalized) ?? null;
+  return ASK_FRAME_AI_TRY_PROMPTS.find((label) => label.toLowerCase() === normalized) ?? null;
 }
 
-export function askGlobeeChipActivation(label: (typeof ASK_GLOBEE_TRY_PROMPTS)[number]): {
+export function askFrameAiChipActivation(label: (typeof ASK_FRAME_AI_TRY_PROMPTS)[number]): {
   prompt: string;
-  selected: (typeof ASK_GLOBEE_TRY_PROMPTS)[number];
+  selected: (typeof ASK_FRAME_AI_TRY_PROMPTS)[number];
   send: string;
 } {
   return { prompt: label, selected: label, send: label };
 }
 
-export function askGlobeeUsesModel(prompt: string): boolean {
-  return askGlobeeComposerSubmit(prompt) !== null;
+export function askFrameAiUsesModel(prompt: string): boolean {
+  return askFrameAiComposerSubmit(prompt) !== null;
 }
 
-export function askGlobeeThinkingPhase(elapsedMs: number): AskGlobeeThinkingPhase {
-  return elapsedMs < ASK_GLOBEE_FETCHING_HOLD_MS ? "fetching" : "finding";
+export function askFrameAiThinkingPhase(elapsedMs: number): AskFrameAiThinkingPhase {
+  return elapsedMs < ASK_FRAME_AI_FETCHING_HOLD_MS ? "fetching" : "finding";
 }
 
-export function askGlobeeThinkingVerb(phase: AskGlobeeThinkingPhase): string {
-  return phase === "finding" ? ASK_GLOBEE.findingSignal : ASK_GLOBEE.fetchingSkills;
+export function askFrameAiThinkingVerb(phase: AskFrameAiThinkingPhase): string {
+  return phase === "finding" ? ASK_FRAME_AI.findingSignal : ASK_FRAME_AI.fetchingSkills;
 }
 
-export function askGlobeeInFlightLead(
-  phase: AskGlobeeThinkingPhase,
+export function askFrameAiInFlightLead(
+  phase: AskFrameAiThinkingPhase,
   lead: string | null | undefined,
 ): string | null {
   if (phase !== "finding") return null;
@@ -212,37 +212,37 @@ export function askGlobeeInFlightLead(
 
 export function messagesShowsThreadHeader(surface: MessagesSurface, threadId: string | null): boolean {
   if (surface === "access-gate" || surface === "staff-inbox") return false;
-  if (surface === "ask-globee-thread") return true;
-  return surface === "ask-globee-landing" && !!threadId;
+  if (surface === "ask-frame-ai-thread") return true;
+  return surface === "ask-frame-ai-landing" && !!threadId;
 }
 
-export const ASK_GLOBEE_UNLOCKED_TIERS = ["pro", "premium"] as const;
+export const ASK_FRAME_AI_UNLOCKED_TIERS = ["pro", "premium"] as const;
 
-export function isAskGlobeeTier(value: unknown): value is AskGlobeeTier {
+export function isAskFrameAiTier(value: unknown): value is AskFrameAiTier {
   return value === "access" || value === "pro" || value === "premium";
 }
 
-export function isAskGlobeeUnlocked(tier: AskGlobeeTier | null): boolean {
+export function isAskFrameAiUnlocked(tier: AskFrameAiTier | null): boolean {
   return tier === "pro" || tier === "premium";
 }
 
 export function resolveMessagesSurface(input: {
   isGcStaff: boolean;
   hasActiveOrg: boolean;
-  tier: AskGlobeeTier | null;
+  tier: AskFrameAiTier | null;
 }): MessagesSurface {
   if (!input.hasActiveOrg) {
     return input.isGcStaff ? "staff-inbox" : "access-gate";
   }
-  return isAskGlobeeUnlocked(input.tier) ? "ask-globee-landing" : "access-gate";
+  return isAskFrameAiUnlocked(input.tier) ? "ask-frame-ai-landing" : "access-gate";
 }
 
-export function canRenderAskGlobeeLanding(surface: MessagesSurface): boolean {
-  return surface === "ask-globee-landing";
+export function canRenderAskFrameAiLanding(surface: MessagesSurface): boolean {
+  return surface === "ask-frame-ai-landing";
 }
 
-export function canRenderAskGlobeeThread(surface: MessagesSurface): boolean {
-  return surface === "ask-globee-thread";
+export function canRenderAskFrameAiThread(surface: MessagesSurface): boolean {
+  return surface === "ask-frame-ai-thread";
 }
 
 export function showMessagesHeaderSearch(surface: MessagesSurface): boolean {

@@ -1,6 +1,6 @@
 // Shared mobile chrome tokens for the Ask overlay history clock. One 44
 // hit, one 16 tertiary glyph. History lives in overlay header chrome
-// (AskGlobeeHistoryClock) — never an absolute left-edge dock. Phone
+// (AskFrameAiHistoryClock) — never an absolute left-edge dock. Phone
 // history is the #457 in-sheet surface. The dest hamburger is gone.
 // The clock is house Phosphor (Bold idle).
 // MOBILE_CHROME_HAMBURGER_* and CLOCK_DOCK tokens remain so the locked
@@ -25,7 +25,7 @@ export const MOBILE_CHROME_ICON_CLASS = "size-4 overflow-visible";
 export const MOBILE_CHROME_HAMBURGER_BUTTON_CLASS = `${MOBILE_CHROME_ICON_BUTTON_CLASS} md:hidden`;
 
 /** Desktop keeps the locked size-4 clock. Mobile uses the shared 44 hit. */
-export const ASK_GLOBEE_CLOCK_BUTTON_CLASS = `${MOBILE_CHROME_ICON_BUTTON_CLASS} md:size-4 md:min-h-4 md:min-w-4`;
+export const ASK_FRAME_AI_CLOCK_BUTTON_CLASS = `${MOBILE_CHROME_ICON_BUTTON_CLASS} md:size-4 md:min-h-4 md:min-w-4`;
 
 /** Desktop left-0. Phone: sheet pad — not content-inset −24px (clips off-screen). */
 export const MOBILE_CHROME_CLOCK_DOCK_CLASS =

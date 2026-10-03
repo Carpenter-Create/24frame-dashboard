@@ -21,21 +21,21 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 vi.mock("next/dynamic", async () => {
-  const landing = await import("@/components/messages/ask-globee-landing");
-  const thread = await import("@/components/messages/ask-globee-thread");
-  const history = await import("@/components/messages/ask-globee-history");
+  const landing = await import("@/components/messages/ask-frame-ai-landing");
+  const thread = await import("@/components/messages/ask-frame-ai-thread");
+  const history = await import("@/components/messages/ask-frame-ai-history");
   const gate = await import("@/components/messages/access-upgrade-gate");
   const header = await import("./messages-app-header");
   return {
     default: (loader: () => Promise<unknown>) => {
       const src = String(loader);
-      if (src.includes("AskGlobeeHistoryClock")) return history.AskGlobeeHistoryClock;
-      if (src.includes("AskGlobeeHistoryPanel")) return history.AskGlobeeHistoryPanel;
-      if (src.includes("ask-globee-landing") || src.includes("AskGlobeeLanding")) {
-        return landing.AskGlobeeLanding;
+      if (src.includes("AskFrameAiHistoryClock")) return history.AskFrameAiHistoryClock;
+      if (src.includes("AskFrameAiHistoryPanel")) return history.AskFrameAiHistoryPanel;
+      if (src.includes("ask-frame-ai-landing") || src.includes("AskFrameAiLanding")) {
+        return landing.AskFrameAiLanding;
       }
-      if (src.includes("ask-globee-thread") || src.includes("AskGlobeeThread")) {
-        return thread.AskGlobeeThread;
+      if (src.includes("ask-frame-ai-thread") || src.includes("AskFrameAiThread")) {
+        return thread.AskFrameAiThread;
       }
       if (src.includes("AccessUpgradeGate")) return gate.AccessUpgradeGate;
       if (src.includes("messages-app-header") || src.includes("MessagesAppHeader")) {
@@ -47,22 +47,22 @@ vi.mock("next/dynamic", async () => {
     },
   };
 });
-vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
+vi.mock("@/app/(app)/aggregation/messages/ask-frame-ai-actions", () => ({
   loadAskAiOverlay: vi.fn(async () => ({
-    surface: "ask-globee-landing",
+    surface: "ask-frame-ai-landing",
     initials: "A",
     displayName: "Ada Lovelace",
     conversations: [],
     conversation: null,
     messages: [],
   })),
-  startAskGlobeeConversation: vi.fn(),
-  appendAskGlobeeTurn: vi.fn(),
-  completeAskGlobeeTurn: vi.fn(),
-  setAskGlobeeThumb: vi.fn(),
-  renameAskGlobeeConversation: vi.fn(),
-  pinAskGlobeeConversation: vi.fn(),
-  deleteAskGlobeeConversation: vi.fn(),
+  startAskFrameAiConversation: vi.fn(),
+  appendAskFrameAiTurn: vi.fn(),
+  completeAskFrameAiTurn: vi.fn(),
+  setAskFrameAiThumb: vi.fn(),
+  renameAskFrameAiConversation: vi.fn(),
+  pinAskFrameAiConversation: vi.fn(),
+  deleteAskFrameAiConversation: vi.fn(),
 }));
 
 import {
@@ -84,7 +84,7 @@ import {
   fireAskAiOpenThen,
   toggleAskAiOverlay,
 } from "@/lib/ask-ai-overlay";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { HouseLeadChrome } from "./house-lead-chrome";
 import { HouseLeadSearch } from "./house-lead-search";
 import { UserMenu } from "./user-menu";
@@ -131,11 +131,11 @@ describe("AskAiOverlay", () => {
     expect(overlaySrc).toContain("toggle ? toggleAskAi(threadId) : openAskAi(threadId)");
     expect(overlaySrc).toContain('import dynamic from "next/dynamic"');
     expect(overlaySrc).toContain(
-      'import("@/components/messages/ask-globee-landing").then((m) => m.AskGlobeeLanding)',
+      'import("@/components/messages/ask-frame-ai-landing").then((m) => m.AskFrameAiLanding)',
     );
-    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-globee-landing"/);
-    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-globee-thread"/);
-    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-globee-history"/);
+    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-frame-ai-landing"/);
+    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-frame-ai-thread"/);
+    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-frame-ai-history"/);
     expect(overlaySrc).not.toMatch(/from "\.\/messages-app-header"/);
     expect(overlaySrc).toContain("askAiOverlayHref(pathname, currentAskAiSearch(), threadId)");
     expect(overlaySrc).toContain("router.push(href)");
@@ -250,8 +250,8 @@ describe("AskAiOverlay", () => {
         AskAiOverlayProvider,
         null,
         createElement(AskAssistantHeaderLink),
-        createElement(AskAiOpenButton, { "data-overview-ai-ask": "" }, ASK_GLOBEE.headline),
-        createElement(AskAiOpenButton, { "data-sheet-group-item": "askAssistant" }, ASK_GLOBEE.headline),
+        createElement(AskAiOpenButton, { "data-overview-ai-ask": "" }, ASK_FRAME_AI.headline),
+        createElement(AskAiOpenButton, { "data-sheet-group-item": "askAssistant" }, ASK_FRAME_AI.headline),
       ),
     );
     expect(html).toContain("data-ask-assistant-header");
@@ -271,12 +271,12 @@ describe("AskAiOverlay", () => {
       createElement(
         AskAiOverlayProvider,
         null,
-        createElement(AskAiOpenButton, { "data-overview-ai-ask": "" }, ASK_GLOBEE.headline),
+        createElement(AskAiOpenButton, { "data-overview-ai-ask": "" }, ASK_FRAME_AI.headline),
       ),
     );
     expect(html).toContain("data-overview-ai-ask");
     expect(html).toContain("data-ask-ai-open");
-    expect(html).toContain(ASK_GLOBEE.headline);
+    expect(html).toContain(ASK_FRAME_AI.headline);
     expect(html).not.toContain('href="/messages"');
   });
 
@@ -305,7 +305,7 @@ describe("AskAiOverlay", () => {
     navigation.search = "";
     const closed = renderOverlay();
     expect(closed).toContain("data-page");
-    expect(closed).not.toContain("data-ask-globee-landing");
+    expect(closed).not.toContain("data-ask-frame-ai-landing");
     expect(closed).not.toContain(ASK_AI_OVERLAY.dialog);
     expect(closed).not.toContain("data-ask-ai-close");
     expect(closed).not.toContain("data-ask-ai-overlay-phone");
@@ -432,11 +432,11 @@ describe("AskAiOverlay", () => {
   it("anchors overlay chat bottom-up like Mercury, not a top-down empty header", () => {
     const overlaySrc = readFileSync(new URL("./ask-ai-overlay.tsx", import.meta.url), "utf8");
     const landingSrc = readFileSync(
-      new URL("../messages/ask-globee-landing.tsx", import.meta.url),
+      new URL("../messages/ask-frame-ai-landing.tsx", import.meta.url),
       "utf8",
     );
     const threadSrc = readFileSync(
-      new URL("../messages/ask-globee-thread.tsx", import.meta.url),
+      new URL("../messages/ask-frame-ai-thread.tsx", import.meta.url),
       "utf8",
     );
 
@@ -454,50 +454,50 @@ describe("AskAiOverlay", () => {
     expect(ASK_AI_OVERLAY_PHONE_CLOCK_DOCK_CLASS).toContain("max-md:left-[var(--space-4)]");
     expect(ASK_AI_OVERLAY_PHONE_COMPACT_CLASS).toContain("overscroll-none");
     expect(landingSrc).not.toContain("flex-col-reverse");
-    expect(landingSrc).toContain("data-ask-globee-greeting=");
-    expect(landingSrc).not.toContain("data-ask-globee-headline=");
+    expect(landingSrc).toContain("data-ask-frame-ai-greeting=");
+    expect(landingSrc).not.toContain("data-ask-frame-ai-headline=");
     expect(landingSrc).toContain("ASK_AI_OVERLAY_PHONE_SCROLL_CLASS");
     expect(landingSrc).not.toContain("justify-center gap-[var(--space-12)]");
     expect(landingSrc).not.toContain("justify-end gap-[var(--space-12)]");
-    expect(landingSrc.indexOf("data-ask-globee-greeting=")).toBeLessThan(
-      landingSrc.indexOf("data-ask-globee-try="),
+    expect(landingSrc.indexOf("data-ask-frame-ai-greeting=")).toBeLessThan(
+      landingSrc.indexOf("data-ask-frame-ai-try="),
     );
-    expect(landingSrc.indexOf("data-ask-globee-try=")).toBeLessThan(
-      landingSrc.indexOf("data-ask-globee-composer="),
+    expect(landingSrc.indexOf("data-ask-frame-ai-try=")).toBeLessThan(
+      landingSrc.indexOf("data-ask-frame-ai-composer="),
     );
     expect(threadSrc).toContain("flex-col-reverse");
     expect(threadSrc).toContain("[...turns].reverse()");
     expect(threadSrc).toContain("shrink-0");
-    expect(threadSrc.indexOf("data-ask-globee-conversation")).toBeLessThan(
-      threadSrc.indexOf("data-ask-globee-composer="),
+    expect(threadSrc.indexOf("data-ask-frame-ai-conversation")).toBeLessThan(
+      threadSrc.indexOf("data-ask-frame-ai-composer="),
     );
 
     navigation.pathname = "/home";
     navigation.search = "ai=1";
     const html = renderOverlay();
     expect(html).toContain("data-ask-ai-overlay-body");
-    expect(html).toContain("data-ask-globee-landing");
-    expect(html).toContain("data-ask-globee-greeting");
-    expect(html).not.toContain("data-ask-globee-headline");
-    expect(html.indexOf("data-ask-globee-greeting")).toBeLessThan(
-      html.indexOf("data-ask-globee-composer"),
+    expect(html).toContain("data-ask-frame-ai-landing");
+    expect(html).toContain("data-ask-frame-ai-greeting");
+    expect(html).not.toContain("data-ask-frame-ai-headline");
+    expect(html.indexOf("data-ask-frame-ai-greeting")).toBeLessThan(
+      html.indexOf("data-ask-frame-ai-composer"),
     );
-    expect(html.indexOf("data-ask-globee-try")).toBeLessThan(
-      html.indexOf("data-ask-globee-composer"),
+    expect(html.indexOf("data-ask-frame-ai-try")).toBeLessThan(
+      html.indexOf("data-ask-frame-ai-composer"),
     );
   });
 
   it("puts history in header chrome and conversation label, not a clipped left-edge clock", () => {
     const overlaySrc = readFileSync(new URL("./ask-ai-overlay.tsx", import.meta.url), "utf8");
     const landingSrc = readFileSync(
-      new URL("../messages/ask-globee-landing.tsx", import.meta.url),
+      new URL("../messages/ask-frame-ai-landing.tsx", import.meta.url),
       "utf8",
     );
 
-    expect(overlaySrc).toContain("AskGlobeeHistoryClock");
-    expect(overlaySrc).toContain("ASK_GLOBEE.newConversationLabel");
+    expect(overlaySrc).toContain("AskFrameAiHistoryClock");
+    expect(overlaySrc).toContain("ASK_FRAME_AI.newConversationLabel");
     expect(overlaySrc).not.toContain("MOBILE_CHROME_CLOCK_DOCK_CLASS");
-    expect(landingSrc).not.toContain("data-ask-globee-clock");
+    expect(landingSrc).not.toContain("data-ask-frame-ai-clock");
     expect(landingSrc).not.toContain("MOBILE_CHROME_CLOCK_DOCK_CLASS");
     expect(landingSrc).not.toContain("absolute left-0");
 
@@ -505,13 +505,13 @@ describe("AskAiOverlay", () => {
     navigation.search = "ai=1";
     const html = renderOverlay();
     expect(html).toContain("data-ask-ai-overlay-chrome");
-    expect(html).toContain("data-ask-globee-clock");
-    expect(html).toContain(ASK_GLOBEE.newConversationLabel);
-    expect(html).toContain(ASK_GLOBEE.pastConversationsLabel);
-    expect(html).toContain(ASK_GLOBEE.greetingAsk);
-    expect(html).not.toContain('data-ask-globee-headline=""');
-    expect(html.indexOf("data-ask-ai-overlay-chrome")).toBeLessThan(html.indexOf("data-ask-globee-clock"));
-    expect(html.indexOf("data-ask-globee-clock")).toBeLessThan(html.indexOf("data-ask-ai-expand"));
+    expect(html).toContain("data-ask-frame-ai-clock");
+    expect(html).toContain(ASK_FRAME_AI.newConversationLabel);
+    expect(html).toContain(ASK_FRAME_AI.pastConversationsLabel);
+    expect(html).toContain(ASK_FRAME_AI.greetingAsk);
+    expect(html).not.toContain('data-ask-frame-ai-headline=""');
+    expect(html.indexOf("data-ask-ai-overlay-chrome")).toBeLessThan(html.indexOf("data-ask-frame-ai-clock"));
+    expect(html.indexOf("data-ask-frame-ai-clock")).toBeLessThan(html.indexOf("data-ask-ai-expand"));
   });
 
   it("keeps the live opener when search params suspend — children never remount under NOOP", () => {

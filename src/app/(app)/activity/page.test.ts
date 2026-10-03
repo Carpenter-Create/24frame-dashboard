@@ -98,7 +98,7 @@ describe("ActivityPage", () => {
     expect(html).not.toContain(">Done<");
     expect(html).not.toContain("Cleared");
     expect(html).not.toContain("Mark as read");
-    expect(html).not.toContain("data-ask-globee-landing");
+    expect(html).not.toContain("data-ask-frame-ai-landing");
     expect(html).not.toContain("data-messages-inbox");
   });
 

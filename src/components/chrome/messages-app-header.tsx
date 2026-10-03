@@ -37,31 +37,31 @@ import { askAiOverlayHref, currentAskAiSearch } from "@/lib/ask-ai-overlay";
 import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
 import { Input } from "@/components/ui/input";
 import {
-  ASK_GLOBEE,
-  askGlobeeLandingHref,
+  ASK_FRAME_AI,
+  askFrameAiLandingHref,
   messagesShowsThreadHeader,
-  readAskGlobeeThreadId,
+  readAskFrameAiThreadId,
   showMessagesHeaderSearch,
   type MessagesSurface,
-} from "@/lib/ask-globee";
-import { AskGlobeeHistoryPopover } from "@/components/messages/ask-globee-history";
-import { useAskGlobeeChrome } from "@/components/messages/ask-globee-chrome";
-import { saveAskGlobeeDownload } from "@/lib/ask-globee-download";
+} from "@/lib/ask-frame-ai";
+import { AskFrameAiHistoryPopover } from "@/components/messages/ask-frame-ai-history";
+import { useAskFrameAiChrome } from "@/components/messages/ask-frame-ai-chrome";
+import { saveAskFrameAiDownload } from "@/lib/ask-frame-ai-download";
 import {
-  deleteAskGlobeeConversation,
-  pinAskGlobeeConversation,
-  renameAskGlobeeConversation,
-} from "@/app/(app)/aggregation/messages/ask-globee-actions";
+  deleteAskFrameAiConversation,
+  pinAskFrameAiConversation,
+  renameAskFrameAiConversation,
+} from "@/app/(app)/aggregation/messages/ask-frame-ai-actions";
 
 // Desktop 247:295 keeps PDF + ··· in the right cluster, 16 from the avatar.
 // Mobile 531:542 hides the PDF tray; Download PDF lives in the existing ···
 // (532:548). No second menu.
 function MessagesThreadHeader({ title }: { title: string }) {
   const router = useRouter();
-  const { chrome, setChrome, conversations } = useAskGlobeeChrome();
+  const { chrome, setChrome, conversations } = useAskFrameAiChrome();
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const { historyOpen, setHistoryOpen } = useAskGlobeeChrome();
+  const { historyOpen, setHistoryOpen } = useAskFrameAiChrome();
   const [renameValue, setRenameValue] = useState(title);
   const pinned = !!chrome?.pinned_at;
   const threadTitle = chrome?.title ?? title;
@@ -75,7 +75,7 @@ function MessagesThreadHeader({ title }: { title: string }) {
 
   function downloadThread() {
     if (!chrome) return;
-    saveAskGlobeeDownload({
+    saveAskFrameAiDownload({
       title: chrome.title,
       initials: chrome.initials ?? "",
       messages: chrome.messages ?? [],
@@ -90,12 +90,12 @@ function MessagesThreadHeader({ title }: { title: string }) {
   return (
     <div data-header-thread="" className="flex min-w-0 flex-1 items-center gap-[var(--space-4)]">
       <div
-        data-ask-globee-title-cluster=""
+        data-ask-frame-ai-title-cluster=""
         className="flex min-w-0 flex-1 items-center gap-[var(--space-2)]"
       >
         <HouseLink
-          href={askGlobeeLandingHref()}
-          aria-label={ASK_GLOBEE.backLabel}
+          href={askFrameAiLandingHref()}
+          aria-label={ASK_FRAME_AI.backLabel}
           onClick={(event) => {
             if (houseNavIgnorePendingClick(event)) return;
             event.preventDefault();
@@ -105,7 +105,7 @@ function MessagesThreadHeader({ title }: { title: string }) {
         >
           <CaretLeft className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
         </HouseLink>
-        <AskGlobeeHistoryPopover
+        <AskFrameAiHistoryPopover
           conversations={conversations}
           currentId={chrome?.id ?? null}
           open={historyOpen}
@@ -113,7 +113,7 @@ function MessagesThreadHeader({ title }: { title: string }) {
         >
           <button
             type="button"
-            data-ask-globee-history-title=""
+            data-ask-frame-ai-history-title=""
             aria-expanded={historyOpen}
             aria-haspopup="dialog"
             onClick={() => setHistoryOpen((open) => !open)}
@@ -127,16 +127,16 @@ function MessagesThreadHeader({ title }: { title: string }) {
               <CaretDown className="size-4 shrink-0 text-ink-3" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
             )}
           </button>
-        </AskGlobeeHistoryPopover>
+        </AskFrameAiHistoryPopover>
       </div>
       <div
-        data-ask-globee-header-chrome=""
+        data-ask-frame-ai-header-chrome=""
         className="flex shrink-0 items-center gap-[var(--space-4)]"
       >
         <button
           type="button"
-          data-ask-globee-download=""
-          aria-label={ASK_GLOBEE.downloadLabel}
+          data-ask-frame-ai-download=""
+          aria-label={ASK_FRAME_AI.downloadLabel}
           onClick={downloadThread}
           className="hidden size-4 shrink-0 items-center justify-center text-ink-3 md:flex"
         >
@@ -146,7 +146,7 @@ function MessagesThreadHeader({ title }: { title: string }) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label={ASK_GLOBEE.moreLabel}
+              aria-label={ASK_FRAME_AI.moreLabel}
               className="flex size-4 shrink-0 items-center justify-center text-ink-3"
             >
               <DotsThree className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
@@ -155,7 +155,7 @@ function MessagesThreadHeader({ title }: { title: string }) {
           <ThreadPopoverContent align="end">
             <ThreadPopoverItem onSelect={downloadThread}>
               <DownloadSimple className={THREAD_POPOVER_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-              {ASK_GLOBEE.downloadPdfLabel}
+              {ASK_FRAME_AI.downloadPdfLabel}
             </ThreadPopoverItem>
             <ThreadPopoverItem
               onSelect={() => {
@@ -164,12 +164,12 @@ function MessagesThreadHeader({ title }: { title: string }) {
               }}
             >
               <PencilSimple className={THREAD_POPOVER_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-              {ASK_GLOBEE.renameLabel}
+              {ASK_FRAME_AI.renameLabel}
             </ThreadPopoverItem>
             <ThreadPopoverItem
               onSelect={() => {
                 if (!chrome) return;
-                void pinAskGlobeeConversation(chrome.id, !pinned).then((result) => {
+                void pinAskFrameAiConversation(chrome.id, !pinned).then((result) => {
                   if ("pinnedAt" in result) {
                     setChrome({ ...chrome, pinned_at: result.pinnedAt });
                     router.refresh();
@@ -178,12 +178,12 @@ function MessagesThreadHeader({ title }: { title: string }) {
               }}
             >
               <PushPin className={THREAD_POPOVER_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-              {pinned ? ASK_GLOBEE.unpinLabel : ASK_GLOBEE.pinLabel}
+              {pinned ? ASK_FRAME_AI.unpinLabel : ASK_FRAME_AI.pinLabel}
             </ThreadPopoverItem>
             <ThreadPopoverSeparator />
             <ThreadPopoverItem danger onSelect={() => setDeleteOpen(true)}>
               <Trash className={THREAD_POPOVER_DELETE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-              {ASK_GLOBEE.deleteLabel}
+              {ASK_FRAME_AI.deleteLabel}
             </ThreadPopoverItem>
           </ThreadPopoverContent>
         </DropdownMenu>
@@ -192,14 +192,14 @@ function MessagesThreadHeader({ title }: { title: string }) {
       <Dialog
         open={renameOpen}
         onClose={() => setRenameOpen(false)}
-        title={ASK_GLOBEE.renameTitle}
+        title={ASK_FRAME_AI.renameTitle}
       >
         <form
           className="flex flex-col gap-[var(--space-3)]"
           onSubmit={(event) => {
             event.preventDefault();
             if (!chrome) return;
-            void renameAskGlobeeConversation(chrome.id, renameValue).then((result) => {
+            void renameAskFrameAiConversation(chrome.id, renameValue).then((result) => {
               if ("title" in result) {
                 setChrome({ ...chrome, title: result.title });
                 setRenameOpen(false);
@@ -211,13 +211,13 @@ function MessagesThreadHeader({ title }: { title: string }) {
           <Input
             value={renameValue}
             onChange={(event) => setRenameValue(event.target.value)}
-            aria-label={ASK_GLOBEE.renameTitle}
+            aria-label={ASK_FRAME_AI.renameTitle}
           />
           <div className="flex justify-end gap-[var(--space-2)]">
             <Button type="button" variant="secondary" onClick={() => setRenameOpen(false)}>
-              {ASK_GLOBEE.cancelLabel}
+              {ASK_FRAME_AI.cancelLabel}
             </Button>
-            <Button type="submit">{ASK_GLOBEE.renameSave}</Button>
+            <Button type="submit">{ASK_FRAME_AI.renameSave}</Button>
           </div>
         </form>
       </Dialog>
@@ -225,26 +225,26 @@ function MessagesThreadHeader({ title }: { title: string }) {
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        title={ASK_GLOBEE.deleteTitle}
+        title={ASK_FRAME_AI.deleteTitle}
         size="sm"
       >
-        <p className="t-body-sm text-ink-2">{ASK_GLOBEE.deleteBody}</p>
+        <p className="t-body-sm text-ink-2">{ASK_FRAME_AI.deleteBody}</p>
         <DialogFooter>
           <Button
             type="button"
             variant="secondary"
-            data-ask-globee-delete-cancel=""
+            data-ask-frame-ai-delete-cancel=""
             onClick={() => setDeleteOpen(false)}
           >
-            {ASK_GLOBEE.cancelLabel}
+            {ASK_FRAME_AI.cancelLabel}
           </Button>
           <Button
             type="button"
             variant="danger"
-            data-ask-globee-delete-confirm=""
+            data-ask-frame-ai-delete-confirm=""
             onClick={() => {
               if (!chrome) return;
-              void deleteAskGlobeeConversation(chrome.id).then((result) => {
+              void deleteAskFrameAiConversation(chrome.id).then((result) => {
                 if (!("error" in result)) {
                   setDeleteOpen(false);
                   setChrome(null);
@@ -253,7 +253,7 @@ function MessagesThreadHeader({ title }: { title: string }) {
               });
             }}
           >
-            {ASK_GLOBEE.deleteConfirm}
+            {ASK_FRAME_AI.deleteConfirm}
           </Button>
         </DialogFooter>
       </Dialog>
@@ -262,9 +262,9 @@ function MessagesThreadHeader({ title }: { title: string }) {
 }
 
 function MessagesAppHeaderInner({ surface }: { surface: MessagesSurface }) {
-  const threadId = readAskGlobeeThreadId(useSearchParams());
+  const threadId = readAskFrameAiThreadId(useSearchParams());
 
-  // Search mounts only for access-gate. Ask Globee landing/thread never restore it.
+  // Search mounts only for access-gate. 24Frame AI landing/thread never restore it.
   if (surface === "access-gate" || showMessagesHeaderSearch(surface)) {
     return (
       <div
@@ -273,8 +273,8 @@ function MessagesAppHeaderInner({ surface }: { surface: MessagesSurface }) {
         style={{ maxWidth: HOUSE_LEAD_SEARCH_WIDTH_PX }}
       >
         <HousePageSearch
-          placeholder={ASK_GLOBEE.headerSearchPlaceholder}
-          hint={ASK_GLOBEE.headerSearchHint}
+          placeholder={ASK_FRAME_AI.headerSearchPlaceholder}
+          hint={ASK_FRAME_AI.headerSearchHint}
         />
       </div>
     );

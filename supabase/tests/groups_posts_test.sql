@@ -41,7 +41,7 @@ select ok(
 select ok(to_regclass('public.blocks') is not null, 'blocks table exists');
 select ok(
   to_regclass('public.ai_conversations') is not null,
-  'ai_conversations still present (Ask Globee not renamed back)');
+  'ai_conversations still present (24Frame AI not renamed back)');
 select ok(
   to_regclass('public.ai_conversation_messages') is not null,
   'ai_conversation_messages still present');

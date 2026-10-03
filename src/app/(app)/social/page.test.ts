@@ -25,7 +25,7 @@ vi.mock("next/dynamic", () => ({
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 import { signedAvatarUrls, signedSocialMediaByPostId } from "@/lib/social-edge";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
 import {
   SOCIAL_FOLLOWEES_LIMIT,
@@ -289,7 +289,7 @@ describe("Social home", () => {
     expect(html).not.toContain("Composers");
     expect(html).not.toContain("data-social-post-form");
     expect(html).not.toContain("Globee");
-    expect(html).not.toContain(ASK_GLOBEE.headline);
+    expect(html).not.toContain(ASK_FRAME_AI.headline);
   });
 
   it("selects the Topics rail chip from the topic search param", async () => {

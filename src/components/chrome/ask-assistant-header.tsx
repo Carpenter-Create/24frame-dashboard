@@ -1,6 +1,6 @@
 "use client";
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { HOUSE_ASK_AI_HEADER_CLASS } from "@/lib/house-lead-chrome";
 import {
   HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
@@ -19,7 +19,7 @@ import { AskAiOpenButton } from "./ask-ai-overlay";
 export function AskAssistantHeaderLink() {
   return (
     <AskAiOpenButton
-      aria-label={ASK_GLOBEE.headline}
+      aria-label={ASK_FRAME_AI.headline}
       data-ask-assistant-header=""
       toggle
       className={HOUSE_ASK_AI_HEADER_CLASS}

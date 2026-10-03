@@ -243,8 +243,8 @@ describe("staff rail and neighboring locks", () => {
     expect(GC_NAV.map((item) => item.label)).not.toContain("Ask 24Frame AI");
   });
 
-  it("does not restyle Ask Globee, client home, Access, or /aggregation/titles", () => {
-    const ask = readFileSync("src/components/messages/ask-globee-landing.tsx", "utf8");
+  it("does not restyle 24Frame AI, client home, Access, or /aggregation/titles", () => {
+    const ask = readFileSync("src/components/messages/ask-frame-ai-landing.tsx", "utf8");
     const titles = readFileSync("src/app/(app)/aggregation/titles/page.tsx", "utf8");
     const nav = readFileSync("src/components/chrome/side-nav.tsx", "utf8");
     const home = readFileSync("src/app/(app)/aggregation/dashboard/page.tsx", "utf8");
@@ -254,7 +254,7 @@ describe("staff rail and neighboring locks", () => {
     expect(titles).toContain("TITLES_CATALOG");
     expect(nav).toContain("Access rail");
     expect(home).toContain("GcClientsDirectory");
-    expect(pageSrc).not.toContain("ask-globee");
+    expect(pageSrc).not.toContain("ask-frame-ai");
     expect(pageSrc).not.toContain("TITLES_CATALOG");
     expect(readFileSync("src/app/(app)/(operator)/staff/channels/new/page.tsx", "utf8")).toContain(
       "VendorForm",

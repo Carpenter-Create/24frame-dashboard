@@ -8,24 +8,24 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/social/dms/24frame-ai",
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
-  appendAskGlobeeTurn: vi.fn(),
-  completeAskGlobeeTurn: vi.fn(),
-  startAskGlobeeConversation: vi.fn(),
+vi.mock("@/app/(app)/aggregation/messages/ask-frame-ai-actions", () => ({
+  appendAskFrameAiTurn: vi.fn(),
+  completeAskFrameAiTurn: vi.fn(),
+  startAskFrameAiConversation: vi.fn(),
   loadSocialFrameAiThread: vi.fn(),
 }));
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { ASSISTANT_NAME } from "@/lib/product";
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_FRAME_AI_OPENER } from "@/lib/social-frame-ai";
-import type { AskGlobeeStoredMessage } from "@/lib/ask-globee-conversations";
+import type { AskFrameAiStoredMessage } from "@/lib/ask-frame-ai-conversations";
 import { SocialFrameAiThread } from "./social-frame-ai-thread";
 
 const src = readFileSync("src/components/social/social-frame-ai-thread.tsx", "utf8");
 const pageSrc = readFileSync("src/app/(app)/social/dms/24frame-ai/page.tsx", "utf8");
 
-const USER: AskGlobeeStoredMessage = {
+const USER: AskFrameAiStoredMessage = {
   id: "3a2d9c7b-5e4f-4b22-8d33-8c9f2e1b6a55",
   role: "user",
   body: "What needs attention",
@@ -34,7 +34,7 @@ const USER: AskGlobeeStoredMessage = {
   thumbs: null,
   created_at: "2026-10-01T12:00:00.000Z",
 };
-const ANSWER: AskGlobeeStoredMessage = {
+const ANSWER: AskFrameAiStoredMessage = {
   id: "4b3e0d8c-6f50-4c33-9e44-9d0a3f2c7b66",
   role: "globee",
   body: "Harbor Cut is missing Synopsis.",
@@ -51,7 +51,7 @@ function visible(html: string): string {
 function renderThread(
   props: Partial<{
     ready: boolean;
-    messages: AskGlobeeStoredMessage[];
+    messages: AskFrameAiStoredMessage[];
     share: {
       kind: "post";
       line: string;
@@ -123,11 +123,11 @@ describe("SocialFrameAiThread", () => {
   });
 
   it("uses the Ask stack and does not send the opener", () => {
-    expect(src).toContain("startAskGlobeeConversation");
-    expect(src).toContain("appendAskGlobeeTurn");
-    expect(src).toContain("completeAskGlobeeTurn");
-    expect(src).not.toContain("startAskGlobeeConversation(SOCIAL_FRAME_AI_OPENER)");
-    expect(src).not.toContain("appendAskGlobeeTurn(conversationId, SOCIAL_FRAME_AI_OPENER)");
+    expect(src).toContain("startAskFrameAiConversation");
+    expect(src).toContain("appendAskFrameAiTurn");
+    expect(src).toContain("completeAskFrameAiTurn");
+    expect(src).not.toContain("startAskFrameAiConversation(SOCIAL_FRAME_AI_OPENER)");
+    expect(src).not.toContain("appendAskFrameAiTurn(conversationId, SOCIAL_FRAME_AI_OPENER)");
     expect(pageSrc).toContain("loadSocialFrameAiThread");
     expect(pageSrc).toContain("loadSocialFrameAiShare");
     expect(pageSrc).not.toContain("?ai=1");
@@ -138,8 +138,8 @@ describe("SocialFrameAiThread", () => {
     const html = renderThread({ ready: false });
     expect(html).toContain('data-social-frame-ai-thread=""');
     expect(html).toContain('data-social-frame-ai-gate=""');
-    expect(html).toContain(ASK_GLOBEE.included);
-    expect(html).toContain(ASK_GLOBEE.upgrade);
+    expect(html).toContain(ASK_FRAME_AI.included);
+    expect(html).toContain(ASK_FRAME_AI.upgrade);
     expect(html).not.toContain(SOCIAL_FRAME_AI_OPENER);
     expect(html).toContain(`placeholder="${SOCIAL.dms.threadPlaceholder}"`);
   });
