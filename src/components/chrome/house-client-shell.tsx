@@ -236,8 +236,13 @@ export function HouseScreenOutlet({ children }: { children: ReactNode }) {
     scrollRef.current = activeKey;
   }, [activeKey]);
 
+  // display: contents. The wrapper only marks the screen; the page stays a
+  // direct child of AppShell's frame. Story create's frame is a flex column
+  // the page fills (flex-1, min-h-full); a block wrapper collapsed it to
+  // its cards.
   return (
     <div
+      className="contents"
       {...{
         [HOUSE_CLIENT_SHELL.screenAttr]: activeKey,
         [HOUSE_CLIENT_SHELL.screenActiveAttr]: "",

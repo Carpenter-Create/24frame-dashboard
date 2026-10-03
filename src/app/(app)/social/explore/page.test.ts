@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
+import { exploreForYouHref } from "@/lib/social-explore-for-you";
 import { SOCIAL_EXPLORE_POSTS_LIMIT } from "@/lib/social-home-bounds";
 import SocialExplorePage from "./page";
 
@@ -378,5 +379,14 @@ describe("Social Explore", () => {
       expect(html).not.toContain("data-social-explore-discover");
       expect(html).not.toContain('name="discover"');
     }
+  });
+  // Next keeps a page's state when only the query changes. Keying the
+  // stream by its filter starts each filter, and "Clear", at its first
+  // video, muted.
+  it("starts a fresh stream for each filter", () => {
+    const page = readFileSync("src/app/(app)/social/explore/page.tsx", "utf8");
+
+    expect(page).toContain("key={exploreForYouHref(query)}");
+    expect(exploreForYouHref({ tag: "night" })).not.toBe(exploreForYouHref({}));
   });
 });
