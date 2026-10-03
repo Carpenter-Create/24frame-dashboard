@@ -16,16 +16,19 @@
 --                           chose no topic, so the background job never
 --                           re-classifies the same post
 --
--- After insert, only service_role may change these columns (the background
--- tagger runs with the server key; founder-approved exception to the
--- user-JWT rule for 24Frame AI, recorded in docs/domain-spec.md section 20).
--- Same lock that protect_post_author_mutation already applies to category.
+-- Only service_role may set a topic or these columns, at insert or after
+-- (the background tagger runs with the server key; founder-approved
+-- exception to the user-JWT rule for 24Frame AI, recorded in
+-- docs/domain-spec.md section 20). Nobody picks a topic (Adam lock), so a
+-- client insert carries no topic and no provenance. After insert,
+-- protect_post_author_mutation already locks category itself.
 --
 -- DESTRUCTIVE OPS (draft only; do NOT apply to production from this PR):
 -- ALTER TABLE public.posts ADD COLUMN x4 (nullable, no default, so no row
 -- rewrite), ADD CONSTRAINT x2 (validates existing rows, all of which have
--- null provenance), CREATE INDEX, CREATE FUNCTION, CREATE TRIGGER, REVOKE
--- EXECUTE. No UPDATE, DELETE, or DROP. Existing rows keep null provenance.
+-- null provenance), CREATE INDEX, CREATE FUNCTION, CREATE TRIGGER (before
+-- insert or update), REVOKE EXECUTE. No UPDATE, DELETE, or DROP. Existing
+-- rows keep null provenance.
 -- ROLLBACK:
 --   drop trigger posts_protect_category_provenance on public.posts;
 --   drop function public.protect_post_category_provenance();
@@ -66,6 +69,16 @@ returns trigger language plpgsql
 set search_path to 'public', 'extensions' as $$
 begin
   if auth.role() = 'service_role' then return new; end if;
+  if tg_op = 'INSERT' then
+    if new.category is not null
+       or new.category_source is not null
+       or new.category_confidence is not null
+       or new.category_logic_version is not null
+       or new.category_tagged_at is not null
+    then raise exception 'post fields are not client-writable';
+    end if;
+    return new;
+  end if;
   if new.category_source is distinct from old.category_source
      or new.category_confidence is distinct from old.category_confidence
      or new.category_logic_version is distinct from old.category_logic_version
@@ -76,7 +89,7 @@ begin
 end; $$;
 
 create trigger posts_protect_category_provenance
-  before update on public.posts
+  before insert or update on public.posts
   for each row execute function public.protect_post_category_provenance();
 
 revoke execute on function public.protect_post_category_provenance()

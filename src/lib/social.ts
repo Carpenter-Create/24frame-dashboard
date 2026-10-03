@@ -594,7 +594,6 @@ export const SOCIAL = {
     mediaLimit: "Attach up to four photos or videos.",
     uploadFailed: "The file could not be stored.",
     videoPreparing: "That video is still preparing.",
-    topic: "Topic",
     truncatedWall: `Showing the latest ${SOCIAL_FOLLOWING_WALL_LIMIT} posts. More exist — this list is not complete.`,
     olderPosts: "Older posts",
     truncatedFollowees: `Showing posts from the first ${SOCIAL_FOLLOWEES_LIMIT} people you follow. More exist — this list is not complete.`,
@@ -1436,14 +1435,14 @@ export function postInsertRow(input: {
   body: string | null;
   groupId?: string | null;
   media?: SocialMediaItem[];
-  category?: string | null;
 }) {
+  // No category: nobody picks a topic (Adam lock). The background tagger
+  // sets it with the service role; the database refuses one from a client.
   return {
     author_id: input.authorId,
     body: input.body,
     group_id: input.groupId ?? null,
     media: input.media ?? [],
-    category: input.category ?? null,
     status: "active" as const,
     like_count: 0,
     comment_count: 0,

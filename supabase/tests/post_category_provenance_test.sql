@@ -1,11 +1,12 @@
 -- post_category_provenance_test.sql
 -- posts.category_source / category_confidence / category_logic_version /
--- category_tagged_at. Shape rules hold on every write. After insert only
--- service_role (the background topic tagger) may change them; an author's
--- caption edit still works.
+-- category_tagged_at. Nobody picks a topic (Adam lock): a client insert
+-- carries no topic and no provenance, and after insert only service_role
+-- (the background topic tagger) may change them. Shape rules hold on every
+-- write. An author's caption edit still works.
 
 begin;
-select plan(22);
+select plan(26);
 
 select set_config('t.author', gen_random_uuid()::text, false);
 select set_config('t.post', gen_random_uuid()::text, false);
@@ -44,17 +45,67 @@ select lives_ok(
     insert into public.posts (id, author_id, body)
     values (%L, %L, 'no topic yet')
   $sql$, current_setting('t.post'), current_setting('t.author')),
-  'author inserts a post with no provenance');
-select lives_ok(
+  'author inserts a post with no topic and no provenance');
+
+-- A client insert carries no topic and no provenance.
+select throws_ok(
   format($sql$
-    insert into public.posts (id, author_id, body, category, category_source)
-    values (%L, %L, 'picked music', 'Music', 'author')
-  $sql$, current_setting('t.post2'), current_setting('t.author')),
-  'author inserts a post with an author topic');
+    insert into public.posts (author_id, body, category)
+    values (%L, 'picked music', 'Music')
+  $sql$, current_setting('t.author')),
+  'P0001', 'post fields are not client-writable',
+  'an author cannot pick a topic');
 select throws_ok(
   format($sql$
     insert into public.posts (author_id, body, category, category_source)
-    values (%L, 'ai without confidence', 'Music', 'ai')
+    values (%L, 'picked music as author', 'Music', 'author')
+  $sql$, current_setting('t.author')),
+  'P0001', 'post fields are not client-writable',
+  'an author cannot record an author topic');
+select throws_ok(
+  format($sql$
+    insert into public.posts (author_id, body, category_tagged_at)
+    values (%L, 'pre-stamped', now())
+  $sql$, current_setting('t.author')),
+  'P0001', 'post fields are not client-writable',
+  'an author cannot pre-stamp a post to skip tagging');
+select throws_ok(
+  format($sql$
+    insert into public.posts
+      (author_id, body, category, category_source, category_confidence,
+       category_logic_version, category_tagged_at)
+    values (%L, 'forged', 'Music', 'ai', 0.99, 'topics-v1', now())
+  $sql$, current_setting('t.author')),
+  'P0001', 'post fields are not client-writable',
+  'an author cannot forge an AI topic');
+
+select throws_ok(
+  format($sql$
+    update public.posts set body = 'edit and stamp', category_tagged_at = now() where id = %L
+  $sql$, current_setting('t.post')),
+  'P0001', 'post fields are not client-writable',
+  'a caption edit cannot stamp category_tagged_at');
+select lives_ok(
+  format($sql$
+    update public.posts set body = 'edited caption' where id = %L
+  $sql$, current_setting('t.post')),
+  'author caption edit still works');
+
+reset role;
+set local role service_role;
+select set_config('request.jwt.claims',
+  json_build_object('role', 'service_role')::text, true);
+
+select lives_ok(
+  format($sql$
+    insert into public.posts (id, author_id, body, category, category_source)
+    values (%L, %L, 'recorded music', 'Music', 'author')
+  $sql$, current_setting('t.post2'), current_setting('t.author')),
+  'service role may record an author topic');
+select throws_ok(
+  format($sql$
+    insert into public.posts (author_id, body, category, category_source)
+    values (%L, 'ai without anything', 'Music', 'ai')
   $sql$, current_setting('t.author')),
   '23514', null,
   'an AI topic needs category_tagged_at, confidence and a version');
@@ -80,29 +131,6 @@ select throws_ok(
   $sql$, current_setting('t.author')),
   '23514', null,
   'an author source needs a topic');
-select throws_ok(
-  format($sql$
-    update public.posts set body = 'edit and stamp', category_tagged_at = now() where id = %L
-  $sql$, current_setting('t.post')),
-  'P0001', 'post fields are not client-writable',
-  'a caption edit cannot stamp category_tagged_at');
-select throws_ok(
-  format($sql$
-    update public.posts set body = 'edit and clear', category_source = null where id = %L
-  $sql$, current_setting('t.post2')),
-  'P0001', 'post fields are not client-writable',
-  'a caption edit cannot clear category_source');
-select lives_ok(
-  format($sql$
-    update public.posts set body = 'edited caption' where id = %L
-  $sql$, current_setting('t.post')),
-  'author caption edit still works');
-
-reset role;
-set local role service_role;
-select set_config('request.jwt.claims',
-  json_build_object('role', 'service_role')::text, true);
-
 select throws_ok(
   format($sql$
     update public.posts
@@ -147,6 +175,19 @@ select results_eq(
   $sql$, current_setting('t.post')),
   $$ values ('Music'::text, 'ai'::text, '0.912'::text) $$,
   'the AI topic and confidence are stored');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('t.author'), 'role', 'authenticated')::text,
+  true);
+
+select throws_ok(
+  format($sql$
+    update public.posts set body = 'edit and clear', category_source = null where id = %L
+  $sql$, current_setting('t.post2')),
+  'P0001', 'post fields are not client-writable',
+  'a caption edit cannot clear category_source');
 
 select * from finish();
 rollback;

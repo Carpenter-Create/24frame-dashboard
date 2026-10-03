@@ -29,7 +29,6 @@ import {
   finalizeSocialMuxDirectUpload,
   socialMuxSettingsFromUploadInput,
 } from "@/lib/social-mux-server";
-import { normalizeSocialCategory } from "@/lib/social-categories";
 import { storyInsertRow, storyViewInsertRow } from "@/lib/social-stories";
 import { ensureOwnSocialProfile, isProfileUniqueViolation } from "@/lib/social-profile";
 import { handleTakenError, lookupHandleCollision } from "@/lib/social-handle-taken";
@@ -364,7 +363,6 @@ export async function writeSocialPost(
   const media = mediaItemsForInsert(formData.get("media"), user.id);
   const groupIdRaw = String(formData.get("group_id") ?? "").trim();
   const groupId = groupIdRaw.length > 0 ? groupIdRaw : null;
-  const category = groupId ? null : normalizeSocialCategory(String(formData.get("category") ?? ""));
   if (!media.ok) return { error: socialMediaRuleMessage(media.error) };
   const videoRejection = socialPublishedVideoRejection(media.items);
   if (videoRejection) return { error: socialMediaRuleMessage(videoRejection) };
@@ -378,7 +376,7 @@ export async function writeSocialPost(
   }
 
   const { error } = await supabase.from("posts").insert(
-    postInsertRow({ authorId: user.id, body, groupId, media: media.items, category }),
+    postInsertRow({ authorId: user.id, body, groupId, media: media.items }),
   );
   if (error) return { error: error.message };
 

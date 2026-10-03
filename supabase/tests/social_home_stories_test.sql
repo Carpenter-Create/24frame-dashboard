@@ -84,6 +84,14 @@ select ok(
      from public.stories where id = current_setting('t.story')::uuid),
   'story default expiry is 24h');
 
+-- Topics are written by the background tagger with the service role (no
+-- author picks one; post_category_provenance_test covers the refusal).
+-- The locked-label check is exercised from that role.
+reset role;
+set local role service_role;
+select set_config('request.jwt.claims',
+  json_build_object('role', 'service_role')::text, true);
+
 select lives_ok(
   format($sql$
     insert into public.posts (author_id, body, category)
@@ -115,6 +123,12 @@ select lives_ok(
     values (%L, 'music post', 'Music')
   $sql$, current_setting('t.author')),
   'locked category Music is accepted');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('t.author'), 'role', 'authenticated')::text,
+  true);
 
 select throws_ok(
   format($sql$

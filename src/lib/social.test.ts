@@ -679,7 +679,6 @@ describe("social writes stay on the live spine", () => {
       body: "hello",
       group_id: null,
       media: [],
-      category: null,
       status: "active",
       like_count: 0,
       comment_count: 0,

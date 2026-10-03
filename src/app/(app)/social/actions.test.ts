@@ -645,6 +645,17 @@ describe("social actions", () => {
     ]);
   });
 
+  it("never writes a topic from the form: nobody picks a topic", async () => {
+    const { inserts } = stub({ profile: null });
+    const form = new FormData();
+    form.set("body", "hello");
+    form.set("category", "Music");
+    await expect(createSocialPost(form)).rejects.toThrow("REDIRECT:/social");
+    const post = inserts.find((insert) => insert.table === "posts")?.row as Record<string, unknown>;
+    expect(post).toEqual(postInsertRow({ authorId: "u1", body: "hello" }));
+    expect(post).not.toHaveProperty("category");
+  });
+
   it("ensures a self profile before a story write", async () => {
     const author = "11111111-1111-4111-8111-111111111111";
     vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
