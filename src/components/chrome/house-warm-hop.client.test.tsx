@@ -1,13 +1,21 @@
 import "@/test/minimal-document";
 
-import { act, createElement, useEffect, type ComponentProps, type ReactNode } from "react";
+import {
+  act,
+  cloneElement,
+  createElement,
+  isValidElement,
+  useEffect,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// A warm hop calls pushState with Next's private `__NA` flag, so Next's
-// router never learns about it: usePathname keeps the previous screen.
-// These tests drive the real house shell through a warm hop and check what
-// chrome does next.
+// Every screen change is a Next navigation. A panel hop (the same screen,
+// other query: profile ?tab=, Social Home lane) calls pushState with Next's
+// private `__NA` flag, so Next keeps the previous query. These tests drive
+// the real house shell and check what chrome and its links do.
 
 // Next resolves an href against the browser's address
 // (dispatchNavigateAction), so `?ai=…` keeps only the path.
@@ -121,14 +129,14 @@ import { NewsSourceChips } from "@/components/news/news-sources-filter";
 import { SocialCreateFan } from "@/components/social/social-create-fan";
 import { SocialCreateTile } from "@/components/social/social-create-sheet";
 import { SocialFrameAiOpen } from "@/components/social/social-frame-ai-face";
-import { houseHrefKey, houseSyncPainted, resetHousePaintedForTests } from "@/lib/house-client-shell";
+import { houseReadScroll, resetHouseScrollForTests } from "@/lib/house-client-shell";
 import { NEWS_HREF, NEWS_SOURCE_FILTER_SOURCES, newsHistoryHref } from "@/lib/news";
 import { SOCIAL_CREATE_TILES } from "@/lib/social-create-sheet";
 import { socialFrameAiThreadHref } from "@/lib/social-frame-ai";
 import { minimalDocument } from "@/test/minimal-document";
 import { useAccountMenuOpen } from "./account-sheet";
 import { AskAiOverlayProvider, useAskAiOverlay } from "./ask-ai-overlay";
-import { HousePathProvider, useHouseClient } from "./house-client-shell";
+import { HousePathProvider, HouseScreenOutlet, useHouseClient } from "./house-client-shell";
 import { HouseLink } from "./house-link";
 import { MessagesAppHeader } from "./messages-app-header";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -186,6 +194,16 @@ const shellHistory = {
   }),
 };
 
+// Window listeners, so a test can fire popstate (Back and Forward).
+type WindowListener = (event: unknown) => void;
+const windowListeners = new Map<string, Set<WindowListener>>();
+
+function fireWindow(type: string, event: unknown) {
+  act(() => {
+    for (const listener of windowListeners.get(type) ?? []) listener(event);
+  });
+}
+
 const probe: {
   house: ReturnType<typeof useHouseClient>;
   ai: ReturnType<typeof useAskAiOverlay> | null;
@@ -238,15 +256,34 @@ function richerMiniElements() {
 
 let container: ReturnType<typeof miniDocument.createElement>;
 let root: Root;
+let rendered: ReactNode = null;
 
 function render(node: ReactNode) {
+  rendered = node;
   act(() => root.render(node));
 }
 
-function warmHop(href: string) {
+function startAt(pathname: string, search = "") {
+  nav.pathname = pathname;
+  nav.search = search;
+  shellLocation.pathname = pathname;
+  shellLocation.search = search;
+}
+
+// Same screen, other query. The shell owns it with a pushState.
+function panelHop(href: string) {
   act(() => {
     expect(probe.house?.navigateOwned(href)).toBe(true);
   });
+}
+
+// Next lands on another screen. A new element re-renders the provider,
+// which reads the mocked usePathname, as a real navigation's context does.
+function nextNavigate(pathname: string, search = "") {
+  startAt(pathname, search);
+  if (!isValidElement(rendered)) throw new Error("render a tree first");
+  const tree = rendered;
+  act(() => root.render(cloneElement(tree)));
 }
 
 // Searches body, so sheets portaled out of the React root are found too.
@@ -321,7 +358,8 @@ function click(
 }
 
 beforeEach(() => {
-  resetHousePaintedForTests();
+  rendered = null;
+  resetHouseScrollForTests();
   nav.pathname = "/social";
   nav.search = "";
   for (const fn of [nav.push, nav.replace, nav.refresh, nav.prefetch]) fn.mockClear();
@@ -342,8 +380,14 @@ beforeEach(() => {
   vi.stubGlobal("HTMLAnchorElement", MiniElement);
   vi.stubGlobal("location", shellLocation);
   vi.stubGlobal("history", shellHistory);
-  vi.stubGlobal("addEventListener", () => undefined);
-  vi.stubGlobal("removeEventListener", () => undefined);
+  windowListeners.clear();
+  vi.stubGlobal("addEventListener", (type: string, listener: WindowListener) => {
+    if (!windowListeners.has(type)) windowListeners.set(type, new Set());
+    windowListeners.get(type)!.add(listener);
+  });
+  vi.stubGlobal("removeEventListener", (type: string, listener: WindowListener) => {
+    windowListeners.get(type)?.delete(listener);
+  });
   vi.stubGlobal("matchMedia", () => ({
     matches: false,
     addEventListener: () => undefined,
@@ -367,8 +411,7 @@ afterEach(() => {
 });
 
 describe("unread notification rows", () => {
-  function renderRow(href: string, painted: string[]) {
-    houseSyncPainted(painted);
+  function renderRow(href: string) {
     render(
       createElement(
         HousePathProvider,
@@ -390,10 +433,8 @@ describe("unread notification rows", () => {
     });
   }
 
-  it("marks read, then reaches the screen Next still thinks it shows", async () => {
-    renderRow("/social", ["/social", "/home"]);
-    warmHop("/home");
-    expect(probe.house?.pathname).toBe("/home");
+  it("marks read, then stays on the screen it already shows", async () => {
+    renderRow("/social");
 
     click(findLink("/social"));
     await settleMarkRead();
@@ -401,22 +442,26 @@ describe("unread notification rows", () => {
     expect(notifications.read).toEqual([["n-1"]]);
     expect(probe.house?.pathname).toBe("/social");
     expect(nav.push).not.toHaveBeenCalled();
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
   });
 
-  it("marks read, then hands a cold destination to Next", async () => {
-    renderRow("/education", ["/social"]);
+  it("marks read, then hands another screen to Next", async () => {
+    renderRow("/education");
 
     click(findLink("/education"));
     await settleMarkRead();
 
     expect(notifications.read).toEqual([["n-1"]]);
     expect(nav.push).toHaveBeenCalledWith("/education");
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
   });
 });
 
-describe("waffle Home exit on a warm hop", () => {
+// The screen Next shows is the screen. Before, a dock tap to a visited
+// screen pushStated to a kept copy of the layout's children, which renders
+// Next's current route: the address moved and the page stayed behind.
+describe("dock hops to another screen go through Next", () => {
   function renderWaffle() {
-    houseSyncPainted(["/social", "/home"]);
     render(
       createElement(
         HousePathProvider,
@@ -431,20 +476,19 @@ describe("waffle Home exit on a warm hop", () => {
     );
   }
 
-  it("pushes history once and closes the sheet", () => {
+  it("waffle Home exit: pushes Home through Next and closes the sheet", () => {
     renderWaffle();
 
     const event = click(findLink("/home"));
 
-    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
-    expect(shellHistory.pushState.mock.calls[0]?.[2]).toBe("/home");
-    expect(nav.push).not.toHaveBeenCalled();
+    expect(nav.push).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledWith("/home");
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(true);
-    expect(probe.house?.pathname).toBe("/home");
     expect(() => findLink("/home")).toThrow();
   });
 
-  it("leaves a modified click to the browser", () => {
+  it("waffle Home exit: leaves a modified click to the browser", () => {
     renderWaffle();
 
     const event = click(findLink("/home"), { metaKey: true });
@@ -453,30 +497,129 @@ describe("waffle Home exit on a warm hop", () => {
     expect(nav.push).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
   });
+
+  // Each landing is a new screen element, as a Next navigation renders.
+  function shellAt(pathname: string) {
+    startAt(pathname);
+    render(
+      createElement(
+        HousePathProvider,
+        null,
+        createElement(HouseProbe),
+        createElement(HouseScreenOutlet, null, createElement("p", null, `screen ${pathname}`)),
+      ),
+    );
+  }
+
+  function screens(): string[] {
+    const found: string[] = [];
+    const stack: MiniNode[] = [miniDocument.body as unknown as MiniNode];
+    for (let node = stack.pop(); node; node = stack.pop()) {
+      if (node.nodeType === 1 && node.hasAttribute?.("data-house-screen")) {
+        found.push((node as unknown as { textContent: string }).textContent);
+      }
+      stack.push(...node.childNodes);
+    }
+    return found;
+  }
+
+  it("never pushStates to a screen visited before", () => {
+    shellAt("/social");
+    shellAt("/home");
+    shellAt("/social");
+
+    act(() => {
+      expect(probe.house?.navigateOwned("/home")).toBe(false);
+    });
+
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+    expect(probe.house?.pathname).toBe("/social");
+  });
+
+  it("keeps only the screen Next shows, with no hidden copies", () => {
+    shellAt("/social");
+    shellAt("/home");
+    shellAt("/aggregation/titles");
+
+    expect(screens()).toEqual(["screen /aggregation/titles"]);
+  });
 });
 
-describe("warm hops keep the link's own click handler", () => {
+// Next restores every entry on Back and Forward: its own, and the shell's
+// panel entries, which carry the flight tree they were pushed over.
+describe("Back and Forward", () => {
+  it("drops the owned panel query and leaves the restore to Next", () => {
+    startAt("/social/profile");
+    render(createElement(HousePathProvider, null, createElement(HouseProbe)));
+    panelHop("/social/profile?tab=media");
+    expect(probe.house?.href).toBe("/social/profile?tab=media");
+
+    shellLocation.search = "";
+    fireWindow("popstate", { state: { __NA: true } });
+
+    expect(probe.house?.href).toBe("/social/profile");
+    expect(nav.replace).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("scroll memory", () => {
+  // Workspace pills are buttons: navigateOwned, then router.push. They
+  // never reach the shell's anchor listener.
+  it("remembers the screen's scroll when a button hop leaves it", () => {
+    const scroller = miniDocument.createElement("div") as unknown as { scrollTop: number };
+    scroller.scrollTop = 480;
+    const doc = miniDocument as unknown as { querySelector: (selector: string) => unknown };
+    const querySelector = doc.querySelector;
+    doc.querySelector = (selector) => (selector === "[data-house-lead-scroll]" ? scroller : null);
+    try {
+      render(createElement(HousePathProvider, null, createElement(HouseProbe)));
+
+      act(() => {
+        expect(probe.house?.navigateOwned("/home")).toBe(false);
+      });
+
+      expect(houseReadScroll("/social")).toBe(480);
+    } finally {
+      doc.querySelector = querySelector;
+    }
+  });
+});
+
+describe("house links keep their own click handler", () => {
   function renderLink(link: ReactNode) {
     render(createElement(HousePathProvider, null, createElement(HouseProbe), link));
   }
 
-  it("runs a HouseLink onClick, then the shell owns the hop", () => {
-    houseSyncPainted(["/social", "/home"]);
+  it("runs a HouseLink onClick, then hands another screen to Next", () => {
     const onClick = vi.fn();
     renderLink(createElement(HouseLink, { href: "/home", onClick }, "Home"));
 
     const event = click(findLink("/home"));
 
     expect(onClick).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledWith("/home");
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("runs a HouseLink onClick, then the shell owns a panel hop", () => {
+    startAt("/social/profile");
+    const onClick = vi.fn();
+    renderLink(createElement(HouseLink, { href: "/social/profile?tab=media", onClick }, "Media"));
+
+    const event = click(findLink("/social/profile?tab=media"));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
     expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
-    expect(shellHistory.pushState.mock.calls[0]?.[2]).toBe("/home");
-    expect(probe.house?.pathname).toBe("/home");
+    expect(shellHistory.pushState.mock.calls[0]?.[2]).toBe("/social/profile?tab=media");
+    expect(probe.house?.href).toBe("/social/profile?tab=media");
     expect(nav.push).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(true);
   });
 
   it("lets a HouseLink onClick take the click over", () => {
-    houseSyncPainted(["/social", "/home"]);
     const takeOver = vi.fn((event: { preventDefault(): void }) => event.preventDefault());
     renderLink(createElement(HouseLink, { href: "/home", onClick: takeOver }, "Home"));
 
@@ -488,34 +631,30 @@ describe("warm hops keep the link's own click handler", () => {
     expect(probe.house?.pathname).toBe("/social");
   });
 
-  it("hands a cold hop to Next after the HouseLink onClick", () => {
-    houseSyncPainted(["/social"]);
-    const onClick = vi.fn();
-    renderLink(createElement(HouseLink, { href: "/education", onClick }, "Education"));
+  it("owns a panel hop on a raw link and leaves another screen to it", () => {
+    startAt("/social/profile");
+    renderLink(
+      createElement(
+        "div",
+        null,
+        createElement("a", { href: "/social/profile?tab=media" }, "Media"),
+        createElement("a", { href: "/home" }, "Home"),
+      ),
+    );
 
-    click(findLink("/education"));
-
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(nav.push).toHaveBeenCalledTimes(1);
-    expect(nav.push).toHaveBeenCalledWith("/education");
-    expect(shellHistory.pushState).not.toHaveBeenCalled();
-  });
-
-  it("still owns warm hops on raw links", () => {
-    houseSyncPainted(["/social", "/home"]);
-    renderLink(createElement("a", { href: "/home" }, "Home"));
-
-    const event = click(findLink("/home"));
-
+    const panel = click(findLink("/social/profile?tab=media"));
+    expect(panel.defaultPrevented).toBe(true);
     expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
-    expect(event.defaultPrevented).toBe(true);
+
+    const other = click(findLink("/home"));
+    expect(other.defaultPrevented).toBe(false);
+    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
     expect(nav.push).not.toHaveBeenCalled();
   });
 });
 
-describe("account menu after a warm hop", () => {
+describe("account menu across navigations", () => {
   function renderMenu() {
-    houseSyncPainted(["/social", "/home"]);
     render(
       createElement(
         HousePathProvider,
@@ -528,28 +667,28 @@ describe("account menu after a warm hop", () => {
     expect(probe.menu?.open).toBe(true);
   }
 
-  it("closes when a warm hop leaves the page it opened on", () => {
+  it("closes when Next leaves the page it opened on", () => {
     renderMenu();
 
-    warmHop("/home");
+    nextNavigate("/home");
 
     expect(probe.menu?.open).toBe(false);
   });
 
-  it("stays closed when a later warm hop returns to that page", () => {
+  it("stays closed when a later navigation returns to that page", () => {
     renderMenu();
-    warmHop("/home");
+    nextNavigate("/home");
 
-    warmHop("/social");
+    nextNavigate("/social");
 
     expect(probe.house?.pathname).toBe("/social");
     expect(probe.menu?.open).toBe(false);
   });
 });
 
-describe("24Frame AI after a warm hop", () => {
+describe("24Frame AI over a panel hop", () => {
   function renderAskAi() {
-    houseSyncPainted(["/social", "/social/profile"]);
+    startAt("/social/profile");
     render(
       createElement(
         HousePathProvider,
@@ -562,31 +701,31 @@ describe("24Frame AI after a warm hop", () => {
         ),
       ),
     );
-    warmHop("/social/profile");
+    panelHop("/social/profile?tab=media");
     expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
-    expect(probe.house?.pathname).toBe("/social/profile");
+    expect(probe.house?.href).toBe("/social/profile?tab=media");
   }
 
-  it("opens on the screen the shell shows, not the one Next last rendered", () => {
+  it("opens on the screen and query the shell shows", () => {
     renderAskAi();
 
     act(() => probe.ai?.openAskAi());
 
     expect(nav.push).toHaveBeenCalledTimes(1);
-    expect(nav.push).toHaveBeenCalledWith("/social/profile?ai=1");
+    expect(nav.push).toHaveBeenCalledWith("/social/profile?tab=media&ai=1");
   });
 
-  it("closes onto the screen the shell shows", () => {
+  it("closes onto the screen and query the shell shows", () => {
     renderAskAi();
 
     act(() => probe.ai?.closeAskAi());
 
     expect(nav.replace).toHaveBeenCalledTimes(1);
-    expect(nav.replace).toHaveBeenCalledWith("/social/profile");
+    expect(nav.replace).toHaveBeenCalledWith("/social/profile?tab=media");
   });
 });
 
-describe("Social, AI and News links keep their click handler on warm hops", () => {
+describe("Social, AI and News links keep their click handler", () => {
   const WRITE = SOCIAL_CREATE_TILES.find((tile) => tile.id === "write")!;
   const MEDIA = SOCIAL_CREATE_TILES.find((tile) => tile.id === "media")!;
 
@@ -605,21 +744,19 @@ describe("Social, AI and News links keep their click handler on warm hops", () =
     );
   }
 
-  it("Create sheet Write tile: runs onPick, then the shell owns the hop", () => {
-    houseSyncPainted(["/social", houseHrefKey(WRITE.href)]);
+  it("Create sheet Write tile: runs onPick, then Next opens the screen", () => {
     const onPick = vi.fn();
     renderInShell(createElement(SocialCreateTile, { tile: WRITE, onPick }));
 
     const event = click(findLink(WRITE.href));
 
     expect(onPick).toHaveBeenCalledTimes(1);
-    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
+    expect(nav.push).toHaveBeenCalledWith(WRITE.href);
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(true);
-    expect(nav.push).not.toHaveBeenCalled();
   });
 
   it("Create sheet Media tile: opens the picker and never hops", () => {
-    houseSyncPainted(["/social", houseHrefKey(MEDIA.href)]);
     const pick = vi.fn();
     miniElementProto.click = pick;
     renderInShell(createElement(SocialCreateTile, { tile: MEDIA }));
@@ -632,20 +769,18 @@ describe("Social, AI and News links keep their click handler on warm hops", () =
     expect(nav.push).not.toHaveBeenCalled();
   });
 
-  it("Create fan Write item: closes the fan, then the shell owns the hop", () => {
-    houseSyncPainted(["/social", houseHrefKey(WRITE.href)]);
+  it("Create fan Write item: closes the fan, then Next opens the screen", () => {
     renderFan();
     expect(findLink(WRITE.href).getAttribute?.("data-open")).toBe("");
 
     click(findLink(WRITE.href));
 
-    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
-    expect(nav.push).not.toHaveBeenCalled();
+    expect(nav.push).toHaveBeenCalledWith(WRITE.href);
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
     expect(findLink(WRITE.href).getAttribute?.("data-open")).toBeNull();
   });
 
   it("Create fan Media item: opens the picker and never hops", () => {
-    houseSyncPainted(["/social", houseHrefKey(MEDIA.href)]);
     const pick = vi.fn();
     miniElementProto.click = pick;
     renderFan();
@@ -658,9 +793,8 @@ describe("Social, AI and News links keep their click handler on warm hops", () =
     expect(nav.push).not.toHaveBeenCalled();
   });
 
-  it("24Frame AI face: runs onOpen, then the shell owns the hop", () => {
+  it("24Frame AI face: runs onOpen, then Next opens the thread", () => {
     const href = socialFrameAiThreadHref();
-    houseSyncPainted(["/social", houseHrefKey(href)]);
     const onOpen = vi.fn();
     renderInShell(
       createElement(SocialFrameAiOpen, {
@@ -676,14 +810,14 @@ describe("Social, AI and News links keep their click handler on warm hops", () =
     click(findLink(href));
 
     expect(onOpen).toHaveBeenCalledTimes(1);
-    expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
-    expect(nav.push).not.toHaveBeenCalled();
+    expect(nav.push).toHaveBeenCalledWith(href);
+    expect(shellHistory.pushState).not.toHaveBeenCalled();
   });
 
   it("News source pill: selects in place and never hops", () => {
     const source = NEWS_SOURCE_FILTER_SOURCES[0]!;
     const href = newsHistoryHref([source.id]);
-    houseSyncPainted(["/social", NEWS_HREF]);
+    startAt(NEWS_HREF);
     const onSelect = vi.fn();
     richerMiniElements();
     renderInShell(createElement(NewsSourceChips, { selected: [], onSelect }));
@@ -723,10 +857,10 @@ describe("Ask AI history rows", () => {
     return null;
   }
 
-  // History open over a screen the shell reached by a warm hop, with its
-  // own query. Next still thinks it shows /social.
+  // History open over a panel hop: the shell shows ?tab=media, and Next
+  // still shows the screen's earlier query.
   function renderHistory() {
-    houseSyncPainted(["/social", "/social/profile"]);
+    startAt("/social/profile");
     render(
       createElement(
         HousePathProvider,
@@ -740,7 +874,7 @@ describe("Ask AI history rows", () => {
         ),
       ),
     );
-    warmHop("/social/profile?tab=media");
+    panelHop("/social/profile?tab=media");
     act(() => chrome.setHistoryOpen?.(true));
     expect(chrome.historyOpen).toBe(true);
   }
@@ -754,7 +888,7 @@ describe("Ask AI history rows", () => {
     expect(chrome.historyOpen).toBe(false);
     expect(nav.push).toHaveBeenCalledTimes(1);
     expect(nav.push).toHaveBeenCalledWith(`/social/profile?tab=media&ai=${THREAD}`);
-    // The warm hop only. A shell pushState here would hide ?ai= from the
+    // The panel hop only. A shell pushState here would hide ?ai= from the
     // overlay, which reads Next's search params.
     expect(shellHistory.pushState).toHaveBeenCalledTimes(1);
   });
@@ -773,12 +907,12 @@ describe("Ask AI history rows", () => {
 describe("Ask AI landing and thread header keep the screen's query", () => {
   const THREAD = "7c1d9e4b-3a2f-4b6c-8d5e-1f0a2b3c4d5e";
 
-  // The overlay over a screen the shell reached by a warm hop, with its
-  // own query. Next still thinks it shows /social.
+  // The overlay over a panel hop: the shell shows ?tab=media, and Next
+  // still shows the screen's earlier query.
   function renderOverScreen(node: ReactNode) {
-    houseSyncPainted(["/social", "/social/profile"]);
+    startAt("/social/profile");
     render(createElement(HousePathProvider, null, createElement(HouseProbe), node));
-    warmHop("/social/profile?tab=media");
+    panelHop("/social/profile?tab=media");
   }
 
   function renderThreadHeader() {
