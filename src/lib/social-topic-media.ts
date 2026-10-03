@@ -109,10 +109,6 @@ type MuxVideo = SocialMediaItem & { playbackId: string; assetId: string };
 type ReadyVideo = { item: MuxVideo; asset: MuxAssetData };
 
 /**
- * The author's own ready asset for a video, null when the tagger reads
- * nothing from it, or "wait" while it is still preparing.
- */
-/**
  * The author's own Mux asset behind a video item, or null when the tagger
  * reads nothing from it: no asset id, a deleted asset, or an asset that is
  * not the author's upload played by this playback id. Other errors throw.
@@ -159,6 +155,17 @@ async function readyMuxAsset(
 
 function isTaggerTrack(track: SocialMuxTrack): track is SocialMuxTrack & { id: string } {
   return !!track?.id && track.type === "text" && track.name === SOCIAL_MUX_TOPIC_TRACK_NAME;
+}
+
+/** A fresh read of the asset: does it now have a generated text track? */
+async function hasGeneratedTextTrack(assetId: string, deps: SocialTopicMediaDeps): Promise<boolean> {
+  try {
+    return generatedTextTrack(await deps.retrieveAsset(assetId)) !== null;
+  } catch (error) {
+    // A deleted asset has no track left to delete; anything else is retried.
+    if (isSocialMuxPermanentError(error)) return false;
+    throw error;
+  }
 }
 
 async function videoFrames(item: MuxVideo, asset: MuxAssetData, deps: SocialTopicMediaDeps, signal?: AbortSignal) {
@@ -250,8 +257,12 @@ export async function gatherSocialTopicMedia(
         await deps.requestSubtitles(item.assetId, audio.id);
         return { status: "wait" };
       } catch (error) {
-        // Mux refused it (no speech, already queued): frames only.
         if (!isSocialMuxPermanentError(error)) throw error;
+        // Mux refused it. A track it already queued (another run's request)
+        // is waited on, then read and deleted, never left on a stamped post.
+        // With none (no speech, say), the post is classified from frames.
+        post.signal?.throwIfAborted();
+        if (await hasGeneratedTextTrack(item.assetId, deps)) return { status: "wait" };
       }
     }
   }

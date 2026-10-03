@@ -436,7 +436,32 @@ describe("gatherSocialTopicMedia: transcripts", () => {
     const media = await gather([videoItem()], deps);
 
     expect(deps.requestSubtitles).toHaveBeenCalledTimes(1);
+    // The asset is read again before falling back, to find a queued track.
+    expect(deps.retrieveAsset).toHaveBeenCalledTimes(2);
     expect(media).toEqual(framesOnly);
+  });
+
+  it("waits for a track Mux already queued when it refuses the request", async () => {
+    const deps = fakeDeps();
+    // Another run's request: the track appears after this run's first read.
+    deps.retrieveAsset
+      .mockResolvedValueOnce(noText)
+      .mockResolvedValueOnce(readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("preparing")] }));
+    deps.requestSubtitles.mockRejectedValue(muxError(400));
+
+    expect(await gather([videoItem()], deps)).toEqual({ status: "wait" });
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
+  });
+
+  it("classifies from frames when the asset is gone on the second read, and retries other errors", async () => {
+    const deps = fakeDeps();
+    deps.requestSubtitles.mockRejectedValue(muxError(400));
+
+    deps.retrieveAsset.mockResolvedValueOnce(noText).mockRejectedValueOnce(muxError(404));
+    expect(await gather([videoItem()], deps)).toEqual(framesOnly);
+
+    deps.retrieveAsset.mockResolvedValueOnce(noText).mockRejectedValueOnce(muxError(503));
+    await expect(gather([videoItem()], deps)).rejects.toThrow("(503)");
   });
 
   it("throws when the transcription request fails for a reason worth retrying", async () => {

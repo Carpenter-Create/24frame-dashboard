@@ -48,7 +48,10 @@ are proposals for Adam to confirm.
   transcript per post) and waits until the transcript is ready. It reads
   the transcript, then **deletes that caption track** before stamping the
   post. A video still preparing after an hour is classified from its
-  caption. Captions someone adds another way are read but never deleted.
+  caption. If Mux refuses the request, the tagger reads the video again:
+  a transcript already being made is waited on, read and deleted;
+  otherwise the post is classified from frames. Captions someone adds
+  another way are read but never deleted.
   It asks for no new transcript for an edited post, or in the last day of
   the 7-day window (so the track is read and deleted while the post is
   still selected). That includes a post edited before its first look: it
