@@ -30,7 +30,7 @@ import { loadCachedProfileSocialCounts, loadCachedSocialProfileByHandle } from "
 import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
 import { requireSocialSession } from "@/lib/social-session";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export default async function SocialFollowsPage({
   params,

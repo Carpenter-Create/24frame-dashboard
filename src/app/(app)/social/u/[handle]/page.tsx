@@ -58,7 +58,7 @@ import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { parseSocialProfileTopics } from "@/lib/social-profile-topics";
 import { requireSocialSession } from "@/lib/social-session";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function generateMetadata({
   params,

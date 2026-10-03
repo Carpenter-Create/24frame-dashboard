@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { socialProfileHref } from "@/lib/social";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export default async function SocialMemberRedirectPage({
   params,
