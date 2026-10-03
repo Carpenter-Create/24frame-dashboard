@@ -32,6 +32,11 @@ export type ClaudeConfig =
     }
   | { provider: "direct"; apiKey: string };
 
+// An AWS region code. The region becomes the endpoint host, so any other
+// value is not a provider: a stray env value cannot move signed requests to
+// another host.
+const AWS_REGION_PATTERN = /^[a-z]{2}(-[a-z]+)+-\d+$/;
+
 function readTrimmed(env: ClaudeEnv, name: string): string {
   return env[name]?.trim() ?? "";
 }
@@ -42,15 +47,16 @@ export function claudeAwsBaseUrl(region: string): string {
 
 /**
  * The provider to call, or null when none is configured. A complete
- * CLAUDE_AWS_* set wins. A partial set is not a provider: it falls through
- * to the cutover key, and with no key the feature reports unavailable.
+ * CLAUDE_AWS_* set with a valid region wins. A partial set is not a
+ * provider: it falls through to the cutover key, and with no key the
+ * feature reports unavailable.
  */
 export function readClaudeConfig(env: ClaudeEnv = process.env): ClaudeConfig | null {
   const region = readTrimmed(env, "CLAUDE_AWS_REGION");
   const accessKeyId = readTrimmed(env, "CLAUDE_AWS_ACCESS_KEY_ID");
   const secretAccessKey = readTrimmed(env, "CLAUDE_AWS_SECRET_ACCESS_KEY");
   const workspaceId = readTrimmed(env, "CLAUDE_AWS_WORKSPACE_ID");
-  if (region && accessKeyId && secretAccessKey && workspaceId) {
+  if (AWS_REGION_PATTERN.test(region) && accessKeyId && secretAccessKey && workspaceId) {
     return { provider: "aws", region, accessKeyId, secretAccessKey, workspaceId };
   }
   const apiKey = readTrimmed(env, "ANTHROPIC_API_KEY");

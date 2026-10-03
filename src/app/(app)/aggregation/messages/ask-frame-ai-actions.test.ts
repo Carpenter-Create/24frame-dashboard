@@ -23,6 +23,20 @@ const TEST_KEY = "test-operator-key";
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 
+// Every Claude provider name, so the runner's own environment never picks
+// the provider these tests expect.
+function clearClaudeEnv(): void {
+  for (const name of [
+    "ANTHROPIC_API_KEY",
+    "CLAUDE_AWS_REGION",
+    "CLAUDE_AWS_ACCESS_KEY_ID",
+    "CLAUDE_AWS_SECRET_ACCESS_KEY",
+    "CLAUDE_AWS_WORKSPACE_ID",
+  ]) {
+    delete process.env[name];
+  }
+}
+
 // The Claude SDK reads a real fetch Response (status, headers, JSON body).
 function modelResponse(body: Record<string, unknown>): Response {
   return new Response(
@@ -161,7 +175,7 @@ describe("startAskFrameAiConversation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
-    delete process.env.ANTHROPIC_API_KEY;
+    clearClaudeEnv();
   });
 
   it("refuses Access and never loads conversations or findings", async () => {
@@ -230,7 +244,7 @@ describe("completeAskFrameAiTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
-    delete process.env.ANTHROPIC_API_KEY;
+    clearClaudeEnv();
   });
 
   it("sends What is blocking a title on the model path and does not persist emptyBlocking", async () => {
@@ -404,7 +418,7 @@ describe("appendAskFrameAiTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock.mockReset();
-    delete process.env.ANTHROPIC_API_KEY;
+    clearClaudeEnv();
   });
 
   it("appends both turns to the same conversation", async () => {

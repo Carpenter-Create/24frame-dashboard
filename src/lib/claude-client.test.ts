@@ -7,8 +7,10 @@ import {
   readClaudeConfig,
 } from "./claude-client";
 
+// us-west-2, not vitest's shared AWS_REGION (us-east-1), so a test cannot
+// pass by reading the title-bucket region.
 const AWS_ENV = {
-  CLAUDE_AWS_REGION: "us-east-1",
+  CLAUDE_AWS_REGION: "us-west-2",
   CLAUDE_AWS_ACCESS_KEY_ID: "AKIATESTCLAUDE",
   CLAUDE_AWS_SECRET_ACCESS_KEY: "test-secret",
   CLAUDE_AWS_WORKSPACE_ID: "wrkspc_test",
@@ -42,15 +44,25 @@ describe("readClaudeConfig", () => {
   it("uses Claude Platform on AWS when every CLAUDE_AWS_* value is set", () => {
     expect(readClaudeConfig({ ...AWS_ENV, ANTHROPIC_API_KEY: "cutover-key" })).toEqual({
       provider: "aws",
-      region: "us-east-1",
+      region: "us-west-2",
       accessKeyId: "AKIATESTCLAUDE",
       secretAccessKey: "test-secret",
       workspaceId: "wrkspc_test",
     });
-    expect(readClaudeConfig({ ...AWS_ENV, CLAUDE_AWS_REGION: " us-west-2 " })).toMatchObject({
+    expect(readClaudeConfig({ ...AWS_ENV, CLAUDE_AWS_REGION: " eu-west-1 " })).toMatchObject({
       provider: "aws",
-      region: "us-west-2",
+      region: "eu-west-1",
     });
+  });
+
+  it("refuses a region that is not an AWS region code", () => {
+    for (const region of ["evil.example/x", "us-west-2.evil.example", "US-WEST-2", "us_west_2", "uswest2"]) {
+      expect(readClaudeConfig({ ...AWS_ENV, CLAUDE_AWS_REGION: region }), region).toBeNull();
+      expect(
+        readClaudeConfig({ ...AWS_ENV, CLAUDE_AWS_REGION: region, ANTHROPIC_API_KEY: "cutover-key" }),
+        region,
+      ).toEqual({ provider: "direct", apiKey: "cutover-key" });
+    }
   });
 
   it("falls back to the cutover key when the AWS set is partial", () => {
@@ -101,10 +113,11 @@ describe("createClaudeClient", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(String(url)).toBe(`${claudeAwsBaseUrl("us-east-1")}/v1/messages`);
+    expect(String(url)).toBe("https://aws-external-anthropic.us-west-2.api.aws/v1/messages");
+    expect(claudeAwsBaseUrl("us-west-2")).toBe("https://aws-external-anthropic.us-west-2.api.aws");
     expect(headerOf(init, "anthropic-workspace-id")).toBe("wrkspc_test");
     expect(headerOf(init, "authorization")).toMatch(
-      /^AWS4-HMAC-SHA256 Credential=AKIATESTCLAUDE\/\d{8}\/us-east-1\/aws-external-anthropic\/aws4_request/,
+      /^AWS4-HMAC-SHA256 Credential=AKIATESTCLAUDE\/\d{8}\/us-west-2\/aws-external-anthropic\/aws4_request/,
     );
     expect(headerOf(init, "x-api-key")).toBeNull();
   });
@@ -113,6 +126,7 @@ describe("createClaudeClient", () => {
     const fetchMock = vi.fn().mockResolvedValue(okMessage());
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("ANTHROPIC_BASE_URL", "https://elsewhere.example");
+    vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "stray-bearer");
 
     await createClaudeClient({ provider: "direct", apiKey: "cutover-key" }).messages.create({
       model: "claude-sonnet-5",
@@ -123,6 +137,7 @@ describe("createClaudeClient", () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(String(url)).toBe(`${CLAUDE_DIRECT_BASE_URL}/v1/messages`);
     expect(headerOf(init, "x-api-key")).toBe("cutover-key");
+    expect(headerOf(init, "authorization")).toBeNull();
     expect(headerOf(init, "anthropic-workspace-id")).toBeNull();
   });
 });

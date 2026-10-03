@@ -93,7 +93,7 @@ out RSS.
 
 ## 24Frame AI on Claude Platform on AWS (authorized; not created)
 
-Adam lock 2026-10-03: Claude calls go through **Claude Platform on
+Adam lock: Claude calls go through **Claude Platform on
 AWS** (Anthropic-operated, AWS IAM and billing), not Amazon Bedrock and
 not a self-built model. Dedicated `CLAUDE_AWS_*` — never reuse title,
 media, finance, news, SES, or education credentials. `ANTHROPIC_API_KEY`

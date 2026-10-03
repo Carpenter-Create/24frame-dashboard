@@ -22,8 +22,9 @@ Sources (read 2026-10-03):
 | Item | Proposed | Notes |
 | --- | --- | --- |
 | Account | E8 | Same account as finance / news. Confirm. |
-| Region | `us-west-2` if offered | A workspace is bound to one region. Use the region the console offers if `us-west-2` is not listed. |
-| Workspace | `24frame` | Its ID looks like `wrkspc_…`. Set a monthly spend limit. |
+| Region | `us-west-2` | A workspace is bound to one region. All AWS commercial regions are supported. |
+| Workspace | `24frame` | Its ID looks like `wrkspc_…`. |
+| Spend limit | Adam sets | Claude Console only (step 2). |
 | App IAM user | `24frame-claude-app` | Inference only, on this workspace. Vercel Production + Preview. |
 
 ## Env names (server-only)
@@ -47,12 +48,20 @@ code (`https://aws-external-anthropic.{region}.api.aws`), so an
 1. **Sign up.** In the AWS Console, open the Claude Platform on AWS
    service page and sign up (AWS handles the Marketplace subscription).
    Finish organization setup at `platform.claude.com/partner-signup`.
-2. **Workspace.** Create the workspace when the console prompts, in the
-   region above. Copy its ID from **Workspaces**. Set a spend limit.
-3. **One-time account setting.** Run
-   `aws iam enable-outbound-web-identity-federation`. Without it,
-   every request fails with "Outbound web identity federation is
-   disabled for your account".
+2. **Workspace and spend limit.** Create the workspace when the AWS
+   Console prompts, in the region above, and copy its ID from
+   **Workspaces**. Spend limits live in the Claude Console only (Admin
+   role): add an email recipient under **Settings > Billing**, then set
+   the organization monthly limit there, or a workspace limit under
+   **Settings > Workspaces > 24frame > Spend limits**. Optional, your
+   call: pin the workspace's default inference geography to `us` (docs:
+   Data residency, workspace-level restrictions).
+3. **One-time account setting.** Check with
+   `aws iam get-outbound-web-identity-federation-info`. If it is not
+   enabled, run `aws iam enable-outbound-web-identity-federation`.
+   Without it, every request fails with "Outbound web identity
+   federation is disabled for your account". Sign-up usually enables
+   it.
 4. **IAM user.** Create `24frame-claude-app` with only this inline
    policy. Replace the region, account ID and workspace ID, and check
    the action names against the IAM actions page above.
