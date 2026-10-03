@@ -222,12 +222,13 @@ describe("write compose video attach", () => {
     expect(text).toContain('matchMedia?.("(prefers-reduced-motion: reduce)")');
     expect(text).toContain("node.loop = !still;");
     const hold = text.slice(text.indexOf("const hold = "), text.indexOf("const present"));
-    expect(hold).toContain("if (held || !still ||");
+    // Never pauses a clip the member turned the sound on for.
+    expect(hold).toContain("if (held || !still || !node.muted ||");
     expect(hold).toContain("held = true;");
     expect(hold).toContain("node.pause()");
     // Pixels still arrive when WebKit only sizes the clip once playback runs.
     expect(hold).toContain("if (!reported) reportPixels();");
-    expect(hold.indexOf("reportPixels()")).toBeLessThan(hold.indexOf("if (held || !still ||"));
+    expect(hold.indexOf("reportPixels()")).toBeLessThan(hold.indexOf("if (held || !still || !node.muted ||"));
     const report = text.slice(text.indexOf("const reportPixels"), text.indexOf("const hold = "));
     expect(report).toContain("if (!pixels) return;");
     expect(report).toContain("reported = true;");
@@ -248,7 +249,11 @@ describe("write compose video attach", () => {
     expect(sound).toContain("const next = !node.muted;");
     expect(sound).toContain("node.muted = next;");
     expect(sound).toContain("setMuted(next);");
-    expect(sound).toContain("if (!next) void node.play()");
+    expect(sound).toContain("if (!next || (node.paused && node.loop)) void node.play()");
+    // The icon follows the element.
+    expect(text).toContain('node.addEventListener("volumechange", syncSound);');
+    expect(text).toContain('node.removeEventListener("volumechange", syncSound);');
+    expect(text).toContain("const syncSound = () => setMuted(node.muted);");
     expect(sound).toContain('muted ? "speaker-slash" : "speaker-high"');
     expect(compose.indexOf("new AbortController()")).toBeGreaterThan(-1);
     expect(compose.indexOf("new AbortController()")).toBeLessThan(loopAt);

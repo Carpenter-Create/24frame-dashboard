@@ -10,10 +10,12 @@ import { isSocialMuxId } from "@/lib/social-mux";
 import { isStoryLive } from "@/lib/social-stories";
 
 // GC-P1-3. Sign /api/social/media only for a key attached to a row the
-// caller can select: post media, or a non-expired story visible under
-// stories_select (active, expires_at still ahead, author or follow).
-// isForbiddenMediaKey is a shape check, not a grant. Prefix ownership
-// and profile cover / welcome are not rows, so they do not sign.
+// caller can select: post media, a non-expired story visible under
+// stories_select (active, expires_at still ahead, author or follow), or the
+// current cover of a profile visible under profiles_select (founder
+// 2026-10-03: anyone who can see the profile sees its cover).
+// isForbiddenMediaKey is a shape check, not a grant. Prefix ownership and
+// the welcome video do not sign.
 // The read uses the user-scoped client, so posts_select and stories_select
 // stay the authorization layer. Story follow and expires_at are checked
 // again so a returned row that fails them is still denied. Fail closed.
@@ -122,6 +124,32 @@ export function socialMediaReadGrant(input: {
   });
 }
 
+export type SocialProfileCoverGrant = {
+  id: string;
+  cover_key: string | null;
+};
+
+const SOCIAL_COVER_IMAGE_KEY = /\.(jpe?g|png|webp|gif)$/i;
+
+/**
+ * A profile's current cover: the key must equal cover_key on a profile row
+ * this session can select, sit in that profile's own posts lane, and be an
+ * image. A replaced cover stops signing.
+ */
+export function socialProfileCoverReadGrant(input: {
+  userId: string;
+  key: string;
+  profile: SocialProfileCoverGrant | null | undefined;
+}): boolean {
+  if (!input.userId || isForbiddenMediaKey(input.key) || !input.profile) return false;
+  const { id, cover_key: coverKey } = input.profile;
+  return (
+    coverKey === input.key &&
+    isOwnedSocialMediaKey(input.key, id, "posts") &&
+    SOCIAL_COVER_IMAGE_KEY.test(input.key)
+  );
+}
+
 export async function viewerMaySignSocialMedia(userId: string, key: string, now = new Date()): Promise<boolean> {
   if (!userId || isForbiddenMediaKey(key)) return false;
   const parsed = parseSocialMediaObjectKey(key);
@@ -162,7 +190,16 @@ export async function viewerMaySignSocialMedia(userId: string, key: string, now 
       .contains("media", socialMediaJsonContains(key))
       .limit(8);
     if (error) return false;
-    return socialMediaReadGrant({ userId, key, now, posts: posts ?? [] });
+    if (socialMediaReadGrant({ userId, key, now, posts: posts ?? [] })) return true;
+    // Not post media: maybe the author's current cover, under profiles_select.
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, cover_key")
+      .eq("id", parsed.userId)
+      .eq("cover_key", key)
+      .maybeSingle();
+    if (profileError) return false;
+    return socialProfileCoverReadGrant({ userId, key, profile });
   } catch {
     return false;
   }

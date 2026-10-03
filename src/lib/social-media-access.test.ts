@@ -8,6 +8,7 @@ import {
   socialMediaJsonContains,
   socialMediaReadGrant,
   socialMuxPlaybackJsonContains,
+  socialProfileCoverReadGrant,
   socialMuxPlaybackReadGrant,
   viewerMayMintSocialMuxPlayback,
   viewerMaySignSocialMedia,
@@ -289,6 +290,68 @@ describe("viewerMaySignSocialMedia", () => {
     await expect(viewerMaySignSocialMedia(USER, POST_KEY, NOW)).resolves.toBe(false);
     await expect(viewerMaySignSocialMedia(USER, "not-a-media-key", NOW)).resolves.toBe(false);
     expect(createClient).toHaveBeenCalledTimes(2);
+  });
+
+  it("signs a profile's current cover the session can select, through profiles_select", async () => {
+    const posts = chain({ data: [] });
+    const profiles = chain({ data: { id: OTHER, cover_key: POST_KEY } });
+    const from = vi.fn((table: string) => (table === "posts" ? posts : profiles));
+    vi.mocked(createClient).mockResolvedValue({ from } as never);
+    await expect(viewerMaySignSocialMedia(USER, POST_KEY, NOW)).resolves.toBe(true);
+    expect(from).toHaveBeenCalledWith("profiles");
+    expect(profiles.select).toHaveBeenCalledWith("id, cover_key");
+    expect(profiles.eq).toHaveBeenCalledWith("id", OTHER);
+    expect(profiles.eq).toHaveBeenCalledWith("cover_key", POST_KEY);
+
+    // RLS hides the profile, or the cover was replaced: no row comes back.
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) => (table === "posts" ? chain({ data: [] }) : chain({ data: null }))),
+    } as never);
+    await expect(viewerMaySignSocialMedia(USER, POST_KEY, NOW)).resolves.toBe(false);
+
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) =>
+        // A failed read never grants, whatever data came back with it.
+        table === "posts"
+          ? chain({ data: [] })
+          : chain({ data: { id: OTHER, cover_key: POST_KEY }, error: { message: "denied" } }),
+      ),
+    } as never);
+    await expect(viewerMaySignSocialMedia(USER, POST_KEY, NOW)).resolves.toBe(false);
+  });
+
+  it("does not read profiles when post media already grants the key", async () => {
+    const from = vi.fn(() => chain({ data: [{ author_id: OTHER, status: "active", media: postMedia() }] }));
+    vi.mocked(createClient).mockResolvedValue({ from } as never);
+    await expect(viewerMaySignSocialMedia(USER, POST_KEY, NOW)).resolves.toBe(true);
+    expect(from).not.toHaveBeenCalledWith("profiles");
+  });
+});
+
+describe("socialProfileCoverReadGrant", () => {
+  const cover = { id: OTHER, cover_key: POST_KEY };
+
+  it("grants only the profile's current cover image in its own posts lane", () => {
+    expect(socialProfileCoverReadGrant({ userId: USER, key: POST_KEY, profile: cover })).toBe(true);
+    // Replaced cover, no profile row, no session.
+    expect(
+      socialProfileCoverReadGrant({ userId: USER, key: POST_KEY, profile: { id: OTHER, cover_key: OWN_POST } }),
+    ).toBe(false);
+    expect(socialProfileCoverReadGrant({ userId: USER, key: POST_KEY, profile: null })).toBe(false);
+    expect(socialProfileCoverReadGrant({ userId: "", key: POST_KEY, profile: cover })).toBe(false);
+    // Someone else's key stored as this profile's cover.
+    expect(socialProfileCoverReadGrant({ userId: USER, key: POST_KEY, profile: { id: USER, cover_key: POST_KEY } })).toBe(
+      false,
+    );
+    // Not an image, or not the posts lane.
+    const video = `posts/${OTHER}/${OBJECT}.mp4`;
+    expect(socialProfileCoverReadGrant({ userId: USER, key: video, profile: { id: OTHER, cover_key: video } })).toBe(false);
+    const story = `stories/${OTHER}/${OBJECT}.jpg`;
+    expect(socialProfileCoverReadGrant({ userId: USER, key: story, profile: { id: OTHER, cover_key: story } })).toBe(false);
+    const upload = `posts/upload/${OTHER}/${OBJECT}.jpg`;
+    expect(socialProfileCoverReadGrant({ userId: USER, key: upload, profile: { id: OTHER, cover_key: upload } })).toBe(
+      false,
+    );
   });
 });
 

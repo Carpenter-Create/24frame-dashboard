@@ -158,7 +158,7 @@ export function SocialComposeVideoPreview({
     // Holds once, so turning the sound on can still play the clip.
     const hold = () => {
       if (!reported) reportPixels();
-      if (held || !still || node.videoWidth <= 0 || node.currentTime < frame) return;
+      if (held || !still || !node.muted || node.videoWidth <= 0 || node.currentTime < frame) return;
       held = true;
       node.pause();
     };
@@ -175,15 +175,20 @@ export function SocialComposeVideoPreview({
       }
       void node.play().catch(() => undefined);
     };
+    // The icon follows the element, including when bindStoryReviewVideo
+    // re-mutes it or the system pauses audible media.
+    const syncSound = () => setMuted(node.muted);
     node.addEventListener("loadedmetadata", reportPixels);
     node.addEventListener("loadeddata", present);
     node.addEventListener("timeupdate", hold);
+    node.addEventListener("volumechange", syncSound);
     if (node.videoWidth > 0) reportPixels();
     if (node.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) present();
     return () => {
       node.removeEventListener("loadedmetadata", reportPixels);
       node.removeEventListener("loadeddata", present);
       node.removeEventListener("timeupdate", hold);
+      node.removeEventListener("volumechange", syncSound);
     };
   }, [src]);
 
@@ -214,8 +219,10 @@ export function SocialComposeVideoPreview({
           const next = !node.muted;
           node.muted = next;
           setMuted(next);
-          // Sound on is a tap, so playback with sound is allowed.
-          if (!next) void node.play().catch(() => undefined);
+          // Sound on is a tap, so playback with sound is allowed. Sound off
+          // resumes the muted loop if the system paused it (not under Reduce
+          // Motion, where loop is off and the frame stays held).
+          if (!next || (node.paused && node.loop)) void node.play().catch(() => undefined);
         }}
       >
         <SocialIcon name={muted ? "speaker-slash" : "speaker-high"} size={20} />
