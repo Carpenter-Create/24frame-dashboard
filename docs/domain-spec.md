@@ -924,8 +924,10 @@ tradeoff honestly, hand off. Being plain about the limit *is* the trustworthy mo
   post at a time (caption, hashtags, the author's crafts, the post's own images, video frames and
   transcript) and writes only that post's topic columns (`category`, `category_source`,
   `category_confidence`, `category_logic_version`, `category_tagged_at`). It never overwrites an
-  author's topic, never touches catalog, finance or another table, and the model can answer only
-  a locked topic or none. Runbook: `docs/infra/social-topic-tagging.md`.
+  author's topic and never touches catalog, finance or another table. Any answer other than a
+  locked topic or none is discarded. It reads only the author's own media; for the author's own
+  video it may ask Mux for a transcript, and it deletes that caption track once read (tagging
+  only, founder decision 2026-10-03). Runbook: `docs/infra/social-topic-tagging.md`.
 - **Reach is scoped tools, not table access:** `get_titles`, `get_deliveries`, `get_findings`,
   `get_statements`. The AI composes from tool results.
 - **Prompt injection is not hypothetical.** Clients upload metadata sheets; a cell can say

@@ -4,9 +4,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SocialMuxUploadNotBoundError } from "./social-mux";
 import {
   createSocialMuxDirectUpload,
+  deleteSocialMuxTrack,
+  fetchSocialMuxFrame,
+  fetchSocialMuxTranscript,
   finalizeSocialMuxDirectUpload,
+  isSocialMuxPermanentError,
   mintSocialMuxPlaybackTokens,
+  requestSocialMuxGeneratedSubtitles,
+  retrieveSocialMuxAsset,
   signedPlaybackIdFromAsset,
+  SOCIAL_MUX_TOPIC_TRACK_NAME,
+  SocialMuxRequestError,
   socialMuxSettingsFromUploadInput,
 } from "./social-mux-server";
 
@@ -215,5 +223,118 @@ describe("social Mux server client", () => {
         playback_ids: [{ id: PLAYBACK_ID, policy: "public" }],
       }),
     ).toBeNull();
+  });
+});
+
+describe("social Mux server: topic tagging reads", () => {
+  const TRACK_ID = "textTrack0001";
+  const AUDIO_ID = "audioTrack0001";
+
+  function stubMuxEnv() {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const pem = privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    vi.stubEnv("MUX_SIGNING_KEY", "signing-key-id");
+    vi.stubEnv("MUX_PRIVATE_KEY", Buffer.from(pem).toString("base64"));
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("treats a 4xx other than auth, timeout, and rate limit as permanent", () => {
+    for (const status of [400, 404, 409, 410, 412, 422]) {
+      expect(isSocialMuxPermanentError(new SocialMuxRequestError("x", status)), String(status)).toBe(true);
+    }
+    for (const status of [401, 403, 408, 429, 500, 502, 503]) {
+      expect(isSocialMuxPermanentError(new SocialMuxRequestError("x", status)), String(status)).toBe(false);
+    }
+    expect(isSocialMuxPermanentError(new Error("Mux request failed (404)"))).toBe(false);
+    expect(isSocialMuxPermanentError(new DOMException("timed out", "TimeoutError"))).toBe(false);
+  });
+
+  it("carries the HTTP status on a failed API call, and passes a caller's signal", async () => {
+    stubMuxEnv();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { messages: ["Asset not found"] } }), { status: 404 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const signal = AbortSignal.timeout(1000);
+
+    const error = await retrieveSocialMuxAsset(ASSET_ID, { signal }).catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(SocialMuxRequestError);
+    expect(error).toMatchObject({ message: "Asset not found", status: 404 });
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
+  });
+
+  it("requests a transcript under the tagger's track name, with a timeout", async () => {
+    stubMuxEnv();
+    const fetchMock = vi.fn().mockResolvedValue(muxJson([{ id: TRACK_ID }], 201));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await requestSocialMuxGeneratedSubtitles(ASSET_ID, AUDIO_ID);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://api.mux.com/video/v1/assets/${ASSET_ID}/tracks/${AUDIO_ID}/generate-subtitles`);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      generated_subtitles: [{ language_code: "auto", name: SOCIAL_MUX_TOPIC_TRACK_NAME }],
+    });
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("deletes a track, counting one that is already gone as deleted", async () => {
+    stubMuxEnv();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteSocialMuxTrack(ASSET_ID, TRACK_ID)).resolves.toBeUndefined();
+    await expect(deleteSocialMuxTrack(ASSET_ID, TRACK_ID)).resolves.toBeUndefined();
+    await expect(deleteSocialMuxTrack(ASSET_ID, TRACK_ID)).rejects.toMatchObject({ status: 503 });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`https://api.mux.com/video/v1/assets/${ASSET_ID}/tracks/${TRACK_ID}`);
+    expect(init.method).toBe("DELETE");
+    expect(new Headers(init.headers).get("Authorization")).toBe(`Basic ${Buffer.from("tid:tsecret").toString("base64")}`);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    await expect(deleteSocialMuxTrack("bad id", TRACK_ID)).rejects.toThrow("Mux track id is invalid");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("reads a transcript and a frame, null when Mux says it is gone, and throws otherwise", async () => {
+    stubMuxEnv();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    fetchMock.mockResolvedValueOnce(new Response("  We lit it with one lamp.  ", { status: 200 }));
+    await expect(fetchSocialMuxTranscript(PLAYBACK_ID, TRACK_ID)).resolves.toBe("We lit it with one lamp.");
+    const [transcriptUrl, transcriptInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(transcriptUrl).toMatch(new RegExp(`^https://stream\\.mux\\.com/${PLAYBACK_ID}/text/${TRACK_ID}\\.txt\\?token=`));
+    expect(transcriptInit.signal).toBeInstanceOf(AbortSignal);
+
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).resolves.toEqual(new Uint8Array([1, 2, 3]));
+    expect(String(fetchMock.mock.calls[1]?.[0])).toMatch(/^https:\/\/image\.mux\.com\/.+\/thumbnail\.jpg\?token=/);
+
+    fetchMock.mockResolvedValueOnce(new Response("", { status: 404 }));
+    await expect(fetchSocialMuxTranscript(PLAYBACK_ID, TRACK_ID)).resolves.toBeNull();
+    fetchMock.mockResolvedValueOnce(new Response("", { status: 404 }));
+    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).resolves.toBeNull();
+
+    for (const status of [403, 429, 500]) {
+      fetchMock.mockResolvedValueOnce(new Response("", { status }));
+      await expect(fetchSocialMuxTranscript(PLAYBACK_ID, TRACK_ID)).rejects.toMatchObject({ status });
+      fetchMock.mockResolvedValueOnce(new Response("", { status }));
+      await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toMatchObject({ status });
+    }
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(fetchSocialMuxFrame(PLAYBACK_ID, { time: 3, width: 768 })).rejects.toThrow("fetch failed");
   });
 });

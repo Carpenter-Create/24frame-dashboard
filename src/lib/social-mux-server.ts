@@ -56,6 +56,7 @@ export type SocialMuxTrack = {
   id?: string;
   type?: string;
   status?: string;
+  name?: string;
   text_source?: string;
   primary?: boolean;
 };
@@ -64,6 +65,7 @@ export type MuxAssetData = {
   id?: string;
   status?: string;
   duration?: number;
+  passthrough?: string | null;
   playback_ids?: Array<{ id?: string; policy?: string }>;
   tracks?: SocialMuxTrack[];
 };
@@ -79,6 +81,31 @@ function muxAuthHeader(): string {
   return `Basic ${Buffer.from(token).toString("base64")}`;
 }
 
+/** A Mux response that was not OK. `status` is the HTTP status. */
+export class SocialMuxRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "SocialMuxRequestError";
+  }
+}
+
+/**
+ * A Mux answer that will not change on retry: a 4xx other than auth (401,
+ * 403), timeout (408), and rate limit (429). Network errors, 5xx, and those
+ * are worth retrying.
+ */
+export function isSocialMuxPermanentError(error: unknown): boolean {
+  return (
+    error instanceof SocialMuxRequestError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    ![401, 403, 408, 429].includes(error.status)
+  );
+}
+
 async function muxRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${MUX_API}${path}`, {
     ...init,
@@ -92,7 +119,10 @@ async function muxRequest<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const json = (await response.json().catch(() => null)) as { data?: T; error?: { messages?: string[] } } | null;
   if (!response.ok || !json?.data) {
-    throw new Error(json?.error?.messages?.[0] ?? `Mux request failed (${response.status})`);
+    throw new SocialMuxRequestError(
+      json?.error?.messages?.[0] ?? `Mux request failed (${response.status})`,
+      response.status,
+    );
   }
   return json.data;
 }
@@ -132,9 +162,12 @@ export async function retrieveSocialMuxUpload(uploadId: string): Promise<MuxUplo
   return muxRequest<MuxUploadData>(`/video/v1/uploads/${uploadId}`);
 }
 
-export async function retrieveSocialMuxAsset(assetId: string): Promise<MuxAssetData> {
+export async function retrieveSocialMuxAsset(
+  assetId: string,
+  init?: Pick<RequestInit, "signal">,
+): Promise<MuxAssetData> {
   if (!isSocialMuxId(assetId)) throw new Error("Mux asset id is invalid");
-  return muxRequest<MuxAssetData>(`/video/v1/assets/${assetId}`);
+  return muxRequest<MuxAssetData>(`/video/v1/assets/${assetId}`, init);
 }
 
 export async function mintSocialMuxPlaybackTokens(
@@ -161,10 +194,17 @@ export async function mintSocialMuxPlaybackTokens(
 }
 
 // Topic tagging (lib/social-topic-media). Server reads only: short-lived
-// tokens, never handed to a browser.
+// tokens, never handed to a browser. Each call gives up after
+// SOCIAL_MUX_TOPIC_TIMEOUT_MS. A permanent miss (isSocialMuxPermanentError)
+// reads as null; anything else throws, so the post is retried.
 const SOCIAL_MUX_SERVER_READ_EXPIRATION = "10m";
 const MUX_STREAM = "https://stream.mux.com";
 const MUX_IMAGE = "https://image.mux.com";
+export const SOCIAL_MUX_TOPIC_TIMEOUT_MS = 15_000;
+// Founder decision 2026-10-03 (tagging only): the tagger's transcript track
+// is deleted once read, so viewers never get captions from it. Only text
+// tracks with this name are deleted.
+export const SOCIAL_MUX_TOPIC_TRACK_NAME = "topic-tagging";
 
 /** Ask Mux to transcribe an asset's audio track. Language is detected. */
 export async function requestSocialMuxGeneratedSubtitles(
@@ -179,10 +219,27 @@ export async function requestSocialMuxGeneratedSubtitles(
     {
       method: "POST",
       body: JSON.stringify({
-        generated_subtitles: [{ language_code: "auto", name: "Generated" }],
+        generated_subtitles: [{ language_code: "auto", name: SOCIAL_MUX_TOPIC_TRACK_NAME }],
       }),
+      signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
     },
   );
+}
+
+/** Remove one track from an asset. A track that is already gone counts as removed. */
+export async function deleteSocialMuxTrack(assetId: string, trackId: string): Promise<void> {
+  if (!isSocialMuxId(assetId) || !isSocialMuxId(trackId)) {
+    throw new Error("Mux track id is invalid");
+  }
+  // 204 has no body, so this does not go through muxRequest.
+  const response = await fetch(`${MUX_API}/video/v1/assets/${assetId}/tracks/${trackId}`, {
+    method: "DELETE",
+    headers: { Authorization: muxAuthHeader() },
+    cache: "no-store",
+    signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
+  });
+  if (response.ok || response.status === 404) return;
+  throw new SocialMuxRequestError(`Mux track delete failed (${response.status})`, response.status);
 }
 
 function socialMuxSigner(): Mux {
@@ -190,6 +247,17 @@ function socialMuxSigner(): Mux {
     jwtSigningKey: requireMuxEnv("MUX_SIGNING_KEY"),
     jwtPrivateKey: requireMuxEnv("MUX_PRIVATE_KEY"),
   });
+}
+
+async function socialMuxServerRead(url: string, what: string): Promise<Response | null> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
+  });
+  if (response.ok) return response;
+  const error = new SocialMuxRequestError(`Mux ${what} request failed (${response.status})`, response.status);
+  if (isSocialMuxPermanentError(error)) return null;
+  throw error;
 }
 
 /** Plain-text transcript of a ready generated text track, or null. */
@@ -202,11 +270,11 @@ export async function fetchSocialMuxTranscript(
     type: "video",
     expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
   });
-  const response = await fetch(
+  const response = await socialMuxServerRead(
     `${MUX_STREAM}/${playbackId}/text/${trackId}.txt?token=${encodeURIComponent(token)}`,
-    { cache: "no-store" },
+    "transcript",
   );
-  if (!response.ok) return null;
+  if (!response) return null;
   const text = (await response.text()).trim();
   return text || null;
 }
@@ -224,11 +292,11 @@ export async function fetchSocialMuxFrame(
     expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
     params: { time: String(frame.time), width: String(frame.width) },
   });
-  const response = await fetch(
+  const response = await socialMuxServerRead(
     `${MUX_IMAGE}/${playbackId}/thumbnail.jpg?token=${encodeURIComponent(token)}`,
-    { cache: "no-store" },
+    "image",
   );
-  if (!response.ok) return null;
+  if (!response) return null;
   const bytes = new Uint8Array(await response.arrayBuffer());
   return bytes.byteLength > 0 ? bytes : null;
 }

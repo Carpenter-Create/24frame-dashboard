@@ -17,9 +17,13 @@ import { runSocialTopicBatch, type SocialTopicRunSummary } from "../../src/lib/s
 import { isSocialTopicTaggingEnabled } from "../../src/lib/social-topic-tagging";
 import { createAdminClient } from "../../src/lib/supabase/admin";
 
-// Function timeout is 5 minutes; stop starting new posts after 4.
+// Function timeout is 5 minutes. A post gets at most 90 seconds
+// (SOCIAL_TOPIC_POST_DEADLINE_MS), so stop starting new posts after 3.
 const BATCH_SIZE = 40;
-const BUDGET_MS = 4 * 60 * 1000;
+const BUDGET_MS = 3 * 60 * 1000;
+// S3 calls give up rather than hang the run.
+const S3_CONNECTION_TIMEOUT_MS = 5_000;
+const S3_REQUEST_TIMEOUT_MS = 15_000;
 
 const REQUIRED_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
@@ -45,7 +49,10 @@ export async function handler(): Promise<SocialTopicRunSummary | { skipped: "dis
   const media = {
     bucket: process.env.S3_MEDIA_SOURCE_BUCKET!.trim(),
     // No credentials: the execution role signs.
-    s3: new S3Client({ region: process.env.MEDIA_AWS_REGION!.trim() }),
+    s3: new S3Client({
+      region: process.env.MEDIA_AWS_REGION!.trim(),
+      requestHandler: { connectionTimeout: S3_CONNECTION_TIMEOUT_MS, requestTimeout: S3_REQUEST_TIMEOUT_MS },
+    }),
   };
   const summary = await runSocialTopicBatch({
     admin: createAdminClient(),
@@ -57,7 +64,8 @@ export async function handler(): Promise<SocialTopicRunSummary | { skipped: "dis
   });
   console.log(JSON.stringify({ msg: "social topic tagging done", ...summary }));
   // Every post failing points at configuration, not one post: fail the
-  // invocation so EventBridge retries and the DLQ alarm sees it.
+  // invocation so the function's Errors alarm and on-failure queue see it.
+  // The next scheduled run is the retry.
   if (summary.selected > 0 && summary.error === summary.selected) {
     throw new Error(`every selected post failed (${summary.error})`);
   }

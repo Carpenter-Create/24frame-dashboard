@@ -62,7 +62,10 @@ describe("social topic Lambda handler", () => {
   it("runs one batch with a role-signed Claude client and returns its summary", async () => {
     expect(await handler()).toEqual(SUMMARY);
     const args = vi.mocked(runSocialTopicBatch).mock.calls[0]?.[0];
-    expect(args).toMatchObject({ batchSize: 40, budgetMs: 240_000, admin: { admin: true } });
+    expect(args).toMatchObject({ batchSize: 40, budgetMs: 180_000, admin: { admin: true } });
+    // The last post can start at the budget and run to its deadline; both fit the 5-minute timeout.
+    const run = await vi.importActual<typeof import("@/lib/social-topic-run")>("@/lib/social-topic-run");
+    expect(180_000 + run.SOCIAL_TOPIC_POST_DEADLINE_MS).toBeLessThan(300_000);
     expect(args?.client.baseURL).toBe("https://aws-external-anthropic.us-west-2.api.aws");
     expect(typeof args?.mediaDeps?.readImage).toBe("function");
   });

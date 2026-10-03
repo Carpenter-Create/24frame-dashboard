@@ -38,6 +38,8 @@ import {
   signedSocialMediaItems,
   signedSocialMediaUrl,
   readSocialMediaObject,
+  readSocialMediaObjectFrom,
+  readSocialMediaObjectOrThrow,
 } from "./s3-social-media";
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -184,6 +186,41 @@ describe("s3-social-media isolated lane", () => {
 
   it("does not read a forbidden media key", async () => {
     await expect(readSocialMediaObject("avatars/secret")).resolves.toBeNull();
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("reads a missing object as null but throws other errors for topic tagging to retry", async () => {
+    const missing = Object.assign(new Error("The specified key does not exist."), {
+      name: "NoSuchKey",
+      $metadata: { httpStatusCode: 404 },
+    });
+    const denied = Object.assign(new Error("Access Denied"), {
+      name: "AccessDenied",
+      $metadata: { httpStatusCode: 403 },
+    });
+    const throttled = Object.assign(new Error("Slow Down"), { name: "SlowDown", $metadata: { httpStatusCode: 503 } });
+    const media = { bucket: "role-bucket", s3: new S3Client({}) };
+
+    mockSend.mockRejectedValueOnce(missing);
+    await expect(readSocialMediaObjectFrom(media, KEY)).resolves.toBeNull();
+    mockSend.mockRejectedValueOnce(denied);
+    await expect(readSocialMediaObjectFrom(media, KEY)).rejects.toThrow("Access Denied");
+    mockSend.mockRejectedValueOnce(throttled);
+    await expect(readSocialMediaObjectOrThrow(KEY)).rejects.toThrow("Slow Down");
+    mockSend.mockRejectedValueOnce(new Error("socket hang up"));
+    await expect(readSocialMediaObjectOrThrow(KEY)).rejects.toThrow("socket hang up");
+    expect((mockSend.mock.calls[0]?.[0] as GetObjectCommand).input.Bucket).toBe("role-bucket");
+
+    // The page read still treats every error as no image.
+    mockSend.mockRejectedValueOnce(throttled);
+    await expect(readSocialMediaObject(KEY)).resolves.toBeNull();
+  });
+
+  it("throws for topic tagging when the media keys are missing, and skips forbidden keys", async () => {
+    delete process.env.MEDIA_AWS_ACCESS_KEY_ID;
+    await expect(readSocialMediaObjectOrThrow(KEY)).rejects.toThrow("MEDIA_AWS_ACCESS_KEY_ID");
+    await expect(readSocialMediaObjectOrThrow("avatars/secret")).resolves.toBeNull();
+    await expect(readSocialMediaObjectFrom({ bucket: "b", s3: new S3Client({}) }, "avatars/secret")).resolves.toBeNull();
     expect(mockSend).not.toHaveBeenCalled();
   });
 

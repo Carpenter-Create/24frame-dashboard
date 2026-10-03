@@ -16,6 +16,11 @@ import type { Database } from "@/lib/supabase/database.types";
 export const SOCIAL_TOPIC_MIN_AGE_MS = 2 * 60 * 1000;
 // New posts only. Older posts are a founder-run backfill, not this job.
 export const SOCIAL_TOPIC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// One post gets at most 90 seconds (two 40-second model attempts plus
+// media). Past that it counts as an error and is retried next run. The
+// abandoned work may still finish; its write is guarded, so it can only
+// stamp a post that is still untagged.
+export const SOCIAL_TOPIC_POST_DEADLINE_MS = 90_000;
 
 export type SocialTopicRunSummary = Record<SocialTopicOutcome | "error" | "deferred", number> & {
   selected: number;
@@ -30,6 +35,7 @@ export async function runSocialTopicBatch(args: {
   mediaDeps?: SocialTopicMediaDeps;
   /** Injectable for tests. */
   clock?: () => number;
+  postDeadlineMs?: number;
 }): Promise<SocialTopicRunSummary> {
   const clock = args.clock ?? Date.now;
   const started = clock();
@@ -63,13 +69,16 @@ export async function runSocialTopicBatch(args: {
     }
     try {
       summary[
-        await tagSocialPostTopic({
-          admin: args.admin,
-          client: args.client,
-          post,
-          now: args.now,
-          mediaDeps: args.mediaDeps,
-        })
+        await withDeadline(
+          tagSocialPostTopic({
+            admin: args.admin,
+            client: args.client,
+            post,
+            now: args.now,
+            mediaDeps: args.mediaDeps,
+          }),
+          args.postDeadlineMs ?? SOCIAL_TOPIC_POST_DEADLINE_MS,
+        )
       ] += 1;
     } catch (cause) {
       // Untouched, so the next run retries it.
@@ -84,4 +93,16 @@ export async function runSocialTopicBatch(args: {
     }
   }
   return summary;
+}
+
+async function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`post timed out after ${ms} ms`)), ms);
+  });
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

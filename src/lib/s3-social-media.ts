@@ -153,39 +153,59 @@ function imageTypeForStoredObject(key: string, header: string | undefined): stri
   return null;
 }
 
-/** Server-side read of one media object. Null when the key is closed, empty, or not an image. */
+/** Server-side read of one media object. Null when the key is closed, empty, or not an image, or on any error. */
 export async function readSocialMediaObject(
   key: string,
 ): Promise<{ bytes: Uint8Array; contentType: string } | null> {
-  if (isForbiddenMediaKey(key)) return null;
   try {
-    return await readSocialMediaObjectFrom(mediaClient(), key);
+    return await readSocialMediaObjectOrThrow(key);
   } catch {
     return null;
   }
 }
 
 /**
+ * readSocialMediaObject, except that an error other than a missing object
+ * throws, so topic tagging retries the post instead of reading it as having
+ * no image.
+ */
+export async function readSocialMediaObjectOrThrow(
+  key: string,
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  if (isForbiddenMediaKey(key)) return null;
+  return readSocialMediaObjectFrom(mediaClient(), key);
+}
+
+function isMissingObject(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { name, $metadata } = error as { name?: unknown; $metadata?: { httpStatusCode?: unknown } };
+  return name === "NoSuchKey" || name === "NotFound" || $metadata?.httpStatusCode === 404;
+}
+
+/**
  * The same read through a caller's own client. The topic-tagging Lambda
  * passes an S3Client signed by its execution role, so it carries no
- * MEDIA_AWS_* keys.
+ * MEDIA_AWS_* keys. Null for a missing, empty, oversized, or non-image
+ * object; any other error throws.
  */
 export async function readSocialMediaObjectFrom(
   media: { bucket: string; s3: S3Client },
   key: string,
 ): Promise<{ bytes: Uint8Array; contentType: string } | null> {
   if (isForbiddenMediaKey(key)) return null;
+  const { bucket, s3 } = media;
+  let response;
   try {
-    const { bucket, s3 } = media;
-    const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-    const bytes = await response.Body?.transformToByteArray();
-    if (!bytes || bytes.byteLength === 0 || bytes.byteLength > SOCIAL_IMAGE_MAX_BYTES) return null;
-    const contentType = imageTypeForStoredObject(key, response.ContentType);
-    if (!contentType) return null;
-    return { bytes, contentType };
-  } catch {
-    return null;
+    response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  } catch (error) {
+    if (isMissingObject(error)) return null;
+    throw error;
   }
+  const bytes = await response.Body?.transformToByteArray();
+  if (!bytes || bytes.byteLength === 0 || bytes.byteLength > SOCIAL_IMAGE_MAX_BYTES) return null;
+  const contentType = imageTypeForStoredObject(key, response.ContentType);
+  if (!contentType) return null;
+  return { bytes, contentType };
 }
 
 export async function signedSocialMediaUrl(key: string): Promise<string | null> {

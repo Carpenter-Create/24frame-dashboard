@@ -7,7 +7,7 @@ vi.mock("@/lib/social-topic-tagger", () => ({ tagSocialPostTopic: vi.fn() }));
 import { tagSocialPostTopic } from "@/lib/social-topic-tagger";
 import type { Database } from "@/lib/supabase/database.types";
 
-import { runSocialTopicBatch } from "./social-topic-run";
+import { runSocialTopicBatch, SOCIAL_TOPIC_POST_DEADLINE_MS } from "./social-topic-run";
 
 const NOW = new Date("2026-10-03T12:00:00.000Z");
 const CLIENT = {} as Anthropic;
@@ -96,6 +96,40 @@ describe("runSocialTopicBatch", () => {
     });
 
     expect(summary).toMatchObject({ selected: 3, tagged: 2, deferred: 1 });
+  });
+
+  it("gives up on a post that runs past its deadline and moves on", async () => {
+    vi.useFakeTimers();
+    try {
+      const db = fakeAdmin({ data: ["slow", "next"].map(post), error: null });
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.mocked(tagSocialPostTopic)
+        .mockImplementationOnce(() => new Promise(() => {}))
+        .mockResolvedValueOnce("tagged");
+
+      const run = runSocialTopicBatch({
+        admin: db.admin,
+        client: CLIENT,
+        now: NOW,
+        batchSize: 40,
+        budgetMs: 60_000,
+        postDeadlineMs: 5_000,
+      });
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(tagSocialPostTopic).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(await run).toMatchObject({ selected: 2, tagged: 1, error: 1 });
+      expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("post timed out after 5000 ms"));
+      expect(vi.getTimerCount()).toBe(0);
+      errorLog.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("allows each post 90 seconds by default", () => {
+    expect(SOCIAL_TOPIC_POST_DEADLINE_MS).toBe(90_000);
   });
 
   it("throws when the select fails", async () => {

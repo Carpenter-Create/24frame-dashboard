@@ -57,6 +57,29 @@ export const socialTopicResultSchema = z.object({
 
 export type SocialTopicResult = z.infer<typeof socialTopicResultSchema>;
 
+const SOCIAL_TOPIC_ANSWERS = [...SOCIAL_CATEGORY_TOPICS, SOCIAL_TOPIC_NONE];
+
+/**
+ * The model's JSON answer, or null. The structured format shapes the JSON
+ * but does not enforce the topic list, so a topic is matched to its locked
+ * spelling ignoring case and outer spaces, and anything else is discarded.
+ */
+export function parseSocialTopicAnswer(text: string): SocialTopicResult | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (raw && typeof raw === "object" && typeof (raw as { topic?: unknown }).topic === "string") {
+    const said = (raw as { topic: string }).topic.normalize("NFC").trim().toLowerCase();
+    const topic = SOCIAL_TOPIC_ANSWERS.find((answer) => answer.toLowerCase() === said);
+    if (topic) raw = { ...raw, topic };
+  }
+  const parsed = socialTopicResultSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
 export const SOCIAL_TOPIC_SYSTEM = [
   "You classify one post from the Social workspace of 24Frame, where people who work in film and video share their work.",
   "Choose the single topic the post is mainly about from the list below, or none.",

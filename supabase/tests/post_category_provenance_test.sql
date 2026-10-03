@@ -5,7 +5,7 @@
 -- caption edit still works.
 
 begin;
-select plan(20);
+select plan(22);
 
 select set_config('t.author', gen_random_uuid()::text, false);
 select set_config('t.post', gen_random_uuid()::text, false);
@@ -57,7 +57,22 @@ select throws_ok(
     values (%L, 'ai without confidence', 'Music', 'ai')
   $sql$, current_setting('t.author')),
   '23514', null,
-  'an AI topic needs confidence and a version');
+  'an AI topic needs category_tagged_at, confidence and a version');
+select throws_ok(
+  format($sql$
+    insert into public.posts (author_id, body, category, category_source, category_tagged_at)
+    values (%L, 'ai, stamped, no confidence', 'Music', 'ai', now())
+  $sql$, current_setting('t.author')),
+  '23514', null,
+  'an AI topic needs a confidence');
+select throws_ok(
+  format($sql$
+    insert into public.posts
+      (author_id, body, category, category_source, category_confidence, category_tagged_at)
+    values (%L, 'ai, stamped, no version', 'Music', 'ai', 0.9, now())
+  $sql$, current_setting('t.author')),
+  '23514', null,
+  'an AI topic needs a classifier version');
 select throws_ok(
   format($sql$
     insert into public.posts (author_id, body, category_source)

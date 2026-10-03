@@ -6,9 +6,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ownedMediaItems } from "@/lib/social-media";
 import { parseSocialProfileRoles, socialProfileRoleLabel } from "@/lib/social-profile-roles";
-import { gatherSocialTopicMedia, type SocialTopicMediaDeps } from "@/lib/social-topic-media";
+import {
+  gatherSocialTopicMedia,
+  SOCIAL_TOPIC_LIVE_MEDIA_DEPS,
+  type SocialTopicMediaDeps,
+  type SocialTopicTrackRef,
+} from "@/lib/social-topic-media";
 import {
   buildSocialTopicContent,
+  parseSocialTopicAnswer,
   SOCIAL_TOPIC_MAX_TOKENS,
   SOCIAL_TOPIC_MIN_CONFIDENCE,
   SOCIAL_TOPIC_MODEL_ID,
@@ -38,11 +44,16 @@ export type SocialTopicPost = {
 export type SocialTopicOutcome = "tagged" | "declined" | "wait" | "raced";
 
 const SOCIAL_TOPIC_FORMAT = zodOutputFormat(socialTopicResultSchema);
+// One request gives up after 40 seconds and is retried once, so a post's
+// model time stays inside the run's per-post deadline (social-topic-run).
+export const SOCIAL_TOPIC_REQUEST_TIMEOUT_MS = 40_000;
+export const SOCIAL_TOPIC_REQUEST_MAX_RETRIES = 1;
 
 /**
  * The model's answer, or null for a look with no usable answer: a refusal,
- * a cut-off, or text that does not match the schema. API and network errors
- * throw, so the post stays untouched and the next run retries it.
+ * a cut-off, or an answer outside the 15 topics and "none" (the structured
+ * format shapes the JSON but does not enforce the list). API and network
+ * errors throw, so the post stays untouched and the next run retries it.
  * (messages.parse would throw on a refusal's text too, and that post would
  * then be retried every run.)
  */
@@ -50,22 +61,20 @@ export async function classifySocialTopic(
   client: Anthropic,
   input: SocialTopicInput,
 ): Promise<SocialTopicResult | null> {
-  const response = await client.messages.create({
-    model: SOCIAL_TOPIC_MODEL_ID,
-    max_tokens: SOCIAL_TOPIC_MAX_TOKENS,
-    system: SOCIAL_TOPIC_SYSTEM,
-    messages: [{ role: "user", content: buildSocialTopicContent(input) }],
-    // Classification: low effort keeps thinking short (Sonnet 5.5 guidance).
-    output_config: { effort: "low", format: SOCIAL_TOPIC_FORMAT },
-  });
+  const response = await client.messages.create(
+    {
+      model: SOCIAL_TOPIC_MODEL_ID,
+      max_tokens: SOCIAL_TOPIC_MAX_TOKENS,
+      system: SOCIAL_TOPIC_SYSTEM,
+      messages: [{ role: "user", content: buildSocialTopicContent(input) }],
+      // Classification: low effort keeps thinking short (Sonnet 5.5 guidance).
+      output_config: { effort: "low", format: SOCIAL_TOPIC_FORMAT },
+    },
+    { timeout: SOCIAL_TOPIC_REQUEST_TIMEOUT_MS, maxRetries: SOCIAL_TOPIC_REQUEST_MAX_RETRIES },
+  );
   if (response.stop_reason !== "end_turn") return null;
   const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
-  try {
-    const parsed = socialTopicResultSchema.safeParse(JSON.parse(text));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  return parseSocialTopicAnswer(text);
 }
 
 async function authorCrafts(admin: SupabaseClient<Database>, authorId: string): Promise<string[]> {
@@ -75,8 +84,10 @@ async function authorCrafts(admin: SupabaseClient<Database>, authorId: string): 
 
 /**
  * What the tagger would write for this post, without writing it. Null while
- * the post's video or transcript is still preparing. The eval script uses
- * this directly; the Lambda worker goes through tagSocialPostTopic.
+ * the post's video or transcript is still preparing. `cleanup` lists the
+ * tagger's transcript tracks to delete before the write. The eval script
+ * uses this directly and deletes nothing; the Lambda worker goes through
+ * tagSocialPostTopic.
  */
 export async function decideSocialPostTopic(args: {
   admin: SupabaseClient<Database>;
@@ -86,14 +97,20 @@ export async function decideSocialPostTopic(args: {
   requestSubtitles?: boolean;
   minConfidence?: number;
   mediaDeps?: SocialTopicMediaDeps;
-}): Promise<{ write: SocialTopicWrite; result: SocialTopicResult | null } | null> {
+}): Promise<{
+  write: SocialTopicWrite;
+  result: SocialTopicResult | null;
+  cleanup: SocialTopicTrackRef[];
+} | null> {
   const { admin, client, post, now } = args;
-  const items = ownedMediaItems(post.media, post.author_id, "posts");
   const media = await gatherSocialTopicMedia(
-    items,
-    post.created_at,
-    now,
-    { requestSubtitles: args.requestSubtitles ?? true },
+    {
+      items: ownedMediaItems(post.media, post.author_id, "posts"),
+      authorId: post.author_id,
+      createdAt: post.created_at,
+      now,
+      requestSubtitles: args.requestSubtitles ?? true,
+    },
     args.mediaDeps,
   );
   if (media.status === "wait") return null;
@@ -101,7 +118,7 @@ export async function decideSocialPostTopic(args: {
   const caption = post.body?.trim() || null;
   // Nothing to read: no call, and the look is stamped as no topic.
   if (!caption && media.images.length === 0 && !media.transcript) {
-    return { write: socialTopicWrite(null, now), result: null };
+    return { write: socialTopicWrite(null, now), result: null, cleanup: media.cleanup };
   }
   const result = await classifySocialTopic(client, {
     caption,
@@ -112,6 +129,7 @@ export async function decideSocialPostTopic(args: {
   return {
     write: socialTopicWrite(result, now, args.minConfidence ?? SOCIAL_TOPIC_MIN_CONFIDENCE),
     result,
+    cleanup: media.cleanup,
   };
 }
 
@@ -125,6 +143,12 @@ export async function tagSocialPostTopic(args: {
 }): Promise<SocialTopicOutcome> {
   const decided = await decideSocialPostTopic(args);
   if (!decided) return "wait";
+  // Captions off before the stamp: if a delete fails, the post is retried
+  // and the track is read and deleted again, never left behind.
+  const deps = args.mediaDeps ?? SOCIAL_TOPIC_LIVE_MEDIA_DEPS;
+  for (const track of decided.cleanup) {
+    await deps.deleteTrack(track.assetId, track.trackId);
+  }
   const { data, error } = await args.admin
     .from("posts")
     .update(decided.write)

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
-import type { MuxAssetData, SocialMuxTrack } from "@/lib/social-mux-server";
+import { SOCIAL_MUX_TOPIC_TRACK_NAME, type MuxAssetData, type SocialMuxTrack } from "@/lib/social-mux-server";
 import type { SocialTopicMediaDeps } from "@/lib/social-topic-media";
 import {
   buildSocialTopicContent,
@@ -20,6 +20,8 @@ import type { Database } from "@/lib/supabase/database.types";
 import {
   classifySocialTopic,
   decideSocialPostTopic,
+  SOCIAL_TOPIC_REQUEST_MAX_RETRIES,
+  SOCIAL_TOPIC_REQUEST_TIMEOUT_MS,
   tagSocialPostTopic,
   type SocialTopicPost,
 } from "./social-topic-tagger";
@@ -37,7 +39,13 @@ const STRANGER_IMAGE_KEY = `posts/${STRANGER}/aaaaaaaa-bbbb-4ccc-8ddd-ffffffffff
 const PLAYBACK_ID = "playbackId0001";
 const ASSET_ID = "assetId00000001";
 const AUDIO_TRACK: SocialMuxTrack = { id: "audioTrack01", type: "audio", status: "ready", primary: true };
-const TEXT_TRACK: SocialMuxTrack = { id: "textTrack001", type: "text", text_source: "generated_vod", status: "ready" };
+const TEXT_TRACK: SocialMuxTrack = {
+  id: "textTrack001",
+  type: "text",
+  text_source: "generated_vod",
+  status: "ready",
+  name: SOCIAL_MUX_TOPIC_TRACK_NAME,
+};
 const TRANSCRIPT = "Today we light a night exterior with a single HMI.";
 
 const NO_TOPIC: SocialTopicWrite = {
@@ -66,7 +74,7 @@ function answer(topic: SocialTopicResult["topic"] | string, confidence: number, 
 }
 
 function fakeClient(response: ParseResponse | Error = answer("Cinematography", 0.92)) {
-  const create = vi.fn<(request: ParseRequest) => Promise<ParseResponse>>();
+  const create = vi.fn<(request: ParseRequest, options?: unknown) => Promise<ParseResponse>>();
   if (response instanceof Error) create.mockRejectedValue(response);
   else create.mockResolvedValue(response);
   return {
@@ -131,9 +139,18 @@ function videoItem() {
   };
 }
 
-function readyAsset(tracks: SocialMuxTrack[] = [AUDIO_TRACK, TEXT_TRACK]): MuxAssetData {
-  return { id: ASSET_ID, status: "ready", duration: 20, tracks };
+function readyAsset(tracks: SocialMuxTrack[] = [AUDIO_TRACK, TEXT_TRACK], owner = AUTHOR): MuxAssetData {
+  return {
+    id: ASSET_ID,
+    status: "ready",
+    duration: 20,
+    passthrough: `${owner}:aaaaaaaa-bbbb-4ccc-8ddd-000000000000`,
+    playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }],
+    tracks,
+  };
 }
+
+const PREPARING: MuxAssetData = { ...readyAsset([]), status: "preparing" };
 
 function fakeDeps() {
   return {
@@ -142,6 +159,7 @@ function fakeDeps() {
     requestSubtitles: vi.fn<SocialTopicMediaDeps["requestSubtitles"]>(async () => {}),
     fetchTranscript: vi.fn<SocialTopicMediaDeps["fetchTranscript"]>(async () => TRANSCRIPT),
     fetchFrame: vi.fn<SocialTopicMediaDeps["fetchFrame"]>(async () => null),
+    deleteTrack: vi.fn<SocialTopicMediaDeps["deleteTrack"]>(async () => {}),
   };
 }
 
@@ -177,6 +195,29 @@ describe("classifySocialTopic", () => {
       messages: [{ role: "user", content: buildSocialTopicContent(INPUT) }],
       output_config: { effort: "low", format: { type: "json_schema" } },
     });
+    // Bounded so one post fits the run's per-post deadline.
+    expect(model.create.mock.lastCall?.[1]).toEqual({
+      timeout: SOCIAL_TOPIC_REQUEST_TIMEOUT_MS,
+      maxRetries: SOCIAL_TOPIC_REQUEST_MAX_RETRIES,
+    });
+    expect(SOCIAL_TOPIC_REQUEST_TIMEOUT_MS * (SOCIAL_TOPIC_REQUEST_MAX_RETRIES + 1)).toBeLessThan(90_000);
+  });
+
+  // The structured format shapes the JSON; the API does not enforce the list.
+  it("matches a topic to its locked spelling and discards anything else", async () => {
+    const cases: [string, SocialTopicResult | null][] = [
+      [JSON.stringify({ topic: " cinematography ", confidence: 0.9 }), { topic: "Cinematography", confidence: 0.9 }],
+      [JSON.stringify({ topic: "FILM FESTIVALS", confidence: 0.85 }), { topic: "Film Festivals", confidence: 0.85 }],
+      [JSON.stringify({ topic: "None", confidence: 0.7 }), { topic: "none", confidence: 0.7 }],
+      [JSON.stringify({ topic: "Film festival", confidence: 0.9 }), null],
+      [JSON.stringify({ topic: "Cooking", confidence: 0.9 }), null],
+      [JSON.stringify({ topic: 7, confidence: 0.9 }), null],
+      [JSON.stringify({ topic: "Music" }), null],
+      ["null", null],
+    ];
+    for (const [text, expected] of cases) {
+      expect(await classifySocialTopic(fakeClient(reply(text)).client, INPUT), text).toEqual(expected);
+    }
   });
 
   it("gives the model a format that accepts only the locked topics or none", async () => {
@@ -244,7 +285,7 @@ describe("decideSocialPostTopic", () => {
     const model = fakeClient();
     const db = fakeAdmin();
     const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue({ id: ASSET_ID, status: "preparing" });
+    deps.retrieveAsset.mockResolvedValue(PREPARING);
 
     const decided = await decideSocialPostTopic({
       admin: db.admin,
@@ -274,7 +315,7 @@ describe("decideSocialPostTopic", () => {
         mediaDeps: fakeDeps(),
       });
 
-      expect(decided).toEqual({ write: NO_TOPIC, result: null });
+      expect(decided).toEqual({ write: NO_TOPIC, result: null, cleanup: [] });
       expect(model.create).not.toHaveBeenCalled();
       expect(db.from).not.toHaveBeenCalled();
     }
@@ -350,6 +391,42 @@ describe("decideSocialPostTopic", () => {
     expect(first).toMatchObject({ type: "text", text: expect.stringContaining(`<transcript>\n${TRANSCRIPT}\n</transcript>`) });
   });
 
+  it("never reads or transcribes a Mux asset the author did not upload", async () => {
+    const model = fakeClient();
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK], STRANGER));
+
+    const decided = await decideSocialPostTopic({
+      admin: fakeAdmin().admin,
+      client: model.client,
+      post: post({ media: [videoItem()] }),
+      now: NOW,
+      mediaDeps: deps,
+    });
+
+    expect(decided?.cleanup).toEqual([]);
+    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+    expect(deps.fetchTranscript).not.toHaveBeenCalled();
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
+    expect(model.request().messages[0]!.content).toEqual(
+      buildSocialTopicContent({ caption: post().body, crafts: [], transcript: null, images: [] }),
+    );
+  });
+
+  it("lists the tagger's transcript track for deletion but deletes nothing itself", async () => {
+    const deps = fakeDeps();
+    const decided = await decideSocialPostTopic({
+      admin: fakeAdmin().admin,
+      client: fakeClient().client,
+      post: post({ media: [videoItem()] }),
+      now: NOW,
+      mediaDeps: deps,
+    });
+
+    expect(decided?.cleanup).toEqual([{ assetId: ASSET_ID, trackId: "textTrack001" }]);
+    expect(deps.deleteTrack).not.toHaveBeenCalled();
+  });
+
   it("requests a transcript for a ready video by default, and not when told not to", async () => {
     const deps = fakeDeps();
     deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK]));
@@ -371,7 +448,7 @@ describe("decideSocialPostTopic", () => {
     const args = { admin: fakeAdmin().admin, post: post(), now: NOW, mediaDeps: fakeDeps() };
 
     const strict = await decideSocialPostTopic({ ...args, client: fakeClient(answer("Producers", 0.6)).client });
-    expect(strict).toEqual({ write: NO_TOPIC, result: { topic: "Producers", confidence: 0.6 } });
+    expect(strict).toEqual({ write: NO_TOPIC, result: { topic: "Producers", confidence: 0.6 }, cleanup: [] });
 
     const loose = await decideSocialPostTopic({
       ...args,
@@ -451,7 +528,7 @@ describe("tagSocialPostTopic", () => {
     const model = fakeClient();
     const db = fakeAdmin();
     const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue({ id: ASSET_ID, status: "preparing" });
+    deps.retrieveAsset.mockResolvedValue(PREPARING);
 
     const outcome = await tagSocialPostTopic({
       admin: db.admin,
@@ -478,6 +555,41 @@ describe("tagSocialPostTopic", () => {
         mediaDeps: fakeDeps(),
       }),
     ).rejects.toThrow("overloaded");
+    expect(db.ops.posts).toBeUndefined();
+  });
+
+  it("deletes the tagger's caption track before stamping the post", async () => {
+    const db = fakeAdmin();
+    const deps = fakeDeps();
+
+    const outcome = await tagSocialPostTopic({
+      admin: db.admin,
+      client: fakeClient().client,
+      post: post({ media: [videoItem()] }),
+      now: NOW,
+      mediaDeps: deps,
+    });
+
+    expect(outcome).toBe("tagged");
+    expect(deps.deleteTrack.mock.calls).toEqual([[ASSET_ID, "textTrack001"]]);
+    const write = db.from.mock.calls.findIndex(([table]) => table === "posts");
+    expect(deps.deleteTrack.mock.invocationCallOrder[0]).toBeLessThan(db.from.mock.invocationCallOrder[write]!);
+  });
+
+  it("leaves the post unstamped when the caption track cannot be deleted", async () => {
+    const db = fakeAdmin();
+    const deps = fakeDeps();
+    deps.deleteTrack.mockRejectedValue(new Error("Mux track delete failed (503)"));
+
+    await expect(
+      tagSocialPostTopic({
+        admin: db.admin,
+        client: fakeClient().client,
+        post: post({ media: [videoItem()] }),
+        now: NOW,
+        mediaDeps: deps,
+      }),
+    ).rejects.toThrow("Mux track delete failed (503)");
     expect(db.ops.posts).toBeUndefined();
   });
 

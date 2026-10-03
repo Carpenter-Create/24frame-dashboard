@@ -50,6 +50,8 @@ alter table public.posts
     or (category_source = 'author' and category is not null
       and category_confidence is null and category_logic_version is null)
     or (category_source = 'ai' and category is not null
+      and category_confidence is not null
+      and category_logic_version is not null
       and category_confidence between 0 and 1
       and length(btrim(category_logic_version)) between 1 and 64)),
   add constraint posts_category_ai_tagged_at check (

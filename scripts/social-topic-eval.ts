@@ -5,9 +5,11 @@
 //
 // labels.csv: one `post_id,topic` per line (topic is one of the 15 labels or
 // "none"). Needs NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, the
-// Social media and Mux env, and the CLAUDE_AWS_* set. Never print their
-// values. Captions are not printed either; the report shows post ids only.
-// Spends roughly a cent per post; a few frames per video.
+// Social media env (MEDIA_AWS_* and S3_MEDIA_SOURCE_BUCKET), the Mux env,
+// and the CLAUDE_AWS_* set. Never print their values. Captions are not
+// printed either; the report shows post ids only. A post that fails to read
+// is skipped with its error, not scored. Spends roughly a cent per post; a
+// few frames per video. It never starts a transcription or deletes a track.
 
 import { readFileSync } from "node:fs";
 
@@ -35,6 +37,7 @@ async function main(): Promise<void> {
   const admin = createAdminClient();
   const client = createClaudeClient(config);
   const rows: SocialTopicEvalRow[] = [];
+  let skipped = 0;
   for (const label of labels) {
     const { data: post, error } = await admin
       .from("posts")
@@ -43,18 +46,27 @@ async function main(): Promise<void> {
       .maybeSingle();
     if (error || !post) {
       console.warn(`skip ${label.postId}: not found`);
+      skipped += 1;
       continue;
     }
     // Past the media wait, so a preparing video is read as it is now.
     const now = new Date(Math.max(Date.now(), Date.parse(post.created_at) + SOCIAL_TOPIC_MEDIA_WAIT_MS));
-    const decided = await decideSocialPostTopic({
-      admin,
-      client,
-      post,
-      now,
-      requestSubtitles: false,
-      minConfidence: 0,
-    });
+    let decided;
+    try {
+      decided = await decideSocialPostTopic({
+        admin,
+        client,
+        post,
+        now,
+        requestSubtitles: false,
+        minConfidence: 0,
+      });
+    } catch (cause) {
+      // Not scored: a read or model error says nothing about accuracy.
+      console.warn(`skip ${post.id}: ${cause instanceof Error ? cause.message : String(cause)}`);
+      skipped += 1;
+      continue;
+    }
     const predicted = decided?.result?.topic ?? SOCIAL_TOPIC_NONE;
     const confidence = decided?.result?.confidence ?? 0;
     rows.push({ postId: post.id, expected: label.topic, predicted, confidence });
@@ -62,7 +74,7 @@ async function main(): Promise<void> {
     console.log(`${mark}${post.id}  expected=${label.topic}  got=${predicted} (${confidence.toFixed(2)})`);
   }
 
-  console.log(`\n${SOCIAL_TOPIC_LOGIC_VERSION}: ${rows.length} posts scored`);
+  console.log(`\n${SOCIAL_TOPIC_LOGIC_VERSION}: ${rows.length} posts scored, ${skipped} skipped`);
   console.log("threshold  tagged  correct  wrong  precision  recall");
   for (const score of scoreSocialTopicEval(rows, THRESHOLDS)) {
     const pct = (value: number | null) => (value === null ? "   -" : `${Math.round(value * 100)}%`.padStart(4));

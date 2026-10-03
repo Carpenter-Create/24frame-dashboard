@@ -3,50 +3,72 @@ import "server-only";
 import sharp from "sharp";
 
 import { isSocialMuxMediaItem, type SocialMediaItem } from "@/lib/social-media";
+import { socialMuxPassthroughBoundToUser } from "@/lib/social-mux";
 import {
+  deleteSocialMuxTrack,
   fetchSocialMuxFrame,
   fetchSocialMuxTranscript,
+  isSocialMuxPermanentError,
   requestSocialMuxGeneratedSubtitles,
   retrieveSocialMuxAsset,
+  SOCIAL_MUX_TOPIC_TIMEOUT_MS,
+  SOCIAL_MUX_TOPIC_TRACK_NAME,
   type MuxAssetData,
   type SocialMuxTrack,
 } from "@/lib/social-mux-server";
-import { readSocialMediaObject } from "@/lib/s3-social-media";
+import { readSocialMediaObjectOrThrow } from "@/lib/s3-social-media";
 import { SOCIAL_TOPIC_MAX_IMAGES, type SocialTopicImage } from "@/lib/social-topic-tagging";
 
 // What the topic tagger can see of a post's media. Images come from the
 // Social media bucket; a Mux video gives three frames and, once Mux has
 // transcribed it, its transcript (founder-approved). Transcription is
 // requested here, the first time the tagger meets a ready video, so only
-// videos the tagger reads are transcribed.
+// videos the tagger reads are transcribed. Founder decision 2026-10-03
+// (tagging only): the tagger's transcript track is listed in `cleanup` and
+// deleted before the post is stamped, so viewers do not keep captions.
 //
 // "wait" means try again on a later run: the video, or its transcript, is
 // still preparing. A video still preparing after SOCIAL_TOPIC_MEDIA_WAIT_MS
 // is classified from the caption alone.
+//
+// Read errors throw, so the post is left untouched and retried. Only a
+// permanent miss (a missing object, a Mux 4xx such as a deleted asset) reads
+// as no media.
 
 export const SOCIAL_TOPIC_MEDIA_WAIT_MS = 60 * 60 * 1000;
 export const SOCIAL_TOPIC_IMAGE_MAX_EDGE = 1024;
 export const SOCIAL_TOPIC_FRAME_WIDTH = 768;
 export const SOCIAL_TOPIC_FRAME_POINTS = [0.15, 0.5, 0.85] as const;
 
+/** A Mux text track the tagger created and must delete. */
+export type SocialTopicTrackRef = { assetId: string; trackId: string };
+
 export type SocialTopicMedia =
   | { status: "wait" }
-  | { status: "ready"; images: SocialTopicImage[]; transcript: string | null };
+  | {
+      status: "ready";
+      images: SocialTopicImage[];
+      transcript: string | null;
+      cleanup: SocialTopicTrackRef[];
+    };
 
 export type SocialTopicMediaDeps = {
-  readImage: typeof readSocialMediaObject;
-  retrieveAsset: typeof retrieveSocialMuxAsset;
+  readImage: typeof readSocialMediaObjectOrThrow;
+  retrieveAsset: (assetId: string) => Promise<MuxAssetData>;
   requestSubtitles: typeof requestSocialMuxGeneratedSubtitles;
   fetchTranscript: typeof fetchSocialMuxTranscript;
   fetchFrame: typeof fetchSocialMuxFrame;
+  deleteTrack: typeof deleteSocialMuxTrack;
 };
 
 export const SOCIAL_TOPIC_LIVE_MEDIA_DEPS: SocialTopicMediaDeps = {
-  readImage: readSocialMediaObject,
-  retrieveAsset: retrieveSocialMuxAsset,
+  readImage: readSocialMediaObjectOrThrow,
+  retrieveAsset: (assetId) =>
+    retrieveSocialMuxAsset(assetId, { signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS) }),
   requestSubtitles: requestSocialMuxGeneratedSubtitles,
   fetchTranscript: fetchSocialMuxTranscript,
   fetchFrame: fetchSocialMuxFrame,
+  deleteTrack: deleteSocialMuxTrack,
 };
 
 /** Downscale to SOCIAL_TOPIC_IMAGE_MAX_EDGE and re-encode as JPEG (first frame of a GIF). */
@@ -83,56 +105,71 @@ function primaryAudioTrack(asset: MuxAssetData): SocialMuxTrack | null {
   return audio.find((track) => track.primary) ?? audio[0] ?? null;
 }
 
-type VideoSignals = { status: "wait" } | { status: "ready"; frames: SocialTopicImage[]; transcript: string | null };
+type VideoSignals =
+  | { status: "wait" }
+  | { status: "ready"; frames: SocialTopicImage[]; transcript: string | null; cleanup: SocialTopicTrackRef[] };
+
+const NO_VIDEO: VideoSignals = { status: "ready", frames: [], transcript: null, cleanup: [] };
 
 async function muxVideoSignals(
   item: SocialMediaItem & { playbackId: string },
+  authorId: string,
   waitedOut: boolean,
-  options: { requestSubtitles: boolean },
+  requestSubtitles: boolean,
   deps: SocialTopicMediaDeps,
 ): Promise<VideoSignals> {
-  if (!item.assetId) return { status: "ready", frames: [], transcript: null };
+  if (!item.assetId) return NO_VIDEO;
   let asset: MuxAssetData;
   try {
     asset = await deps.retrieveAsset(item.assetId);
   } catch (error) {
-    // Transient until the wait runs out; then classify without the video.
-    if (waitedOut) return { status: "ready", frames: [], transcript: null };
+    // A deleted asset will not come back; anything else is retried.
+    if (isSocialMuxPermanentError(error)) return NO_VIDEO;
     throw error;
   }
-  if (asset.status === "errored") return { status: "ready", frames: [], transcript: null };
-  if (asset.status !== "ready") {
-    return waitedOut ? { status: "ready", frames: [], transcript: null } : { status: "wait" };
+  // Only the author's own upload, played by this playback id. A post that
+  // names someone else's asset gets no frames, no transcript, and no
+  // transcription request.
+  if (
+    !socialMuxPassthroughBoundToUser(asset.passthrough, authorId) ||
+    !asset.playback_ids?.some((playback) => playback.id === item.playbackId)
+  ) {
+    return NO_VIDEO;
   }
+  if (asset.status === "errored") return NO_VIDEO;
+  if (asset.status !== "ready") return waitedOut ? NO_VIDEO : { status: "wait" };
 
   // The transcript wait is not tied to the post's age: a post first seen
   // late (the switch-on backlog, an outage) still gets its transcript. The
   // 7-day selection window bounds it. The eval script never waits.
   let transcript: string | null = null;
+  const cleanup: SocialTopicTrackRef[] = [];
   const text = generatedTextTrack(asset);
   if (text?.status === "ready" && text.id) {
-    transcript = await deps.fetchTranscript(item.playbackId, text.id).catch(() => null);
-  } else if (options.requestSubtitles && text?.status === "preparing") {
+    transcript = await deps.fetchTranscript(item.playbackId, text.id);
+  } else if (requestSubtitles && text?.status === "preparing") {
     return { status: "wait" };
-  } else if (options.requestSubtitles && !text) {
+  } else if (requestSubtitles && !text) {
     const audio = primaryAudioTrack(asset);
     if (audio?.id) {
-      // A failed request (no speech, already queued) falls back to frames.
-      const requested = await deps.requestSubtitles(item.assetId, audio.id).then(
-        () => true,
-        () => false,
-      );
-      if (requested) return { status: "wait" };
+      try {
+        await deps.requestSubtitles(item.assetId, audio.id);
+        return { status: "wait" };
+      } catch (error) {
+        // Mux refused it (no speech, already queued): frames only.
+        if (!isSocialMuxPermanentError(error)) throw error;
+      }
     }
+  }
+  if (text?.id && text.name === SOCIAL_MUX_TOPIC_TRACK_NAME && text.status !== "preparing") {
+    cleanup.push({ assetId: item.assetId, trackId: text.id });
   }
 
   const duration = asset.duration && asset.duration > 0 ? asset.duration : 0;
   const times = duration > 0 ? SOCIAL_TOPIC_FRAME_POINTS.map((point) => Math.floor(point * duration)) : [0];
   const frames: SocialTopicImage[] = [];
   for (const time of [...new Set(times)]) {
-    const bytes = await deps
-      .fetchFrame(item.playbackId, { time, width: SOCIAL_TOPIC_FRAME_WIDTH })
-      .catch(() => null);
+    const bytes = await deps.fetchFrame(item.playbackId, { time, width: SOCIAL_TOPIC_FRAME_WIDTH });
     if (bytes) {
       frames.push({
         label: `Video frame at ${time}s`,
@@ -141,27 +178,31 @@ async function muxVideoSignals(
       });
     }
   }
-  return { status: "ready", frames, transcript };
+  return { status: "ready", frames, transcript, cleanup };
 }
 
 /**
  * Media signals for one post. `createdAt` decides whether the tagger still
- * waits for a preparing video or transcript. The eval script passes
- * requestSubtitles: false so it never starts a transcription.
+ * waits for a preparing video. The eval script passes requestSubtitles:
+ * false so it never starts a transcription.
  */
 export async function gatherSocialTopicMedia(
-  items: readonly SocialMediaItem[],
-  createdAt: string,
-  now: Date,
-  options: { requestSubtitles: boolean } = { requestSubtitles: true },
+  post: {
+    items: readonly SocialMediaItem[];
+    authorId: string;
+    createdAt: string;
+    now: Date;
+    requestSubtitles: boolean;
+  },
   deps: SocialTopicMediaDeps = SOCIAL_TOPIC_LIVE_MEDIA_DEPS,
 ): Promise<SocialTopicMedia> {
-  const waitedOut = now.getTime() - Date.parse(createdAt) >= SOCIAL_TOPIC_MEDIA_WAIT_MS;
+  const waitedOut = post.now.getTime() - Date.parse(post.createdAt) >= SOCIAL_TOPIC_MEDIA_WAIT_MS;
   const images: SocialTopicImage[] = [];
+  const cleanup: SocialTopicTrackRef[] = [];
   let transcript: string | null = null;
   let photos = 0;
 
-  for (const item of items) {
+  for (const item of post.items) {
     if (images.length >= SOCIAL_TOPIC_MAX_IMAGES) break;
     if (item.kind === "image") {
       const object = await deps.readImage(item.key);
@@ -173,12 +214,13 @@ export async function gatherSocialTopicMedia(
       continue;
     }
     if (isSocialMuxMediaItem(item)) {
-      const video = await muxVideoSignals(item, waitedOut, options, deps);
+      const video = await muxVideoSignals(item, post.authorId, waitedOut, post.requestSubtitles, deps);
       if (video.status === "wait") return { status: "wait" };
       images.push(...video.frames);
       transcript ??= video.transcript;
+      cleanup.push(...video.cleanup);
     }
   }
 
-  return { status: "ready", images: images.slice(0, SOCIAL_TOPIC_MAX_IMAGES), transcript };
+  return { status: "ready", images: images.slice(0, SOCIAL_TOPIC_MAX_IMAGES), transcript, cleanup };
 }
