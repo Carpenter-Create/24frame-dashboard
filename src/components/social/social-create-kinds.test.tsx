@@ -193,9 +193,13 @@ describe("Social create kinds", () => {
     );
     expect(caption).toContain('data-social-create-kind="media"');
     expect(caption).toContain('data-social-create-media-step="caption"');
-    expect(caption).toContain(SOCIAL.create.caption);
+    // No visible heading: the field carries the placeholder, and the label
+    // stays for screen readers only.
+    expect(caption).toContain(
+      `<label class="sr-only" for="social-create-body">${SOCIAL.create.caption}</label>`,
+    );
     expect(caption).toContain(SOCIAL.home.submit);
-    expect(caption).toContain(SOCIAL.home.captionPlaceholder);
+    expect(caption).toContain('placeholder="Add a caption…"');
     expect(caption).not.toContain("required");
     expect(caption).not.toContain(SOCIAL.create.dropEmpty);
     expect(caption).not.toContain("data-social-create-well");

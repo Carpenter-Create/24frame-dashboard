@@ -11,11 +11,8 @@ import {
   commitSocialComposeMediaItem,
   composeSlotMayUpload,
   composeVideoUploadPixels,
-  paintSocialComposeVideoPoster,
   planSocialComposeAttach,
-  socialComposePosterSize,
   stampSocialComposeSourcePixels,
-  type SocialComposePosterCanvas,
 } from "@/lib/social-compose-video";
 import {
   isSocialUploadAbort,
@@ -67,43 +64,6 @@ describe("write compose video attach", () => {
     expect(planSocialComposeAttach(bigStill)).toEqual({ ok: false, error: SOCIAL.home.mediaTooLarge });
   });
 
-  it("scales the poster down and paints a jpeg data URL from a decoded frame", () => {
-    expect(socialComposePosterSize(0, 1080)).toBeNull();
-    expect(socialComposePosterSize(1080, 1920)).toEqual({ width: 405, height: 720 });
-    expect(socialComposePosterSize(320, 180)).toEqual({ width: 320, height: 180 });
-
-    let drawn = false;
-    const canvas: SocialComposePosterCanvas = {
-      width: 0,
-      height: 0,
-      getContext: () => ({
-        drawImage: () => {
-          drawn = true;
-        },
-      }),
-      toDataURL: () => "data:image/jpeg;base64,frame",
-    };
-    expect(paintSocialComposeVideoPoster({ videoWidth: 0, videoHeight: 10 }, canvas)).toBeNull();
-    expect(
-      paintSocialComposeVideoPoster({ videoWidth: 1080, videoHeight: 1920 }, canvas),
-    ).toBe("data:image/jpeg;base64,frame");
-    expect(drawn).toBe(true);
-    expect(canvas.width).toBe(405);
-    expect(canvas.height).toBe(720);
-
-    const rejected: SocialComposePosterCanvas = {
-      width: 0,
-      height: 0,
-      getContext: () => ({
-        drawImage: () => {
-          throw new Error("not decoded");
-        },
-      }),
-      toDataURL: () => "data:image/jpeg;base64,nope",
-    };
-    expect(paintSocialComposeVideoPoster({ videoWidth: 100, videoHeight: 100 }, rejected)).toBeNull();
-  });
-
   it("reports byte percent and resolves only a successful progress PUT", async () => {
     expect(socialUploadPercent(0, 0)).toBeNull();
     expect(socialUploadPercent(1, 0)).toBeNull();
@@ -148,7 +108,7 @@ describe("write compose video attach", () => {
       putSocialMediaWithProgress("https://mux.example/upload", file, "video/mp4", {
         createXhr: () => failed,
       }),
-    ).rejects.toThrow(/upload failed/);
+    ).rejects.toMatchObject({ name: "SocialUploadPutError", status: 500, message: "upload failed (500)" });
 
     const aborted = new DOMException("The operation was aborted.", "AbortError");
     expect(isSocialUploadAbort(aborted)).toBe(true);
@@ -170,8 +130,13 @@ describe("write compose video attach", () => {
     expect(video).toContain('preload="auto"');
     expect(video).toContain("muted");
     expect(video).toContain("playsInline");
+    expect(video).toContain("loop");
     expect(video).not.toContain('preload="metadata"');
     expect(video).not.toContain("data-social-create-video-poster");
+    // Reads as video: a corner badge with a screen-reader name.
+    expect(video).toContain('data-social-create-video-badge=""');
+    expect(video).toContain('data-social-icon="video-camera"');
+    expect(video).toContain(`<span class="sr-only">${SOCIAL.home.videoKind}</span>`);
   });
 
   it("uploads a queued clip only while its controller is live, and keeps real preview dims", () => {
@@ -242,7 +207,7 @@ describe("write compose video attach", () => {
     const loop = compose.slice(loopAt, compose.indexOf("} finally", loopAt));
     expect(text).toContain("data-social-create-upload-progress");
     expect(text).toContain("data-social-create-video");
-    expect(text).toContain("data-social-create-video-poster");
+    expect(text).not.toContain("data-social-create-video-poster");
     expect(text).toContain("bindStoryReviewVideo");
     expect(text).toContain("storyReviewMediaSrc");
     expect(text).toContain("storyReviewFrameSeconds");
@@ -251,15 +216,30 @@ describe("write compose video attach", () => {
     expect(text).toContain("playsInline");
     expect(text).toContain("autoPlay");
     expect(text).toContain("node.play()");
-    const hold = text.slice(text.indexOf("const holdFrame"), text.indexOf("const present"));
-    expect(hold).toContain("reportPixels()");
+    // A muted loop; Reduce Motion holds one frame instead.
+    expect(text).toContain('matchMedia?.("(prefers-reduced-motion: reduce)")');
+    expect(text).toContain("node.loop = !still;");
+    const hold = text.slice(text.indexOf("const hold = "), text.indexOf("const present"));
+    expect(hold).toContain("if (!still ||");
     expect(hold).toContain("node.pause()");
+    // Pixels still arrive when WebKit only sizes the clip once playback runs.
+    expect(hold).toContain("if (!reported) reportPixels();");
+    expect(hold.indexOf("reportPixels()")).toBeLessThan(hold.indexOf("if (!still ||"));
+    const report = text.slice(text.indexOf("const reportPixels"), text.indexOf("const hold = "));
+    expect(report).toContain("if (!pixels) return;");
+    expect(report).toContain("reported = true;");
+    const present = text.slice(text.indexOf("const present"), text.indexOf('addEventListener("loadedmetadata"'));
+    expect(present).toContain("reportPixels()");
+    // The seek paints a frame even when autoplay is refused.
+    expect(present.indexOf("node.currentTime = frame")).toBeGreaterThan(-1);
+    expect(present.indexOf("node.currentTime = frame")).toBeLessThan(present.indexOf("node.play()"));
     const previewFn = text.slice(
       text.indexOf("export function SocialComposeVideoPreview"),
       text.indexOf("function persistKeys"),
     );
     const previewJsx = previewFn.slice(previewFn.lastIndexOf("return ("));
-    expect(previewJsx.indexOf("<video")).toBeLessThan(previewJsx.indexOf("data-social-create-video-poster"));
+    expect(previewJsx).toContain("loop");
+    expect(previewJsx.indexOf("<video")).toBeLessThan(previewJsx.indexOf("data-social-create-video-badge"));
     expect(compose.indexOf("new AbortController()")).toBeGreaterThan(-1);
     expect(compose.indexOf("new AbortController()")).toBeLessThan(loopAt);
     expect(loop).not.toContain("new AbortController");

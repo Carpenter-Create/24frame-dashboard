@@ -573,7 +573,7 @@ export const SOCIAL = {
     forYouTab: "For you",
     compose: "Write a post",
     submit: "Post",
-    captionPlaceholder: "Write a caption…",
+    captionPlaceholder: "Add a caption…",
     dropPhoto: "Drop a still · or choose from library",
     dropVideo: "Drop a clip · or choose from library",
     dropText: "Nothing drafted yet.",

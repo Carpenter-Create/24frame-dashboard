@@ -84,7 +84,10 @@ async function muxRequest<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const json = (await response.json().catch(() => null)) as { data?: T; error?: { messages?: string[] } } | null;
   if (!response.ok || !json?.data) {
-    throw new Error(json?.error?.messages?.[0] ?? `Mux request failed (${response.status})`);
+    // The status rides along for the upload failure log.
+    throw Object.assign(new Error(json?.error?.messages?.[0] ?? `Mux request failed (${response.status})`), {
+      status: response.status,
+    });
   }
   return json.data;
 }

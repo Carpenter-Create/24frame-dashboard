@@ -2,6 +2,7 @@ import {
   createSocialMuxUpload,
   finalizeSocialMuxUpload,
   presignSocialMediaUpload,
+  reportSocialMediaUploadFailure,
 } from "@/app/(app)/social/actions";
 import { SOCIAL } from "@/lib/social";
 import {
@@ -72,6 +73,26 @@ function createBrowserUploadXhr(): SocialUploadXhr {
   return new XMLHttpRequest() as unknown as SocialUploadXhr;
 }
 
+/** A browser PUT that got no 2xx. Status 0 means no response reached the browser. */
+export class SocialUploadPutError extends Error {
+  constructor(readonly status: number) {
+    super(`upload failed (${status})`);
+    this.name = "SocialUploadPutError";
+  }
+}
+
+// The PUT runs in the browser, so the server never sees it fail. Send the
+// step, lane and status (never the URL) to the server log. Best effort.
+function reportUploadPutFailure(step: "s3-put" | "mux-put", lane: SocialMediaLane, status: number): void {
+  const body = new FormData();
+  body.set("step", step);
+  body.set("lane", lane);
+  body.set("status", String(status));
+  void Promise.resolve()
+    .then(() => reportSocialMediaUploadFailure(body))
+    .catch(() => undefined);
+}
+
 /** PUT with upload progress. Fetch cannot report upload bytes on Safari. */
 export function putSocialMediaWithProgress(
   url: string,
@@ -89,7 +110,8 @@ export function putSocialMediaWithProgress(
       return;
     }
     const xhr = (options.createXhr ?? createBrowserUploadXhr)();
-    const fail = () => reject(new Error("upload failed"));
+    // Status 0 is a network or CORS failure: the browser never saw a response.
+    const fail = () => reject(new SocialUploadPutError(xhr.status));
     const onAbort = () => xhr.abort();
     xhr.open("PUT", url);
     xhr.setRequestHeader("Content-Type", contentType);
@@ -189,9 +211,13 @@ async function uploadSocialS3Media(
     });
   } catch (error) {
     if (isSocialUploadAbort(error)) return { aborted: true };
+    reportUploadPutFailure("s3-put", lane, 0);
     return { error: SOCIAL.home.uploadFailed };
   }
-  if (!put.ok) return { error: SOCIAL.home.uploadFailed };
+  if (!put.ok) {
+    reportUploadPutFailure("s3-put", lane, put.status);
+    return { error: SOCIAL.home.uploadFailed };
+  }
   return {
     item: {
       kind: signed.kind as SocialMediaItem["kind"],
@@ -234,10 +260,14 @@ export async function uploadSocialMuxVideoFile(
         body: file,
         signal: options.signal,
       });
-      if (!put.ok) return { error: SOCIAL.home.uploadFailed };
+      if (!put.ok) {
+        reportUploadPutFailure("mux-put", lane, put.status);
+        return { error: SOCIAL.home.uploadFailed };
+      }
     }
   } catch (error) {
     if (isSocialUploadAbort(error)) return { aborted: true };
+    reportUploadPutFailure("mux-put", lane, error instanceof SocialUploadPutError ? error.status : 0);
     return { error: SOCIAL.home.uploadFailed };
   }
   if (options.signal?.aborted) return { aborted: true };
