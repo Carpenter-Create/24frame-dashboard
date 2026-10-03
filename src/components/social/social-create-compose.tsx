@@ -129,6 +129,8 @@ export function SocialComposeVideoPreview({
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const onPixelsRef = useRef(onPixels);
+  // Starts muted: iOS autoplays a clip only without sound.
+  const [muted, setMuted] = useState(true);
 
   useEffect(() => {
     onPixelsRef.current = onPixels;
@@ -144,6 +146,7 @@ export function SocialComposeVideoPreview({
     const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     node.loop = !still;
     let reported = false;
+    let held = false;
     const reportPixels = () => {
       const pixels = composeVideoUploadPixels({ width: node.videoWidth, height: node.videoHeight });
       if (!pixels) return;
@@ -152,9 +155,11 @@ export function SocialComposeVideoPreview({
     };
     // WebKit blob clips can still read 0 x 0 at loadeddata; the size shows up
     // once muted playback runs, and upload waits for it.
+    // Holds once, so turning the sound on can still play the clip.
     const hold = () => {
       if (!reported) reportPixels();
-      if (!still || node.videoWidth <= 0 || node.currentTime < frame) return;
+      if (held || !still || node.videoWidth <= 0 || node.currentTime < frame) return;
+      held = true;
       node.pause();
     };
     // iOS paints a blob only after muted playback, and the seek paints a
@@ -195,15 +200,26 @@ export function SocialComposeVideoPreview({
         muted
         preload="auto"
       />
-      <span
-        data-social-create-video-badge=""
-        className="pointer-events-none absolute left-[var(--space-2)] top-[var(--space-2)] z-10 inline-flex items-center rounded-full bg-surface p-[var(--space-2)] text-ink-2"
+      <button
+        type="button"
+        data-social-create-video-sound=""
+        aria-label={muted ? SOCIAL.post.unmute : SOCIAL.post.mute}
+        className={cn(
+          SOCIAL_POST_ACTION_HIT_CLASS,
+          "absolute left-[var(--space-2)] top-[var(--space-2)] z-10 bg-surface",
+        )}
+        onClick={() => {
+          const node = ref.current;
+          if (!node) return;
+          const next = !node.muted;
+          node.muted = next;
+          setMuted(next);
+          // Sound on is a tap, so playback with sound is allowed.
+          if (!next) void node.play().catch(() => undefined);
+        }}
       >
-        <span aria-hidden="true" className="inline-flex">
-          <SocialIcon name="video-camera" size={16} />
-        </span>
-        <span className="sr-only">{SOCIAL.home.videoKind}</span>
-      </span>
+        <SocialIcon name={muted ? "speaker-slash" : "speaker-high"} size={20} />
+      </button>
     </>
   );
 }

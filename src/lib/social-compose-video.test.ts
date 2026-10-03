@@ -133,10 +133,12 @@ describe("write compose video attach", () => {
     expect(video).toContain("loop");
     expect(video).not.toContain('preload="metadata"');
     expect(video).not.toContain("data-social-create-video-poster");
-    // Reads as video: a corner badge with a screen-reader name.
-    expect(video).toContain('data-social-create-video-badge=""');
-    expect(video).toContain('data-social-icon="video-camera"');
-    expect(video).toContain(`<span class="sr-only">${SOCIAL.home.videoKind}</span>`);
+    // Reads as video: a sound toggle in the corner, muted to start.
+    expect(video).toContain('data-social-create-video-sound=""');
+    expect(video).toContain('type="button"');
+    expect(video).toContain(`aria-label="${SOCIAL.post.unmute}"`);
+    expect(video).toContain('data-social-icon="speaker-slash"');
+    expect(video).not.toContain("data-social-create-video-badge");
   });
 
   it("uploads a queued clip only while its controller is live, and keeps real preview dims", () => {
@@ -220,11 +222,12 @@ describe("write compose video attach", () => {
     expect(text).toContain('matchMedia?.("(prefers-reduced-motion: reduce)")');
     expect(text).toContain("node.loop = !still;");
     const hold = text.slice(text.indexOf("const hold = "), text.indexOf("const present"));
-    expect(hold).toContain("if (!still ||");
+    expect(hold).toContain("if (held || !still ||");
+    expect(hold).toContain("held = true;");
     expect(hold).toContain("node.pause()");
     // Pixels still arrive when WebKit only sizes the clip once playback runs.
     expect(hold).toContain("if (!reported) reportPixels();");
-    expect(hold.indexOf("reportPixels()")).toBeLessThan(hold.indexOf("if (!still ||"));
+    expect(hold.indexOf("reportPixels()")).toBeLessThan(hold.indexOf("if (held || !still ||"));
     const report = text.slice(text.indexOf("const reportPixels"), text.indexOf("const hold = "));
     expect(report).toContain("if (!pixels) return;");
     expect(report).toContain("reported = true;");
@@ -239,7 +242,14 @@ describe("write compose video attach", () => {
     );
     const previewJsx = previewFn.slice(previewFn.lastIndexOf("return ("));
     expect(previewJsx).toContain("loop");
-    expect(previewJsx.indexOf("<video")).toBeLessThan(previewJsx.indexOf("data-social-create-video-badge"));
+    expect(previewJsx.indexOf("<video")).toBeLessThan(previewJsx.indexOf("data-social-create-video-sound"));
+    // The toggle flips the element itself, and sound on plays the clip.
+    const sound = previewJsx.slice(previewJsx.indexOf("onClick="), previewJsx.indexOf("</button>"));
+    expect(sound).toContain("const next = !node.muted;");
+    expect(sound).toContain("node.muted = next;");
+    expect(sound).toContain("setMuted(next);");
+    expect(sound).toContain("if (!next) void node.play()");
+    expect(sound).toContain('muted ? "speaker-slash" : "speaker-high"');
     expect(compose.indexOf("new AbortController()")).toBeGreaterThan(-1);
     expect(compose.indexOf("new AbortController()")).toBeLessThan(loopAt);
     expect(loop).not.toContain("new AbortController");
