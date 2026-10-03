@@ -16,6 +16,7 @@ import {
   SOCIAL_TOPIC_TRANSCRIPT_MAX_CHARS,
   socialTopicHashtags,
   socialTopicMayTranscribe,
+  socialTopicTaggingMode,
   SOCIAL_TOPIC_MAX_AGE_MS,
   SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS,
   socialTopicResultSchema,
@@ -302,6 +303,23 @@ describe("isSocialTopicTaggingEnabled", () => {
     expect(isSocialTopicTaggingEnabled()).toBe(true);
     vi.stubEnv("SOCIAL_TOPIC_TAGGING", "ON");
     expect(isSocialTopicTaggingEnabled()).toBe(false);
+  });
+
+  it("is not on while draining", () => {
+    expect(isSocialTopicTaggingEnabled({ SOCIAL_TOPIC_TAGGING: "drain" })).toBe(false);
+  });
+});
+
+describe("socialTopicTaggingMode", () => {
+  it("is on, drain, or off for anything else", () => {
+    expect(socialTopicTaggingMode({ SOCIAL_TOPIC_TAGGING: " on " })).toBe("on");
+    for (const value of ["drain", " drain", "drain\n"]) {
+      expect(socialTopicTaggingMode({ SOCIAL_TOPIC_TAGGING: value }), JSON.stringify(value)).toBe("drain");
+    }
+    for (const value of [undefined, "", "off", "DRAIN", "Drain", "drained", "on drain", "true"]) {
+      expect(socialTopicTaggingMode({ SOCIAL_TOPIC_TAGGING: value }), JSON.stringify(value)).toBe("off");
+    }
+    expect(socialTopicTaggingMode({})).toBe("off");
   });
 });
 

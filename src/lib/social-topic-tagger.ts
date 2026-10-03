@@ -225,11 +225,12 @@ async function deleteTaggerTracks(
 }
 
 /**
- * For a post the tagger will no longer classify (removed or hidden, which
- * no user can undo): delete its leftover caption tracks, with no model
- * call. Once none is still being made, the post is stamped so later runs
- * move on to other posts; while one is, `pending` is true and a later run
- * comes back for it.
+ * Delete a post's leftover caption tracks, with no model call: a post the
+ * tagger will no longer classify (removed or hidden, which no user can
+ * undo), or any untagged video post during a drain. Once none is still
+ * being made, a removed or hidden post is stamped so later runs move on to
+ * other posts; an active post is never stamped here. While a track is
+ * still being made, `pending` is true and a later run comes back for it.
  */
 export async function cleanupSocialPostTopicTracks(args: {
   admin: SupabaseClient<Database>;

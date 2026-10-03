@@ -12,7 +12,9 @@ import type { Database } from "@/lib/supabase/database.types";
 
 import {
   runSocialTopicBatch,
+  runSocialTopicDrain,
   SOCIAL_TOPIC_CANDIDATE_PAGE,
+  SOCIAL_TOPIC_DRAIN_PAGE,
   SOCIAL_TOPIC_MAX_PER_AUTHOR,
   SOCIAL_TOPIC_POST_DEADLINE_MS,
 } from "./social-topic-run";
@@ -257,6 +259,88 @@ describe("runSocialTopicBatch", () => {
       runSocialTopicBatch({ admin: db.admin, client: CLIENT, now: NOW, batchSize: 40, budgetMs: 1000 }),
     ).rejects.toThrow("Topic select failed: permission denied");
     expect(tagSocialPostTopic).not.toHaveBeenCalled();
+  });
+});
+
+describe("runSocialTopicDrain", () => {
+  const video = (id: string, createdAt = "2026-10-03T11:00:00.000Z") => ({
+    id,
+    author_id: `author-${id}`,
+    media: [{ provider: "mux" }],
+    created_at: createdAt,
+  });
+
+  it("checks untagged video posts in the window, active or not, and never tags", async () => {
+    const db = fakeAdmin({ data: [video("a"), video("b")], error: null });
+    vi.mocked(cleanupSocialPostTopicTracks)
+      .mockResolvedValueOnce({ deleted: 1, pending: false })
+      .mockResolvedValueOnce({ deleted: 0, pending: true });
+
+    const summary = await runSocialTopicDrain({ admin: db.admin, now: NOW, budgetMs: 60_000 });
+
+    expect(db.queries[0]).toEqual([
+      ["select", "id, author_id, media, created_at"],
+      ["is", "category", null],
+      ["is", "category_tagged_at", null],
+      ["is", "group_id", null],
+      ["contains", "media", '[{"provider":"mux"}]'],
+      ["or", `created_at.gte."${SINCE}",edited_at.gte."${SINCE}"`],
+      ["order", "created_at", { ascending: false }],
+      ["limit", SOCIAL_TOPIC_DRAIN_PAGE],
+    ]);
+    // No status filter: active posts are drained too.
+    expect(db.queries[0]?.some(([name]) => name === "eq" || name === "neq")).toBe(false);
+    expect(vi.mocked(cleanupSocialPostTopicTracks).mock.calls[0]?.[0]).toMatchObject({ post: video("a"), now: NOW });
+    expect(vi.mocked(cleanupSocialPostTopicTracks).mock.calls[0]?.[0].signal).toBeInstanceOf(AbortSignal);
+    expect(summary).toEqual({ checked: 2, tracksDeleted: 1, pending: 1, errors: 0, complete: true });
+    expect(tagSocialPostTopic).not.toHaveBeenCalled();
+  });
+
+  it("pages through the whole window, older than the last row each time", async () => {
+    const full = Array.from({ length: SOCIAL_TOPIC_DRAIN_PAGE }, (_, i) =>
+      video(`p${i}`, new Date(Date.parse("2026-10-03T11:00:00.000Z") - i * 1000).toISOString()),
+    );
+    const last = full[full.length - 1]!.created_at;
+    const db = fakeAdmin({ data: full, error: null }, { data: [video("old", "2026-09-30T00:00:00.000Z")], error: null });
+
+    const summary = await runSocialTopicDrain({ admin: db.admin, now: NOW, budgetMs: 60_000 });
+
+    expect(db.queries).toHaveLength(2);
+    expect(db.queries[0]?.some(([name]) => name === "lt")).toBe(false);
+    expect(db.queries[1]).toContainEqual(["lt", "created_at", last]);
+    expect(summary).toMatchObject({ checked: SOCIAL_TOPIC_DRAIN_PAGE + 1, complete: true });
+  });
+
+  it("stops at the time budget and reports the scan incomplete", async () => {
+    const db = fakeAdmin({ data: [video("a"), video("b"), video("c")], error: null });
+    let now = 0;
+    vi.mocked(cleanupSocialPostTopicTracks).mockImplementation(async () => {
+      now += 40_000;
+      return { deleted: 0, pending: false };
+    });
+
+    const summary = await runSocialTopicDrain({ admin: db.admin, now: NOW, budgetMs: 60_000, clock: () => now });
+
+    expect(summary).toEqual({ checked: 2, tracksDeleted: 0, pending: 0, errors: 0, complete: false });
+  });
+
+  it("counts a failed check and carries on; a failed select throws", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const db = fakeAdmin({ data: [video("a"), video("b")], error: null });
+    vi.mocked(cleanupSocialPostTopicTracks)
+      .mockRejectedValueOnce(new Error("Mux asset lookup failed (503)"))
+      .mockResolvedValueOnce({ deleted: 1, pending: false });
+
+    expect(await runSocialTopicDrain({ admin: db.admin, now: NOW, budgetMs: 60_000 })).toEqual({
+      checked: 2, tracksDeleted: 1, pending: 0, errors: 1, complete: true,
+    });
+    expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("social topic drain post failed"));
+
+    const failing = fakeAdmin({ data: null, error: { message: "timeout" } });
+    await expect(runSocialTopicDrain({ admin: failing.admin, now: NOW, budgetMs: 60_000 })).rejects.toThrow(
+      "Topic drain select failed: timeout",
+    );
+    errorLog.mockRestore();
   });
 });
 

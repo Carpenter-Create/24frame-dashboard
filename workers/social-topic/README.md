@@ -14,7 +14,10 @@ cron.
   the Claude workspace, `s3:GetObject` and prefix-limited `s3:ListBucket`
   on the Social media bucket's `posts/*`, `sqs:SendMessage` on the failure
   queue. No static AWS keys on the function.
-- Off unless `SOCIAL_TOPIC_TAGGING=on` on the function.
+- Off unless `SOCIAL_TOPIC_TAGGING=on` on the function. `drain` is the
+  first step of turning it off: it only deletes the tagger's leftover
+  caption tracks (`runSocialTopicDrain`), with no Claude call and no new
+  transcript.
 
 Entry: `workers/social-topic/handler.ts` → `runSocialTopicBatch` in
 `src/lib/social-topic-run.ts`. Build: `workers/social-topic/Dockerfile`.

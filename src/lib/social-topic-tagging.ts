@@ -46,9 +46,22 @@ export function socialTopicMayTranscribe(
   return now.getTime() - Date.parse(post.created_at) < SOCIAL_TOPIC_TRANSCRIPT_CUTOFF_MS;
 }
 
+export type SocialTopicTaggingMode = "on" | "drain" | "off";
+
+/**
+ * SOCIAL_TOPIC_TAGGING: "on" tags posts. "drain" is the first step of
+ * turning it off (founder decision 2026-10-03): no model call and no new
+ * transcript, only the tagger's leftover caption tracks are deleted.
+ * Anything else, unset included, is off and does nothing.
+ */
+export function socialTopicTaggingMode(env: Record<string, string | undefined> = process.env): SocialTopicTaggingMode {
+  const value = env.SOCIAL_TOPIC_TAGGING?.trim();
+  return value === "on" ? "on" : value === "drain" ? "drain" : "off";
+}
+
 /** Background tagging runs only when SOCIAL_TOPIC_TAGGING is exactly "on". */
 export function isSocialTopicTaggingEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return env.SOCIAL_TOPIC_TAGGING?.trim() === "on";
+  return socialTopicTaggingMode(env) === "on";
 }
 
 // What each locked label covers, for the model only. Never shown to users.

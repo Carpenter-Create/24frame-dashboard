@@ -119,7 +119,9 @@ or viewers; the Social player keeps captions hidden. Nobody picks a
 topic; a caption edit re-tags the post (no new transcript), except a
 topic recorded before this change, which stays. Off until
 `SOCIAL_TOPIC_TAGGING=on`, which
-waits for the founder's accuracy test. The provenance migration, the
+waits for the founder's accuracy test. Turning it off is drain, then off
+(`SOCIAL_TOPIC_TAGGING=drain` deletes leftover caption tracks first;
+founder decision). The provenance migration, the
 Lambda, its role and its schedule are founder-applied and **not
 created**. Backfill of older posts is a later founder-run step.
 Runbook: [`docs/infra/social-topic-tagging.md`](../infra/social-topic-tagging.md).

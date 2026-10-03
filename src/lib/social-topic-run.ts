@@ -223,6 +223,86 @@ async function cleanStrayTracks(
   }
 }
 
+// Drain (SOCIAL_TOPIC_TAGGING=drain, the first step of turning tagging
+// off; founder decision 2026-10-03). Each run checks every untagged video
+// post in the window, active or not, newest first, and deletes the
+// tagger's caption tracks; no model call, no new transcript. Active posts
+// are not stamped, so tagging picks them up again if it is turned back on.
+// Removed or hidden posts are stamped once nothing is left, as in the
+// stray pass. The founder removes the setting once a run logs
+// complete: true, pending: 0 and errors: 0.
+export const SOCIAL_TOPIC_DRAIN_PAGE = 100;
+
+export type SocialTopicDrainSummary = {
+  checked: number;
+  tracksDeleted: number;
+  /** Posts with a caption track still being made. */
+  pending: number;
+  errors: number;
+  /** Every untagged video post in the window was checked this run. */
+  complete: boolean;
+};
+
+export async function runSocialTopicDrain(args: {
+  admin: SupabaseClient<Database>;
+  now: Date;
+  budgetMs: number;
+  mediaDeps?: SocialTopicMediaDeps;
+  /** Injectable for tests. */
+  clock?: () => number;
+  postDeadlineMs?: number;
+}): Promise<SocialTopicDrainSummary> {
+  const clock = args.clock ?? Date.now;
+  const started = clock();
+  const deadlineMs = args.postDeadlineMs ?? SOCIAL_TOPIC_POST_DEADLINE_MS;
+  const since = new Date(args.now.getTime() - SOCIAL_TOPIC_MAX_AGE_MS).toISOString();
+  const summary: SocialTopicDrainSummary = { checked: 0, tracksDeleted: 0, pending: 0, errors: 0, complete: false };
+  let before: string | null = null;
+
+  for (;;) {
+    let query = args.admin
+      .from("posts")
+      .select("id, author_id, media, created_at")
+      .is("category", null)
+      .is("category_tagged_at", null)
+      .is("group_id", null)
+      .contains("media", SOCIAL_TOPIC_MUX_MEDIA_FILTER)
+      .or(windowFilter(since));
+    if (before) query = query.lt("created_at", before);
+    const { data, error } = await query.order("created_at", { ascending: false }).limit(SOCIAL_TOPIC_DRAIN_PAGE);
+    if (error) throw new Error(`Topic drain select failed: ${error.message}`);
+
+    const rows = data ?? [];
+    for (const post of rows) {
+      if (clock() - started > args.budgetMs) return summary;
+      summary.checked += 1;
+      try {
+        const result = await withDeadline(
+          (signal) =>
+            cleanupSocialPostTopicTracks({ admin: args.admin, post, now: args.now, mediaDeps: args.mediaDeps, signal }),
+          deadlineMs,
+        );
+        summary.tracksDeleted += result.deleted;
+        if (result.pending) summary.pending += 1;
+      } catch (cause) {
+        summary.errors += 1;
+        console.error(
+          JSON.stringify({
+            msg: "social topic drain post failed",
+            postId: post.id,
+            error: cause instanceof Error ? cause.message : String(cause),
+          }),
+        );
+      }
+    }
+    if (rows.length < SOCIAL_TOPIC_DRAIN_PAGE) {
+      summary.complete = true;
+      return summary;
+    }
+    before = rows[rows.length - 1]!.created_at;
+  }
+}
+
 async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
   const stop = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;

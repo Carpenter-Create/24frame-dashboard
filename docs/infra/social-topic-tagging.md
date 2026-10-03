@@ -11,8 +11,8 @@ service role, an approved exception to 24Frame AI's user-JWT rule
 (`docs/domain-spec.md` §20).
 
 **Off until you turn it on.** The function does nothing unless its env
-has `SOCIAL_TOPIC_TAGGING=on`. Turn it on only after the accuracy test
-below.
+has `SOCIAL_TOPIC_TAGGING=on` (or `drain`, used only when turning it off;
+see "Turn off" below). Turn it on only after the accuracy test below.
 
 Do **not** create these resources from CI or from this repository. Names
 are proposals for Adam to confirm.
@@ -138,7 +138,7 @@ sqs:SendMessage
 existing Supabase URL name; values never in the repository):
 
 ```
-SOCIAL_TOPIC_TAGGING=on            # leave unset until after the accuracy test
+SOCIAL_TOPIC_TAGGING=on            # leave unset until after the accuracy test; drain when turning off
 CLAUDE_AWS_REGION=us-west-2
 CLAUDE_AWS_WORKSPACE_ID=wrkspc_…
 NEXT_PUBLIC_SUPABASE_URL=          # same value as Vercel
@@ -201,8 +201,26 @@ aws lambda put-function-event-invoke-config --region us-west-2 \
   --destination-config '{"OnFailure":{"Destination":"arn:aws:sqs:us-west-2:ACCOUNT_ID:24frame-social-topic-failures"}}'
 ```
 
-Then set the function env (above, without `SOCIAL_TOPIC_TAGGING`), the
-EventBridge rule with the function as its target, and the alarm.
+Then set the function env (above, without `SOCIAL_TOPIC_TAGGING`). Then
+the schedule: the rule, the permission that lets EventBridge invoke the
+function (without it the rule exists but the function never runs), and
+the target:
+
+```sh
+aws events put-rule --region us-west-2 --name 24frame-social-topic-tag \
+  --schedule-expression 'rate(5 minutes)'
+aws lambda add-permission --region us-west-2 \
+  --function-name 24frame-social-topic-tag \
+  --statement-id 24frame-social-topic-tag-schedule \
+  --action lambda:InvokeFunction --principal events.amazonaws.com \
+  --source-arn arn:aws:events:us-west-2:ACCOUNT_ID:rule/24frame-social-topic-tag
+aws events put-targets --region us-west-2 --rule 24frame-social-topic-tag \
+  --targets 'Id=tagger,Arn=arn:aws:lambda:us-west-2:ACCOUNT_ID:function:24frame-social-topic-tag'
+```
+
+Then the alarm. After the first scheduled run, the log group shows
+`{"msg":"social topic tagging off"}` every 5 minutes, which confirms the
+schedule reaches the function.
 
 **Every later deploy** (after a merge that touches the tagger): build and
 push, then
@@ -272,10 +290,20 @@ aws lambda update-function-code --region us-west-2 \
   failed runs. The queue should stay empty.
 - **In the app.** A new post shows its topic chip on Social Home within
   about 10 minutes. Videos take longer while Mux transcribes them.
-- **Turn off:** remove `SOCIAL_TOPIC_TAGGING` from the function env, or
-  disable the EventBridge rule. Stored topics stay. Videos that were
-  waiting on a transcript keep that caption track in Mux; it stays hidden
-  in the Social player.
+- **Turn off, in two steps** (founder decision: drain, then off). Removing
+  the setting straight away could leave a caption track that Mux was
+  still making on a video for good.
+  1. Set `SOCIAL_TOPIC_TAGGING=drain`. Tagging stops at once: no Claude
+     call and no new transcript. Every 5 minutes the function deletes the
+     tagger's caption tracks on untagged video posts from the last 7 days.
+     It needs only the Supabase and Mux settings. Each run logs
+     `{"msg":"social topic drain done","checked":…,"tracksDeleted":…,"pending":…,"errors":…,"complete":…}`.
+  2. Once a run logs `"complete":true,"pending":0,"errors":0` (usually
+     within an hour), remove `SOCIAL_TOPIC_TAGGING`, or disable the
+     EventBridge rule. Stored topics stay.
+
+  Do not disable the EventBridge rule during the drain; the drain runs on
+  it. Turning tagging back on later works as before.
 - **Every video post skipped as "no video"?** Check that the Mux env on
   the function is from the same Mux environment as Social uploads; keys
   from another environment make every video look deleted.
