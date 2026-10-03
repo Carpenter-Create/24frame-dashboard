@@ -38,6 +38,16 @@ describe("signed-out deep links", () => {
     expect((await loginRedirect("/api/assets/url")).search).toBe("");
   });
 
+  // The next allowlist rejects `@`, so share links go back as the in-app
+  // profile route the vanity URL serves.
+  it("sends a profile share link back as the in-app profile", async () => {
+    for (const path of ["/@ada", "/social/@ada", "/social/u/@ada"]) {
+      const url = await loginRedirect(`${path}?tab=media`);
+
+      expect(url.searchParams.get("next"), path).toBe("/social/u/ada?tab=media");
+    }
+  });
+
   it("never carries an off-site next", async () => {
     const url = await loginRedirect("//evil.example/x");
 

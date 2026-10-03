@@ -68,7 +68,9 @@ export async function updateSession(request: NextRequest) {
     url.search = "";
     // Sign-in lands back on the page that was asked for. API calls never
     // land as pages.
-    const next = path.startsWith("/api/") ? null : signInNextParam(`${path}${request.nextUrl.search}`);
+    const next = path.startsWith("/api/")
+      ? null
+      : signInNextParam(`${signInLandingPath(path)}${request.nextUrl.search}`);
     if (next) url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
@@ -85,6 +87,13 @@ export async function updateSession(request: NextRequest) {
   }
 
   return applySocialVanityRewrite(request, response);
+}
+
+// Profile share links (/@handle, and the retired /social/@handle and
+// /social/u/@handle) carry an `@`, which the next allowlist rejects. Send
+// them back as the in-app profile route the vanity URL serves.
+function signInLandingPath(path: string): string {
+  return socialProfileRewriteTarget(socialProfileLegacyPublicRedirect(path) ?? path) ?? path;
 }
 
 function applySocialVanityRewrite(request: NextRequest, response: NextResponse): NextResponse {
