@@ -90,7 +90,8 @@ export type SocialTopicContentBlock =
 /** #tags in a caption, lowercased, deduplicated, in order. */
 export function socialTopicHashtags(caption: string | null): string[] {
   const tags = new Set<string>();
-  for (const match of (caption ?? "").matchAll(/#([\p{L}\p{N}_]+)/gu)) {
+  // \p{M}: vowel signs and combining accents belong to the tag.
+  for (const match of (caption ?? "").normalize("NFC").matchAll(/#([\p{L}\p{M}\p{N}_]+)/gu)) {
     tags.add(match[1]!.toLowerCase());
   }
   return [...tags];
@@ -101,8 +102,9 @@ function clip(text: string, max: number): string {
 }
 
 // Untrusted post text goes inside tags so the model reads it as content.
+// Any spelling of the closing tag inside the text loses its "<".
 function tagged(name: string, text: string): string {
-  const safe = text.replaceAll(`</${name}>`, `</ ${name}>`);
+  const safe = text.replace(new RegExp(`<\\s*/\\s*${name}\\s*>`, "gi"), `‹/${name}>`);
   return `<${name}>\n${safe}\n</${name}>`;
 }
 
@@ -159,7 +161,9 @@ export function socialTopicWrite(
   if (!result || result.topic === SOCIAL_TOPIC_NONE) return none;
   const { confidence } = result;
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) return none;
-  if (confidence < minConfidence) return none;
+  // A threshold that is not a number never lowers the bar.
+  const threshold = Number.isFinite(minConfidence) ? minConfidence : SOCIAL_TOPIC_MIN_CONFIDENCE;
+  if (confidence < threshold) return none;
   return {
     category: result.topic,
     category_source: "ai",

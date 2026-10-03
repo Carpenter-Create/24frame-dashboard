@@ -14,13 +14,11 @@ vi.mock("@supabase/ssr", () => ({
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/mediaconvert", () => ({ getJob: vi.fn() }));
 vi.mock("@/lib/s3", () => ({ headObjectMeta: vi.fn() }));
-vi.mock("@/lib/social-topic-tagger", () => ({ tagSocialPostTopic: vi.fn() }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { middleware, config } from "@/middleware";
 import { GET as poll } from "@/app/api/cron/transcode-poll/route";
 import { GET as purge } from "@/app/api/cron/title-s3-purge/route";
-import { GET as topicTag } from "@/app/api/cron/social-topic-tag/route";
 
 const SECRET = "test-cron-secret-value";
 
@@ -57,7 +55,6 @@ describe("GC-P0-2 cron session gate", () => {
     expect(scheduled).toEqual([
       "/api/cron/transcode-poll",
       "/api/cron/title-s3-purge",
-      "/api/cron/social-topic-tag",
     ]);
 
     // Middleware still runs for cron (the exemption is isPublic, not a matcher hole).
@@ -89,7 +86,6 @@ describe("GC-P0-2 cron session gate", () => {
     const handlers = [
       ["/api/cron/transcode-poll", poll],
       ["/api/cron/title-s3-purge", purge],
-      ["/api/cron/social-topic-tag", topicTag],
     ] as const;
 
     for (const [path, handler] of handlers) {

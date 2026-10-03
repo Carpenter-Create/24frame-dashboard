@@ -37,20 +37,35 @@ export type SocialTopicPost = {
 
 export type SocialTopicOutcome = "tagged" | "declined" | "wait" | "raced";
 
+const SOCIAL_TOPIC_FORMAT = zodOutputFormat(socialTopicResultSchema);
+
+/**
+ * The model's answer, or null for a look with no usable answer: a refusal,
+ * a cut-off, or text that does not match the schema. API and network errors
+ * throw, so the post stays untouched and the next run retries it.
+ * (messages.parse would throw on a refusal's text too, and that post would
+ * then be retried every run.)
+ */
 export async function classifySocialTopic(
   client: Anthropic,
   input: SocialTopicInput,
 ): Promise<SocialTopicResult | null> {
-  const response = await client.messages.parse({
+  const response = await client.messages.create({
     model: SOCIAL_TOPIC_MODEL_ID,
     max_tokens: SOCIAL_TOPIC_MAX_TOKENS,
     system: SOCIAL_TOPIC_SYSTEM,
     messages: [{ role: "user", content: buildSocialTopicContent(input) }],
     // Classification: low effort keeps thinking short (Sonnet 5.5 guidance).
-    output_config: { effort: "low", format: zodOutputFormat(socialTopicResultSchema) },
+    output_config: { effort: "low", format: SOCIAL_TOPIC_FORMAT },
   });
-  if (response.stop_reason === "refusal") return null;
-  return response.parsed_output ?? null;
+  if (response.stop_reason !== "end_turn") return null;
+  const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
+  try {
+    const parsed = socialTopicResultSchema.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
 }
 
 async function authorCrafts(admin: SupabaseClient<Database>, authorId: string): Promise<string[]> {
@@ -61,7 +76,7 @@ async function authorCrafts(admin: SupabaseClient<Database>, authorId: string): 
 /**
  * What the tagger would write for this post, without writing it. Null while
  * the post's video or transcript is still preparing. The eval script uses
- * this directly; the cron goes through tagSocialPostTopic.
+ * this directly; the Lambda worker goes through tagSocialPostTopic.
  */
 export async function decideSocialPostTopic(args: {
   admin: SupabaseClient<Database>;

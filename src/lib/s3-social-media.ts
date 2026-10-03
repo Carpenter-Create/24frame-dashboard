@@ -159,7 +159,24 @@ export async function readSocialMediaObject(
 ): Promise<{ bytes: Uint8Array; contentType: string } | null> {
   if (isForbiddenMediaKey(key)) return null;
   try {
-    const { bucket, s3 } = mediaClient();
+    return await readSocialMediaObjectFrom(mediaClient(), key);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The same read through a caller's own client. The topic-tagging Lambda
+ * passes an S3Client signed by its execution role, so it carries no
+ * MEDIA_AWS_* keys.
+ */
+export async function readSocialMediaObjectFrom(
+  media: { bucket: string; s3: S3Client },
+  key: string,
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  if (isForbiddenMediaKey(key)) return null;
+  try {
+    const { bucket, s3 } = media;
     const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
     const bytes = await response.Body?.transformToByteArray();
     if (!bytes || bytes.byteLength === 0 || bytes.byteLength > SOCIAL_IMAGE_MAX_BYTES) return null;

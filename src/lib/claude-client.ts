@@ -30,7 +30,16 @@ export type ClaudeConfig =
       secretAccessKey: string;
       workspaceId: string;
     }
-  | { provider: "direct"; apiKey: string };
+  | { provider: "direct"; apiKey: string }
+  | ClaudeAwsRoleConfig;
+
+/**
+ * Claude Platform on AWS with the caller's own IAM role, no keys: the SDK
+ * signs with the role credentials the runtime provides. Lambda workers only
+ * (workers/social-topic). The web app never uses it: on Vercel the default
+ * chain would find the shared AWS_* title-bucket keys.
+ */
+export type ClaudeAwsRoleConfig = { provider: "aws-role"; region: string; workspaceId: string };
 
 // An AWS region code. The region becomes the endpoint host, so any other
 // value is not a provider: a stray env value cannot move signed requests to
@@ -64,7 +73,24 @@ export function readClaudeConfig(env: ClaudeEnv = process.env): ClaudeConfig | n
   return null;
 }
 
+/** Region and workspace for a Lambda worker's role-signed client, or null. */
+export function readClaudeRoleConfig(env: ClaudeEnv = process.env): ClaudeAwsRoleConfig | null {
+  const region = readTrimmed(env, "CLAUDE_AWS_REGION");
+  const workspaceId = readTrimmed(env, "CLAUDE_AWS_WORKSPACE_ID");
+  if (!AWS_REGION_PATTERN.test(region) || !workspaceId) return null;
+  return { provider: "aws-role", region, workspaceId };
+}
+
 export function createClaudeClient(config: ClaudeConfig): Anthropic {
+  if (config.provider === "aws-role") {
+    return new AnthropicAws({
+      awsRegion: config.region,
+      workspaceId: config.workspaceId,
+      baseURL: claudeAwsBaseUrl(config.region),
+      timeout: CLAUDE_REQUEST_TIMEOUT_MS,
+      maxRetries: CLAUDE_MAX_RETRIES,
+    });
+  }
   if (config.provider === "aws") {
     return new AnthropicAws({
       awsRegion: config.region,

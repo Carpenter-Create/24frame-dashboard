@@ -118,7 +118,7 @@ importers:
         specifier: ^0.0.1
         version: 0.0.1
       sharp:
-        specifier: ^0.35.4
+        specifier: '>=0.35.4'
         version: 0.35.4(@types/node@20.19.43)
       stripe:
         specifier: ^22.3.2
@@ -166,6 +166,9 @@ importers:
       '@types/topojson-specification':
         specifier: ^1.0.5
         version: 1.0.5
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       eslint:
         specifier: ^9
         version: 9.39.5(jiti@2.7.0)

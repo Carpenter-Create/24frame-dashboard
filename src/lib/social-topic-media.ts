@@ -21,8 +21,8 @@ import { SOCIAL_TOPIC_MAX_IMAGES, type SocialTopicImage } from "@/lib/social-top
 // videos the tagger reads are transcribed.
 //
 // "wait" means try again on a later run: the video, or its transcript, is
-// still preparing. After SOCIAL_TOPIC_MEDIA_WAIT_MS the tagger stops waiting
-// and classifies with what it has.
+// still preparing. A video still preparing after SOCIAL_TOPIC_MEDIA_WAIT_MS
+// is classified from the caption alone.
 
 export const SOCIAL_TOPIC_MEDIA_WAIT_MS = 60 * 60 * 1000;
 export const SOCIAL_TOPIC_IMAGE_MAX_EDGE = 1024;
@@ -41,7 +41,7 @@ export type SocialTopicMediaDeps = {
   fetchFrame: typeof fetchSocialMuxFrame;
 };
 
-const LIVE_DEPS: SocialTopicMediaDeps = {
+export const SOCIAL_TOPIC_LIVE_MEDIA_DEPS: SocialTopicMediaDeps = {
   readImage: readSocialMediaObject,
   retrieveAsset: retrieveSocialMuxAsset,
   requestSubtitles: requestSocialMuxGeneratedSubtitles,
@@ -60,6 +60,8 @@ export async function socialTopicJpeg(bytes: Uint8Array): Promise<string | null>
         fit: "inside",
         withoutEnlargement: true,
       })
+      // JPEG has no alpha: transparent pixels would turn black.
+      .flatten({ background: "#ffffff" })
       .jpeg({ quality: 80 })
       .toBuffer();
     return out.toString("base64");
@@ -103,13 +105,16 @@ async function muxVideoSignals(
     return waitedOut ? { status: "ready", frames: [], transcript: null } : { status: "wait" };
   }
 
+  // The transcript wait is not tied to the post's age: a post first seen
+  // late (the switch-on backlog, an outage) still gets its transcript. The
+  // 7-day selection window bounds it. The eval script never waits.
   let transcript: string | null = null;
   const text = generatedTextTrack(asset);
   if (text?.status === "ready" && text.id) {
     transcript = await deps.fetchTranscript(item.playbackId, text.id).catch(() => null);
-  } else if (!waitedOut && text?.status === "preparing") {
+  } else if (options.requestSubtitles && text?.status === "preparing") {
     return { status: "wait" };
-  } else if (!waitedOut && !text && options.requestSubtitles) {
+  } else if (options.requestSubtitles && !text) {
     const audio = primaryAudioTrack(asset);
     if (audio?.id) {
       // A failed request (no speech, already queued) falls back to frames.
@@ -149,18 +154,22 @@ export async function gatherSocialTopicMedia(
   createdAt: string,
   now: Date,
   options: { requestSubtitles: boolean } = { requestSubtitles: true },
-  deps: SocialTopicMediaDeps = LIVE_DEPS,
+  deps: SocialTopicMediaDeps = SOCIAL_TOPIC_LIVE_MEDIA_DEPS,
 ): Promise<SocialTopicMedia> {
   const waitedOut = now.getTime() - Date.parse(createdAt) >= SOCIAL_TOPIC_MEDIA_WAIT_MS;
   const images: SocialTopicImage[] = [];
   let transcript: string | null = null;
+  let photos = 0;
 
   for (const item of items) {
     if (images.length >= SOCIAL_TOPIC_MAX_IMAGES) break;
     if (item.kind === "image") {
       const object = await deps.readImage(item.key);
       const data = object ? await socialTopicJpeg(object.bytes) : null;
-      if (data) images.push({ label: `Image ${images.length + 1}`, mediaType: "image/jpeg", data });
+      if (data) {
+        photos += 1;
+        images.push({ label: `Image ${photos}`, mediaType: "image/jpeg", data });
+      }
       continue;
     }
     if (isSocialMuxMediaItem(item)) {

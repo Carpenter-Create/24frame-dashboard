@@ -5,6 +5,7 @@ import {
   claudeAwsBaseUrl,
   createClaudeClient,
   readClaudeConfig,
+  readClaudeRoleConfig,
 } from "./claude-client";
 
 // us-west-2, not vitest's shared AWS_REGION (us-east-1), so a test cannot
@@ -142,5 +143,50 @@ describe("createClaudeClient", () => {
     expect(headerOf(init, "x-api-key")).toBe("cutover-key");
     expect(headerOf(init, "authorization")).toBeNull();
     expect(headerOf(init, "anthropic-workspace-id")).toBeNull();
+  });
+});
+
+describe("role-signed client (Lambda workers)", () => {
+  it("needs only a valid region and the workspace", () => {
+    expect(readClaudeRoleConfig({ CLAUDE_AWS_REGION: " us-west-2 ", CLAUDE_AWS_WORKSPACE_ID: "wrkspc_test" })).toEqual({
+      provider: "aws-role",
+      region: "us-west-2",
+      workspaceId: "wrkspc_test",
+    });
+    expect(readClaudeRoleConfig({ CLAUDE_AWS_REGION: "us-west-2" })).toBeNull();
+    expect(readClaudeRoleConfig({ CLAUDE_AWS_REGION: "evil.example", CLAUDE_AWS_WORKSPACE_ID: "wrkspc_test" })).toBeNull();
+  });
+
+  it("is never what the web app's config returns", () => {
+    expect(
+      readClaudeConfig({ CLAUDE_AWS_REGION: "us-west-2", CLAUDE_AWS_WORKSPACE_ID: "wrkspc_test" }),
+    ).toBeNull();
+  });
+
+  it("signs with the runtime's own role credentials, session token included", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okMessage());
+    vi.stubGlobal("fetch", fetchMock);
+    // What Lambda puts in the environment for its execution role.
+    vi.stubEnv("AWS_ACCESS_KEY_ID", "ASIAROLECREDS");
+    vi.stubEnv("AWS_SECRET_ACCESS_KEY", "role-secret");
+    vi.stubEnv("AWS_SESSION_TOKEN", "role-session-token");
+    vi.stubEnv("ANTHROPIC_AWS_BASE_URL", "https://elsewhere.example");
+
+    const config = readClaudeRoleConfig({ CLAUDE_AWS_REGION: "us-west-2", CLAUDE_AWS_WORKSPACE_ID: "wrkspc_test" });
+    if (!config) throw new Error("expected a config");
+    await createClaudeClient(config).messages.create({
+      model: "claude-sonnet-5-5",
+      max_tokens: 16,
+      messages: [{ role: "user", content: "hi" }],
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toBe("https://aws-external-anthropic.us-west-2.api.aws/v1/messages");
+    expect(headerOf(init, "anthropic-workspace-id")).toBe("wrkspc_test");
+    expect(headerOf(init, "authorization")).toMatch(
+      /^AWS4-HMAC-SHA256 Credential=ASIAROLECREDS\/\d{8}\/us-west-2\/aws-external-anthropic\/aws4_request/,
+    );
+    expect(headerOf(init, "x-amz-security-token")).toBe("role-session-token");
+    expect(headerOf(init, "x-api-key")).toBeNull();
   });
 });
