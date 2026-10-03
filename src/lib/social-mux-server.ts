@@ -52,10 +52,20 @@ type MuxUploadData = {
   } | null;
 };
 
-type MuxAssetData = {
+export type SocialMuxTrack = {
+  id?: string;
+  type?: string;
+  status?: string;
+  text_source?: string;
+  primary?: boolean;
+};
+
+export type MuxAssetData = {
   id?: string;
   status?: string;
+  duration?: number;
   playback_ids?: Array<{ id?: string; policy?: string }>;
+  tracks?: SocialMuxTrack[];
 };
 
 function requireMuxEnv(name: (typeof SOCIAL_MUX_ENV)[number]): string {
@@ -148,6 +158,79 @@ export async function mintSocialMuxPlaybackTokens(
     throw new Error("Mux playback token was not minted");
   }
   return { playback, thumbnail, storyboard };
+}
+
+// Topic tagging (lib/social-topic-media). Server reads only: short-lived
+// tokens, never handed to a browser.
+const SOCIAL_MUX_SERVER_READ_EXPIRATION = "10m";
+const MUX_STREAM = "https://stream.mux.com";
+const MUX_IMAGE = "https://image.mux.com";
+
+/** Ask Mux to transcribe an asset's audio track. Language is detected. */
+export async function requestSocialMuxGeneratedSubtitles(
+  assetId: string,
+  audioTrackId: string,
+): Promise<void> {
+  if (!isSocialMuxId(assetId) || !isSocialMuxId(audioTrackId)) {
+    throw new Error("Mux track id is invalid");
+  }
+  await muxRequest<unknown>(
+    `/video/v1/assets/${assetId}/tracks/${audioTrackId}/generate-subtitles`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        generated_subtitles: [{ language_code: "auto", name: "Generated" }],
+      }),
+    },
+  );
+}
+
+function socialMuxSigner(): Mux {
+  return new Mux({
+    jwtSigningKey: requireMuxEnv("MUX_SIGNING_KEY"),
+    jwtPrivateKey: requireMuxEnv("MUX_PRIVATE_KEY"),
+  });
+}
+
+/** Plain-text transcript of a ready generated text track, or null. */
+export async function fetchSocialMuxTranscript(
+  playbackId: string,
+  trackId: string,
+): Promise<string | null> {
+  if (!isSocialMuxId(playbackId) || !isSocialMuxId(trackId)) return null;
+  const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
+    type: "video",
+    expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
+  });
+  const response = await fetch(
+    `${MUX_STREAM}/${playbackId}/text/${trackId}.txt?token=${encodeURIComponent(token)}`,
+    { cache: "no-store" },
+  );
+  if (!response.ok) return null;
+  const text = (await response.text()).trim();
+  return text || null;
+}
+
+/** One JPEG still at `time` seconds, `width` px wide, or null. */
+export async function fetchSocialMuxFrame(
+  playbackId: string,
+  frame: { time: number; width: number },
+): Promise<Uint8Array | null> {
+  if (!isSocialMuxId(playbackId)) return null;
+  // Signed thumbnails carry time and width in the token; the URL takes no
+  // other query parameters.
+  const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
+    type: "thumbnail",
+    expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
+    params: { time: String(frame.time), width: String(frame.width) },
+  });
+  const response = await fetch(
+    `${MUX_IMAGE}/${playbackId}/thumbnail.jpg?token=${encodeURIComponent(token)}`,
+    { cache: "no-store" },
+  );
+  if (!response.ok) return null;
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  return bytes.byteLength > 0 ? bytes : null;
 }
 
 export function signedPlaybackIdFromAsset(asset: MuxAssetData): string | null {

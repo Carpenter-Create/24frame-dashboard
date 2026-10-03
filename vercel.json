@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/transcode-poll", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/title-s3-purge", "schedule": "*/15 * * * *" }
+    { "path": "/api/cron/title-s3-purge", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/social-topic-tag", "schedule": "*/5 * * * *" }
   ]
 }

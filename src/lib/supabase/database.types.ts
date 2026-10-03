@@ -750,6 +750,10 @@ export type Database = {
           media: Json | null
           pinned: boolean
           category: string | null
+          category_confidence: number | null
+          category_logic_version: string | null
+          category_source: string | null
+          category_tagged_at: string | null
           required_entitlement_key: string | null
           status: Database["public"]["Enums"]["post_status"]
         }
@@ -766,6 +770,10 @@ export type Database = {
           media?: Json | null
           pinned?: boolean
           category?: string | null
+          category_confidence?: number | null
+          category_logic_version?: string | null
+          category_source?: string | null
+          category_tagged_at?: string | null
           required_entitlement_key?: string | null
           status?: Database["public"]["Enums"]["post_status"]
         }
@@ -782,6 +790,10 @@ export type Database = {
           media?: Json | null
           pinned?: boolean
           category?: string | null
+          category_confidence?: number | null
+          category_logic_version?: string | null
+          category_source?: string | null
+          category_tagged_at?: string | null
           required_entitlement_key?: string | null
           status?: Database["public"]["Enums"]["post_status"]
         }
