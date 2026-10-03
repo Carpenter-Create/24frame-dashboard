@@ -119,9 +119,12 @@ function HousePathProviderCore({
       nextKey,
       navigateOwned: (dest: string, event?: HouseNavClickLike) => {
         if (event && houseNavIgnorePendingClick(event)) return false;
+        const hop = houseHop(href, dest);
+        // Leaving this screen: remember its scroll for the revisit. Button
+        // chrome (workspace pills) never reaches the anchor listener below.
+        if (hop === "next") captureLeadScroll(screenKey);
         // Cold create must not pushState. Next has to replace the RSC tree.
         if (!houseMayClientOwnHop(parsed.pathname, nextPath)) return false;
-        const hop = houseHop(href, dest);
         // Another screen is a Next navigation; the caller's Link or push runs.
         if (hop === "next") return false;
         if (hop === "stay") return true;

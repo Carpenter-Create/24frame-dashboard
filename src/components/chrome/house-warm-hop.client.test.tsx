@@ -129,6 +129,7 @@ import { NewsSourceChips } from "@/components/news/news-sources-filter";
 import { SocialCreateFan } from "@/components/social/social-create-fan";
 import { SocialCreateTile } from "@/components/social/social-create-sheet";
 import { SocialFrameAiOpen } from "@/components/social/social-frame-ai-face";
+import { houseReadScroll, resetHouseScrollForTests } from "@/lib/house-client-shell";
 import { NEWS_HREF, NEWS_SOURCE_FILTER_SOURCES, newsHistoryHref } from "@/lib/news";
 import { SOCIAL_CREATE_TILES } from "@/lib/social-create-sheet";
 import { socialFrameAiThreadHref } from "@/lib/social-frame-ai";
@@ -358,6 +359,7 @@ function click(
 
 beforeEach(() => {
   rendered = null;
+  resetHouseScrollForTests();
   nav.pathname = "/social";
   nav.search = "";
   for (const fn of [nav.push, nav.replace, nav.refresh, nav.prefetch]) fn.mockClear();
@@ -558,6 +560,29 @@ describe("Back and Forward", () => {
     expect(probe.house?.href).toBe("/social/profile");
     expect(nav.replace).not.toHaveBeenCalled();
     expect(nav.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("scroll memory", () => {
+  // Workspace pills are buttons: navigateOwned, then router.push. They
+  // never reach the shell's anchor listener.
+  it("remembers the screen's scroll when a button hop leaves it", () => {
+    const scroller = miniDocument.createElement("div") as unknown as { scrollTop: number };
+    scroller.scrollTop = 480;
+    const doc = miniDocument as unknown as { querySelector: (selector: string) => unknown };
+    const querySelector = doc.querySelector;
+    doc.querySelector = (selector) => (selector === "[data-house-lead-scroll]" ? scroller : null);
+    try {
+      render(createElement(HousePathProvider, null, createElement(HouseProbe)));
+
+      act(() => {
+        expect(probe.house?.navigateOwned("/home")).toBe(false);
+      });
+
+      expect(houseReadScroll("/social")).toBe(480);
+    } finally {
+      doc.querySelector = querySelector;
+    }
   });
 });
 
