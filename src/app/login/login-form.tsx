@@ -11,7 +11,14 @@ import { requestMagicLink, type LoginState } from "./actions";
 
 const INITIAL: LoginState = { ok: false, message: "" };
 
-export function LoginForm({ authError }: { authError: string | null }) {
+export function LoginForm({
+  authError,
+  next = null,
+}: {
+  authError: string | null;
+  /** Where sign-in should land; already checked by signInNextParam. */
+  next?: string | null;
+}) {
   const [state, action, pending] = useActionState(requestMagicLink, INITIAL);
 
   return (
@@ -30,6 +37,7 @@ export function LoginForm({ authError }: { authError: string | null }) {
       ) : (
         <form action={action} className="flex flex-col gap-4">
           {authError ? <InlineNotice tone="error">{authError}</InlineNotice> : null}
+          {next ? <input type="hidden" name="next" value={next} /> : null}
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="email">Email</Label>

@@ -49,3 +49,13 @@ export function safeAuthCallbackNext(raw: string | null | undefined): string {
   if (isLeftoverRoot(decoded)) return defaultAuthLand(decoded);
   return raw;
 }
+
+// The `next` a sign-in should carry: safe and not the default land, else
+// null. Middleware sends the page a signed-out request was for; the login
+// page and action re-check it before it goes into the emailed link.
+export function signInNextParam(raw: string | string[] | null | undefined): string | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return null;
+  const next = safeAuthCallbackNext(value);
+  return next === AUTH_DEFAULT_NEXT ? null : next;
+}
