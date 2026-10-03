@@ -3,8 +3,9 @@
 AWS Lambda (container image) that gives each new Social post one of the 15
 locked topics, or none. Founder decisions: background tagging, Claude
 Sonnet 5.5 on Claude Platform on AWS, video transcripts for tagging only
-(the tagger deletes its caption track once read), and AWS Lambda rather
-than Vercel cron.
+(the tagger deletes its caption track once read; no auto captions, and the
+Social player keeps captions hidden), and AWS Lambda rather than Vercel
+cron.
 
 - EventBridge rule `24frame-social-topic-tag`, `rate(5 minutes)` → this
   handler. Reserved concurrency 1. Asynchronous retries 0; failed runs go

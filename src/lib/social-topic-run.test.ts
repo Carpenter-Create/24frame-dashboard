@@ -121,6 +121,11 @@ describe("runSocialTopicBatch", () => {
 
       expect(await run).toMatchObject({ selected: 2, tagged: 1, error: 1 });
       expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("post timed out after 5000 ms"));
+      // The slow post's own signal is aborted, so its work stops; the next post gets a fresh one.
+      const [slow, next] = vi.mocked(tagSocialPostTopic).mock.calls.map(([args]) => args.signal);
+      expect(slow?.aborted).toBe(true);
+      expect(String(slow?.reason)).toContain("post timed out after 5000 ms");
+      expect(next?.aborted).toBe(false);
       expect(vi.getTimerCount()).toBe(0);
       errorLog.mockRestore();
     } finally {

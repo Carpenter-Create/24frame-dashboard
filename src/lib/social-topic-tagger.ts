@@ -5,6 +5,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ownedMediaItems } from "@/lib/social-media";
+import { isSocialMuxPermanentError } from "@/lib/social-mux-server";
 import { parseSocialProfileRoles, socialProfileRoleLabel } from "@/lib/social-profile-roles";
 import {
   gatherSocialTopicMedia,
@@ -60,6 +61,7 @@ export const SOCIAL_TOPIC_REQUEST_MAX_RETRIES = 1;
 export async function classifySocialTopic(
   client: Anthropic,
   input: SocialTopicInput,
+  signal?: AbortSignal,
 ): Promise<SocialTopicResult | null> {
   const response = await client.messages.create(
     {
@@ -70,7 +72,7 @@ export async function classifySocialTopic(
       // Classification: low effort keeps thinking short (Sonnet 5.5 guidance).
       output_config: { effort: "low", format: SOCIAL_TOPIC_FORMAT },
     },
-    { timeout: SOCIAL_TOPIC_REQUEST_TIMEOUT_MS, maxRetries: SOCIAL_TOPIC_REQUEST_MAX_RETRIES },
+    { timeout: SOCIAL_TOPIC_REQUEST_TIMEOUT_MS, maxRetries: SOCIAL_TOPIC_REQUEST_MAX_RETRIES, signal },
   );
   if (response.stop_reason !== "end_turn") return null;
   const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
@@ -97,6 +99,8 @@ export async function decideSocialPostTopic(args: {
   requestSubtitles?: boolean;
   minConfidence?: number;
   mediaDeps?: SocialTopicMediaDeps;
+  /** Aborted when the run gives up on this post (social-topic-run). */
+  signal?: AbortSignal;
 }): Promise<{
   write: SocialTopicWrite;
   result: SocialTopicResult | null;
@@ -110,6 +114,7 @@ export async function decideSocialPostTopic(args: {
       createdAt: post.created_at,
       now,
       requestSubtitles: args.requestSubtitles ?? true,
+      signal: args.signal,
     },
     args.mediaDeps,
   );
@@ -120,12 +125,16 @@ export async function decideSocialPostTopic(args: {
   if (!caption && media.images.length === 0 && !media.transcript) {
     return { write: socialTopicWrite(null, now), result: null, cleanup: media.cleanup };
   }
-  const result = await classifySocialTopic(client, {
-    caption,
-    crafts: await authorCrafts(admin, post.author_id),
-    transcript: media.transcript,
-    images: media.images,
-  });
+  const result = await classifySocialTopic(
+    client,
+    {
+      caption,
+      crafts: await authorCrafts(admin, post.author_id),
+      transcript: media.transcript,
+      images: media.images,
+    },
+    args.signal,
+  );
   return {
     write: socialTopicWrite(result, now, args.minConfidence ?? SOCIAL_TOPIC_MIN_CONFIDENCE),
     result,
@@ -133,22 +142,45 @@ export async function decideSocialPostTopic(args: {
   };
 }
 
-/** Classify one post and stamp it. A thrown error leaves the post untouched for the next run. */
+/**
+ * Classify one post and stamp it. A thrown error leaves the post untouched
+ * for the next run. Once `signal` is aborted (the run gave up on the post),
+ * nothing more is deleted or written.
+ */
 export async function tagSocialPostTopic(args: {
   admin: SupabaseClient<Database>;
   client: Anthropic;
   post: SocialTopicPost;
   now: Date;
   mediaDeps?: SocialTopicMediaDeps;
+  signal?: AbortSignal;
 }): Promise<SocialTopicOutcome> {
   const decided = await decideSocialPostTopic(args);
   if (!decided) return "wait";
-  // Captions off before the stamp: if a delete fails, the post is retried
-  // and the track is read and deleted again, never left behind.
+  // The tagger's caption tracks go before the stamp. A delete that fails for
+  // a reason worth retrying leaves the post for the next run, which reads
+  // the same track again. A track Mux will not delete is logged and the post
+  // is stamped anyway: the Social player keeps captions hidden, and another
+  // paid classification every run would not help.
   const deps = args.mediaDeps ?? SOCIAL_TOPIC_LIVE_MEDIA_DEPS;
   for (const track of decided.cleanup) {
-    await deps.deleteTrack(track.assetId, track.trackId);
+    args.signal?.throwIfAborted();
+    try {
+      await deps.deleteTrack(track.assetId, track.trackId);
+    } catch (error) {
+      if (!isSocialMuxPermanentError(error)) throw error;
+      console.warn(
+        JSON.stringify({
+          msg: "social topic track not deleted",
+          postId: args.post.id,
+          assetId: track.assetId,
+          trackId: track.trackId,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
   }
+  args.signal?.throwIfAborted();
   const { data, error } = await args.admin
     .from("posts")
     .update(decided.write)

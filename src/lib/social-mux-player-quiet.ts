@@ -89,6 +89,11 @@ export function mountQuietMuxPlayer(
   const player = create();
   player.className = QUIET_MUX_PLAYER_CLASS;
   player.setAttribute("playsinline", "");
+  // No captions on Social (founder decision 2026-10-03). Mux Player turns a
+  // subtitles track on by default; this keeps any track hidden, including
+  // the topic tagger's before it is deleted. The quiet player has no
+  // captions control, so viewers cannot turn one on.
+  player.setAttribute("default-hidden-captions", "");
   host.appendChild(player);
   assignConnectedMuxPlayer(player, props);
   return player;

@@ -3,7 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
-import { SOCIAL_MUX_TOPIC_TRACK_NAME, type MuxAssetData, type SocialMuxTrack } from "@/lib/social-mux-server";
+import {
+  SOCIAL_MUX_TOPIC_TRACK_NAME,
+  SocialMuxRequestError,
+  type MuxAssetData,
+  type SocialMuxTrack,
+} from "@/lib/social-mux-server";
 import type { SocialTopicMediaDeps } from "@/lib/social-topic-media";
 import {
   buildSocialTopicContent,
@@ -199,7 +204,11 @@ describe("classifySocialTopic", () => {
     expect(model.create.mock.lastCall?.[1]).toEqual({
       timeout: SOCIAL_TOPIC_REQUEST_TIMEOUT_MS,
       maxRetries: SOCIAL_TOPIC_REQUEST_MAX_RETRIES,
+      signal: undefined,
     });
+    const stop = new AbortController();
+    await classifySocialTopic(model.client, INPUT, stop.signal);
+    expect(model.create.mock.lastCall?.[1]).toMatchObject({ signal: stop.signal });
     expect(SOCIAL_TOPIC_REQUEST_TIMEOUT_MS * (SOCIAL_TOPIC_REQUEST_MAX_RETRIES + 1)).toBeLessThan(90_000);
   });
 
@@ -591,6 +600,71 @@ describe("tagSocialPostTopic", () => {
       }),
     ).rejects.toThrow("Mux track delete failed (503)");
     expect(db.ops.posts).toBeUndefined();
+  });
+
+  it("stamps the post anyway when Mux will not delete the track, and logs it", async () => {
+    const db = fakeAdmin();
+    const deps = fakeDeps();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    deps.deleteTrack.mockRejectedValue(new SocialMuxRequestError("Mux track delete failed (422)", 422));
+
+    const outcome = await tagSocialPostTopic({
+      admin: db.admin,
+      client: fakeClient().client,
+      post: post({ media: [videoItem()] }),
+      now: NOW,
+      mediaDeps: deps,
+    });
+
+    expect(outcome).toBe("tagged");
+    expect(db.ops.posts?.[0]?.[0]).toBe("update");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"msg":"social topic track not deleted"'));
+    warn.mockRestore();
+  });
+
+  it("deletes and writes nothing once the run has given up on the post", async () => {
+    const db = fakeAdmin();
+    const deps = fakeDeps();
+    const stop = new AbortController();
+    const model = fakeClient();
+    model.create.mockImplementation(async () => {
+      stop.abort(new Error("post timed out after 90000 ms"));
+      return answer("Cinematography", 0.92);
+    });
+
+    await expect(
+      tagSocialPostTopic({
+        admin: db.admin,
+        client: model.client,
+        post: post({ media: [videoItem()] }),
+        now: NOW,
+        mediaDeps: deps,
+        signal: stop.signal,
+      }),
+    ).rejects.toThrow("post timed out");
+    expect(model.create.mock.lastCall?.[1]).toMatchObject({ signal: stop.signal });
+    expect(deps.deleteTrack).not.toHaveBeenCalled();
+    expect(db.ops.posts).toBeUndefined();
+
+    // A post with no track to delete stops before the write too.
+    const plain = fakeAdmin();
+    const late = new AbortController();
+    const textOnly = fakeClient();
+    textOnly.create.mockImplementation(async () => {
+      late.abort(new Error("post timed out after 90000 ms"));
+      return answer("Cinematography", 0.92);
+    });
+    await expect(
+      tagSocialPostTopic({
+        admin: plain.admin,
+        client: textOnly.client,
+        post: post(),
+        now: NOW,
+        mediaDeps: fakeDeps(),
+        signal: late.signal,
+      }),
+    ).rejects.toThrow("post timed out");
+    expect(plain.ops.posts).toBeUndefined();
   });
 
   it("throws when the write fails", async () => {

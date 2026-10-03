@@ -21,9 +21,14 @@ import { createAdminClient } from "../../src/lib/supabase/admin";
 // (SOCIAL_TOPIC_POST_DEADLINE_MS), so stop starting new posts after 3.
 const BATCH_SIZE = 40;
 const BUDGET_MS = 3 * 60 * 1000;
-// S3 calls give up rather than hang the run.
-const S3_CONNECTION_TIMEOUT_MS = 5_000;
-const S3_REQUEST_TIMEOUT_MS = 15_000;
+// S3 calls give up rather than hang the run. requestTimeout only warns
+// unless throwOnRequestTimeout is set; socketTimeout covers a stalled body.
+export const SOCIAL_TOPIC_S3_REQUEST_HANDLER = {
+  connectionTimeout: 5_000,
+  requestTimeout: 15_000,
+  throwOnRequestTimeout: true,
+  socketTimeout: 15_000,
+} as const;
 
 const REQUIRED_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
@@ -51,7 +56,7 @@ export async function handler(): Promise<SocialTopicRunSummary | { skipped: "dis
     // No credentials: the execution role signs.
     s3: new S3Client({
       region: process.env.MEDIA_AWS_REGION!.trim(),
-      requestHandler: { connectionTimeout: S3_CONNECTION_TIMEOUT_MS, requestTimeout: S3_REQUEST_TIMEOUT_MS },
+      requestHandler: SOCIAL_TOPIC_S3_REQUEST_HANDLER,
     }),
   };
   const summary = await runSocialTopicBatch({
@@ -63,11 +68,13 @@ export async function handler(): Promise<SocialTopicRunSummary | { skipped: "dis
     mediaDeps: { ...SOCIAL_TOPIC_LIVE_MEDIA_DEPS, readImage: (key) => readSocialMediaObjectFrom(media, key) },
   });
   console.log(JSON.stringify({ msg: "social topic tagging done", ...summary }));
-  // Every post failing points at configuration, not one post: fail the
-  // invocation so the function's Errors alarm and on-failure queue see it.
-  // The next scheduled run is the retry.
-  if (summary.selected > 0 && summary.error === summary.selected) {
-    throw new Error(`every selected post failed (${summary.error})`);
+  // Every post the run tried failing points at configuration or an outage,
+  // not one post: fail the invocation so the function's Errors alarm and
+  // on-failure queue see it. Posts deferred by the time budget were not
+  // tried. The next scheduled run is the retry.
+  const attempted = summary.selected - summary.deferred;
+  if (attempted > 0 && summary.error === attempted) {
+    throw new Error(`every attempted post failed (${summary.error})`);
   }
   return summary;
 }

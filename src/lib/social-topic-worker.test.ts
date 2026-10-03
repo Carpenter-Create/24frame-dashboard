@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({ admin
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runSocialTopicBatch } from "@/lib/social-topic-run";
 
-import { handler } from "../../workers/social-topic/handler";
+import { handler, SOCIAL_TOPIC_S3_REQUEST_HANDLER } from "../../workers/social-topic/handler";
 
 const ENV = {
   SOCIAL_TOPIC_TAGGING: "on",
@@ -70,9 +70,35 @@ describe("social topic Lambda handler", () => {
     expect(typeof args?.mediaDeps?.readImage).toBe("function");
   });
 
-  it("fails the invocation when every selected post failed", async () => {
+  it("fails the invocation when every post it tried failed, deferred posts aside", async () => {
     vi.mocked(runSocialTopicBatch).mockResolvedValue({ ...SUMMARY, tagged: 0, declined: 0, error: 2 });
-    await expect(handler()).rejects.toThrow("every selected post failed (2)");
+    await expect(handler()).rejects.toThrow("every attempted post failed (2)");
+
+    // A slow outage: three posts time out, the budget defers the rest.
+    vi.mocked(runSocialTopicBatch).mockResolvedValue({
+      selected: 40, tagged: 0, declined: 0, wait: 0, raced: 0, error: 3, deferred: 37,
+    });
+    await expect(handler()).rejects.toThrow("every attempted post failed (3)");
+  });
+
+  it("succeeds when any attempted post did not fail, or nothing was tried", async () => {
+    vi.mocked(runSocialTopicBatch).mockResolvedValue({
+      selected: 40, tagged: 0, declined: 0, wait: 1, raced: 0, error: 2, deferred: 37,
+    });
+    await expect(handler()).resolves.toMatchObject({ error: 2 });
+    vi.mocked(runSocialTopicBatch).mockResolvedValue({
+      selected: 0, tagged: 0, declined: 0, wait: 0, raced: 0, error: 0, deferred: 0,
+    });
+    await expect(handler()).resolves.toMatchObject({ selected: 0 });
+  });
+
+  it("makes S3 timeouts throw instead of only warning", () => {
+    expect(SOCIAL_TOPIC_S3_REQUEST_HANDLER).toEqual({
+      connectionTimeout: 5_000,
+      requestTimeout: 15_000,
+      throwOnRequestTimeout: true,
+      socketTimeout: 15_000,
+    });
   });
 
   it("carries no static AWS keys of its own", () => {

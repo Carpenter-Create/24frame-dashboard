@@ -176,10 +176,12 @@ export async function readSocialMediaObjectOrThrow(
   return readSocialMediaObjectFrom(mediaClient(), key);
 }
 
+// The object itself is gone. A missing bucket (NoSuchBucket, also a 404)
+// is configuration, so it throws.
 function isMissingObject(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
-  const { name, $metadata } = error as { name?: unknown; $metadata?: { httpStatusCode?: unknown } };
-  return name === "NoSuchKey" || name === "NotFound" || $metadata?.httpStatusCode === 404;
+  const { name } = error as { name?: unknown };
+  return name === "NoSuchKey" || name === "NotFound";
 }
 
 /**

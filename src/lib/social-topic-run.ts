@@ -18,8 +18,8 @@ export const SOCIAL_TOPIC_MIN_AGE_MS = 2 * 60 * 1000;
 export const SOCIAL_TOPIC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 // One post gets at most 90 seconds (two 40-second model attempts plus
 // media). Past that it counts as an error and is retried next run. The
-// abandoned work may still finish; its write is guarded, so it can only
-// stamp a post that is still untagged.
+// post's signal is aborted too, which cancels its model call and stops it
+// from requesting a transcript, deleting a track, or writing.
 export const SOCIAL_TOPIC_POST_DEADLINE_MS = 90_000;
 
 export type SocialTopicRunSummary = Record<SocialTopicOutcome | "error" | "deferred", number> & {
@@ -70,13 +70,15 @@ export async function runSocialTopicBatch(args: {
     try {
       summary[
         await withDeadline(
-          tagSocialPostTopic({
-            admin: args.admin,
-            client: args.client,
-            post,
-            now: args.now,
-            mediaDeps: args.mediaDeps,
-          }),
+          (signal) =>
+            tagSocialPostTopic({
+              admin: args.admin,
+              client: args.client,
+              post,
+              now: args.now,
+              mediaDeps: args.mediaDeps,
+              signal,
+            }),
           args.postDeadlineMs ?? SOCIAL_TOPIC_POST_DEADLINE_MS,
         )
       ] += 1;
@@ -95,13 +97,18 @@ export async function runSocialTopicBatch(args: {
   return summary;
 }
 
-async function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
+  const stop = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`post timed out after ${ms} ms`)), ms);
+    timer = setTimeout(() => {
+      const error = new Error(`post timed out after ${ms} ms`);
+      stop.abort(error);
+      reject(error);
+    }, ms);
   });
   try {
-    return await Promise.race([work, deadline]);
+    return await Promise.race([work(stop.signal), deadline]);
   } finally {
     clearTimeout(timer);
   }

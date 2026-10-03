@@ -497,6 +497,93 @@ describe("gatherSocialTopicMedia: transcripts", () => {
   });
 });
 
+describe("gatherSocialTopicMedia: posts with more than one video", () => {
+  const ASSET_B = "assetId00000002";
+  const PLAYBACK_B = "playbackId0002";
+
+  function secondVideo(): SocialMediaItem {
+    return { ...videoItem(), key: "posts/author/clip-b.mp4", playbackId: PLAYBACK_B, assetId: ASSET_B };
+  }
+
+  function assets(a: Partial<MuxAssetData>, b: Partial<MuxAssetData>) {
+    return async (assetId: string) =>
+      assetId === ASSET_ID
+        ? readyAsset(a)
+        : readyAsset({ id: ASSET_B, playback_ids: [{ id: PLAYBACK_B, policy: "signed" }], ...b });
+  }
+
+  it("waits for every video before reading or requesting any transcript", async () => {
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockImplementation(assets({}, { status: "preparing" }));
+
+    expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
+    expect(deps.fetchTranscript).not.toHaveBeenCalled();
+    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
+  });
+
+  it("transcribes only the first video, and deletes its track", async () => {
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockImplementation(assets({}, { tracks: [VIDEO_TRACK, AUDIO_TRACK] }));
+
+    const media = await gather([videoItem(), secondVideo()], deps);
+
+    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+    expect(deps.fetchTranscript.mock.calls).toEqual([[PLAYBACK_ID, "textTrack001"]]);
+    expect(media).toMatchObject({ status: "ready", transcript: TRANSCRIPT, cleanup: [OUR_TRACK] });
+  });
+
+  it("requests one transcript, for the first video, when none has one", async () => {
+    const deps = fakeDeps();
+    const noText = { tracks: [VIDEO_TRACK, AUDIO_TRACK] };
+    deps.retrieveAsset.mockImplementation(assets(noText, noText));
+
+    expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
+    expect(deps.requestSubtitles.mock.calls).toEqual([[ASSET_ID, "audioTrack01"]]);
+  });
+
+  it("takes the transcript from the first video that has audio", async () => {
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockImplementation(assets({ tracks: [VIDEO_TRACK] }, { tracks: [VIDEO_TRACK, AUDIO_TRACK] }));
+
+    expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
+    expect(deps.requestSubtitles.mock.calls).toEqual([[ASSET_B, "audioTrack01"]]);
+  });
+
+  it("lists every tagger track for deletion, and never one still preparing", async () => {
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockImplementation(
+      assets({}, { tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("errored"), id: "textTrack002" }] }),
+    );
+    expect(await gather([videoItem(), secondVideo()], deps)).toMatchObject({
+      cleanup: [OUR_TRACK, { assetId: ASSET_B, trackId: "textTrack002" }],
+    });
+
+    deps.retrieveAsset.mockImplementation(
+      assets(
+        { tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("ready", "English (generated)")] },
+        { tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("preparing"), id: "textTrack002" }] },
+      ),
+    );
+    expect(await gather([videoItem(), secondVideo()], deps)).toMatchObject({ transcript: TRANSCRIPT, cleanup: [] });
+  });
+
+  it("asks for no transcript once the run has given up on the post", async () => {
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockResolvedValue(readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK] }));
+    const stop = new AbortController();
+    stop.abort(new Error("post timed out after 90000 ms"));
+
+    await expect(
+      gatherSocialTopicMedia(
+        { items: [videoItem()], authorId: AUTHOR, createdAt: YOUNG, now: NOW, requestSubtitles: true, signal: stop.signal },
+        deps,
+      ),
+    ).rejects.toThrow("post timed out");
+    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+  });
+});
+
 describe("topic media fixes", () => {
   it("throws on an image read error instead of reading it as no image", async () => {
     const deps = fakeDeps();

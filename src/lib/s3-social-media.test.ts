@@ -203,6 +203,13 @@ describe("s3-social-media isolated lane", () => {
 
     mockSend.mockRejectedValueOnce(missing);
     await expect(readSocialMediaObjectFrom(media, KEY)).resolves.toBeNull();
+    // A missing bucket is configuration, not a deleted image.
+    const noBucket = Object.assign(new Error("The specified bucket does not exist"), {
+      name: "NoSuchBucket",
+      $metadata: { httpStatusCode: 404 },
+    });
+    mockSend.mockRejectedValueOnce(noBucket);
+    await expect(readSocialMediaObjectFrom(media, KEY)).rejects.toThrow("bucket does not exist");
     mockSend.mockRejectedValueOnce(denied);
     await expect(readSocialMediaObjectFrom(media, KEY)).rejects.toThrow("Access Denied");
     mockSend.mockRejectedValueOnce(throttled);

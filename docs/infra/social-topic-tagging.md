@@ -37,14 +37,18 @@ are proposals for Adam to confirm.
   folder. A video must be the author's own Mux upload and play by the
   post's playback id; otherwise the tagger reads nothing from it and never
   asks Mux to transcribe it.
-- **Transcripts.** The first time it meets a ready video, it asks Mux to
-  transcribe it (language detected), and waits until the transcript is
-  ready. It reads the transcript, then **deletes that caption track**
-  before stamping the post. Mux adds the track to the video when the
-  transcript is ready, so captions can show for up to about 5 minutes
-  until the next run removes them. A video still preparing after an hour
-  is classified from its caption. Captions someone adds another way are
-  read but never deleted.
+- **Transcripts.** Once every video in the post is ready, it asks Mux to
+  transcribe the first video with audio (language detected; one
+  transcript per post) and waits until the transcript is ready. It reads
+  the transcript, then **deletes that caption track** before stamping the
+  post. A video still preparing after an hour is classified from its
+  caption. Captions someone adds another way are read but never deleted.
+- **No captions for viewers** (Adam lock: no auto captions). The Social
+  player keeps captions hidden and has no captions control, so a caption
+  track never shows, even in the minutes before the tagger deletes it.
+  If Mux refuses to delete a track, the post is stamped anyway and the
+  log shows `{"msg":"social topic track not deleted",...}`; the track
+  stays hidden.
 - **The answer.** Claude is asked for one of the 15 topics or "none",
   plus a confidence. A topic is matched to its exact label ignoring case;
   any other answer is discarded and the post is stamped with no topic.
@@ -55,9 +59,11 @@ are proposals for Adam to confirm.
   - Below the threshold, "none", a refusal or an unreadable answer:
     `category_tagged_at` only, so the post is never classified twice.
   - **Errors leave the post untouched** for the next run: a Claude, Mux,
-    S3 or database error, a timeout, or a caption track that could not be
-    deleted. Only a permanent miss (a deleted image or Mux asset, a video
-    Mux will not transcribe) is read as no media.
+    S3 or database error (a missing bucket included), a timeout, or a
+    caption-track delete that failed for a reason worth retrying. Only a
+    permanent miss (a deleted image or Mux asset, a video Mux will not
+    transcribe) is read as no media. When a post passes its 90 seconds,
+    its work is cancelled: it requests, deletes and writes nothing more.
 - **What it never touches:** an author's own topic, group posts, or
   stories.
 
@@ -114,7 +120,7 @@ NEXT_PUBLIC_SUPABASE_URL=          # same value as Vercel
 SUPABASE_SERVICE_ROLE_KEY=         # same value as Vercel
 MEDIA_AWS_REGION=                  # same value as Vercel
 S3_MEDIA_SOURCE_BUCKET=            # same value as Vercel
-MUX_TOKEN_ID= MUX_TOKEN_SECRET= MUX_SIGNING_KEY= MUX_PRIVATE_KEY=   # same as Vercel
+MUX_TOKEN_ID= MUX_TOKEN_SECRET= MUX_SIGNING_KEY= MUX_PRIVATE_KEY=   # same as Vercel (same Mux environment as Social uploads)
 ```
 
 **No AWS keys on the function.** The role signs Claude and S3 requests.
@@ -230,14 +236,20 @@ aws lambda update-function-code --region us-west-2 \
 - **Failures.** One post's error is logged
   (`{"msg":"social topic post failed","postId":...}`), counted in
   `error`, and retried next run; the run still succeeds. A run fails only
-  on configuration (missing env) or when every selected post failed.
+  on configuration (missing env) or when every post it tried failed
+  (posts left for the next run by the time limit do not count).
   A failed run lands in `24frame-social-topic-failures` and counts in the
   function's `Errors` metric; the alarm emails you after 15 minutes of
   failed runs. The queue should stay empty.
 - **In the app.** A new post shows its topic chip on Social Home within
   about 10 minutes. Videos take longer while Mux transcribes them.
 - **Turn off:** remove `SOCIAL_TOPIC_TAGGING` from the function env, or
-  disable the EventBridge rule. Stored topics stay.
+  disable the EventBridge rule. Stored topics stay. Videos that were
+  waiting on a transcript keep that caption track in Mux; it stays hidden
+  in the Social player.
+- **Every video post skipped as "no video"?** Check that the Mux env on
+  the function is from the same Mux environment as Social uploads; keys
+  from another environment make every video look deleted.
 
 ## Not in this PR
 

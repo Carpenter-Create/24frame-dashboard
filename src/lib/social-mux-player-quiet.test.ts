@@ -82,7 +82,8 @@ describe("mountQuietMuxPlayer", () => {
     mountQuietMuxPlayer(host, () => player, { ...PROPS, onLoadedData: () => {} });
     const appendAt = player.calls.indexOf("append");
     expect(appendAt).toBeGreaterThanOrEqual(0);
-    expect(player.calls.slice(0, appendAt)).toEqual(["attr:playsinline="]);
+    // Captions stay hidden on Social (no auto captions); set before append.
+    expect(player.calls.slice(0, appendAt)).toEqual(["attr:playsinline=", "attr:default-hidden-captions="]);
     expect(player.playbackId).toBe("abc12345xx");
     expect(player.streamType).toBe("on-demand");
     expect(player.preload).toBe("metadata");
