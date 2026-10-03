@@ -102,6 +102,7 @@ describe("mountQuietMuxPlayer", () => {
       "style:height=100%",
       "style:object-fit=cover",
       "style:--controls=none",
+      "style:--captions-button=none",
       "listen:loadeddata",
       "pause",
     ]);
@@ -308,6 +309,7 @@ describe("mountQuietMuxPlayer", () => {
       "style:width=100%",
       "style:height=100%",
       "style:object-fit=cover",
+      "style:--captions-button=none",
     ]);
 
     const contained = fakePlayer();
@@ -321,6 +323,7 @@ describe("mountQuietMuxPlayer", () => {
       "style:width=100%",
       "style:height=100%",
       "style:object-fit=contain",
+      "style:--captions-button=none",
     ]);
 
     const injected = fakePlayer();
@@ -338,6 +341,22 @@ describe("mountQuietMuxPlayer", () => {
       "style:height=100%",
       "style:object-fit=cover",
       "style:--controls=none",
+      "style:--captions-button=none",
     ]);
+  });
+
+  it("hides the captions button on a player that keeps the player bar", () => {
+    // The feed card keeps the bar (no --controls). No auto captions on
+    // Social, so the button that would turn on a subtitles track is hidden.
+    const player = fakePlayer();
+    const host = {
+      appendChild(node: QuietMuxPlayerElement) {
+        node.isConnected = true;
+      },
+    };
+    const withBar: QuietMuxPlayerStyle = { aspectRatio: "auto", width: "100%", height: "100%", objectFit: "cover" };
+    mountQuietMuxPlayer(host, () => player, { ...PROPS, style: withBar });
+    expect(player.calls).not.toContain("style:--controls=none");
+    expect(player.calls).toContain("style:--captions-button=none");
   });
 });

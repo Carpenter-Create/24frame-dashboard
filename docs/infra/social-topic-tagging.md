@@ -51,14 +51,17 @@ are proposals for Adam to confirm.
   caption. Captions someone adds another way are read but never deleted.
   It asks for no new transcript for an edited post, or in the last day of
   the 7-day window (so the track is read and deleted while the post is
-  still selected).
-- **No captions for viewers** (Adam lock: no auto captions). The Social
-  player keeps captions hidden, has no captions control and turns off the
-  `c` captions key, so a caption track never shows, even in the minutes
-  before the tagger deletes it.
+  still selected). That includes a post edited before its first look: it
+  is tagged from its caption and frames, with no transcript.
+- **No captions for viewers** (Adam lock: no auto captions). Every Social
+  player, the feed card's player bar included, keeps captions hidden,
+  hides the captions button and turns off the `c` captions key, so a
+  caption track does not show in the minutes before the tagger deletes it.
+  One gap: iPhone full screen uses the system player, whose own menu can
+  list the track until it is deleted.
   If Mux refuses to delete a track, the post is stamped anyway and the
-  log shows `{"msg":"social topic track not deleted",...}`; the track
-  stays hidden.
+  error log shows `{"msg":"social topic track not deleted",...}` with the
+  asset and track ids. Delete that track by hand.
 - **The answer.** Claude is asked for one of the 15 topics or "none",
   plus a confidence. A topic is matched to its exact label ignoring case;
   any other answer is discarded and the post is stamped with no topic.

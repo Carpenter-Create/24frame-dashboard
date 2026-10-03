@@ -191,8 +191,9 @@ export async function tagSocialPostTopic(args: {
 
 /**
  * Delete the tagger's caption tracks. A track Mux will not delete (a
- * permanent 4xx) is logged and skipped: the Social player keeps captions
- * hidden, and retrying the post every run would not help. Other errors throw.
+ * permanent 4xx) is logged as an error and skipped: the Social player hides
+ * captions and the captions button, and retrying the post every run would
+ * not help. The track needs a manual delete. Other errors throw.
  */
 async function deleteTaggerTracks(
   mediaDeps: SocialTopicMediaDeps | undefined,
@@ -209,7 +210,7 @@ async function deleteTaggerTracks(
       deleted += 1;
     } catch (error) {
       if (!isSocialMuxPermanentError(error)) throw error;
-      console.warn(
+      console.error(
         JSON.stringify({
           msg: "social topic track not deleted",
           postId,

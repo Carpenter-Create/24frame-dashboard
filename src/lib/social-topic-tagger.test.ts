@@ -695,7 +695,7 @@ describe("tagSocialPostTopic", () => {
   it("stamps the post anyway when Mux will not delete the track, and logs it", async () => {
     const db = fakeAdmin();
     const deps = fakeDeps();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     deps.deleteTrack.mockRejectedValue(new SocialMuxRequestError("Mux track delete failed (422)", 422));
 
     const outcome = await tagSocialPostTopic({
@@ -708,8 +708,8 @@ describe("tagSocialPostTopic", () => {
 
     expect(outcome).toBe("tagged");
     expect(db.ops.posts?.[0]?.[0]).toBe("update");
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"msg":"social topic track not deleted"'));
-    warn.mockRestore();
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining('"msg":"social topic track not deleted"'));
+    logged.mockRestore();
   });
 
   it("deletes and writes nothing once the run has given up on the post", async () => {
@@ -862,13 +862,13 @@ describe("cleanupSocialPostTopicTracks", () => {
       cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps }),
     ).rejects.toThrow("(503)");
 
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     deps.deleteTrack.mockRejectedValueOnce(new SocialMuxRequestError("Mux track delete failed (422)", 422));
     expect(await cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps })).toEqual({
       deleted: 0,
       pending: false,
     });
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("social topic track not deleted"));
-    warn.mockRestore();
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining("social topic track not deleted"));
+    logged.mockRestore();
   });
 });
