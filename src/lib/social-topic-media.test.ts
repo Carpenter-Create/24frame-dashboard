@@ -568,6 +568,46 @@ describe("gatherSocialTopicMedia: posts with more than one video", () => {
     expect(await gather([videoItem(), secondVideo()], deps)).toMatchObject({ transcript: TRANSCRIPT, cleanup: [] });
   });
 
+  it("stops before its next Mux or S3 call once the run gives up on the post", async () => {
+    const deps = fakeDeps();
+    const stop = new AbortController();
+    deps.readImage.mockImplementation(async () => {
+      stop.abort(new Error("post timed out after 90000 ms"));
+      return null;
+    });
+
+    await expect(
+      gatherSocialTopicMedia(
+        {
+          items: [imageItem(1), imageItem(2), videoItem()],
+          authorId: AUTHOR,
+          createdAt: YOUNG,
+          now: NOW,
+          requestSubtitles: true,
+          signal: stop.signal,
+        },
+        deps,
+      ),
+    ).rejects.toThrow("post timed out");
+    expect(deps.readImage).toHaveBeenCalledTimes(1);
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
+
+    // Mid-frames too: the frame after the abort is never fetched.
+    const frames = fakeDeps();
+    const late = new AbortController();
+    frames.fetchFrame.mockImplementation(async (_playbackId, { time }) => {
+      late.abort(new Error("post timed out after 90000 ms"));
+      return frameBytes(time);
+    });
+    await expect(
+      gatherSocialTopicMedia(
+        { items: [videoItem()], authorId: AUTHOR, createdAt: YOUNG, now: NOW, requestSubtitles: true, signal: late.signal },
+        frames,
+      ),
+    ).rejects.toThrow("post timed out");
+    expect(frames.fetchFrame).toHaveBeenCalledTimes(1);
+  });
+
   it("asks for no transcript once the run has given up on the post", async () => {
     const deps = fakeDeps();
     deps.retrieveAsset.mockResolvedValue(readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK] }));

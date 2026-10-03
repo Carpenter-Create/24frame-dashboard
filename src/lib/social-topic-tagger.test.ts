@@ -98,14 +98,16 @@ type WriteResult = { data: { id: string }[] | null; error: { message: string } |
 // Records each builder call per table. profiles ends at maybeSingle, posts at select.
 function fakeAdmin({
   crafts,
+  craftsError = null,
   write = { data: [{ id: POST_ID }], error: null },
-}: { crafts?: unknown; write?: WriteResult } = {}) {
+}: { crafts?: unknown; craftsError?: { message: string } | null; write?: WriteResult } = {}) {
   const ops: Record<string, unknown[][]> = {};
   const from = vi.fn((table: string) => {
     if (table !== "profiles" && table !== "posts") throw new Error(`unexpected table ${table}`);
     const log = (ops[table] ??= []);
     const terminal = table === "profiles" ? "maybeSingle" : "select";
-    const result = table === "profiles" ? { data: crafts === undefined ? null : { crafts }, error: null } : write;
+    const result =
+      table === "profiles" ? { data: crafts === undefined ? null : { crafts }, error: craftsError } : write;
     const query: Record<string, (...args: unknown[]) => unknown> = {};
     for (const name of ["select", "update", "eq", "is", "maybeSingle"]) {
       query[name] = (...args) => {
@@ -352,6 +354,17 @@ describe("decideSocialPostTopic", () => {
         }),
       },
     ]);
+  });
+
+  it("throws instead of classifying without crafts when the profile read fails", async () => {
+    const model = fakeClient();
+    const db = fakeAdmin({ craftsError: { message: "connection reset" } });
+
+    await expect(
+      tagSocialPostTopic({ admin: db.admin, client: model.client, post: post(), now: NOW, mediaDeps: fakeDeps() }),
+    ).rejects.toThrow("Crafts read failed: connection reset");
+    expect(model.create).not.toHaveBeenCalled();
+    expect(db.ops.posts).toBeUndefined();
   });
 
   it("lists no crafts when the author has no profile row", async () => {

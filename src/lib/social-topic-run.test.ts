@@ -103,8 +103,12 @@ describe("runSocialTopicBatch", () => {
     try {
       const db = fakeAdmin({ data: ["slow", "next"].map(post), error: null });
       const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      // The slow post fails only after the run has moved on: that late
+      // rejection must stay handled (vitest fails on an unhandled one).
       vi.mocked(tagSocialPostTopic)
-        .mockImplementationOnce(() => new Promise(() => {}))
+        .mockImplementationOnce(
+          () => new Promise((_, reject) => setTimeout(() => reject(new Error("late failure")), 8_000)),
+        )
         .mockResolvedValueOnce("tagged");
 
       const run = runSocialTopicBatch({
@@ -126,6 +130,8 @@ describe("runSocialTopicBatch", () => {
       expect(slow?.aborted).toBe(true);
       expect(String(slow?.reason)).toContain("post timed out after 5000 ms");
       expect(next?.aborted).toBe(false);
+      // The slow post's late rejection fires here, after the run returned.
+      await vi.advanceTimersByTimeAsync(10_000);
       expect(vi.getTimerCount()).toBe(0);
       errorLog.mockRestore();
     } finally {

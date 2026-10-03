@@ -79,8 +79,11 @@ export async function classifySocialTopic(
   return parseSocialTopicAnswer(text);
 }
 
+// No profile row means no crafts. A failed read throws, so the post is
+// retried rather than classified without them.
 async function authorCrafts(admin: SupabaseClient<Database>, authorId: string): Promise<string[]> {
-  const { data } = await admin.from("profiles").select("crafts").eq("id", authorId).maybeSingle();
+  const { data, error } = await admin.from("profiles").select("crafts").eq("id", authorId).maybeSingle();
+  if (error) throw new Error(`Crafts read failed: ${error.message}`);
   return parseSocialProfileRoles(data?.crafts).map(socialProfileRoleLabel);
 }
 
@@ -120,6 +123,7 @@ export async function decideSocialPostTopic(args: {
   );
   if (media.status === "wait") return null;
 
+  args.signal?.throwIfAborted();
   const caption = post.body?.trim() || null;
   // Nothing to read: no call, and the look is stamped as no topic.
   if (!caption && media.images.length === 0 && !media.transcript) {

@@ -145,11 +145,12 @@ function isTaggerTrack(track: SocialMuxTrack): track is SocialMuxTrack & { id: s
   return !!track?.id && track.type === "text" && track.name === SOCIAL_MUX_TOPIC_TRACK_NAME;
 }
 
-async function videoFrames(item: MuxVideo, asset: MuxAssetData, deps: SocialTopicMediaDeps) {
+async function videoFrames(item: MuxVideo, asset: MuxAssetData, deps: SocialTopicMediaDeps, signal?: AbortSignal) {
   const duration = asset.duration && asset.duration > 0 ? asset.duration : 0;
   const times = duration > 0 ? SOCIAL_TOPIC_FRAME_POINTS.map((point) => Math.floor(point * duration)) : [0];
   const frames: SocialTopicImage[] = [];
   for (const time of [...new Set(times)]) {
+    signal?.throwIfAborted();
     const bytes = await deps.fetchFrame(item.playbackId, { time, width: SOCIAL_TOPIC_FRAME_WIDTH });
     if (bytes) {
       frames.push({
@@ -166,7 +167,8 @@ async function videoFrames(item: MuxVideo, asset: MuxAssetData, deps: SocialTopi
  * Media signals for one post. `createdAt` decides whether the tagger still
  * waits for a preparing video. The eval script passes requestSubtitles:
  * false so it never starts a transcription. `signal` stops a post the run
- * has given up on before it asks Mux for a transcript.
+ * has given up on before its next Mux or S3 call, so abandoned work ends
+ * within one call's timeout.
  *
  * Every video must be ready before any transcript is read or requested, and
  * a post gets one transcript, from its first video with audio. So the tagger
@@ -189,6 +191,7 @@ export async function gatherSocialTopicMedia(
   const videos = new Map<SocialMediaItem, ReadyVideo>();
   for (const item of post.items) {
     if (!isSocialMuxMediaItem(item)) continue;
+    post.signal?.throwIfAborted();
     const video = await readyMuxAsset(item, post.authorId, waitedOut, deps);
     if (video === "wait") return { status: "wait" };
     if (video) videos.set(item, video);
@@ -206,6 +209,7 @@ export async function gatherSocialTopicMedia(
     const text = generatedTextTrack(asset);
     const audio = primaryAudioTrack(asset);
     if (text?.status === "ready" && text.id) {
+      post.signal?.throwIfAborted();
       transcript = await deps.fetchTranscript(item.playbackId, text.id);
     } else if (post.requestSubtitles && text?.status === "preparing") {
       return { status: "wait" };
@@ -235,6 +239,7 @@ export async function gatherSocialTopicMedia(
   let photos = 0;
   for (const item of post.items) {
     if (images.length >= SOCIAL_TOPIC_MAX_IMAGES) break;
+    post.signal?.throwIfAborted();
     if (item.kind === "image") {
       const object = await deps.readImage(item.key);
       const data = object ? await socialTopicJpeg(object.bytes) : null;
@@ -245,7 +250,7 @@ export async function gatherSocialTopicMedia(
       continue;
     }
     const video = videos.get(item);
-    if (video) images.push(...(await videoFrames(video.item, video.asset, deps)));
+    if (video) images.push(...(await videoFrames(video.item, video.asset, deps, post.signal)));
   }
 
   return { status: "ready", images: images.slice(0, SOCIAL_TOPIC_MAX_IMAGES), transcript, cleanup };
