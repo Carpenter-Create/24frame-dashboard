@@ -131,7 +131,7 @@ describe("client NAV", () => {
   });
 });
 
-describe("Ask Globee nav mark", () => {
+describe("24Frame AI nav mark", () => {
   it("drops the bee PNGs and the image mark path", () => {
     expect(() => readFileSync("public/ask-globee/ask-globee-16.png")).toThrow();
     expect(() => readFileSync("public/ask-globee/ask-globee-64.png")).toThrow();

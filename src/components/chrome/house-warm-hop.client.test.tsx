@@ -113,18 +113,18 @@ vi.mock("next/dynamic", () => ({
 
 const askActions = vi.hoisted(() => ({ startedId: "" }));
 
-vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
+vi.mock("@/app/(app)/aggregation/messages/ask-frame-ai-actions", () => ({
   loadAskAiOverlay: () => new Promise(() => undefined),
-  startAskGlobeeConversation: async () => ({ conversationId: askActions.startedId }),
-  renameAskGlobeeConversation: vi.fn(),
-  pinAskGlobeeConversation: vi.fn(),
-  deleteAskGlobeeConversation: vi.fn(),
+  startAskFrameAiConversation: async () => ({ conversationId: askActions.startedId }),
+  renameAskFrameAiConversation: vi.fn(),
+  pinAskFrameAiConversation: vi.fn(),
+  deleteAskFrameAiConversation: vi.fn(),
 }));
 
 import { MessageLink } from "@/app/(app)/aggregation/messages/message-link";
-import { AskAssistantChromeProvider, useAskGlobeeChrome } from "@/components/messages/ask-globee-chrome";
-import { AskGlobeeHistoryPanel } from "@/components/messages/ask-globee-history";
-import { AskGlobeeLanding } from "@/components/messages/ask-globee-landing";
+import { AskAssistantChromeProvider, useAskFrameAiChrome } from "@/components/messages/ask-frame-ai-chrome";
+import { AskFrameAiHistoryPanel } from "@/components/messages/ask-frame-ai-history";
+import { AskFrameAiLanding } from "@/components/messages/ask-frame-ai-landing";
 import { NewsSourceChips } from "@/components/news/news-sources-filter";
 import { SocialCreateFan } from "@/components/social/social-create-fan";
 import { SocialCreateTile } from "@/components/social/social-create-sheet";
@@ -862,7 +862,7 @@ describe("Ask AI history rows", () => {
   };
 
   function ChromeProbe() {
-    const { historyOpen, setHistoryOpen } = useAskGlobeeChrome();
+    const { historyOpen, setHistoryOpen } = useAskFrameAiChrome();
     useEffect(() => {
       chrome.historyOpen = historyOpen;
       chrome.setHistoryOpen = setHistoryOpen;
@@ -883,7 +883,7 @@ describe("Ask AI history rows", () => {
           AskAssistantChromeProvider,
           null,
           createElement(ChromeProbe),
-          createElement(AskGlobeeHistoryPanel, { conversations: ROWS, now: NOW }),
+          createElement(AskFrameAiHistoryPanel, { conversations: ROWS, now: NOW }),
         ),
       ),
     );
@@ -936,7 +936,7 @@ describe("Ask AI landing and thread header keep the screen's query", () => {
         {
           initialChrome: { id: THREAD, title: "Delivery status", pinned_at: null },
         } as ComponentProps<typeof AskAssistantChromeProvider>,
-        createElement(MessagesAppHeader, { surface: "ask-globee-thread" }),
+        createElement(MessagesAppHeader, { surface: "ask-frame-ai-thread" }),
       ),
     );
   }
@@ -963,9 +963,9 @@ describe("Ask AI landing and thread header keep the screen's query", () => {
 
   it("a new conversation from the landing opens on that screen, through Next", async () => {
     askActions.startedId = THREAD;
-    renderOverScreen(createElement(AskGlobeeLanding));
+    renderOverScreen(createElement(AskFrameAiLanding));
 
-    click(findByAttribute("data-ask-globee-chip"));
+    click(findByAttribute("data-ask-frame-ai-chip"));
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });

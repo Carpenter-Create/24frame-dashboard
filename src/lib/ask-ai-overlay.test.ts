@@ -80,8 +80,8 @@ describe("ask AI overlay URL", () => {
     expect(ASK_AI_OVERLAY_EXPAND_CLASS).not.toContain("hidden");
     expect(ASK_AI_OVERLAY_EXPAND_CLASS).not.toContain("md:flex");
     expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("overflow-hidden");
-    expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("[&_[data-ask-globee-landing]]:h-full");
-    expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("[&_[data-ask-globee-thread]]:h-full");
+    expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("[&_[data-ask-frame-ai-landing]]:h-full");
+    expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("[&_[data-ask-frame-ai-thread]]:h-full");
     expect(ASK_AI_OVERLAY_BODY_CLASS).not.toContain("overflow-auto");
     expect(askAiOverlayPhoneClass(false)).toContain("overscroll-none");
     expect(ASK_AI_OVERLAY_PHONE_SCROLL_CLASS).toContain("max-md:overflow-y-scroll");
@@ -167,9 +167,9 @@ describe("ask AI overlay URL", () => {
     expect(openAt).toBeLessThan(closeAt);
     expect(overlaySrc).toContain("data-ask-ai-overlay-phone");
     expect(overlaySrc).toContain("data-ask-ai-overlay-phone-history");
-    expect(overlaySrc).toContain("AskGlobeeHistoryPanel");
+    expect(overlaySrc).toContain("AskFrameAiHistoryPanel");
     expect(overlaySrc).toContain('import dynamic from "next/dynamic"');
-    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-globee-landing"/);
+    expect(overlaySrc).not.toMatch(/from "@\/components\/messages\/ask-frame-ai-landing"/);
     expect(overlaySrc).not.toMatch(/from "\.\/messages-app-header"/);
     expect(overlaySrc).toContain("ASK_AI_OVERLAY_PHONE_HISTORY_HOST_CLASS");
     expect(overlaySrc).not.toContain("ASK_AI_OVERLAY_PHONE_HISTORY_COVER_CLASS");

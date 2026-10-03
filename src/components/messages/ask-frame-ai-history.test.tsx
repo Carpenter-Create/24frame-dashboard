@@ -10,23 +10,23 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
-import { AskGlobeeHistoryClock, AskGlobeeHistoryPanel } from "./ask-globee-history";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
+import { AskFrameAiHistoryClock, AskFrameAiHistoryPanel } from "./ask-frame-ai-history";
 
 function visible(html: string): string {
   return html.replaceAll("&#x27;", "'");
 }
 
-const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ask-globee-history.tsx"), "utf8");
+const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ask-frame-ai-history.tsx"), "utf8");
 const THREAD = "2f1c8b6a-4d3e-4a11-9c22-7b8e1d0a5f44";
 const OLDER = "5c4f1e9d-7a61-4d44-8f55-0e1b4a3d8c77";
 const NOW = new Date(2026, 7, 19, 15, 10, 0);
 
-describe("AskGlobeeHistoryPanel", () => {
+describe("AskFrameAiHistoryPanel", () => {
   it("locks the 384 hairline popover craft with search and groups", () => {
     const html = visible(
       renderToStaticMarkup(
-        <AskGlobeeHistoryPanel
+        <AskFrameAiHistoryPanel
           conversations={[
             {
               id: THREAD,
@@ -49,13 +49,13 @@ describe("AskGlobeeHistoryPanel", () => {
       ),
     );
 
-    expect(html).toContain("data-ask-globee-history-popover");
+    expect(html).toContain("data-ask-frame-ai-history-popover");
     expect(html).toContain("w-[384px]");
     expect(html).toContain("max-md:w-full");
     expect(html).toContain("max-md:max-w-none");
     expect(html).toContain("max-md:rounded-none");
     expect(html).toContain("max-md:border-0");
-    expect(html).toContain("data-ask-globee-history-list");
+    expect(html).toContain("data-ask-frame-ai-history-list");
     expect(html).toContain("max-md:overflow-y-scroll");
     expect(html).toContain("max-md:[touch-action:pan-y]");
     expect(html).toContain("border-hairline");
@@ -64,19 +64,19 @@ describe("AskGlobeeHistoryPanel", () => {
     expect(html).toContain("gap-[var(--space-6)]");
     expect(html).toContain("shadow-none");
     expect(html).not.toContain("shadow-[");
-    expect(html).toContain(ASK_GLOBEE.historySearchPlaceholder);
+    expect(html).toContain(ASK_FRAME_AI.historySearchPlaceholder);
     expect(html).toContain("bg-transparent");
-    expect(html).toContain(ASK_GLOBEE.thisWeekLabel);
-    expect(html).toContain(ASK_GLOBEE.allThreadsLabel);
+    expect(html).toContain(ASK_FRAME_AI.thisWeekLabel);
+    expect(html).toContain(ASK_FRAME_AI.allThreadsLabel);
     expect(html).toContain("t-label text-ink-3");
     expect(html).toContain("t-body text-ink");
     expect(html).toContain("t-body-sm text-ink-3");
     expect(html).toContain("What needs attention");
     expect(html).toContain("What should I submit next");
-    expect(html).toContain("data-ask-globee-history-current");
+    expect(html).toContain("data-ask-frame-ai-history-current");
     expect(html).toContain("border border-hairline bg-transparent");
     expect(html).toContain("t-control");
-    expect(html).not.toMatch(/data-ask-globee-history-search=""[^>]*py-2/);
+    expect(html).not.toMatch(/data-ask-frame-ai-history-search=""[^>]*py-2/);
     expect(src).toContain('variant="bare"');
     expect(html).toContain(`?ai=${THREAD}`);
     expect(html).not.toContain("/messages?thread=");
@@ -95,35 +95,35 @@ describe("AskGlobeeHistoryPanel", () => {
   it("renders empty history as empty, with no fixture rows", () => {
     const html = visible(
       renderToStaticMarkup(
-        <AskGlobeeHistoryPanel conversations={[]} now={NOW} />,
+        <AskFrameAiHistoryPanel conversations={[]} now={NOW} />,
       ),
     );
 
-    expect(html).toContain("data-ask-globee-history-popover");
-    expect(html).toContain(ASK_GLOBEE.historySearchPlaceholder);
-    expect(html).not.toContain("data-ask-globee-history-row");
-    expect(html).not.toContain(ASK_GLOBEE.thisWeekLabel);
-    expect(html).not.toContain(ASK_GLOBEE.allThreadsLabel);
+    expect(html).toContain("data-ask-frame-ai-history-popover");
+    expect(html).toContain(ASK_FRAME_AI.historySearchPlaceholder);
+    expect(html).not.toContain("data-ask-frame-ai-history-row");
+    expect(html).not.toContain(ASK_FRAME_AI.thisWeekLabel);
+    expect(html).not.toContain(ASK_FRAME_AI.allThreadsLabel);
     expect(html).not.toContain("Winter Line");
     expect(html).not.toContain("Harbor Lights");
     expect(html).not.toContain("Get support");
-    expect(html).not.toContain(ASK_GLOBEE.historyLabel);
+    expect(html).not.toContain(ASK_FRAME_AI.historyLabel);
   });
 
   it("renders the header history clock fully on-screen, aligned to the trailing chrome", () => {
     const html = visible(
       renderToStaticMarkup(
-        <AskGlobeeHistoryClock conversations={[]} open={false} onOpenChange={() => {}} />,
+        <AskFrameAiHistoryClock conversations={[]} open={false} onOpenChange={() => {}} />,
       ),
     );
 
-    expect(html).toContain('data-ask-globee-clock=""');
-    expect(html).toContain(ASK_GLOBEE.pastConversationsLabel);
+    expect(html).toContain('data-ask-frame-ai-clock=""');
+    expect(html).toContain(ASK_FRAME_AI.pastConversationsLabel);
     expect(html).toContain("size-[44px]");
     expect(html).not.toContain("md:size-4");
     expect(html).not.toContain("absolute left-0 top-0");
     expect(src).toContain('align === "end" ? "right-0" : "left-0"');
-    expect(src).toContain("AskGlobeeHistoryClock");
+    expect(src).toContain("AskFrameAiHistoryClock");
     expect(src).toContain("MOBILE_CHROME_ICON_BUTTON_CLASS");
   });
 });

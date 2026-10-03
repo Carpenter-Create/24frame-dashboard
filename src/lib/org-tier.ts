@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
-import { isAskGlobeeTier, type AskGlobeeTier } from "@/lib/ask-globee";
+import { isAskFrameAiTier, type AskFrameAiTier } from "@/lib/ask-frame-ai";
 
 // Live org tier from existing readable fields. No new SQL.
 //
@@ -25,7 +25,7 @@ function assentTier(row: { source_documents?: unknown }): unknown {
   return "tier" in raw ? raw.tier : null;
 }
 
-export const getActiveOrgTier = cache(async (orgId: string): Promise<AskGlobeeTier | null> => {
+export const getActiveOrgTier = cache(async (orgId: string): Promise<AskFrameAiTier | null> => {
   const supabase = await createClient();
 
   const { data: term } = await supabase
@@ -37,7 +37,7 @@ export const getActiveOrgTier = cache(async (orgId: string): Promise<AskGlobeeTi
     .limit(1)
     .maybeSingle();
 
-  if (isAskGlobeeTier(term?.tier)) return term.tier;
+  if (isAskFrameAiTier(term?.tier)) return term.tier;
 
   const { data: assent } = await supabase
     .from("contract_assents")
@@ -48,5 +48,5 @@ export const getActiveOrgTier = cache(async (orgId: string): Promise<AskGlobeeTi
     .maybeSingle();
 
   const fromAssent = assent ? assentTier(assent) : null;
-  return isAskGlobeeTier(fromAssent) ? fromAssent : null;
+  return isAskFrameAiTier(fromAssent) ? fromAssent : null;
 });

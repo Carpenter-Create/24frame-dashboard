@@ -1,5 +1,5 @@
-import { ASK_GLOBEE_TRY_PROMPTS, type AskGlobeeTier } from "@/lib/ask-globee";
-import { buildAskGlobeeAnswer, type AskGlobeeAnswer } from "@/lib/ask-globee-answer";
+import { ASK_FRAME_AI_TRY_PROMPTS, type AskFrameAiTier } from "@/lib/ask-frame-ai";
+import { buildAskFrameAiAnswer, type AskFrameAiAnswer } from "@/lib/ask-frame-ai-answer";
 import {
   clientHomeSnapshot,
   dashboardCatalogValue,
@@ -12,7 +12,7 @@ import { UNPAGINATED_MAX } from "@/lib/list-bounds";
 // Read-only tools over the org corpus already loaded for this signed-in user.
 // Org id is bound at construction — never a tool argument.
 
-export const ASK_GLOBEE_TOOL_NAMES = [
+export const ASK_FRAME_AI_TOOL_NAMES = [
   "get_catalog_summary",
   "list_titles",
   "get_attention",
@@ -21,20 +21,20 @@ export const ASK_GLOBEE_TOOL_NAMES = [
   "get_agreement_tier",
 ] as const;
 
-export type AskGlobeeToolName = (typeof ASK_GLOBEE_TOOL_NAMES)[number];
+export type AskFrameAiToolName = (typeof ASK_FRAME_AI_TOOL_NAMES)[number];
 
-export type AskGlobeeCorpus = {
+export type AskFrameAiCorpus = {
   orgId: string;
   titles: ClientHomeTitle[];
   findings: ClientHomeFinding[];
-  tier: AskGlobeeTier | null;
+  tier: AskFrameAiTier | null;
   now?: Date;
   bound?: number;
   findingsIsPartial?: boolean;
 };
 
-export type AskGlobeeTool = {
-  name: AskGlobeeToolName;
+export type AskFrameAiTool = {
+  name: AskFrameAiToolName;
   description: string;
   input_schema: {
     type: "object";
@@ -49,7 +49,7 @@ const EMPTY_INPUT = {
   additionalProperties: false as const,
 };
 
-export const ASK_GLOBEE_TOOLS: AskGlobeeTool[] = [
+export const ASK_FRAME_AI_TOOLS: AskFrameAiTool[] = [
   {
     name: "get_catalog_summary",
     description: "Counts titles in this client's catalog, plus live and attention totals already shown on home.",
@@ -82,12 +82,12 @@ export const ASK_GLOBEE_TOOLS: AskGlobeeTool[] = [
   },
 ];
 
-export function isAskGlobeeToolName(value: string): value is AskGlobeeToolName {
-  return (ASK_GLOBEE_TOOL_NAMES as readonly string[]).includes(value);
+export function isAskFrameAiToolName(value: string): value is AskFrameAiToolName {
+  return (ASK_FRAME_AI_TOOL_NAMES as readonly string[]).includes(value);
 }
 
-function chipAnswer(corpus: AskGlobeeCorpus, prompt: (typeof ASK_GLOBEE_TRY_PROMPTS)[number]): AskGlobeeAnswer {
-  const answer = buildAskGlobeeAnswer({
+function chipAnswer(corpus: AskFrameAiCorpus, prompt: (typeof ASK_FRAME_AI_TRY_PROMPTS)[number]): AskFrameAiAnswer {
+  const answer = buildAskFrameAiAnswer({
     prompt,
     titles: corpus.titles,
     findings: corpus.findings,
@@ -101,8 +101,8 @@ function chipAnswer(corpus: AskGlobeeCorpus, prompt: (typeof ASK_GLOBEE_TRY_PROM
   return answer;
 }
 
-export function executeAskGlobeeTool(name: string, corpus: AskGlobeeCorpus): Record<string, unknown> {
-  if (!isAskGlobeeToolName(name)) {
+export function executeAskFrameAiTool(name: string, corpus: AskFrameAiCorpus): Record<string, unknown> {
+  if (!isAskFrameAiToolName(name)) {
     return { error: "Unknown tool." };
   }
 
@@ -144,10 +144,10 @@ export function executeAskGlobeeTool(name: string, corpus: AskGlobeeCorpus): Rec
 
   const prompt =
     name === "get_attention"
-      ? ASK_GLOBEE_TRY_PROMPTS[0]
+      ? ASK_FRAME_AI_TRY_PROMPTS[0]
       : name === "get_blockers"
-        ? ASK_GLOBEE_TRY_PROMPTS[1]
-        : ASK_GLOBEE_TRY_PROMPTS[2];
+        ? ASK_FRAME_AI_TRY_PROMPTS[1]
+        : ASK_FRAME_AI_TRY_PROMPTS[2];
   const answer = chipAnswer(corpus, prompt);
   return {
     lead: answer.lead,

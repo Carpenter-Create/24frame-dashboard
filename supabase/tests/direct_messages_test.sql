@@ -4,7 +4,7 @@
 -- conversations or participants. Messages insert requires self + participant
 -- + not blocked. Catalog membership revoke must not delete a profile, DM, or
 -- block. Dashboard org_status stays unchanged. Social/DM policies must not
--- privilege-bridge via is_gc_staff. Ask Globee ai_* tables stay.
+-- privilege-bridge via is_gc_staff. 24Frame AI ai_* tables stay.
 
 begin;
 select plan(75);
@@ -37,7 +37,7 @@ select ok(to_regclass('public.messages') is not null, 'messages table exists');
 select ok(to_regclass('public.likes') is not null, 'likes table still present (Pack 3)');
 select ok(
   to_regclass('public.ai_conversations') is not null,
-  'ai_conversations still present (Ask Globee not renamed back)');
+  'ai_conversations still present (24Frame AI not renamed back)');
 select ok(
   to_regclass('public.ai_conversation_messages') is not null,
   'ai_conversation_messages still present');

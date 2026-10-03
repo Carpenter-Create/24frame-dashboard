@@ -1,8 +1,8 @@
 import {
-  ASK_GLOBEE,
-  ASK_GLOBEE_TRY_PROMPTS,
-  askGlobeeSelectedChip,
-} from "@/lib/ask-globee";
+  ASK_FRAME_AI,
+  ASK_FRAME_AI_TRY_PROMPTS,
+  askFrameAiSelectedChip,
+} from "@/lib/ask-frame-ai";
 import {
   clientHomeSnapshot,
   type ClientHomeFinding,
@@ -15,24 +15,24 @@ import { UNPAGINATED_MAX } from "@/lib/list-bounds";
 // get_submit_next). Not the user-visible send path — the operator owns that.
 // Unmapped prompts return null. No invented titles, no other-org leakage.
 
-export type AskGlobeeIntent = "attention" | "blocking" | "submit-next" | "unmapped";
+export type AskFrameAiIntent = "attention" | "blocking" | "submit-next" | "unmapped";
 
-export type AskGlobeeAnswer = {
-  intent: AskGlobeeIntent;
+export type AskFrameAiAnswer = {
+  intent: AskFrameAiIntent;
   lead: string;
   follow: string | null;
   titleNames: string[];
 };
 
-export function resolveAskGlobeeIntent(prompt: string): AskGlobeeIntent {
-  const selected = askGlobeeSelectedChip(prompt);
-  if (selected === ASK_GLOBEE_TRY_PROMPTS[0]) return "attention";
-  if (selected === ASK_GLOBEE_TRY_PROMPTS[1]) return "blocking";
-  if (selected === ASK_GLOBEE_TRY_PROMPTS[2]) return "submit-next";
+export function resolveAskFrameAiIntent(prompt: string): AskFrameAiIntent {
+  const selected = askFrameAiSelectedChip(prompt);
+  if (selected === ASK_FRAME_AI_TRY_PROMPTS[0]) return "attention";
+  if (selected === ASK_FRAME_AI_TRY_PROMPTS[1]) return "blocking";
+  if (selected === ASK_FRAME_AI_TRY_PROMPTS[2]) return "submit-next";
   return "unmapped";
 }
 
-export function orgScopedAskGlobeeFindings({
+export function orgScopedAskFrameAiFindings({
   findings,
   titles,
   orgId,
@@ -66,11 +66,11 @@ function sortByTitleCreatedDesc(
 }
 
 function linesToAnswer(
-  intent: AskGlobeeIntent,
+  intent: AskFrameAiIntent,
   lines: string[],
   titleNames: string[],
   empty: string,
-): AskGlobeeAnswer {
+): AskFrameAiAnswer {
   if (lines.length === 0) {
     return { intent, lead: empty, follow: null, titleNames: [] };
   }
@@ -82,7 +82,7 @@ function linesToAnswer(
   };
 }
 
-export function buildAskGlobeeAnswer({
+export function buildAskFrameAiAnswer({
   prompt,
   titles,
   findings,
@@ -96,13 +96,13 @@ export function buildAskGlobeeAnswer({
   orgId: string;
   now?: Date;
   bound?: number;
-}): AskGlobeeAnswer | null {
-  const intent = resolveAskGlobeeIntent(prompt);
+}): AskFrameAiAnswer | null {
+  const intent = resolveAskFrameAiIntent(prompt);
   if (intent === "unmapped") return null;
 
   const titlesById = titleNameById(titles);
   const scoped = sortByTitleCreatedDesc(
-    orgScopedAskGlobeeFindings({ findings, titles, orgId }),
+    orgScopedAskFrameAiFindings({ findings, titles, orgId }),
     titlesById,
   );
 
@@ -127,7 +127,7 @@ export function buildAskGlobeeAnswer({
         titleNames.push(title.title);
         return [findingLine(title.title, finding.message)];
       });
-    return linesToAnswer(intent, lines, titleNames, ASK_GLOBEE.emptyBlocking);
+    return linesToAnswer(intent, lines, titleNames, ASK_FRAME_AI.emptyBlocking);
   }
 
   const snapshot = clientHomeSnapshot({
@@ -141,7 +141,7 @@ export function buildAskGlobeeAnswer({
   if (!next) {
     return {
       intent,
-      lead: ASK_GLOBEE.emptySubmitNext,
+      lead: ASK_FRAME_AI.emptySubmitNext,
       follow: null,
       titleNames: [],
     };

@@ -1,29 +1,29 @@
-import { ASK_GLOBEE, askGlobeeConversationTitle } from "@/lib/ask-globee";
+import { ASK_FRAME_AI, askFrameAiConversationTitle } from "@/lib/ask-frame-ai";
 import { PRODUCT_NAME } from "@/lib/product";
 import {
-  parseAskGlobeeDownloadInk,
-  stackAskGlobeeDownloadFacts,
-  type AskGlobeeDownloadInkSpan,
-} from "@/lib/ask-globee-ink";
+  parseAskFrameAiDownloadInk,
+  stackAskFrameAiDownloadFacts,
+  type AskFrameAiDownloadInkSpan,
+} from "@/lib/ask-frame-ai-ink";
 
 export {
-  parseAskGlobeeDownloadInk,
-  stackAskGlobeeDownloadFacts,
-  type AskGlobeeDownloadInkSpan,
-} from "@/lib/ask-globee-ink";
+  parseAskFrameAiDownloadInk,
+  stackAskFrameAiDownloadFacts,
+  type AskFrameAiDownloadInkSpan,
+} from "@/lib/ask-frame-ai-ink";
 
 // Locked conversation download (440:410 letter sheet, 440:432 filename).
 // Client-side PDF — no new dependency; letter pages, Standard 14 fonts.
 // Live title + the full thread. Fixture titles are inputs, never baked in.
 // Overflow paginates; turns are not dropped.
 
-export const ASK_GLOBEE_DOWNLOAD_CONTENT_TYPE = "application/pdf";
+export const ASK_FRAME_AI_DOWNLOAD_CONTENT_TYPE = "application/pdf";
 
-export const ASK_GLOBEE_DOWNLOAD = {
-  contentType: ASK_GLOBEE_DOWNLOAD_CONTENT_TYPE,
+export const ASK_FRAME_AI_DOWNLOAD = {
+  contentType: ASK_FRAME_AI_DOWNLOAD_CONTENT_TYPE,
   brandName: PRODUCT_NAME,
-  attributionName: ASK_GLOBEE.attributionName,
-  mark: ASK_GLOBEE.globeeMark,
+  attributionName: ASK_FRAME_AI.attributionName,
+  mark: ASK_FRAME_AI.frameAiMark,
   pageWidth: 768,
   pageHeight: 1056,
   markSize: 24,
@@ -31,26 +31,26 @@ export const ASK_GLOBEE_DOWNLOAD = {
   accent: [0x17, 0x69, 0xff] as const,
 } as const;
 
-export type AskGlobeeDownloadMessage = {
+export type AskFrameAiDownloadMessage = {
   role: "user" | "globee";
   body: string;
   lead?: string | null;
   follow?: string | null;
 };
 
-export type AskGlobeeDownloadInput = {
+export type AskFrameAiDownloadInput = {
   title: string;
   initials: string;
   userPrompt?: string;
   lead?: string;
   follow?: string | null;
-  messages?: AskGlobeeDownloadMessage[];
+  messages?: AskFrameAiDownloadMessage[];
 };
 
-const PAGE_W = ASK_GLOBEE_DOWNLOAD.pageWidth;
-const PAGE_H = ASK_GLOBEE_DOWNLOAD.pageHeight;
+const PAGE_W = ASK_FRAME_AI_DOWNLOAD.pageWidth;
+const PAGE_H = ASK_FRAME_AI_DOWNLOAD.pageHeight;
 const MARGIN = 48;
-const MARK = ASK_GLOBEE_DOWNLOAD.markSize;
+const MARK = ASK_FRAME_AI_DOWNLOAD.markSize;
 const GAP = 8;
 const BUBBLE_PAD = 16;
 const BUBBLE_RADIUS = 14;
@@ -70,8 +70,8 @@ const MUTED = [0xf4, 0xf4, 0xf6] as const;
 const WHITE = [0xff, 0xff, 0xff] as const;
 const INK_3 = [0x9a, 0xa0, 0xa9] as const;
 
-export function askGlobeeDownloadFilename(title: string): string {
-  const slug = askGlobeeConversationTitle(title)
+export function askFrameAiDownloadFilename(title: string): string {
+  const slug = askFrameAiConversationTitle(title)
     .toLowerCase()
     .replace(/['\u2018\u2019]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
@@ -80,24 +80,24 @@ export function askGlobeeDownloadFilename(title: string): string {
   return `${PRODUCT_NAME}-${slug || "conversation"}.pdf`;
 }
 
-export function askGlobeeDownloadBlob(input: AskGlobeeDownloadInput): Blob {
-  const bytes = buildAskGlobeeDownloadPdf(input);
+export function askFrameAiDownloadBlob(input: AskFrameAiDownloadInput): Blob {
+  const bytes = buildAskFrameAiDownloadPdf(input);
   const copy = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(copy).set(bytes);
-  return new Blob([copy], { type: ASK_GLOBEE_DOWNLOAD_CONTENT_TYPE });
+  return new Blob([copy], { type: ASK_FRAME_AI_DOWNLOAD_CONTENT_TYPE });
 }
 
-export function saveAskGlobeeDownload(input: AskGlobeeDownloadInput): void {
-  const blob = askGlobeeDownloadBlob(input);
+export function saveAskFrameAiDownload(input: AskFrameAiDownloadInput): void {
+  const blob = askFrameAiDownloadBlob(input);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = askGlobeeDownloadFilename(input.title);
+  anchor.download = askFrameAiDownloadFilename(input.title);
   anchor.click();
   URL.revokeObjectURL(url);
 }
 
-export function buildAskGlobeeDownloadPdf(input: AskGlobeeDownloadInput): Uint8Array {
+export function buildAskFrameAiDownloadPdf(input: AskFrameAiDownloadInput): Uint8Array {
   const title = input.title.trim();
   const initials = input.initials.trim().slice(0, 2).toUpperCase();
   const messages = resolveDownloadMessages(input);
@@ -117,16 +117,16 @@ export function buildAskGlobeeDownloadPdf(input: AskGlobeeDownloadInput): Uint8A
       drawUserCard(doc, initials, message.body);
       continue;
     }
-    drawGlobeeTurn(doc, message);
+    drawFrameAiTurn(doc, message);
     if (messages[index + 1]) doc.top += AFTER_TURN;
   }
 
   return assemblePdf(doc.streams());
 }
 
-function resolveDownloadMessages(input: AskGlobeeDownloadInput): AskGlobeeDownloadMessage[] {
+function resolveDownloadMessages(input: AskFrameAiDownloadInput): AskFrameAiDownloadMessage[] {
   if (input.messages) return input.messages;
-  const messages: AskGlobeeDownloadMessage[] = [];
+  const messages: AskFrameAiDownloadMessage[] = [];
   if ((input.userPrompt ?? "").trim()) {
     messages.push({ role: "user", body: input.userPrompt ?? "" });
   }
@@ -198,11 +198,11 @@ function drawUserCard(doc: PdfDocument, initials: string, prompt: string) {
   doc.top += AFTER_USER;
 }
 
-function drawGlobeeTurn(doc: PdfDocument, message: AskGlobeeDownloadMessage) {
+function drawFrameAiTurn(doc: PdfDocument, message: AskFrameAiDownloadMessage) {
   const lead = (message.lead ?? message.body).trim();
   const follow = message.follow ?? null;
-  const facts = stackAskGlobeeDownloadFacts(lead, follow);
-  const inkLines = facts.map((line) => wrapInk(parseAskGlobeeDownloadInk(line), bodyMaxWidth(), BODY_SIZE));
+  const facts = stackAskFrameAiDownloadFacts(lead, follow);
+  const inkLines = facts.map((line) => wrapInk(parseAskFrameAiDownloadInk(line), bodyMaxWidth(), BODY_SIZE));
   const rows = inkLines.flatMap((wrapped, factIndex) =>
     wrapped.map((row, rowIndex) => ({ row, gapBefore: factIndex > 0 && rowIndex === 0 })),
   );
@@ -212,7 +212,7 @@ function drawGlobeeTurn(doc: PdfDocument, message: AskGlobeeDownloadMessage) {
 
   if (rows.length === 0) {
     doc.ensure(MARK);
-    drawMark(doc.page, MARGIN + MARK / 2, doc.top + MARK / 2, ASK_GLOBEE_DOWNLOAD.accent, WHITE, ASK_GLOBEE_DOWNLOAD.mark);
+    drawMark(doc.page, MARGIN + MARK / 2, doc.top + MARK / 2, ASK_FRAME_AI_DOWNLOAD.accent, WHITE, ASK_FRAME_AI_DOWNLOAD.mark);
     doc.usedContent = true;
   }
 
@@ -224,7 +224,7 @@ function drawGlobeeTurn(doc: PdfDocument, message: AskGlobeeDownloadMessage) {
     }
     if (gapBefore) doc.top += BODY_SIZE * 0.55;
     if (markPending) {
-      drawMark(doc.page, MARGIN + MARK / 2, doc.top + MARK / 2, ASK_GLOBEE_DOWNLOAD.accent, WHITE, ASK_GLOBEE_DOWNLOAD.mark);
+      drawMark(doc.page, MARGIN + MARK / 2, doc.top + MARK / 2, ASK_FRAME_AI_DOWNLOAD.accent, WHITE, ASK_FRAME_AI_DOWNLOAD.mark);
       markPending = false;
     }
     doc.page.inkRow(inkX, doc.top, row, BODY_SIZE, INK);
@@ -235,12 +235,12 @@ function drawGlobeeTurn(doc: PdfDocument, message: AskGlobeeDownloadMessage) {
   doc.ensure(10 + ATTR_SIZE);
   doc.top += 10;
   if (markPending) {
-    drawMark(doc.page, MARGIN + MARK / 2, doc.top + MARK / 2, ASK_GLOBEE_DOWNLOAD.accent, WHITE, ASK_GLOBEE_DOWNLOAD.mark);
+    drawMark(doc.page, MARGIN + MARK / 2, doc.top + MARK / 2, ASK_FRAME_AI_DOWNLOAD.accent, WHITE, ASK_FRAME_AI_DOWNLOAD.mark);
   }
   doc.page.text({
     x: inkX,
     top: doc.top,
-    text: ASK_GLOBEE_DOWNLOAD.attributionName,
+    text: ASK_FRAME_AI_DOWNLOAD.attributionName,
     size: ATTR_SIZE,
     bold: false,
     rgb: INK_3,
@@ -258,8 +258,8 @@ function wrapPlain(text: string, maxWidth: number, size: number, bold: boolean):
   return wrapTokens(text.split(/(\s+)/), maxWidth, size, bold);
 }
 
-function wrapInk(spans: AskGlobeeDownloadInkSpan[], maxWidth: number, size: number): AskGlobeeDownloadInkSpan[][] {
-  const lines: AskGlobeeDownloadInkSpan[][] = [[]];
+function wrapInk(spans: AskFrameAiDownloadInkSpan[], maxWidth: number, size: number): AskFrameAiDownloadInkSpan[][] {
+  const lines: AskFrameAiDownloadInkSpan[][] = [[]];
   let used = 0;
   for (const span of spans) {
     const tokens = span.text.split(/(\s+)/);
@@ -431,7 +431,7 @@ class PdfPage {
   inkRow(
     x: number,
     top: number,
-    spans: AskGlobeeDownloadInkSpan[],
+    spans: AskFrameAiDownloadInkSpan[],
     size: number,
     rgb: readonly [number, number, number],
   ) {
@@ -482,11 +482,11 @@ class PdfDocument {
     this.pages.push(page);
     this.top = MARGIN;
     this.usedContent = false;
-    drawMark(page, MARGIN + MARK / 2, this.top + MARK / 2, ASK_GLOBEE_DOWNLOAD.accent, WHITE, ASK_GLOBEE_DOWNLOAD.mark);
+    drawMark(page, MARGIN + MARK / 2, this.top + MARK / 2, ASK_FRAME_AI_DOWNLOAD.accent, WHITE, ASK_FRAME_AI_DOWNLOAD.mark);
     page.text({
       x: MARGIN + MARK + GAP,
       top: this.top + 4,
-      text: ASK_GLOBEE_DOWNLOAD.brandName,
+      text: ASK_FRAME_AI_DOWNLOAD.brandName,
       size: HEADER_SIZE,
       bold: true,
       rgb: INK,

@@ -28,7 +28,7 @@ spine before widening.
   · RLS on every table · `audit_log` (append-only) · `source_documents`/`source_records` (immutable)
   · typed reads + one mutation-as-RPC to prove the write path.
 - **Not in this slice:** contracts/e-sign, Stripe, Trolley, titles, rights grants, assets,
-  delivery, findings, notifications, and anything Globee/agent (deferred — seam only).
+  delivery, findings, notifications, and anything 24Frame AI/agent (deferred — seam only).
 
 ### Scope boundary — deliberately narrower than CLAUDE.md's build order
 
@@ -51,7 +51,7 @@ then continues down the build order.
   role→capability, `gc_*` staff bypass (all orgs). Ported *pattern* from watershedportal, rewritten
   for the 5 spec roles; **native `auth.uid()`** (no shim). `gc_*` prefix enforced so no client
   policy can bind a GC role by name collision (§22).
-- **Agent wall:** deferred with Globee — build **no** `agent` role yet, but keep the proposals-wall
+- **Agent wall:** deferred with 24Frame AI — build **no** `agent` role yet, but keep the proposals-wall
   seam in mind so it drops in later without reshaping RLS.
 - **Cloudflare Turnstile (resolved: in this slice, not deferred).** This slice builds the signup
   path and browser-verifies "sign up → session," and signup creates the `registered` free-tier org
@@ -115,7 +115,7 @@ conventions):
 
 ## AI
 
-None in this slice. Globee/agent deferred (§23). No prompts, no model calls. Seam only.
+None in this slice. 24Frame AI/agent deferred (§23). No prompts, no model calls. Seam only.
 
 ## Risks
 

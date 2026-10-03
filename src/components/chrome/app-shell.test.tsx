@@ -33,16 +33,16 @@ vi.mock("next/link", async () => {
   }
   return { __esModule: true, default: MockLink, useLinkStatus: () => ({ pending: false }) };
 });
-vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
-  startAskGlobeeConversation: vi.fn(),
-  appendAskGlobeeTurn: vi.fn(),
-  completeAskGlobeeTurn: vi.fn(),
-  setAskGlobeeThumb: vi.fn(),
-  renameAskGlobeeConversation: vi.fn(),
-  pinAskGlobeeConversation: vi.fn(),
-  deleteAskGlobeeConversation: vi.fn(),
+vi.mock("@/app/(app)/aggregation/messages/ask-frame-ai-actions", () => ({
+  startAskFrameAiConversation: vi.fn(),
+  appendAskFrameAiTurn: vi.fn(),
+  completeAskFrameAiTurn: vi.fn(),
+  setAskFrameAiThumb: vi.fn(),
+  renameAskFrameAiConversation: vi.fn(),
+  pinAskFrameAiConversation: vi.fn(),
+  deleteAskFrameAiConversation: vi.fn(),
   loadAskAiOverlay: vi.fn(async () => ({
-    surface: "ask-globee-landing",
+    surface: "ask-frame-ai-landing",
     initials: "A",
     displayName: "Ada Lovelace",
     conversations: [],
@@ -87,7 +87,7 @@ vi.mock("./user-menu", () => ({
 
 import { AppShell } from "./app-shell";
 import type { AppShellChrome } from "@/lib/app-shell-chrome";
-import type { MessagesSurface } from "@/lib/ask-globee";
+import type { MessagesSurface } from "@/lib/ask-frame-ai";
 import {
   RAIL_COLLAPSE_CHEVRON,
   RAIL_COLLAPSE_CHEVRON_CLASS,
@@ -458,7 +458,7 @@ describe("AppShell Access rail and home frame", () => {
     expect(shellSrc).not.toContain("messagesPage");
 
     navigation.pathname = "/activity";
-    const activity = renderShell("ask-globee-landing");
+    const activity = renderShell("ask-frame-ai-landing");
     expect(activity).not.toContain("data-app-messages-frame");
     expect(activity).not.toContain("data-header-search");
     expect(activity).not.toContain("data-header-thread");
@@ -466,7 +466,7 @@ describe("AppShell Access rail and home frame", () => {
     expect(activity).toContain("data-ask-assistant-header");
 
     navigation.pathname = "/home";
-    expect(renderShell("ask-globee-landing")).toContain("data-ask-assistant-header");
+    expect(renderShell("ask-frame-ai-landing")).toContain("data-ask-assistant-header");
     navigation.pathname = "/";
     expect(renderShell("access-gate")).not.toContain("data-header-search");
     expect(renderShell("access-gate")).not.toContain("data-titles-header-search");
@@ -531,7 +531,7 @@ describe("AppShell client mobile chrome", () => {
 
   it("keeps mobile chrome on Activity — Search stays off the page header", () => {
     navigation.pathname = "/activity";
-    const leftover = renderShell("ask-globee-landing");
+    const leftover = renderShell("ask-frame-ai-landing");
     expect(leftover).not.toContain("data-mobile-nav-trigger");
     expect(leftover).not.toContain("data-house-phone-dest-chips");
     expect(leftover).toContain("data-app-header");
@@ -831,7 +831,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(shellSrc).toContain("<RailCollapse collapsed={collapsed} onToggle={toggle} />");
     expect(shellSrc).not.toContain("RAIL_COLLAPSE_RL");
     expect(shellSrc).not.toMatch(/\brl-/);
-    expect(shellSrc).not.toContain("AskGlobeeChromeProvider");
+    expect(shellSrc).not.toContain("AskFrameAiChromeProvider");
     expect(shellSrc).toContain("AskAssistantChromeProvider");
     expect(shellSrc).not.toContain("SocialMobileDock");
     expect(shellSrc).toContain('workspace === "social" && !settingsPage');
@@ -1330,7 +1330,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(shellSrc).toContain("<RailCollapse collapsed={collapsed} onToggle={toggle} />");
     expect(shellSrc).toContain("persistSidebarCollapsed");
     expect(shellSrc).toContain("RAIL_COLLAPSE_WIDTH_VAR");
-    expect(shellSrc).not.toContain("AskGlobeeChromeProvider");
+    expect(shellSrc).not.toContain("AskFrameAiChromeProvider");
     expect(shellSrc).not.toContain("RAIL_COLLAPSE_RL");
   });
 

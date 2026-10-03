@@ -1,5 +1,5 @@
 import { ASK_ASSISTANT } from "@/lib/product";
-import { isAskGlobeeThreadId } from "@/lib/ask-globee";
+import { isAskFrameAiThreadId } from "@/lib/ask-frame-ai";
 
 // Mercury Command overlay — 24Frame AI is never a workspace destination.
 // Universal header access on every house chrome path. Open state lives
@@ -73,7 +73,7 @@ export const ASK_AI_OVERLAY_EXPAND_CLASS =
 // Overlay body fills the window. Landing/thread own the scroll so empty
 // chat and history sit bottom-up (composer pinned, newest nearest it).
 export const ASK_AI_OVERLAY_BODY_CLASS =
-  "relative flex min-h-0 flex-1 flex-col overflow-hidden [&_[data-ask-globee-gate]]:h-full [&_[data-ask-globee-gate]]:min-h-0 [&_[data-ask-globee-landing]]:h-full [&_[data-ask-globee-landing]]:min-h-0 [&_[data-ask-globee-thread]]:h-full [&_[data-ask-globee-thread]]:min-h-0";
+  "relative flex min-h-0 flex-1 flex-col overflow-hidden [&_[data-ask-frame-ai-gate]]:h-full [&_[data-ask-frame-ai-gate]]:min-h-0 [&_[data-ask-frame-ai-landing]]:h-full [&_[data-ask-frame-ai-landing]]:min-h-0 [&_[data-ask-frame-ai-thread]]:h-full [&_[data-ask-frame-ai-thread]]:min-h-0";
 
 // iOS Safari: overflow-auto + flex-col-reverse is a dead touch port.
 // Phone scrollers force overflow-y-scroll, contain overscroll, and pan-y.
@@ -167,7 +167,7 @@ export function readAskAiOverlay(
 ): AskAiOverlayState {
   const value = search ? readSearchValue(search, ASK_AI_QUERY) : null;
   if (!value) return { open: false, threadId: null };
-  if (isAskGlobeeThreadId(value)) return { open: true, threadId: value };
+  if (isAskFrameAiThreadId(value)) return { open: true, threadId: value };
   return { open: true, threadId: null };
 }
 
@@ -183,7 +183,7 @@ export function askAiOverlayHref(
   const params = copySearchParams(search);
   params.delete("thread");
   params.delete("q");
-  if (threadId && isAskGlobeeThreadId(threadId)) {
+  if (threadId && isAskFrameAiThreadId(threadId)) {
     params.set(ASK_AI_QUERY, threadId);
   } else {
     params.set(ASK_AI_QUERY, ASK_AI_OPEN_VALUE);

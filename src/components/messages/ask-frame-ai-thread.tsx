@@ -11,31 +11,31 @@ import {
 } from "@phosphor-icons/react";
 
 import {
-  ASK_GLOBEE,
-  ASK_GLOBEE_FETCHING_HOLD_MS,
-  askGlobeeComposerSubmit,
-  askGlobeeThinkingPhase,
-  askGlobeeUsesModel,
-} from "@/lib/ask-globee";
+  ASK_FRAME_AI,
+  ASK_FRAME_AI_FETCHING_HOLD_MS,
+  askFrameAiComposerSubmit,
+  askFrameAiThinkingPhase,
+  askFrameAiUsesModel,
+} from "@/lib/ask-frame-ai";
 import {
-  askGlobeeAnswerText,
-  askGlobeeOpenUserTurn,
-  type AskGlobeeHistoryRow,
-  type AskGlobeeStoredMessage,
-  type AskGlobeeThumb,
-} from "@/lib/ask-globee-conversations";
-import { parseAskGlobeeInk, stackAskGlobeeInkFacts } from "@/lib/ask-globee-ink";
+  askFrameAiAnswerText,
+  askFrameAiOpenUserTurn,
+  type AskFrameAiHistoryRow,
+  type AskFrameAiStoredMessage,
+  type AskFrameAiThumb,
+} from "@/lib/ask-frame-ai-conversations";
+import { parseAskFrameAiInk, stackAskFrameAiInkFacts } from "@/lib/ask-frame-ai-ink";
 import {
-  appendAskGlobeeTurn,
-  completeAskGlobeeTurn,
-  setAskGlobeeThumb,
-} from "@/app/(app)/aggregation/messages/ask-globee-actions";
+  appendAskFrameAiTurn,
+  completeAskFrameAiTurn,
+  setAskFrameAiThumb,
+} from "@/app/(app)/aggregation/messages/ask-frame-ai-actions";
 import { Input } from "@/components/ui/input";
 import { ASK_AI_OVERLAY_PHONE_SCROLL_CLASS } from "@/lib/ask-ai-overlay";
 import { cn } from "@/lib/cn";
 import { PHOSPHOR_CHROME_ACTIVE_WEIGHT, PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
-import { useAskGlobeeChrome } from "./ask-globee-chrome";
-import { AskGlobeeThinking } from "./ask-globee-thinking";
+import { useAskFrameAiChrome } from "./ask-frame-ai-chrome";
+import { AskFrameAiThinking } from "./ask-frame-ai-thinking";
 
 const COPIED_MS = 1500;
 const COMPOSER_FOCUS =
@@ -67,12 +67,12 @@ function ThreadIconButton({
 
 // 375:343 answer copy — conversation ink, not a markdown document.
 // Lead/support flush. Catalog fields Medium. Facts stacked at house 8.
-function AskGlobeeAnswerInk({ lead, follow }: { lead: string; follow: string | null }) {
+function AskFrameAiAnswerInk({ lead, follow }: { lead: string; follow: string | null }) {
   return (
-    <div data-ask-globee-ink="" className="flex flex-col gap-[var(--space-2)]">
-      {stackAskGlobeeInkFacts(lead, follow).map((fact, index) => (
-        <p key={index} data-ask-globee-fact="" className="t-body text-ink">
-          {parseAskGlobeeInk(fact).map((span, spanIndex) =>
+    <div data-ask-frame-ai-ink="" className="flex flex-col gap-[var(--space-2)]">
+      {stackAskFrameAiInkFacts(lead, follow).map((fact, index) => (
+        <p key={index} data-ask-frame-ai-fact="" className="t-body text-ink">
+          {parseAskFrameAiInk(fact).map((span, spanIndex) =>
             span.medium ? (
               <span key={spanIndex} className="font-medium">
                 {span.text}
@@ -87,32 +87,32 @@ function AskGlobeeAnswerInk({ lead, follow }: { lead: string; follow: string | n
   );
 }
 
-const EMPTY_HISTORY: AskGlobeeHistoryRow[] = [];
+const EMPTY_HISTORY: AskFrameAiHistoryRow[] = [];
 
 // Thinking plays fetching… then finding the signal… while the turn is in
 // flight. Time advances the verb; a live catalog lead is optional ink on
 // step 2. This operator is pending vs done, so the thread never fakes one.
-export function AskGlobeeThread({
+export function AskFrameAiThread({
   initials,
   conversation,
   messages,
   conversations = EMPTY_HISTORY,
 }: {
   initials: string;
-  conversation: AskGlobeeHistoryRow;
-  messages: AskGlobeeStoredMessage[];
-  conversations?: AskGlobeeHistoryRow[];
+  conversation: AskFrameAiHistoryRow;
+  messages: AskFrameAiStoredMessage[];
+  conversations?: AskFrameAiHistoryRow[];
 }) {
   const router = useRouter();
-  const { setChrome, setConversations } = useAskGlobeeChrome();
+  const { setChrome, setConversations } = useAskFrameAiChrome();
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
-  const [thinking, setThinking] = useState(() => askGlobeeOpenUserTurn(messages) !== null);
+  const [thinking, setThinking] = useState(() => askFrameAiOpenUserTurn(messages) !== null);
   const [thinkingElapsedMs, setThinkingElapsedMs] = useState(0);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [thumbOverrides, setThumbOverrides] = useState<Record<string, AskGlobeeThumb | null>>({});
+  const [thumbOverrides, setThumbOverrides] = useState<Record<string, AskFrameAiThumb | null>>({});
   const latestTurnRef = useRef<HTMLDivElement>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
   const copiedTimerRef = useRef<number>(0);
@@ -176,16 +176,16 @@ export function AskGlobeeThread({
   useEffect(() => {
     if (!openTurnKey) return;
     const id = window.setTimeout(() => {
-      setThinkingElapsedMs(ASK_GLOBEE_FETCHING_HOLD_MS);
-    }, ASK_GLOBEE_FETCHING_HOLD_MS);
+      setThinkingElapsedMs(ASK_FRAME_AI_FETCHING_HOLD_MS);
+    }, ASK_FRAME_AI_FETCHING_HOLD_MS);
     return () => window.clearTimeout(id);
   }, [openTurnKey]);
 
-  const thinkingPhase = askGlobeeThinkingPhase(thinkingElapsedMs);
+  const thinkingPhase = askFrameAiThinkingPhase(thinkingElapsedMs);
 
   useEffect(() => {
     const last = messages[messages.length - 1];
-    if (!last || last.role !== "user" || !askGlobeeOpenUserTurn(messages)) {
+    if (!last || last.role !== "user" || !askFrameAiOpenUserTurn(messages)) {
       return;
     }
     if (completingIdRef.current === last.id) return;
@@ -193,7 +193,7 @@ export function AskGlobeeThread({
     cancelledRef.current = false;
     setPending(true);
     setThinking(true);
-    void completeAskGlobeeTurn(conversation.id).then((result) => {
+    void completeAskFrameAiTurn(conversation.id).then((result) => {
       if (cancelledRef.current) return;
       setThinking(false);
       setPending(false);
@@ -205,13 +205,13 @@ export function AskGlobeeThread({
     });
   }, [conversation.id, messages, router]);
 
-  function thumbsFor(message: AskGlobeeStoredMessage): AskGlobeeThumb | null {
+  function thumbsFor(message: AskFrameAiStoredMessage): AskFrameAiThumb | null {
     return Object.hasOwn(thumbOverrides, message.id) ? thumbOverrides[message.id] ?? null : message.thumbs;
   }
 
-  function copyAnswer(message: AskGlobeeStoredMessage) {
+  function copyAnswer(message: AskFrameAiStoredMessage) {
     void navigator.clipboard.writeText(
-      askGlobeeAnswerText(message.lead ?? message.body, message.follow),
+      askFrameAiAnswerText(message.lead ?? message.body, message.follow),
     ).then(() => {
         window.clearTimeout(copiedTimerRef.current);
         setCopiedId(message.id);
@@ -221,7 +221,7 @@ export function AskGlobeeThread({
       });
   }
 
-  const turns: AskGlobeeStoredMessage[][] = [];
+  const turns: AskFrameAiStoredMessage[][] = [];
   for (const message of messages) {
     if (message.role === "user" || turns.length === 0) {
       turns.push([message]);
@@ -233,11 +233,11 @@ export function AskGlobeeThread({
   const reversedTurns = [...turns].reverse();
 
   return (
-    <div data-ask-globee-thread="" className="flex h-full min-h-0 flex-1 flex-col">
+    <div data-ask-frame-ai-thread="" className="flex h-full min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col gap-[var(--space-4)]">
         <div
           ref={conversationRef}
-          data-ask-globee-conversation=""
+          data-ask-frame-ai-conversation=""
           className={cn(
             "flex min-h-0 flex-1 flex-col-reverse gap-[var(--space-6)] overflow-auto px-[var(--content-inset)]",
             ASK_AI_OVERLAY_PHONE_SCROLL_CLASS,
@@ -247,11 +247,11 @@ export function AskGlobeeThread({
           {thinking && pendingPrompt ? (
             <div
               ref={latestTurnRef}
-              data-ask-globee-turn=""
-              data-ask-globee-thread-end=""
+              data-ask-frame-ai-turn=""
+              data-ask-frame-ai-thread-end=""
               className="flex flex-col gap-[var(--space-6)]"
             >
-              <div data-ask-globee-user-row="" className="flex items-start gap-[var(--space-2)]">
+              <div data-ask-frame-ai-user-row="" className="flex items-start gap-[var(--space-2)]">
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[length:var(--text-xs)] font-medium text-ink">
                   {initials}
                 </div>
@@ -259,7 +259,7 @@ export function AskGlobeeThread({
                   <p className="t-body text-ink">{pendingPrompt}</p>
                 </div>
               </div>
-              <AskGlobeeThinking phase={thinkingPhase} />
+              <AskFrameAiThinking phase={thinkingPhase} />
             </div>
           ) : null}
 
@@ -274,8 +274,8 @@ export function AskGlobeeThread({
               <div
                 key={turn[0]?.id ?? String(index)}
                 ref={isNewestPersisted && !pendingPrompt ? latestTurnRef : undefined}
-                data-ask-globee-turn=""
-                data-ask-globee-thread-end={isNewestPersisted && !pendingPrompt ? "" : undefined}
+                data-ask-frame-ai-turn=""
+                data-ask-frame-ai-thread-end={isNewestPersisted && !pendingPrompt ? "" : undefined}
                 className={
                   pendingPrompt || index > 0
                     ? "flex flex-col gap-[var(--space-6)] border-b border-hairline pb-[var(--space-6)]"
@@ -286,7 +286,7 @@ export function AskGlobeeThread({
                 message.role === "user" ? (
                   <div
                     key={message.id}
-                    data-ask-globee-user-row=""
+                    data-ask-frame-ai-user-row=""
                     className="flex items-start gap-[var(--space-2)]"
                   >
                     <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[length:var(--text-xs)] font-medium text-ink">
@@ -299,35 +299,35 @@ export function AskGlobeeThread({
                 ) : (
                   <div
                     key={message.id}
-                    data-ask-globee-answer=""
+                    data-ask-frame-ai-answer=""
                     className="flex items-start gap-[var(--space-2)]"
                   >
                     <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-[length:var(--text-xs)] font-medium text-accent-contrast">
-                      {ASK_GLOBEE.globeeMark}
+                      {ASK_FRAME_AI.frameAiMark}
                     </div>
                     <div className="flex w-full max-w-[640px] flex-col gap-[var(--space-2)]">
-                      <AskGlobeeAnswerInk lead={message.lead ?? message.body} follow={message.follow} />
-                      {/* 247:378 stamp is a help-desk leftover — no Globee AI · time. */}
+                      <AskFrameAiAnswerInk lead={message.lead ?? message.body} follow={message.follow} />
+                      {/* 247:378 stamp is a help-desk leftover — no assistant · time line. */}
                       <div
-                        data-ask-globee-answer-actions=""
+                        data-ask-frame-ai-answer-actions=""
                         className="flex items-center gap-[var(--space-2)]"
                       >
                         <ThreadIconButton
-                          label={ASK_GLOBEE.copyLabel}
+                          label={ASK_FRAME_AI.copyLabel}
                           pressed={copiedId === message.id}
                           onClick={() => copyAnswer(message)}
                         >
                           {copiedId === message.id ? (
-                            <Check className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} data-ask-globee-copied="" />
+                            <Check className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} data-ask-frame-ai-copied="" />
                           ) : (
                             <Copy className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
                           )}
                         </ThreadIconButton>
                         <ThreadIconButton
-                          label={ASK_GLOBEE.thumbsUpLabel}
+                          label={ASK_FRAME_AI.thumbsUpLabel}
                           pressed={thumbsFor(message) === "up"}
                           onClick={() => {
-                            void setAskGlobeeThumb(message.id, "up").then((result) => {
+                            void setAskFrameAiThumb(message.id, "up").then((result) => {
                               if ("thumbs" in result) {
                                 setThumbOverrides((current) => ({ ...current, [message.id]: result.thumbs }));
                               }
@@ -344,10 +344,10 @@ export function AskGlobeeThread({
                           />
                         </ThreadIconButton>
                         <ThreadIconButton
-                          label={ASK_GLOBEE.thumbsDownLabel}
+                          label={ASK_FRAME_AI.thumbsDownLabel}
                           pressed={thumbsFor(message) === "down"}
                           onClick={() => {
-                            void setAskGlobeeThumb(message.id, "down").then((result) => {
+                            void setAskFrameAiThumb(message.id, "down").then((result) => {
                               if ("thumbs" in result) {
                                 setThumbOverrides((current) => ({ ...current, [message.id]: result.thumbs }));
                               }
@@ -368,7 +368,7 @@ export function AskGlobeeThread({
                   </div>
                 ),
               )}
-              {showOpenThinking ? <AskGlobeeThinking phase={thinkingPhase} /> : null}
+              {showOpenThinking ? <AskFrameAiThinking phase={thinkingPhase} /> : null}
             </div>
             );
           })}
@@ -376,21 +376,21 @@ export function AskGlobeeThread({
         </div>
 
         <form
-          data-ask-globee-composer=""
+          data-ask-frame-ai-composer=""
           className="flex shrink-0 justify-center"
           onSubmit={(event) => {
             event.preventDefault();
-            const next = askGlobeeComposerSubmit(draft);
+            const next = askFrameAiComposerSubmit(draft);
             if (!next || pending) return;
             cancelledRef.current = false;
             setError(null);
             setPending(true);
-            if (askGlobeeUsesModel(next)) {
+            if (askFrameAiUsesModel(next)) {
               setThinkingElapsedMs(0);
               setThinking(true);
               setPendingPrompt(next);
             }
-            void appendAskGlobeeTurn(conversation.id, next).then((result) => {
+            void appendAskFrameAiTurn(conversation.id, next).then((result) => {
               if (cancelledRef.current) return;
               setThinking(false);
               setPendingPrompt(null);
@@ -406,14 +406,14 @@ export function AskGlobeeThread({
         >
           {thinking ? (
             <div
-              data-ask-globee-composer-busy=""
+              data-ask-frame-ai-composer-busy=""
               className={`flex h-14 w-full max-w-[640px] items-center justify-between rounded-full border border-hairline bg-surface px-[var(--space-4)] ${COMPOSER_FOCUS}`}
             >
-              <p className="t-body-sm text-ink-3">{ASK_GLOBEE.escToCancel}</p>
+              <p className="t-body-sm text-ink-3">{ASK_FRAME_AI.escToCancel}</p>
               <button
                 type="button"
-                data-ask-globee-stop=""
-                aria-label={ASK_GLOBEE.stop}
+                data-ask-frame-ai-stop=""
+                aria-label={ASK_FRAME_AI.stop}
                 onClick={stopThinking}
                 className="flex size-4 shrink-0 items-center justify-center text-ink"
               >
@@ -424,20 +424,20 @@ export function AskGlobeeThread({
             <label
               className={`flex h-14 w-full max-w-[640px] items-center justify-between rounded-full border border-hairline bg-surface px-[var(--space-4)] ${COMPOSER_FOCUS}`}
             >
-              <span className="sr-only">{ASK_GLOBEE.composerPlaceholder}</span>
+              <span className="sr-only">{ASK_FRAME_AI.composerPlaceholder}</span>
               <Input
                 variant="bare"
                 type="text"
                 name="prompt"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder={ASK_GLOBEE.composerPlaceholder}
+                placeholder={ASK_FRAME_AI.composerPlaceholder}
                 autoComplete="off"
                 className={`flex-1 ${COMPOSER_FOCUS}`}
               />
               <button
                 type="submit"
-                aria-label={ASK_GLOBEE.sendLabel}
+                aria-label={ASK_FRAME_AI.sendLabel}
                 className="flex size-4 shrink-0 items-center justify-center text-ink-3"
               >
                 <ArrowRight className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
@@ -446,7 +446,7 @@ export function AskGlobeeThread({
           )}
         </form>
         {error ? (
-          <p data-ask-globee-error="" className="mt-[var(--space-2)] text-center t-body-sm text-ink-2">
+          <p data-ask-frame-ai-error="" className="mt-[var(--space-2)] text-center t-body-sm text-ink-2">
             {error}
           </p>
         ) : null}

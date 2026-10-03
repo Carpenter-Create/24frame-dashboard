@@ -12,7 +12,7 @@ import { titleOpsPath } from "./title-public-id";
 // miss next.config staleTimes.dynamic: 30.
 
 const ACTION_FILES = [
-  "src/app/(app)/aggregation/messages/ask-globee-actions.ts",
+  "src/app/(app)/aggregation/messages/ask-frame-ai-actions.ts",
   "src/app/(app)/aggregation/messages/actions.ts",
   "src/app/(app)/(operator)/staff/channels/actions.ts",
   "src/app/(app)/(operator)/staff/gc/deliveries/actions.ts",

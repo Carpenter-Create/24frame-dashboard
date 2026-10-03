@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { ASK_GLOBEE_TRY_PROMPTS } from "@/lib/ask-globee";
+import { ASK_FRAME_AI_TRY_PROMPTS } from "@/lib/ask-frame-ai";
 import { CATALOG_HEALTH_EMPTY } from "@/lib/findings";
 import type { ClientHomeFinding, ClientHomeTitle } from "@/lib/dashboard-home";
 import {
-  ASK_GLOBEE_TOOL_NAMES,
-  ASK_GLOBEE_TOOLS,
-  executeAskGlobeeTool,
-  type AskGlobeeCorpus,
-} from "./ask-globee-tools";
+  ASK_FRAME_AI_TOOL_NAMES,
+  ASK_FRAME_AI_TOOLS,
+  executeAskFrameAiTool,
+  type AskFrameAiCorpus,
+} from "./ask-frame-ai-tools";
 
 const ORG = "org-1";
 const FORBIDDEN = [
@@ -40,7 +40,7 @@ function finding(
   };
 }
 
-const CORPUS: AskGlobeeCorpus = {
+const CORPUS: AskFrameAiCorpus = {
   orgId: ORG,
   titles: [
     title({ id: "t-cut", title: "Harbor Cut", created_at: "2026-08-16T00:00:00.000Z" }),
@@ -69,19 +69,19 @@ function expectIsolated(value: unknown) {
   expect(payload).not.toContain("org-2");
 }
 
-describe("ASK_GLOBEE_TOOLS", () => {
+describe("ASK_FRAME_AI_TOOLS", () => {
   it("exposes only the read-only org-scoped catalog tools", () => {
-    expect(ASK_GLOBEE_TOOLS.map((tool) => tool.name)).toEqual([...ASK_GLOBEE_TOOL_NAMES]);
-    for (const tool of ASK_GLOBEE_TOOLS) {
+    expect(ASK_FRAME_AI_TOOLS.map((tool) => tool.name)).toEqual([...ASK_FRAME_AI_TOOL_NAMES]);
+    for (const tool of ASK_FRAME_AI_TOOLS) {
       expect(tool.input_schema.additionalProperties).toBe(false);
       expect(tool.input_schema.properties).toEqual({});
     }
   });
 });
 
-describe("executeAskGlobeeTool", () => {
+describe("executeAskFrameAiTool", () => {
   it("counts only this org's titles", () => {
-    const result = executeAskGlobeeTool("get_catalog_summary", CORPUS);
+    const result = executeAskFrameAiTool("get_catalog_summary", CORPUS);
     expect(result).toMatchObject({
       catalog: 2,
       catalogLabel: "2",
@@ -93,7 +93,7 @@ describe("executeAskGlobeeTool", () => {
   });
 
   it("lists this org's titles and never other-org findings", () => {
-    const result = executeAskGlobeeTool("list_titles", CORPUS);
+    const result = executeAskFrameAiTool("list_titles", CORPUS);
     expect(result).toEqual({
       titles: [
         { title: "Harbor Cut", status: "Draft" },
@@ -104,25 +104,25 @@ describe("executeAskGlobeeTool", () => {
   });
 
   it("reuses the chip attention and blocker facts", () => {
-    expect(executeAskGlobeeTool("get_attention", CORPUS)).toMatchObject({
+    expect(executeAskFrameAiTool("get_attention", CORPUS)).toMatchObject({
       lead: "Harbor Cut — Synopsis is required.",
       titleNames: ["Harbor Cut", "Winter Light"],
     });
-    expect(executeAskGlobeeTool("get_blockers", CORPUS)).toMatchObject({
+    expect(executeAskFrameAiTool("get_blockers", CORPUS)).toMatchObject({
       lead: "Harbor Cut — Synopsis is required.",
       titleNames: ["Harbor Cut"],
     });
-    expect(executeAskGlobeeTool("get_submit_next", CORPUS)).toMatchObject({
+    expect(executeAskFrameAiTool("get_submit_next", CORPUS)).toMatchObject({
       lead: "Harbor Cut",
       titleNames: ["Harbor Cut"],
     });
-    expectIsolated(executeAskGlobeeTool("get_attention", CORPUS));
-    expectIsolated(executeAskGlobeeTool("get_blockers", CORPUS));
-    expectIsolated(executeAskGlobeeTool("get_submit_next", CORPUS));
+    expectIsolated(executeAskFrameAiTool("get_attention", CORPUS));
+    expectIsolated(executeAskFrameAiTool("get_blockers", CORPUS));
+    expectIsolated(executeAskFrameAiTool("get_submit_next", CORPUS));
   });
 
   it("returns the session tier and no commercial rates", () => {
-    const result = executeAskGlobeeTool("get_agreement_tier", CORPUS);
+    const result = executeAskFrameAiTool("get_agreement_tier", CORPUS);
     expect(result).toEqual({ tier: "pro" });
     expect(JSON.stringify(result)).not.toContain("797");
     expect(JSON.stringify(result)).not.toContain("$");
@@ -131,26 +131,26 @@ describe("executeAskGlobeeTool", () => {
 
   it("tells the truth when the catalog is empty", () => {
     const empty = { ...CORPUS, titles: [], findings: [] };
-    expect(executeAskGlobeeTool("get_catalog_summary", empty)).toMatchObject({
+    expect(executeAskFrameAiTool("get_catalog_summary", empty)).toMatchObject({
       catalog: 0,
       catalogLabel: "0",
     });
-    expect(executeAskGlobeeTool("get_attention", empty)).toMatchObject({
+    expect(executeAskFrameAiTool("get_attention", empty)).toMatchObject({
       lead: CATALOG_HEALTH_EMPTY,
       titleNames: [],
     });
-    expectIsolated(executeAskGlobeeTool("list_titles", empty));
+    expectIsolated(executeAskFrameAiTool("list_titles", empty));
   });
 
   it("ignores unknown tools and any invented org argument", () => {
-    expect(executeAskGlobeeTool("delete_title", CORPUS)).toEqual({ error: "Unknown tool." });
-    expect(executeAskGlobeeTool("get_catalog_summary", { ...CORPUS, orgId: "org-2" })).toMatchObject({
+    expect(executeAskFrameAiTool("delete_title", CORPUS)).toEqual({ error: "Unknown tool." });
+    expect(executeAskFrameAiTool("get_catalog_summary", { ...CORPUS, orgId: "org-2" })).toMatchObject({
       catalog: 2,
     });
-    expectIsolated(executeAskGlobeeTool("delete_title", CORPUS));
+    expectIsolated(executeAskFrameAiTool("delete_title", CORPUS));
   });
 
   it("keeps chip prompts as the only findings shortcuts", () => {
-    expect(ASK_GLOBEE_TRY_PROMPTS).toHaveLength(3);
+    expect(ASK_FRAME_AI_TRY_PROMPTS).toHaveLength(3);
   });
 });

@@ -8,22 +8,22 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/messages",
   useSearchParams: () => new URLSearchParams(navigation.search),
 }));
-vi.mock("@/app/(app)/aggregation/messages/ask-globee-actions", () => ({
-  startAskGlobeeConversation: vi.fn(),
-  appendAskGlobeeTurn: vi.fn(),
-  completeAskGlobeeTurn: vi.fn(),
-  setAskGlobeeThumb: vi.fn(),
-  renameAskGlobeeConversation: vi.fn(),
-  pinAskGlobeeConversation: vi.fn(),
-  deleteAskGlobeeConversation: vi.fn(),
+vi.mock("@/app/(app)/aggregation/messages/ask-frame-ai-actions", () => ({
+  startAskFrameAiConversation: vi.fn(),
+  appendAskFrameAiTurn: vi.fn(),
+  completeAskFrameAiTurn: vi.fn(),
+  setAskFrameAiThumb: vi.fn(),
+  renameAskFrameAiConversation: vi.fn(),
+  pinAskFrameAiConversation: vi.fn(),
+  deleteAskFrameAiConversation: vi.fn(),
 }));
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
-import { AskAssistantChromeProvider } from "@/components/messages/ask-globee-chrome";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
+import { AskAssistantChromeProvider } from "@/components/messages/ask-frame-ai-chrome";
 import { MessagesAppHeader } from "./messages-app-header";
 
 const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "messages-app-header.tsx"), "utf8");
@@ -43,24 +43,24 @@ describe("MessagesAppHeader", () => {
     navigation.search = `thread=${THREAD}`;
     const html = renderToStaticMarkup(<MessagesAppHeader surface="access-gate" />);
     expect(html).toContain("data-header-search");
-    expect(html).toContain(ASK_GLOBEE.headerSearchPlaceholder);
-    expect(html).toContain(ASK_GLOBEE.headerSearchHint);
+    expect(html).toContain(ASK_FRAME_AI.headerSearchPlaceholder);
+    expect(html).toContain(ASK_FRAME_AI.headerSearchHint);
     expect(html).not.toContain("data-header-thread");
-    expect(html).not.toContain(ASK_GLOBEE.threadTitle);
-    expect(html).not.toContain(ASK_GLOBEE.need);
-    expect(html).not.toContain(ASK_GLOBEE.historyLabel);
+    expect(html).not.toContain(ASK_FRAME_AI.threadTitle);
+    expect(html).not.toContain(ASK_FRAME_AI.need);
+    expect(html).not.toContain(ASK_FRAME_AI.historyLabel);
   });
 
   it("keeps the 7:73 landing header as spacer + avatar only", () => {
     navigation.search = "";
-    const html = renderToStaticMarkup(<MessagesAppHeader surface="ask-globee-landing" />);
+    const html = renderToStaticMarkup(<MessagesAppHeader surface="ask-frame-ai-landing" />);
     expect(html).toBe("");
     expect(html).not.toContain("data-header-search");
     expect(html).not.toContain("data-header-thread");
-    expect(html).not.toContain("data-ask-globee-download");
-    expect(html).not.toContain(ASK_GLOBEE.downloadLabel);
-    expect(html).not.toContain(ASK_GLOBEE.headerSearchHint);
-    expect(html).not.toContain(ASK_GLOBEE.threadTitle);
+    expect(html).not.toContain("data-ask-frame-ai-download");
+    expect(html).not.toContain(ASK_FRAME_AI.downloadLabel);
+    expect(html).not.toContain(ASK_FRAME_AI.headerSearchHint);
+    expect(html).not.toContain(ASK_FRAME_AI.threadTitle);
   });
 
   it("shows back + the conversation title on the unlocked thread, with no Search", () => {
@@ -70,34 +70,34 @@ describe("MessagesAppHeader", () => {
         <AskAssistantChromeProvider
           initialChrome={{ id: THREAD, title: "What needs attention", pinned_at: null }}
         >
-          <MessagesAppHeader surface="ask-globee-landing" />
+          <MessagesAppHeader surface="ask-frame-ai-landing" />
         </AskAssistantChromeProvider>,
       ),
     );
     expect(html).toContain("data-header-thread");
     expect(html).toContain("What needs attention");
-    expect(html).toContain("data-ask-globee-history-title");
+    expect(html).toContain("data-ask-frame-ai-history-title");
     expect(html).toContain('href="?ai=1"');
     expect(html).not.toContain('href="/messages"');
-    expect(html).toContain(ASK_GLOBEE.backLabel);
-    expect(html).toContain(ASK_GLOBEE.downloadLabel);
-    expect(html).toContain("data-ask-globee-download");
-    expect(html).toContain("data-ask-globee-header-chrome");
-    expect(html).toContain("data-ask-globee-title-cluster");
+    expect(html).toContain(ASK_FRAME_AI.backLabel);
+    expect(html).toContain(ASK_FRAME_AI.downloadLabel);
+    expect(html).toContain("data-ask-frame-ai-download");
+    expect(html).toContain("data-ask-frame-ai-header-chrome");
+    expect(html).toContain("data-ask-frame-ai-title-cluster");
     expect(html).toContain("flex-1");
-    expect(html).toContain(ASK_GLOBEE.moreLabel);
-    const titleClusterStart = html.indexOf("data-ask-globee-title-cluster");
-    const chromeStart = html.indexOf("data-ask-globee-header-chrome");
+    expect(html).toContain(ASK_FRAME_AI.moreLabel);
+    const titleClusterStart = html.indexOf("data-ask-frame-ai-title-cluster");
+    const chromeStart = html.indexOf("data-ask-frame-ai-header-chrome");
     const titleClusterHtml = html.slice(titleClusterStart, chromeStart);
-    expect(titleClusterHtml).toContain("data-ask-globee-history-title");
-    expect(titleClusterHtml).not.toContain(ASK_GLOBEE.moreLabel);
-    expect(html.slice(chromeStart)).toContain(ASK_GLOBEE.moreLabel);
+    expect(titleClusterHtml).toContain("data-ask-frame-ai-history-title");
+    expect(titleClusterHtml).not.toContain(ASK_FRAME_AI.moreLabel);
+    expect(html.slice(chromeStart)).toContain(ASK_FRAME_AI.moreLabel);
     expect(html).toContain("t-heading");
     expect(html).not.toContain("t-title");
     expect(src).toContain("Download");
-    expect(src).toContain("saveAskGlobeeDownload");
+    expect(src).toContain("saveAskFrameAiDownload");
     expect(src).toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");
-    expect(src).toContain("AskGlobeeHistoryPopover");
+    expect(src).toContain("AskFrameAiHistoryPopover");
     expect(src).toContain("CaretDown");
     expect(src).toContain("CaretUp");
     expect(html).toContain('aria-expanded="false"');
@@ -107,31 +107,31 @@ describe("MessagesAppHeader", () => {
     expect(src).toContain(
       'className="flex min-w-0 flex-1 items-center gap-[var(--space-4)]"',
     );
-    expect(src).toContain("data-ask-globee-header-chrome");
+    expect(src).toContain("data-ask-frame-ai-header-chrome");
     expect(src).toContain("flex shrink-0 items-center gap-[var(--space-4)]");
     expect(src).toContain('<DownloadSimple className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />');
     expect(src).toContain('<DotsThree className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />');
     expect(src).not.toContain("truncate t-body-sm text-ink");
     expect(src).not.toContain("size-5");
     expect(src).not.toContain("size-6");
-    expect(html).not.toContain("data-ask-globee-history-popover");
-    expect(html).toContain(ASK_GLOBEE.deleteTitle);
-    expect(html).toContain(ASK_GLOBEE.deleteBody);
-    expect(html).toContain(ASK_GLOBEE.deleteConfirm);
-    expect(html).toContain(ASK_GLOBEE.cancelLabel);
-    expect(src).toContain("ASK_GLOBEE.downloadPdfLabel");
-    expect(src).toContain("ASK_GLOBEE.renameLabel");
-    expect(src).toContain("ASK_GLOBEE.pinLabel");
-    expect(src).toContain("ASK_GLOBEE.deleteLabel");
+    expect(html).not.toContain("data-ask-frame-ai-history-popover");
+    expect(html).toContain(ASK_FRAME_AI.deleteTitle);
+    expect(html).toContain(ASK_FRAME_AI.deleteBody);
+    expect(html).toContain(ASK_FRAME_AI.deleteConfirm);
+    expect(html).toContain(ASK_FRAME_AI.cancelLabel);
+    expect(src).toContain("ASK_FRAME_AI.downloadPdfLabel");
+    expect(src).toContain("ASK_FRAME_AI.renameLabel");
+    expect(src).toContain("ASK_FRAME_AI.pinLabel");
+    expect(src).toContain("ASK_FRAME_AI.deleteLabel");
     expect(src).not.toMatch(/Archive/);
     expect(html).not.toContain("data-header-search");
-    expect(html).not.toContain(ASK_GLOBEE.headerSearchHint);
+    expect(html).not.toContain(ASK_FRAME_AI.headerSearchHint);
     expect(html).not.toContain("SearchField");
-    expect(html).not.toContain(ASK_GLOBEE.threadTitle);
+    expect(html).not.toContain(ASK_FRAME_AI.threadTitle);
     expect(html).not.toContain("Winter Line");
-    if (src.includes("data-ask-globee-new")) {
-      expect(html).toContain("data-ask-globee-new");
-      expect(html).toContain(ASK_GLOBEE.newConversationLabel);
+    if (src.includes("data-ask-frame-ai-new")) {
+      expect(html).toContain("data-ask-frame-ai-new");
+      expect(html).toContain(ASK_FRAME_AI.newConversationLabel);
     }
   });
 
@@ -142,7 +142,7 @@ describe("MessagesAppHeader", () => {
         <AskAssistantChromeProvider
           initialChrome={{ id: THREAD, title: "What needs attention", pinned_at: null }}
         >
-          <MessagesAppHeader surface="ask-globee-landing" />
+          <MessagesAppHeader surface="ask-frame-ai-landing" />
         </AskAssistantChromeProvider>,
       ),
     );
@@ -151,41 +151,41 @@ describe("MessagesAppHeader", () => {
       src.indexOf("function MessagesAppHeaderInner"),
     );
     const confirmHtml = html.slice(
-      html.indexOf("data-ask-globee-delete-confirm"),
-      html.indexOf("</button>", html.indexOf("data-ask-globee-delete-confirm")) + 9,
+      html.indexOf("data-ask-frame-ai-delete-confirm"),
+      html.indexOf("</button>", html.indexOf("data-ask-frame-ai-delete-confirm")) + 9,
     );
     const cancelHtml = html.slice(
-      html.indexOf("data-ask-globee-delete-cancel"),
-      html.indexOf("</button>", html.indexOf("data-ask-globee-delete-cancel")) + 9,
+      html.indexOf("data-ask-frame-ai-delete-cancel"),
+      html.indexOf("</button>", html.indexOf("data-ask-frame-ai-delete-cancel")) + 9,
     );
 
-    expect(ASK_GLOBEE.deleteBody).toBe(
+    expect(ASK_FRAME_AI.deleteBody).toBe(
       "This permanently deletes the conversation and cannot be undone.",
     );
-    expect(html).toContain(ASK_GLOBEE.deleteTitle);
-    expect(html).toContain(ASK_GLOBEE.deleteBody);
-    expect(html).toContain(ASK_GLOBEE.deleteConfirm);
-    expect(html).toContain(ASK_GLOBEE.cancelLabel);
+    expect(html).toContain(ASK_FRAME_AI.deleteTitle);
+    expect(html).toContain(ASK_FRAME_AI.deleteBody);
+    expect(html).toContain(ASK_FRAME_AI.deleteConfirm);
+    expect(html).toContain(ASK_FRAME_AI.cancelLabel);
     expect(html).toContain('aria-label="Close"');
     expect(src).toContain('from "@/components/ui/dialog"');
     expect(deleteDialog).toContain("</Dialog>");
-    expect(deleteDialog).toContain("title={ASK_GLOBEE.deleteTitle}");
-    expect(deleteDialog).toContain("ASK_GLOBEE.deleteConfirm");
-    expect(deleteDialog).toContain("ASK_GLOBEE.cancelLabel");
+    expect(deleteDialog).toContain("title={ASK_FRAME_AI.deleteTitle}");
+    expect(deleteDialog).toContain("ASK_FRAME_AI.deleteConfirm");
+    expect(deleteDialog).toContain("ASK_FRAME_AI.cancelLabel");
     expect(deleteDialog).toContain("<Button");
     expect(deleteDialog).toContain("DialogFooter");
     expect(deleteDialog).toContain('variant="secondary"');
     expect(deleteDialog).toContain('variant="danger"');
-    expect(deleteDialog).toContain("data-ask-globee-delete-confirm");
+    expect(deleteDialog).toContain("data-ask-frame-ai-delete-confirm");
     expect(deleteDialog).not.toContain("MENU_SURFACE_ITEM_CLASS");
     expect(deleteDialog).not.toContain("MENU_SURFACE_ITEM_DANGER_CLASS");
     expect(deleteDialog).not.toContain("bg-accent");
     expect(deleteDialog).not.toContain('variant="primary"');
-    expect(confirmHtml).toContain(ASK_GLOBEE.deleteConfirm);
+    expect(confirmHtml).toContain(ASK_FRAME_AI.deleteConfirm);
     expect(html).toContain("text-[#c4564a]");
     expect(confirmHtml).not.toContain("bg-accent");
     expect(confirmHtml).not.toContain("bg-primary");
-    expect(cancelHtml).toContain(ASK_GLOBEE.cancelLabel);
+    expect(cancelHtml).toContain(ASK_FRAME_AI.cancelLabel);
     expect(cancelHtml).not.toContain("bg-accent");
     expect(cancelHtml).not.toContain("bg-primary");
     expect(cancelHtml).not.toContain("text-[#c4564a]");
@@ -229,7 +229,7 @@ describe("MessagesAppHeader", () => {
       "utf8",
     );
     const landing = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "../messages/ask-globee-landing.tsx"),
+      join(dirname(fileURLToPath(import.meta.url)), "../messages/ask-frame-ai-landing.tsx"),
       "utf8",
     );
     const titles = readFileSync(
@@ -243,30 +243,30 @@ describe("MessagesAppHeader", () => {
     expect(src).toContain(
       'className="flex min-w-0 flex-1 items-center gap-[var(--space-2)]"',
     );
-    expect(src).toContain('data-ask-globee-title-cluster=""');
-    expect(src.indexOf("data-ask-globee-title-cluster")).toBeLessThan(
-      src.indexOf("data-ask-globee-header-chrome"),
+    expect(src).toContain('data-ask-frame-ai-title-cluster=""');
+    expect(src.indexOf("data-ask-frame-ai-title-cluster")).toBeLessThan(
+      src.indexOf("data-ask-frame-ai-header-chrome"),
     );
     expect(src.indexOf("<DotsThree")).toBeGreaterThan(
-      src.indexOf("data-ask-globee-header-chrome"),
+      src.indexOf("data-ask-frame-ai-header-chrome"),
     );
     expect(src.indexOf("<DotsThree")).toBeGreaterThan(
-      src.lastIndexOf("</AskGlobeeHistoryPopover>"),
+      src.lastIndexOf("</AskFrameAiHistoryPopover>"),
     );
     expect(src).toContain('className="hidden size-4 shrink-0 items-center justify-center text-ink-3 md:flex"');
     expect(src).toContain('className="flex size-4 shrink-0 items-center justify-center text-ink-3"');
     expect(src).toContain('<CaretDown className="size-4 shrink-0 text-ink-3" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />');
     expect(src).toContain('<DotsThree className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />');
-    expect(src).toContain("ASK_GLOBEE.downloadPdfLabel");
+    expect(src).toContain("ASK_FRAME_AI.downloadPdfLabel");
     expect(src).toContain("<ThreadPopoverContent");
     expect(src).toContain("<ThreadPopoverItem");
     expect(src).toContain("<ThreadPopoverSeparator");
     expect(src).toContain("THREAD_POPOVER_ICON_CLASS");
     expect(src).toContain("THREAD_POPOVER_DELETE_ICON_CLASS");
     expect(houseSheetSrc).toContain("text-[#c4564a]");
-    expect(src).toContain("ASK_GLOBEE.deleteBody");
+    expect(src).toContain("ASK_FRAME_AI.deleteBody");
     expect(src).not.toContain("MessagesThreadOverflow");
-    expect(src).not.toContain("data-ask-globee-mobile-overflow");
+    expect(src).not.toContain("data-ask-frame-ai-mobile-overflow");
     expect(src).toContain("text-ink max-md:text-ink-3");
     expect(src).toContain("text-ink-3");
     expect(src).not.toContain("font-bold");
@@ -282,9 +282,9 @@ describe("MessagesAppHeader", () => {
     expect(leadLib).toContain("HOUSE_SHELL_GUTTER_X_CLASS");
     expect(shell).toContain("gap-3");
     expect(landing).not.toContain("MessagesThreadOverflow");
-    expect(landing).not.toContain("data-ask-globee-title-cluster");
+    expect(landing).not.toContain("data-ask-frame-ai-title-cluster");
     expect(titles).not.toContain("MessagesThreadOverflow");
-    expect(titles).not.toContain("data-ask-globee-title-cluster");
+    expect(titles).not.toContain("data-ask-frame-ai-title-cluster");
   });
 
   it("docks desktop download/··· 16 from the avatar; title stays left", () => {
@@ -294,7 +294,7 @@ describe("MessagesAppHeader", () => {
         <AskAssistantChromeProvider
           initialChrome={{ id: THREAD, title: "What needs attention", pinned_at: null }}
         >
-          <MessagesAppHeader surface="ask-globee-landing" />
+          <MessagesAppHeader surface="ask-frame-ai-landing" />
         </AskAssistantChromeProvider>,
       ),
     );
@@ -328,26 +328,26 @@ describe("MessagesAppHeader", () => {
       'className="flex min-w-0 items-center gap-[var(--space-2)] max-md:flex-1"',
     );
     expect(src).toContain("flex shrink-0 items-center gap-[var(--space-4)]");
-    expect(html).toContain("data-ask-globee-title-cluster");
-    expect(html).toContain("data-ask-globee-header-chrome");
-    expect(html).toContain("data-ask-globee-download");
-    expect(html).toContain(ASK_GLOBEE.moreLabel);
-    const titleClusterStart = html.indexOf("data-ask-globee-title-cluster");
-    const chromeStart = html.indexOf("data-ask-globee-header-chrome");
+    expect(html).toContain("data-ask-frame-ai-title-cluster");
+    expect(html).toContain("data-ask-frame-ai-header-chrome");
+    expect(html).toContain("data-ask-frame-ai-download");
+    expect(html).toContain(ASK_FRAME_AI.moreLabel);
+    const titleClusterStart = html.indexOf("data-ask-frame-ai-title-cluster");
+    const chromeStart = html.indexOf("data-ask-frame-ai-header-chrome");
     expect(titleClusterStart).toBeGreaterThan(-1);
     expect(chromeStart).toBeGreaterThan(titleClusterStart);
-    expect(html.slice(titleClusterStart, chromeStart)).toContain("data-ask-globee-history-title");
-    expect(src.indexOf("<CaretDown")).toBeGreaterThan(src.indexOf("data-ask-globee-title-cluster"));
-    expect(src.indexOf("<CaretDown")).toBeLessThan(src.indexOf("data-ask-globee-header-chrome"));
-    expect(html.slice(titleClusterStart, chromeStart)).not.toContain(ASK_GLOBEE.downloadLabel);
-    expect(html.slice(titleClusterStart, chromeStart)).not.toContain(ASK_GLOBEE.moreLabel);
-    expect(html.slice(chromeStart)).toContain(ASK_GLOBEE.downloadLabel);
-    expect(html.slice(chromeStart)).toContain(ASK_GLOBEE.moreLabel);
-    expect(html.slice(chromeStart).indexOf(ASK_GLOBEE.downloadLabel)).toBeLessThan(
-      html.slice(chromeStart).indexOf(ASK_GLOBEE.moreLabel),
+    expect(html.slice(titleClusterStart, chromeStart)).toContain("data-ask-frame-ai-history-title");
+    expect(src.indexOf("<CaretDown")).toBeGreaterThan(src.indexOf("data-ask-frame-ai-title-cluster"));
+    expect(src.indexOf("<CaretDown")).toBeLessThan(src.indexOf("data-ask-frame-ai-header-chrome"));
+    expect(html.slice(titleClusterStart, chromeStart)).not.toContain(ASK_FRAME_AI.downloadLabel);
+    expect(html.slice(titleClusterStart, chromeStart)).not.toContain(ASK_FRAME_AI.moreLabel);
+    expect(html.slice(chromeStart)).toContain(ASK_FRAME_AI.downloadLabel);
+    expect(html.slice(chromeStart)).toContain(ASK_FRAME_AI.moreLabel);
+    expect(html.slice(chromeStart).indexOf(ASK_FRAME_AI.downloadLabel)).toBeLessThan(
+      html.slice(chromeStart).indexOf(ASK_FRAME_AI.moreLabel),
     );
     expect(src).toContain('className="hidden size-4 shrink-0 items-center justify-center text-ink-3 md:flex"');
-    expect(src.indexOf("data-ask-globee-download")).toBeLessThan(src.indexOf("<DotsThree"));
+    expect(src.indexOf("data-ask-frame-ai-download")).toBeLessThan(src.indexOf("<DotsThree"));
     expect(lead).toContain("HOUSE_LEAD_CHROME_CLASS");
     expect(lead).toContain("APP_HEADER_LEADING_CLASS");
     expect(lead).not.toContain('presentation="sheet" tone="pill"');
@@ -355,9 +355,9 @@ describe("MessagesAppHeader", () => {
     expect(lead).toContain('presentation="waffle"');
     expect(shell.indexOf("<MessagesAppHeader")).toBeLessThan(shell.indexOf("<UserMenu"));
     expect(tokens).toMatch(/--space-4:\s*1rem;/);
-    expect(userMenu).not.toContain("data-ask-globee-title-cluster");
+    expect(userMenu).not.toContain("data-ask-frame-ai-title-cluster");
     expect(userMenu).not.toContain("data-header-thread");
-    expect(userMenu).not.toContain("data-ask-globee-header-chrome");
+    expect(userMenu).not.toContain("data-ask-frame-ai-header-chrome");
   });
 
   it("instances the shared menu surface; items stay thread-only", () => {
@@ -377,10 +377,10 @@ describe("MessagesAppHeader", () => {
     expect(src).toContain("<ThreadPopoverSeparator");
     expect(src).toContain("THREAD_POPOVER_ICON_CLASS");
     expect(src).toContain("THREAD_POPOVER_DELETE_ICON_CLASS");
-    expect(src).toContain("ASK_GLOBEE.downloadPdfLabel");
-    expect(src).toContain("ASK_GLOBEE.renameLabel");
-    expect(src).toContain("ASK_GLOBEE.pinLabel");
-    expect(src).toContain("ASK_GLOBEE.deleteLabel");
+    expect(src).toContain("ASK_FRAME_AI.downloadPdfLabel");
+    expect(src).toContain("ASK_FRAME_AI.renameLabel");
+    expect(src).toContain("ASK_FRAME_AI.pinLabel");
+    expect(src).toContain("ASK_FRAME_AI.deleteLabel");
     expect(surfaceSrc).toContain("<MenuSurfaceContent data-thread-popover=\"\"");
     expect(surfaceSrc).toContain("<MenuSurfaceItem");
     expect(surfaceSrc).toContain("MENU_SURFACE_ITEM_CLASS");

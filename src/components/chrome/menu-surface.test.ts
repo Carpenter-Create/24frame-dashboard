@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { USER_MENU } from "@/lib/user-menu";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const surfaceSrc = readFileSync(join(here, "menu-surface.tsx"), "utf8");
@@ -61,10 +61,10 @@ describe("shared menu surface instances", () => {
     expect(userMenuSrc).toContain("UserMenuIdentity");
     expect(userMenuSrc).toContain("onUserMenuLogOut");
     expect(sheetSrc).toContain("ACCOUNT_SHEET_ITEMS");
-    expect(headerSrc).toContain("ASK_GLOBEE.downloadPdfLabel");
-    expect(headerSrc).toContain("ASK_GLOBEE.renameLabel");
-    expect(headerSrc).toContain("ASK_GLOBEE.pinLabel");
-    expect(headerSrc).toContain("ASK_GLOBEE.deleteLabel");
+    expect(headerSrc).toContain("ASK_FRAME_AI.downloadPdfLabel");
+    expect(headerSrc).toContain("ASK_FRAME_AI.renameLabel");
+    expect(headerSrc).toContain("ASK_FRAME_AI.pinLabel");
+    expect(headerSrc).toContain("ASK_FRAME_AI.deleteLabel");
     expect(headerSrc).not.toContain("UserMenuIdentity");
     expect(headerSrc).not.toContain("data-user-menu-identity");
     expect(headerSrc).not.toContain("USER_MENU_ACTIONS");
@@ -76,11 +76,11 @@ describe("shared menu surface instances", () => {
     expect(headerSrc).not.toContain("Appearance");
     expect(headerSrc).not.toContain("Log out");
     expect(surfaceSrc).not.toContain("UserMenuIdentity");
-    expect(surfaceSrc).not.toContain(ASK_GLOBEE.downloadPdfLabel);
+    expect(surfaceSrc).not.toContain(ASK_FRAME_AI.downloadPdfLabel);
   });
 
   it("puts the delete hairline after Pin; Identity hairline sits under Log out", () => {
-    const pin = headerSrc.indexOf("ASK_GLOBEE.pinLabel");
+    const pin = headerSrc.indexOf("ASK_FRAME_AI.pinLabel");
     const hairline = headerSrc.indexOf("<ThreadPopoverSeparator");
     const del = headerSrc.indexOf('danger onSelect={() => setDeleteOpen(true)}');
     expect(pin).toBeGreaterThan(-1);

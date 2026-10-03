@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { SOCIAL } from "@/lib/social";
 import SocialCoursesPage from "./page";
 
@@ -130,7 +130,7 @@ describe("Social courses list", () => {
     expect(html).not.toContain("<table");
     expect(html).not.toContain("LOCKED");
     expect(html).not.toContain("Globee");
-    expect(html).not.toContain(ASK_GLOBEE.headline);
+    expect(html).not.toContain(ASK_FRAME_AI.headline);
     expect(html).not.toContain("—");
     expect(html).not.toContain("courses/new");
     expect(html).not.toContain("My learning");

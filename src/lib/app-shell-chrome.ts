@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { ACCOUNT_PHOTO_HREF } from "@/lib/account-avatar";
 import type { ActivityItem } from "@/lib/activity";
 import { APP_GATE_REDIRECT, appAccessBlocked } from "@/lib/app-access";
-import { resolveMessagesSurface, type MessagesSurface } from "@/lib/ask-globee";
+import { resolveMessagesSurface, type MessagesSurface } from "@/lib/ask-frame-ai";
 import { loadActivityBellItems } from "@/lib/my-lists";
 import { getActiveOrgTier } from "@/lib/org-tier";
 import { readSidebarCollapsed } from "@/lib/rail-collapse";

@@ -1,26 +1,26 @@
 import "server-only";
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { ASSISTANT_NAME, PRODUCT_NAME } from "@/lib/product";
-import type { AskGlobeeAnswer } from "@/lib/ask-globee-answer";
+import type { AskFrameAiAnswer } from "@/lib/ask-frame-ai-answer";
 import {
-  ASK_GLOBEE_TOOLS,
-  executeAskGlobeeTool,
-  type AskGlobeeCorpus,
-} from "@/lib/ask-globee-tools";
+  ASK_FRAME_AI_TOOLS,
+  executeAskFrameAiTool,
+  type AskFrameAiCorpus,
+} from "@/lib/ask-frame-ai-tools";
 
 // Catalog-grounded operator. Reads ANTHROPIC_API_KEY so the provider seam can
 // be swapped later. v1 talks to the Anthropic Messages API only.
 
-export const ASK_GLOBEE_MODEL_ID = "claude-sonnet-5";
-export const ASK_GLOBEE_MODEL_MAX_TOKENS = 1024;
-export const ASK_GLOBEE_MODEL_MAX_ROUNDS = 4;
-export const ASK_GLOBEE_HISTORY_MAX = 8;
+export const ASK_FRAME_AI_MODEL_ID = "claude-sonnet-5";
+export const ASK_FRAME_AI_MODEL_MAX_TOKENS = 1024;
+export const ASK_FRAME_AI_MODEL_MAX_ROUNDS = 4;
+export const ASK_FRAME_AI_HISTORY_MAX = 8;
 
 const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
-export const ASK_GLOBEE_SYSTEM = [
+export const ASK_FRAME_AI_SYSTEM = [
   `You are ${ASSISTANT_NAME}, a catalog operator for this signed-in client's ${PRODUCT_NAME} catalog only.`,
   "Use tools to read this catalog before stating counts, titles, blockers, or what to submit next.",
   "Answer only from tool results. If the tools do not have the fact, say you do not have it.",
@@ -32,12 +32,12 @@ export const ASK_GLOBEE_SYSTEM = [
   "If the client asks for guidance, use the catalog tools and walk them through what the catalog shows.",
 ].join(" ");
 
-export type AskGlobeeHistoryTurn = {
+export type AskFrameAiHistoryTurn = {
   role: "user" | "globee";
   text: string;
 };
 
-export type AskGlobeeOperatorResult = AskGlobeeAnswer | { error: string };
+export type AskFrameAiOperatorResult = AskFrameAiAnswer | { error: string };
 
 type AnthropicContent =
   | { type: "text"; text: string }
@@ -49,32 +49,32 @@ type AnthropicMessage = {
   content: string | AnthropicContent[];
 };
 
-export type AskGlobeeModelRound = {
+export type AskFrameAiModelRound = {
   system: string;
   model: string;
   max_tokens: number;
-  tools: typeof ASK_GLOBEE_TOOLS;
+  tools: typeof ASK_FRAME_AI_TOOLS;
   messages: AnthropicMessage[];
 };
 
-export type AskGlobeeModelResponse = {
+export type AskFrameAiModelResponse = {
   stop_reason?: string | null;
   content?: AnthropicContent[];
 };
 
-export type AskGlobeeModelClient = (
-  round: AskGlobeeModelRound,
+export type AskFrameAiModelClient = (
+  round: AskFrameAiModelRound,
   apiKey: string,
-) => Promise<AskGlobeeModelResponse>;
+) => Promise<AskFrameAiModelResponse>;
 
-export type AskGlobeeOperatorEnv = Record<string, string | undefined>;
+export type AskFrameAiOperatorEnv = Record<string, string | undefined>;
 
-export function readOperatorApiKey(env: AskGlobeeOperatorEnv = process.env): string | null {
+export function readOperatorApiKey(env: AskFrameAiOperatorEnv = process.env): string | null {
   const key = env.ANTHROPIC_API_KEY?.trim() ?? "";
   return key.length > 0 ? key : null;
 }
 
-export function splitAskGlobeeModelText(text: string): Pick<AskGlobeeAnswer, "lead" | "follow"> {
+export function splitAskFrameAiModelText(text: string): Pick<AskFrameAiAnswer, "lead" | "follow"> {
   const trimmed = text.trim();
   const newline = trimmed.indexOf("\n");
   if (newline === -1) return { lead: trimmed, follow: null };
@@ -83,10 +83,10 @@ export function splitAskGlobeeModelText(text: string): Pick<AskGlobeeAnswer, "le
   return { lead, follow: follow || null };
 }
 
-export async function requestAskGlobeeModel(
-  round: AskGlobeeModelRound,
+export async function requestAskFrameAiModel(
+  round: AskFrameAiModelRound,
   apiKey: string,
-): Promise<AskGlobeeModelResponse> {
+): Promise<AskFrameAiModelResponse> {
   const response = await fetch(ANTHROPIC_MESSAGES_URL, {
     method: "POST",
     headers: {
@@ -103,13 +103,13 @@ export async function requestAskGlobeeModel(
     }),
   });
   if (!response.ok) {
-    throw new Error("Ask Globee model request failed.");
+    throw new Error("24Frame AI model request failed.");
   }
-  return (await response.json()) as AskGlobeeModelResponse;
+  return (await response.json()) as AskFrameAiModelResponse;
 }
 
-function historyMessages(history: AskGlobeeHistoryTurn[], prompt: string): AnthropicMessage[] {
-  const recent = history.slice(-ASK_GLOBEE_HISTORY_MAX);
+function historyMessages(history: AskFrameAiHistoryTurn[], prompt: string): AnthropicMessage[] {
+  const recent = history.slice(-ASK_FRAME_AI_HISTORY_MAX);
   const messages: AnthropicMessage[] = [];
   for (const turn of recent) {
     const role = turn.role === "user" ? "user" : "assistant";
@@ -132,40 +132,40 @@ function textFromContent(content: AnthropicContent[] | undefined): string {
     .trim();
 }
 
-export async function answerAskGlobeePrompt({
+export async function answerAskFrameAiPrompt({
   prompt,
   corpus,
   history = [],
   env = process.env,
-  modelClient = requestAskGlobeeModel,
+  modelClient = requestAskFrameAiModel,
 }: {
   prompt: string;
-  corpus: AskGlobeeCorpus;
-  history?: AskGlobeeHistoryTurn[];
-  env?: AskGlobeeOperatorEnv;
-  modelClient?: AskGlobeeModelClient;
-}): Promise<AskGlobeeOperatorResult> {
+  corpus: AskFrameAiCorpus;
+  history?: AskFrameAiHistoryTurn[];
+  env?: AskFrameAiOperatorEnv;
+  modelClient?: AskFrameAiModelClient;
+}): Promise<AskFrameAiOperatorResult> {
   const apiKey = readOperatorApiKey(env);
   if (!apiKey) {
-    return { error: ASK_GLOBEE.unavailable };
+    return { error: ASK_FRAME_AI.unavailable };
   }
 
   const messages = historyMessages(history, prompt);
-  for (let round = 0; round < ASK_GLOBEE_MODEL_MAX_ROUNDS; round += 1) {
-    let response: AskGlobeeModelResponse;
+  for (let round = 0; round < ASK_FRAME_AI_MODEL_MAX_ROUNDS; round += 1) {
+    let response: AskFrameAiModelResponse;
     try {
       response = await modelClient(
         {
-          system: ASK_GLOBEE_SYSTEM,
-          model: ASK_GLOBEE_MODEL_ID,
-          max_tokens: ASK_GLOBEE_MODEL_MAX_TOKENS,
-          tools: ASK_GLOBEE_TOOLS,
+          system: ASK_FRAME_AI_SYSTEM,
+          model: ASK_FRAME_AI_MODEL_ID,
+          max_tokens: ASK_FRAME_AI_MODEL_MAX_TOKENS,
+          tools: ASK_FRAME_AI_TOOLS,
           messages,
         },
         apiKey,
       );
     } catch {
-      return { error: ASK_GLOBEE.unavailable };
+      return { error: ASK_FRAME_AI.unavailable };
     }
 
     const toolUses = (response.content ?? []).filter(
@@ -178,15 +178,15 @@ export async function answerAskGlobeePrompt({
         content: toolUses.map((block) => ({
           type: "tool_result" as const,
           tool_use_id: block.id,
-          content: JSON.stringify(executeAskGlobeeTool(block.name, corpus)),
+          content: JSON.stringify(executeAskFrameAiTool(block.name, corpus)),
         })),
       });
       continue;
     }
 
     const text = textFromContent(response.content);
-    if (!text) return { error: ASK_GLOBEE.unavailable };
-    const { lead, follow } = splitAskGlobeeModelText(text);
+    if (!text) return { error: ASK_FRAME_AI.unavailable };
+    const { lead, follow } = splitAskFrameAiModelText(text);
     return {
       intent: "unmapped",
       lead,
@@ -195,5 +195,5 @@ export async function answerAskGlobeePrompt({
     };
   }
 
-  return { error: ASK_GLOBEE.unavailable };
+  return { error: ASK_FRAME_AI.unavailable };
 }

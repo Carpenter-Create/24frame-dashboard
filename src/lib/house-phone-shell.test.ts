@@ -63,7 +63,7 @@ import {
   housePhoneShowsBottomDests,
   housePhoneWorkspaceSelected,
 } from "@/lib/house-phone-shell";
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import {
   HOUSE_HEADER_TRAILING_AVATAR_CLASS,
   HOUSE_HEADER_TRAILING_HIT_CLASS,
@@ -438,7 +438,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       "Queue",
     );
     expect(housePhoneDestinations(false, "aggregation").map((item) => item.label)).not.toContain(
-      ASK_GLOBEE.headline,
+      ASK_FRAME_AI.headline,
     );
     expect(housePhoneDestinations(false, "education").map((item) => item.label)).toEqual([
       "Education",
@@ -480,7 +480,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(aggregation).toContain('data-house-phone-dest="Dashboard"');
     expect(aggregation).toContain('data-house-phone-dest="Titles"');
     expect(aggregation).not.toContain('data-house-phone-dest="Queue"');
-    expect(aggregation).not.toContain(ASK_GLOBEE.headline);
+    expect(aggregation).not.toContain(ASK_FRAME_AI.headline);
 
     navigation.pathname = "/staff/queue";
     const staff = renderToStaticMarkup(

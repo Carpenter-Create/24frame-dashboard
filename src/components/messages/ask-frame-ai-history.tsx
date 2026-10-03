@@ -7,7 +7,7 @@ import { Clock } from "@phosphor-icons/react";
 import { useHousePathname } from "@/components/chrome/house-client-shell";
 import { HouseLink } from "@/components/chrome/house-link";
 import { Input } from "@/components/ui/input";
-import { ASK_GLOBEE, askGlobeeThreadHref } from "@/lib/ask-globee";
+import { ASK_FRAME_AI, askFrameAiThreadHref } from "@/lib/ask-frame-ai";
 import {
   ASK_AI_OVERLAY_PHONE_HISTORY_CLASS,
   ASK_AI_OVERLAY_PHONE_HISTORY_LIST_CLASS,
@@ -15,11 +15,11 @@ import {
   currentAskAiSearch,
 } from "@/lib/ask-ai-overlay";
 import {
-  filterAskGlobeeHistory,
-  formatAskGlobeeHistoryTime,
-  groupAskGlobeeHistory,
-  type AskGlobeeHistoryRow,
-} from "@/lib/ask-globee-conversations";
+  filterAskFrameAiHistory,
+  formatAskFrameAiHistoryTime,
+  groupAskFrameAiHistory,
+  type AskFrameAiHistoryRow,
+} from "@/lib/ask-frame-ai-conversations";
 import {
   MOBILE_CHROME_ICON_BUTTON_CLASS,
   MOBILE_CHROME_ICON_CLASS,
@@ -27,52 +27,52 @@ import {
 import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { cn } from "@/lib/cn";
-import { useAskGlobeeChrome } from "./ask-globee-chrome";
+import { useAskFrameAiChrome } from "./ask-frame-ai-chrome";
 
 // Hairline history popover. Real org conversations only. Empty is empty.
 
-export function AskGlobeeHistoryPanel({
+export function AskFrameAiHistoryPanel({
   conversations,
   currentId = null,
   now,
 }: {
-  conversations: AskGlobeeHistoryRow[];
+  conversations: AskFrameAiHistoryRow[];
   currentId?: string | null;
   now?: Date;
 }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
-  const { setHistoryOpen } = useAskGlobeeChrome();
-  const filtered = filterAskGlobeeHistory(conversations, query);
-  const { thisWeek, allThreads } = groupAskGlobeeHistory(filtered, now);
+  const { setHistoryOpen } = useAskFrameAiChrome();
+  const filtered = filterAskFrameAiHistory(conversations, query);
+  const { thisWeek, allThreads } = groupAskFrameAiHistory(filtered, now);
 
   return (
     <div
-      data-ask-globee-history-popover=""
+      data-ask-frame-ai-history-popover=""
       className={cn(
         "flex w-[384px] flex-col gap-[var(--space-6)] rounded-[12px] border border-hairline bg-surface p-[var(--space-6)] shadow-none",
         ASK_AI_OVERLAY_PHONE_HISTORY_CLASS,
       )}
     >
       <label className="block max-md:shrink-0">
-        <span className="sr-only">{ASK_GLOBEE.historySearchPlaceholder}</span>
+        <span className="sr-only">{ASK_FRAME_AI.historySearchPlaceholder}</span>
         <Input
           variant="bare"
           id={searchId}
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={ASK_GLOBEE.historySearchPlaceholder}
+          placeholder={ASK_FRAME_AI.historySearchPlaceholder}
           autoComplete="off"
-          data-ask-globee-history-search=""
+          data-ask-frame-ai-history-search=""
           className="h-10 w-full rounded-[var(--radius-sm)] border border-hairline bg-transparent px-[var(--space-3)] focus:outline-none"
         />
       </label>
 
-      <div data-ask-globee-history-list="" className={ASK_AI_OVERLAY_PHONE_HISTORY_LIST_CLASS}>
+      <div data-ask-frame-ai-history-list="" className={ASK_AI_OVERLAY_PHONE_HISTORY_LIST_CLASS}>
         {thisWeek.length > 0 ? (
           <HistoryGroup
-            label={ASK_GLOBEE.thisWeekLabel}
+            label={ASK_FRAME_AI.thisWeekLabel}
             rows={thisWeek}
             currentId={currentId}
             now={now}
@@ -81,7 +81,7 @@ export function AskGlobeeHistoryPanel({
         ) : null}
         {allThreads.length > 0 ? (
           <HistoryGroup
-            label={ASK_GLOBEE.allThreadsLabel}
+            label={ASK_FRAME_AI.allThreadsLabel}
             rows={allThreads}
             currentId={currentId}
             now={now}
@@ -101,7 +101,7 @@ function HistoryGroup({
   onSelect,
 }: {
   label: string;
-  rows: AskGlobeeHistoryRow[];
+  rows: AskFrameAiHistoryRow[];
   currentId: string | null;
   now?: Date;
   onSelect?: () => void;
@@ -113,15 +113,15 @@ function HistoryGroup({
       <p className="t-label text-ink-3">{label}</p>
       <ul className="flex flex-col gap-[var(--space-2)]">
         {rows.map((row) => {
-          const href = askGlobeeThreadHref(row.id);
+          const href = askFrameAiThreadHref(row.id);
           if (!href) return null;
           const current = row.id === currentId;
           return (
             <li key={row.id}>
               <HouseLink
                 href={href}
-                data-ask-globee-history-row=""
-                data-ask-globee-history-current={current ? "" : undefined}
+                data-ask-frame-ai-history-row=""
+                data-ask-frame-ai-history-current={current ? "" : undefined}
                 onClick={(event) => {
                   // Next must see ?ai= (the overlay reads it), so never a shell
                   // hop. Keep the screen's own query, as opening the overlay
@@ -138,7 +138,7 @@ function HistoryGroup({
               >
                 <span className="min-w-0 truncate t-body text-ink">{row.title}</span>
                 <span className="shrink-0 t-body-sm text-ink-3">
-                  {formatAskGlobeeHistoryTime(row.updated_at, now)}
+                  {formatAskFrameAiHistoryTime(row.updated_at, now)}
                 </span>
               </HouseLink>
             </li>
@@ -149,7 +149,7 @@ function HistoryGroup({
   );
 }
 
-export function AskGlobeeHistoryPopover({
+export function AskFrameAiHistoryPopover({
   conversations,
   currentId = null,
   open,
@@ -157,7 +157,7 @@ export function AskGlobeeHistoryPopover({
   align = "start",
   children,
 }: {
-  conversations: AskGlobeeHistoryRow[];
+  conversations: AskFrameAiHistoryRow[];
   currentId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -174,7 +174,7 @@ export function AskGlobeeHistoryPopover({
       if (root?.contains(event.target)) return;
       if (
         event.target instanceof Element &&
-        event.target.closest("[data-ask-ai-overlay-phone-history], [data-ask-globee-history-popover]")
+        event.target.closest("[data-ask-ai-overlay-phone-history], [data-ask-frame-ai-history-popover]")
       ) {
         return;
       }
@@ -201,7 +201,7 @@ export function AskGlobeeHistoryPopover({
             align === "end" ? "right-0" : "left-0",
           )}
         >
-          <AskGlobeeHistoryPanel conversations={conversations} currentId={currentId} />
+          <AskFrameAiHistoryPanel conversations={conversations} currentId={currentId} />
         </div>
       ) : null}
     </div>
@@ -209,21 +209,21 @@ export function AskGlobeeHistoryPopover({
 }
 
 /** Header-chrome history control. 44 hit, fully on-screen — never a left-edge dock. */
-export function AskGlobeeHistoryClock({
+export function AskFrameAiHistoryClock({
   conversations,
   currentId = null,
   open,
   onOpenChange,
   align = "end",
 }: {
-  conversations: AskGlobeeHistoryRow[];
+  conversations: AskFrameAiHistoryRow[];
   currentId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   align?: "start" | "end";
 }) {
   return (
-    <AskGlobeeHistoryPopover
+    <AskFrameAiHistoryPopover
       conversations={conversations}
       currentId={currentId}
       open={open}
@@ -232,14 +232,14 @@ export function AskGlobeeHistoryClock({
     >
       <button
         type="button"
-        data-ask-globee-clock=""
-        aria-label={ASK_GLOBEE.pastConversationsLabel}
+        data-ask-frame-ai-clock=""
+        aria-label={ASK_FRAME_AI.pastConversationsLabel}
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
         className={MOBILE_CHROME_ICON_BUTTON_CLASS}
       >
         <Clock className={MOBILE_CHROME_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
       </button>
-    </AskGlobeeHistoryPopover>
+    </AskFrameAiHistoryPopover>
   );
 }

@@ -1,5 +1,5 @@
--- ask_globee_conversations_test.sql
--- Cross-org isolation for Ask Globee ai_conversations + ai_conversation_messages.
+-- ask_frame_ai_conversations_test.sql
+-- Cross-org isolation for 24Frame AI ai_conversations + ai_conversation_messages.
 -- Org B must not SELECT / INSERT / UPDATE / DELETE org A's rows.
 -- Access UI gating is an app test; this file is RLS only.
 
@@ -51,7 +51,7 @@ select lives_ok(
     insert into public.ai_conversation_messages (id, org_id, conversation_id, role, body, lead, follow)
     values (%L, %L, %L, 'globee', 'Nothing needs attention.', 'Nothing needs attention.', null)
   $sql$, current_setting('t.gidA'), current_setting('t.orgA'), current_setting('t.cidA')),
-  'org A owner can insert a globee turn on own conversation');
+  'org A owner can insert an assistant turn on own conversation');
 
 select is(
   (select count(*) from public.ai_conversations where org_id = current_setting('t.orgA')::uuid)::int,

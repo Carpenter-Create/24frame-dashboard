@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { PRODUCT_NAME } from "@/lib/product";
 import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
 import {
@@ -78,7 +78,7 @@ describe("leaderboard stay on materialized rows", () => {
     expect(existsSync("src/app/(app)/aggregation/messages/ask-ai-legacy-intercept.tsx")).toBe(
       false,
     );
-    expect(ASK_GLOBEE.headline).toBe("Ask 24Frame AI");
+    expect(ASK_FRAME_AI.headline).toBe("Ask 24Frame AI");
     expect(lib).not.toMatch(/from ["']@24frame\/shared["']/);
     expect(page).not.toContain("—");
   });

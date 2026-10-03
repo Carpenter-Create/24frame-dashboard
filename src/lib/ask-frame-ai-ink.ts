@@ -1,15 +1,15 @@
 import { METADATA_FIELDS } from "@/lib/metadata";
 
-// Conversation ink for Ask Globee answers. Shared by the 247:295 thread and
+// Conversation ink for 24Frame AI answers. Shared by the 247:295 thread and
 // the 440:410 PDF so Medium catalog fields and stacked facts stay consistent.
 // Visible ink never shows raw **, #, backticks, or bullets.
 
-export type AskGlobeeInkSpan = {
+export type AskFrameAiInkSpan = {
   text: string;
   medium: boolean;
 };
 
-export type AskGlobeeDownloadInkSpan = AskGlobeeInkSpan;
+export type AskFrameAiDownloadInkSpan = AskFrameAiInkSpan;
 
 const CATALOG_FIELD_NAMES = [
   ...METADATA_FIELDS.map((field) => field.label),
@@ -23,7 +23,7 @@ const CATALOG_FIELD_RE = new RegExp(
   "g",
 );
 
-export function stackAskGlobeeInkFacts(lead: string, follow: string | null): string[] {
+export function stackAskFrameAiInkFacts(lead: string, follow: string | null): string[] {
   return [lead, follow]
     .flatMap((block) => (block ?? "").split(/\r?\n/))
     .map(stripInkLine)
@@ -31,13 +31,13 @@ export function stackAskGlobeeInkFacts(lead: string, follow: string | null): str
     .filter((line) => line.length > 0);
 }
 
-export function parseAskGlobeeInk(text: string): AskGlobeeInkSpan[] {
+export function parseAskFrameAiInk(text: string): AskFrameAiInkSpan[] {
   const marked = splitMarkdownMedium(stripInkLine(text));
   return marked.flatMap((span) => (span.medium ? [span] : emphasizeCatalogFields(span.text)));
 }
 
-export const stackAskGlobeeDownloadFacts = stackAskGlobeeInkFacts;
-export const parseAskGlobeeDownloadInk = parseAskGlobeeInk;
+export const stackAskFrameAiDownloadFacts = stackAskFrameAiInkFacts;
+export const parseAskFrameAiDownloadInk = parseAskFrameAiInk;
 
 function stripInkLine(text: string): string {
   return text
@@ -51,8 +51,8 @@ function stripResidualMarkdown(text: string): string {
   return text.replace(/[*#`]+/g, "");
 }
 
-function splitMarkdownMedium(text: string): AskGlobeeInkSpan[] {
-  const spans: AskGlobeeInkSpan[] = [];
+function splitMarkdownMedium(text: string): AskFrameAiInkSpan[] {
+  const spans: AskFrameAiInkSpan[] = [];
   const marked = /\*\*([\s\S]+?)\*\*/g;
   let cursor = 0;
   for (const match of text.matchAll(marked)) {
@@ -71,8 +71,8 @@ function splitMarkdownMedium(text: string): AskGlobeeInkSpan[] {
     .filter((span) => span.text.length > 0);
 }
 
-function emphasizeCatalogFields(text: string): AskGlobeeInkSpan[] {
-  const spans: AskGlobeeInkSpan[] = [];
+function emphasizeCatalogFields(text: string): AskFrameAiInkSpan[] {
+  const spans: AskFrameAiInkSpan[] = [];
   let cursor = 0;
   CATALOG_FIELD_RE.lastIndex = 0;
   for (const match of text.matchAll(CATALOG_FIELD_RE)) {

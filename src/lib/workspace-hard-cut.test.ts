@@ -58,7 +58,7 @@ describe("workspace hard-cut — old doors 404", () => {
     expect(existsSync("src/app/(app)/aggregation/messages/message-link.tsx")).toBe(true);
     expect(existsSync("src/app/(app)/help/page.tsx")).toBe(true);
     expect(existsSync("src/app/(app)/education/help/page.tsx")).toBe(false);
-    expect(existsSync("src/app/(app)/aggregation/messages/ask-globee-actions.ts")).toBe(true);
+    expect(existsSync("src/app/(app)/aggregation/messages/ask-frame-ai-actions.ts")).toBe(true);
     expect(
       existsSync("src/app/(app)/(operator)/staff/gc/review/review-controls.tsx"),
     ).toBe(true);

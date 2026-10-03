@@ -174,10 +174,10 @@ describe("form-control SoT", () => {
     expect(housePageSearch).toContain("<Input");
     expect(housePageSearch).toContain('variant="bare"');
     expect(housePageSearch).not.toContain("t-body-sm");
-    expect(readFileSync("src/components/messages/ask-globee-landing.tsx", "utf8")).toContain(
+    expect(readFileSync("src/components/messages/ask-frame-ai-landing.tsx", "utf8")).toContain(
       'variant="bare"',
     );
-    expect(readFileSync("src/components/messages/ask-globee-thread.tsx", "utf8")).toContain(
+    expect(readFileSync("src/components/messages/ask-frame-ai-thread.tsx", "utf8")).toContain(
       "<Input",
     );
   });

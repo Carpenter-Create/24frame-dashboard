@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ASK_GLOBEE, ASK_GLOBEE_TRY_PROMPTS } from "@/lib/ask-globee";
+import { ASK_FRAME_AI, ASK_FRAME_AI_TRY_PROMPTS } from "@/lib/ask-frame-ai";
 import type { ClientHomeFinding, ClientHomeTitle } from "@/lib/dashboard-home";
 import {
-  ASK_GLOBEE_MODEL_ID,
-  answerAskGlobeePrompt,
+  ASK_FRAME_AI_MODEL_ID,
+  answerAskFrameAiPrompt,
   readOperatorApiKey,
-  splitAskGlobeeModelText,
-  type AskGlobeeModelClient,
-} from "./ask-globee-operator";
-import { executeAskGlobeeTool, type AskGlobeeCorpus } from "./ask-globee-tools";
+  splitAskFrameAiModelText,
+  type AskFrameAiModelClient,
+} from "./ask-frame-ai-operator";
+import { executeAskFrameAiTool, type AskFrameAiCorpus } from "./ask-frame-ai-tools";
 
 const ORG = "org-1";
 const TEST_KEY = "test-operator-key";
@@ -35,7 +35,7 @@ function finding(
   };
 }
 
-const CORPUS: AskGlobeeCorpus = {
+const CORPUS: AskFrameAiCorpus = {
   orgId: ORG,
   titles: [
     title({ id: "t-cut", title: "Harbor Cut", created_at: "2026-08-16T00:00:00.000Z" }),
@@ -58,10 +58,10 @@ const CORPUS: AskGlobeeCorpus = {
 
 function scriptedClient(
   script: Array<{ text?: string; tools?: { id: string; name: string }[] }>,
-): AskGlobeeModelClient {
+): AskFrameAiModelClient {
   let index = 0;
   return async (round) => {
-    expect(round.model).toBe(ASK_GLOBEE_MODEL_ID);
+    expect(round.model).toBe(ASK_FRAME_AI_MODEL_ID);
     const step = script[index] ?? { text: "" };
     index += 1;
     const content = [
@@ -89,23 +89,23 @@ describe("readOperatorApiKey", () => {
   });
 });
 
-describe("splitAskGlobeeModelText", () => {
+describe("splitAskFrameAiModelText", () => {
   it("uses the first line as lead", () => {
-    expect(splitAskGlobeeModelText("Your catalog has 4 titles.\nHarbor Cut is a draft.")).toEqual({
+    expect(splitAskFrameAiModelText("Your catalog has 4 titles.\nHarbor Cut is a draft.")).toEqual({
       lead: "Your catalog has 4 titles.",
       follow: "Harbor Cut is a draft.",
     });
   });
 });
 
-describe("answerAskGlobeePrompt", () => {
+describe("answerAskFrameAiPrompt", () => {
   it("sends the three landing chips on the model path instead of a deterministic chip answer", async () => {
     const emptyCorpus = { ...CORPUS, titles: [], findings: [] };
-    for (const prompt of ASK_GLOBEE_TRY_PROMPTS) {
+    for (const prompt of ASK_FRAME_AI_TRY_PROMPTS) {
       const modelClient = vi.fn(
         scriptedClient([{ text: "Harbor Cut needs a synopsis before it can go live." }]),
       );
-      const result = await answerAskGlobeePrompt({
+      const result = await answerAskFrameAiPrompt({
         prompt,
         corpus: emptyCorpus,
         env: { ANTHROPIC_API_KEY: TEST_KEY },
@@ -118,9 +118,9 @@ describe("answerAskGlobeePrompt", () => {
         follow: null,
         titleNames: [],
       });
-      expect(JSON.stringify(result)).not.toContain(ASK_GLOBEE.emptyBlocking);
-      expect(JSON.stringify(result)).not.toContain(ASK_GLOBEE.emptySubmitNext);
-      expect(JSON.stringify(result)).not.toContain(ASK_GLOBEE.capability);
+      expect(JSON.stringify(result)).not.toContain(ASK_FRAME_AI.emptyBlocking);
+      expect(JSON.stringify(result)).not.toContain(ASK_FRAME_AI.emptySubmitNext);
+      expect(JSON.stringify(result)).not.toContain(ASK_FRAME_AI.capability);
       for (const leak of FORBIDDEN) {
         expect(JSON.stringify(result)).not.toContain(leak);
       }
@@ -132,8 +132,8 @@ describe("answerAskGlobeePrompt", () => {
       { tools: [{ id: "toolu_1", name: "get_blockers" }] },
       { text: "Harbor Cut is missing a synopsis." },
     ]);
-    const result = await answerAskGlobeePrompt({
-      prompt: ASK_GLOBEE_TRY_PROMPTS[1],
+    const result = await answerAskFrameAiPrompt({
+      prompt: ASK_FRAME_AI_TRY_PROMPTS[1],
       corpus: CORPUS,
       env: { ANTHROPIC_API_KEY: TEST_KEY },
       modelClient,
@@ -152,8 +152,8 @@ describe("answerAskGlobeePrompt", () => {
         titleNames: ["Harbor Cut"],
       }),
     );
-    expect(JSON.stringify(result)).not.toContain(ASK_GLOBEE.emptyBlocking);
-    expect(JSON.stringify(result)).not.toContain(ASK_GLOBEE.capability);
+    expect(JSON.stringify(result)).not.toContain(ASK_FRAME_AI.emptyBlocking);
+    expect(JSON.stringify(result)).not.toContain(ASK_FRAME_AI.capability);
     for (const leak of FORBIDDEN) {
       expect(JSON.stringify(result)).not.toContain(leak);
     }
@@ -164,7 +164,7 @@ describe("answerAskGlobeePrompt", () => {
       { tools: [{ id: "toolu_1", name: "get_catalog_summary" }] },
       { text: "Your catalog has 4 titles." },
     ]);
-    const result = await answerAskGlobeePrompt({
+    const result = await answerAskFrameAiPrompt({
       prompt: "How many titles are in my catalog?",
       corpus: CORPUS,
       env: { ANTHROPIC_API_KEY: TEST_KEY },
@@ -178,11 +178,11 @@ describe("answerAskGlobeePrompt", () => {
     });
     expect(JSON.stringify(result)).not.toBe(JSON.stringify({
       intent: "unmapped",
-      lead: ASK_GLOBEE.capability,
+      lead: ASK_FRAME_AI.capability,
       follow: null,
       titleNames: [],
     }));
-    expect(JSON.stringify(result)).not.toContain(ASK_GLOBEE.capability);
+    expect(JSON.stringify(result)).not.toContain(ASK_FRAME_AI.capability);
     for (const leak of FORBIDDEN) {
       expect(JSON.stringify(result)).not.toContain(leak);
     }
@@ -190,13 +190,13 @@ describe("answerAskGlobeePrompt", () => {
 
   it("never puts another org's titles or findings in tool results used by the model", async () => {
     const seen: string[] = [];
-    const modelClient: AskGlobeeModelClient = async (round) => {
+    const modelClient: AskFrameAiModelClient = async (round) => {
       seen.push(JSON.stringify(round.messages));
       const last = round.messages[round.messages.length - 1];
       if (typeof last?.content === "string") {
         return {
           stop_reason: "tool_use",
-          content: ASK_GLOBEE_TOOL_NAMES_AS_USES(),
+          content: ASK_FRAME_AI_TOOL_NAMES_AS_USES(),
         };
       }
       return {
@@ -204,7 +204,7 @@ describe("answerAskGlobeePrompt", () => {
         content: [{ type: "text", text: "Harbor Cut needs a synopsis." }],
       };
     };
-    const result = await answerAskGlobeePrompt({
+    const result = await answerAskFrameAiPrompt({
       prompt: "What title?",
       corpus: CORPUS,
       env: { ANTHROPIC_API_KEY: TEST_KEY },
@@ -220,32 +220,32 @@ describe("answerAskGlobeePrompt", () => {
   it("fails closed when the operator key is missing", async () => {
     const modelClient = vi.fn();
     await expect(
-      answerAskGlobeePrompt({
+      answerAskFrameAiPrompt({
         prompt: "Would you help guide me?",
         corpus: CORPUS,
         env: {},
         modelClient,
       }),
-    ).resolves.toEqual({ error: ASK_GLOBEE.unavailable });
+    ).resolves.toEqual({ error: ASK_FRAME_AI.unavailable });
     expect(modelClient).not.toHaveBeenCalled();
   });
 
   it("fails closed on a chip prompt when the operator key is missing", async () => {
     const modelClient = vi.fn();
     await expect(
-      answerAskGlobeePrompt({
-        prompt: ASK_GLOBEE_TRY_PROMPTS[1],
+      answerAskFrameAiPrompt({
+        prompt: ASK_FRAME_AI_TRY_PROMPTS[1],
         corpus: { ...CORPUS, titles: [], findings: [] },
         env: {},
         modelClient,
       }),
-    ).resolves.toEqual({ error: ASK_GLOBEE.unavailable });
+    ).resolves.toEqual({ error: ASK_FRAME_AI.unavailable });
     expect(modelClient).not.toHaveBeenCalled();
   });
 
   it("fails closed when the model request throws", async () => {
     await expect(
-      answerAskGlobeePrompt({
+      answerAskFrameAiPrompt({
         prompt: "Would you help guide me?",
         corpus: CORPUS,
         env: { ANTHROPIC_API_KEY: TEST_KEY },
@@ -253,11 +253,11 @@ describe("answerAskGlobeePrompt", () => {
           throw new Error("network");
         },
       }),
-    ).resolves.toEqual({ error: ASK_GLOBEE.unavailable });
+    ).resolves.toEqual({ error: ASK_FRAME_AI.unavailable });
   });
 });
 
-function ASK_GLOBEE_TOOL_NAMES_AS_USES() {
+function ASK_FRAME_AI_TOOL_NAMES_AS_USES() {
   return [
     { type: "tool_use" as const, id: "toolu_sum", name: "get_catalog_summary", input: {} },
     { type: "tool_use" as const, id: "toolu_list", name: "list_titles", input: {} },
@@ -271,12 +271,12 @@ function ASK_GLOBEE_TOOL_NAMES_AS_USES() {
 describe("tool results used by the operator", () => {
   it("stay inside the active org when every tool runs", () => {
     const results = [
-      executeAskGlobeeTool("get_catalog_summary", CORPUS),
-      executeAskGlobeeTool("list_titles", CORPUS),
-      executeAskGlobeeTool("get_attention", CORPUS),
-      executeAskGlobeeTool("get_blockers", CORPUS),
-      executeAskGlobeeTool("get_submit_next", CORPUS),
-      executeAskGlobeeTool("get_agreement_tier", CORPUS),
+      executeAskFrameAiTool("get_catalog_summary", CORPUS),
+      executeAskFrameAiTool("list_titles", CORPUS),
+      executeAskFrameAiTool("get_attention", CORPUS),
+      executeAskFrameAiTool("get_blockers", CORPUS),
+      executeAskFrameAiTool("get_submit_next", CORPUS),
+      executeAskFrameAiTool("get_agreement_tier", CORPUS),
     ];
     const payload = JSON.stringify(results);
     expect(payload).toContain("Harbor Cut");

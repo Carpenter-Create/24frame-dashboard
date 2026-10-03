@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { ASK_GLOBEE, ASK_GLOBEE_TRY_PROMPTS } from "@/lib/ask-globee";
+import { ASK_FRAME_AI, ASK_FRAME_AI_TRY_PROMPTS } from "@/lib/ask-frame-ai";
 import { CATALOG_HEALTH_EMPTY } from "@/lib/findings";
 import { UNPAGINATED_MAX } from "@/lib/list-bounds";
 import type { ClientHomeFinding, ClientHomeTitle } from "@/lib/dashboard-home";
 import {
-  buildAskGlobeeAnswer,
-  orgScopedAskGlobeeFindings,
-  resolveAskGlobeeIntent,
-} from "./ask-globee-answer";
+  buildAskFrameAiAnswer,
+  orgScopedAskFrameAiFindings,
+  resolveAskFrameAiIntent,
+} from "./ask-frame-ai-answer";
 
 const NOW = new Date("2026-08-19T12:00:00.000Z");
 const ORG = "org-1";
@@ -51,7 +51,7 @@ const MIXED_FINDINGS = [
 ];
 
 function answer(prompt: string, extras?: { titles?: ClientHomeTitle[]; findings?: ClientHomeFinding[] }) {
-  const result = buildAskGlobeeAnswer({
+  const result = buildAskFrameAiAnswer({
     prompt,
     titles: extras?.titles ?? ORG_TITLES,
     findings: extras?.findings ?? MIXED_FINDINGS,
@@ -59,12 +59,12 @@ function answer(prompt: string, extras?: { titles?: ClientHomeTitle[]; findings?
     now: NOW,
     bound: UNPAGINATED_MAX,
   });
-  if (!result) throw new Error(`expected a mapped Ask Globee answer for ${prompt}`);
+  if (!result) throw new Error(`expected a mapped 24Frame AI answer for ${prompt}`);
   return result;
 }
 
 function expectOrgTitlesOnly(
-  result: NonNullable<ReturnType<typeof buildAskGlobeeAnswer>>,
+  result: NonNullable<ReturnType<typeof buildAskFrameAiAnswer>>,
   titles: ClientHomeTitle[] = ORG_TITLES,
 ) {
   const allowed = new Set(titles.map((row) => row.title));
@@ -78,26 +78,26 @@ function expectOrgTitlesOnly(
   expect(JSON.stringify(result)).not.toMatch(/Artwork missing|Metadata incomplete/i);
 }
 
-describe("resolveAskGlobeeIntent", () => {
+describe("resolveAskFrameAiIntent", () => {
   it("maps chip labels and case-trimmed equals to the same intent", () => {
-    expect(resolveAskGlobeeIntent(ASK_GLOBEE_TRY_PROMPTS[0])).toBe("attention");
-    expect(resolveAskGlobeeIntent("  what needs attention  ")).toBe("attention");
-    expect(resolveAskGlobeeIntent(ASK_GLOBEE_TRY_PROMPTS[1])).toBe("blocking");
-    expect(resolveAskGlobeeIntent("What is blocking a title")).toBe("blocking");
-    expect(resolveAskGlobeeIntent(ASK_GLOBEE_TRY_PROMPTS[2])).toBe("submit-next");
-    expect(resolveAskGlobeeIntent("WHAT SHOULD I SUBMIT NEXT")).toBe("submit-next");
+    expect(resolveAskFrameAiIntent(ASK_FRAME_AI_TRY_PROMPTS[0])).toBe("attention");
+    expect(resolveAskFrameAiIntent("  what needs attention  ")).toBe("attention");
+    expect(resolveAskFrameAiIntent(ASK_FRAME_AI_TRY_PROMPTS[1])).toBe("blocking");
+    expect(resolveAskFrameAiIntent("What is blocking a title")).toBe("blocking");
+    expect(resolveAskFrameAiIntent(ASK_FRAME_AI_TRY_PROMPTS[2])).toBe("submit-next");
+    expect(resolveAskFrameAiIntent("WHAT SHOULD I SUBMIT NEXT")).toBe("submit-next");
   });
 
   it("does not treat Winter Line fixture copy as a mapped intent", () => {
-    expect(resolveAskGlobeeIntent(ASK_GLOBEE.userPrompt)).toBe("unmapped");
-    expect(resolveAskGlobeeIntent(ASK_GLOBEE.threadTitle)).toBe("unmapped");
-    expect(resolveAskGlobeeIntent("What's blocking The Winter Line")).toBe("unmapped");
+    expect(resolveAskFrameAiIntent(ASK_FRAME_AI.userPrompt)).toBe("unmapped");
+    expect(resolveAskFrameAiIntent(ASK_FRAME_AI.threadTitle)).toBe("unmapped");
+    expect(resolveAskFrameAiIntent("What's blocking The Winter Line")).toBe("unmapped");
   });
 });
 
-describe("orgScopedAskGlobeeFindings", () => {
+describe("orgScopedAskFrameAiFindings", () => {
   it("keeps only the active org and titles that exist in that org set", () => {
-    const scoped = orgScopedAskGlobeeFindings({
+    const scoped = orgScopedAskFrameAiFindings({
       findings: MIXED_FINDINGS,
       titles: ORG_TITLES,
       orgId: ORG,
@@ -108,7 +108,7 @@ describe("orgScopedAskGlobeeFindings", () => {
   });
 });
 
-describe("buildAskGlobeeAnswer", () => {
+describe("buildAskFrameAiAnswer", () => {
   it("answers attention with real org title names and finding messages", () => {
     const result = answer("What needs attention");
     expect(result.intent).toBe("attention");
@@ -156,20 +156,20 @@ describe("buildAskGlobeeAnswer", () => {
     });
     expect(answer("What is blocking a title", empty)).toEqual({
       intent: "blocking",
-      lead: ASK_GLOBEE.emptyBlocking,
+      lead: ASK_FRAME_AI.emptyBlocking,
       follow: null,
       titleNames: [],
     });
     expect(answer("What should I submit next", empty)).toEqual({
       intent: "submit-next",
-      lead: ASK_GLOBEE.emptySubmitNext,
+      lead: ASK_FRAME_AI.emptySubmitNext,
       follow: null,
       titleNames: [],
     });
   });
 
   it("does not answer unmapped free text — the operator owns that path", () => {
-    const result = buildAskGlobeeAnswer({
+    const result = buildAskFrameAiAnswer({
       prompt: "How many titles are in my catalog?",
       titles: ORG_TITLES,
       findings: MIXED_FINDINGS,
@@ -178,7 +178,7 @@ describe("buildAskGlobeeAnswer", () => {
       bound: UNPAGINATED_MAX,
     });
     expect(result).toBeNull();
-    expect(ASK_GLOBEE.capability).toBe(
+    expect(ASK_FRAME_AI.capability).toBe(
       "I can answer catalog attention, blockers, and what to submit next.",
     );
   });

@@ -3,25 +3,25 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { ASK_GLOBEE } from "@/lib/ask-globee";
-import { parseAskGlobeeInk, stackAskGlobeeInkFacts } from "./ask-globee-ink";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
+import { parseAskFrameAiInk, stackAskFrameAiInkFacts } from "./ask-frame-ai-ink";
 
-const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ask-globee-ink.ts"), "utf8");
+const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ask-frame-ai-ink.ts"), "utf8");
 
 function visible(text: string): string {
-  return parseAskGlobeeInk(text)
+  return parseAskFrameAiInk(text)
     .map((span) => span.text)
     .join("");
 }
 
-describe("askGlobee conversation ink", () => {
+describe("askFrameAi conversation ink", () => {
   it("turns **markdown** and catalog field names into Medium and drops the stars", () => {
-    expect(parseAskGlobeeInk("Harbor Cut is missing **Genre**.")).toEqual([
+    expect(parseAskFrameAiInk("Harbor Cut is missing **Genre**.")).toEqual([
       { text: "Harbor Cut is missing ", medium: false },
       { text: "Genre", medium: true },
       { text: ".", medium: false },
     ]);
-    expect(parseAskGlobeeInk("Synopsis is required.")).toEqual([
+    expect(parseAskFrameAiInk("Synopsis is required.")).toEqual([
       { text: "Synopsis", medium: true },
       { text: " is required.", medium: false },
     ]);
@@ -31,7 +31,7 @@ describe("askGlobee conversation ink", () => {
 
   it("stacks live lead/follow and strips bullets, hashes, and backticks from visible ink", () => {
     expect(
-      stackAskGlobeeInkFacts(
+      stackAskFrameAiInkFacts(
         "Harbor Cut is missing **Genre**.",
         "- Genre is required before it can go live.\n# Synopsis and `Runtime` are also required.",
       ),
@@ -41,7 +41,7 @@ describe("askGlobee conversation ink", () => {
       "Synopsis and Runtime are also required.",
     ]);
 
-    const hashed = parseAskGlobeeInk("# Synopsis is required.");
+    const hashed = parseAskFrameAiInk("# Synopsis is required.");
     expect(hashed).toEqual([
       { text: "Synopsis", medium: true },
       { text: " is required.", medium: false },
@@ -55,10 +55,10 @@ describe("askGlobee conversation ink", () => {
   });
 
   it("keeps Winter Line fixture copy as an input, never a baked product title", () => {
-    const facts = stackAskGlobeeInkFacts(ASK_GLOBEE.answerLead, ASK_GLOBEE.answerFollow);
+    const facts = stackAskFrameAiInkFacts(ASK_FRAME_AI.answerLead, ASK_FRAME_AI.answerFollow);
     expect(facts.join(" ")).toContain("Genre");
     expect(facts.join(" ")).toContain("Synopsis");
-    expect(src).not.toContain(ASK_GLOBEE.answerLead);
+    expect(src).not.toContain(ASK_FRAME_AI.answerLead);
     expect(src).not.toContain("The Winter Line");
   });
 });
