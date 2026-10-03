@@ -1,6 +1,8 @@
 # 24Frame Social topic tagging — AWS Lambda container image (x86_64).
 # Build from repo root (founder / CoS; never from CI):
-#   docker build --platform linux/amd64 -f workers/social-topic/Dockerfile -t 24frame-social-topic .
+#   docker build --platform linux/amd64 --provenance=false \
+#     -f workers/social-topic/Dockerfile -t 24frame-social-topic .
+# --provenance=false keeps the manifest in a format Lambda accepts.
 # See docs/infra/social-topic-tagging.md for the ECR push and Lambda update.
 
 # Build: install from the lockfile, then bundle the handler. sharp stays out
