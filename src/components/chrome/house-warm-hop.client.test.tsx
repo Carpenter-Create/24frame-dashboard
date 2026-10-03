@@ -536,6 +536,19 @@ describe("dock hops to another screen go through Next", () => {
     expect(probe.house?.pathname).toBe("/social");
   });
 
+  // Story create's frame is a flex column the page fills (flex-1,
+  // min-h-full). A block wrapper collapsed the stage to its cards.
+  it("marks the screen without adding a layout box", () => {
+    shellAt("/social/stories/new");
+
+    const wrapper = findByAttribute("data-house-screen") as unknown as {
+      getAttribute(name: string): string | null;
+      className?: string;
+    };
+    const classes = wrapper.getAttribute("class") ?? wrapper.className ?? "";
+    expect(classes.split(/\s+/)).toContain("contents");
+  });
+
   it("keeps only the screen Next shows, with no hidden copies", () => {
     shellAt("/social");
     shellAt("/home");

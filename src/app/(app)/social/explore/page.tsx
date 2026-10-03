@@ -140,7 +140,16 @@ async function SocialExploreForYouBody({
 
   return (
     <>
-      {discovering ? null : <SocialExploreForYouStream items={items} emptyLabel={emptyLabel} />}
+      {/* Keyed by the filter. Next keeps a page's state when only the query
+          changes, so "Clear" would reopen For You at the filtered stream's
+          video and mute state. */}
+      {discovering ? null : (
+        <SocialExploreForYouStream
+          key={exploreForYouHref(query)}
+          items={items}
+          emptyLabel={emptyLabel}
+        />
+      )}
       <div className={SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS}>
         {loaded.page.truncated ? (
           <p data-social-explore-truncated="" className="t-body-sm text-band-ink break-words">
