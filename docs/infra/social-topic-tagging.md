@@ -77,7 +77,8 @@ are proposals for Adam to confirm.
     and the next run re-tags it from the new caption, photos and video
     frames, with no new transcript. If the caption changes while a post is
     being classified, that result is not written; the next run reads the
-    new caption.
+    new caption. A topic recorded as the author's, or recorded before this
+    change (no source), stays when the caption is edited.
   - **Errors leave the post untouched** for the next run: a Claude, Mux,
     S3 or database error (a missing bucket included), a timeout, or a
     caption-track delete that failed for a reason worth retrying. Only a

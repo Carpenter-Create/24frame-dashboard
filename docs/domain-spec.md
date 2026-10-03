@@ -929,7 +929,8 @@ tradeoff honestly, hand off. Being plain about the limit *is* the trustworthy mo
   video it may ask Mux for a transcript, and it deletes that caption track once read (tagging
   only, founder decision 2026-10-03). No auto captions on Social: the Social player keeps captions
   hidden. Nobody picks a topic: the database refuses one on any post a user saves, and a caption
-  edit clears an AI topic so the post is re-tagged. Runbook: `docs/infra/social-topic-tagging.md`.
+  edit clears an AI topic so the post is re-tagged. A topic recorded before provenance existed
+  stays, like an author's topic. Runbook: `docs/infra/social-topic-tagging.md`.
 - **Reach is scoped tools, not table access:** `get_titles`, `get_deliveries`, `get_findings`,
   `get_statements`. The AI composes from tool results.
 - **Prompt injection is not hypothetical.** Clients upload metadata sheets; a cell can say

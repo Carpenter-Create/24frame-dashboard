@@ -22,7 +22,8 @@
 -- docs/domain-spec.md section 20). Nobody picks a topic (Adam lock), so a
 -- client insert carries no topic and no provenance. After insert,
 -- protect_post_author_mutation already locks category itself. An author's
--- caption edit clears an AI topic and its look, so the post is re-tagged.
+-- caption edit clears an AI topic and its look, so the post is re-tagged;
+-- an author topic and a topic recorded before this migration stay.
 --
 -- DESTRUCTIVE OPS (draft only; do NOT apply to production from this PR):
 -- ALTER TABLE public.posts ADD COLUMN x4 (nullable, no default, so no row
@@ -88,10 +89,12 @@ begin
   end if;
   -- A caption edit reopens tagging (founder decision 2026-10-03): the AI
   -- topic and the look are cleared so the tagger reads the new caption.
-  -- An author topic stays. posts_protect_author_mutation fires first (by
-  -- name) and has already checked that the client left category alone.
+  -- Only an AI topic, or no topic, is reopened. An author topic stays, and
+  -- so does a topic recorded before provenance existed (null source;
+  -- founder decision 2026-10-03). posts_protect_author_mutation fires first
+  -- (by name) and has already checked that the client left category alone.
   if new.body is distinct from old.body
-     and old.category_source is distinct from 'author' then
+     and (old.category_source = 'ai' or old.category is null) then
     new.category := null;
     new.category_source := null;
     new.category_confidence := null;

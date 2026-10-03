@@ -3,15 +3,18 @@
 -- category_tagged_at. Nobody picks a topic (Adam lock): a client insert
 -- carries no topic and no provenance, and after insert only service_role
 -- (the background topic tagger) may change them. Shape rules hold on every
--- write. An author's caption edit still works, and it clears an AI topic
--- so the post is re-tagged.
+-- write. An author's caption edit still works. It clears an AI topic, or a
+-- look with no topic, so the post is re-tagged; an author topic and a topic
+-- recorded before provenance existed stay.
 
 begin;
-select plan(30);
+select plan(36);
 
 select set_config('t.author', gen_random_uuid()::text, false);
 select set_config('t.post', gen_random_uuid()::text, false);
 select set_config('t.post2', gen_random_uuid()::text, false);
+select set_config('t.legacy', gen_random_uuid()::text, false);
+select set_config('t.declined', gen_random_uuid()::text, false);
 
 insert into auth.users (id) values (current_setting('t.author')::uuid);
 
@@ -103,6 +106,18 @@ select lives_ok(
     values (%L, %L, 'recorded music', 'Music', 'author')
   $sql$, current_setting('t.post2'), current_setting('t.author')),
   'service role may record an author topic');
+select lives_ok(
+  format($sql$
+    insert into public.posts (id, author_id, body, category)
+    values (%L, %L, 'older post with a topic', 'Music')
+  $sql$, current_setting('t.legacy'), current_setting('t.author')),
+  'a topic with no source, as on posts made before provenance');
+select lives_ok(
+  format($sql$
+    insert into public.posts (id, author_id, body, category_tagged_at)
+    values (%L, %L, 'looked at, no topic', now())
+  $sql$, current_setting('t.declined'), current_setting('t.author')),
+  'a look with no confident topic');
 select throws_ok(
   format($sql$
     insert into public.posts (author_id, body, category, category_source)
@@ -215,6 +230,28 @@ select results_eq(
   $sql$, current_setting('t.post2')),
   $$ values ('Music'::text, 'author'::text) $$,
   'an author topic stays after a caption edit');
+select lives_ok(
+  format($sql$
+    update public.posts set body = 'older post, new words' where id = %L
+  $sql$, current_setting('t.legacy')),
+  'author edits the caption of an older post with a topic');
+select results_eq(
+  format($sql$
+    select category, category_source from public.posts where id = %L
+  $sql$, current_setting('t.legacy')),
+  $$ values ('Music'::text, null::text) $$,
+  'a topic recorded before provenance stays after a caption edit');
+select lives_ok(
+  format($sql$
+    update public.posts set body = 'looked at, new words' where id = %L
+  $sql$, current_setting('t.declined')),
+  'author edits the caption of a post the AI left without a topic');
+select results_eq(
+  format($sql$
+    select category, category_tagged_at from public.posts where id = %L
+  $sql$, current_setting('t.declined')),
+  $$ values (null::text, null::timestamptz) $$,
+  'a caption edit clears a look with no topic, so the post is re-tagged');
 
 select * from finish();
 rollback;

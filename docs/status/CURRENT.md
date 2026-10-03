@@ -116,7 +116,8 @@ Service-role writes to the post's topic columns only (exception in
 caption track the tagger creates is deleted once read, so viewers do not
 get captions from it. Adam lock: no auto captions on Social, for authors
 or viewers; the Social player keeps captions hidden. Nobody picks a
-topic; a caption edit re-tags the post (no new transcript). Off until
+topic; a caption edit re-tags the post (no new transcript), except a
+topic recorded before this change, which stays. Off until
 `SOCIAL_TOPIC_TAGGING=on`, which
 waits for the founder's accuracy test. The provenance migration, the
 Lambda, its role and its schedule are founder-applied and **not
