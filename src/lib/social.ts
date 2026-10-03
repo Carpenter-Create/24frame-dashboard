@@ -1427,6 +1427,7 @@ export function socialMediaRuleMessage(
   }
   if (error === "limit") return SOCIAL.home.mediaLimit;
   if (error === "forbidden") return SOCIAL.home.mediaForbidden;
+  if (error === "store") return SOCIAL.home.uploadFailed;
   return SOCIAL.home.mediaInvalid;
 }
 

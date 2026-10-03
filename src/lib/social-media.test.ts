@@ -4,15 +4,19 @@ import {
   isForbiddenMediaBucket,
   isForbiddenMediaKey,
   isOwnedSocialMediaKey,
-  mediaItemsForInsert,
+  isOwnedSocialMediaStagingKey,
+  mediaItemsForPublish,
   ownedMediaItems,
-  profileCoverKeyFromMedia,
+  parseSocialMediaObjectKey,
+  parseSocialMediaStagingKey,
+  profileCoverItemFromMedia,
   readStoryInputPick,
   storyImageAccept,
   storyPickFile,
-  welcomeVideoKeyFromMedia,
+  welcomeVideoItemFromMedia,
   parsePostMedia,
   socialMediaObjectKey,
+  socialMediaStagingKey,
   socialPublishedVideoRejection,
   storedSocialMediaRejection,
   validateMediaUpload,
@@ -21,6 +25,8 @@ import {
 const USER = "11111111-1111-4111-8111-111111111111";
 const OTHER = "33333333-3333-4333-8333-333333333333";
 const OBJECT = "22222222-2222-4222-8222-222222222222";
+const HEX_USER = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const FORBIDDEN = { ok: false, error: "forbidden" };
 
 describe("social media keys", () => {
   it("namespaces image and video keys under posts/{user}/{object}", () => {
@@ -47,6 +53,73 @@ describe("social media keys", () => {
     expect(isForbiddenMediaKey("/posts/abs.jpg")).toBe(true);
     expect(isOwnedSocialMediaKey(`orgs/${USER}/titles/${OBJECT}/master/a.mov`, USER)).toBe(false);
     expect(isOwnedSocialMediaKey(`posts/${OBJECT}/${OBJECT}.jpg`, USER)).toBe(false);
+  });
+
+  it("builds upload keys under {lane}/upload/{user}/{object}", () => {
+    expect(socialMediaStagingKey(USER, OBJECT, "image/jpeg")).toBe(`posts/upload/${USER}/${OBJECT}.jpg`);
+    expect(socialMediaStagingKey(USER, OBJECT, "image/jpeg", "stories")).toBe(
+      `stories/upload/${USER}/${OBJECT}.jpg`,
+    );
+    expect(socialMediaStagingKey(USER, OBJECT, "video/quicktime")).toBe(`posts/upload/${USER}/${OBJECT}.mov`);
+    expect(() => socialMediaStagingKey("not-a-uuid", OBJECT, "image/jpeg")).toThrow(/UUID/);
+    expect(() => socialMediaStagingKey(USER, "not-a-uuid", "image/jpeg")).toThrow(/UUID/);
+    expect(() => socialMediaStagingKey(USER, OBJECT, "application/pdf")).toThrow(/Unsupported/);
+  });
+
+  it("parses only the exact upload key shape", () => {
+    expect(parseSocialMediaStagingKey(`posts/upload/${USER}/${OBJECT}.jpg`)).toEqual({
+      lane: "posts",
+      userId: USER,
+      ext: "jpg",
+    });
+    expect(parseSocialMediaStagingKey(`stories/upload/${HEX_USER}/${OBJECT}.mov`)).toEqual({
+      lane: "stories",
+      userId: HEX_USER,
+      ext: "mov",
+    });
+    for (const key of [
+      `posts/${USER}/${OBJECT}.jpg`,
+      `stories/${USER}/${OBJECT}.jpg`,
+      `posts/${USER}/upload/${OBJECT}.jpg`,
+      `posts/UPLOAD/${USER}/${OBJECT}.jpg`,
+      `Posts/upload/${USER}/${OBJECT}.jpg`,
+      `uploads/posts/${USER}/${OBJECT}.jpg`,
+      `posts/uploads/${USER}/${OBJECT}.jpg`,
+      `posts/upload/${HEX_USER.toUpperCase()}/${OBJECT}.jpg`,
+      `posts/upload/${USER}/${HEX_USER.toUpperCase()}.jpg`,
+      `posts/upload/${USER}/${OBJECT}.JPG`,
+      `posts/upload/${USER}/${OBJECT}.jpeg`,
+      `posts/upload/${USER}/${OBJECT}.pdf`,
+      `posts/upload/${USER}/${OBJECT}`,
+      `posts/upload/${USER}/../${OBJECT}.jpg`,
+      `/posts/upload/${USER}/${OBJECT}.jpg`,
+      `posts/upload/avatars/${OBJECT}.jpg`,
+      `avatars/posts/upload/${USER}/${OBJECT}.jpg`,
+    ]) {
+      expect(parseSocialMediaStagingKey(key), key).toBeNull();
+    }
+  });
+
+  it("never treats an upload key as a stored key (the TS twin of the DB CHECK)", () => {
+    for (const lane of ["posts", "stories"] as const) {
+      const upload = socialMediaStagingKey(USER, OBJECT, "image/jpeg", lane);
+      expect(isOwnedSocialMediaKey(upload, USER, lane)).toBe(false);
+      expect(parseSocialMediaObjectKey(upload)).toBeNull();
+      expect(ownedMediaItems([{ kind: "image", key: upload, contentType: "image/jpeg" }], USER, lane)).toEqual([]);
+    }
+  });
+
+  it("binds an upload key to its author, lane, and type", () => {
+    const upload = `posts/upload/${USER}/${OBJECT}.jpg`;
+    expect(isOwnedSocialMediaStagingKey(upload, USER, "posts", "image/jpeg")).toBe(true);
+    expect(isOwnedSocialMediaStagingKey(upload, OTHER, "posts", "image/jpeg")).toBe(false);
+    expect(isOwnedSocialMediaStagingKey(upload, USER, "stories", "image/jpeg")).toBe(false);
+    expect(isOwnedSocialMediaStagingKey(upload, USER, "posts", "image/png")).toBe(false);
+    expect(isOwnedSocialMediaStagingKey(upload, USER, "posts", "application/pdf")).toBe(false);
+    expect(
+      isOwnedSocialMediaStagingKey(`posts/upload/${USER}/${OBJECT}.mov`, USER, "posts", "video/quicktime"),
+    ).toBe(true);
+    expect(isOwnedSocialMediaStagingKey(`posts/${USER}/${OBJECT}.jpg`, USER, "posts", "image/jpeg")).toBe(false);
   });
 
   it("refuses S3_BUCKET and gc-content-assets as media buckets", () => {
@@ -76,68 +149,109 @@ describe("posts.media persist shape", () => {
     ]);
   });
 
-  it("rejects another author's key on insert and on read", () => {
+  it("rejects another author's key on publish and on read", () => {
     const foreign = {
       kind: "image" as const,
       key: `posts/${OTHER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
+    const foreignUpload = { ...foreign, key: `posts/upload/${OTHER}/${OBJECT}.jpg` };
     const owned = {
       kind: "image" as const,
       key: `posts/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
-    expect(mediaItemsForInsert([foreign], USER)).toEqual({ ok: false, error: "forbidden" });
-    expect(mediaItemsForInsert([foreign], USER, "stories")).toEqual({ ok: false, error: "forbidden" });
-    expect(mediaItemsForInsert([{ ...foreign, key: `stories/${OTHER}/${OBJECT}.jpg` }], USER, "stories")).toEqual({
-      ok: false,
-      error: "forbidden",
-    });
+    expect(mediaItemsForPublish([foreignUpload], USER)).toEqual(FORBIDDEN);
+    expect(mediaItemsForPublish([foreignUpload], USER, "stories")).toEqual(FORBIDDEN);
+    expect(
+      mediaItemsForPublish([{ ...foreign, key: `stories/upload/${OTHER}/${OBJECT}.jpg` }], USER, "stories"),
+    ).toEqual(FORBIDDEN);
+    expect(mediaItemsForPublish([foreign], USER)).toEqual(FORBIDDEN);
+    expect(mediaItemsForPublish([{ ...foreign, key: `stories/${OTHER}/${OBJECT}.jpg` }], USER, "stories")).toEqual(
+      FORBIDDEN,
+    );
     expect(ownedMediaItems([owned, foreign], USER)).toEqual([owned]);
     expect(ownedMediaItems([{ ...foreign, key: `stories/${OTHER}/${OBJECT}.jpg` }], USER, "stories")).toEqual([]);
   });
 
-  it("accepts one owned video as the welcome pointer", () => {
+  it("publishes only the author's own upload key, with the extension bound to the type", () => {
+    const upload = {
+      kind: "image" as const,
+      key: `posts/upload/${USER}/${OBJECT}.jpg`,
+      contentType: "image/jpeg" as const,
+    };
+    expect(mediaItemsForPublish([upload], USER)).toEqual({ ok: true, items: [upload] });
+    // A stored-shape key is never a copy source, not even the author's own.
+    expect(mediaItemsForPublish([{ ...upload, key: `posts/${USER}/${OBJECT}.jpg` }], USER)).toEqual(FORBIDDEN);
+    expect(mediaItemsForPublish([{ ...upload, key: `stories/${USER}/${OBJECT}.jpg` }], USER, "stories")).toEqual(
+      FORBIDDEN,
+    );
+    expect(mediaItemsForPublish([upload], USER, "stories")).toEqual(FORBIDDEN);
+    expect(mediaItemsForPublish([{ ...upload, key: `stories/upload/${USER}/${OBJECT}.jpg` }], USER)).toEqual(
+      FORBIDDEN,
+    );
+    expect(mediaItemsForPublish([{ ...upload, key: `posts/upload/${USER}/${OBJECT}.png` }], USER)).toEqual(
+      FORBIDDEN,
+    );
+    expect(mediaItemsForPublish([{ ...upload, key: `posts/upload/${USER}/${OBJECT}.JPG` }], USER)).toEqual(
+      FORBIDDEN,
+    );
+    expect(mediaItemsForPublish([{ ...upload, key: `posts/upload/${USER}/${OBJECT}.jpeg` }], USER)).toEqual(
+      FORBIDDEN,
+    );
+  });
+
+  it("accepts one video upload as the welcome item", () => {
     const video = {
       kind: "video" as const,
-      key: `posts/${USER}/${OBJECT}.mp4`,
+      key: `posts/upload/${USER}/${OBJECT}.mp4`,
       contentType: "video/mp4" as const,
     };
     const image = {
       kind: "image" as const,
-      key: `posts/${USER}/${OBJECT}.jpg`,
+      key: `posts/upload/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
-    expect(welcomeVideoKeyFromMedia([video], USER)).toBe(video.key);
-    expect(welcomeVideoKeyFromMedia([image], USER)).toBeNull();
-    expect(welcomeVideoKeyFromMedia([video, image], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([video], USER)).toEqual(video);
+    expect(welcomeVideoItemFromMedia([image], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([video, image], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...video, key: `posts/${USER}/${OBJECT}.mp4` }], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...video, key: `posts/upload/${OTHER}/${OBJECT}.mp4` }], USER)).toBeNull();
+    expect(
+      welcomeVideoItemFromMedia(
+        [{ ...video, key: `posts/${USER}/${OBJECT}.mp4`, provider: "mux", playbackId: "uNbxnGLKJ00yfbijDO8COxT" }],
+        USER,
+      ),
+    ).toBeNull();
   });
 
-  it("accepts one owned still as the profile cover pointer", () => {
+  it("accepts one still upload as the profile cover item", () => {
     const video = {
       kind: "video" as const,
-      key: `posts/${USER}/${OBJECT}.mp4`,
+      key: `posts/upload/${USER}/${OBJECT}.mp4`,
       contentType: "video/mp4" as const,
     };
     const image = {
       kind: "image" as const,
-      key: `posts/${USER}/${OBJECT}.jpg`,
+      key: `posts/upload/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
-    expect(profileCoverKeyFromMedia([image], USER)).toBe(image.key);
-    expect(profileCoverKeyFromMedia([video], USER)).toBeNull();
-    expect(profileCoverKeyFromMedia([image, video], USER)).toBeNull();
+    expect(profileCoverItemFromMedia([image], USER)).toEqual(image);
+    expect(profileCoverItemFromMedia([video], USER)).toBeNull();
+    expect(profileCoverItemFromMedia([image, video], USER)).toBeNull();
+    expect(profileCoverItemFromMedia([{ ...image, key: `posts/${USER}/${OBJECT}.jpg` }], USER)).toBeNull();
+    expect(profileCoverItemFromMedia([{ ...image, key: `posts/upload/${OTHER}/${OBJECT}.jpg` }], USER)).toBeNull();
   });
 
-  it("rejects title keys on insert even when the rest is valid", () => {
+  it("rejects title keys on publish even when the rest is valid", () => {
     const owned = {
       kind: "image" as const,
-      key: `posts/${USER}/${OBJECT}.jpg`,
+      key: `posts/upload/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
-    expect(mediaItemsForInsert([owned], USER)).toEqual({ ok: true, items: [owned] });
+    expect(mediaItemsForPublish([owned], USER)).toEqual({ ok: true, items: [owned] });
     expect(
-      mediaItemsForInsert(
+      mediaItemsForPublish(
         [
           owned,
           {
@@ -198,52 +312,52 @@ describe("posts.media persist shape", () => {
   it("accepts one still or one video on the stories lane and keeps posts open to stills", () => {
     const storyImage = {
       kind: "image" as const,
-      key: `stories/${USER}/${OBJECT}.jpg`,
+      key: `stories/upload/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
     const storyVideo = {
       kind: "video" as const,
-      key: `stories/${USER}/${OBJECT}.mp4`,
+      key: `stories/upload/${USER}/${OBJECT}.mp4`,
       contentType: "video/mp4" as const,
     };
     const postImage = {
       kind: "image" as const,
-      key: `posts/${USER}/${OBJECT}.jpg`,
+      key: `posts/upload/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
-    expect(mediaItemsForInsert([storyImage], USER, "stories")).toEqual({ ok: true, items: [storyImage] });
+    expect(mediaItemsForPublish([storyImage], USER, "stories")).toEqual({ ok: true, items: [storyImage] });
     expect(
-      mediaItemsForInsert(
-        [{ ...storyImage, key: `stories/${USER}/${OBJECT}.png`, contentType: "image/png" }],
+      mediaItemsForPublish(
+        [{ ...storyImage, key: `stories/upload/${USER}/${OBJECT}.png`, contentType: "image/png" }],
         USER,
         "stories",
       ),
     ).toEqual({
       ok: true,
-      items: [{ ...storyImage, key: `stories/${USER}/${OBJECT}.png`, contentType: "image/png" }],
+      items: [{ ...storyImage, key: `stories/upload/${USER}/${OBJECT}.png`, contentType: "image/png" }],
     });
     expect(
-      mediaItemsForInsert(
-        [{ ...storyImage, key: `stories/${USER}/${OBJECT}.webp`, contentType: "image/webp" }],
+      mediaItemsForPublish(
+        [{ ...storyImage, key: `stories/upload/${USER}/${OBJECT}.webp`, contentType: "image/webp" }],
         USER,
         "stories",
       ),
     ).toEqual({
       ok: true,
-      items: [{ ...storyImage, key: `stories/${USER}/${OBJECT}.webp`, contentType: "image/webp" }],
+      items: [{ ...storyImage, key: `stories/upload/${USER}/${OBJECT}.webp`, contentType: "image/webp" }],
     });
     expect(
-      mediaItemsForInsert(
-        [{ ...storyImage, key: `stories/${USER}/${OBJECT}.gif`, contentType: "image/gif" }],
+      mediaItemsForPublish(
+        [{ ...storyImage, key: `stories/upload/${USER}/${OBJECT}.gif`, contentType: "image/gif" }],
         USER,
         "stories",
       ),
     ).toEqual({
       ok: true,
-      items: [{ ...storyImage, key: `stories/${USER}/${OBJECT}.gif`, contentType: "image/gif" }],
+      items: [{ ...storyImage, key: `stories/upload/${USER}/${OBJECT}.gif`, contentType: "image/gif" }],
     });
-    expect(mediaItemsForInsert([storyVideo], USER, "stories")).toEqual({ ok: true, items: [storyVideo] });
-    expect(mediaItemsForInsert([postImage], USER)).toEqual({ ok: true, items: [postImage] });
+    expect(mediaItemsForPublish([storyVideo], USER, "stories")).toEqual({ ok: true, items: [storyVideo] });
+    expect(mediaItemsForPublish([postImage], USER)).toEqual({ ok: true, items: [postImage] });
     expect(validateMediaUpload({ contentType: "image/jpeg", byteLength: 12, lane: "stories" })).toMatchObject({
       ok: true,
       kind: "image",
@@ -284,34 +398,34 @@ describe("posts.media persist shape", () => {
       uploadId: "zd01Pe2bNpYhxbrwYABgFE",
       assetId: "SqQnqz6s5MBuXGvJaUWdXu",
     };
-    expect(mediaItemsForInsert([video], USER)).toEqual({ ok: true, items: [video] });
-    expect(mediaItemsForInsert([{ ...video, width: 1080, height: 1920 }], USER)).toEqual({
+    expect(mediaItemsForPublish([video], USER)).toEqual({ ok: true, items: [video] });
+    expect(mediaItemsForPublish([{ ...video, width: 1080, height: 1920 }], USER)).toEqual({
       ok: true,
       items: [{ ...video, width: 1080, height: 1920 }],
     });
-    expect(mediaItemsForInsert([{ ...video, width: 0, height: 1920 }], USER)).toEqual({
+    expect(mediaItemsForPublish([{ ...video, width: 0, height: 1920 }], USER)).toEqual({
       ok: true,
       items: [video],
     });
-    expect(mediaItemsForInsert([{ ...video, playbackPolicy: "signed" }], USER)).toEqual({
+    expect(mediaItemsForPublish([{ ...video, playbackPolicy: "signed" }], USER)).toEqual({
       ok: true,
       items: [{ ...video, playbackPolicy: "signed" }],
     });
-    expect(mediaItemsForInsert([{ ...video, playbackPolicy: "public" }], USER)).toEqual({
+    expect(mediaItemsForPublish([{ ...video, playbackPolicy: "public" }], USER)).toEqual({
       ok: true,
       items: [{ ...video, playbackPolicy: "public" }],
     });
     expect(parsePostMedia([{ ...video, playbackPolicy: "public" }])).toEqual([
       { ...video, playbackPolicy: "public" },
     ]);
-    expect(mediaItemsForInsert([{ ...video, playbackPolicy: "open" }], USER)).toEqual({
+    expect(mediaItemsForPublish([{ ...video, playbackPolicy: "open" }], USER)).toEqual({
       ok: false,
       error: "invalid",
     });
     expect(parsePostMedia([{ ...video, playbackPolicy: "open" }])).toEqual([]);
     expect(parsePostMedia([video, { ...video, playbackId: "short" }])).toEqual([video]);
     expect(
-      mediaItemsForInsert(
+      mediaItemsForPublish(
         [{ ...video, key: `stories/${USER}/${OBJECT}.mp4` }],
         USER,
         "stories",
@@ -321,8 +435,13 @@ describe("posts.media persist shape", () => {
       items: [{ ...video, key: `stories/${USER}/${OBJECT}.mp4` }],
     });
     expect(
-      mediaItemsForInsert([{ ...video, provider: "mux", playbackId: undefined }], USER),
+      mediaItemsForPublish([{ ...video, provider: "mux", playbackId: undefined }], USER),
     ).toEqual({ ok: false, error: "invalid" });
+    // A Mux label keeps the stored shape. It is never an upload key.
+    expect(mediaItemsForPublish([{ ...video, key: `posts/upload/${USER}/${OBJECT}.mp4` }], USER)).toEqual(
+      FORBIDDEN,
+    );
+    expect(mediaItemsForPublish([{ ...video, key: `posts/${OTHER}/${OBJECT}.mp4` }], USER)).toEqual(FORBIDDEN);
     expect(socialPublishedVideoRejection([video])).toBeNull();
     expect(
       socialPublishedVideoRejection([

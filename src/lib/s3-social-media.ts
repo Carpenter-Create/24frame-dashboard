@@ -1,14 +1,23 @@
 import "server-only";
 
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  CopyObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import {
   isForbiddenMediaBucket,
   isForbiddenMediaKey,
+  parseSocialMediaObjectKey,
+  parseSocialMediaStagingKey,
   SOCIAL_IMAGE_MAX_BYTES,
   SOCIAL_MEDIA_PUT_TTL_SECONDS,
   SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS,
+  socialMediaExtension,
   socialMediaKindFor,
   socialMediaMaxBytes,
   type SocialMediaContentType,
@@ -92,6 +101,12 @@ export async function presignSocialMediaPut(
   if (isForbiddenMediaKey(key)) {
     throw new Error("Media key is not allowed");
   }
+  // Upload keys only, with the extension the signed type maps to. A key a
+  // row can hold is written only by copySocialMediaObject.
+  const staging = parseSocialMediaStagingKey(key);
+  if (!staging || staging.ext !== socialMediaExtension(contentType)) {
+    throw new Error("Media key is not allowed");
+  }
   const kind = socialMediaKindFor(contentType);
   if (!kind || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > socialMediaMaxBytes(kind)) {
     throw new Error("Media content length is not allowed");
@@ -112,17 +127,20 @@ export async function presignSocialMediaPut(
   );
 }
 
+/** Null when the object is missing or the HEAD fails; onError sees the failure. */
 export async function headSocialMediaObject(
   key: string,
-): Promise<{ bytes: number; contentType: string | null } | null> {
+  onError?: (error: unknown) => void,
+): Promise<{ bytes: number; contentType: string | null; etag: string | null } | null> {
   if (isForbiddenMediaKey(key)) return null;
   try {
     const { bucket, s3 } = mediaClient();
     const out = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     if (out.ContentLength == null || !Number.isFinite(out.ContentLength)) return null;
     const contentType = out.ContentType?.split(";")[0]?.trim().toLowerCase() || null;
-    return { bytes: out.ContentLength, contentType };
-  } catch {
+    return { bytes: out.ContentLength, contentType, etag: out.ETag ?? null };
+  } catch (error) {
+    onError?.(error);
     return null;
   }
 }
@@ -140,6 +158,44 @@ export async function presignSocialMediaGet(key: string): Promise<string> {
       ResponseCacheControl: privateMaxAgeCacheControl(SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS),
     }),
     stablePresignOptions(SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS),
+  );
+}
+
+/**
+ * Publish copy: an upload key to the same author's posts/ or stories/ key.
+ * Pinned to the ETag that HEAD checked, never overwrites, and REPLACE keeps
+ * only the checked type, so nothing the uploader sent rides along. EXCLUDE
+ * skips annotations, which would need their own permissions.
+ */
+export async function copySocialMediaObject(input: {
+  sourceKey: string;
+  etag: string;
+  destinationKey: string;
+  contentType: SocialMediaContentType;
+}): Promise<void> {
+  const source = parseSocialMediaStagingKey(input.sourceKey);
+  const destination = parseSocialMediaObjectKey(input.destinationKey);
+  if (
+    !source ||
+    !destination ||
+    source.lane !== destination.lane ||
+    source.userId !== destination.userId ||
+    !input.etag
+  ) {
+    throw new Error("Media copy is not allowed");
+  }
+  const { bucket, s3 } = mediaClient();
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: input.destinationKey,
+      CopySource: `${bucket}/${input.sourceKey.split("/").map(encodeURIComponent).join("/")}`,
+      CopySourceIfMatch: input.etag,
+      IfNoneMatch: "*",
+      MetadataDirective: "REPLACE",
+      ContentType: input.contentType,
+      AnnotationDirective: "EXCLUDE",
+    }),
   );
 }
 

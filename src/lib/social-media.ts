@@ -21,7 +21,8 @@ export type SocialMediaRuleError =
   | "forbidden"
   | "type"
   | "missing"
-  | "tooLarge";
+  | "tooLarge"
+  | "store";
 
 export const SOCIAL_MEDIA_KEY_PREFIX = "posts";
 export const SOCIAL_MEDIA_LANES = ["posts", "stories"] as const;
@@ -251,6 +252,68 @@ export function socialMediaObjectKey(
   return `${lane}/${user.data}/${object.data}.${EXT_BY_TYPE[contentType]}`;
 }
 
+export function socialMediaExtension(contentType: SocialMediaContentType): string {
+  return EXT_BY_TYPE[contentType];
+}
+
+// Browsers PUT only to <lane>/upload/<user>/<object>.<ext>. Save copies the
+// checked bytes to a posts/ or stories/ key that no upload URL can write
+// (social-media-publish.ts). Rows never hold an upload key: the DB CHECK
+// and isOwnedSocialMediaKey refuse it.
+const SOCIAL_MEDIA_STAGING_SEGMENT = "upload";
+
+export function socialMediaStagingKey(
+  userId: string,
+  objectId: string,
+  contentType: string,
+  lane: SocialMediaLane = "posts",
+): string {
+  const user = uuidSchema.safeParse(userId);
+  const object = uuidSchema.safeParse(objectId);
+  if (!user.success || !object.success) {
+    throw new Error("Media key requires UUID user and object ids");
+  }
+  if (!isSocialMediaContentType(contentType)) {
+    throw new Error("Unsupported media content type");
+  }
+  return `${lane}/${SOCIAL_MEDIA_STAGING_SEGMENT}/${user.data}/${object.data}.${EXT_BY_TYPE[contentType]}`;
+}
+
+// Case-sensitive, lowercase ids, one extension per type (no .jpeg).
+const SOCIAL_MEDIA_STAGING_KEY =
+  /^(posts|stories)\/upload\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp|gif|mp4|mov|webm)$/;
+
+/** Lane, uploader, and extension of an upload key. Null for any other shape. */
+export function parseSocialMediaStagingKey(
+  key: string,
+): { lane: SocialMediaLane; userId: string; ext: string } | null {
+  if (isForbiddenMediaKey(key)) return null;
+  const match = key.match(SOCIAL_MEDIA_STAGING_KEY);
+  const lane = match?.[1];
+  const userId = match?.[2];
+  const ext = match?.[3];
+  if (lane !== "posts" && lane !== "stories") return null;
+  if (!userId || !ext) return null;
+  return { lane, userId, ext };
+}
+
+/** The caller's own upload key on this lane, with the extension its type maps to. */
+export function isOwnedSocialMediaStagingKey(
+  key: string,
+  userId: string,
+  lane: SocialMediaLane,
+  contentType: string,
+): boolean {
+  const parsed = parseSocialMediaStagingKey(key);
+  return (
+    !!parsed &&
+    parsed.lane === lane &&
+    parsed.userId === userId &&
+    isSocialMediaContentType(contentType) &&
+    parsed.ext === EXT_BY_TYPE[contentType]
+  );
+}
+
 const SOCIAL_MEDIA_OBJECT_KEY =
   /^(posts|stories)\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.(jpg|jpeg|png|webp|gif|mp4|mov|webm)$/i;
 
@@ -300,23 +363,29 @@ export function ownedMediaItems(
   return parsePostMedia(value).filter((item) => isOwnedSocialMediaKey(item.key, authorId, lane));
 }
 
-/** One current welcome-video key, or null. Reuses the posts media lane. */
-export function welcomeVideoKeyFromMedia(raw: unknown, userId: string): string | null {
-  const items = mediaItemsForInsert(raw, userId, "posts");
+/** One welcome-video upload, or null. Reuses the posts media lane. Publish it before storing. */
+export function welcomeVideoItemFromMedia(raw: unknown, userId: string): SocialMediaItem | null {
+  const items = mediaItemsForPublish(raw, userId, "posts");
   if (!items.ok || items.items.length !== 1) return null;
   const only = items.items[0];
-  return only.kind === "video" ? only.key : null;
+  return only.kind === "video" && !isSocialMuxMediaItem(only) ? only : null;
 }
 
-/** One current profile-cover still key, or null. Posts lane, image only. */
-export function profileCoverKeyFromMedia(raw: unknown, userId: string): string | null {
-  const items = mediaItemsForInsert(raw, userId, "posts");
+/** One profile-cover still upload, or null. Posts lane, image only. Publish it before storing. */
+export function profileCoverItemFromMedia(raw: unknown, userId: string): SocialMediaItem | null {
+  const items = mediaItemsForPublish(raw, userId, "posts");
   if (!items.ok || items.items.length !== 1) return null;
   const only = items.items[0];
-  return only.kind === "image" ? only.key : null;
+  return only.kind === "image" ? only : null;
 }
 
-export function mediaItemsForInsert(
+/**
+ * Composer media checked for this author and lane. S3 items must be the
+ * author's own upload keys: they are copy sources, so run the result
+ * through publishSocialMediaItems before any insert. Mux items keep their
+ * posts/ or stories/ label key.
+ */
+export function mediaItemsForPublish(
   raw: unknown,
   userId: string,
   lane: SocialMediaLane = "posts",
@@ -340,7 +409,11 @@ export function mediaItemsForInsert(
   for (const rawItem of parsed) {
     const item = itemSchema.safeParse(rawItem);
     if (!item.success) return { ok: false, error: "invalid" };
-    if (isForbiddenMediaKey(item.data.key) || !isOwnedSocialMediaKey(item.data.key, userId, lane)) {
+    const owned =
+      item.data.provider === SOCIAL_MUX_PROVIDER
+        ? isOwnedSocialMediaKey(item.data.key, userId, lane)
+        : isOwnedSocialMediaStagingKey(item.data.key, userId, lane, item.data.contentType);
+    if (isForbiddenMediaKey(item.data.key) || !owned) {
       return { ok: false, error: "forbidden" };
     }
     if (socialMediaKindFor(item.data.contentType) !== item.data.kind) {

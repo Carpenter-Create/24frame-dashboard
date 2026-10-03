@@ -111,6 +111,11 @@ aws-external-anthropic:CreateInference
 s3:GetObject
   arn:aws:s3:::$S3_MEDIA_SOURCE_BUCKET/posts/*
 
+# Optional: deny the browser upload prefix. The tagger reads only
+# published keys from rows, and rows never hold an upload key.
+Deny s3:GetObject
+  arn:aws:s3:::$S3_MEDIA_SOURCE_BUCKET/posts/upload/*
+
 # If the media bucket lives in another AWS account, add a bucket policy
 # that allows this role the same GetObject.
 ```
@@ -151,7 +156,12 @@ value at once; never use it to change a single setting.
 2. **Claude Platform on AWS** is set up (`docs/infra/claude-platform-aws.md`
    steps 1–3), with a separate workspace for tagging and its own spend
    limit.
-3. **Create the resources** above, then build and deploy (next section),
+3. **Apply the Social media bucket policy** (required; the statement and
+   its order are in `docs/engineering/operational-gotchas.md`, "Social
+   photo publishing"). Without it, an older deployment can still sign a
+   write to a published photo, so a photo could change after the tagger
+   has read it.
+4. **Create the resources** above, then build and deploy (next section),
    then run the dry run.
 
 ## Build and deploy

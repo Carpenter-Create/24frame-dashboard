@@ -10,19 +10,19 @@ import { loadPeopleSearch } from "@/lib/social-feed";
 import {
   isOwnedSocialMediaKey,
   isSocialMediaContentType,
-  isSocialMuxMediaItem,
-  mediaItemsForInsert,
+  mediaItemsForPublish,
   parseSocialMediaLane,
   socialMediaKindFor,
   socialMediaObjectKey,
+  socialMediaStagingKey,
   socialPublishedVideoRejection,
-  storedSocialMediaRejection,
   validateMediaUpload,
-  profileCoverKeyFromMedia,
-  welcomeVideoKeyFromMedia,
+  profileCoverItemFromMedia,
+  welcomeVideoItemFromMedia,
   type SocialMediaItem,
 } from "@/lib/social-media";
-import { headSocialMediaObject, presignSocialMediaPut } from "@/lib/s3-social-media";
+import { presignSocialMediaPut } from "@/lib/s3-social-media";
+import { publishSocialMediaItems } from "@/lib/social-media-publish";
 import { isSocialMuxId, SOCIAL_MUX_PROVIDER, SocialMuxUploadNotBoundError } from "@/lib/social-mux";
 import {
   createSocialMuxDirectUpload,
@@ -193,9 +193,14 @@ export async function createSocialProfile(formData: FormData): Promise<ActionRes
 export async function saveSocialWelcomeVideo(formData: FormData): Promise<ActionResult> {
   const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
-  const key = welcomeVideoKeyFromMedia(formData.get("media"), user.id);
-  if (!key) return { error: SOCIAL.stories.mediaType };
-  const { error } = await supabase.from("profiles").update({ welcome_video_key: key }).eq("id", user.id);
+  const item = welcomeVideoItemFromMedia(formData.get("media"), user.id);
+  if (!item) return { error: SOCIAL.stories.mediaType };
+  const published = await publishSocialMediaItems([item], user.id, "posts");
+  if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
+  const { error } = await supabase
+    .from("profiles")
+    .update({ welcome_video_key: published.items[0].key })
+    .eq("id", user.id);
   if (error) return { error: error.message };
   await bustSocialProfileHotCache(user.id, [profile?.handle]);
   revalidatePath(SOCIAL_ROUTES.profile);
@@ -219,9 +224,14 @@ export async function clearSocialWelcomeVideo(): Promise<ActionResult> {
 export async function saveSocialProfileCover(formData: FormData): Promise<ActionResult> {
   const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
-  const key = profileCoverKeyFromMedia(formData.get("media"), user.id);
-  if (!key) return { error: SOCIAL.stories.mediaType };
-  const { error } = await supabase.from("profiles").update({ cover_key: key }).eq("id", user.id);
+  const item = profileCoverItemFromMedia(formData.get("media"), user.id);
+  if (!item) return { error: SOCIAL.stories.mediaType };
+  const published = await publishSocialMediaItems([item], user.id, "posts");
+  if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
+  const { error } = await supabase
+    .from("profiles")
+    .update({ cover_key: published.items[0].key })
+    .eq("id", user.id);
   if (error) return { error: error.message };
   await bustSocialProfileHotCache(user.id, [profile?.handle]);
   revalidatePath(SOCIAL_ROUTES.profile);
@@ -260,7 +270,7 @@ export async function presignSocialMediaUpload(formData: FormData): Promise<{
     lane,
   });
   if (!checked.ok) return { error: socialMediaRuleMessage(checked.error, lane) };
-  const key = socialMediaObjectKey(user.id, crypto.randomUUID(), checked.contentType, lane);
+  const key = socialMediaStagingKey(user.id, crypto.randomUUID(), checked.contentType, lane);
   try {
     const url = await presignSocialMediaPut(key, checked.contentType, byteLength);
     return { key, url, kind: checked.kind, contentType: checked.contentType };
@@ -360,7 +370,7 @@ export async function writeSocialPost(
   if (!profileId) return { error: SOCIAL.cta.needProfile };
 
   const body = normalizePostBody(String(formData.get("body") ?? ""));
-  const media = mediaItemsForInsert(formData.get("media"), user.id);
+  const media = mediaItemsForPublish(formData.get("media"), user.id);
   const groupIdRaw = String(formData.get("group_id") ?? "").trim();
   const groupId = groupIdRaw.length > 0 ? groupIdRaw : null;
   if (!media.ok) return { error: socialMediaRuleMessage(media.error) };
@@ -368,15 +378,12 @@ export async function writeSocialPost(
   if (videoRejection) return { error: socialMediaRuleMessage(videoRejection) };
   if (!body && media.items.length === 0) return { error: SOCIAL.home.emptyPost };
 
-  // Match createSocialStory: refuse keys the source bucket does not hold.
-  for (const item of media.items) {
-    if (isSocialMuxMediaItem(item)) continue;
-    const rejection = storedSocialMediaRejection(item, await headSocialMediaObject(item.key));
-    if (rejection) return { error: socialMediaRuleMessage(rejection, "posts", item.kind) };
-  }
+  // Match createSocialStory: check each upload, then store only its published copy.
+  const published = await publishSocialMediaItems(media.items, user.id, "posts");
+  if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
 
   const { error } = await supabase.from("posts").insert(
-    postInsertRow({ authorId: user.id, body, groupId, media: media.items }),
+    postInsertRow({ authorId: user.id, body, groupId, media: published.items }),
   );
   if (error) return { error: error.message };
 
@@ -400,20 +407,17 @@ export async function createSocialStory(formData: FormData): Promise<ActionResul
   if (!profileId) return { error: SOCIAL.cta.needProfile };
 
   const body = normalizePostBody(String(formData.get("body") ?? "")) ?? null;
-  const media = mediaItemsForInsert(formData.get("media"), user.id, "stories");
+  const media = mediaItemsForPublish(formData.get("media"), user.id, "stories");
   if (!media.ok) return { error: socialMediaRuleMessage(media.error, "stories") };
   if (media.items.length === 0) return { error: SOCIAL.stories.empty };
   const videoRejection = socialPublishedVideoRejection(media.items);
   if (videoRejection) return { error: socialMediaRuleMessage(videoRejection, "stories") };
 
-  for (const item of media.items) {
-    if (isSocialMuxMediaItem(item)) continue;
-    const rejection = storedSocialMediaRejection(item, await headSocialMediaObject(item.key));
-    if (rejection) return { error: socialMediaRuleMessage(rejection, "stories", item.kind) };
-  }
+  const published = await publishSocialMediaItems(media.items, user.id, "stories");
+  if (!published.ok) return { error: socialMediaRuleMessage(published.error, "stories", published.kind) };
 
   const { error } = await supabase.from("stories").insert(
-    storyInsertRow({ authorId: user.id, body, media: media.items }),
+    storyInsertRow({ authorId: user.id, body, media: published.items }),
   );
   if (error) return { error: error.message };
 

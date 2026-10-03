@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { presignSocialMediaPut } from "@/lib/s3-social-media";
 
 const KEY =
-  "posts/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222.jpg";
+  "posts/upload/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222.jpg";
 
 // Real signer. The other s3-social-media tests mock getSignedUrl, which hides
 // the empty-body CRC32 the default client appends to a browser PUT.

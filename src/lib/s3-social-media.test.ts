@@ -25,12 +25,19 @@ vi.mock("@/lib/social-media-cloudfront", () => ({
   signSocialMediaCloudfrontUrl: vi.fn(),
 }));
 
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  CopyObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 import { SOCIAL_IMAGE_MAX_BYTES } from "@/lib/social-media";
 import { isMediaCloudfrontConfigured, signSocialMediaCloudfrontUrl } from "@/lib/social-media-cloudfront";
 import {
   MEDIA_AWS_ENV,
+  copySocialMediaObject,
   mediaOutputBucket,
   mediaSourceBucket,
   headSocialMediaObject,
@@ -47,6 +54,9 @@ const USER = "11111111-1111-4111-8111-111111111111";
 const OTHER = "33333333-3333-4333-8333-333333333333";
 const OBJECT = "22222222-2222-4222-8222-222222222222";
 const KEY = `posts/${USER}/${OBJECT}.jpg`;
+const STAGING_KEY = `posts/upload/${USER}/${OBJECT}.jpg`;
+const PUBLISHED_OBJECT = "9bb6c728-a553-8449-930c-4fe23bba049d";
+const PUBLISHED_KEY = `posts/${USER}/${PUBLISHED_OBJECT}.jpg`;
 
 const MEDIA_AWS = {
   MEDIA_AWS_ACCESS_KEY_ID: "media-access-key",
@@ -102,12 +112,12 @@ describe("s3-social-media isolated lane", () => {
 
   it("presigns PUT/GET on the media source bucket, never S3_BUCKET", async () => {
     mockGetSignedUrl.mockResolvedValueOnce("https://s3.example/put");
-    await expect(presignSocialMediaPut(KEY, "image/jpeg", 1200)).resolves.toBe("https://s3.example/put");
+    await expect(presignSocialMediaPut(STAGING_KEY, "image/jpeg", 1200)).resolves.toBe("https://s3.example/put");
     const putCmd = mockGetSignedUrl.mock.calls[0]?.[1] as PutObjectCommand;
     expect(putCmd).toBeInstanceOf(PutObjectCommand);
     expect(putCmd.input.Bucket).toBe("test-media-source-bucket");
     expect(putCmd.input.Bucket).not.toBe(process.env.S3_BUCKET);
-    expect(putCmd.input.Key).toBe(KEY);
+    expect(putCmd.input.Key).toBe(STAGING_KEY);
     expect(putCmd.input.ContentType).toBe("image/jpeg");
     expect(putCmd.input.ContentLength).toBe(1200);
     expect(putCmd.input.CacheControl).toBeUndefined();
@@ -139,26 +149,168 @@ describe("s3-social-media isolated lane", () => {
   });
 
   it("does not sign a PUT whose length is outside the house cap", async () => {
-    const videoKey = `stories/${USER}/${OBJECT}.mp4`;
-    await expect(presignSocialMediaPut(KEY, "image/jpeg", 11 * 1024 * 1024)).rejects.toThrow(/content length/);
-    await expect(presignSocialMediaPut(KEY, "image/jpeg", 0)).rejects.toThrow(/content length/);
-    await expect(presignSocialMediaPut(KEY, "image/jpeg", 1.5)).rejects.toThrow(/content length/);
+    const videoKey = `stories/upload/${USER}/${OBJECT}.mp4`;
+    await expect(presignSocialMediaPut(STAGING_KEY, "image/jpeg", 11 * 1024 * 1024)).rejects.toThrow(
+      /content length/,
+    );
+    await expect(presignSocialMediaPut(STAGING_KEY, "image/jpeg", 0)).rejects.toThrow(/content length/);
+    await expect(presignSocialMediaPut(STAGING_KEY, "image/jpeg", 1.5)).rejects.toThrow(/content length/);
     await expect(presignSocialMediaPut(videoKey, "video/mp4", 250 * 1024 * 1024 + 1)).rejects.toThrow(
       /content length/,
     );
     expect(mockGetSignedUrl).not.toHaveBeenCalled();
   });
 
+  it("refuses a published-shape key: browsers write upload keys only", async () => {
+    await expect(presignSocialMediaPut(KEY, "image/jpeg", 1200)).rejects.toThrow(/not allowed/);
+    await expect(presignSocialMediaPut(`stories/${USER}/${OBJECT}.mp4`, "video/mp4", 1200)).rejects.toThrow(
+      /not allowed/,
+    );
+    await expect(presignSocialMediaPut(`posts/UPLOAD/${USER}/${OBJECT}.jpg`, "image/jpeg", 1200)).rejects.toThrow(
+      /not allowed/,
+    );
+    expect(mockGetSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("refuses an upload key whose extension mismatches the type", async () => {
+    await expect(presignSocialMediaPut(`posts/upload/${USER}/${OBJECT}.png`, "image/jpeg", 1200)).rejects.toThrow(
+      /not allowed/,
+    );
+    await expect(presignSocialMediaPut(STAGING_KEY, "video/mp4", 1200)).rejects.toThrow(/not allowed/);
+    expect(mockGetSignedUrl).not.toHaveBeenCalled();
+  });
+
   it("heads a stored object on the media source bucket", async () => {
-    mockSend.mockResolvedValueOnce({ ContentLength: 4096, ContentType: "image/jpeg; charset=binary" });
-    await expect(headSocialMediaObject(KEY)).resolves.toEqual({ bytes: 4096, contentType: "image/jpeg" });
+    mockSend.mockResolvedValueOnce({
+      ContentLength: 4096,
+      ContentType: "image/jpeg; charset=binary",
+      ETag: '"abc"',
+    });
+    await expect(headSocialMediaObject(KEY)).resolves.toEqual({
+      bytes: 4096,
+      contentType: "image/jpeg",
+      etag: '"abc"',
+    });
     const cmd = mockSend.mock.calls[0]?.[0] as HeadObjectCommand;
     expect(cmd).toBeInstanceOf(HeadObjectCommand);
     expect(cmd.input.Bucket).toBe("test-media-source-bucket");
     expect(cmd.input.Key).toBe(KEY);
+    mockSend.mockResolvedValueOnce({ ContentLength: 4096, ContentType: "image/jpeg" });
+    await expect(headSocialMediaObject(KEY)).resolves.toEqual({ bytes: 4096, contentType: "image/jpeg", etag: null });
     mockSend.mockRejectedValueOnce(new Error("NoSuchKey"));
     await expect(headSocialMediaObject(KEY)).resolves.toBeNull();
     await expect(headSocialMediaObject(`orgs/${USER}/titles/${OBJECT}/master/a.mov`)).resolves.toBeNull();
+  });
+
+  it("hands a failed HEAD to the caller's onError and still returns null", async () => {
+    const onError = vi.fn();
+    const failure = Object.assign(new Error("Forbidden"), { name: "Forbidden", $metadata: { httpStatusCode: 403 } });
+    mockSend.mockRejectedValueOnce(failure);
+    await expect(headSocialMediaObject(STAGING_KEY, onError)).resolves.toBeNull();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(failure);
+
+    mockSend.mockResolvedValueOnce({ ContentLength: 4096, ContentType: "image/jpeg", ETag: '"abc"' });
+    await expect(headSocialMediaObject(STAGING_KEY, onError)).resolves.toEqual({
+      bytes: 4096,
+      contentType: "image/jpeg",
+      etag: '"abc"',
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("copies an upload to its published key pinned to the checked ETag, and nothing else", async () => {
+    mockSend.mockResolvedValueOnce({});
+    await copySocialMediaObject({
+      sourceKey: STAGING_KEY,
+      etag: '"abc"',
+      destinationKey: PUBLISHED_KEY,
+      contentType: "image/jpeg",
+    });
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const cmd = mockSend.mock.calls[0]?.[0] as CopyObjectCommand;
+    expect(cmd).toBeInstanceOf(CopyObjectCommand);
+    expect(Object.keys(cmd.input).sort()).toEqual([
+      "AnnotationDirective",
+      "Bucket",
+      "ContentType",
+      "CopySource",
+      "CopySourceIfMatch",
+      "IfNoneMatch",
+      "Key",
+      "MetadataDirective",
+    ]);
+    expect(cmd.input).toEqual({
+      Bucket: "test-media-source-bucket",
+      Key: PUBLISHED_KEY,
+      CopySource: `test-media-source-bucket/${STAGING_KEY}`,
+      CopySourceIfMatch: '"abc"',
+      IfNoneMatch: "*",
+      MetadataDirective: "REPLACE",
+      ContentType: "image/jpeg",
+      AnnotationDirective: "EXCLUDE",
+    });
+    // The pin is the caller's ETag, passed through unchanged, never a constant.
+    mockSend.mockResolvedValueOnce({});
+    await copySocialMediaObject({
+      sourceKey: `stories/upload/${USER}/${OBJECT}.png`,
+      etag: '"second-upload-2"',
+      destinationKey: `stories/${USER}/${PUBLISHED_OBJECT}.png`,
+      contentType: "image/png",
+    });
+    const second = mockSend.mock.calls[1]?.[0] as CopyObjectCommand;
+    expect(second.input).toMatchObject({
+      Key: `stories/${USER}/${PUBLISHED_OBJECT}.png`,
+      CopySource: `test-media-source-bucket/stories/upload/${USER}/${OBJECT}.png`,
+      CopySourceIfMatch: '"second-upload-2"',
+      ContentType: "image/png",
+    });
+    expect(mockGetSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("refuses a copy that is not this author's upload to this author's key on the same lane", async () => {
+    const copy = (input: Partial<Parameters<typeof copySocialMediaObject>[0]>) =>
+      copySocialMediaObject({
+        sourceKey: STAGING_KEY,
+        etag: '"abc"',
+        destinationKey: PUBLISHED_KEY,
+        contentType: "image/jpeg",
+        ...input,
+      });
+    // Source must be an upload key; a stored key or a title key is not.
+    await expect(copy({ sourceKey: KEY })).rejects.toThrow(/not allowed/);
+    await expect(copy({ sourceKey: `orgs/${USER}/titles/${OBJECT}/master/a.mov` })).rejects.toThrow(/not allowed/);
+    // Destination must be a stored key; an upload key is not.
+    await expect(copy({ destinationKey: `posts/upload/${USER}/${PUBLISHED_OBJECT}.jpg` })).rejects.toThrow(
+      /not allowed/,
+    );
+    await expect(copy({ destinationKey: STAGING_KEY })).rejects.toThrow(/not allowed/);
+    // Same author and lane on both sides.
+    await expect(copy({ destinationKey: `posts/${OTHER}/${PUBLISHED_OBJECT}.jpg` })).rejects.toThrow(/not allowed/);
+    await expect(copy({ sourceKey: `posts/upload/${OTHER}/${OBJECT}.jpg` })).rejects.toThrow(/not allowed/);
+    await expect(copy({ destinationKey: `stories/${USER}/${PUBLISHED_OBJECT}.jpg` })).rejects.toThrow(
+      /not allowed/,
+    );
+    await expect(copy({ sourceKey: `stories/upload/${USER}/${OBJECT}.jpg` })).rejects.toThrow(/not allowed/);
+    await expect(copy({ etag: "" })).rejects.toThrow(/not allowed/);
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("propagates a copy failure", async () => {
+    mockSend.mockRejectedValueOnce(
+      Object.assign(new Error("At least one of the pre-conditions you specified did not hold"), {
+        name: "PreconditionFailed",
+        $metadata: { httpStatusCode: 412 },
+      }),
+    );
+    await expect(
+      copySocialMediaObject({
+        sourceKey: STAGING_KEY,
+        etag: '"abc"',
+        destinationKey: PUBLISHED_KEY,
+        contentType: "image/jpeg",
+      }),
+    ).rejects.toThrow(/pre-conditions/);
   });
 
   it("does not sign title-prefix keys", async () => {
@@ -357,7 +509,7 @@ describe("s3-social-media MEDIA_AWS env selection", () => {
 
   it("constructs S3Client from MEDIA_AWS_* even when title AWS_* is present", async () => {
     mockGetSignedUrl.mockResolvedValueOnce("https://s3.example/put");
-    await presignSocialMediaPut(KEY, "image/jpeg", 1200);
+    await presignSocialMediaPut(STAGING_KEY, "image/jpeg", 1200);
     expect(S3Client).toHaveBeenCalledTimes(1);
     expect(S3Client).toHaveBeenCalledWith(expectedMediaClientConfig());
     const config = vi.mocked(S3Client).mock.calls[0]?.[0] as {
@@ -371,7 +523,7 @@ describe("s3-social-media MEDIA_AWS env selection", () => {
 
   it.each([...MEDIA_AWS_ENV])("refuses when %s is missing and does not use title AWS_*", async (name) => {
     delete process.env[name];
-    await expect(presignSocialMediaPut(KEY, "image/jpeg", 1200)).rejects.toThrow(
+    await expect(presignSocialMediaPut(STAGING_KEY, "image/jpeg", 1200)).rejects.toThrow(
       new RegExp(`${name} environment variable is not set`),
     );
     expect(S3Client).not.toHaveBeenCalled();
