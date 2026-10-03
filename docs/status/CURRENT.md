@@ -105,6 +105,18 @@ Workspace and IAM user are **not created**. Founder applies.
 
 ---
 
+## Social topic tagging (authorized; off)
+
+Adam lock: a background job gives each new Social post one of the 15
+locked topics, or none, with Claude Sonnet 5.5; nobody picks a topic.
+Service-role writes to the post's topic columns only (exception in
+`docs/domain-spec.md` §20). Off until `SOCIAL_TOPIC_TAGGING=on`, which
+waits for the founder's accuracy test. The provenance migration is
+founder-applied. Backfill of older posts is a later founder-run step.
+Runbook: [`docs/infra/social-topic-tagging.md`](../infra/social-topic-tagging.md).
+
+---
+
 ## Not authority
 
 - [`docs/HANDOFF.md`](../HANDOFF.md) — historical handoff; preserve as evidence; do not act on its branch, SHA, production, or task statements without fresh verification.
