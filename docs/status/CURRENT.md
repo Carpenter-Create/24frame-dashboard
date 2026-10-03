@@ -112,16 +112,14 @@ locked topics, or none, with Claude Sonnet 5.5; nobody picks a topic.
 It runs on AWS Lambda (`24frame-social-topic-tag`, EventBridge every 5
 minutes), not Vercel cron, with an execution role and no AWS keys.
 Service-role writes to the post's topic columns only (exception in
-`docs/domain-spec.md` §20). Video transcripts are for tagging only: the
-caption track the tagger creates is deleted once read, so viewers do not
-get captions from it. Adam lock: no auto captions on Social, for authors
-or viewers; the Social player keeps captions hidden. Nobody picks a
-topic; a caption edit re-tags the post (no new transcript), except a
-topic recorded before this change, which stays. Off until
-`SOCIAL_TOPIC_TAGGING=on`, which
-waits for the founder's accuracy test. Turning it off is drain, then off
-(`SOCIAL_TOPIC_TAGGING=drain` deletes leftover caption tracks first;
-founder decision). The provenance migration, the
+`docs/domain-spec.md` §20). No video transcripts for now (Adam
+decision): videos are tagged from caption and frames, and the tagger
+never changes a video. Transcripts return in a later PR that transcribes
+the audio separately, with a length cap. Adam lock: no auto captions on
+Social, for authors or viewers. Nobody picks a topic; a caption edit
+re-tags the post, except a topic recorded before this change, which
+stays. Off until `SOCIAL_TOPIC_TAGGING=on`, which
+waits for the founder's accuracy test. The provenance migration, the
 Lambda, its role and its schedule are founder-applied and **not
 created**. Backfill of older posts is a later founder-run step.
 Runbook: [`docs/infra/social-topic-tagging.md`](../infra/social-topic-tagging.md).

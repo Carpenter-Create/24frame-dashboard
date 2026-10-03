@@ -3,14 +3,8 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { SOCIAL_MUX_PROVIDER } from "@/lib/social-mux";
 import type { SocialTopicMediaDeps } from "@/lib/social-topic-media";
-import {
-  cleanupSocialPostTopicTracks,
-  tagSocialPostTopic,
-  type SocialTopicOutcome,
-  type SocialTopicPost,
-} from "@/lib/social-topic-tagger";
+import { tagSocialPostTopic, type SocialTopicOutcome, type SocialTopicPost } from "@/lib/social-topic-tagger";
 import { SOCIAL_TOPIC_MAX_AGE_MS } from "@/lib/social-topic-tagging";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -19,38 +13,27 @@ import type { Database } from "@/lib/supabase/database.types";
 // whose caption was edited inside the window), newest first, at most
 // SOCIAL_TOPIC_MAX_PER_AUTHOR per author, and tags them one at a time
 // until the batch or the time budget runs out; the rest wait for the next
-// run. Then, with time left, it deletes leftover caption tracks on posts
-// that were removed or hidden before the tagger could read them.
+// run.
 
 // A post gets a moment for its media to land before the first look.
 export const SOCIAL_TOPIC_MIN_AGE_MS = 2 * 60 * 1000;
 // One post gets at most 90 seconds (two 40-second model attempts plus
 // media). Past that it counts as an error and is retried next run. The
 // post's signal is aborted too, which cancels its model call and stops it
-// from requesting a transcript, deleting a track, or writing.
+// from reading more media or writing.
 export const SOCIAL_TOPIC_POST_DEADLINE_MS = 90_000;
 // One author's posts per run, so a flood from one profile cannot take every
-// run, or the Claude and transcription spend, from everyone else.
+// run, or the Claude spend, from everyone else.
 export const SOCIAL_TOPIC_MAX_PER_AUTHOR = 3;
 // Candidates are read in pages; an author at the cap is left out of the
 // next page so other authors' older posts are reached.
 export const SOCIAL_TOPIC_CANDIDATE_PAGE = 100;
 export const SOCIAL_TOPIC_CANDIDATE_PAGES = 3;
-// Removed or hidden video posts checked for leftover caption tracks per run.
-export const SOCIAL_TOPIC_STRAY_BATCH = 20;
 
 const SOCIAL_TOPIC_POST_COLUMNS = "id, author_id, body, media, created_at, edited_at";
-// Posts with at least one Mux video in media.
-export const SOCIAL_TOPIC_MUX_MEDIA_FILTER = JSON.stringify([{ provider: SOCIAL_MUX_PROVIDER }]);
 
 export type SocialTopicRunSummary = Record<SocialTopicOutcome | "error" | "deferred", number> & {
   selected: number;
-  /** Removed or hidden posts checked for leftover caption tracks. */
-  strayChecked: number;
-  /** Leftover caption tracks deleted on those posts. */
-  strayTracksDeleted: number;
-  /** Failed checks, plus 1 when the stray select itself failed. */
-  strayErrors: number;
 };
 
 /** Untagged posts in the window: created, or caption-edited, since `since`. */
@@ -126,9 +109,6 @@ export async function runSocialTopicBatch(args: {
     raced: 0,
     error: 0,
     deferred: 0,
-    strayChecked: 0,
-    strayTracksDeleted: 0,
-    strayErrors: 0,
   };
   for (const post of posts) {
     if (clock() - started > args.budgetMs) {
@@ -162,145 +142,7 @@ export async function runSocialTopicBatch(args: {
       );
     }
   }
-
-  if (clock() - started <= args.budgetMs) {
-    await cleanStrayTracks(args.admin, nowMs, args.mediaDeps, summary, () => clock() - started <= args.budgetMs, deadlineMs);
-  }
   return summary;
-}
-
-/**
- * Removed or hidden video posts in the window that the tagger never stamped
- * may still carry a caption track it requested. Delete those tracks. The
- * post is never classified; once nothing is left to delete it is stamped,
- * so the next run reaches older ones.
- */
-async function cleanStrayTracks(
-  admin: SupabaseClient<Database>,
-  nowMs: number,
-  mediaDeps: SocialTopicMediaDeps | undefined,
-  summary: SocialTopicRunSummary,
-  hasTime: () => boolean,
-  deadlineMs: number,
-): Promise<void> {
-  const since = new Date(nowMs - SOCIAL_TOPIC_MAX_AGE_MS).toISOString();
-  const { data, error } = await admin
-    .from("posts")
-    .select("id, author_id, media")
-    .is("category_tagged_at", null)
-    .is("group_id", null)
-    .neq("status", "active")
-    // jsonb containment: postgrest-js turns an array into a Postgres array
-    // literal, so the JSON text is passed as a string.
-    .contains("media", SOCIAL_TOPIC_MUX_MEDIA_FILTER)
-    .or(windowFilter(since))
-    .order("created_at", { ascending: false })
-    .limit(SOCIAL_TOPIC_STRAY_BATCH);
-  if (error) {
-    summary.strayErrors += 1;
-    console.error(JSON.stringify({ msg: "social topic stray select failed", error: error.message }));
-    return;
-  }
-  for (const post of data ?? []) {
-    if (!hasTime()) return;
-    summary.strayChecked += 1;
-    try {
-      const result = await withDeadline(
-        (signal) => cleanupSocialPostTopicTracks({ admin, post, now: new Date(nowMs), mediaDeps, signal }),
-        deadlineMs,
-      );
-      summary.strayTracksDeleted += result.deleted;
-    } catch (cause) {
-      summary.strayErrors += 1;
-      console.error(
-        JSON.stringify({
-          msg: "social topic stray cleanup failed",
-          postId: post.id,
-          error: cause instanceof Error ? cause.message : String(cause),
-        }),
-      );
-    }
-  }
-}
-
-// Drain (SOCIAL_TOPIC_TAGGING=drain, the first step of turning tagging
-// off; founder decision 2026-10-03). Each run checks every untagged video
-// post in the window, active or not, newest first, and deletes the
-// tagger's caption tracks; no model call, no new transcript. Active posts
-// are not stamped, so tagging picks them up again if it is turned back on.
-// Removed or hidden posts are stamped once nothing is left, as in the
-// stray pass. The founder removes the setting once a run logs
-// complete: true, pending: 0 and errors: 0.
-export const SOCIAL_TOPIC_DRAIN_PAGE = 100;
-
-export type SocialTopicDrainSummary = {
-  checked: number;
-  tracksDeleted: number;
-  /** Posts with a caption track still being made. */
-  pending: number;
-  errors: number;
-  /** Every untagged video post in the window was checked this run. */
-  complete: boolean;
-};
-
-export async function runSocialTopicDrain(args: {
-  admin: SupabaseClient<Database>;
-  now: Date;
-  budgetMs: number;
-  mediaDeps?: SocialTopicMediaDeps;
-  /** Injectable for tests. */
-  clock?: () => number;
-  postDeadlineMs?: number;
-}): Promise<SocialTopicDrainSummary> {
-  const clock = args.clock ?? Date.now;
-  const started = clock();
-  const deadlineMs = args.postDeadlineMs ?? SOCIAL_TOPIC_POST_DEADLINE_MS;
-  const since = new Date(args.now.getTime() - SOCIAL_TOPIC_MAX_AGE_MS).toISOString();
-  const summary: SocialTopicDrainSummary = { checked: 0, tracksDeleted: 0, pending: 0, errors: 0, complete: false };
-  let before: string | null = null;
-
-  for (;;) {
-    let query = args.admin
-      .from("posts")
-      .select("id, author_id, media, created_at")
-      .is("category", null)
-      .is("category_tagged_at", null)
-      .is("group_id", null)
-      .contains("media", SOCIAL_TOPIC_MUX_MEDIA_FILTER)
-      .or(windowFilter(since));
-    if (before) query = query.lt("created_at", before);
-    const { data, error } = await query.order("created_at", { ascending: false }).limit(SOCIAL_TOPIC_DRAIN_PAGE);
-    if (error) throw new Error(`Topic drain select failed: ${error.message}`);
-
-    const rows = data ?? [];
-    for (const post of rows) {
-      if (clock() - started > args.budgetMs) return summary;
-      summary.checked += 1;
-      try {
-        const result = await withDeadline(
-          (signal) =>
-            cleanupSocialPostTopicTracks({ admin: args.admin, post, now: args.now, mediaDeps: args.mediaDeps, signal }),
-          deadlineMs,
-        );
-        summary.tracksDeleted += result.deleted;
-        if (result.pending) summary.pending += 1;
-      } catch (cause) {
-        summary.errors += 1;
-        console.error(
-          JSON.stringify({
-            msg: "social topic drain post failed",
-            postId: post.id,
-            error: cause instanceof Error ? cause.message : String(cause),
-          }),
-        );
-      }
-    }
-    if (rows.length < SOCIAL_TOPIC_DRAIN_PAGE) {
-      summary.complete = true;
-      return summary;
-    }
-    before = rows[rows.length - 1]!.created_at;
-  }
 }
 
 async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {

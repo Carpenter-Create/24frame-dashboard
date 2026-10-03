@@ -921,14 +921,13 @@ tradeoff honestly, hand off. Being plain about the limit *is* the trustworthy mo
 - **One exception: the Social topic tagger (founder decision, 2026-10-03).** A background job
   gives each new Social post one of the 15 locked topics, or none, without the author picking.
   It runs with the service-role key because a post's topic is locked after insert. It reads one
-  post at a time (caption, hashtags, the author's crafts, the post's own images, video frames and
-  transcript) and writes only that post's topic columns (`category`, `category_source`,
+  post at a time (caption, hashtags, the author's crafts, the post's own images and video frames)
+  and writes only that post's topic columns (`category`, `category_source`,
   `category_confidence`, `category_logic_version`, `category_tagged_at`). It never overwrites an
   author's topic and never touches catalog, finance or another table. Any answer other than a
-  locked topic or none is discarded. It reads only the author's own media; for the author's own
-  video it may ask Mux for a transcript, and it deletes that caption track once read (tagging
-  only, founder decision 2026-10-03). No auto captions on Social: the Social player keeps captions
-  hidden. Nobody picks a topic: the database refuses one on any post a user saves, and a caption
+  locked topic or none is discarded. It reads only the author's own media and never changes a
+  video. No video transcripts for now (founder decision 2026-10-03); no auto captions on Social.
+  Nobody picks a topic: the database refuses one on any post a user saves, and a caption
   edit clears an AI topic so the post is re-tagged. A topic recorded before provenance existed
   stays, like an author's topic. Runbook: `docs/infra/social-topic-tagging.md`.
 - **Reach is scoped tools, not table access:** `get_titles`, `get_deliveries`, `get_findings`,

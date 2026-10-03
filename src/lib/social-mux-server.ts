@@ -52,22 +52,12 @@ type MuxUploadData = {
   } | null;
 };
 
-export type SocialMuxTrack = {
-  id?: string;
-  type?: string;
-  status?: string;
-  name?: string;
-  text_source?: string;
-  primary?: boolean;
-};
-
 export type MuxAssetData = {
   id?: string;
   status?: string;
   duration?: number;
   passthrough?: string | null;
   playback_ids?: Array<{ id?: string; policy?: string }>;
-  tracks?: SocialMuxTrack[];
 };
 
 function requireMuxEnv(name: (typeof SOCIAL_MUX_ENV)[number]): string {
@@ -198,49 +188,8 @@ export async function mintSocialMuxPlaybackTokens(
 // SOCIAL_MUX_TOPIC_TIMEOUT_MS. A permanent miss (isSocialMuxPermanentError)
 // reads as null; anything else throws, so the post is retried.
 const SOCIAL_MUX_SERVER_READ_EXPIRATION = "10m";
-const MUX_STREAM = "https://stream.mux.com";
 const MUX_IMAGE = "https://image.mux.com";
 export const SOCIAL_MUX_TOPIC_TIMEOUT_MS = 15_000;
-// Founder decision 2026-10-03 (tagging only): the tagger's transcript track
-// is deleted once read, so viewers never get captions from it. Only text
-// tracks with this name are deleted.
-export const SOCIAL_MUX_TOPIC_TRACK_NAME = "topic-tagging";
-
-/** Ask Mux to transcribe an asset's audio track. Language is detected. */
-export async function requestSocialMuxGeneratedSubtitles(
-  assetId: string,
-  audioTrackId: string,
-): Promise<void> {
-  if (!isSocialMuxId(assetId) || !isSocialMuxId(audioTrackId)) {
-    throw new Error("Mux track id is invalid");
-  }
-  await muxRequest<unknown>(
-    `/video/v1/assets/${assetId}/tracks/${audioTrackId}/generate-subtitles`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        generated_subtitles: [{ language_code: "auto", name: SOCIAL_MUX_TOPIC_TRACK_NAME }],
-      }),
-      signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
-    },
-  );
-}
-
-/** Remove one track from an asset. A track that is already gone counts as removed. */
-export async function deleteSocialMuxTrack(assetId: string, trackId: string): Promise<void> {
-  if (!isSocialMuxId(assetId) || !isSocialMuxId(trackId)) {
-    throw new Error("Mux track id is invalid");
-  }
-  // 204 has no body, so this does not go through muxRequest.
-  const response = await fetch(`${MUX_API}/video/v1/assets/${assetId}/tracks/${trackId}`, {
-    method: "DELETE",
-    headers: { Authorization: muxAuthHeader() },
-    cache: "no-store",
-    signal: AbortSignal.timeout(SOCIAL_MUX_TOPIC_TIMEOUT_MS),
-  });
-  if (response.ok || response.status === 404) return;
-  throw new SocialMuxRequestError(`Mux track delete failed (${response.status})`, response.status);
-}
 
 function socialMuxSigner(): Mux {
   return new Mux({
@@ -258,25 +207,6 @@ async function socialMuxServerRead(url: string, what: string): Promise<Response 
   const error = new SocialMuxRequestError(`Mux ${what} request failed (${response.status})`, response.status);
   if (isSocialMuxPermanentError(error)) return null;
   throw error;
-}
-
-/** Plain-text transcript of a ready generated text track, or null. */
-export async function fetchSocialMuxTranscript(
-  playbackId: string,
-  trackId: string,
-): Promise<string | null> {
-  if (!isSocialMuxId(playbackId) || !isSocialMuxId(trackId)) return null;
-  const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
-    type: "video",
-    expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
-  });
-  const response = await socialMuxServerRead(
-    `${MUX_STREAM}/${playbackId}/text/${trackId}.txt?token=${encodeURIComponent(token)}`,
-    "transcript",
-  );
-  if (!response) return null;
-  const text = (await response.text()).trim();
-  return text || null;
 }
 
 /** One JPEG still at `time` seconds, `width` px wide, or null. */

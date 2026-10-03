@@ -3,16 +3,17 @@
 Founder decisions (2026-10-03): 24Frame AI assigns each new Social post
 one of the 15 locked topics automatically, in the background, like a
 feed's interest chips. Nobody picks a topic. Model: Claude Sonnet 5.5
-(`claude-sonnet-5-5`) on Claude Platform on AWS. Video transcripts are
-approved, for tagging only: the caption track the tagger creates is
-deleted after it is read, so videos look as they do now. It runs on
-**AWS Lambda**, not Vercel cron. The tagger writes with the Supabase
+(`claude-sonnet-5-5`) on Claude Platform on AWS. **No video transcripts
+for now** (founder decision): videos are tagged from their caption and
+frames, and nothing is ever added to an author's video. Transcripts come
+back in a later PR that transcribes the audio separately, with a length
+cap. It runs on **AWS Lambda**, not Vercel cron. The tagger writes with the Supabase
 service role, an approved exception to 24Frame AI's user-JWT rule
 (`docs/domain-spec.md` §20).
 
 **Off until you turn it on.** The function does nothing unless its env
-has `SOCIAL_TOPIC_TAGGING=on` (or `drain`, used only when turning it off;
-see "Turn off" below). Turn it on only after the accuracy test below.
+has `SOCIAL_TOPIC_TAGGING=on`. Turn it on only after the accuracy test
+below.
 
 Do **not** create these resources from CI or from this repository. Names
 are proposals for Adam to confirm.
@@ -31,40 +32,18 @@ are proposals for Adam to confirm.
   post gets at most 90 seconds. It stops starting new posts after
   3 minutes, so a run ends inside the 5-minute timeout; the rest wait for
   the next run.
-- **Then, with time left,** it checks up to 20 removed or hidden video
-  posts from the same window for a caption track it asked for before the
-  post went away, and deletes it. It never classifies or writes them.
 - **For each post it reads:**
   - caption and hashtags;
   - the author's crafts;
-  - up to 4 images (downscaled to 1024 px) or 3 video frames (768 px);
-  - the video's transcript.
+  - up to 4 images (downscaled to 1024 px) or 3 frames per video
+    (768 px).
 - **Only the author's own media.** Images must sit under the author's
   folder. A video must be the author's own Mux upload and play by the
-  post's playback id; otherwise the tagger reads nothing from it and never
-  asks Mux to transcribe it.
-- **Transcripts.** Once every video in the post is ready, it asks Mux to
-  transcribe the first video with audio (language detected; one
-  transcript per post) and waits until the transcript is ready. It reads
-  the transcript, then **deletes that caption track** before stamping the
-  post. A video still preparing after an hour is classified from its
-  caption. If Mux refuses the request, the tagger reads the video again:
-  a transcript already being made is waited on, read and deleted;
-  otherwise the post is classified from frames. Captions someone adds
-  another way are read but never deleted.
-  It asks for no new transcript for an edited post, or in the last day of
-  the 7-day window (so the track is read and deleted while the post is
-  still selected). That includes a post edited before its first look: it
-  is tagged from its caption and frames, with no transcript.
-- **No captions for viewers** (Adam lock: no auto captions). Every Social
-  player, the feed card's player bar included, keeps captions hidden,
-  hides the captions button and turns off the `c` captions key, so a
-  caption track does not show in the minutes before the tagger deletes it.
-  One gap: iPhone full screen uses the system player, whose own menu can
-  list the track until it is deleted.
-  If Mux refuses to delete a track, the post is stamped anyway and the
-  error log shows `{"msg":"social topic track not deleted",...}` with the
-  asset and track ids. Delete that track by hand.
+  post's playback id; otherwise the tagger reads nothing from it.
+- **Videos.** The tagger waits until every video in the post is ready,
+  then reads 3 frames from each. A video still preparing after an hour
+  is classified without its frames. It reads frames only; it never
+  changes the video or adds captions to it.
 - **The answer.** Claude is asked for one of the 15 topics or "none",
   plus a confidence. A topic is matched to its exact label ignoring case;
   any other answer is discarded and the post is stamped with no topic.
@@ -78,16 +57,15 @@ are proposals for Adam to confirm.
   - **A caption edit re-tags the post** (founder decision): the database
     clears the AI topic and its look when the author edits the caption,
     and the next run re-tags it from the new caption, photos and video
-    frames, with no new transcript. If the caption changes while a post is
+    frames. If the caption changes while a post is
     being classified, that result is not written; the next run reads the
     new caption. A topic recorded as the author's, or recorded before this
     change (no source), stays when the caption is edited.
   - **Errors leave the post untouched** for the next run: a Claude, Mux,
-    S3 or database error (a missing bucket included), a timeout, or a
-    caption-track delete that failed for a reason worth retrying. Only a
-    permanent miss (a deleted image or Mux asset, a video Mux will not
-    transcribe) is read as no media. When a post passes its 90 seconds,
-    its work is cancelled: it requests, deletes and writes nothing more.
+    S3 or database error (a missing bucket included), or a timeout. Only
+    a permanent miss (a deleted image or Mux asset) is read as no media.
+    When a post passes its 90 seconds, its work is cancelled: it reads
+    and writes nothing more.
 - **What it never touches:** a topic recorded as the author's, group
   posts, or stories. Nobody picks a topic: the database refuses a topic
   on any post a user saves.
@@ -138,7 +116,7 @@ sqs:SendMessage
 existing Supabase URL name; values never in the repository):
 
 ```
-SOCIAL_TOPIC_TAGGING=on            # leave unset until after the accuracy test; drain when turning off
+SOCIAL_TOPIC_TAGGING=on            # leave unset until after the accuracy test
 CLAUDE_AWS_REGION=us-west-2
 CLAUDE_AWS_WORKSPACE_ID=wrkspc_…
 NEXT_PUBLIC_SUPABASE_URL=          # same value as Vercel
@@ -252,14 +230,11 @@ aws lambda update-function-code --region us-west-2 \
    - for Claude, either the `CLAUDE_AWS_*` keys from
      `docs/infra/claude-platform-aws.md` or the cutover key.
 
-   It never writes, never starts a transcription and never deletes a
-   track. It costs roughly a cent per post. A post it cannot read is
+   It never writes. It reads the same caption, crafts, images and video
+   frames live tagging reads, so its results match what live tagging
+   would do. It costs roughly a cent per post. A post it cannot read is
    listed as skipped with its error; fix the env and run again if many
    are skipped.
-
-   **Videos are judged without transcripts here**: the test cannot start
-   one, and the tagger deletes the ones it makes. Live tagging also reads
-   the transcript, so video results in the test are a floor.
 
    ```sh
    pnpm exec tsx --conditions=react-server scripts/social-topic-eval.ts labels.csv
@@ -277,9 +252,8 @@ aws lambda update-function-code --region us-west-2 \
 
 - **Logs.** CloudWatch, log group `/aws/lambda/24frame-social-topic-tag`.
   Each run logs `{"msg":"social topic tagging done", ...}` with counts:
-  selected, tagged, declined (no confident topic), wait, raced, error,
-  deferred, strayTracksDeleted and strayErrors (leftover caption tracks
-  on removed or hidden posts).
+  selected, tagged, declined (no confident topic), wait (a video still
+  preparing), raced, error and deferred.
 - **Failures.** One post's error is logged
   (`{"msg":"social topic post failed","postId":...}`), counted in
   `error`, and retried next run; the run still succeeds. A run fails only
@@ -289,27 +263,19 @@ aws lambda update-function-code --region us-west-2 \
   function's `Errors` metric; the alarm emails you after 15 minutes of
   failed runs. The queue should stay empty.
 - **In the app.** A new post shows its topic chip on Social Home within
-  about 10 minutes. Videos take longer while Mux transcribes them.
-- **Turn off, in two steps** (founder decision: drain, then off). Removing
-  the setting straight away could leave a caption track that Mux was
-  still making on a video for good.
-  1. Set `SOCIAL_TOPIC_TAGGING=drain`. Tagging stops at once: no Claude
-     call and no new transcript. Every 5 minutes the function deletes the
-     tagger's caption tracks on untagged video posts from the last 7 days.
-     It needs only the Supabase and Mux settings. Each run logs
-     `{"msg":"social topic drain done","checked":…,"tracksDeleted":…,"pending":…,"errors":…,"complete":…}`.
-  2. Once a run logs `"complete":true,"pending":0,"errors":0` (usually
-     within an hour), remove `SOCIAL_TOPIC_TAGGING`, or disable the
-     EventBridge rule. Stored topics stay.
-
-  Do not disable the EventBridge rule during the drain; the drain runs on
-  it. Turning tagging back on later works as before.
+  about 10 minutes; a video post once Mux finishes processing the video.
+- **Turn off:** remove `SOCIAL_TOPIC_TAGGING` from the function env, or
+  disable the EventBridge rule. Stored topics stay. Nothing needs cleaning
+  up: the tagger never changes a video.
 - **Every video post skipped as "no video"?** Check that the Mux env on
   the function is from the same Mux environment as Social uploads; keys
   from another environment make every video look deleted.
 
 ## Not in this PR
 
+- **Video transcripts:** a later PR transcribes a video's audio
+  separately (never adding captions to the author's video), with a
+  length cap so a long upload cannot run up transcription cost.
 - **Older posts (backfill):** a separate founder-run step after the
   accuracy test, using the Batches API at half price. The role then
   needs the batch IAM actions.

@@ -5,15 +5,8 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ownedMediaItems } from "@/lib/social-media";
-import { isSocialMuxPermanentError } from "@/lib/social-mux-server";
 import { parseSocialProfileRoles, socialProfileRoleLabel } from "@/lib/social-profile-roles";
-import {
-  gatherSocialTopicMedia,
-  SOCIAL_TOPIC_LIVE_MEDIA_DEPS,
-  socialTopicStrayTracks,
-  type SocialTopicMediaDeps,
-  type SocialTopicTrackRef,
-} from "@/lib/social-topic-media";
+import { gatherSocialTopicMedia, type SocialTopicMediaDeps } from "@/lib/social-topic-media";
 import {
   buildSocialTopicContent,
   parseSocialTopicAnswer,
@@ -21,7 +14,6 @@ import {
   SOCIAL_TOPIC_MIN_CONFIDENCE,
   SOCIAL_TOPIC_MODEL_ID,
   SOCIAL_TOPIC_SYSTEM,
-  socialTopicMayTranscribe,
   socialTopicResultSchema,
   socialTopicWrite,
   type SocialTopicInput,
@@ -93,26 +85,19 @@ async function authorCrafts(admin: SupabaseClient<Database>, authorId: string): 
 
 /**
  * What the tagger would write for this post, without writing it. Null while
- * the post's video or transcript is still preparing. `cleanup` lists the
- * tagger's transcript tracks to delete before the write. The eval script
- * uses this directly and deletes nothing; the Lambda worker goes through
- * tagSocialPostTopic.
+ * the post's video is still preparing. The eval script uses this directly
+ * and writes nothing; the Lambda worker goes through tagSocialPostTopic.
  */
 export async function decideSocialPostTopic(args: {
   admin: SupabaseClient<Database>;
   client: Anthropic;
   post: SocialTopicPost;
   now: Date;
-  requestSubtitles?: boolean;
   minConfidence?: number;
   mediaDeps?: SocialTopicMediaDeps;
   /** Aborted when the run gives up on this post (social-topic-run). */
   signal?: AbortSignal;
-}): Promise<{
-  write: SocialTopicWrite;
-  result: SocialTopicResult | null;
-  cleanup: SocialTopicTrackRef[];
-} | null> {
+}): Promise<{ write: SocialTopicWrite; result: SocialTopicResult | null } | null> {
   const { admin, client, post, now } = args;
   const media = await gatherSocialTopicMedia(
     {
@@ -120,10 +105,6 @@ export async function decideSocialPostTopic(args: {
       authorId: post.author_id,
       createdAt: post.created_at,
       now,
-      requestSubtitles: args.requestSubtitles ?? socialTopicMayTranscribe(post, now),
-      // The eval passes requestSubtitles: false and never waits. The worker
-      // always waits for a transcript it already started.
-      waitForPreparing: args.requestSubtitles !== false,
       signal: args.signal,
     },
     args.mediaDeps,
@@ -133,30 +114,25 @@ export async function decideSocialPostTopic(args: {
   args.signal?.throwIfAborted();
   const caption = post.body?.trim() || null;
   // Nothing to read: no call, and the look is stamped as no topic.
-  if (!caption && media.images.length === 0 && !media.transcript) {
-    return { write: socialTopicWrite(null, now), result: null, cleanup: media.cleanup };
+  if (!caption && media.images.length === 0) {
+    return { write: socialTopicWrite(null, now), result: null };
   }
   const result = await classifySocialTopic(
     client,
     {
       caption,
       crafts: await authorCrafts(admin, post.author_id),
-      transcript: media.transcript,
       images: media.images,
     },
     args.signal,
   );
-  return {
-    write: socialTopicWrite(result, now, args.minConfidence ?? SOCIAL_TOPIC_MIN_CONFIDENCE),
-    result,
-    cleanup: media.cleanup,
-  };
+  return { write: socialTopicWrite(result, now, args.minConfidence ?? SOCIAL_TOPIC_MIN_CONFIDENCE), result };
 }
 
 /**
  * Classify one post and stamp it. A thrown error leaves the post untouched
  * for the next run. Once `signal` is aborted (the run gave up on the post),
- * nothing more is deleted or written.
+ * nothing more is written.
  */
 export async function tagSocialPostTopic(args: {
   admin: SupabaseClient<Database>;
@@ -168,10 +144,6 @@ export async function tagSocialPostTopic(args: {
 }): Promise<SocialTopicOutcome> {
   const decided = await decideSocialPostTopic(args);
   if (!decided) return "wait";
-  // The tagger's caption tracks go before the stamp. A delete that fails for
-  // a reason worth retrying leaves the post for the next run, which reads
-  // the same track again.
-  await deleteTaggerTracks(args.mediaDeps, decided.cleanup, args.post.id, args.signal);
   args.signal?.throwIfAborted();
   let write = args.admin
     .from("posts")
@@ -187,76 +159,4 @@ export async function tagSocialPostTopic(args: {
   if (error) throw new Error(`Topic write failed: ${error.message}`);
   if (!data || data.length === 0) return "raced";
   return decided.write.category ? "tagged" : "declined";
-}
-
-/**
- * Delete the tagger's caption tracks. A track Mux will not delete (a
- * permanent 4xx) is logged as an error and skipped: the Social player hides
- * captions and the captions button, and retrying the post every run would
- * not help. The track needs a manual delete. Other errors throw.
- */
-async function deleteTaggerTracks(
-  mediaDeps: SocialTopicMediaDeps | undefined,
-  tracks: readonly SocialTopicTrackRef[],
-  postId: string,
-  signal?: AbortSignal,
-): Promise<number> {
-  const deps = mediaDeps ?? SOCIAL_TOPIC_LIVE_MEDIA_DEPS;
-  let deleted = 0;
-  for (const track of tracks) {
-    signal?.throwIfAborted();
-    try {
-      await deps.deleteTrack(track.assetId, track.trackId);
-      deleted += 1;
-    } catch (error) {
-      if (!isSocialMuxPermanentError(error)) throw error;
-      console.error(
-        JSON.stringify({
-          msg: "social topic track not deleted",
-          postId,
-          assetId: track.assetId,
-          trackId: track.trackId,
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
-    }
-  }
-  return deleted;
-}
-
-/**
- * Delete a post's leftover caption tracks, with no model call: a post the
- * tagger will no longer classify (removed or hidden, which no user can
- * undo), or any untagged video post during a drain. Once none is still
- * being made, a removed or hidden post is stamped so later runs move on to
- * other posts; an active post is never stamped here. While a track is
- * still being made, `pending` is true and a later run comes back for it.
- */
-export async function cleanupSocialPostTopicTracks(args: {
-  admin: SupabaseClient<Database>;
-  post: Pick<SocialTopicPost, "id" | "author_id" | "media">;
-  now: Date;
-  mediaDeps?: SocialTopicMediaDeps;
-  signal?: AbortSignal;
-}): Promise<{ deleted: number; pending: boolean }> {
-  const stray = await socialTopicStrayTracks(
-    {
-      items: ownedMediaItems(args.post.media, args.post.author_id, "posts"),
-      authorId: args.post.author_id,
-      signal: args.signal,
-    },
-    args.mediaDeps,
-  );
-  const deleted = await deleteTaggerTracks(args.mediaDeps, stray.cleanup, args.post.id, args.signal);
-  if (stray.pending) return { deleted, pending: true };
-  args.signal?.throwIfAborted();
-  const { error } = await args.admin
-    .from("posts")
-    .update({ category_tagged_at: args.now.toISOString() })
-    .eq("id", args.post.id)
-    .is("category_tagged_at", null)
-    // Never an active post: those go through tagging.
-    .neq("status", "active");
-  if (error) throw new Error(`Stray stamp failed: ${error.message}`);
-  return { deleted, pending: false };
 }

@@ -9,7 +9,7 @@
 // and the CLAUDE_AWS_* set. Never print their values. Captions are not
 // printed either; the report shows post ids only. A post that fails to read
 // is skipped with its error, not scored. Spends roughly a cent per post; a
-// few frames per video. It never starts a transcription or deletes a track.
+// few frames per video. It reads the same media live tagging reads.
 
 import { readFileSync } from "node:fs";
 
@@ -58,7 +58,6 @@ async function main(): Promise<void> {
         client,
         post,
         now,
-        requestSubtitles: false,
         minConfidence: 0,
       });
     } catch (cause) {

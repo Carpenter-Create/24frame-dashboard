@@ -3,13 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
+import { SocialMuxRequestError, type MuxAssetData } from "@/lib/social-mux-server";
 import {
-  SOCIAL_MUX_TOPIC_TRACK_NAME,
-  SocialMuxRequestError,
-  type MuxAssetData,
-  type SocialMuxTrack,
-} from "@/lib/social-mux-server";
-import type { SocialTopicMediaDeps } from "@/lib/social-topic-media";
+  SOCIAL_TOPIC_FRAME_WIDTH,
+  SOCIAL_TOPIC_MEDIA_WAIT_MS,
+  type SocialTopicMediaDeps,
+} from "@/lib/social-topic-media";
 import {
   buildSocialTopicContent,
   SOCIAL_TOPIC_LOGIC_VERSION,
@@ -24,7 +23,6 @@ import type { Database } from "@/lib/supabase/database.types";
 
 import {
   classifySocialTopic,
-  cleanupSocialPostTopicTracks,
   decideSocialPostTopic,
   SOCIAL_TOPIC_REQUEST_MAX_RETRIES,
   SOCIAL_TOPIC_REQUEST_TIMEOUT_MS,
@@ -44,15 +42,6 @@ const OWN_IMAGE_KEY = `posts/${AUTHOR}/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.png`
 const STRANGER_IMAGE_KEY = `posts/${STRANGER}/aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff.png`;
 const PLAYBACK_ID = "playbackId0001";
 const ASSET_ID = "assetId00000001";
-const AUDIO_TRACK: SocialMuxTrack = { id: "audioTrack01", type: "audio", status: "ready", primary: true };
-const TEXT_TRACK: SocialMuxTrack = {
-  id: "textTrack001",
-  type: "text",
-  text_source: "generated_vod",
-  status: "ready",
-  name: SOCIAL_MUX_TOPIC_TRACK_NAME,
-};
-const TRANSCRIPT = "Today we light a night exterior with a single HMI.";
 
 const NO_TOPIC: SocialTopicWrite = {
   category: null,
@@ -110,7 +99,7 @@ function fakeAdmin({
     const result =
       table === "profiles" ? { data: crafts === undefined ? null : { crafts }, error: craftsError } : write;
     const query: Record<string, (...args: unknown[]) => unknown> = {};
-    for (const name of ["select", "update", "eq", "is", "neq", "maybeSingle"]) {
+    for (const name of ["select", "update", "eq", "is", "maybeSingle"]) {
       query[name] = (...args) => {
         log.push([name, ...args]);
         return name === terminal ? Promise.resolve(result) : query;
@@ -149,27 +138,24 @@ function videoItem() {
   };
 }
 
-function readyAsset(tracks: SocialMuxTrack[] = [AUDIO_TRACK, TEXT_TRACK], owner = AUTHOR): MuxAssetData {
+function readyAsset(owner = AUTHOR): MuxAssetData {
   return {
     id: ASSET_ID,
     status: "ready",
     duration: 20,
     passthrough: `${owner}:aaaaaaaa-bbbb-4ccc-8ddd-000000000000`,
     playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }],
-    tracks,
   };
 }
 
-const PREPARING: MuxAssetData = { ...readyAsset([]), status: "preparing" };
+const PREPARING: MuxAssetData = { ...readyAsset(), status: "preparing" };
+const FRAME = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
 
 function fakeDeps() {
   return {
     readImage: vi.fn<SocialTopicMediaDeps["readImage"]>(async () => null),
     retrieveAsset: vi.fn<SocialTopicMediaDeps["retrieveAsset"]>(async () => readyAsset()),
-    requestSubtitles: vi.fn<SocialTopicMediaDeps["requestSubtitles"]>(async () => {}),
-    fetchTranscript: vi.fn<SocialTopicMediaDeps["fetchTranscript"]>(async () => TRANSCRIPT),
     fetchFrame: vi.fn<SocialTopicMediaDeps["fetchFrame"]>(async () => null),
-    deleteTrack: vi.fn<SocialTopicMediaDeps["deleteTrack"]>(async () => {}),
   };
 }
 
@@ -188,7 +174,6 @@ function post(overrides: Partial<SocialTopicPost> = {}): SocialTopicPost {
 const INPUT: SocialTopicInput = {
   caption: "Blocking the cast for tomorrow's oner.",
   crafts: ["Director"],
-  transcript: null,
   images: [],
 };
 
@@ -317,8 +302,8 @@ describe("decideSocialPostTopic", () => {
   });
 
   it("stamps a post with nothing to read as no topic, without calling the model", async () => {
-    // No caption, and the only image cannot be read.
-    for (const media of [null, [imageItem(OWN_IMAGE_KEY)]]) {
+    // No caption, and no image or video frame can be read.
+    for (const media of [null, [imageItem(OWN_IMAGE_KEY)], [videoItem()]]) {
       const model = fakeClient();
       const db = fakeAdmin();
 
@@ -330,7 +315,7 @@ describe("decideSocialPostTopic", () => {
         mediaDeps: fakeDeps(),
       });
 
-      expect(decided).toEqual({ write: NO_TOPIC, result: null, cleanup: [] });
+      expect(decided).toEqual({ write: NO_TOPIC, result: null });
       expect(model.create).not.toHaveBeenCalled();
       expect(db.from).not.toHaveBeenCalled();
     }
@@ -353,7 +338,6 @@ describe("decideSocialPostTopic", () => {
         content: buildSocialTopicContent({
           caption: "Lighting a night exterior with one HMI. #nightshoot",
           crafts: ["Director of Photography", "Colorist"],
-          transcript: null,
           images: [],
         }),
       },
@@ -401,153 +385,90 @@ describe("decideSocialPostTopic", () => {
     expect(content).toContainEqual({ type: "text", text: "Image 1" });
   });
 
-  it("classifies a video by its transcript when there is no caption and no frame", async () => {
+  it("classifies a video with no caption by its frames", async () => {
     const model = fakeClient(answer("Cinematography", 0.9));
+    const deps = fakeDeps();
+    deps.fetchFrame.mockResolvedValue(FRAME);
 
     const decided = await decideSocialPostTopic({
       admin: fakeAdmin().admin,
       client: model.client,
       post: post({ body: null, media: [videoItem()] }),
       now: NOW,
-      mediaDeps: fakeDeps(),
+      mediaDeps: deps,
     });
 
     expect(decided?.write.category).toBe("Cinematography");
-    const [first] = model.request().messages[0]!.content;
-    expect(first).toMatchObject({ type: "text", text: expect.stringContaining(`<transcript>\n${TRANSCRIPT}\n</transcript>`) });
-  });
-
-  it("never reads or transcribes a Mux asset the author did not upload", async () => {
-    const model = fakeClient();
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK], STRANGER));
-
-    const decided = await decideSocialPostTopic({
-      admin: fakeAdmin().admin,
-      client: model.client,
-      post: post({ media: [videoItem()] }),
-      now: NOW,
-      mediaDeps: deps,
-    });
-
-    expect(decided?.cleanup).toEqual([]);
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
-    expect(deps.fetchFrame).not.toHaveBeenCalled();
+    // 15%, 50%, and 85% into the 20-second video.
+    expect(deps.fetchFrame.mock.calls).toEqual(
+      [3, 10, 17].map((time) => [PLAYBACK_ID, { time, width: SOCIAL_TOPIC_FRAME_WIDTH }]),
+    );
+    const data = Buffer.from(FRAME).toString("base64");
     expect(model.request().messages[0]!.content).toEqual(
-      buildSocialTopicContent({ caption: post().body, crafts: [], transcript: null, images: [] }),
+      buildSocialTopicContent({
+        caption: null,
+        crafts: [],
+        images: [3, 10, 17].map((time) => ({ label: `Video frame at ${time}s`, mediaType: "image/jpeg" as const, data })),
+      }),
     );
   });
 
-  it("lists the tagger's transcript track for deletion but deletes nothing itself", async () => {
-    const deps = fakeDeps();
-    const decided = await decideSocialPostTopic({
-      admin: fakeAdmin().admin,
-      client: fakeClient().client,
-      post: post({ media: [videoItem()] }),
-      now: NOW,
-      mediaDeps: deps,
-    });
-
-    expect(decided?.cleanup).toEqual([{ assetId: ASSET_ID, trackId: "textTrack001" }]);
-    expect(deps.deleteTrack).not.toHaveBeenCalled();
-  });
-
-  it("re-tags an edited video post without a new transcript", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK]));
+  it("never reads a Mux asset the author did not upload", async () => {
     const model = fakeClient();
+    const deps = fakeDeps();
+    deps.retrieveAsset.mockResolvedValue(readyAsset(STRANGER));
+    deps.fetchFrame.mockResolvedValue(FRAME);
 
-    const decided = await decideSocialPostTopic({
+    await decideSocialPostTopic({
       admin: fakeAdmin().admin,
       client: model.client,
-      post: post({ media: [videoItem()], edited_at: "2026-10-03T11:59:00+00:00" }),
-      now: NOW,
-      mediaDeps: deps,
-    });
-
-    expect(decided).not.toBeNull();
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(model.create).toHaveBeenCalledTimes(1);
-  });
-
-  it("still waits for a transcript it already started, even when it may not start one", async () => {
-    for (const overrides of [
-      { edited_at: "2026-10-03T11:59:00+00:00" },
-      { created_at: new Date(NOW.getTime() - 6.5 * 24 * 60 * 60 * 1000).toISOString() },
-    ]) {
-      const deps = fakeDeps();
-      deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK, { ...TEXT_TRACK, status: "preparing" }]));
-      const model = fakeClient();
-
-      expect(
-        await decideSocialPostTopic({
-          admin: fakeAdmin().admin,
-          client: model.client,
-          post: post({ media: [videoItem()], ...overrides }),
-          now: NOW,
-          mediaDeps: deps,
-        }),
-      ).toBeNull();
-      expect(deps.requestSubtitles).not.toHaveBeenCalled();
-      expect(model.create).not.toHaveBeenCalled();
-    }
-  });
-
-  it("the eval neither starts nor waits for a transcript", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK, { ...TEXT_TRACK, status: "preparing" }]));
-    const decided = await decideSocialPostTopic({
-      admin: fakeAdmin().admin,
-      client: fakeClient().client,
       post: post({ media: [videoItem()] }),
       now: NOW,
       mediaDeps: deps,
-      requestSubtitles: false,
     });
-    expect(decided).not.toBeNull();
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
+    expect(model.request().messages[0]!.content).toEqual(
+      buildSocialTopicContent({ caption: post().body, crafts: [], images: [] }),
+    );
   });
 
-  it("asks for no new transcript in the last day of the window", async () => {
+  it("stops waiting for a preparing video an hour after the post, and classifies without it", async () => {
     const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK]));
-    const sixAndAHalfDays = new Date(NOW.getTime() - 6.5 * 24 * 60 * 60 * 1000).toISOString();
+    deps.retrieveAsset.mockResolvedValue(PREPARING);
+    deps.fetchFrame.mockResolvedValue(FRAME);
+    const args = { admin: fakeAdmin().admin, now: NOW, mediaDeps: deps };
 
+    const almost = fakeClient();
+    const justUnderAnHour = new Date(NOW.getTime() - SOCIAL_TOPIC_MEDIA_WAIT_MS + 1000).toISOString();
+    expect(
+      await decideSocialPostTopic({
+        ...args,
+        client: almost.client,
+        post: post({ media: [videoItem()], created_at: justUnderAnHour }),
+      }),
+    ).toBeNull();
+    expect(almost.create).not.toHaveBeenCalled();
+
+    const waited = fakeClient();
+    const anHour = new Date(NOW.getTime() - SOCIAL_TOPIC_MEDIA_WAIT_MS).toISOString();
     const decided = await decideSocialPostTopic({
-      admin: fakeAdmin().admin,
-      client: fakeClient().client,
-      post: post({ media: [videoItem()], created_at: sixAndAHalfDays }),
-      now: NOW,
-      mediaDeps: deps,
+      ...args,
+      client: waited.client,
+      post: post({ media: [videoItem()], created_at: anHour }),
     });
-
-    expect(decided).not.toBeNull();
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-  });
-
-  it("requests a transcript for a ready video by default, and not when told not to", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK]));
-    const args = { admin: fakeAdmin().admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps };
-
-    const live = fakeClient();
-    expect(await decideSocialPostTopic({ ...args, client: live.client })).toBeNull();
-    expect(deps.requestSubtitles).toHaveBeenCalledWith(ASSET_ID, AUDIO_TRACK.id);
-    expect(live.create).not.toHaveBeenCalled();
-
-    deps.requestSubtitles.mockClear();
-    const evalRun = fakeClient();
-    expect(await decideSocialPostTopic({ ...args, client: evalRun.client, requestSubtitles: false })).not.toBeNull();
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(evalRun.create).toHaveBeenCalledTimes(1);
+    expect(decided?.write.category).toBe("Cinematography");
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
+    expect(waited.request().messages[0]!.content).toEqual(
+      buildSocialTopicContent({ caption: post().body, crafts: [], images: [] }),
+    );
   });
 
   it("returns the model's answer beside the write and honours a custom threshold", async () => {
     const args = { admin: fakeAdmin().admin, post: post(), now: NOW, mediaDeps: fakeDeps() };
 
     const strict = await decideSocialPostTopic({ ...args, client: fakeClient(answer("Producers", 0.6)).client });
-    expect(strict).toEqual({ write: NO_TOPIC, result: { topic: "Producers", confidence: 0.6 }, cleanup: [] });
+    expect(strict).toEqual({ write: NO_TOPIC, result: { topic: "Producers", confidence: 0.6 } });
 
     const loose = await decideSocialPostTopic({
       ...args,
@@ -657,64 +578,56 @@ describe("tagSocialPostTopic", () => {
     expect(db.ops.posts).toBeUndefined();
   });
 
-  it("deletes the tagger's caption track before stamping the post", async () => {
+  it("leaves the post untouched on a Mux error worth retrying, and tags past a deleted video", async () => {
+    for (const error of [new SocialMuxRequestError("Mux request failed (503)", 503), new Error("fetch failed")]) {
+      const db = fakeAdmin();
+      const model = fakeClient();
+      const deps = fakeDeps();
+      deps.retrieveAsset.mockRejectedValue(error);
+
+      await expect(
+        tagSocialPostTopic({
+          admin: db.admin,
+          client: model.client,
+          post: post({ media: [videoItem()] }),
+          now: NOW,
+          mediaDeps: deps,
+        }),
+      ).rejects.toThrow(error.message);
+      expect(model.create).not.toHaveBeenCalled();
+      expect(db.ops.posts).toBeUndefined();
+    }
+
+    // A deleted asset will not come back: the post is classified without it.
     const db = fakeAdmin();
+    const model = fakeClient();
     const deps = fakeDeps();
+    deps.retrieveAsset.mockRejectedValue(new SocialMuxRequestError("Mux request failed (404)", 404));
 
     const outcome = await tagSocialPostTopic({
       admin: db.admin,
-      client: fakeClient().client,
+      client: model.client,
       post: post({ media: [videoItem()] }),
       now: NOW,
       mediaDeps: deps,
     });
 
     expect(outcome).toBe("tagged");
-    expect(deps.deleteTrack.mock.calls).toEqual([[ASSET_ID, "textTrack001"]]);
-    const write = db.from.mock.calls.findIndex(([table]) => table === "posts");
-    expect(deps.deleteTrack.mock.invocationCallOrder[0]).toBeLessThan(db.from.mock.invocationCallOrder[write]!);
-  });
-
-  it("leaves the post unstamped when the caption track cannot be deleted", async () => {
-    const db = fakeAdmin();
-    const deps = fakeDeps();
-    deps.deleteTrack.mockRejectedValue(new Error("Mux track delete failed (503)"));
-
-    await expect(
-      tagSocialPostTopic({
-        admin: db.admin,
-        client: fakeClient().client,
-        post: post({ media: [videoItem()] }),
-        now: NOW,
-        mediaDeps: deps,
-      }),
-    ).rejects.toThrow("Mux track delete failed (503)");
-    expect(db.ops.posts).toBeUndefined();
-  });
-
-  it("stamps the post anyway when Mux will not delete the track, and logs it", async () => {
-    const db = fakeAdmin();
-    const deps = fakeDeps();
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    deps.deleteTrack.mockRejectedValue(new SocialMuxRequestError("Mux track delete failed (422)", 422));
-
-    const outcome = await tagSocialPostTopic({
-      admin: db.admin,
-      client: fakeClient().client,
-      post: post({ media: [videoItem()] }),
-      now: NOW,
-      mediaDeps: deps,
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
+    expect(model.request().messages[0]!.content).toEqual(
+      buildSocialTopicContent({ caption: post().body, crafts: [], images: [] }),
+    );
+    expectGuardedWrite(db.ops.posts, {
+      category: "Cinematography",
+      category_source: "ai",
+      category_confidence: 0.92,
+      category_logic_version: SOCIAL_TOPIC_LOGIC_VERSION,
+      category_tagged_at: STAMP,
     });
-
-    expect(outcome).toBe("tagged");
-    expect(db.ops.posts?.[0]?.[0]).toBe("update");
-    expect(logged).toHaveBeenCalledWith(expect.stringContaining('"msg":"social topic track not deleted"'));
-    logged.mockRestore();
   });
 
-  it("deletes and writes nothing once the run has given up on the post", async () => {
+  it("writes nothing once the run has given up on the post", async () => {
     const db = fakeAdmin();
-    const deps = fakeDeps();
     const stop = new AbortController();
     const model = fakeClient();
     model.create.mockImplementation(async () => {
@@ -728,33 +641,34 @@ describe("tagSocialPostTopic", () => {
         client: model.client,
         post: post({ media: [videoItem()] }),
         now: NOW,
-        mediaDeps: deps,
+        mediaDeps: fakeDeps(),
         signal: stop.signal,
       }),
     ).rejects.toThrow("post timed out");
     expect(model.create.mock.lastCall?.[1]).toMatchObject({ signal: stop.signal });
-    expect(deps.deleteTrack).not.toHaveBeenCalled();
     expect(db.ops.posts).toBeUndefined();
 
-    // A post with no track to delete stops before the write too.
-    const plain = fakeAdmin();
+    // Given up while the media was read: no model call either.
+    const unread = fakeAdmin();
     const late = new AbortController();
-    const textOnly = fakeClient();
-    textOnly.create.mockImplementation(async () => {
+    const deps = fakeDeps();
+    deps.readImage.mockImplementation(async () => {
       late.abort(new Error("post timed out after 90000 ms"));
-      return answer("Cinematography", 0.92);
+      return null;
     });
+    const idle = fakeClient();
     await expect(
       tagSocialPostTopic({
-        admin: plain.admin,
-        client: textOnly.client,
-        post: post(),
+        admin: unread.admin,
+        client: idle.client,
+        post: post({ media: [imageItem(OWN_IMAGE_KEY)] }),
         now: NOW,
-        mediaDeps: fakeDeps(),
+        mediaDeps: deps,
         signal: late.signal,
       }),
     ).rejects.toThrow("post timed out");
-    expect(plain.ops.posts).toBeUndefined();
+    expect(idle.create).not.toHaveBeenCalled();
+    expect(unread.ops.posts).toBeUndefined();
   });
 
   it("writes an edited post only while it still has the caption it read", async () => {
@@ -799,76 +713,5 @@ describe("tagSocialPostTopic", () => {
         mediaDeps: fakeDeps(),
       }),
     ).rejects.toThrow("Topic write failed: permission denied");
-  });
-});
-
-describe("cleanupSocialPostTopicTracks", () => {
-  it("deletes the tagger's finished tracks on a removed post, then stamps it, with no model call", async () => {
-    const db = fakeAdmin();
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK, { ...TEXT_TRACK, status: "errored" }]));
-
-    const result = await cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps });
-
-    expect(result).toEqual({ deleted: 1, pending: false });
-    expect(deps.deleteTrack.mock.calls).toEqual([[ASSET_ID, "textTrack001"]]);
-    // Stamped so later runs move on, and never an active post.
-    expect(db.ops.posts).toEqual([
-      ["update", { category_tagged_at: STAMP }],
-      ["eq", "id", POST_ID],
-      ["is", "category_tagged_at", null],
-      ["neq", "status", "active"],
-    ]);
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
-  });
-
-  it("leaves a track still being made for a later run, unstamped", async () => {
-    const db = fakeAdmin();
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK, { ...TEXT_TRACK, status: "preparing" }]));
-
-    expect(await cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps })).toEqual({
-      deleted: 0,
-      pending: true,
-    });
-    expect(deps.deleteTrack).not.toHaveBeenCalled();
-    expect(db.ops.posts).toBeUndefined();
-  });
-
-  it("never touches another author's asset or captions it did not make", async () => {
-    const db = fakeAdmin();
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK, TEXT_TRACK], STRANGER));
-    expect(await cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps })).toEqual({
-      deleted: 0,
-      pending: false,
-    });
-
-    deps.retrieveAsset.mockResolvedValue(readyAsset([AUDIO_TRACK, { ...TEXT_TRACK, name: "English (generated)" }]));
-    expect(await cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps })).toEqual({
-      deleted: 0,
-      pending: false,
-    });
-    expect(deps.deleteTrack).not.toHaveBeenCalled();
-  });
-
-  it("throws on a delete worth retrying, and logs one Mux refuses", async () => {
-    const db = fakeAdmin();
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset());
-    deps.deleteTrack.mockRejectedValueOnce(new SocialMuxRequestError("Mux track delete failed (503)", 503));
-    await expect(
-      cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps }),
-    ).rejects.toThrow("(503)");
-
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    deps.deleteTrack.mockRejectedValueOnce(new SocialMuxRequestError("Mux track delete failed (422)", 422));
-    expect(await cleanupSocialPostTopicTracks({ admin: db.admin, post: post({ media: [videoItem()] }), now: NOW, mediaDeps: deps })).toEqual({
-      deleted: 0,
-      pending: false,
-    });
-    expect(logged).toHaveBeenCalledWith(expect.stringContaining("social topic track not deleted"));
-    logged.mockRestore();
   });
 });

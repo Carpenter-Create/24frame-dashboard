@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/social-topic-run", () => ({ runSocialTopicBatch: vi.fn(), runSocialTopicDrain: vi.fn() }));
+vi.mock("@/lib/social-topic-run", () => ({ runSocialTopicBatch: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({ admin: true })) }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runSocialTopicBatch, runSocialTopicDrain } from "@/lib/social-topic-run";
+import { runSocialTopicBatch } from "@/lib/social-topic-run";
 
 import { handler, SOCIAL_TOPIC_S3_REQUEST_HANDLER } from "../../workers/social-topic/handler";
 
@@ -32,17 +32,11 @@ const SUMMARY = {
   raced: 0,
   error: 0,
   deferred: 0,
-  strayChecked: 0,
-  strayTracksDeleted: 0,
-  strayErrors: 0,
 };
-
-const DRAINED = { checked: 3, tracksDeleted: 1, pending: 0, errors: 0, complete: true };
 
 beforeEach(() => {
   for (const [name, value] of Object.entries(ENV)) vi.stubEnv(name, value);
   vi.mocked(runSocialTopicBatch).mockReset().mockResolvedValue(SUMMARY);
-  vi.mocked(runSocialTopicDrain).mockReset().mockResolvedValue(DRAINED);
   vi.mocked(createAdminClient).mockClear();
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
@@ -58,35 +52,6 @@ describe("social topic Lambda handler", () => {
     expect(await handler()).toEqual({ skipped: "disabled" });
     expect(createAdminClient).not.toHaveBeenCalled();
     expect(runSocialTopicBatch).not.toHaveBeenCalled();
-    expect(runSocialTopicDrain).not.toHaveBeenCalled();
-  });
-
-  it("drains with only the database and Mux: no Claude, no S3, no tagging", async () => {
-    vi.stubEnv("SOCIAL_TOPIC_TAGGING", "drain");
-    for (const name of ["CLAUDE_AWS_REGION", "CLAUDE_AWS_WORKSPACE_ID", "MEDIA_AWS_REGION", "S3_MEDIA_SOURCE_BUCKET"]) {
-      vi.stubEnv(name, "");
-    }
-    expect(await handler()).toEqual({ mode: "drain", ...DRAINED });
-    expect(vi.mocked(runSocialTopicDrain).mock.calls[0]?.[0]).toMatchObject({ budgetMs: 180_000, admin: { admin: true } });
-    expect(runSocialTopicBatch).not.toHaveBeenCalled();
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('"msg":"social topic drain done"'));
-  });
-
-  it("names the drain's missing settings", async () => {
-    vi.stubEnv("SOCIAL_TOPIC_TAGGING", "drain");
-    vi.stubEnv("MUX_TOKEN_SECRET", "");
-    await expect(handler()).rejects.toThrow("Missing env: MUX_TOKEN_SECRET");
-    expect(runSocialTopicDrain).not.toHaveBeenCalled();
-  });
-
-  it("fails a drain run only when every check failed", async () => {
-    vi.stubEnv("SOCIAL_TOPIC_TAGGING", "drain");
-    vi.mocked(runSocialTopicDrain).mockResolvedValue({ ...DRAINED, checked: 2, errors: 2 });
-    await expect(handler()).rejects.toThrow("caption-track drain failed (2)");
-    vi.mocked(runSocialTopicDrain).mockResolvedValue({ ...DRAINED, checked: 3, errors: 1 });
-    await expect(handler()).resolves.toMatchObject({ mode: "drain", errors: 1 });
-    vi.mocked(runSocialTopicDrain).mockResolvedValue({ ...DRAINED, checked: 0, errors: 0 });
-    await expect(handler()).resolves.toMatchObject({ mode: "drain", checked: 0 });
   });
 
   it("fails fast, naming each missing setting", async () => {
@@ -133,17 +98,6 @@ describe("social topic Lambda handler", () => {
       ...SUMMARY, selected: 0, tagged: 0, declined: 0, wait: 0, raced: 0, error: 0, deferred: 0,
     });
     await expect(handler()).resolves.toMatchObject({ selected: 0 });
-  });
-
-  it("fails the invocation when stray caption-track cleanup fails entirely", async () => {
-    // The stray select failed: nothing checked, one error.
-    vi.mocked(runSocialTopicBatch).mockResolvedValue({ ...SUMMARY, strayChecked: 0, strayErrors: 1 });
-    await expect(handler()).rejects.toThrow("stray caption-track cleanup failed (1)");
-    vi.mocked(runSocialTopicBatch).mockResolvedValue({ ...SUMMARY, strayChecked: 2, strayErrors: 2 });
-    await expect(handler()).rejects.toThrow("stray caption-track cleanup failed (2)");
-    // Some checks worked: the run succeeds and logs the failures.
-    vi.mocked(runSocialTopicBatch).mockResolvedValue({ ...SUMMARY, strayChecked: 3, strayErrors: 1 });
-    await expect(handler()).resolves.toMatchObject({ strayErrors: 1 });
   });
 
   it("makes S3 timeouts throw instead of only warning", () => {

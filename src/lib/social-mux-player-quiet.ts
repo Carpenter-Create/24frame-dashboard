@@ -89,14 +89,6 @@ export function mountQuietMuxPlayer(
   const player = create();
   player.className = QUIET_MUX_PLAYER_CLASS;
   player.setAttribute("playsinline", "");
-  // No captions on Social (founder decision 2026-10-03). Mux Player turns a
-  // subtitles track on by default; this keeps any track hidden, including
-  // the topic tagger's before it is deleted. The captions button is hidden
-  // in applyQuietMuxPlayerStyle, after append.
-  player.setAttribute("default-hidden-captions", "");
-  // "noc" turns off the "c" captions hotkey, so a focused player cannot
-  // turn a track on either.
-  player.setAttribute("hotkeys", "noc");
   host.appendChild(player);
   assignConnectedMuxPlayer(player, props);
   return player;
@@ -174,8 +166,4 @@ function applyQuietMuxPlayerStyle(player: QuietMuxPlayerElement, style: QuietMux
     if (!(QUIET_MUX_PLAYER_STYLE_VALUES[name] as readonly string[]).includes(value)) continue;
     player.style.setProperty(cssPropertyName(name), value);
   }
-  // Every Social player, with or without the player bar (the feed card keeps
-  // it), hides the captions button. Mux Player shows that button whenever
-  // the stream lists a subtitles track, such as the topic tagger's.
-  player.style.setProperty("--captions-button", "none");
 }

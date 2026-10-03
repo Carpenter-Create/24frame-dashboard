@@ -2,12 +2,7 @@ import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SocialMediaItem } from "@/lib/social-media";
-import {
-  SOCIAL_MUX_TOPIC_TRACK_NAME,
-  SocialMuxRequestError,
-  type MuxAssetData,
-  type SocialMuxTrack,
-} from "@/lib/social-mux-server";
+import { SocialMuxRequestError, type MuxAssetData } from "@/lib/social-mux-server";
 import { SOCIAL_TOPIC_MAX_IMAGES } from "@/lib/social-topic-tagging";
 
 import {
@@ -25,15 +20,7 @@ const WAITED_OUT = new Date(NOW.getTime() - SOCIAL_TOPIC_MEDIA_WAIT_MS).toISOStr
 const AUTHOR = "11111111-1111-4111-8111-111111111111";
 const PLAYBACK_ID = "playbackId0001";
 const ASSET_ID = "assetId00000001";
-const VIDEO_TRACK: SocialMuxTrack = { id: "videoTrack01", type: "video", status: "ready" };
-const AUDIO_TRACK: SocialMuxTrack = { id: "audioTrack01", type: "audio", status: "ready", primary: true };
-const TRANSCRIPT = "We lit the whole scene with one practical lamp.";
-const NOTHING = { status: "ready", images: [], transcript: null, cleanup: [] };
-const OUR_TRACK = { assetId: ASSET_ID, trackId: "textTrack001" };
-
-function generatedText(status: string, name = SOCIAL_MUX_TOPIC_TRACK_NAME): SocialMuxTrack {
-  return { id: "textTrack001", type: "text", text_source: "generated_vod", status, name };
-}
+const NOTHING = { status: "ready", images: [] };
 
 function readyAsset(overrides: Partial<MuxAssetData> = {}): MuxAssetData {
   return {
@@ -42,7 +29,6 @@ function readyAsset(overrides: Partial<MuxAssetData> = {}): MuxAssetData {
     duration: 20,
     passthrough: `${AUTHOR}:22222222-2222-4222-8222-222222222222`,
     playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }],
-    tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("ready")],
     ...overrides,
   };
 }
@@ -74,19 +60,12 @@ function fakeDeps() {
   return {
     readImage: vi.fn<SocialTopicMediaDeps["readImage"]>(async () => null),
     retrieveAsset: vi.fn<SocialTopicMediaDeps["retrieveAsset"]>(async () => readyAsset()),
-    requestSubtitles: vi.fn<SocialTopicMediaDeps["requestSubtitles"]>(async () => {}),
-    fetchTranscript: vi.fn<SocialTopicMediaDeps["fetchTranscript"]>(async () => TRANSCRIPT),
     fetchFrame: vi.fn<SocialTopicMediaDeps["fetchFrame"]>(async (_playbackId, { time }) => frameBytes(time)),
-    deleteTrack: vi.fn<SocialTopicMediaDeps["deleteTrack"]>(async () => {}),
   };
 }
 
-function gather(
-  items: SocialMediaItem[],
-  deps: SocialTopicMediaDeps,
-  { createdAt = YOUNG, requestSubtitles = true }: { createdAt?: string; requestSubtitles?: boolean } = {},
-) {
-  return gatherSocialTopicMedia({ items, authorId: AUTHOR, createdAt, now: NOW, requestSubtitles }, deps);
+function gather(items: SocialMediaItem[], deps: SocialTopicMediaDeps, { createdAt = YOUNG }: { createdAt?: string } = {}) {
+  return gatherSocialTopicMedia({ items, authorId: AUTHOR, createdAt, now: NOW }, deps);
 }
 
 function frameTimes(deps: ReturnType<typeof fakeDeps>): number[] {
@@ -177,8 +156,6 @@ describe("gatherSocialTopicMedia: images", () => {
         { label: "Image 1", mediaType: "image/jpeg", data: expect.any(String) },
         { label: "Image 2", mediaType: "image/jpeg", data: expect.any(String) },
       ],
-      transcript: null,
-      cleanup: [],
     });
     if (media.status !== "ready") throw new Error("expected ready");
     for (const image of media.images) {
@@ -201,7 +178,7 @@ describe("gatherSocialTopicMedia: images", () => {
     );
   });
 
-  it("fills the remaining slots with video frames and keeps the transcript", async () => {
+  it("fills the remaining slots with video frames", async () => {
     const deps = fakeDeps();
     deps.readImage.mockResolvedValue({ bytes: await solidPng(40, 20), contentType: "image/png" });
 
@@ -214,7 +191,6 @@ describe("gatherSocialTopicMedia: images", () => {
       "Video frame at 3s",
       "Video frame at 10s",
     ]);
-    expect(media.transcript).toBe(TRANSCRIPT);
   });
 
   it("waits for a preparing video even when the post has images", async () => {
@@ -223,11 +199,12 @@ describe("gatherSocialTopicMedia: images", () => {
     deps.retrieveAsset.mockResolvedValue(readyAsset({ status: "preparing" }));
 
     expect(await gather([imageItem(1), videoItem()], deps)).toEqual({ status: "wait" });
+    expect(deps.readImage).not.toHaveBeenCalled();
   });
 });
 
 describe("gatherSocialTopicMedia: Mux video", () => {
-  it("reads three frames and the generated transcript of a ready video", async () => {
+  it("reads three frames of a ready video", async () => {
     const deps = fakeDeps();
     deps.retrieveAsset.mockResolvedValue(readyAsset({ duration: 21.7 }));
 
@@ -236,17 +213,13 @@ describe("gatherSocialTopicMedia: Mux video", () => {
     expect(media).toEqual({
       status: "ready",
       images: [videoFrame(3), videoFrame(10), videoFrame(18)],
-      transcript: TRANSCRIPT,
-      cleanup: [OUR_TRACK],
     });
     expect(deps.retrieveAsset).toHaveBeenCalledWith(ASSET_ID);
-    expect(deps.fetchTranscript).toHaveBeenCalledWith(PLAYBACK_ID, "textTrack001");
     expect(deps.fetchFrame.mock.calls).toEqual([
       [PLAYBACK_ID, { time: 3, width: 768 }],
       [PLAYBACK_ID, { time: 10, width: 768 }],
       [PLAYBACK_ID, { time: 18, width: 768 }],
     ]);
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -264,27 +237,24 @@ describe("gatherSocialTopicMedia: Mux video", () => {
     expect(media).toMatchObject({ status: "ready", images: times.map(videoFrame) });
   });
 
-  it("skips a frame or transcript Mux says is gone, still deleting the track", async () => {
+  it("skips a frame Mux says is gone", async () => {
     const deps = fakeDeps();
     deps.fetchFrame.mockImplementation(async (_playbackId, { time }) => (time === 10 ? null : frameBytes(time)));
-    deps.fetchTranscript.mockResolvedValue(null);
 
     expect(await gather([videoItem()], deps)).toEqual({
       status: "ready",
       images: [videoFrame(3), videoFrame(17)],
-      transcript: null,
-      cleanup: [OUR_TRACK],
     });
   });
 
-  it("throws on a frame or transcript read error, so the post is retried", async () => {
+  it("throws on a frame read error at any age, so the post is retried", async () => {
     const deps = fakeDeps();
     deps.fetchFrame.mockRejectedValueOnce(new Error("Mux image request failed (503)"));
     await expect(gather([videoItem()], deps)).rejects.toThrow("Mux image request failed (503)");
 
-    deps.fetchTranscript.mockRejectedValueOnce(new Error("Mux transcript request failed (502)"));
+    deps.fetchFrame.mockRejectedValueOnce(new Error("Mux image request failed (502)"));
     await expect(gather([videoItem()], deps, { createdAt: WAITED_OUT })).rejects.toThrow(
-      "Mux transcript request failed (502)",
+      "Mux image request failed (502)",
     );
   });
 
@@ -310,7 +280,6 @@ describe("gatherSocialTopicMedia: Mux video", () => {
 
     expect(await gather([videoItem()], deps)).toEqual(NOTHING);
     expect(deps.fetchFrame).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
   });
 
   it("rethrows a failed asset lookup at any age, and drops a deleted asset", async () => {
@@ -336,14 +305,12 @@ describe("gatherSocialTopicMedia: Mux video", () => {
     { name: "an upload with no owner", asset: { passthrough: null } },
     { name: "an asset this playback id does not play", asset: { playback_ids: [{ id: "otherPlayback1", policy: "signed" }] } },
     { name: "an asset with no playback ids", asset: { playback_ids: undefined } },
-  ])("reads nothing from $name and never asks Mux to transcribe it", async ({ asset }) => {
+  ])("reads nothing from $name", async ({ asset }) => {
     const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset({ ...asset, tracks: [VIDEO_TRACK, AUDIO_TRACK] }));
+    deps.retrieveAsset.mockResolvedValue(readyAsset(asset));
 
     expect(await gather([videoItem()], deps)).toEqual(NOTHING);
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
     expect(deps.fetchFrame).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
   });
 
   it("makes no Mux calls for a video without an asset id", async () => {
@@ -359,166 +326,6 @@ describe("gatherSocialTopicMedia: Mux video", () => {
     expect(await gather([noAsset], deps)).toEqual(NOTHING);
     expect(deps.retrieveAsset).not.toHaveBeenCalled();
     expect(deps.fetchFrame).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-  });
-});
-
-describe("gatherSocialTopicMedia: transcripts", () => {
-  const noText = readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK] });
-  const framesOnly = { status: "ready", images: [3, 10, 17].map(videoFrame), transcript: null, cleanup: [] };
-
-  it("requests a transcript once from the primary audio track, then waits", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(
-      readyAsset({
-        tracks: [VIDEO_TRACK, { id: "audioTrack02", type: "audio", status: "ready" }, AUDIO_TRACK],
-      }),
-    );
-
-    expect(await gather([videoItem()], deps)).toEqual({ status: "wait" });
-    expect(deps.requestSubtitles).toHaveBeenCalledTimes(1);
-    expect(deps.requestSubtitles).toHaveBeenCalledWith(ASSET_ID, "audioTrack01");
-    expect(deps.fetchFrame).not.toHaveBeenCalled();
-  });
-
-  it("falls back to the first ready audio track when the primary one is not ready", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(
-      readyAsset({
-        tracks: [
-          { id: "audioTrack01", type: "audio", status: "preparing", primary: true },
-          { id: "audioTrack02", type: "audio", status: "ready" },
-        ],
-      }),
-    );
-
-    expect(await gather([videoItem()], deps)).toEqual({ status: "wait" });
-    expect(deps.requestSubtitles).toHaveBeenCalledWith(ASSET_ID, "audioTrack02");
-  });
-
-  it("treats a deleted generated track as no transcript and requests a new one", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(
-      readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("deleted")] }),
-    );
-
-    expect(await gather([videoItem()], deps)).toEqual({ status: "wait" });
-    expect(deps.requestSubtitles).toHaveBeenCalledWith(ASSET_ID, "audioTrack01");
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
-  });
-
-  it("never starts a transcription when requestSubtitles is false", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(noText);
-
-    const media = await gather([videoItem()], deps, { requestSubtitles: false });
-
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(media).toEqual(framesOnly);
-  });
-
-  // A post first seen late (the switch-on backlog, an outage) still gets
-  // its transcript; the 7-day selection window bounds the wait.
-  it("requests a transcription for an older post too", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(noText);
-
-    expect(await gather([videoItem()], deps, { createdAt: WAITED_OUT })).toEqual({ status: "wait" });
-    expect(deps.requestSubtitles).toHaveBeenCalledWith(ASSET_ID, "audioTrack01");
-  });
-
-  it("classifies from frames when Mux refuses the transcription request", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(noText);
-    deps.requestSubtitles.mockRejectedValue(muxError(400));
-
-    const media = await gather([videoItem()], deps);
-
-    expect(deps.requestSubtitles).toHaveBeenCalledTimes(1);
-    // The asset is read again before falling back, to find a queued track.
-    expect(deps.retrieveAsset).toHaveBeenCalledTimes(2);
-    expect(media).toEqual(framesOnly);
-  });
-
-  it("waits for a track Mux already queued when it refuses the request", async () => {
-    const deps = fakeDeps();
-    // Another run's request: the track appears after this run's first read.
-    deps.retrieveAsset
-      .mockResolvedValueOnce(noText)
-      .mockResolvedValueOnce(readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("preparing")] }));
-    deps.requestSubtitles.mockRejectedValue(muxError(400));
-
-    expect(await gather([videoItem()], deps)).toEqual({ status: "wait" });
-    expect(deps.fetchFrame).not.toHaveBeenCalled();
-  });
-
-  it("classifies from frames when the asset is gone on the second read, and retries other errors", async () => {
-    const deps = fakeDeps();
-    deps.requestSubtitles.mockRejectedValue(muxError(400));
-
-    deps.retrieveAsset.mockResolvedValueOnce(noText).mockRejectedValueOnce(muxError(404));
-    expect(await gather([videoItem()], deps)).toEqual(framesOnly);
-
-    deps.retrieveAsset.mockResolvedValueOnce(noText).mockRejectedValueOnce(muxError(503));
-    await expect(gather([videoItem()], deps)).rejects.toThrow("(503)");
-  });
-
-  it("throws when the transcription request fails for a reason worth retrying", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(noText);
-    deps.requestSubtitles.mockRejectedValueOnce(muxError(503));
-    await expect(gather([videoItem()], deps)).rejects.toThrow("(503)");
-    deps.requestSubtitles.mockRejectedValueOnce(new Error("The operation was aborted due to timeout"));
-    await expect(gather([videoItem()], deps)).rejects.toThrow("timeout");
-    expect(deps.fetchFrame).not.toHaveBeenCalled();
-  });
-
-  it("deletes only the tagger's own track, ready or errored", async () => {
-    const deps = fakeDeps();
-
-    deps.retrieveAsset.mockResolvedValue(readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("errored")] }));
-    expect(await gather([videoItem()], deps)).toEqual({ ...framesOnly, cleanup: [OUR_TRACK] });
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
-
-    // Captions someone else added stay; their text is still read.
-    deps.retrieveAsset.mockResolvedValue(
-      readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("ready", "English (generated)")] }),
-    );
-    expect(await gather([videoItem()], deps)).toMatchObject({ transcript: TRANSCRIPT, cleanup: [] });
-    deps.retrieveAsset.mockResolvedValue(
-      readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("ready"), name: undefined }] }),
-    );
-    expect(await gather([videoItem()], deps)).toMatchObject({ transcript: TRANSCRIPT, cleanup: [] });
-    expect(deps.deleteTrack).not.toHaveBeenCalled();
-  });
-
-  it("classifies from frames when the video has no ready audio track", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset({ tracks: [VIDEO_TRACK] }));
-
-    const media = await gather([videoItem()], deps);
-
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(media).toEqual(framesOnly);
-  });
-
-  it("waits for a preparing transcript at any age, unless it may not request one", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(
-      readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("preparing")] }),
-    );
-
-    expect(await gather([videoItem()], deps)).toEqual({ status: "wait" });
-    expect(await gather([videoItem()], deps, { createdAt: WAITED_OUT })).toEqual({ status: "wait" });
-    expect(deps.fetchFrame).not.toHaveBeenCalled();
-
-    // The eval script reads the video as it is now.
-    const media = await gather([videoItem()], deps, { requestSubtitles: false });
-    expect(media).toEqual(framesOnly);
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
   });
 });
 
@@ -537,90 +344,31 @@ describe("gatherSocialTopicMedia: posts with more than one video", () => {
         : readyAsset({ id: ASSET_B, playback_ids: [{ id: PLAYBACK_B, policy: "signed" }], ...b });
   }
 
-  it("waits for every video before reading or requesting any transcript", async () => {
+  it("waits for every video before reading any frame", async () => {
     const deps = fakeDeps();
     deps.retrieveAsset.mockImplementation(assets({}, { status: "preparing" }));
 
     expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
-    expect(deps.fetchTranscript).not.toHaveBeenCalled();
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+    expect(deps.retrieveAsset.mock.calls).toEqual([[ASSET_ID], [ASSET_B]]);
     expect(deps.fetchFrame).not.toHaveBeenCalled();
   });
 
-  it("transcribes only the first video, and deletes its track", async () => {
+  it(`takes frames from each video in post order, up to ${SOCIAL_TOPIC_MAX_IMAGES} images`, async () => {
     const deps = fakeDeps();
-    deps.retrieveAsset.mockImplementation(assets({}, { tracks: [VIDEO_TRACK, AUDIO_TRACK] }));
+    deps.retrieveAsset.mockImplementation(assets({}, { duration: 40 }));
 
     const media = await gather([videoItem(), secondVideo()], deps);
 
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-    expect(deps.fetchTranscript.mock.calls).toEqual([[PLAYBACK_ID, "textTrack001"]]);
-    expect(media).toMatchObject({ status: "ready", transcript: TRANSCRIPT, cleanup: [OUR_TRACK] });
-  });
-
-  it("requests one transcript, for the first video, when none has one", async () => {
-    const deps = fakeDeps();
-    const noText = { tracks: [VIDEO_TRACK, AUDIO_TRACK] };
-    deps.retrieveAsset.mockImplementation(assets(noText, noText));
-
-    expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
-    expect(deps.requestSubtitles.mock.calls).toEqual([[ASSET_ID, "audioTrack01"]]);
-  });
-
-  it("takes the transcript from the first video that has audio", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockImplementation(assets({ tracks: [VIDEO_TRACK] }, { tracks: [VIDEO_TRACK, AUDIO_TRACK] }));
-
-    expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
-    expect(deps.requestSubtitles.mock.calls).toEqual([[ASSET_B, "audioTrack01"]]);
-  });
-
-  it("waits for a tagger track still being made on any video when told to wait", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockImplementation(
-      assets({}, { tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("preparing"), id: "textTrack002" }] }),
-    );
-    const call = (waitForPreparing: boolean) =>
-      gatherSocialTopicMedia(
-        {
-          items: [videoItem(), secondVideo()],
-          authorId: AUTHOR,
-          createdAt: YOUNG,
-          now: NOW,
-          requestSubtitles: false,
-          waitForPreparing,
-          signal: undefined,
-        },
-        deps,
-      );
-
-    expect(await call(true)).toEqual({ status: "wait" });
-    expect(await call(false)).toMatchObject({ status: "ready", transcript: TRANSCRIPT, cleanup: [OUR_TRACK] });
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
-  });
-
-  it("lists every tagger track for deletion, and never one still preparing", async () => {
-    const deps = fakeDeps();
-    deps.retrieveAsset.mockImplementation(
-      assets({}, { tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("errored"), id: "textTrack002" }] }),
-    );
-    expect(await gather([videoItem(), secondVideo()], deps)).toMatchObject({
-      cleanup: [OUR_TRACK, { assetId: ASSET_B, trackId: "textTrack002" }],
+    expect(media).toEqual({
+      status: "ready",
+      images: [videoFrame(3), videoFrame(10), videoFrame(17), videoFrame(6)],
     });
-
-    deps.retrieveAsset.mockImplementation(
-      assets(
-        { tracks: [VIDEO_TRACK, AUDIO_TRACK, generatedText("ready", "English (generated)")] },
-        { tracks: [VIDEO_TRACK, AUDIO_TRACK, { ...generatedText("preparing"), id: "textTrack002" }] },
-      ),
-    );
-    // The tagger's own track on the second video is still being made: wait,
-    // never stamp past it. Read as it is now (the eval), nothing is deleted.
-    expect(await gather([videoItem(), secondVideo()], deps)).toEqual({ status: "wait" });
-    expect(await gather([videoItem(), secondVideo()], deps, { requestSubtitles: false })).toMatchObject({
-      transcript: TRANSCRIPT,
-      cleanup: [],
-    });
+    expect(deps.fetchFrame.mock.calls.slice(0, 4).map(([playbackId, { time }]) => [playbackId, time])).toEqual([
+      [PLAYBACK_ID, 3],
+      [PLAYBACK_ID, 10],
+      [PLAYBACK_ID, 17],
+      [PLAYBACK_B, 6],
+    ]);
   });
 
   it("stops before its next Mux or S3 call once the run gives up on the post", async () => {
@@ -638,7 +386,6 @@ describe("gatherSocialTopicMedia: posts with more than one video", () => {
           authorId: AUTHOR,
           createdAt: YOUNG,
           now: NOW,
-          requestSubtitles: true,
           signal: stop.signal,
         },
         deps,
@@ -656,26 +403,26 @@ describe("gatherSocialTopicMedia: posts with more than one video", () => {
     });
     await expect(
       gatherSocialTopicMedia(
-        { items: [videoItem()], authorId: AUTHOR, createdAt: YOUNG, now: NOW, requestSubtitles: true, signal: late.signal },
+        { items: [videoItem()], authorId: AUTHOR, createdAt: YOUNG, now: NOW, signal: late.signal },
         frames,
       ),
     ).rejects.toThrow("post timed out");
     expect(frames.fetchFrame).toHaveBeenCalledTimes(1);
   });
 
-  it("asks for no transcript once the run has given up on the post", async () => {
+  it("reads no asset once the run has given up on the post", async () => {
     const deps = fakeDeps();
-    deps.retrieveAsset.mockResolvedValue(readyAsset({ tracks: [VIDEO_TRACK, AUDIO_TRACK] }));
     const stop = new AbortController();
     stop.abort(new Error("post timed out after 90000 ms"));
 
     await expect(
       gatherSocialTopicMedia(
-        { items: [videoItem()], authorId: AUTHOR, createdAt: YOUNG, now: NOW, requestSubtitles: true, signal: stop.signal },
+        { items: [videoItem()], authorId: AUTHOR, createdAt: YOUNG, now: NOW, signal: stop.signal },
         deps,
       ),
     ).rejects.toThrow("post timed out");
-    expect(deps.requestSubtitles).not.toHaveBeenCalled();
+    expect(deps.retrieveAsset).not.toHaveBeenCalled();
+    expect(deps.fetchFrame).not.toHaveBeenCalled();
   });
 });
 
