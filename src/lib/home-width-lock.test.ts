@@ -64,7 +64,7 @@ describe("Home width lock", () => {
     expect(homeArm).not.toContain("page-max-width");
     expect(homeArm).not.toContain("mx-auto");
     expect(homeArm).not.toContain("1080");
-    expect(shell.match(/<HouseScreenCache>/g)?.length).toBe(1);
+    expect(shell.match(/<HouseScreenOutlet>/g)?.length).toBe(1);
     expect(shell).toContain("data-home-chrome");
     expect(shell).toContain("overviewHidesRail");
     expect(shell).toContain('const homePage = pathname === "/" || homeChrome');

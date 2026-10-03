@@ -2,12 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
-  houseApplyCachedChild,
+  houseHop,
   houseHrefKey,
-  houseNavHop,
   houseScreenKey,
   houseScreenQueryNames,
-  houseShouldClientNavigate,
 } from "@/lib/house-client-shell";
 import { houseNavPendingSettled } from "@/lib/house-nav-pending";
 import { SOCIAL_ROUTES } from "@/lib/social";
@@ -111,7 +109,7 @@ describe("soft-nav pending selection", () => {
 });
 
 describe("soft-nav Explore query hops", () => {
-  it("keeps q, tag, person, and discover as separate slots from default For You", () => {
+  it("keeps q, tag, person, and discover as separate screens from default For You", () => {
     expect(houseScreenQueryNames(SOCIAL_ROUTES.explore)).toEqual(["q", "tag", "person", "discover"]);
     const base = houseScreenKey(SOCIAL_ROUTES.explore);
     const keyword = houseHrefKey("/social/explore?q=ada");
@@ -123,18 +121,10 @@ describe("soft-nav Explore query hops", () => {
     expect(person).toBe("/social/explore?person=ada");
     expect(discover).toBe("/social/explore?q=ada&discover=1");
     expect(new Set([base, keyword, tag, person, discover]).size).toBe(5);
-    expect(houseShouldClientNavigate(keyword, [base])).toBe(false);
-    expect(houseShouldClientNavigate(tag, [base, keyword])).toBe(false);
-    expect(houseShouldClientNavigate(person, [base])).toBe(false);
-    expect(houseShouldClientNavigate(discover, [keyword])).toBe(false);
-    expect(
-      houseNavHop({
-        cached: houseShouldClientNavigate(keyword, [base]),
-        ownedIsDest: false,
-        nextIsDest: false,
-        sameScreen: houseHrefKey(base) === keyword,
-      }),
-    ).toBe("next");
+    expect(houseHop(base, keyword)).toBe("next");
+    expect(houseHop(keyword, tag)).toBe("next");
+    expect(houseHop(base, person)).toBe("next");
+    expect(houseHop(keyword, discover)).toBe("next");
     expect(houseNavPendingSettled(base, keyword)).toBe(false);
     expect(houseNavPendingSettled(keyword, keyword)).toBe(true);
     const pending = readFileSync("src/components/chrome/use-house-nav-pending.ts", "utf8");
@@ -142,116 +132,31 @@ describe("soft-nav Explore query hops", () => {
     expect(pending).toContain("houseNavPendingSettled(location, pendingHref)");
   });
 
-  it("does not paint stale default For You under a tag filter or its clear", () => {
-    expect(houseScreenQueryNames(SOCIAL_ROUTES.explore)).toEqual(["q", "tag", "person", "discover"]);
+  // Next loads the filter and its clear. The shell keeps no For You copy
+  // to paint under either address.
+  it("loads a tag filter and its clear through Next", () => {
     const base = houseScreenKey(SOCIAL_ROUTES.explore);
     const tag = houseHrefKey("/social/explore?tag=night");
     const cleared = houseHrefKey(SOCIAL_ROUTES.explore);
     expect(cleared).toBe(base);
-    expect(tag).toBe("/social/explore?tag=night");
     expect(tag).not.toBe(base);
-    expect(houseShouldClientNavigate(tag, [base])).toBe(false);
-    expect(houseShouldClientNavigate(cleared, [tag])).toBe(false);
+    expect(houseHop("/social/explore", "/social/explore?tag=night")).toBe("next");
+    expect(houseHop("/social/explore?tag=night", "/social/explore")).toBe("next");
     expect(houseNavPendingSettled(base, tag)).toBe(false);
     expect(houseNavPendingSettled(tag, base)).toBe(false);
-    expect(
-      houseNavHop({
-        cached: houseShouldClientNavigate(tag, [base]),
-        ownedIsDest: false,
-        nextIsDest: false,
-        sameScreen: houseHrefKey(base) === tag,
-      }),
-    ).toBe("next");
-    expect(
-      houseNavHop({
-        cached: houseShouldClientNavigate(cleared, [tag]),
-        ownedIsDest: false,
-        nextIsDest: false,
-        sameScreen: tag === cleared,
-      }),
-    ).toBe("next");
-
-    const forYou = { screen: "for-you" };
-    const booted = houseApplyCachedChild({
-      seen: null,
-      nextKey: base,
-      activeKey: base,
-      nextPath: base,
-      child: forYou,
-      fallback: false,
-      nodes: {},
-      order: [],
-    });
-    const settled = houseApplyCachedChild({
-      seen: booted.seen,
-      nextKey: base,
-      activeKey: base,
-      nextPath: base,
-      child: forYou,
-      fallback: false,
-      nodes: booted.nodes,
-      order: booted.order,
-    });
-    const underTag = houseApplyCachedChild({
-      seen: settled.seen,
-      nextKey: tag,
-      activeKey: tag,
-      nextPath: base,
-      child: forYou,
-      fallback: false,
-      nodes: settled.nodes,
-      order: settled.order,
-    });
-    expect(underTag.childrenStale).toBe(true);
-    expect(underTag.nodes[tag]).toBeUndefined();
-    expect(underTag.nodes[base]).toBe(forYou);
-    expect(underTag.displayKey).not.toBe(tag);
-
-    const staleClear = houseApplyCachedChild({
-      seen: underTag.seen,
-      nextKey: cleared,
-      activeKey: cleared,
-      nextPath: base,
-      child: forYou,
-      fallback: false,
-      nodes: underTag.nodes,
-      order: underTag.order,
-    });
-    expect(staleClear.nodes[tag]).toBeUndefined();
-    expect(staleClear.displayKey).not.toBe(tag);
-
-    const freshForYou = { screen: "for-you" };
-    const clear = houseApplyCachedChild({
-      seen: underTag.seen,
-      nextKey: cleared,
-      activeKey: cleared,
-      nextPath: base,
-      child: freshForYou,
-      fallback: false,
-      nodes: underTag.nodes,
-      order: underTag.order,
-    });
-    expect(clear.childrenStale).toBe(false);
-    expect(clear.nodes[tag]).toBeUndefined();
-    expect(clear.nodes[cleared]).toBe(freshForYou);
-    expect(clear.displayKey).toBe(cleared);
-    expect(clear.displayKey).not.toBe(tag);
   });
 });
 
 describe("soft-nav cold hop", () => {
-  it("retries a blank outlet instead of a 100/200ms one-shot accept", () => {
+  it("paints Next's screen with no blank-outlet timers or refresh", () => {
     const provider = readFileSync("src/components/chrome/house-client-shell.tsx", "utf8");
-    const cache = provider.slice(provider.indexOf("export function HouseScreenCache"));
-    expect(cache).toContain("houseBlankOutlet");
-    expect(cache).toContain("HOUSE_BLANK_OUTLET_RETRY_MS");
-    expect(cache).toContain("window.setInterval(kick, HOUSE_BLANK_OUTLET_RETRY_MS)");
-    expect(cache).toContain("if (!houseBlankOutletRepeats(action)) return");
-    expect(cache).toContain("action === \"load\"");
-    expect(cache).toContain("acceptStale");
-    expect(cache).toContain("setSettledKey(activeKey)");
-    expect(cache).not.toContain("setTimeout");
-    expect(cache).not.toContain("setAcceptKey");
+    const outlet = provider.slice(provider.indexOf("export function HouseScreenOutlet"));
+    expect(outlet).toContain("{children}");
+    expect(outlet).not.toContain("setInterval");
+    expect(outlet).not.toContain("setTimeout");
+    expect(outlet).not.toContain("router.refresh");
+    expect(outlet).not.toContain("hidden=");
+    expect(provider).not.toContain("router.replace");
     expect(provider).toContain("houseSocialHomePanelHop");
     expect(provider).toContain("houseHomePeriodHop");
     expect(provider).toContain("router.push(href, { scroll: false })");

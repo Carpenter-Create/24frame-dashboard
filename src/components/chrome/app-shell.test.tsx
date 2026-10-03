@@ -298,7 +298,7 @@ describe("AppShell Home chrome", () => {
     expect(homeArm).toContain("HOUSE_HOME_RAIL_COLUMN_CLASS");
     expect(homeArm).toContain("HOUSE_CANVAS_X_CLASS");
     expect(shellSrc).toContain("data-app-home-frame");
-    expect(shellSrc.match(/<HouseScreenCache>/g)?.length).toBe(1);
+    expect(shellSrc.match(/<HouseScreenOutlet>/g)?.length).toBe(1);
 
     for (const path of ["/aggregation/dashboard", "/social", "/education"]) {
       navigation.pathname = path;

@@ -110,32 +110,30 @@ describe("house speed lock — no RSA on Social Home / Home critical path", () =
     expect(primitive).toContain("data-house-link");
   });
 
-  it("mounts the house client shell so dock taps keep screens alive", () => {
+  // Screen changes are Next navigations: a hidden copy of the layout's
+  // children renders Next's current route, not the screen it was kept for.
+  it("mounts the house client shell with one outlet for Next's screen", () => {
     const layout = readFileSync("src/app/(app)/layout.tsx", "utf8");
     const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
     const provider = readFileSync("src/components/chrome/house-client-shell.tsx", "utf8");
-    const loading = readFileSync("src/app/(app)/social/loading.tsx", "utf8");
     expect(layout).toContain("HousePathProvider");
-    expect(shell).toContain("HouseScreenCache");
-    expect(shell.match(/<HouseScreenCache>/g)?.length).toBe(1);
+    expect(shell).toContain("HouseScreenOutlet");
+    expect(shell.match(/<HouseScreenOutlet>/g)?.length).toBe(1);
     expect(shell).toContain("useHousePathname");
     expect(provider).toContain("history.pushState");
     expect(provider).toContain("houseClientHistoryState(window.history.state)");
     expect(provider).toContain("navigateOwned");
-    expect(provider).toContain("HOUSE_CLIENT_SHELL.rscFallbackAttr");
+    expect(provider).toContain("houseHop(href, dest)");
     expect(provider).toContain("houseReconcileOwnedHref");
-    expect(provider).toContain("houseApplyCachedChild");
-    expect(provider).toContain("houseBlankOutlet");
-    expect(provider).toContain("houseSyncPainted");
     expect(provider).toContain("houseRememberScroll");
     expect(provider).toContain("captureLeadScroll");
     expect(provider).toContain("captureLeadScroll(screenKey)");
     expect(provider).toContain("<Suspense");
     expect(provider).toContain("HousePathSearchBound");
     expect(provider).toContain("useSearchParams");
-    const cache = provider.slice(provider.indexOf("export function HouseScreenCache"));
-    expect(cache).not.toContain("useSearchParams");
-    expect(loading).toContain("data-house-rsc-fallback");
+    const outlet = provider.slice(provider.indexOf("export function HouseScreenOutlet"));
+    expect(outlet).not.toContain("useSearchParams");
+    expect(outlet).not.toContain("useState");
   });
 
   it("lets Query own the Following wall after boot", () => {

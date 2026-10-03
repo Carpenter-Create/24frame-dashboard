@@ -13,8 +13,8 @@ import { markNotificationsRead } from "./actions";
 // client acts on it. "Read" = seen (clicking to open the title is a clear signal you've seen
 // it); "still needs fixing" lives on the title itself, not here. If already read, it's a plain
 // Link (Next prefetch preserved). The explicit per-row "Mark as read" button still handles
-// dismissing a message without opening it. HouseLink, so this onClick still runs when the
-// destination is a warm (already painted) screen.
+// dismissing a message without opening it. HouseLink, so this onClick runs before the shell
+// can take the click.
 export function MessageLink({
   id,
   href,
@@ -41,8 +41,7 @@ export function MessageLink({
         start(async () => {
           await markNotificationsRead([id]);
           retireLiveNotification(id);
-          // After a warm hop Next's address can already be href, and a push
-          // to it changes nothing. The shell owns warm and stale hops.
+          // The shell owns a panel query on this screen; anything else is a push.
           if (!house?.navigateOwned(href)) router.push(href);
         });
       }}

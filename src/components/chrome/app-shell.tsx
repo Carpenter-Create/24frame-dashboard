@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, use, useCallback, useEffect, useRef, useState } from "react";
-import { HouseScreenCache, useHousePathname } from "./house-client-shell";
+import { HouseScreenOutlet, useHousePathname } from "./house-client-shell";
 
 import { UserMenu } from "./user-menu";
 import { SideNav } from "./side-nav";
@@ -421,7 +421,7 @@ export function AppShell({
               : { maxWidth: "var(--page-max-width)" }
           }
         >
-          <HouseScreenCache>{children}</HouseScreenCache>
+          <HouseScreenOutlet>{children}</HouseScreenOutlet>
         </div>
       </main>
     </HousePhoneAppShell>
