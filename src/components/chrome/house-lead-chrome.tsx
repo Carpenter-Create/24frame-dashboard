@@ -9,6 +9,7 @@ import type { ActivityItem } from "@/lib/activity";
 import {
   HOUSE_HEADER_TRAILING_SLOT_CLASS,
   HOUSE_LEAD_CHROME_CLASS,
+  HOUSE_LEAD_DIVIDER_CLASS,
   HOUSE_LEAD_LOGO_CLASS,
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_SLOT_CLASS,
@@ -123,14 +124,29 @@ export function HouseLeadChrome({
               className="hidden shrink-0 items-center md:inline-flex"
             />
           </div>
-          {/* Desktop md+: brand mark, then Home · Aggregation · Social ·
-              Education · Staff. Same row on every workspace. */}
+          {/* Phone: the grid button, naming the current workspace,
+              right after the emblem. Hidden from md. */}
+          <div
+            data-app-header-workspace-waffle=""
+            className={APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS}
+          >
+            <WorkspaceSwitcher
+              presentation="waffle"
+              current={workspace}
+              options={workspaceOptions}
+              isGcStaff={isGcStaff}
+            />
+          </div>
+          {/* Desktop md+: brand mark, a 1×18 hairline, then the lanes
+              Home · Aggregation · Social · Education · Staff. Same row
+              on every workspace. */}
+          <span aria-hidden="true" data-app-header-divider="" className={HOUSE_LEAD_DIVIDER_CLASS} />
           <div
             data-app-header-workspace-desktop=""
             className={APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS}
           >
             <WorkspaceSwitcher
-              presentation="pills"
+              presentation="lanes"
               current={workspace}
               options={workspaceOptions}
               isGcStaff={isGcStaff}
@@ -164,17 +180,6 @@ export function HouseLeadChrome({
           ) : null}
           <AskAssistantHeaderLink />
           <ActivityBell unread={activityUnread} items={activityItems} workspace={workspace} />
-          <div
-            data-app-header-workspace-waffle=""
-            className={APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS}
-          >
-            <WorkspaceSwitcher
-              presentation="waffle"
-              current={workspace}
-              options={workspaceOptions}
-              isGcStaff={isGcStaff}
-            />
-          </div>
           {accountMenu}
         </div>
       </header>

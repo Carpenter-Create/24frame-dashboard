@@ -50,25 +50,33 @@ vi.mock("@/app/(app)/aggregation/messages/ask-frame-ai-actions", () => ({
     messages: [],
   })),
 }));
+// The real SideNav renders the collapse control in its top row
+// (screening chrome); the mock keeps it so the shell's control is seen.
 vi.mock("./side-nav", () => ({
   SideNav: ({
     isGcStaff,
     workspace,
     collapsed,
     homeOwned,
+    collapseControl,
   }: {
     isGcStaff?: boolean;
     workspace?: string;
     collapsed?: boolean;
     homeOwned?: boolean;
+    collapseControl?: React.ReactNode;
   }) =>
-    createElement("nav", {
-      "data-side-nav": "",
-      "data-gc-staff": isGcStaff ? "" : undefined,
-      "data-workspace": workspace ?? "aggregation",
-      "data-collapsed": collapsed ? "" : undefined,
-      "data-home-owned": homeOwned ? "" : undefined,
-    }),
+    createElement(
+      "nav",
+      {
+        "data-side-nav": "",
+        "data-gc-staff": isGcStaff ? "" : undefined,
+        "data-workspace": workspace ?? "aggregation",
+        "data-collapsed": collapsed ? "" : undefined,
+        "data-home-owned": homeOwned ? "" : undefined,
+      },
+      collapseControl,
+    ),
 }));
 vi.mock("./user-menu", () => ({
   UserMenu: ({
@@ -99,7 +107,7 @@ import {
 import {
   RAIL_COLLAPSE_CHEVRON,
   RAIL_COLLAPSE_CHEVRON_CLASS,
-  RAIL_COLLAPSE_EXPAND_ROW_CLASS,
+  RAIL_EXPAND_CHEVRON_CLASS,
   RAIL_COLLAPSE_CHEVRON_ICON_CLASS,
   RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT,
   RAIL_WIDTH_CLASS,
@@ -179,12 +187,17 @@ describe("AppShell header", () => {
     expect(html).toContain("data-user-menu-host");
     expect(html).not.toContain("data-theme-toggle");
     expect(html).not.toContain("Switch to dark mode");
-    expect(html.indexOf('data-workspace-switcher-presentation="pills"')).toBeLessThan(
+    // Screening chrome: emblem · grid button (phone) · hairline · lanes
+    // lead; Ask · bell · avatar trail.
+    expect(html.indexOf("data-workspace-waffle")).toBeLessThan(html.indexOf("data-app-header-divider"));
+    expect(html.indexOf("data-app-header-divider")).toBeLessThan(
+      html.indexOf('data-workspace-switcher-presentation="lanes"'),
+    );
+    expect(html.indexOf('data-workspace-switcher-presentation="lanes"')).toBeLessThan(
       html.indexOf("data-ask-assistant-header"),
     );
     expect(html.indexOf("data-ask-assistant-header")).toBeLessThan(html.indexOf("data-activity-bell"));
-    expect(html.indexOf("data-activity-bell")).toBeLessThan(html.indexOf("data-workspace-waffle"));
-    expect(html.indexOf("data-workspace-waffle")).toBeLessThan(html.indexOf("data-user-menu-host"));
+    expect(html.indexOf("data-activity-bell")).toBeLessThan(html.indexOf("data-user-menu-host"));
     expect(shellSrc).not.toContain("ThemeToggle");
     expect(shellSrc).not.toContain("ThemeGlyph");
     expect(leadSrc).not.toContain("ThemeToggle");
@@ -216,7 +229,7 @@ describe("AppShell header", () => {
     expect(shellSrc).toContain("isGcStaff={data.isGcStaff}");
     expect(leadSrc).toContain("WorkspaceSwitcher");
     expect(leadSrc).not.toContain('tone="pill"');
-    expect(leadSrc).toContain('presentation="pills"');
+    expect(leadSrc).toContain('presentation="lanes"');
     expect(leadSrc).toContain('presentation="waffle"');
     expect(html).toContain("data-workspace-switcher");
     expect(html).toContain("data-house-lead-scroll");
@@ -226,8 +239,8 @@ describe("AppShell header", () => {
     expect(html).toContain("data-workspace-waffle");
     expect((html.match(/data-workspace-switcher=""/g) ?? []).length).toBe(2);
     expect(html).toContain('data-workspace-switcher-presentation="waffle"');
-    expect(html).toContain('data-workspace-switcher-presentation="pills"');
-    expect(html).toContain("data-workspace-switcher-pills");
+    expect(html).toContain('data-workspace-switcher-presentation="lanes"');
+    expect(html).toContain("data-workspace-switcher-lanes");
     expect(html).toContain('data-workspace-switcher-segment="social"');
     expect(html).toContain('data-workspace-switcher-segment="home"');
     expect(html).toContain("hidden md:contents");
@@ -244,7 +257,7 @@ describe("AppShell header", () => {
     expect(shellSrc).not.toContain("OrganizationSwitcher");
     expect(leadSrc).toContain("HOUSE_LEAD_CHROME_CLASS");
     expect(leadSrc).not.toContain('tone="pill"');
-    expect(leadSrc).toContain('presentation="pills"');
+    expect(leadSrc).toContain('presentation="lanes"');
     expect(leadSrc).toContain('presentation="waffle"');
 
     for (const path of ["/", "/aggregation/titles", "/aggregation/attention", "/activity"]) {
@@ -361,23 +374,28 @@ describe("AppShell Access rail and home frame", () => {
       join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
       "utf8",
     );
-    expect(tokens).toMatch(/--sidebar-width:\s*256px;/);
+    // Screening chrome (Adam 2026-10-04): side menu 200, header 52.
+    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
     expect(tokens).toMatch(/--content-inset:\s*48px;/);
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(tokens).toMatch(/--header-height:\s*88px;/);
+    expect(tokens).toMatch(/--header-height:\s*52px;/);
     expect(tokens).toMatch(/--header-avatar-size:\s*28px;/);
     expect(tokens).toMatch(/--header-control-size:\s*44px;/);
     expect(tokens).toMatch(/--header-search-height:\s*48px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*64px;/);
+    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*60px;/);
     expect(tokens).not.toMatch(/--sidebar-width:\s*190px;/);
 
     navigation.pathname = "/";
     const html = renderShell();
     expect(html).toContain("data-app-rail");
-    expect(html).toMatch(/<aside class="[^"]*\bbg-surface\b[^"]*" data-app-rail=""/);
+    // Screening chrome: the side menu sits on the page canvas with a
+    // hairline right edge — not a surface card.
+    expect(html).toMatch(/<aside class="[^"]*\bbg-bg\b[^"]*" data-app-rail=""/);
+    expect(html).toMatch(/<aside class="[^"]*\bborder-r border-hairline\b[^"]*" data-app-rail=""/);
     expect(html).not.toMatch(/<aside class="[^"]*bg-surface-muted/);
+    expect(html).not.toMatch(/<aside class="[^"]*rounded-/);
     expect(html).toContain("data-app-home-frame");
     expect(html).toContain("px-[var(--chrome-gutter)]");
     expect(html).toContain("py-[var(--space-8)]");
@@ -493,8 +511,8 @@ describe("AppShell client mobile chrome", () => {
       join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
       "utf8",
     );
-    expect(tokens).toMatch(/--sidebar-width:\s*256px;/);
-    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*60px;/);
+    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
+    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*64px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
     expect(tokens).toMatch(/@media \(max-width:\s*767px\)/);
@@ -525,7 +543,7 @@ describe("AppShell client mobile chrome", () => {
     expect(html).not.toContain("data-tab-bar");
     expect(html).not.toContain("data-social-mobile-pill");
     expect(html).not.toContain("data-social-create-fab");
-    expect(shellSrc).toContain("HOUSE_RAIL_FLOAT_CLASS");
+    expect(shellSrc).toContain("HOUSE_RAIL_COLUMN_CLASS");
     expect(shellSrc).not.toContain("DestChipsSlot");
     expect(shellSrc).not.toContain("GC_NAV");
     expect(shellSrc).not.toMatch(/key=\{pathname\}/);
@@ -715,7 +733,7 @@ describe("AppShell /settings rail", () => {
       join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
       "utf8",
     );
-    expect(tokens).toMatch(/--sidebar-width:\s*256px;/);
+    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
 
     navigation.pathname = "/settings";
     const html = renderShell();
@@ -831,7 +849,7 @@ describe("AppShell rail-collapse chevron", () => {
       expect(html).toContain(RAIL_COLLAPSE_CHEVRON_CLASS);
       expect(html).toContain(RAIL_COLLAPSE_CHEVRON_ICON_CLASS);
       expect(html).not.toContain("Expand sidebar");
-      expect(html).not.toContain(RAIL_COLLAPSE_EXPAND_ROW_CLASS);
+      expect(html).not.toContain(RAIL_EXPAND_CHEVRON_CLASS);
       expect(html).toContain("24Frame");
     }
     expect(railCollapseSrc).toContain("weight={RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT}");
@@ -884,7 +902,9 @@ describe("AppShell rail-collapse chevron", () => {
     expect(settings).toContain('href="/aggregation/dashboard"');
   });
 
-  it("puts CaretDoubleRight Bold on a separate expand row when collapsed", () => {
+  // Screening chrome: collapsed, the 40×32 expand control heads the
+  // 64 column inside the side menu.
+  it("puts CaretDoubleRight Bold atop the collapsed column", () => {
     for (const path of ["/", "/social", "/education"]) {
       navigation.pathname = path;
       const html = renderShell(undefined, undefined, true);
@@ -897,17 +917,17 @@ describe("AppShell rail-collapse chevron", () => {
       expect(html).not.toContain("data-theme-toggle");
       expect(html).toContain("data-user-menu-host");
       expect(html).toContain(`data-rail-collapse="${RAIL_COLLAPSE_CHEVRON}"`);
-      expect(html).toContain(RAIL_COLLAPSE_EXPAND_ROW_CLASS);
-      expect(html).toContain(RAIL_COLLAPSE_CHEVRON_CLASS);
+      expect(html).toContain(RAIL_EXPAND_CHEVRON_CLASS);
+      expect(html).not.toContain(RAIL_COLLAPSE_CHEVRON_CLASS);
       expect(html).toContain(RAIL_COLLAPSE_CHEVRON_ICON_CLASS);
       expect(html).not.toContain("Collapse sidebar");
-      const expandIdx = html.indexOf(RAIL_COLLAPSE_EXPAND_ROW_CLASS);
+      const expandIdx = html.indexOf(RAIL_EXPAND_CHEVRON_CLASS);
       const navIdx = html.indexOf("data-side-nav");
       expect(expandIdx).toBeGreaterThan(-1);
-      expect(navIdx).toBeGreaterThan(expandIdx);
-      const expandSlice = html.slice(expandIdx, navIdx);
-      expect(expandSlice).not.toContain("bg-hairline");
-      expect(expandSlice).not.toContain("border-hairline");
+      expect(expandIdx).toBeGreaterThan(navIdx);
+      const expandButton = html.slice(html.lastIndexOf("<button", expandIdx), html.indexOf("</button>", expandIdx));
+      expect(expandButton).not.toContain("bg-hairline");
+      expect(expandButton).not.toContain("border-hairline");
     }
   });
 
@@ -920,7 +940,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(SIDEBAR_COLLAPSED_COOKIE).toBe("24frame_sidebar_collapsed");
     navigation.pathname = "/settings";
     expect(renderShell(undefined, undefined, true)).not.toContain("Expand sidebar");
-    expect(renderShell(undefined, undefined, true)).not.toContain(RAIL_COLLAPSE_EXPAND_ROW_CLASS);
+    expect(renderShell(undefined, undefined, true)).not.toContain(RAIL_EXPAND_CHEVRON_CLASS);
   });
 
   it("restores staff destinations from chrome without blocking children", () => {
@@ -1246,7 +1266,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(desktopHeader).toContain('data-social-explore-exit=""');
     expect(desktopHeader).toContain('href="/social"');
     expect(desktopHeader).toContain(">Exit<");
-    expect(desktopHeader).toContain('data-workspace-switcher-presentation="pills"');
+    expect(desktopHeader).toContain('data-workspace-switcher-presentation="lanes"');
     expect(desktopHeader).toContain("data-app-header-workspace-waffle");
     expect(desktopHeader).toContain("md:hidden");
     expect(html).not.toContain("data-app-rail");
@@ -1389,7 +1409,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(html).toContain("data-collapsed");
     expect(html).toContain("Expand sidebar");
     expect(html).toContain(`data-rail-collapse="${RAIL_COLLAPSE_CHEVRON}"`);
-    expect(html).toContain(RAIL_COLLAPSE_EXPAND_ROW_CLASS);
+    expect(html).toContain(RAIL_EXPAND_CHEVRON_CLASS);
     expect(html).toContain("--sidebar-width:var(--sidebar-width-collapsed)");
     expect(html).toContain("margin-left:var(--sidebar-width)");
     expect(html).not.toContain("md:ml-[200px]");
@@ -1416,8 +1436,9 @@ describe("AppShell rail-collapse chevron", () => {
     expect(html.indexOf("data-brand-emblem")).toBeLessThan(
       html.indexOf('data-education-header-search-host="desktop"'),
     );
-    expect(html.indexOf('data-education-header-search-host="desktop"')).toBeLessThan(
-      html.indexOf('data-workspace-switcher-presentation="waffle"'),
+    // The grid button leads now (after the emblem), before the trailing search.
+    expect(html.indexOf('data-workspace-switcher-presentation="waffle"')).toBeLessThan(
+      html.indexOf('data-education-header-search-host="desktop"'),
     );
     expect(html.indexOf("data-house-lead-chrome")).toBeLessThan(
       html.indexOf("data-house-under-nav"),

@@ -10,7 +10,7 @@ import {
   HOUSE_CANVAS_X_CLASS,
   HOUSE_HOME_RAIL_COLUMN_CLASS,
   HOUSE_PHONE_TRAILING_GUTTER_CLASS,
-  HOUSE_RAIL_FLOAT_CLASS,
+  HOUSE_RAIL_COLUMN_CLASS,
   HOUSE_SHELL_GUTTER_X_CLASS,
 } from "@/lib/house-shell";
 import {
@@ -84,20 +84,25 @@ describe("desktop shell horizontal gutters — lock v2", () => {
     );
   });
 
-  it("G8 keeps phone on the 16 trail and drops desktop shell px-16", () => {
+  // Screening chrome: phone bar 16 lead / 8 trail (the account hit pads
+  // the avatar); desktop keeps the 32 / 32 shell pair.
+  it("G8 keeps phone on its own pads and drops desktop shell px-16", () => {
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
     expect(tokens).toMatch(/--content-inset:\s*48px;/);
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--chrome-gutter)]");
+    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-2)]");
     expect(HOUSE_LEAD_PHONE_PAD_CLASS).toBe(
-      "max-md:pl-[var(--space-6)] max-md:pr-[var(--chrome-gutter)]",
+      "max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--space-2)]",
     );
     expect(HOUSE_LEAD_CHROME_CLASS).toContain(HOUSE_LEAD_PHONE_PAD_CLASS);
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--chrome-gutter)]");
   });
 
-  it("G6–G7 leaves dest-rail, soft-nav, and Settings on --chrome-gutter", () => {
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("left-[var(--chrome-gutter)]");
-    expect(RAIL_WIDTH_CLASS).toBe("w-[calc(var(--sidebar-width)-var(--chrome-gutter))]");
+  // Screening chrome: the side menu is a flush column (no gutter inset);
+  // soft-nav and Settings content stay on --chrome-gutter.
+  it("G6–G7 keeps the side menu flush and soft-nav and Settings off the shell gutters", () => {
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("left-0");
+    expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("--shell-gutter");
+    expect(RAIL_WIDTH_CLASS).toBe("w-[var(--sidebar-width)]");
     expect(HOUSE_CANVAS_X_CLASS).toBe("px-[var(--chrome-gutter)]");
     expect(readFileSync("src/lib/house-client-shell.ts", "utf8")).not.toContain(
       "--shell-gutter",

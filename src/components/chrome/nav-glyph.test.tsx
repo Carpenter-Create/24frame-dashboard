@@ -8,16 +8,25 @@ import { NavGlyph } from "./nav-glyph";
 const src = readFileSync("src/components/chrome/nav-glyph.tsx", "utf8");
 
 describe("NavGlyph", () => {
-  it("renders Aggregation Phosphor Fill when active and Bold when idle", () => {
+  // Screening chrome: 18 glyph, Phosphor Regular idle / Bold current
+  // (the board's stroke 1.7 / 2) — never Fill.
+  it("renders the side-menu Phosphor glyph Bold when current and Regular when idle, at 18", () => {
     const active = renderToStaticMarkup(<NavGlyph item={NAV[0]} active />);
     const idle = renderToStaticMarkup(<NavGlyph item={NAV[0]} active={false} />);
-    expect(active).not.toBe(idle);
+    const Glyph = NAV[0].icon;
+    const bold = renderToStaticMarkup(<Glyph weight="bold" className="size-4.5 shrink-0" />);
+    const regular = renderToStaticMarkup(<Glyph weight="regular" className="size-4.5 shrink-0" />);
+    const fill = renderToStaticMarkup(<Glyph weight="fill" className="size-4.5 shrink-0" />);
+    expect(active).toBe(bold);
+    expect(idle).toBe(regular);
+    expect(active).not.toBe(fill);
+    expect(active).toContain("size-4.5 shrink-0");
     expect(active).toContain('fill="currentColor"');
     expect(idle).toContain('fill="currentColor"');
     expect(active).not.toContain("lucide-");
     expect(idle).not.toContain("lucide-");
     expect(active).not.toContain("stroke-width");
-    expect(src).toContain("PhosphorChromeIcon");
+    expect(src).toContain("houseDestRailGlyphWeight(active)");
     expect(src).not.toContain('item.family === "lucide"');
     expect(src).toContain('item.family === "house-ai"');
     expect(src).toContain("HouseAiMark");

@@ -10,6 +10,7 @@
 - [`shell-workspace-waffle-layer-lock-v1.md`](shell-workspace-waffle-layer-lock-v1.md) §3 workspace order and the §4 / G4 dock tab names. Layer 1 vs Layer 2, entitlement, and the phone waffle stay.
 - Home IA v2 "no dest rail on /home" (Adam 2026-09-18; `src/lib/HOME-width-lock.md`). Home now has its own rail.
 
+**Superseded in part 2026-10-04** by [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) (Adam, "Yes, everywhere"): the desktop switcher is plain text lanes with an ink underline (no muted track, no raised thumb, no grey pill); the header is 52 with 34 controls and a 232×34 search field; the side menu is a 200 / 64 column with a hairline right edge and no card, rows without icon tiles (current = muted row, 600, ink), Social Create the only accent; the phone grid button names the current workspace; every dock marks the current dest with an ink glyph and a 4px ink dot (no accent). That supersedes §1 Switcher face, Labels pad, the 240 pill and 44 circle sizes in Search / Ask, and the 44 compact Exit; §2 Row, Idle, Active, Collapsed; §3 Workspace switch face and Active dest, every dock (accent mark); G4 tile rows; the accent mark in G6; and Measured. It also moves Home's one-column range with the rail open from 768–1279 to **768–1223** (the 200 rail; amended in place below). Lanes, entitlement, Home segment, keyboard, search scope, Ask sparkle accent, Feed rename, and Home's rail stay.  
 **Amends:** [`social-home-activity-feed-lock-v1.md`](social-home-activity-feed-lock-v1.md) (page title) · [`social-create-fan-lock-v1.md`](social-create-fan-lock-v1.md) (dock + face) · [`social-home-craft-wave-1-lock-v1.md`](social-home-craft-wave-1-lock-v1.md) §3 (Ask label from xl) · [`social-explore-for-you-immersive-lock-v2.md`](social-explore-for-you-immersive-lock-v2.md) (header row; Exit and header search from `md` to `lg`, §1) · [`social-dms-inbox-ig-lock-v1.md`](social-dms-inbox-ig-lock-v1.md) and [`dm-thread-immersive-real-estate-lock-v1.md`](dm-thread-immersive-real-estate-lock-v1.md) (dock tab names).
 
 ---
@@ -35,6 +36,8 @@ Picked from options:
 
 ## 1) Desktop header (`md+`), every workspace
 
+**Superseded in part (2026-10-04):** switcher face, label pad, and control sizes — see [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) §1.
+
 | Token | Lock |
 |-------|------|
 | Leading | Existing brand mark, unchanged (wordmark `md+`, links to the workspace home). The brand slot never shrinks from `md` (`md:shrink-0`), so nothing paints over the wordmark. Then the workspace switcher. Desktop Explore adds its Exit after the switcher |
@@ -51,6 +54,8 @@ Picked from options:
 
 ## 2) Desktop side menu (dest rail), every workspace
 
+**Superseded in part (2026-10-04):** rows, idle, active, and collapsed — no icon tiles; see [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) §2.
+
 | Token | Lock |
 |-------|------|
 | Eyebrow | Workspace name (`workspaceModeLabel`; **Home** on Home), house rail title. Hidden when collapsed |
@@ -59,13 +64,15 @@ Picked from options:
 | Active | Row `bg-surface-muted`, ink label. Tile `bg-accent text-accent-contrast` |
 | One active | Exactly one active row per path. Same active test as the phone dock; the first match wins |
 | Home | Rail built only from Home's existing dests: **Home · Industry news**. Never invent a destination |
-| Home content | Home sits behind the rail, so its grids follow the Home frame (a size container), not the viewport: main + 22rem News from a **960** frame; Education covers 2-up from **592**, 3-up from **960**. Below 960, News stacks after the AI module, as on phone. With the rail open that is one column from 768 to 1279, accepted as built (founder decision 3) |
+| Home content | Home sits behind the rail, so its grids follow the Home frame (a size container), not the viewport: main + 22rem News from a **960** frame; Education covers 2-up from **592**, 3-up from **960**. Below 960, News stacks after the AI module, as on phone. With the rail open that is one column from 768 to 1223 (**amended 2026-10-04** by [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md): the 200 rail; 768 to 1279 with the 256 rail), accepted as built (founder decision 3) |
 | Social | Same rows and the same inner pad as every rail. No Social-only icon family |
 | Collapsed | Icon-only. The 28 tile fits the 60 slot (nav `--space-1` side pad) |
 | Settings, Education course rail | Keep their current active styling: `--accent-wash` row, label in `--accent-ink` (`HOUSE_RAIL_ACTIVE_CLASS`). Founder pick "Deeper blue text" (Adam, 2026-10-04): 4.62:1 light (Sporty Blue was 4.07:1), 6.17:1 dark; see [`social-profile-stage-lock-v1.md`](social-profile-stage-lock-v1.md) Accessibility |
 | Co-Productions, Help, Activity | Still no rail |
 
 ## 3) Phone
+
+**Superseded in part (2026-10-04):** the grid button now names the current workspace, and the current dest in every dock is an ink glyph with an ink dot, not accent — see [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) §3–§4.
 
 | Token | Lock |
 |-------|------|
@@ -120,7 +127,7 @@ Light is the default; dark stays available from the avatar Theme drill. Brand ty
 ## Measured (Chromium, Geist, compiled CSS, light and dark)
 
 - **Header**, 768–1440 in 4px steps, on Home, Aggregation, Social, Education, Staff, Settings, and Explore, members and GC staff: no lane clipped, nothing over the wordmark, no header overflow. Tightest: GC staff on Social and Education at 768 (24px between the switcher and the trailing icons); GC staff on Explore at 768 (28px between Exit and Ask).  
-- **Home, rail open** (frame / layout / Education cover width): 768 → 448, one column, 1-up 416 · 1024 → 704, one column, 2-up 330 · 1279 → 959, one column, 2-up 458 · 1280 → 960, main 592 + News, 3-up 179 · 1440 → 1120, main 752, 3-up 232. **Rail collapsed:** two columns from 1084. Phone unchanged (2-up from 640). The 179 floor is the old rail-free floor at 1024.
+- **Home, rail open** (frame / layout / Education cover width): 768 → 448, one column, 1-up 416 · 1024 → 704, one column, 2-up 330 · 1279 → 959, one column, 2-up 458 · 1280 → 960, main 592 + News, 3-up 179 · 1440 → 1120, main 752, 3-up 232. **Rail collapsed:** two columns from 1084. Phone unchanged (2-up from 640). The 179 floor is the old rail-free floor at 1024. **Amended 2026-10-04** ([`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md), the 200 / 64 rail): one column from 768 to 1223 with the rail open, two columns from 1224; collapsed, two columns from 1088.
 
 ## Founder decisions (Adam, 2026-10-04, picked from options in chat)
 
@@ -130,7 +137,7 @@ The open founder checks are closed. None remain open on this lock.
 |-------|------|-------------------|
 | 1. Phone bars | **"Match everywhere"** | Every workspace's phone dock (Home, Aggregation, Education, Staff, and Social) uses the Social style: the active dest in accent ink with the 4px accent mark under its glyph, no chip. Social keeps its accent Create circle and the ring on its own routes; the other docks have no Create. Dock size and clearance unchanged. This pick also accepts the Social dock mark and Create ring (added so the active state is not colour alone; the mockup carried that cue with visible labels, which the no-resize rule rules out) |
 | 2. AI sparkle | **"Blue, as in the mockup"** | The Ask 24Frame AI sparkle is accent (`text-accent`) in the header on desktop (labeled pill and icon circle) and on phone. Bell and search keep their idle ink. Amends the phone chrome ink lock (`HOUSE_PHONE_CHROME_IDLE_INK_CLASS`, `src/lib/house-phone-shell.ts`), which had kept Ask, bell, and search on one idle ink |
-| 3. Narrow desktop | **"Keep, stack as built"** | No code change. Home stacks to one column from 768 to 1279 with the rail open (News after the AI module, below a 960 frame). On desktop Explore below 1024 (`md` to `lg`) Exit is the compact X-only chip and the header search icon steps out (amends the Explore lock's "Label stays Exit" and "Header search stays" for 768–1023 only) |
+| 3. Narrow desktop | **"Keep, stack as built"** | No code change. Home stacks to one column from 768 to 1223 with the rail open (**amended 2026-10-04** by [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md): the 200 rail; 768 to 1279 when picked, with the 256 rail) (News after the AI module, below a 960 frame). On desktop Explore below 1024 (`md` to `lg`) Exit is the compact X-only chip and the header search icon steps out (amends the Explore lock's "Label stays Exit" and "Header search stays" for 768–1023 only) |
 
 ## Verify-on-ship
 

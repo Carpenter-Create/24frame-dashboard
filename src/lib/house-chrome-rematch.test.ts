@@ -35,7 +35,7 @@ import {
   HOUSE_PAGE_CANVAS_CLASS,
   HOUSE_RAIL_ACTIVE_CLASS,
   HOUSE_RAIL_ITEM_CLASS,
-  HOUSE_RAIL_FLOAT_CLASS,
+  HOUSE_RAIL_COLUMN_CLASS,
   HOUSE_RAIL_PANEL_CLASS,
   HOUSE_SHELL_GUTTER_X_CLASS,
   HOUSE_CANVAS_X_CLASS,
@@ -87,9 +87,11 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead).toContain("data-house-full-width-top");
     expect(shell).toContain("<HouseLeadChrome");
     expect(shell).toContain("HOUSE_RAIL_PANEL_CLASS");
-    expect(shell).toContain("HOUSE_RAIL_FLOAT_CLASS");
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("left-[var(--chrome-gutter)]");
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("top-[calc(var(--header-height)+var(--chrome-gutter))]");
+    // Screening chrome: the side menu is a column flush under the header.
+    expect(shell).toContain("HOUSE_RAIL_COLUMN_CLASS");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("left-0");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("top-[var(--header-height)]");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("bottom-0");
     expect(shell).not.toContain("border-r border-hairline");
     expect(shell).not.toMatch(/style=\{\{ height: "var\(--header-height\)", marginLeft: "var\(--sidebar-width\)" \}\}/);
     expect(lead).toContain("<BrandLogo />");
@@ -108,7 +110,9 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(HOUSE_MODULE_CLASS).toContain("bg-surface-muted");
     expect(HOUSE_MODULE_CLASS).toContain("rounded-[var(--radius-lg)]");
     expect(HOUSE_MODULE_CLASS).toContain("shadow-none");
-    expect(HOUSE_RAIL_PANEL_CLASS).toContain("rounded-[var(--radius-lg)]");
+    // The side menu is not a card any more: one hairline on its right.
+    expect(HOUSE_RAIL_PANEL_CLASS).not.toContain("rounded");
+    expect(HOUSE_RAIL_PANEL_CLASS).toContain("border-r border-hairline");
     expect(HOUSE_CONTROL_PILL_CLASS).toBe("rounded-full");
     expect(HOUSE_ICON_BUTTON_CLASS).toBe("rounded-full");
     expect(HOUSE_SEARCH_PILL_CLASS).toContain("rounded-full");
@@ -168,9 +172,9 @@ describe("house chrome rematch miss list v1.1", () => {
     );
     expect(social).toContain("data-social-header-lead");
     expect(social.indexOf("data-brand-emblem")).toBeLessThan(
-      social.indexOf("data-workspace-switcher-pills"),
+      social.indexOf("data-workspace-switcher-lanes"),
     );
-    expect(social.indexOf("data-workspace-switcher-pills")).toBeLessThan(
+    expect(social.indexOf("data-workspace-switcher-lanes")).toBeLessThan(
       social.indexOf("data-app-header-trailing"),
     );
     expect(social.indexOf("data-app-header-trailing")).toBeLessThan(
@@ -196,10 +200,12 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead).toContain("data-house-under-nav");
     expect(lead.indexOf("</header>")).toBeLessThan(lead.indexOf("data-house-under-nav"));
     expect(lead).toContain('data-education-header-search-host={education ? "phone" : undefined}');
+    // Screening chrome: both faces lead — the grid button (phone) and
+    // the lanes (desktop); the trailing cluster holds no switcher.
     expect(leading).toContain("<WorkspaceSwitcher");
-    expect(leading).toContain('presentation="pills"');
-    expect(trailing).toContain("<WorkspaceSwitcher");
-    expect(trailing).toContain('presentation="waffle"');
+    expect(leading).toContain('presentation="lanes"');
+    expect(leading).toContain('presentation="waffle"');
+    expect(trailing).not.toContain("<WorkspaceSwitcher");
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
     expect(trailing).toContain("data-social-header-actions");
@@ -230,7 +236,7 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
     expect(shell).toContain("<HouseLeadChrome");
     expect(existsSync("src/components/social/social-top-bar.tsx")).toBe(false);
-    expect(lead).toContain('presentation="pills"');
+    expect(lead).toContain('presentation="lanes"');
     expect(lead).toContain('presentation="waffle"');
     expect(lead).not.toContain('tone="pill"');
     expect(lead).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
@@ -243,10 +249,11 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(switcher).not.toContain("HOUSE_CONTROL_PILL_CLASS");
     expect(switcher).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
     expect(switcher).toContain("WORKSPACE_WAFFLE_TRIGGER_CLASS");
-    expect(switcher).toContain("HOUSE_THEME_TOGGLE_CLASS");
+    // Screening chrome: the grid button is its own 44-tall named box.
+    expect(switcher).not.toContain("HOUSE_THEME_TOGGLE_CLASS");
     expect(switcher).not.toContain("rounded-[var(--radius-sm)]");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
-    expect(collapse).toContain("HOUSE_ICON_BUTTON_CLASS");
+    expect(collapse).toContain("HOUSE_SHELL_QUIET_INK_CLASS");
     expect(socialChrome).toContain("HOUSE_RAIL_PANEL_CLASS");
     expect(leadSearch).toContain("HOUSE_SEARCH_PILL_CLASS");
     expect(readFileSync("src/components/social/social-search-sheet.tsx", "utf8")).toContain(
@@ -257,17 +264,18 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(readFileSync("src/lib/house-lead-chrome.ts", "utf8")).toContain("HOUSE_ICON_BUTTON_CLASS");
   });
 
-  it("uses one rounded register on Aggregation, Social, and Education", () => {
-    expect(shell.match(/HOUSE_RAIL_FLOAT_CLASS/g)?.length).toBe(2);
+  it("uses one register on Aggregation, Social, and Education", () => {
+    expect(shell.match(/HOUSE_RAIL_COLUMN_CLASS/g)?.length).toBe(2);
     expect(shell).not.toContain("fixed left-0 top-[calc(var(--header-height)+16px)]");
-    expect(RAIL_WIDTH_CLASS).toBe("w-[calc(var(--sidebar-width)-var(--chrome-gutter))]");
+    expect(RAIL_WIDTH_CLASS).toBe("w-[var(--sidebar-width)]");
     expect(socialChrome).not.toContain("SOCIAL_RAIL_WIDTH_CLASS");
     expect(SOCIAL_FOR_YOU_CARD_CLASS).toContain(HOUSE_MODULE_CLASS);
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
-    expect(switcher).toContain("HOUSE_THEME_TOGGLE_CLASS");
+    expect(switcher).toContain("WORKSPACE_WAFFLE_TRIGGER_CLASS");
     expect(switcher).not.toContain("HOUSE_CONTROL_PILL_CLASS");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
-    expect(collapse).toContain("HOUSE_ICON_BUTTON_CLASS");
+    expect(collapse).toContain("rounded-[var(--radius-sm)]");
+    expect(collapse).toContain("rounded-[var(--radius)]");
     expect(socialChrome).toContain("HOUSE_MODULE_CLASS");
   });
 
@@ -308,7 +316,7 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(railUi).toContain("CaretDoubleLeft");
     expect(railUi).toContain("CaretDoubleRight");
     expect(railUi).toContain("RAIL_COLLAPSE_CHEVRON_CLASS");
-    expect(railUi).toContain("RAIL_COLLAPSE_EXPAND_ROW_CLASS");
+    expect(railUi).toContain("RAIL_EXPAND_CHEVRON_CLASS");
     expect(railUi).not.toMatch(/Royalogic/i);
     expect(railUi).not.toMatch(/\brl-/);
 
@@ -323,7 +331,9 @@ describe("house chrome rematch miss list v1.1", () => {
       shell.indexOf("data-social-rail="),
       shell.indexOf("data-app-social-frame="),
     );
-    expect(socialAside.indexOf("<RailCollapse")).toBeLessThan(socialAside.indexOf("<SideNav"));
+    // The collapse control rides into the side menu's top row.
+    expect(socialAside).toContain("collapseControl={<RailCollapse collapsed={collapsed} onToggle={toggle} />}");
+    expect(socialAside.indexOf("<SideNavSlot")).toBeLessThan(socialAside.indexOf("<RailCollapse"));
     expect(socialAside).toContain("collapsed={collapsed}");
     expect(socialAside).toContain('workspace={socialChrome ? "social" : workspace}');
     expect(socialAside).not.toContain("SocialRailAccountChip");
@@ -337,14 +347,14 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(shell).toContain("<HouseLeadChrome");
     expect(shell).toContain("SOCIAL_RAIL_PANEL_CLASS");
     expect(shell).not.toContain("StudioRail");
-    expect(RAIL_WIDTH_CLASS).toBe("w-[calc(var(--sidebar-width)-var(--chrome-gutter))]");
+    expect(RAIL_WIDTH_CLASS).toBe("w-[var(--sidebar-width)]");
     expect(socialChrome).not.toContain("SOCIAL_RAIL_WIDTH_CLASS");
   });
 
   it("locks lead ↔ rail chrome gutter (G6)", () => {
     const leadLib = readFileSync("src/lib/house-lead-chrome.ts", "utf8");
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(tokens).toMatch(/--sidebar-width:\s*256px;/);
+    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
     expect(tokens).toMatch(/--shell-gutter-inline-start:\s*32px;/);
@@ -353,23 +363,24 @@ describe("house chrome rematch miss list v1.1", () => {
       "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]",
     );
     expect(HOUSE_CANVAS_X_CLASS).toBe("px-[var(--chrome-gutter)]");
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("left-[var(--chrome-gutter)]");
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("top-[calc(var(--header-height)+var(--chrome-gutter))]");
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain(
-      "h-[calc(100dvh-var(--header-height)-calc(var(--chrome-gutter)*2))]",
-    );
+    // Screening chrome: the column is flush (no gutter inset) and runs
+    // from under the header to the viewport bottom.
+    expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("var(--chrome-gutter)");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("top-[var(--header-height)]");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("bottom-0");
     expect(leadLib).toContain("HOUSE_SHELL_GUTTER_X_CLASS");
     expect(leadLib).not.toContain("md:px-[var(--chrome-gutter)]");
     expect(leadLib).not.toContain("md:px-[var(--content-inset)]");
     expect(lead).not.toContain("md:px-[var(--content-inset)]");
     expect(lead).not.toContain("md:pl-5");
-    expect(shell.match(/HOUSE_RAIL_FLOAT_CLASS/g)?.length).toBe(2);
+    expect(shell.match(/HOUSE_RAIL_COLUMN_CLASS/g)?.length).toBe(2);
     expect(shell).toContain("HOUSE_CANVAS_X_CLASS");
     expect(shell).toContain("HOUSE_HOME_RAIL_COLUMN_CLASS");
     expect(shell).not.toContain("data-app-messages-frame");
     expect(shell).not.toContain("left-4 ");
     expect(shell).not.toContain("md:px-[var(--content-inset)]");
-    expect(collapse).toContain("var(--chrome-gutter)");
+    expect(collapse).toContain("w-[var(--sidebar-width)]");
+    expect(collapse).not.toContain("var(--chrome-gutter)");
     expect(socialChrome).toContain("px-[var(--chrome-gutter)]");
     expect(socialChrome).not.toContain("w-[calc(200px-var(--chrome-gutter))]");
     expect(socialChrome).not.toContain("md:ml-[200px]");

@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { HOME_DEST_RAIL_PX, HOME_LEFT_INSET_PX, HOME_RIGHT_INSET_PX } from "./home-width-lock";
+
 const lock = readFileSync("docs/design-locks/shell-unified-chrome-lock-v1.md", "utf8");
 const readme = readFileSync("docs/design-locks/README.md", "utf8");
 const slider = readFileSync("docs/design-locks/shell-desktop-top-nav-slider-waffle-phone-lock-v1.md", "utf8");
@@ -71,8 +73,28 @@ describe("shell unified chrome lock v1 (Adam 2026-10-04)", () => {
     expect(decisions).toContain("(`text-accent`) in the header on desktop (labeled pill and icon circle) and on phone");
     expect(decisions).toContain("Bell and search keep their idle ink");
     expect(decisions).toContain("Amends the phone chrome ink lock (`HOUSE_PHONE_CHROME_IDLE_INK_CLASS`");
-    // 3 — narrow desktop accepted as built.
-    expect(decisions).toContain("No code change. Home stacks to one column from 768 to 1279 with the rail open");
+    // 3 — narrow desktop accepted as built. Screening chrome's 200 rail
+    // moves the one-column range to 768–1223 (amended in place; the
+    // picked range stays as history).
+    expect(decisions).toContain(
+      "No code change. Home stacks to one column from 768 to 1223 with the rail open (**amended 2026-10-04** by [`shell-screening-chrome-lock-v1.md`]",
+    );
+    expect(decisions).toContain("768 to 1279 when picked, with the 256 rail");
+    expect(lock).not.toContain("one column from 768 to 1279 with the rail open");
+    expect(lock).not.toContain("With the rail open that is one column from 768 to 1279,");
+    expect(lock).toContain("With the rail open that is one column from 768 to 1223 (**amended 2026-10-04**");
+    expect(lock).toContain("one column from 768 to 1223 with the rail open, two columns from 1224; collapsed, two columns from 1088.");
+    // The range is arithmetic, not a guess: the Home frame (viewport −
+    // rail − 32 − 32) reaches 960 at 1224 open and 1088 collapsed.
+    const frameAt = (viewport: number, rail: number) =>
+      viewport - rail - HOME_LEFT_INSET_PX - HOME_RIGHT_INSET_PX;
+    expect(frameAt(1223, HOME_DEST_RAIL_PX)).toBeLessThan(960);
+    expect(frameAt(1224, HOME_DEST_RAIL_PX)).toBe(960);
+    const tokens = readFileSync("src/app/tokens.css", "utf8");
+    const collapsed = Number(tokens.match(/--sidebar-width-collapsed:\s*(\d+)px;/)?.[1]);
+    expect(tokens).toMatch(new RegExp(`--sidebar-width:\\s*${HOME_DEST_RAIL_PX}px;`));
+    expect(frameAt(1087, collapsed)).toBeLessThan(960);
+    expect(frameAt(1088, collapsed)).toBe(960);
     expect(decisions).toContain("below 1024 (`md` to `lg`) Exit is the compact X-only chip");
     // The open list is gone, and so is every pinned "keep the chip" line.
     expect(lock).not.toContain("## Founder check (open)");
@@ -86,7 +108,9 @@ describe("shell unified chrome lock v1 (Adam 2026-10-04)", () => {
     // The phone ink lock in code records the amendment.
     const phoneShell = readFileSync("src/lib/house-phone-shell.ts", "utf8");
     expect(phoneShell).toContain('Amended Adam 2026-10-04 ("Blue, as in the mockup")');
-    expect(phoneShell).toContain('2026-10-04, "Match everywhere"');
+    // Screening chrome supersedes the accent mark of "Match everywhere";
+    // the code records that, not the old accent rule.
+    expect(phoneShell).toContain('supersedes "Match everywhere"');
   });
 
   it("is indexed and supersedes the older shell locks in place", () => {

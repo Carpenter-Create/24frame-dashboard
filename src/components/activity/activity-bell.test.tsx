@@ -228,15 +228,15 @@ describe("ActivityBell", () => {
   it("matches #391 chrome idle weight on the desktop bell", () => {
     expect(PHOSPHOR_CHROME_IDLE_WEIGHT).toBe("bold");
     expect(PHOSPHOR_CHROME_ICON_CLASS).toBe("size-4 shrink-0");
-    // Phone and desktop header trailing share a 24px box. Dock stays
-    // its own 24px literal. Phosphor rail stays 16px.
+    // Screening chrome: phone header glyphs 20, desktop 18 (in the 34
+    // box). Dock stays its own 24px literal. Phosphor rail stays 16px.
     expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toBe(
-      "size-6 shrink-0 md:hidden text-ink-2",
+      "size-5 shrink-0 md:hidden text-ink-2",
     );
     // Phone bell rides bottom-bar idle ink; desktop bell stays on the
     // HOUSE_THEME_TOGGLE_CLASS text-ink-3 / hover:text-ink from #442.
     expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
-    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-6 shrink-0 hidden md:block");
+    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-4.5 shrink-0 hidden md:block");
     expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     expect(bellSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
     expect(bellSrc).toContain("HOUSE_HEADER_TRAILING_DESKTOP_CLASS");

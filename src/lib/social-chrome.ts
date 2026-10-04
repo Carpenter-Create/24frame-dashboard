@@ -583,12 +583,20 @@ export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-w
 // Media Immersion Doctrine: soft / flat / pasted / framed card = FAIL.
 // docs/design-locks/social-explore-for-you-immersive-lock-v2.md
 // docs/design-locks/shell-desktop-top-nav-slider-waffle-phone-lock-v1.md
-export const SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS = "hidden md:contents";
+// Screening chrome: over the dark stage the bar is the opaque page
+// canvas (its 85% glass read as grey over the stage), so the muted Exit
+// chip reads as on the board. Selector reaches through `contents`.
+export const SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS =
+  "hidden md:contents [&_[data-app-header]]:bg-bg";
 
 // Desktop header chip. Hidden below md so phone Explore has no Exit.
-// Filled ink on the light header so it reads as a control, not body text.
+// Screening chrome (Adam 2026-10-04,
+// docs/design-locks/shell-screening-chrome-lock-v1.md): a 34 muted
+// chip, radius 10, pad 9 / 12, 14 X then "Exit" at 13 / 500 ink, 6
+// apart, 8 after the lanes (plus the row's 8). Supersedes the filled
+// ink pill.
 export const SOCIAL_EXPLORE_EXIT_CLASS =
-  "hidden h-[var(--header-control-size)] min-h-[var(--header-control-size)] shrink-0 items-center gap-[var(--space-2)] whitespace-nowrap rounded-full bg-ink px-[var(--space-3)] t-body font-medium text-surface md:inline-flex";
+  "hidden h-[var(--header-desktop-control-size)] min-h-[var(--header-desktop-control-size)] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius)] bg-surface-muted pl-[9px] pr-3 text-[length:var(--text-xs)] font-medium text-ink transition-colors hover:text-ink-2 md:ml-[var(--space-2)] md:inline-flex";
 
 export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
   "max-md:fixed max-md:inset-0 overflow-hidden bg-[#0A0A0B] md:absolute md:inset-0";

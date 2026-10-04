@@ -35,7 +35,6 @@ import {
   HOUSE_RAIL_ACTIVE_CLASS,
   HOUSE_RAIL_IDLE_CLASS,
   HOUSE_RAIL_ITEM_CLASS,
-  HOUSE_RAIL_LABEL_CLASS,
   HOUSE_RAIL_PANEL_CLASS,
   HOUSE_RAIL_TITLE_CLASS,
   HOUSE_RELATED_GAP_CLASS,
@@ -59,7 +58,8 @@ import {
   HOUSE_ACCESS_RAIL_WIDTH,
   HOUSE_HOME_CONTENT_WIDTH,
   HOUSE_HOME_RAIL_COLUMN_CLASS,
-  HOUSE_RAIL_FLOAT_CLASS,
+  HOUSE_RAIL_COLUMN_CLASS,
+  HOUSE_SHELL_QUIET_INK_CLASS,
 } from "@/lib/house-shell";
 import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
 import {
@@ -149,7 +149,10 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(tokens).toMatch(/--radius-lg:\s*16px;/);
     expect(tokens).toMatch(/--content-inset:\s*48px;/);
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(tokens).toMatch(/--sidebar-width:\s*256px;/);
+    // Screening chrome (Adam 2026-10-04): the side menu slot is 200.
+    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
+    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*64px;/);
+    expect(tokens).not.toMatch(/--sidebar-width:\s*256px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
     expect(tokens).toMatch(/--shell-gutter-inline-start:\s*32px;/);
@@ -167,9 +170,10 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(HOUSE_MODULE_CLASS).toBe(
       "rounded-[var(--radius-lg)] bg-surface-muted shadow-none",
     );
-    expect(HOUSE_RAIL_PANEL_CLASS).toBe(
-      "rounded-[var(--radius-lg)] border border-hairline bg-surface shadow-none",
-    );
+    // The side menu is a column with one hairline on its right — no card.
+    expect(HOUSE_RAIL_PANEL_CLASS).toBe("border-r border-hairline bg-bg shadow-none");
+    expect(HOUSE_RAIL_PANEL_CLASS).not.toContain("rounded");
+    expect(HOUSE_SHELL_QUIET_INK_CLASS).toBe("text-ink-3 dark:text-ink-2");
     expect(HOUSE_CARD_PAD).toBe("px-[var(--space-4)] py-[var(--space-4)]");
     expect(HOUSE_RELATED_GAP_CLASS).toBe("gap-[var(--space-2)]");
     expect(HOUSE_SECTION_AIR_CLASS).toBe("gap-[var(--space-6)]");
@@ -178,14 +182,17 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(HOUSE_SHELL_GUTTER_X_CLASS).toBe(
       "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]",
     );
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--chrome-gutter)]");
+    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-2)]");
     expect(HOUSE_CANVAS_X_CLASS).toBe("px-[var(--chrome-gutter)]");
     expect(HOUSE_ACCESS_RAIL_WIDTH).toBe("var(--access-rail-width)");
     expect(HOUSE_HOME_CONTENT_WIDTH).toBe("var(--home-content-width)");
     expect(HOUSE_HOME_RAIL_COLUMN_CLASS).toBe(
       "w-full md:ml-[var(--shell-gutter-inline-start)] md:mr-[var(--shell-gutter-inline-end)] md:w-[calc(100%-var(--shell-gutter-inline-start)-var(--shell-gutter-inline-end))]",
     );
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("left-[var(--chrome-gutter)]");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toBe(
+      "fixed bottom-0 left-0 top-[var(--header-height)] z-30 hidden flex-col md:flex",
+    );
+    expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("left-[var(--chrome-gutter)]");
     expect(HOUSE_SEARCH_PILL_CLASS).toBe("rounded-full border-0 bg-surface-muted");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("inline-flex");
@@ -193,7 +200,6 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("text-left");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("t-body leading-6");
     expect(HOUSE_RAIL_ITEM_CLASS).not.toContain("t-body-sm");
-    expect(HOUSE_RAIL_LABEL_CLASS).toBe("min-w-0 flex-1 truncate text-left");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
     expect(HOUSE_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
     expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
@@ -464,8 +470,10 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(HOUSE_RAIL_ITEM_CLASS).not.toContain("t-body-sm");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
 
-    expect(sideNav).toContain("HOUSE_RAIL_TITLE_CLASS");
-    expect(sideNav).toContain("className={HOUSE_RAIL_TITLE_CLASS}");
+    // The workspace side menu has its own eyebrow (screening chrome);
+    // Settings keeps the house rail title.
+    expect(sideNav).toContain("className={HOUSE_DEST_RAIL_EYEBROW_CLASS}");
+    expect(sideNav).not.toContain("HOUSE_RAIL_TITLE_CLASS");
     expect(sideNav).not.toContain('"px-2 pb-1 t-label text-ink-3"');
   });
 });

@@ -1,21 +1,28 @@
 // Rail-collapse chevron tokens and sidebar-collapsed cookie.
 // House names only. Data attr values stay on RAIL_COLLAPSE_*.
 
-import { HOUSE_ICON_BUTTON_CLASS } from "@/lib/house-shell";
+import { HOUSE_SHELL_QUIET_INK_CLASS } from "@/lib/house-shell";
 
 export const RAIL_COLLAPSE_CHEVRON = "chevron";
 
+// Screening chrome (docs/design-locks/shell-screening-chrome-lock-v1.md):
+// expanded, the collapse control is a 28 radius-6 box beside the
+// workspace eyebrow; collapsed, the expand control is a 40×32 radius-10
+// box at the top of the 64 column. Quiet ink, muted wash on hover.
 export const RAIL_COLLAPSE_CHEVRON_CLASS =
-  `flex h-7 w-7 shrink-0 items-center justify-center ${HOUSE_ICON_BUTTON_CLASS} text-ink-3 transition-colors hover:bg-surface-muted hover:text-ink-2`;
+  `flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] ${HOUSE_SHELL_QUIET_INK_CLASS} transition-colors hover:bg-surface-muted hover:text-ink`;
+
+export const RAIL_EXPAND_CHEVRON_CLASS =
+  `flex h-8 w-10 shrink-0 items-center justify-center rounded-[var(--radius)] ${HOUSE_SHELL_QUIET_INK_CLASS} transition-colors hover:bg-surface-muted hover:text-ink`;
 
 export const RAIL_COLLAPSE_CHEVRON_ICON_CLASS = "h-4 w-4";
 
 export const RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT = "bold" as const;
 
-export const RAIL_COLLAPSE_EXPAND_ROW_CLASS = "flex h-8 items-center justify-center";
-
-/** Shared dest rail width. Every workspace rail uses this. Collapsed overrides `--sidebar-width` to the collapsed var. */
-export const RAIL_WIDTH_CLASS = "w-[calc(var(--sidebar-width)-var(--chrome-gutter))]";
+/** Shared side-menu width. Every workspace rail and Settings use this.
+ *  Collapsed overrides `--sidebar-width` to the collapsed var. The
+ *  column is the whole slot — no inset, no card. */
+export const RAIL_WIDTH_CLASS = "w-[var(--sidebar-width)]";
 
 export const RAIL_COLLAPSE_WIDTH_VAR = "var(--sidebar-width-collapsed)";
 

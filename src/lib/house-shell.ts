@@ -2,16 +2,18 @@
 // Tokens stay in tokens.css. Do not fork workspace-scoped token files.
 // Page canvas is --bg (white). Grey modules are --surface-muted (#F4F4F6)
 // r16 only when a module is needed — never a page wash. Cards that stay
-// white use hairline. No shadow. One rounded register house-wide: dest
-// rail is an r16 panel (not a sharp strip), search and nav are pills,
-// icon hits are circles, top-bar controls are pills. Active rail is
-// Sporty Blue tint wash + accent type. Header Search is a quiet muted
-// pill. Status badges stay ink. Exclusive choice menus use
+// white use hairline. No shadow. Shell chrome is the screening room
+// (Adam 2026-10-04, docs/design-locks/shell-screening-chrome-lock-v1.md):
+// the side menu is a column with a hairline right edge (no card), the
+// header's workspace switch is text lanes with an ink underline, and
+// header controls are 34 radius-10 boxes on desktop. The Settings and
+// Education course rails keep the Sporty Blue tint wash + accent-ink
+// type. Status badges stay ink. Exclusive choice menus use
 // SegmentedTrack (white on accent thumb). Standalone dest and news
 // source lenses are already SegmentedTrack. Period chips stay muted.
-// Sporty Blue fill is reserved for the primary CTA, the selected rail
-// pill, dest/news selected pills, links, the active dest-rail icon
-// tile, and the phone dock Create circle (shell-unified-chrome-lock-v1).
+// Sporty Blue fill is reserved for the primary CTA, the selected
+// Settings rail pill, dest/news selected pills, links, Social's Create
+// (side-menu tile and phone dock circle), and the Ask sparkle.
 // Stay on the social/fun chrome lane — do not flatten toward a
 // professional register.
 
@@ -29,8 +31,10 @@ export const HOUSE_CHROME_GUTTER = "var(--chrome-gutter)";
 export const HOUSE_SHELL_GUTTER_X_CLASS =
   "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]";
 
-/** Phone header right air — avatar is not flush to the viewport. */
-export const HOUSE_PHONE_TRAILING_GUTTER_CLASS = "max-md:pr-[var(--chrome-gutter)]";
+/** Phone header right air. The 44 account hit holds the 30 avatar, so
+ *  8 here leaves the avatar 15 from the viewport edge (screening chrome;
+ *  was --chrome-gutter with a bare 28 avatar). */
+export const HOUSE_PHONE_TRAILING_GUTTER_CLASS = "max-md:pr-[var(--space-2)]";
 
 export const HOUSE_CANVAS_X_CLASS = "px-[var(--chrome-gutter)]";
 
@@ -53,14 +57,28 @@ export const HOUSE_HOME_RAIL_COLUMN_CLASS =
 export const HOUSE_AGG_SHELL_COLUMN_CLASS =
   "w-full pb-24 pt-8 max-md:pb-0 max-md:px-[var(--chrome-gutter)] md:pl-[var(--chrome-gutter)] md:pr-[var(--shell-gutter-inline-end)]";
 
-export const HOUSE_RAIL_FLOAT_CLASS =
-  "fixed left-[var(--chrome-gutter)] top-[calc(var(--header-height)+var(--chrome-gutter))] z-30 hidden h-[calc(100dvh-var(--header-height)-calc(var(--chrome-gutter)*2))] flex-col md:flex";
+// Side menu column, every workspace and Settings (Adam 2026-10-04,
+// docs/design-locks/shell-screening-chrome-lock-v1.md). Flush to the
+// viewport's left edge under the header, full height, no card: the
+// page canvas with one hairline on its right. Width is RAIL_WIDTH_CLASS
+// (--sidebar-width: 200, 64 collapsed). Supersedes the floating r16
+// card (256 slot, 240 panel, 16 inset).
+export const HOUSE_RAIL_COLUMN_CLASS =
+  "fixed bottom-0 left-0 top-[var(--header-height)] z-30 hidden flex-col md:flex";
 
 export const HOUSE_MODULE_CLASS =
   "rounded-[var(--radius-lg)] bg-surface-muted shadow-none";
 
-export const HOUSE_RAIL_PANEL_CLASS =
-  "rounded-[var(--radius-lg)] border border-hairline bg-surface shadow-none";
+export const HOUSE_RAIL_PANEL_CLASS = "border-r border-hairline bg-bg shadow-none";
+
+/**
+ * Quiet idle ink for the shell: header lanes, the side-menu eyebrow and
+ * collapse control, and idle dock glyphs. The screening-room board's ink3
+ * equals --text-tertiary in light but --text-secondary in dark, so dark
+ * steps to ink-2 (dark --text-tertiary is under 4.5:1 for 13px type on
+ * the dark page). Tokens only.
+ */
+export const HOUSE_SHELL_QUIET_INK_CLASS = "text-ink-3 dark:text-ink-2";
 
 export const HOUSE_ICON_BUTTON_CLASS = "rounded-full";
 
@@ -82,8 +100,6 @@ export const HOUSE_RAIL_TITLE_CLASS = "px-2 pb-1 t-label text-ink-3";
 export const HOUSE_RAIL_ITEM_CLASS =
   "relative inline-flex w-full items-center rounded-full text-left t-body leading-6 t-rail transition-colors";
 
-export const HOUSE_RAIL_LABEL_CLASS = "min-w-0 flex-1 truncate text-left";
-
 // Active = wash + accent ink. Idle inherits body 420. t-rail is tracking
 // only (A4). No font-normal (400). Differentiate by color only; do not bold
 // the rail (Coinbase-pop A2). The label is --accent-ink, not --accent:
@@ -93,24 +109,81 @@ export const HOUSE_RAIL_ACTIVE_CLASS = "bg-accent-wash text-accent-ink";
 
 export const HOUSE_RAIL_IDLE_CLASS = "text-ink hover:bg-surface-muted";
 
-// Dest rail rows — every workspace, Home included (Adam 2026-10-04,
-// docs/design-locks/shell-unified-chrome-lock-v1.md). Row is
-// [28 icon tile + label]. Idle: muted tile, ink-2 glyph and label.
-// Active: muted row wash, ink label, accent-filled tile. One active
-// row per path (houseRailActiveIndex). Color only — no bold.
-// Settings and the Education course rail keep HOUSE_RAIL_ACTIVE_CLASS
-// (no tiles there). The 28 tile fits the 60 collapsed slot with the
-// nav at --space-1 side pad.
-export const HOUSE_DEST_RAIL_TILE_CLASS =
-  "flex size-7 shrink-0 items-center justify-center rounded-[var(--radius)]";
+// Side menu (dest rail) — every workspace, Home included. Screening
+// chrome (Adam 2026-10-04, "Yes, everywhere";
+// docs/design-locks/shell-screening-chrome-lock-v1.md). No icon
+// tiles and no accent on rows: a 22 glyph slot holds an 18 Phosphor
+// glyph (Regular idle, Bold current — the board's stroke 1.7 / 2).
+// Rows are 36 tall, 13px, radius 10. Idle: 500, ink-2. Current:
+// muted fill, 600, ink. One current row per path
+// (houseRailActiveIndex). Social's Create is the menu's only accent:
+// a 22 radius-6 accent tile with a plus (26 when collapsed).
+// Collapsed: 40 icon links, the current one muted. Settings and the
+// Education course rail keep HOUSE_RAIL_ACTIVE_CLASS. Supersedes the
+// 28 icon tiles (shell-unified-chrome-lock-v1 §2).
+export const HOUSE_DEST_RAIL_NAV_CLASS = "flex flex-col gap-0.5 px-[10px] py-[var(--space-3)]";
 
-export const HOUSE_DEST_RAIL_TILE_IDLE_CLASS = "bg-surface-muted text-ink-2";
+export const HOUSE_DEST_RAIL_NAV_COLLAPSED_CLASS =
+  "flex flex-col items-center gap-[var(--space-1)] py-[var(--space-3)]";
 
-export const HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS = "bg-accent text-accent-contrast";
+/** Top row: workspace eyebrow + the 28 collapse control. */
+export const HOUSE_DEST_RAIL_TOP_ROW_CLASS =
+  "flex items-center justify-between pb-1.5 pl-[10px] pr-0.5";
 
-export const HOUSE_DEST_RAIL_ACTIVE_CLASS = "bg-surface-muted text-ink";
+/** Collapsed top row: the same element holding only the 40×32 expand
+ *  control, so React keeps the one collapse button across the toggle
+ *  and keyboard focus stays on it. */
+export const HOUSE_DEST_RAIL_TOP_ROW_COLLAPSED_CLASS = "flex shrink-0 justify-center";
 
-export const HOUSE_DEST_RAIL_IDLE_CLASS = "text-ink-2 hover:bg-surface-muted";
+/** Eyebrow: 13 / 500 / 0.06em / uppercase, quiet ink. */
+export const HOUSE_DEST_RAIL_EYEBROW_CLASS = `text-[length:var(--text-xs)] font-medium uppercase leading-none tracking-[0.06em] ${HOUSE_SHELL_QUIET_INK_CLASS}`;
+
+/** Staff section eyebrow inside a rail — same face, row inset. */
+export const HOUSE_DEST_RAIL_SECTION_EYEBROW_CLASS = `px-[10px] pb-1.5 pt-1 ${HOUSE_DEST_RAIL_EYEBROW_CLASS}`;
+
+/** Collapsed: the 24×1 hairline under the expand control. */
+export const HOUSE_DEST_RAIL_COLLAPSED_RULE_CLASS = "mb-1.5 mt-1 h-px w-6 shrink-0 bg-hairline";
+
+export const HOUSE_DEST_RAIL_DIVIDER_CLASS = "my-2 h-px w-full shrink-0 bg-hairline";
+
+export const HOUSE_DEST_RAIL_DIVIDER_COLLAPSED_CLASS = "my-2 h-px w-6 shrink-0 bg-hairline";
+
+export const HOUSE_DEST_RAIL_ROW_CLASS =
+  "relative flex h-9 w-full items-center gap-2.5 rounded-[var(--radius)] px-[10px] text-left text-[length:var(--text-xs)] transition-colors";
+
+export const HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS =
+  "relative flex size-10 shrink-0 items-center justify-center rounded-[var(--radius)] transition-colors";
+
+export const HOUSE_DEST_RAIL_IDLE_CLASS = "font-medium text-ink-2 hover:bg-surface-muted hover:text-ink";
+
+export const HOUSE_DEST_RAIL_ACTIVE_CLASS = "bg-surface-muted font-semibold text-ink";
+
+export const HOUSE_DEST_RAIL_LABEL_CLASS = "min-w-0 flex-1 whitespace-nowrap text-left";
+
+/** 22 slot that centres the 18 glyph, so labels line up with Create's tile. */
+export const HOUSE_DEST_RAIL_GLYPH_SLOT_CLASS = "flex w-[22px] shrink-0 justify-center";
+
+export const HOUSE_DEST_RAIL_GLYPH_CLASS = "size-4.5 shrink-0";
+
+export const HOUSE_DEST_RAIL_GLYPH_IDLE_WEIGHT = "regular" as const;
+
+export const HOUSE_DEST_RAIL_GLYPH_ACTIVE_WEIGHT = "bold" as const;
+
+export function houseDestRailGlyphWeight(active: boolean): "regular" | "bold" {
+  return active ? HOUSE_DEST_RAIL_GLYPH_ACTIVE_WEIGHT : HOUSE_DEST_RAIL_GLYPH_IDLE_WEIGHT;
+}
+
+/** Social Create: the menu's only accent. 22 tile, radius 6, plus 14. */
+export const HOUSE_DEST_RAIL_CREATE_TILE_CLASS =
+  "flex size-[22px] shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-accent text-accent-contrast";
+
+/** Collapsed Create: 26 tile, plus 15. */
+export const HOUSE_DEST_RAIL_CREATE_TILE_COLLAPSED_CLASS =
+  "flex size-[26px] shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-accent text-accent-contrast";
+
+export const HOUSE_DEST_RAIL_CREATE_GLYPH_CLASS = "size-3.5 shrink-0";
+
+export const HOUSE_DEST_RAIL_CREATE_GLYPH_COLLAPSED_CLASS = "size-[15px] shrink-0";
 
 export const HOUSE_SEARCH_PILL_CLASS = "rounded-full border-0 bg-surface-muted";
 

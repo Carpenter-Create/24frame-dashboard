@@ -12,14 +12,19 @@ import {
   workspaceWaffleIntentPrefetchHrefs,
   WORKSPACE_WAFFLE_HOME,
   workspaceWaffleHomeDest,
-  WORKSPACE_SWITCHER_SEGMENTS_CLASS,
-  WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS,
-  WORKSPACE_SWITCHER_SEGMENT_CLASS,
+  WORKSPACE_SWITCHER_LANES_CLASS,
+  WORKSPACE_SWITCHER_LANE_CLASS,
+  WORKSPACE_SWITCHER_LANE_OFF_CLASS,
+  WORKSPACE_SWITCHER_LANE_ON_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT,
   selectWorkspaceLane,
   workspaceSliderSegments,
+  workspaceSwitcherLaneClass,
   workspaceSwitcherNextSegmentIndex,
   workspaceSwitcherPersistLane,
-  workspaceSwitcherSegmentClass,
+  workspaceSwitcherTriggerLabel,
+  workspaceSwitcherTriggerName,
   APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS,
   APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS,
   APP_HEADER_LEADING_CLASS,
@@ -111,11 +116,12 @@ describe("workspace switcher lock", () => {
     expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toBe("hidden md:contents");
     expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("shrink-0 md:hidden");
     expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).not.toContain("md:contents");
-    expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("rounded-full");
-    expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("bg-surface-muted");
-    expect(workspaceSwitcherSegmentClass(true)).toContain("text-ink");
-    expect(workspaceSwitcherSegmentClass(true)).not.toContain("text-white");
-    expect(workspaceSwitcherSegmentClass(false)).toContain("text-ink-2");
+    // Screening chrome: lanes are plain words — no track, no pill.
+    expect(WORKSPACE_SWITCHER_LANES_CLASS).not.toContain("rounded-full");
+    expect(WORKSPACE_SWITCHER_LANES_CLASS).not.toContain("bg-surface-muted");
+    expect(workspaceSwitcherLaneClass(true)).toContain("text-ink");
+    expect(workspaceSwitcherLaneClass(true)).not.toContain("text-white");
+    expect(workspaceSwitcherLaneClass(false)).toContain("text-ink-3 dark:text-ink-2");
     expect(workspaceSwitcherNextSegmentIndex(0, 3, -1)).toBe(2);
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("relative");
     expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).toBe("bg-surface-muted");
@@ -151,9 +157,12 @@ describe("workspace switcher lock", () => {
   });
 
   it("keeps header cluster air and does not host a workspace pill", () => {
-    expect(APP_HEADER_LEADING_CLASS).toContain("gap-[var(--space-3)]");
-    expect(APP_HEADER_LEADING_CLASS).toContain("md:gap-[var(--space-2)]");
+    // Screening chrome: 8 on both faces (phone emblem → grid button;
+    // desktop mark · hairline · lanes · Exit); md+ stretches to the bar.
+    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
+    expect(APP_HEADER_LEADING_CLASS).toContain("md:self-stretch");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-1)]");
+    expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-3)]");
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("max-md:flex-col");
@@ -161,11 +170,10 @@ describe("workspace switcher lock", () => {
     expect(WORKSPACE_SWITCHER_HOST_CLASS).toBe("relative min-w-0 overflow-visible");
     expect(WORKSPACE_SWITCHER_HOST_CLASS).not.toMatch(/overflow-hidden/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("shrink-0");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(
-      /(?:^|\s)gap-\[var\(--space-3\)\](?:\s|$)/,
-    );
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-2)]");
+    // Phone hits abut; desktop controls are 8 apart (screening chrome).
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(/\d+px/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("min-w-0");
@@ -174,12 +182,12 @@ describe("workspace switcher lock", () => {
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
-    expect(src).toContain("phone --space-3 / desktop md:gap-[var(--space-4)] (16)");
+    expect(src).toContain("Phone hits abut (no gap); desktop");
     expect(src).not.toContain("--space-2 on every breakpoint");
     const phoneGap = APP_HEADER_LEADING_CLASS.match(
       /(?<![a-z0-9:-])gap-\[var\((--space-\d+)\)\]/,
     )?.[1];
-    expect(phoneGap).toBe("--space-3");
+    expect(phoneGap).toBe("--space-2");
   });
 
   it("places the Workspaces menu below dest chips and Education search", () => {
@@ -319,10 +327,37 @@ describe("workspace switcher lock", () => {
       expect(label).not.toBe("Team");
     }
     expect(APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS).toContain("md:hidden");
-    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe("hidden w-[240px] shrink-0 xl:flex");
+    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe("hidden w-[232px] shrink-0 xl:flex");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("flex-1");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("w-[420px]");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("md:max-w-[420px]");
+  });
+
+  // Screening chrome: the phone grid button names where you are — the
+  // lane the desktop underline lights — and is the grid alone where no
+  // lane is lit. Accessible name starts with the visible name.
+  it("names the phone grid button with the lit lane, or nothing where none is lit", () => {
+    const staff = availableWorkspaceOptions({ isGcStaff: true });
+    expect(workspaceSwitcherTriggerName("/home", "aggregation")).toBe("Home");
+    expect(workspaceSwitcherTriggerName("/home/news", "social")).toBe("Home");
+    expect(workspaceSwitcherTriggerName("/aggregation/dashboard", "aggregation")).toBe("Aggregation");
+    expect(workspaceSwitcherTriggerName("/social", "social")).toBe("Social");
+    expect(workspaceSwitcherTriggerName("/social/u/ada", "aggregation")).toBe("Social");
+    expect(workspaceSwitcherTriggerName("/education", "education")).toBe("Education");
+    expect(workspaceSwitcherTriggerName("/staff/queue", "staff", staff)).toBe("Staff");
+    for (const path of ["/settings", "/activity", "/help", "/co-productions"]) {
+      expect(workspaceSwitcherTriggerName(path, "social", staff), path).toBeNull();
+    }
+    expect(workspaceSwitcherTriggerLabel("Social")).toBe("Social, Workspaces");
+    expect(workspaceSwitcherTriggerLabel(null)).toBe("Workspaces");
+    // 44 tall, hugs its content (never a fixed width), 13 / 500 ink.
+    expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toBe(
+      "relative flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius)] px-[var(--space-2)] text-[length:var(--text-xs)] font-medium text-ink transition-colors hover:bg-surface-muted",
+    );
+    expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).not.toMatch(/(?:^|\s)w-\[|size-\[/);
+    expect(housePhoneForbidsTruncate(WORKSPACE_WAFFLE_TRIGGER_CLASS)).toBe(true);
+    expect(WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS).toBe("size-4 shrink-0");
+    expect(WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT).toBe("fill");
   });
 
   it("keeps the existing workspace cookie write — no second scheme", () => {
@@ -390,18 +425,24 @@ describe("workspace switcher lock", () => {
     }
   });
 
-  it("paints the desktop row with a raised surface thumb and ink label — switcher-only", () => {
-    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("bg-surface");
-    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("shadow-[var(--elevation)]");
-    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("dark:bg-hairline");
-    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("inset-y-[var(--space-1)]");
-    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).not.toMatch(/(?:^|\s)bg-accent(?:\s|$)/);
-    expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("p-[var(--space-1)]");
-    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("px-[var(--space-2)]");
-    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("lg:px-[var(--space-4)]");
-    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("whitespace-nowrap");
-    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).not.toContain("truncate");
-    expect(`${WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_CLASS}`).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+  // Screening chrome (Adam 2026-10-04, "Yes, everywhere"): plain words,
+  // 13px, idle 500 quiet ink, current 600 ink with a 2px ink underline
+  // on the bar's bottom edge. No track, thumb, or grey pill.
+  it("paints the desktop lanes as plain words with an ink underline on the current one", () => {
+    expect(WORKSPACE_SWITCHER_LANES_CLASS).toBe("flex shrink-0 self-stretch");
+    expect(WORKSPACE_SWITCHER_LANE_CLASS).toBe(
+      "relative inline-flex shrink-0 cursor-pointer select-none items-center whitespace-nowrap px-[10px] text-[length:var(--text-xs)] transition-colors",
+    );
+    expect(WORKSPACE_SWITCHER_LANE_ON_CLASS).toBe("font-semibold text-ink shadow-[inset_0_-2px_0_var(--text)]");
+    expect(WORKSPACE_SWITCHER_LANE_OFF_CLASS).toBe("font-medium text-ink-3 dark:text-ink-2 hover:text-ink");
+    expect(workspaceSwitcherLaneClass(true)).toBe(`${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_ON_CLASS}`);
+    expect(workspaceSwitcherLaneClass(false)).toBe(`${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_OFF_CLASS}`);
+    expect(WORKSPACE_SWITCHER_LANE_CLASS).not.toContain("truncate");
+    expect(WORKSPACE_SWITCHER_LANE_CLASS).not.toContain("rounded");
+    expect(`${WORKSPACE_SWITCHER_LANES_CLASS} ${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_ON_CLASS}`).not.toMatch(/bg-|accent/);
+    expect(`${WORKSPACE_SWITCHER_LANE_ON_CLASS} ${WORKSPACE_SWITCHER_LANE_OFF_CLASS}`).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(src).not.toContain("WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS");
+    expect(src).not.toContain("HOUSE_SEGMENTED_TRACK_CLASS");
     // Other segmented tracks keep the shared accent thumb.
     expect(HOUSE_SEGMENTED_THUMB_CLASS).toContain("bg-accent");
     expect(HOUSE_SEGMENTED_ITEM_ON_CLASS).toBe("text-white");
