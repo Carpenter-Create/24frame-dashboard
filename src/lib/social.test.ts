@@ -14,6 +14,7 @@ import {
   isEligibleBirthDate,
   likeInsertRow,
   socialLikeCountCopy,
+  socialProfileStatLabel,
   messageInsertRow,
   normalizeConversationTitle,
   normalizeHandle,
@@ -889,6 +890,21 @@ describe("feed post craft lock 2026-09-21", () => {
     expect(socialLikeCountCopy(1)).toBe("1 like");
     expect(socialLikeCountCopy(2)).toBe("2 likes");
     expect(SOCIAL_ROUTES.post).toBe("/social/p");
+  });
+});
+
+describe("profile stat labels", () => {
+  it("reads one as singular: 1 post, 1 follower (Stage mockup), never 1 posts", () => {
+    expect(socialProfileStatLabel("posts", 1)).toBe("post");
+    expect(socialProfileStatLabel("followers", 1)).toBe("follower");
+    expect(socialProfileStatLabel("following", 1)).toBe("following");
+    for (const count of [0, 2, 12, 1500]) {
+      expect(socialProfileStatLabel("posts", count)).toBe(SOCIAL.profile.postsStat);
+      expect(socialProfileStatLabel("followers", count)).toBe(SOCIAL.profile.followersStat);
+      expect(socialProfileStatLabel("following", count)).toBe(SOCIAL.profile.followingStat);
+    }
+    expect(SOCIAL.profile.postStatOne).toBe("post");
+    expect(SOCIAL.profile.followerStatOne).toBe("follower");
   });
 });
 

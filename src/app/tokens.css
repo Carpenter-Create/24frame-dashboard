@@ -30,8 +30,16 @@
   --accent: #1769ff;            /* Global Content — Sporty Blue. .dark overrides. */
   --accent-contrast: #ffffff;   /* white on the blue */
   /* Light-blue pill wash for the active rail — Sporty Blue tint on white.
-     Type/icon stay #1769FF. Not a filled brand-blue chip. */
+     Type/icon on it use --accent-ink (below). Not a filled brand-blue chip. */
   --accent-wash: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  /* Ink on the wash. Founder pick "Deeper blue text" (Adam 2026-10-04):
+     text and icons that sit on --accent-wash only. Smallest darkening of
+     Sporty Blue at the same hue: OKLCH lightness 0.572 -> 0.543, chroma
+     0.236 and hue 261.6 held. On the wash 4.62:1 (--accent was 4.07:1);
+     on white 5.29:1. One 8-bit step lighter (#0a60f5) is 4.58:1. Not a
+     second accent: fills, buttons, links, focus rings and accent text
+     on white stay --accent. .dark maps it back to --accent. */
+  --accent-ink: #0a5ff5;
   /* Home Education glance plates — Figma Home module SoT. Deterministic
      course-id cycle. Not a product accent; Sporty Blue stays --accent. */
   --course-plate-1: #1f3873;
@@ -96,8 +104,10 @@
 
   /* --- Radius + hairline elevation ---
      --radius-lg is the house card corner (16). Shared on purpose — no
-     Dashboard-only radius fork. Controls stay on --radius / --radius-sm. */
-  --radius-sm: 6px; --radius: 10px; --radius-lg: 16px;
+     Dashboard-only radius fork. Controls stay on --radius / --radius-sm.
+     --radius-xl (24) is the stage corner: the Social profile hero card
+     (docs/design-locks/social-profile-stage-lock-v1.md). */
+  --radius-sm: 6px; --radius: 10px; --radius-lg: 16px; --radius-xl: 24px;
   --border-width: 1px;
 
   /* --- Layout --- */
@@ -179,6 +189,9 @@
      into --surface. */
   --accent: #70b5f9;
   --accent-contrast: #0A0B0D;
+  /* Founder pick 2026-10-04: dark text on the wash is the dark accent
+     itself; #70b5f9 on the dark wash is 6.17:1. */
+  --accent-ink: var(--accent);
 
   /* Adam lock 2026-09-22. YouTube near-black canvas. Retires the navy
      #050835 trial. Surfaces stay: #1e2126 on #0f0f0f is 1.19:1, the

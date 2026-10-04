@@ -2,7 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { SOCIAL_PROFILE_ACTIONS_CLASS } from "@/lib/social-chrome";
+import {
+  SOCIAL_PROFILE_ACTIONS_CLASS,
+  SOCIAL_PROFILE_FACE_CLASS,
+  SOCIAL_PROFILE_HEAD_CLASS,
+  SOCIAL_PROFILE_HERO_CLASS,
+  SOCIAL_PROFILE_LINKS_CLASS,
+  SOCIAL_PROFILE_STAGE_CLASS,
+  SOCIAL_PROFILE_STATS_CLASS,
+} from "@/lib/social-chrome";
 import {
   SocialCreateSkeleton,
   SocialDmsSkeleton,
@@ -81,23 +89,37 @@ describe("Social loading skeletons", () => {
     expect(home).toContain("data-social-for-you-skeleton");
     expect(home).not.toContain("data-social-recent-chats-skeleton");
     expect(profile).toContain("data-social-profile-skeleton");
-    expect(profile).toContain("aspect-[4/1]");
-    expect(profile).toContain("rounded-none");
+    // Stage lock: the same stage and hero classes as the real face, so the
+    // hero box is identical when it mounts (band fill, no wash).
+    expect(profile).toContain(`class="${SOCIAL_PROFILE_STAGE_CLASS}"`);
+    expect(profile).toContain(`data-social-profile-hero-skeleton="" class="${SOCIAL_PROFILE_HERO_CLASS}"`);
+    expect(profile).toContain(`class="${SOCIAL_PROFILE_HEAD_CLASS}"`);
+    expect(profile).toContain(`class="${SOCIAL_PROFILE_FACE_CLASS}"`);
+    expect(profile).not.toContain("aspect-[4/1]");
+    expect(profile).not.toContain("bg-accent-wash");
     expect(profile).not.toContain("h-[112px]");
-    expect(profile).not.toContain("md:h-[224px]");
-    expect(profile).toContain("bg-accent-wash");
-    expect(profile).toContain("size-[var(--social-profile-avatar)]");
-    expect(profile).toContain("border-4 border-bg md:border-surface");
-    expect(profile).not.toContain("size-20");
-    expect(profile).toContain("data-social-profile-links-skeleton");
-    expect(profile.indexOf("data-social-profile-links-skeleton")).toBeGreaterThan(
-      profile.indexOf("rounded-full"),
+    expect(profile).toContain("size-16");
+    expect(profile).toContain("@min-[40rem]/hero:size-20");
+    expect(profile).toContain("border-[3px] border-band-ink");
+    expect(profile).toContain("bg-band-ink/15");
+    // Order follows the real face: actions, stats, roles, then the quiet links.
+    expect(profile.indexOf("data-social-profile-actions-skeleton")).toBeLessThan(profile.indexOf(SOCIAL_PROFILE_STATS_CLASS));
+    expect(profile.indexOf(SOCIAL_PROFILE_STATS_CLASS)).toBeLessThan(profile.indexOf("data-social-profile-roles-skeleton"));
+    expect(profile.indexOf("data-social-profile-roles-skeleton")).toBeLessThan(profile.indexOf("data-social-profile-links-skeleton"));
+    // The real links row pulls 6 so a glyph in a clear hit box lines up with
+    // the text; the skeleton paints whole boxes, so it starts on the column
+    // edge (it sat 6 outside it: x 350 vs 356 at 1440, 10 vs 16 at 390).
+    expect(SOCIAL_PROFILE_LINKS_CLASS).toContain("-ml-1.5");
+    const linksOpen = profile.slice(
+      profile.lastIndexOf("<div", profile.indexOf("data-social-profile-links-skeleton")),
+      profile.indexOf(">", profile.indexOf("data-social-profile-links-skeleton")),
     );
-    expect(profile.indexOf("data-social-profile-links-skeleton")).toBeLessThan(
-      profile.indexOf(SOCIAL_PROFILE_ACTIONS_CLASS),
-    );
+    expect(linksOpen).toContain("ml-0");
+    expect(linksOpen).not.toContain("-ml-1.5");
+    expect(linksOpen).toContain("flex-wrap");
+    expect(profile).toContain(SOCIAL_PROFILE_ACTIONS_CLASS);
+    expect(profile).toContain("h-11 w-32 rounded-full");
     expect(profile).not.toContain("size-6");
-    expect(profile).toContain("mt-[var(--space-3)]");
     expect(profile).toContain("lg:max-w-[720px]");
     expect(profile).toContain("lg:max-w-[1052px]");
     expect(profile).not.toContain("lg:max-w-[600px]");

@@ -27,7 +27,7 @@ function exportRhs(name: string): string {
 }
 
 describe("social chip hit", () => {
-  it("locks Home topic chips and Profile roles to one h-8 measure", () => {
+  it("locks Home topic chips to one h-8 measure", () => {
     expect(SOCIAL_CHIP_HIT_CLASS).toBe(CHIP_HIT_LITERAL);
     expect(SOCIAL_CHIP_HIT_CLASS).toContain("h-8");
     expect(SOCIAL_CHIP_HIT_CLASS).toContain("whitespace-nowrap");
@@ -39,7 +39,6 @@ describe("social chip hit", () => {
     expect(SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
-    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_SELECT_IDLE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
@@ -48,7 +47,6 @@ describe("social chip hit", () => {
 
     for (const chip of [
       SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS,
-      SOCIAL_PROFILE_ROLE_PILL_CLASS,
       SOCIAL_TOPIC_CHIP_MEASURE_CLASS,
       SOCIAL_PILL_CLASS,
     ]) {
@@ -60,9 +58,26 @@ describe("social chip hit", () => {
       expect(chip).not.toMatch(/\bmd:/);
     }
 
-    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toBe(
-      `w-fit ${SOCIAL_CHIP_HIT_CLASS} bg-surface-muted text-ink`,
+  });
+
+  it("gives Profile roles the Stage chip: 32 phone / 36 desktop, label 13, wrapping", () => {
+    // docs/design-locks/social-profile-stage-lock-v1.md supersedes the shared
+    // h-8 Home measure for the profile face only.
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain(SOCIAL_CHIP_HIT_CLASS);
+    const chip = SOCIAL_PROFILE_ROLE_PILL_CLASS.split(" ");
+    expect(chip).toEqual(
+      expect.arrayContaining([
+        "min-h-8",
+        "md:min-h-9",
+        "rounded-full",
+        "bg-surface-muted",
+        "text-ink",
+        "text-[length:var(--text-xs)]",
+        "font-medium",
+        "break-words",
+      ]),
     );
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toMatch(/whitespace-nowrap|truncate|text-\[11px\]|py-\[var\(--space-2\)\]/);
   });
 
   it("fails if either side forks the hit string", () => {
@@ -71,7 +86,6 @@ describe("social chip hit", () => {
 
     for (const name of [
       "SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS",
-      "SOCIAL_PROFILE_ROLE_PILL_CLASS",
       "SOCIAL_TOPIC_CHIP_MEASURE_CLASS",
       "SOCIAL_PILL_CLASS",
     ]) {

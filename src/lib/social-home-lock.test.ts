@@ -913,11 +913,13 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(identitySrc).toContain("data-social-profile-head");
     expect(identitySrc).not.toContain("data-social-profile-meta");
     expect(identitySrc).not.toContain("SOCIAL_PROFILE_META_CLASS");
-    expect(identitySrc).toContain("SOCIAL_PROFILE_INSET_CLASS");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_FACE_CLASS");
     expect(identitySrc).toContain("data-social-profile-actions");
     expect(identitySrc).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
     expect(identitySrc).toContain("socialProfileRolesRailItems");
-    expect(identitySrc).toContain("HouseChipRail");
+    // Stage lock: roles wrap as chips; no sideways chip rail on the face.
+    expect(identitySrc).not.toContain("HouseChipRail");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_ROLES_CLASS");
     expect(card).toContain("SocialProfilePostsEmpty");
     expect(card).not.toContain("emptySecondary");
     expect(identitySrc).not.toContain("emptySecondary");
@@ -931,11 +933,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     );
     expect(chrome).toContain("SOCIAL_PROFILE_HEAD_CLASS");
     expect(chrome).not.toContain("SOCIAL_PROFILE_META_CLASS");
-    expect(chrome).toContain("SOCIAL_PROFILE_INSET_CLASS");
+    expect(chrome).toContain("SOCIAL_PROFILE_FACE_CLASS");
     expect(chrome).not.toContain("IG geometry");
     expect(chrome).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
-    expect(chrome).toContain("SOCIAL_PROFILE_ROLES_ROW_CLASS");
-    expect(chrome).toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
+    expect(chrome).toContain("SOCIAL_PROFILE_ROLES_CLASS");
+    expect(chrome).not.toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
     expect(chrome).toContain("HOUSE_CHIP_RAIL_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_ROLE_PILL_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_CENTER_CLASS");
@@ -961,8 +963,9 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).toContain("HOUSE_FILTER_OFF_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_STATS_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_STATS_GRID_CLASS");
-    expect(chrome).toContain("gap-x-[var(--space-8)]");
-    expect(chrome).toContain("flex-wrap items-start");
+    // Stage lock: desktop counts are one inline row that wraps; the three-cell
+    // grid is the phone strip only.
+    expect(chrome).toContain("md:flex md:flex-wrap md:items-baseline md:gap-x-5");
     expect(chrome).not.toContain("inline-flex items-start gap-x-[var(--space-4)]");
     expect(chrome).not.toContain("max-w-xs");
     expect(chrome).not.toContain("grid w-full grid-cols-3");
@@ -1009,23 +1012,23 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(profileCenterSkeleton).not.toContain("SOCIAL_PROFILE_NAME_STACK_ON_COVER_CLASS");
     expect(profileCenterSkeleton).not.toContain("SOCIAL_PROFILE_HEAD_ON_COVER_CLASS");
     expect(profileCenterSkeleton).not.toContain("gap-[var(--space-1)]");
-    const skeletonOverlap = profileCenterSkeleton.indexOf("SOCIAL_PROFILE_HEAD_OVERLAP_CLASS");
+    // Stage lock: the skeleton reuses the stage, hero, head and face classes,
+    // in the real order: hero (avatar, name bars), then actions before stats.
+    const skeletonStage = profileCenterSkeleton.indexOf("SOCIAL_PROFILE_STAGE_CLASS");
+    const skeletonHero = profileCenterSkeleton.indexOf("SOCIAL_PROFILE_HERO_CLASS");
     const skeletonHead = profileCenterSkeleton.indexOf("SOCIAL_PROFILE_HEAD_CLASS");
-    const skeletonNameBar = profileCenterSkeleton.indexOf("h-7 w-40");
     const skeletonAvatar = profileCenterSkeleton.indexOf("SOCIAL_AVATAR_PROFILE_CLASS");
-    expect(skeletonOverlap).toBeGreaterThan(-1);
-    expect(skeletonOverlap).toBeLessThan(skeletonAvatar);
-    expect(skeletonHead).toBeGreaterThan(skeletonOverlap);
-    expect(skeletonAvatar).toBeLessThan(skeletonNameBar);
-    expect(profileCenterSkeleton.slice(skeletonNameBar)).not.toContain(
-      "SOCIAL_PROFILE_HEAD_OVERLAP_CLASS",
-    );
+    const skeletonNameBar = profileCenterSkeleton.indexOf("h-7 w-40");
+    expect(skeletonStage).toBeGreaterThan(-1);
+    expect(skeletonHero).toBeGreaterThan(skeletonStage);
+    expect(skeletonHead).toBeGreaterThan(skeletonHero);
+    expect(skeletonAvatar).toBeGreaterThan(skeletonHead);
+    expect(skeletonNameBar).toBeGreaterThan(skeletonAvatar);
+    expect(profileCenterSkeleton).not.toContain("SOCIAL_PROFILE_HEAD_OVERLAP_CLASS");
     expect(profileCenterSkeleton).not.toContain("${SOCIAL_PROFILE_HEAD_CLASS}");
-    expect(skeletonNameBar).toBeLessThan(
+    expect(skeletonNameBar).toBeLessThan(profileCenterSkeleton.indexOf("SOCIAL_PROFILE_FACE_CLASS"));
+    expect(profileCenterSkeleton.indexOf("SOCIAL_PROFILE_ACTIONS_CLASS")).toBeLessThan(
       profileCenterSkeleton.indexOf("SOCIAL_PROFILE_STATS_CLASS"),
-    );
-    expect(skeletonHead).toBeLessThan(
-      profileCenterSkeleton.indexOf("SOCIAL_PROFILE_ACTIONS_CLASS"),
     );
     expect(
       homeSkeleton.slice(
@@ -1115,21 +1118,19 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).not.toContain("No For You rail");
     expect(chrome).not.toContain("Instagram: one centered profile stack");
     expect(chrome).not.toContain("Facebook: side air / gutters");
+    // Stage lock: the handle sits under the name on the hero scrim.
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("flex-col");
-    expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("mt-[var(--space-3)]");
-    expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("gap-[var(--space-2)]");
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("w-full");
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).not.toContain("flex-1");
-    expect(SOCIAL_PROFILE_NAME_STACK_CLASS).not.toContain("--space-1");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("@container");
+    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("@container/profile");
     expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("flex-col");
-    expect(SOCIAL_PROFILE_NAME_CLASS).toContain("t-heading");
-    expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("t-title");
-    expect(SOCIAL_PROFILE_NAME_CLASS).not.toMatch(/md:|max-md:|text-\[/);
+    // House title on phone, house hero size from the hero step; title weight.
+    expect(SOCIAL_PROFILE_NAME_CLASS).toContain("t-title");
+    expect(SOCIAL_PROFILE_NAME_CLASS).toContain("@min-[40rem]/hero:text-[length:var(--text-hero)]");
+    expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("t-heading");
     expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("font-bold");
     expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("font-semibold");
-    expect(SOCIAL_PROFILE_HANDLE_CLASS).toContain("text-ink-2");
-    expect(SOCIAL_PROFILE_HANDLE_CLASS).toContain("t-body-sm");
+    expect(SOCIAL_PROFILE_HANDLE_CLASS).toContain("text-band-ink/84");
     expect(SOCIAL_PROFILE_HANDLE_CLASS).not.toContain("truncate");
     expect(SOCIAL_PROFILE_HANDLE_CLASS).not.toMatch(/\bhidden\b|max-lg:|md:hidden|sm:hidden/);
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).not.toMatch(/\bhidden\b|max-lg:|md:hidden|sm:hidden/);
@@ -1140,7 +1141,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_HOME_CENTER_CLASS).toContain("lg:max-w-[720px]");
     expect(SOCIAL_HOME_CENTER_CLASS).not.toContain("lg:max-w-[600px]");
     expect(SOCIAL_HOME_CENTER_CLASS).not.toMatch(/(^|\s)max-w-\[720px\]/);
-    expect(chrome).toContain("Phone and desktop share this stack");
+    expect(chrome).toContain("social-profile-stage-lock-v1");
     expect(profile).toContain("SOCIAL_PROFILE_CENTER_CLASS");
     expect(profile).toContain("SOCIAL_HOME_LAYOUT_CLASS");
     expect(profile).toContain("SocialDesktopForYouSlot");

@@ -561,7 +561,7 @@ describe("settings hub lock", () => {
     expect(settingsSrc).not.toContain("SETTINGS_RAIL_IDLE_CLASS");
     expect(settingsSrc).not.toContain("SETTINGS_RAIL_TITLE_CLASS");
     expect(settingsSrc).toContain("house-shell.ts");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
+    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
     expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
     expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("t-body");

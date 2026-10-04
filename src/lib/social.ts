@@ -510,6 +510,15 @@ export function socialComposerPrompt(displayName: string | null | undefined): st
   return first ? SOCIAL.home.composerPromptNamed : SOCIAL.home.composerPrompt;
 }
 
+export type SocialProfileStat = "posts" | "followers" | "following";
+
+/** Profile stat label for a count. One is singular ("1 post", "1 follower"). */
+export function socialProfileStatLabel(stat: SocialProfileStat, count: number): string {
+  if (stat === "following") return SOCIAL.profile.followingStat;
+  if (count === 1) return stat === "posts" ? SOCIAL.profile.postStatOne : SOCIAL.profile.followerStatOne;
+  return stat === "posts" ? SOCIAL.profile.postsStat : SOCIAL.profile.followersStat;
+}
+
 export function formatSocialCount(n: number): string {
   if (n < 1000) return String(n);
   if (n < 10_000) {
@@ -810,12 +819,14 @@ export const SOCIAL = {
     coverRemove: "Remove",
     coverChoose: "Choose cover photo",
     coverDragHint: "Drag or use arrow keys to reposition image",
-    // A banner that already fits 4:1 cannot move until it is zoomed in.
+    // A photo that already fits the 16:7 frame exactly cannot move until it is zoomed in.
     coverZoomHint: "Zoom in to reposition image",
     coverZoom: "Zoom",
     coverSaveChanges: "Save changes",
     coverCancel: "Cancel",
     coverCropFailed: "Could not crop cover photo.",
+    // Editor outline of the part of the frame phones show (Stage lock).
+    coverPhoneView: "Phone view",
     links: "Links",
     linksAdd: "Add",
     linksMore: "{first} +{n}",
@@ -871,6 +882,9 @@ export const SOCIAL = {
     postsStat: "posts",
     followersStat: "followers",
     followingStat: "following",
+    // One of a count reads "1 post" / "1 follower" (Stage mockup), not "1 posts".
+    postStatOne: "post",
+    followerStatOne: "follower",
     followersTab: "Followers",
     followingTab: "Following",
     followsSearch: "Search username or display name",

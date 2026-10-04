@@ -62,7 +62,7 @@ Picked from options:
 | Home content | Home sits behind the rail, so its grids follow the Home frame (a size container), not the viewport: main + 22rem News from a **960** frame; Education covers 2-up from **592**, 3-up from **960**. Below 960, News stacks after the AI module, as on phone. With the rail open that is one column from 768 to 1279, accepted as built (founder decision 3) |
 | Social | Same rows and the same inner pad as every rail. No Social-only icon family |
 | Collapsed | Icon-only. The 28 tile fits the 60 slot (nav `--space-1` side pad) |
-| Settings, Education course rail | Keep their current active styling |
+| Settings, Education course rail | Keep their current active styling: `--accent-wash` row, label in `--accent-ink` (`HOUSE_RAIL_ACTIVE_CLASS`). Founder pick "Deeper blue text" (Adam, 2026-10-04): 4.62:1 light (Sporty Blue was 4.07:1), 6.17:1 dark; see [`social-profile-stage-lock-v1.md`](social-profile-stage-lock-v1.md) Accessibility |
 | Co-Productions, Help, Activity | Still no rail |
 
 ## 3) Phone

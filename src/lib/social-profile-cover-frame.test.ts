@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { AVATAR_CROP_MAX_SCALE, rectCropSourceRect } from "./account-avatar-crop";
 import {
+  COVER_CROP_OUTPUT_HEIGHT,
   COVER_CROP_OUTPUT_WIDTH,
   COVER_CROP_VIEW_HEIGHT,
   COVER_CROP_VIEW_WIDTH,
+  SOCIAL_PROFILE_COVER_STAGE,
 } from "./social-profile-cover";
 import {
   COVER_FOCUS_CENTER,
+  COVER_FRAME_ASPECT,
   COVER_KEY_NUDGE_PX,
   COVER_KEY_NUDGE_SHIFT,
+  COVER_PHONE_ASPECT,
   COVER_SLACK_MIN_PX,
   COVER_ZOOM_KEY_STEP,
   COVER_ZOOM_MAX,
@@ -21,6 +25,7 @@ import {
   type CoverImageSize,
   clampCoverZoom,
   coverBandOverflow,
+  coverCenteredRegion,
   coverCropFrame,
   coverCropRect,
   coverDragKeyAction,
@@ -29,9 +34,11 @@ import {
   coverHasSlack,
   coverKeyDelta,
   coverMaxZoom,
+  coverPhoneSafeRegion,
   coverPinchZoom,
   coverPointerDistance,
   coverPreviewBox,
+  coverRegionStyle,
   coverWheelZoom,
   coverZoomKeyStep,
   coverZoomTo,
@@ -45,9 +52,10 @@ const IMAGES: CoverImageSize[] = [
   { width: 1584, height: 396 },
   { width: 1080, height: 1920 },
   { width: 6000, height: 1000 },
-  { width: 1784, height: 446 },
+  { width: 2400, height: 1050 },
 ];
-const WIDTHS = [320, 360, 390, 430, 386, 462, 642, 718, 913];
+// Phone editor frames (390 → 366 card) and every desktop hero width.
+const WIDTHS = [320, 342, 366, 406, 388, 464, 544, 644, 720];
 const SPOTS = [
   { x: 0.5, y: 0.5 },
   { x: 0, y: 0 },
@@ -63,37 +71,46 @@ function focusesFor(image: CoverImageSize): CoverFocus[] {
   );
 }
 
-// Source window at zoom z: min(iw, 4·ih) / z wide, 4:1.
+// Source window at zoom z: min(iw, (16/7)·ih) / z wide, 16:7.
 function windowOf(image: CoverImageSize, zoom: number) {
-  const width = Math.min(image.width, 4 * image.height) / zoom;
-  return { width, height: width / 4 };
+  const width = Math.min(image.width, (16 / 7) * image.height) / zoom;
+  return { width, height: (width * 7) / 16 };
 }
 
 // What the browser lays out: the preview box from coverPreviewBox as CSS
-// percentages in a 4:1 band W wide. Width and margin percentages resolve
-// against W, height against the band height W / 4.
-function paintedSourceRect(image: CoverImageSize, bandWidth: number, focus: CoverFocus) {
+// percentages in the 16:7 frame (the drag surface's one grid cell) W wide.
+// Width and margin percentages resolve against W, height against the frame
+// height W × 7/16.
+function paintedSourceRect(image: CoverImageSize, frameWidth: number, focus: CoverFocus) {
   const box = coverPreviewBox(focus, image);
   if (!box) throw new Error("no preview box");
   const pct = (value: string) => {
     expect(value.endsWith("%")).toBe(true);
     return Number.parseFloat(value) / 100;
   };
-  const bandHeight = bandWidth / 4;
-  const left = pct(box.marginLeft) * bandWidth;
-  const top = pct(box.marginTop) * bandWidth;
-  const width = pct(box.width) * bandWidth;
-  const height = pct(box.height) * bandHeight;
+  const frameHeight = (frameWidth * 7) / 16;
+  const left = pct(box.marginLeft) * frameWidth;
+  const top = pct(box.marginTop) * frameWidth;
+  const width = pct(box.width) * frameWidth;
+  const height = pct(box.height) * frameHeight;
   // The box has the image's own aspect, so object-fit: cover crops nothing inside it.
   expect(Math.abs(width / height - image.width / image.height)).toBeLessThanOrEqual(1e-9 * (image.width / image.height));
   const scale = width / image.width;
   return {
     sx: -left / scale,
     sy: -top / scale,
-    sw: bandWidth / scale,
-    sh: bandHeight / scale,
+    sw: frameWidth / scale,
+    sh: frameHeight / scale,
     scale,
   };
+}
+
+// object-fit: cover, object-position 50% 50%, in any W × H box.
+function paintedSourceRectIn(image: CoverImageSize, boxWidth: number, boxHeight: number) {
+  const scale = Math.max(boxWidth / image.width, boxHeight / image.height);
+  const offsetX = (boxWidth - image.width * scale) * 0.5;
+  const offsetY = (boxHeight - image.height * scale) * 0.5;
+  return { sx: -offsetX / scale, sy: -offsetY / scale, sw: boxWidth / scale, sh: boxHeight / scale };
 }
 
 function savedSourceRect(image: CoverImageSize, focus: CoverFocus) {
@@ -131,11 +148,11 @@ describe("cover focus model — what you frame is what lands", () => {
     expect(checked).toBe(IMAGES.length * WIDTHS.length * SPOTS.length * ZOOMS.length);
   });
 
-  it("paints the same source window at every band width, zoomed or not", () => {
+  it("paints the same source window at every frame width, zoomed or not", () => {
     for (const image of IMAGES) {
       for (const zoom of [1, coverMaxZoom(image)]) {
         const focus = { x: 0.3, y: 0.8, zoom };
-        expectRectClose(paintedSourceRect(image, 390, focus), paintedSourceRect(image, 718, focus), 1e-6);
+        expectRectClose(paintedSourceRect(image, 366, focus), paintedSourceRect(image, 720, focus), 1e-6);
       }
     }
   });
@@ -159,7 +176,7 @@ describe("cover focus model — what you frame is what lands", () => {
     for (const image of IMAGES) {
       for (const focus of focusesFor(image)) {
         const crop = coverCropRect(focus, image);
-        const painted = paintedSourceRect(image, 718, focus);
+        const painted = paintedSourceRect(image, 720, focus);
         const unit = 1e-6 * Math.max(image.width, image.height);
         expect(Math.abs(crop.x * image.width - painted.sx)).toBeLessThanOrEqual(unit);
         expect(Math.abs(crop.y * image.height - painted.sy)).toBeLessThanOrEqual(unit);
@@ -207,7 +224,7 @@ describe("cover focus model — what you frame is what lands", () => {
     expect(coverFocusFromCrop({ x: 0, y: 0, w: 1, h: 1 }, image).zoom).toBe(1);
   });
 
-  it("follows the pointer 1:1 in band pixels at every zoom", () => {
+  it("follows the pointer 1:1 in frame pixels at every zoom", () => {
     let checked = 0;
     for (const image of IMAGES) {
       for (const zoom of [1, 1.5, coverMaxZoom(image)]) {
@@ -242,14 +259,14 @@ describe("cover focus model — what you frame is what lands", () => {
     expect(moveCoverFocus(COVER_FOCUS_CENTER, { x: 10000, y: 0 }, landscape, 390)).toEqual(at(0, 0.5));
     expect(moveCoverFocus(COVER_FOCUS_CENTER, { x: -10000, y: 0 }, landscape, 390)).toEqual(at(1, 0.5));
     const portrait = { width: 1080, height: 1920 };
-    expect(moveCoverFocus(COVER_FOCUS_CENTER, { x: 0, y: 10000 }, portrait, 718)).toEqual(at(0.5, 0));
-    expect(moveCoverFocus(COVER_FOCUS_CENTER, { x: 0, y: -10000 }, portrait, 718)).toEqual(at(0.5, 1));
+    expect(moveCoverFocus(COVER_FOCUS_CENTER, { x: 0, y: 10000 }, portrait, 720)).toEqual(at(0.5, 0));
+    expect(moveCoverFocus(COVER_FOCUS_CENTER, { x: 0, y: -10000 }, portrait, 720)).toEqual(at(0.5, 1));
     // An axis with zero overflow stays at 0.5 whatever the drag.
-    expect(moveCoverFocus(at(0.2, 0.9), { x: 500, y: 500 }, portrait, 718).x).toBe(0.5);
+    expect(moveCoverFocus(at(0.2, 0.9), { x: 500, y: 500 }, portrait, 720).x).toBe(0.5);
     // Zoomed in, both axes have slack, and both stop at the edge.
-    const zoomed = { x: 0.5, y: 0.5, zoom: 2 };
-    expect(moveCoverFocus(zoomed, { x: 10000, y: 10000 }, landscape, 390)).toEqual({ x: 0, y: 0, zoom: 2 });
-    expect(moveCoverFocus(zoomed, { x: -10000, y: -10000 }, landscape, 390)).toEqual({ x: 1, y: 1, zoom: 2 });
+    const zoomed = { x: 0.5, y: 0.5, zoom: 1.5 };
+    expect(moveCoverFocus(zoomed, { x: 10000, y: 10000 }, landscape, 390)).toEqual({ x: 0, y: 0, zoom: 1.5 });
+    expect(moveCoverFocus(zoomed, { x: -10000, y: -10000 }, landscape, 390)).toEqual({ x: 1, y: 1, zoom: 1.5 });
     for (const image of IMAGES) {
       for (const width of WIDTHS) {
         for (const delta of [10000, -10000]) {
@@ -267,28 +284,33 @@ describe("cover focus model — what you frame is what lands", () => {
     }
   });
 
-  it("an exact 4:1 banner cannot move at zoom 1 and can once zoomed in", () => {
-    for (const image of [{ width: 1784, height: 446 }, { width: 1584, height: 396 }]) {
+  it("an exact 16:7 photo cannot move at zoom 1 (every half-pixel width) and can once zoomed in", () => {
+    for (const image of [{ width: 2400, height: 1050 }, { width: 1600, height: 700 }]) {
       for (let width = 280; width <= 1200; width += 0.5) {
         expect(coverBandOverflow(image, width, 1)).toEqual({ x: 0, y: 0 });
         expect(moveCoverFocus(COVER_FOCUS_CENTER, { x: 1, y: 1 }, image, width)).toEqual(COVER_FOCUS_CENTER);
       }
       expect(coverHasSlack(image, 1)).toBe(false);
       expect(coverEditorHint(COVER_FOCUS_CENTER, image)).toBe("zoom");
-      // Zoom 1.5 on a 718 band: the image is 1.5× the band on both axes.
-      const zoomed = coverZoomTo(COVER_FOCUS_CENTER, 1.5, image);
-      expect(zoomed).toEqual({ x: 0.5, y: 0.5, zoom: 1.5 });
-      const overflow = coverBandOverflow(image, 718, zoomed.zoom);
-      expect(overflow.x).toBeCloseTo(359, 6);
-      expect(overflow.y).toBeCloseTo(89.75, 6);
+      // Zoom 1.25 on a 720 frame: the image is 1.25× the frame on both axes.
+      const zoomed = coverZoomTo(COVER_FOCUS_CENTER, 1.25, image);
+      expect(zoomed).toEqual({ x: 0.5, y: 0.5, zoom: 1.25 });
+      const overflow = coverBandOverflow(image, 720, zoomed.zoom);
+      expect(overflow.x).toBeCloseTo(180, 6);
+      expect(overflow.y).toBeCloseTo(78.75, 6);
       expect(coverHasSlack(image, zoomed.zoom)).toBe(true);
       expect(coverEditorHint(zoomed, image)).toBe("drag");
-      const moved = moveCoverFocus(zoomed, { x: -100, y: 40 }, image, 718);
-      expect(moved.x).toBeCloseTo(0.5 + 100 / 359, 9);
-      expect(moved.y).toBeCloseTo(0.5 - 40 / 89.75, 9);
+      const moved = moveCoverFocus(zoomed, { x: -50, y: 20 }, image, 720);
+      expect(moved.x).toBeCloseTo(0.5 + 50 / 180, 9);
+      expect(moved.y).toBeCloseTo(0.5 - 20 / 78.75, 9);
       expect(coverCropRect(moved, image)).not.toEqual(coverCropRect(zoomed, image));
     }
     expect(coverHasSlack({ width: 1920, height: 1080 }, 1)).toBe(true);
+    // 4:1 LinkedIn-era files have slack at zoom 1: the 16:7 frame crops their
+    // sides, so the 1584×396 banner drags sideways without zooming.
+    expect(coverHasSlack({ width: 1784, height: 446 }, 1)).toBe(true);
+    expect(coverHasSlack({ width: 1584, height: 396 }, 1)).toBe(true);
+    expect(coverBandOverflow({ width: 1584, height: 396 }, 720, 1)).toEqual({ x: 540, y: 0 });
     expect(COVER_SLACK_MIN_PX).toBe(0.5);
   });
 
@@ -346,36 +368,47 @@ describe("cover focus model — what you frame is what lands", () => {
 });
 
 describe("cover zoom", () => {
-  it("runs from 1 (cover-fit) to 3, capped at 2× upscaling of the 1784 output and floored to the slider step", () => {
+  it("runs from 1 (cover-fit) to 3, capped at 2× upscaling of the 2400 Stage output and floored to the slider step", () => {
     expect(COVER_ZOOM_MIN).toBe(1);
     expect(COVER_ZOOM_MAX).toBe(3);
     // The crop's own scale clamp is the same ceiling, so preview and crop agree at the top.
     expect(COVER_ZOOM_MAX).toBe(AVATAR_CROP_MAX_SCALE);
     expect(COVER_ZOOM_MAX_UPSCALE).toBe(2);
     expect(COVER_ZOOM_STEP).toBe(0.01);
-    expect(coverMaxZoom({ width: 1584, height: 396 })).toBe(1.77);
-    expect(coverMaxZoom({ width: 1784, height: 446 })).toBe(2);
-    expect(coverMaxZoom({ width: 1920, height: 1080 })).toBe(2.15);
-    expect(coverMaxZoom({ width: 1080, height: 1920 })).toBe(1.21);
-    expect(coverMaxZoom({ width: 3000, height: 2000 })).toBe(3);
-    expect(coverMaxZoom({ width: 6000, height: 1000 })).toBe(3);
+    // The cap is the Stage crop width (2400×1050), not the LinkedIn-era 1784:
+    // the source window never goes under 1200px.
+    expect(COVER_CROP_OUTPUT_WIDTH).toBe(2400);
+    expect(COVER_CROP_OUTPUT_WIDTH).toBe(SOCIAL_PROFILE_COVER_STAGE.outputWidth);
+    expect(coverMaxZoom({ width: 2400, height: 1050 })).toBe(2);
+    expect(coverMaxZoom({ width: 1600, height: 700 })).toBe(1.33);
+    expect(coverMaxZoom({ width: 1920, height: 1080 })).toBe(1.6);
+    expect(coverMaxZoom({ width: 3000, height: 2000 })).toBe(2.5);
+    expect(coverMaxZoom({ width: 4000, height: 3000 })).toBe(3);
+    expect(coverMaxZoom({ width: 6000, height: 1000 })).toBe(1.9);
+    // Windows at or under 1200 at cover-fit cannot zoom: the 1584×396 banner
+    // (905 wide in 16:7) and the 1784×446 file (1019) drag sideways instead.
+    expect(coverMaxZoom({ width: 1584, height: 396 })).toBe(1);
+    expect(coverMaxZoom({ width: 1784, height: 446 })).toBe(1);
+    expect(coverMaxZoom({ width: 1080, height: 1920 })).toBe(1);
     // Small originals: exactly 1 (no zoom), never below.
-    expect(coverMaxZoom({ width: 892, height: 223 })).toBe(1);
-    expect(coverMaxZoom({ width: 900, height: 225 })).toBe(1);
-    expect(coverMaxZoom({ width: 800, height: 200 })).toBe(1);
+    expect(coverMaxZoom({ width: 1200, height: 525 })).toBe(1);
+    expect(coverMaxZoom({ width: 1210, height: 530 })).toBe(1);
+    expect(coverMaxZoom({ width: 800, height: 350 })).toBe(1);
     expect(coverMaxZoom({ width: 0, height: 200 })).toBe(1);
     for (const image of [
       ...IMAGES,
+      { width: 4000, height: 3000 },
       { width: 900, height: 600 },
       { width: 1200, height: 300 },
       { width: 2500, height: 700 },
       { width: 5000, height: 400 },
+      { width: 3600, height: 1575 },
     ]) {
       const max = coverMaxZoom(image);
       expect(max).toBeGreaterThanOrEqual(COVER_ZOOM_MIN);
       expect(max).toBeLessThanOrEqual(COVER_ZOOM_MAX);
       expect(Math.round(max * 100) / 100).toBe(max);
-      const fit = Math.min(image.width, 4 * image.height);
+      const fit = Math.min(image.width, (16 / 7) * image.height);
       if (fit >= COVER_CROP_OUTPUT_WIDTH / 2) {
         // At the max the saved crop's source window is at least half the output width…
         const crop = coverCropRect({ x: 0.5, y: 0.5, zoom: max }, image);
@@ -387,19 +420,23 @@ describe("cover zoom", () => {
   });
 
   it("clamps zoom into [1, max] everywhere it is read", () => {
-    const banner = { width: 1584, height: 396 };
-    expect(clampCoverZoom(0.5, banner)).toBe(1);
-    expect(clampCoverZoom(Number.NaN, banner)).toBe(1);
-    expect(clampCoverZoom(Number.POSITIVE_INFINITY, banner)).toBe(1);
-    expect(clampCoverZoom(1.4, banner)).toBe(1.4);
-    expect(clampCoverZoom(9, banner)).toBe(1.77);
-    expect(coverZoomTo(COVER_FOCUS_CENTER, 9, banner).zoom).toBe(1.77);
-    expect(coverZoomTo(COVER_FOCUS_CENTER, 0.2, banner).zoom).toBe(1);
+    const photo = { width: 1920, height: 1080 };
+    expect(clampCoverZoom(0.5, photo)).toBe(1);
+    expect(clampCoverZoom(Number.NaN, photo)).toBe(1);
+    expect(clampCoverZoom(Number.POSITIVE_INFINITY, photo)).toBe(1);
+    expect(clampCoverZoom(1.4, photo)).toBe(1.4);
+    expect(clampCoverZoom(9, photo)).toBe(1.6);
+    expect(coverZoomTo(COVER_FOCUS_CENTER, 9, photo).zoom).toBe(1.6);
+    expect(coverZoomTo(COVER_FOCUS_CENTER, 0.2, photo).zoom).toBe(1);
     // A focus carrying more zoom than the image allows is read at the max.
     const over = { x: 0.5, y: 0.5, zoom: 2.5 };
-    expect(coverCropFrame(over, banner).scale).toBe(1.77);
-    expect(coverCropRect(over, banner)).toEqual(coverCropRect({ ...over, zoom: 1.77 }, banner));
-    expect(moveCoverFocus(over, { x: 0, y: 0 }, banner, 718).zoom).toBe(1.77);
+    expect(coverCropFrame(over, photo).scale).toBe(1.6);
+    expect(coverCropRect(over, photo)).toEqual(coverCropRect({ ...over, zoom: 1.6 }, photo));
+    expect(moveCoverFocus(over, { x: 0, y: 0 }, photo, 720).zoom).toBe(1.6);
+    // The 1584×396 banner cannot zoom in the 16:7 frame: every read is 1.
+    const banner = { width: 1584, height: 396 };
+    expect(clampCoverZoom(1.77, banner)).toBe(1);
+    expect(coverZoomTo(COVER_FOCUS_CENTER, 2, banner).zoom).toBe(1);
   });
 
   it("keeps the visible centre fixed when the zoom changes, then clamps to the image", () => {
@@ -408,7 +445,7 @@ describe("cover zoom", () => {
       return { x: rect.sx + rect.sw / 2, y: rect.sy + rect.sh / 2, rect };
     };
     let fixed = 0;
-    for (const image of IMAGES) {
+    for (const image of [...IMAGES, { width: 4000, height: 3000 }]) {
       const max = coverMaxZoom(image);
       for (const start of focusesFor(image)) {
         for (const target of [1, 1.1, 1.5, max]) {
@@ -433,12 +470,12 @@ describe("cover zoom", () => {
     }
     expect(fixed).toBeGreaterThan(50);
     // Zoomed into the top-left corner, zooming out clamps to the edge instead of leaving the image.
-    const banner = { width: 1584, height: 396 };
-    const corner = { x: 0, y: 0, zoom: 1.77 };
-    const out = coverZoomTo(corner, 1.2, banner);
+    const exact = { width: 2400, height: 1050 };
+    const corner = { x: 0, y: 0, zoom: 2 };
+    const out = coverZoomTo(corner, 1.2, exact);
     expect(out).toEqual({ x: 0, y: 0, zoom: 1.2 });
-    // Back to 1 on an exact 4:1 banner there is no slack: centred.
-    expect(coverZoomTo(corner, 1, banner)).toEqual(COVER_FOCUS_CENTER);
+    // Back to 1 on an exact 16:7 photo there is no slack: centred.
+    expect(coverZoomTo(corner, 1, exact)).toEqual(COVER_FOCUS_CENTER);
   });
 
   it("zooms with Ctrl/Cmd + wheel and trackpad pinch: up zooms in, down zooms out", () => {
@@ -462,28 +499,183 @@ describe("cover zoom", () => {
   it("hints drag with slack, zoom in when only zooming frees it, nothing when it cannot move", () => {
     expect(coverEditorHint(COVER_FOCUS_CENTER, null)).toBeNull();
     expect(coverEditorHint(COVER_FOCUS_CENTER, { width: 1920, height: 1080 })).toBe("drag");
-    expect(coverEditorHint(COVER_FOCUS_CENTER, { width: 1584, height: 396 })).toBe("zoom");
-    expect(coverEditorHint({ x: 0.5, y: 0.5, zoom: 1.01 }, { width: 1584, height: 396 })).toBe("drag");
-    // Too small to zoom and exactly 4:1: nothing to say.
-    expect(coverEditorHint(COVER_FOCUS_CENTER, { width: 800, height: 200 })).toBeNull();
+    expect(coverEditorHint(COVER_FOCUS_CENTER, { width: 2400, height: 1050 })).toBe("zoom");
+    expect(coverEditorHint({ x: 0.5, y: 0.5, zoom: 1.01 }, { width: 2400, height: 1050 })).toBe("drag");
+    // The 4:1 banner has sideways slack in 16:7, so it drags at zoom 1.
+    expect(coverEditorHint(COVER_FOCUS_CENTER, { width: 1584, height: 396 })).toBe("drag");
+    // Too small to zoom and exactly 16:7: nothing to say.
+    expect(coverEditorHint(COVER_FOCUS_CENTER, { width: 800, height: 350 })).toBeNull();
   });
 
-  it("paints the preview as the crop frame's drawn image, in band percentages", () => {
+  it("paints the preview as the crop frame's drawn image, in frame percentages", () => {
     expect(coverPreviewBox(COVER_FOCUS_CENTER, null)).toBeNull();
     expect(coverPreviewBox(COVER_FOCUS_CENTER, { width: 0, height: 10 })).toBeNull();
-    const banner = { width: 1584, height: 396 };
-    const fit = coverPreviewBox(COVER_FOCUS_CENTER, banner)!;
+    const exact = { width: 2400, height: 1050 };
+    const fit = coverPreviewBox(COVER_FOCUS_CENTER, exact)!;
     expect(Number.parseFloat(fit.width)).toBeCloseTo(100, 9);
     expect(Number.parseFloat(fit.height)).toBeCloseTo(100, 9);
     expect(Math.abs(Number.parseFloat(fit.marginLeft))).toBeLessThan(1e-9);
     expect(Math.abs(Number.parseFloat(fit.marginTop))).toBeLessThan(1e-9);
-    // Zoom 1.5 centred: a box 150% × 150%, shifted a quarter of the band each way.
-    const zoomed = coverPreviewBox({ x: 0.5, y: 0.5, zoom: 1.5 }, banner)!;
+    // Zoom 1.5 centred: a box 150% × 150%, shifted a quarter of the frame each way.
+    const zoomed = coverPreviewBox({ x: 0.5, y: 0.5, zoom: 1.5 }, exact)!;
     expect(Number.parseFloat(zoomed.width)).toBeCloseTo(150, 9);
     expect(Number.parseFloat(zoomed.height)).toBeCloseTo(150, 9);
     expect(Number.parseFloat(zoomed.marginLeft)).toBeCloseTo(-25, 9);
-    // margin-top resolves against the band WIDTH: a quarter of the height is 6.25% of the width.
-    expect(Number.parseFloat(zoomed.marginTop)).toBeCloseTo(-6.25, 9);
+    // margin-top resolves against the frame WIDTH: a quarter of the height is 0.25 × 7/16 = 10.9375% of the width.
+    expect(Number.parseFloat(zoomed.marginTop)).toBeCloseTo(-10.9375, 9);
+  });
+});
+
+describe("Stage frame — 16:7 frame, phone-safe region (docs/design-locks/social-profile-stage-lock-v1.md)", () => {
+  it("frames 16:7 and crops through a 16:7 view", () => {
+    expect(COVER_FRAME_ASPECT).toBe(16 / 7);
+    expect(COVER_FRAME_ASPECT).toBe(SOCIAL_PROFILE_COVER_STAGE.aspectWidth / SOCIAL_PROFILE_COVER_STAGE.aspectHeight);
+    expect(COVER_CROP_VIEW_WIDTH / COVER_CROP_VIEW_HEIGHT).toBe(COVER_FRAME_ASPECT);
+    expect(coverBandOverflow({ width: 3000, height: 3000 }, 720, 1)).toEqual({ x: 0, y: 720 - 315 });
+    expect(coverCropRect(COVER_FOCUS_CENTER, { width: 3200, height: 3200 })).toEqual({
+      x: 0,
+      y: 0.28125,
+      w: 1,
+      h: 0.4375,
+    });
+  });
+
+  it("phone-safe region is the centred full-height strip the 61:55 phone card shows", () => {
+    expect(COVER_PHONE_ASPECT).toBe(61 / 55);
+    const region = coverPhoneSafeRegion();
+    const w = (61 / 55) / (16 / 7);
+    expect(region.w).toBeCloseTo(w, 12);
+    expect(region.w).toBeCloseTo(0.4852, 4);
+    expect(region.x).toBeCloseTo((1 - w) / 2, 12);
+    expect(region.x).toBeCloseTo(0.2574, 4);
+    expect(region).toMatchObject({ y: 0, h: 1 });
+    expect(region).toEqual(coverCenteredRegion(COVER_FRAME_ASPECT, COVER_PHONE_ASPECT));
+    expect(coverRegionStyle(region)).toEqual({ marginLeft: "25.7386%", marginTop: "0%", width: "48.5227%", height: "100%" });
+  });
+
+  it("equals what object-fit: cover, centred, paints of a 16:7 crop in the phone card", () => {
+    // The phone hero renders the saved 2400×1050 crop with object-cover at
+    // object-position 50% 50% in a W × (55/61)W card.
+    const region = coverPhoneSafeRegion();
+    // Portrait phones only: from 30rem of viewport the card is the 16:7 frame.
+    for (const cardWidth of [296, 336, 342, 366, 406, 455]) {
+      const cardHeight = (cardWidth * 55) / 61;
+      const painted = paintedSourceRectIn({ width: 2400, height: 1050 }, cardWidth, cardHeight);
+      expect(painted.sx / 2400).toBeCloseTo(region.x, 9);
+      expect(painted.sw / 2400).toBeCloseTo(region.w, 9);
+      expect(painted.sy / 1050).toBeCloseTo(region.y, 9);
+      expect(painted.sh / 1050).toBeCloseTo(region.h, 9);
+    }
+  });
+
+  it("outlines the phone render at every zoom: the outline is frame space, the zoom only changes what is under it", () => {
+    // The outline is one fixed region of the 16:7 frame (no zoom input). The
+    // phone shows that same region of the saved crop. So at any zoom, the
+    // original's pixels inside the editor outline (from the preview box) are
+    // the original's pixels the phone card paints (from the saved crop).
+    const region = coverPhoneSafeRegion();
+    const style = coverRegionStyle(region);
+    let checked = 0;
+    for (const image of [...IMAGES, { width: 4000, height: 3000 }]) {
+      for (const focus of focusesFor(image)) {
+        for (const frameWidth of [366, 720]) {
+          // Editor: the outline box in frame px, mapped through the preview box.
+          const painted = paintedSourceRect(image, frameWidth, focus);
+          const pct = (value: string) => Number.parseFloat(value) / 100;
+          const frameHeight = (frameWidth * 7) / 16;
+          const outline = {
+            left: pct(style.marginLeft) * frameWidth,
+            top: pct(style.marginTop) * frameWidth,
+            width: pct(style.width) * frameWidth,
+            height: pct(style.height) * frameHeight,
+          };
+          const inOutline = {
+            sx: painted.sx + outline.left / painted.scale,
+            sy: painted.sy + outline.top / painted.scale,
+            sw: outline.width / painted.scale,
+            sh: outline.height / painted.scale,
+          };
+          // Phone: the saved crop (the exact window) shown centred in 61:55.
+          const saved = savedSourceRect(image, focus);
+          const card = paintedSourceRectIn(
+            { width: COVER_CROP_OUTPUT_WIDTH, height: COVER_CROP_OUTPUT_HEIGHT },
+            342,
+            (342 * 55) / 61,
+          );
+          const perOut = saved.sw / COVER_CROP_OUTPUT_WIDTH;
+          const onPhone = {
+            sx: saved.sx + card.sx * perOut,
+            sy: saved.sy + card.sy * perOut,
+            sw: card.sw * perOut,
+            sh: card.sh * perOut,
+          };
+          // The style rounds to 1e-6 of a percent; that is well under 0.01 source px.
+          expectRectClose(inOutline, onPhone, 0.01);
+          checked += 1;
+        }
+      }
+    }
+    expect(checked).toBe((IMAGES.length + 1) * SPOTS.length * ZOOMS.length * 2);
+  });
+
+  it("places a region with a top offset by a width-relative margin", () => {
+    // Percentage margins resolve against the frame's width on both axes, so a
+    // region y down a 16:7 frame needs margin-top = y × 7/16 of the width.
+    // (In Chromium, a 700-wide 16:7 grid cell puts this box at 0.1190 of the
+    // height with 5.2083%; the raw 11.9048% put it at 0.2721.)
+    const band = coverCenteredRegion(COVER_FRAME_ASPECT, 3);
+    expect(band.y).toBeCloseTo((1 - 16 / 7 / 3) / 2, 12);
+    expect(coverRegionStyle(band)).toEqual({ marginLeft: "0%", marginTop: "5.2083%", width: "100%", height: "76.1905%" });
+    const frameWidth = 700;
+    const frameHeight = frameWidth / COVER_FRAME_ASPECT;
+    const marginTopPx = (parseFloat(coverRegionStyle(band).marginTop) / 100) * frameWidth;
+    expect(marginTopPx / frameHeight).toBeCloseTo(band.y, 5);
+    // Another frame aspect scales the same way; a bad aspect falls back to 1.
+    expect(coverRegionStyle({ x: 0.1, y: 0.2, w: 0.5, h: 0.5 }, 2).marginTop).toBe("10%");
+    expect(coverRegionStyle({ x: 0.1, y: 0.2, w: 0.5, h: 0.5 }, Number.NaN).marginTop).toBe("20%");
+  });
+
+  it("describes wider boxes as a centred full-width band, and guards bad input", () => {
+    expect(coverCenteredRegion(16 / 7, 4)).toEqual({ x: 0, y: (1 - 4 / 7) / 2, w: 1, h: 4 / 7 });
+    expect(coverCenteredRegion(16 / 7, 16 / 7)).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+    expect(coverCenteredRegion(Number.NaN, 1)).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+    expect(coverCenteredRegion(2, 0)).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+  });
+
+  it("reopens a framing saved in the 4:1 band around the same centre", () => {
+    const image = { width: 3000, height: 2000 };
+    // A 4:1 window of this original: 3000 × 750 starting 500 down.
+    const legacy = { x: 0, y: 0.25, w: 1, h: 0.375 };
+    const focus = coverFocusFromCrop(legacy, image);
+    expect(focus.zoom).toBe(1);
+    const reopened = coverCropRect(focus, image);
+    const centre = (crop: { y: number; h: number }) => crop.y + crop.h / 2;
+    expect(centre(reopened)).toBeCloseTo(centre(legacy), 5);
+    expect(reopened.h * image.height).toBeCloseTo((3000 * 7) / 16, 0);
+    // Near an edge the 16:7 window clamps to the image instead of overflowing.
+    const top = coverFocusFromCrop({ x: 0, y: 0, w: 1, h: 0.375 }, image);
+    expect(top.y).toBe(0);
+  });
+
+  it("reopens a zoomed 4:1 framing at the zoom its width implies, centred on the same subject", () => {
+    // Saved on the 4:1 editor at zoom 2, centred, on a 4000×3000 photo: a
+    // 2000 × 500 window at (1000, 1250).
+    const image = { width: 4000, height: 3000 };
+    const legacy = { x: 0.25, y: 1250 / 3000, w: 0.5, h: 500 / 3000 };
+    const focus = coverFocusFromCrop(legacy, image);
+    expect(focus.zoom).toBeCloseTo(2, 9);
+    expect(focus.x).toBeCloseTo(0.5, 9);
+    expect(focus.y).toBeCloseTo(0.5, 9);
+    const reopened = coverCropRect(focus, image);
+    // Same width (same zoom), same centre, 16:7 height (2000 × 875).
+    expect(reopened.w).toBe(legacy.w);
+    expect((reopened.x + reopened.w / 2) * image.width).toBeCloseTo(2000, 2);
+    expect((reopened.y + reopened.h / 2) * image.height).toBeCloseTo(1500, 2);
+    expect(reopened.h * image.height).toBeCloseTo(875, 2);
+    // A 4:1 zoom past this original's 16:7 range reads at its max.
+    const banner = { width: 1584, height: 396 };
+    const narrow = coverFocusFromCrop({ x: 0.2, y: 0, w: 0.565, h: 1 }, banner);
+    expect(narrow.zoom).toBe(1);
   });
 });
 
@@ -525,7 +717,7 @@ describe("parseCoverCrop — server check of the stored framing", () => {
 
   it("keeps x + w <= 1 and y + h <= 1 for zoomed crops pushed to the far edge", () => {
     const units = (value: number) => Math.round(value * 1e6);
-    for (const image of [...IMAGES, { width: 1585, height: 397 }, { width: 2999, height: 1001 }]) {
+    for (const image of [...IMAGES, { width: 1585, height: 397 }, { width: 2999, height: 1001 }, { width: 4000, height: 3000 }]) {
       for (const zoom of [1, 1.13, 1.77, coverMaxZoom(image)]) {
         const crop = coverCropRect({ x: 1, y: 1, zoom: clampCoverZoom(zoom, image) }, image);
         expect(units(crop.x) + units(crop.w)).toBeLessThanOrEqual(1e6);
@@ -533,57 +725,47 @@ describe("parseCoverCrop — server check of the stored framing", () => {
         expect(parseCoverCrop(crop)).toEqual(crop);
       }
     }
-    // Far-edge crops whose x (or y) and w (or h) both round up to the next
-    // millionth: unclamped they sum to 1.000001 and the server refuses the
-    // save. The far edge gives way by one millionth instead.
-    expect(coverCropRect({ x: 1, y: 1, zoom: 1.28 }, { width: 1500, height: 1500 })).toEqual({
-      x: 0.21875,
-      y: 0.804687,
-      w: 0.78125,
-      h: 0.195313,
-    });
-    expect(coverCropRect({ x: 1, y: 1, zoom: 1 }, { width: 213, height: 160 })).toEqual({
+    // Far-edge crops whose y and h both round up to the next millionth:
+    // unclamped they sum to 1.000001 and the server refuses the save. The
+    // far edge gives way by one millionth instead. (In the 16:7 frame the
+    // window height is a multiple of 7/16, so these land on other sizes than
+    // the 4:1 band's did; none was found on x up to 4000 wide.)
+    expect(coverCropRect({ x: 1, y: 1, zoom: 1 }, { width: 267, height: 200 })).toEqual({
       x: 0,
-      y: 0.667187,
+      y: 0.415937,
       w: 1,
-      h: 0.332813,
+      h: 0.584063,
     });
-    expect(coverCropRect({ x: 1, y: 1, zoom: 1.6 }, { width: 1501, height: 500 })).toEqual({
+    expect(coverCropRect({ x: 1, y: 1, zoom: 1 }, { width: 106, height: 80 })).toEqual({
+      x: 0,
+      y: 0.420312,
+      w: 1,
+      h: 0.579688,
+    });
+    expect(coverCropRect({ x: 1, y: 1, zoom: 1.04 }, { width: 1599, height: 700 })).toEqual({
+      x: 0.038462,
+      y: 0.039062,
+      w: 0.961538,
+      h: 0.960938,
+    });
+    expect(coverCropRect({ x: 1, y: 1, zoom: 1.12 }, { width: 1667, height: 1250 })).toEqual({
+      x: 0.107143,
+      y: 0.479062,
+      w: 0.892857,
+      h: 0.520938,
+    });
+    expect(coverCropRect({ x: 1, y: 1, zoom: 1.6 }, { width: 1920, height: 1920 })).toEqual({
       x: 0.375,
-      y: 0.530937,
+      y: 0.726562,
       w: 0.625,
-      h: 0.469063,
+      h: 0.273438,
     });
-    expect(coverCropRect({ x: 1, y: 1, zoom: 1 }, { width: 250, height: 64 })).toEqual({
-      x: 0,
-      y: 0.023437,
-      w: 1,
-      h: 0.976563,
-    });
-    // The same on x: originals wider than 4:1, at cover-fit and zoomed.
-    expect(coverCropRect({ x: 1, y: 1, zoom: 1 }, { width: 512, height: 85 })).toEqual({
-      x: 0.335937,
-      y: 0,
-      w: 0.664063,
-      h: 1,
-    });
-    expect(coverCropRect({ x: 1, y: 1, zoom: 1.28 }, { width: 1200, height: 291 })).toEqual({
-      x: 0.242187,
-      y: 0.21875,
-      w: 0.757813,
-      h: 0.78125,
-    });
-    expect(coverCropRect({ x: 1, y: 1, zoom: 1.2 }, { width: 1280, height: 273 })).toEqual({
-      x: 0.289062,
-      y: 0.166667,
-      w: 0.710938,
-      h: 0.833333,
-    });
-    // Every integer width 100..1600 at banner, square and 4:3 shapes, on the
-    // whole slider grid: the far-edge crop always passes the server check.
+    // Every integer width 100..2400 at 16:7, 4:1 banner, square and 4:3
+    // shapes, on the whole slider grid: the far-edge crop always passes the
+    // server check.
     const refused: string[] = [];
-    for (let width = 100; width <= 1600; width += 1) {
-      for (const height of [Math.round(width / 4), width, Math.round(width * 0.75)]) {
+    for (let width = 100; width <= 2400; width += 1) {
+      for (const height of [Math.round((width * 7) / 16), Math.round(width / 4), width, Math.round(width * 0.75)]) {
         const image = { width, height };
         const steps = Math.round((coverMaxZoom(image) - 1) / COVER_ZOOM_STEP);
         for (let step = 0; step <= steps; step += 1) {

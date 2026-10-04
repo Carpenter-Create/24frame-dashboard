@@ -72,7 +72,7 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(sideNav).toContain("HOUSE_DEST_RAIL_ACTIVE_CLASS");
     expect(sideNav).toContain("HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS");
     expect(sideNav).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
+    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
     expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
     expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");
     expect(sideNav).not.toContain("font-normal text-ink-2");

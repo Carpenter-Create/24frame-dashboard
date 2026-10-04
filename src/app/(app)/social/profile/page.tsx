@@ -13,7 +13,12 @@ import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot
 import { SocialForYouSkeleton, SocialProfileCenterSkeleton } from "@/components/social/social-skeletons";
 import { SocialOwnProfileFace } from "@/components/social/social-own-profile";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
-import { SOCIAL_ACTION_CLASS, SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PAGE_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
+import {
+  SOCIAL_HOME_LAYOUT_CLASS,
+  SOCIAL_PAGE_CLASS,
+  SOCIAL_PROFILE_ACTION_PILL_CLASS,
+  SOCIAL_PROFILE_CENTER_CLASS,
+} from "@/lib/social-chrome";
 import {
   signedAvatarUrls,
   signedSocialMediaByPostId,
@@ -186,7 +191,7 @@ async function SocialProfileMain({
         stats={counts ?? undefined}
         actions={
           <>
-            <HouseLink href={SOCIAL_ROUTES.profileEdit} className={`${SOCIAL_ACTION_CLASS} min-w-0 flex-1 text-center md:flex-none`}>
+            <HouseLink href={SOCIAL_ROUTES.profileEdit} className={SOCIAL_PROFILE_ACTION_PILL_CLASS}>
               {SOCIAL.profile.edit}
             </HouseLink>
             <SocialShareButton handle={identity.handle} />

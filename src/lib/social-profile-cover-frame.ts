@@ -1,15 +1,19 @@
 // Cover framing — one focus model for the editor preview, the saved crop,
 // the stored framing and the display.
-// docs/design-locks/social-profile-header-linkedin-lock-v1.md
+// docs/design-locks/social-profile-stage-lock-v1.md (editor and storage
+// rules carried over from social-profile-header-linkedin-lock-v1.md).
 //
 // Focus is a zoom and object-position fractions (0..1; 0.5 = centred).
-// Zoom 1 is cover-fit: the visible source window is min(iw, 4·ih) wide.
-// Zoom z shows a window 1/z of that, and focus places it in the slack:
-//   window = min(iw, 4·ih) / z wide, left edge = focus.x × (iw - window)
-// and the same for y. The window does not depend on the band width, so the
-// preview, the 320×80 crop view and every display band show the same
+// Zoom 1 is cover-fit in the 16:7 frame: the visible source window is
+// min(iw, (16/7)·ih) wide. Zoom z shows a window 1/z of that, and focus
+// places it in the slack:
+//   window = min(iw, (16/7)·ih) / z wide, left edge = focus.x × (iw - window)
+// and the same for y. The window does not depend on the frame width, so the
+// preview, the 320×140 crop view and every desktop hero show the same
 // source pixels. coverPreviewBox paints the preview from coverCropFrame,
-// the frame the saved crop is cut with.
+// the frame the saved crop is cut with. Phones show the centred phone-safe
+// part of that frame (coverPhoneSafeRegion), which the editor outlines in
+// frame space, so the outline does not move with zoom.
 
 import { z } from "zod";
 
@@ -22,7 +26,7 @@ import {
   COVER_CROP_OUTPUT_WIDTH,
   COVER_CROP_VIEW_HEIGHT,
   COVER_CROP_VIEW_WIDTH,
-  SOCIAL_PROFILE_COVER_LOCK_A,
+  SOCIAL_PROFILE_COVER_STAGE,
 } from "@/lib/social-profile-cover";
 
 export type CoverFocus = { x: number; y: number; zoom: number };
@@ -52,7 +56,8 @@ export const COVER_ZOOM_MAX = AVATAR_CROP_MAX_SCALE;
 
 /**
  * Upscale cap: the saved crop's source window is never narrower than half
- * the 1784 output, so a small original is never blown up more than 2×.
+ * the 2400 output (COVER_CROP_OUTPUT_WIDTH, the Stage 2400×1050 crop), so a
+ * small original is never blown up more than 2×.
  */
 export const COVER_ZOOM_MAX_UPSCALE = 2;
 
@@ -71,12 +76,20 @@ const WHEEL_LINE_PX = 16;
 const WHEEL_PAGE_PX = 400;
 
 /**
- * Overflow at or under half a pixel counts as none. Exact 4:1 files carry
- * about 1e-13 px of float noise that would otherwise snap focus to an edge.
+ * Overflow at or under half a pixel counts as none. Exact 16:7 files carry
+ * float noise that would otherwise snap focus to an edge.
  */
 export const COVER_SLACK_MIN_PX = 0.5;
 
-const COVER_ASPECT = SOCIAL_PROFILE_COVER_LOCK_A.aspectWidth / SOCIAL_PROFILE_COVER_LOCK_A.aspectHeight;
+/** The one frame: desktop hero = editor drag surface = crop (16:7). */
+export const COVER_FRAME_ASPECT =
+  SOCIAL_PROFILE_COVER_STAGE.aspectWidth / SOCIAL_PROFILE_COVER_STAGE.aspectHeight;
+
+/** The phone hero card (61:55, mockup 366×330). */
+export const COVER_PHONE_ASPECT =
+  SOCIAL_PROFILE_COVER_STAGE.phoneAspectWidth / SOCIAL_PROFILE_COVER_STAGE.phoneAspectHeight;
+
+const COVER_ASPECT = COVER_FRAME_ASPECT;
 
 /** Stored framing resolution: integer millionths, so x + w <= 1 holds exactly in SQL numeric. */
 const COVER_CROP_UNITS = 1_000_000;
@@ -95,7 +108,7 @@ function validSize(image: CoverImageSize): boolean {
   );
 }
 
-/** Source window at this zoom: min(iw, 4·ih) / zoom wide, 4:1. */
+/** Source window at this zoom: min(iw, (16/7)·ih) / zoom wide, 16:7. */
 function coverWindow(image: CoverImageSize, zoom = COVER_ZOOM_MIN): { width: number; height: number } {
   const width = Math.min(image.width, COVER_ASPECT * image.height) / zoom;
   return { width, height: width / COVER_ASPECT };
@@ -119,7 +132,7 @@ export function clampCoverZoom(zoom: number, image: CoverImageSize): number {
   return Math.min(coverMaxZoom(image), Math.max(COVER_ZOOM_MIN, zoom));
 }
 
-/** How far the image at this zoom overflows a 4:1 band of this width, per axis, in band px. */
+/** How far the image at this zoom overflows a 16:7 frame of this width, per axis, in frame px. */
 export function coverBandOverflow(
   image: CoverImageSize,
   bandWidth: number,
@@ -250,7 +263,7 @@ export function coverDragKeyAction(
   return saving ? { type: "hold" } : { type: "zoom", step };
 }
 
-/** The 320×80 crop-view frame that paints exactly what the preview shows. */
+/** The 320×140 crop-view frame that paints exactly what the preview shows. */
 export function coverCropFrame(focus: CoverFocus, image: CoverImageSize): AvatarCropFrame {
   if (!validSize(image)) return { scale: 1, offsetX: 0, offsetY: 0 };
   const zoom = clampCoverZoom(focus.zoom, image);
@@ -281,11 +294,11 @@ function percent(value: number): string {
 
 /**
  * The editor preview: the image box is the drawn image of coverCropFrame,
- * scaled from the 320-wide crop view to the band as percentages, so it is
- * the saved crop at every band width. Margins keep the image in flow (no
+ * scaled from the 320-wide crop view to the frame as percentages, so it is
+ * the saved crop at every frame width. Margins keep the image in flow (no
  * positioned box over the surface's focus ring); a margin percentage
- * resolves against the band width, hence both margins divide by the view
- * width. Null until the original's size is known.
+ * resolves against the frame (grid cell) width, hence both margins divide
+ * by the view width. Null until the original's size is known.
  */
 export function coverPreviewBox(
   focus: CoverFocus,
@@ -308,7 +321,7 @@ export function coverPreviewBox(
   };
 }
 
-/** True when the image can move inside the band at this zoom. */
+/** True when the image can move inside the 16:7 frame at this zoom. */
 export function coverHasSlack(image: CoverImageSize, zoom: number): boolean {
   const overflow = coverBandOverflow(image, COVER_CROP_VIEW_WIDTH, zoom);
   return overflow.x > 0 || overflow.y > 0;
@@ -316,7 +329,7 @@ export function coverHasSlack(image: CoverImageSize, zoom: number): boolean {
 
 /**
  * Editor hint: drag when the image can move; zoom in when it cannot yet
- * but zooming would free it (an exact 4:1 banner at zoom 1); none when the
+ * but zooming would free it (an exact 16:7 photo at zoom 1); none when the
  * original is too small to zoom, or before it has loaded.
  */
 export function coverEditorHint(
@@ -335,8 +348,9 @@ function toUnits(value: number): number {
 
 /**
  * Framing to store with the original: the visible window as fractions of
- * the original's natural size. Window = min(iw, 4·ih) / zoom wide; its left
- * edge is focus.x × (iw - window), and the same for y.
+ * the original's natural size. Window = min(iw, (16/7)·ih) / zoom wide; its
+ * left edge is focus.x × (iw - window), and the same for y. The fractions
+ * carry no aspect, so profiles.cover_crop needs no change for the 16:7 frame.
  */
 export function coverCropRect(focus: CoverFocus, image: CoverImageSize): CoverCrop {
   if (!validSize(image)) return { x: 0, y: 0, w: 1, h: 1 };
@@ -357,8 +371,11 @@ export function coverCropRect(focus: CoverFocus, image: CoverImageSize): CoverCr
 
 /**
  * Focus that reopens the original at its stored framing. Zoom comes from
- * the stored window width (a framing saved before zoom is zoom 1), then
- * the window's left and top edges give the focus.
+ * the stored window width (a framing saved before zoom is zoom 1), clamped
+ * to this original's range. The 16:7 window at that zoom is then centred on
+ * the stored window's centre, so a framing saved in this frame reopens
+ * exactly (same zoom, same window), and one saved in the earlier 4:1 band
+ * reopens around the same subject (clamped to the image edge).
  */
 export function coverFocusFromCrop(crop: CoverCrop, image: CoverImageSize): CoverFocus {
   if (!validSize(image)) return { ...COVER_FOCUS_CENTER };
@@ -366,10 +383,72 @@ export function coverFocusFromCrop(crop: CoverCrop, image: CoverImageSize): Cove
   const view = coverWindow(image, zoom);
   const spanX = image.width - view.width;
   const spanY = image.height - view.height;
+  const leftPx = (crop.x + crop.w / 2) * image.width - view.width / 2;
+  const topPx = (crop.y + crop.h / 2) * image.height - view.height / 2;
   return {
-    x: spanX > COVER_SLACK_MIN_PX ? clamp01((crop.x * image.width) / spanX) : 0.5,
-    y: spanY > COVER_SLACK_MIN_PX ? clamp01((crop.y * image.height) / spanY) : 0.5,
+    x: spanX > COVER_SLACK_MIN_PX ? clamp01(leftPx / spanX) : 0.5,
+    y: spanY > COVER_SLACK_MIN_PX ? clamp01(topPx / spanY) : 0.5,
     zoom,
+  };
+}
+
+/** A region of the frame, as fractions of its width and height. */
+export type CoverRegion = { x: number; y: number; w: number; h: number };
+
+/**
+ * The part of a frame (frameAspect) that a centred object-fit: cover box
+ * (boxAspect) shows. A narrower box shows a centred full-height strip; a
+ * wider box a centred full-width strip.
+ */
+export function coverCenteredRegion(frameAspect: number, boxAspect: number): CoverRegion {
+  if (
+    !Number.isFinite(frameAspect) ||
+    !Number.isFinite(boxAspect) ||
+    frameAspect <= 0 ||
+    boxAspect <= 0
+  ) {
+    return { x: 0, y: 0, w: 1, h: 1 };
+  }
+  if (boxAspect <= frameAspect) {
+    const w = boxAspect / frameAspect;
+    return { x: (1 - w) / 2, y: 0, w, h: 1 };
+  }
+  const h = frameAspect / boxAspect;
+  return { x: 0, y: (1 - h) / 2, w: 1, h };
+}
+
+/**
+ * Phone-safe region of the 16:7 frame: what the 61:55 phone hero shows of
+ * the saved crop (object-fit: cover, centred). The editor outlines exactly
+ * this region, so outline == phone render.
+ */
+export function coverPhoneSafeRegion(): CoverRegion {
+  return coverCenteredRegion(COVER_FRAME_ASPECT, COVER_PHONE_ASPECT);
+}
+
+/**
+ * In-flow box for a region inside its frame, for an unpositioned item that
+ * fills the frame (the editor's grid cell). Width and height percentages
+ * resolve against the frame's width and height, but percentage margins
+ * resolve against its width on both axes, so the top margin is y scaled by
+ * the frame's height-to-width ratio (1 / frameAspect).
+ */
+export function coverRegionStyle(
+  region: CoverRegion,
+  frameAspect: number = COVER_FRAME_ASPECT,
+): {
+  marginLeft: string;
+  marginTop: string;
+  width: string;
+  height: string;
+} {
+  const pct = (value: number) => `${Math.round(value * 1e6) / 1e4}%`;
+  const aspect = Number.isFinite(frameAspect) && frameAspect > 0 ? frameAspect : 1;
+  return {
+    marginLeft: pct(region.x),
+    marginTop: pct(region.y / aspect),
+    width: pct(region.w),
+    height: pct(region.h),
   };
 }
 

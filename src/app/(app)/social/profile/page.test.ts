@@ -12,6 +12,10 @@ import {
   socialMediaHref,
 } from "@/lib/social-edge";
 import { SOCIAL, SOCIAL_PROFILE_POSTS_PAGE } from "@/lib/social";
+import {
+  SOCIAL_PROFILE_ACTION_PILL_CLASS,
+  SOCIAL_PROFILE_ACTION_PILL_SECONDARY_CLASS,
+} from "@/lib/social-chrome";
 import { ensureOwnSocialProfile, ensureOwnSocialProfileResult } from "@/lib/social-profile";
 import { SOCIAL_PROFILE_OPTIMISTIC_COOKIE } from "@/lib/social-profile-edit";
 import SocialProfilePage from "./page";
@@ -221,7 +225,8 @@ describe("Social profile public face", () => {
     expect(html).toContain("Ada Lovelace");
     expect(html).toContain("@ada");
     expect(html).toContain("Writes engines.");
-    expect(html).toContain("data-social-profile-bio");
+    // Stage lock: a one-line bio is the headline under the hero.
+    expect(html).toContain("data-social-profile-headline");
     expect(html).toContain("First engine note");
     expect(html).toContain('data-social-post="p1"');
     expect(html).toContain("data-social-activity");
@@ -233,13 +238,11 @@ describe("Social profile public face", () => {
     const actionsAt = html.indexOf("data-social-profile-actions");
     const shareAt = html.indexOf("data-social-share", actionsAt);
     const share = html.slice(shareAt, html.indexOf("</button>", shareAt));
-    expect(html.slice(actionsAt, shareAt)).toContain("bg-accent");
+    // Stage lock: Edit profile is the accent pill, Share profile the hairline pill.
+    expect(html.slice(actionsAt, shareAt)).toContain(SOCIAL_PROFILE_ACTION_PILL_CLASS);
     expect(html.slice(actionsAt, shareAt)).toContain(SOCIAL.profile.edit);
-    expect(share).toContain(`aria-label="${SOCIAL.profile.shareProfile}"`);
-    expect(share).toContain("size-[44px]");
-    expect(share).toContain("min-h-[44px]");
-    expect(share).toContain("min-w-[44px]");
-    expect(share).not.toContain("flex-1");
+    expect(share).toContain(SOCIAL_PROFILE_ACTION_PILL_SECONDARY_CLASS);
+    expect(share).toContain(`>${SOCIAL.profile.shareProfile}`);
     expect(share).not.toContain(`>${SOCIAL.profile.share}<`);
     expect(html).not.toContain("id=\"social-profile-edit\"");
     expect(html).not.toContain("<summary");
@@ -247,15 +250,18 @@ describe("Social profile public face", () => {
     expect(html).not.toContain("data-social-bio-form");
     expect(html).not.toContain("data-social-profile-photo");
     expect(html).not.toContain(SOCIAL.profile.uploadPhoto);
-    expect(html).toContain("data-social-profile-cover");
+    // No cover: the hero shows its band fill, and the owner gets Add cover.
+    expect(html).toContain("data-social-profile-hero");
     expect(html).toContain("data-social-profile-cover-empty");
     expect(html).toContain("data-social-profile-cover-edit");
-    expect(html).toContain("bg-accent-wash");
+    const hero = html.slice(html.indexOf("data-social-profile-stage"), html.indexOf("data-social-profile-face"));
+    expect(hero).toContain("bg-band");
+    expect(hero).not.toContain("bg-accent-wash");
     const head = html.slice(
       html.indexOf("data-social-profile-head"),
       html.indexOf("data-social-profile-face"),
     );
-    expect(head).toContain("-mt-[calc(var(--social-profile-avatar)/2)]");
+    expect(head).not.toContain("-mt-[calc(");
     expect(head).not.toContain("-mt-[40px]");
     expect(head).not.toContain("md:-mt-");
     expect(head).toContain("data-social-profile-name");
@@ -339,17 +345,14 @@ describe("Social profile public face", () => {
     expect(html).not.toContain("data-social-profile-roles-more");
     expect(html).not.toContain("+1");
     expect(html).toContain("bg-surface-muted");
-    expect(html).toContain("data-house-chip-rail");
-    expect(html).toContain('data-house-chip-rail-row="0"');
-    expect(html).not.toContain('data-house-chip-rail-row="1"');
+    // Stage lock: roles are wrapping chips, never a sideways scroll rail.
     const roles = html.slice(
       html.indexOf("data-social-profile-roles"),
       html.indexOf('data-social-profile-role="investor"') + 80,
     );
-    expect(roles).toContain("overflow-x-auto");
-    expect(roles).toContain("no-scrollbar");
-    expect(roles).not.toContain("flex-wrap");
-    expect(html).toContain("w-fit");
+    expect(roles).not.toContain("data-house-chip-rail");
+    expect(roles).not.toContain("overflow-x-auto");
+    expect(roles).toContain("flex-wrap");
     expect(html).toContain("inline-flex");
     expect(html).not.toContain("grid w-full grid-cols-3");
     expect(html).toContain("data-social-profile-handle");
@@ -365,11 +368,13 @@ describe("Social profile public face", () => {
     expect(head).not.toContain("grid w-full grid-cols-3");
     expect(head).not.toContain("flex min-w-0 max-w-xs flex-1 items-center");
     expect(html).not.toContain("data-social-profile-cover-dims");
-    expect(html).not.toContain("1784");
+    expect(html).not.toContain("2400");
+    // Stage order: hero (name), face: intro, actions, stats, roles.
     expect(html.indexOf("data-social-profile-name")).toBeLessThan(html.indexOf("data-social-profile-face"));
-    expect(html.indexOf("data-social-profile-face")).toBeLessThan(html.indexOf("data-social-profile-stats"));
-    expect(html.indexOf("data-social-profile-stats")).toBeLessThan(html.indexOf("data-social-profile-bio"));
-    expect(html.indexOf("data-social-profile-bio")).toBeLessThan(html.indexOf("data-social-profile-roles"));
+    expect(html.indexOf("data-social-profile-face")).toBeLessThan(html.indexOf("data-social-profile-intro"));
+    expect(html.indexOf("data-social-profile-intro")).toBeLessThan(html.indexOf("data-social-profile-actions"));
+    expect(html.indexOf("data-social-profile-actions")).toBeLessThan(html.indexOf("data-social-profile-stats"));
+    expect(html.indexOf("data-social-profile-stats")).toBeLessThan(html.indexOf("data-social-profile-roles"));
     expect(html).not.toContain("data-social-profile-mutuals");
     expect(html).not.toContain("Roles:");
     expect(html).not.toContain("Professions:");

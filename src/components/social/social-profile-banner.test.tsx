@@ -25,88 +25,40 @@ vi.mock("next/image", () => ({
     }),
 }));
 
-import {
-  SOCIAL_PROFILE_COVER_CLASS,
-  SOCIAL_PROFILE_COVER_EMPTY_CLASS,
-} from "@/lib/social-chrome";
-import { SocialProfileBanner, SocialProfileCoverBlock } from "./social-profile-banner";
+import { SOCIAL_PROFILE_COVER_CLASS } from "@/lib/social-chrome";
+import { SocialProfileCover } from "./social-profile-banner";
 
-describe("SocialProfileBanner", () => {
-  it("omits the band when a visitor has no cover photo", () => {
+describe("SocialProfileCover (Stage hero cover layer)", () => {
+  it("renders nothing without a photo, so the hero's band shows", () => {
     for (const coverUrl of [null, undefined, "", "   "]) {
-      const html = renderToStaticMarkup(<SocialProfileBanner coverUrl={coverUrl} />);
+      const html = renderToStaticMarkup(<SocialProfileCover coverUrl={coverUrl} />);
       expect(html).toBe("");
-      expect(html).not.toContain("data-social-profile-cover");
-      expect(html).not.toContain("data-social-profile-cover-empty");
-      expect(html).not.toContain(SOCIAL_PROFILE_COVER_CLASS);
-      expect(html).not.toContain(SOCIAL_PROFILE_COVER_EMPTY_CLASS);
-      expect(html).not.toContain("h-[112px]");
-      expect(html).not.toContain("<img");
     }
   });
 
-  it("renders a signed cover and omits the empty wash", () => {
-    const html = renderToStaticMarkup(
-      <SocialProfileBanner coverUrl="https://cf.example/cover.jpg" />,
-    );
+  it("renders the signed cover lazily, as an object-cover layer of the hero", () => {
+    const html = renderToStaticMarkup(<SocialProfileCover coverUrl="  https://cf.example/cover.jpg  " />);
     expect(html).toContain('src="https://cf.example/cover.jpg"');
     expect(html).toContain('loading="lazy"');
     expect(html).toContain('data-loading="lazy"');
     expect(html).not.toContain("data-priority");
     expect(html).not.toContain('rel="preload"');
-    expect(html).toContain("data-social-profile-cover");
-    expect(html).toContain(SOCIAL_PROFILE_COVER_CLASS);
-    expect(html).not.toContain("data-social-profile-cover-empty");
-    expect(html).not.toContain(SOCIAL_PROFILE_COVER_EMPTY_CLASS);
+    expect(html).toContain('data-social-profile-cover=""');
+    expect(html).toContain(`class="${SOCIAL_PROFILE_COVER_CLASS}"`);
+    // Its own frame box at the top of the hero (Stage lock), not the hero's
+    // content height: a taller hero never re-crops the framed cover.
+    expect(SOCIAL_PROFILE_COVER_CLASS).toBe(
+      "absolute inset-x-0 top-0 overflow-hidden aspect-[61/55] min-[30rem]:aspect-[16/7] group-has-[[data-social-cover-drag]]/hero:aspect-[16/7]",
+    );
+    expect(html).toContain("object-cover");
     expect(html).not.toContain("data-social-profile-cover-edit");
-  });
-});
-
-describe("SocialProfileCoverBlock", () => {
-  it("keeps the empty band and owner edit chrome when there is no cover", () => {
-    const html = renderToStaticMarkup(
-      <SocialProfileCoverBlock
-        coverUrl={null}
-        coverEdit={<button type="button" data-social-profile-cover-edit="">Add cover photo</button>}
-      />,
-    );
-    expect(html).toContain("data-social-profile-cover-block");
-    expect(html).toContain("data-social-profile-cover");
-    expect(html).toContain("data-social-profile-cover-empty");
-    expect(html).toContain(SOCIAL_PROFILE_COVER_CLASS);
-    expect(html).toContain(SOCIAL_PROFILE_COVER_EMPTY_CLASS);
-    expect(html).toContain("data-social-profile-cover-edit");
-    expect(html).not.toContain("<img");
-  });
-
-  it("renders a signed cover without the empty wash", () => {
-    const html = renderToStaticMarkup(
-      <SocialProfileCoverBlock
-        coverUrl="  https://cf.example/cover.jpg  "
-        coverEdit={<button type="button" data-social-profile-cover-edit="">Edit cover</button>}
-      />,
-    );
-    expect(html).toContain('src="https://cf.example/cover.jpg"');
-    expect(html).toContain('loading="lazy"');
-    expect(html).toContain('data-loading="lazy"');
-    expect(html).not.toContain("data-priority");
-    expect(html).not.toContain('rel="preload"');
-    expect(html).toContain("data-social-profile-cover-edit");
-    expect(html).not.toContain("data-social-profile-cover-empty");
-    expect(html).not.toContain(SOCIAL_PROFILE_COVER_EMPTY_CLASS);
   });
 });
 
 describe("SocialProfileCoverImage", () => {
   it("is the one cover image for visitors and owners, with a broken-src fallback", () => {
     const banner = readFileSync("src/components/social/social-profile-banner.tsx", "utf8");
-    const visitor = banner.slice(
-      banner.indexOf("export function SocialProfileBanner"),
-      banner.indexOf("export function SocialProfileCoverBlock"),
-    );
-    const owner = banner.slice(banner.indexOf("export function SocialProfileCoverBlock"));
-    expect(visitor).toContain("<SocialProfileCoverImage src={photo} />");
-    expect(owner).toContain("<SocialProfileCoverImage src={photo} />");
+    expect(banner).toContain("<SocialProfileCoverImage src={photo} />");
     expect(banner).not.toContain("<SocialMediaImage");
     const image = readFileSync("src/components/social/social-profile-cover-image.tsx", "utf8");
     expect(image.startsWith('"use client";')).toBe(true);

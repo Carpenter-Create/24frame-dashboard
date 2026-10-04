@@ -48,8 +48,8 @@ function SocialProfileOptimisticIdentity({
   const view = mergeSocialProfileIdentity(SOCIAL_PROFILE_IDENTITY_EMPTY, overlay);
   if (!view.handle && !view.displayName) return null;
   // Same layout row as the real page, For You placeholder included, so the
-  // centre column (and the band and avatar sized from it) does not change
-  // width when the real face mounts. Below lg the placeholder is hidden.
+  // centre column (and the hero sized from it) does not change width when
+  // the real face mounts. Below lg the placeholder is hidden.
   return (
     <div data-social-profile-optimistic="" className={SOCIAL_HOME_LAYOUT_CLASS}>
       <div className={SOCIAL_PROFILE_CENTER_CLASS}>
@@ -58,7 +58,6 @@ function SocialProfileOptimisticIdentity({
           handle={view.handle}
           photoUrl={view.photoUrl}
           coverUrl={view.coverUrl}
-          owner
           bio={view.bio.trim() ? view.bio : undefined}
           roles={view.crafts}
           websiteUrl={view.websiteUrl}
@@ -123,7 +122,6 @@ function SocialOwnProfileFaceView({
   };
   const overlay = useSocialProfileOptimistic();
   const merged = mergeSocialProfileIdentity(server, overlay);
-  const shownBio = merged.bio.trim() ? merged.bio : fallbackBio;
   useEffect(() => {
     releaseSocialProfileSaveHop();
   }, []);
@@ -169,10 +167,10 @@ function SocialOwnProfileFaceView({
         handle={merged.handle}
         photoUrl={merged.photoUrl}
         coverUrl={merged.coverUrl}
-        owner
         coverEdit={<SocialProfileCoverUpload coverUrl={merged.coverUrl} coverFraming={coverFraming} />}
         photoAction={<SocialProfileAvatarEdit />}
-        bio={shownBio}
+        bio={merged.bio}
+        bioHint={fallbackBio}
         roles={merged.crafts}
         websiteUrl={merged.websiteUrl}
         imdbUrl={merged.imdbUrl}
