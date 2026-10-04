@@ -36,21 +36,28 @@ import { HouseLeadSearch } from "@/components/chrome/house-lead-search";
 import { UserMenu } from "@/components/chrome/user-menu";
 import {
   HOME_PHONE_DESTS,
+  HOUSE_ASK_AI_MARK_DESKTOP_CLASS,
+  HOUSE_ASK_AI_MARK_INK_CLASS,
+  HOUSE_ASK_AI_MARK_PHONE_CLASS,
   HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
   HOUSE_HEADER_TRAILING_ICON_CLASS,
   HOUSE_HEADER_TRAILING_PHONE_CLASS,
   HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV,
-  HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT,
   HOUSE_PHONE_CHROME_ICON_CLASS,
   HOUSE_PHONE_CHROME_ICON_WEIGHT,
   HOUSE_PHONE_CHROME_IDLE_INK_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_DEST_CHIPS,
@@ -330,8 +337,20 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
   });
 
   it("uses the 24px header-trailing SoT for phone AI + bell + search", () => {
-    expect(askHeaderSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
-    expect(askHeaderSrc).toContain("HOUSE_HEADER_TRAILING_DESKTOP_CLASS");
+    // Ask keeps the 24px trailing box but carries its own accent ink
+    // (Adam 2026-10-04, "Blue, as in the mockup"). Bell and search stay
+    // on the phone idle ink.
+    expect(askHeaderSrc).toContain("HOUSE_ASK_AI_MARK_PHONE_CLASS");
+    expect(askHeaderSrc).toContain("HOUSE_ASK_AI_MARK_DESKTOP_CLASS");
+    expect(askHeaderSrc).not.toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
+    expect(HOUSE_ASK_AI_MARK_INK_CLASS).toBe("text-accent");
+    expect(HOUSE_ASK_AI_MARK_PHONE_CLASS).toBe(
+      `${HOUSE_HEADER_TRAILING_ICON_CLASS} md:hidden ${HOUSE_ASK_AI_MARK_INK_CLASS}`,
+    );
+    expect(HOUSE_ASK_AI_MARK_PHONE_CLASS).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
+    expect(HOUSE_ASK_AI_MARK_DESKTOP_CLASS).toBe(
+      `${HOUSE_HEADER_TRAILING_DESKTOP_CLASS} ${HOUSE_ASK_AI_MARK_INK_CLASS}`,
+    );
     expect(bellSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
     expect(searchSheetSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS");
     expect(searchSheetSrc).not.toContain("HOUSE_PHONE_CHROME_ICON_CLASS");
@@ -354,40 +373,135 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(trailing).not.toContain("size-5");
     expect(trailing).not.toContain("size-7");
     expect(trailing).not.toContain("size-4");
+    const askAt = trailing.indexOf("data-ask-assistant-header");
+    const ask = trailing.slice(askAt, trailing.indexOf("</button>", askAt));
+    expect(ask).toContain(`class="${HOUSE_ASK_AI_MARK_PHONE_CLASS}"`);
+    expect(ask).toContain(`class="${HOUSE_ASK_AI_MARK_DESKTOP_CLASS}"`);
+    expect(ask).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
+    const bell = trailing.slice(trailing.indexOf("data-activity-bell"));
+    expect(bell).toContain(`class="${HOUSE_HEADER_TRAILING_PHONE_CLASS}"`);
+    expect(bell.slice(0, bell.indexOf("</button>"))).not.toContain(HOUSE_ASK_AI_MARK_INK_CLASS);
     expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain("text-ink-3");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("text-ink-2");
   });
 
-  it("puts a light house chip behind the active dest glyph only", () => {
-    expect(HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS).toContain("bg-surface-muted");
-    expect(HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS).toContain("rounded-full");
+  // Adam 2026-10-04, "Match everywhere": every dock (Home, Aggregation,
+  // Social, Education, Staff) uses the Social active state — accent ink
+  // plus a mark under the active glyph, no chip — so the state is not
+  // colour alone (accent vs ink-2 is ~2:1 light, ~1:1 dark — WCAG
+  // 1.4.1). Create (and its ring) stays Social-only.
+  it("marks the active glyph with the accent dot in every dock — no chip; Social rings an active Create", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS).toBe("text-accent");
     expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe("text-ink-2");
-    expect(bottomNavSrc).toContain("data-house-phone-bottom-nav-chip");
+    expect(HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS).toBe("relative flex");
+    expect(HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS).toBe(
+      "pointer-events-none absolute -bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-accent",
+    );
+    expect(HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS).toBe(
+      "flex size-10 items-center justify-center rounded-full bg-accent text-accent-contrast",
+    );
+    expect(HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS).toBe(
+      "ring-2 ring-accent ring-offset-1 ring-offset-surface",
+    );
+    // The per-workspace scoping and the chip are gone, not parked.
+    expect(phoneShellSrc).not.toContain("housePhoneDockActiveStyle");
+    expect(phoneShellSrc).not.toContain("HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS");
+    expect(phoneShellSrc).not.toContain("bg-surface-muted");
+    expect(bottomNavSrc).not.toContain("housePhoneDockActiveStyle");
+    expect(bottomNavSrc).not.toContain("data-house-phone-bottom-nav-chip");
+    // Dock size and clearance are unchanged.
+    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-12");
+    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("var(--house-phone-dock-clearance)");
+
+    function expectMarkedDock(html: string, activeDest: string, idleDest: string) {
+      expect(html).not.toContain("data-house-phone-bottom-nav-chip");
+      expect(html).not.toContain("bg-surface-muted");
+      expect(html.match(/data-house-phone-bottom-nav-mark=""/g)?.length).toBe(1);
+      expect(html.match(/data-house-phone-bottom-nav-item-active=""/g)?.length).toBe(1);
+      expect(html.match(/aria-current="page"/g)?.length).toBe(1);
+      const destAt = (label: string) => html.indexOf(`data-house-phone-dest="${label}"`);
+      const on = html.slice(html.lastIndexOf("<a ", destAt(activeDest)), html.indexOf("</a>", destAt(activeDest)));
+      expect(on).toContain('aria-current="page"');
+      expect(on).toMatch(/class="[^"]*\btext-accent\b/);
+      expect(on).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS}"`);
+      expect(on).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS}"`);
+      expect(on).toContain("size-6");
+      const off = html.slice(html.lastIndexOf("<a ", destAt(idleDest)), html.indexOf("</a>", destAt(idleDest)));
+      expect(off).not.toContain('aria-current="page"');
+      expect(off).not.toContain("data-house-phone-bottom-nav-mark");
+      expect(off).toMatch(/class="[^"]*\btext-ink-2\b/);
+      // Create is Social-only.
+      expect(html).not.toContain("data-house-phone-bottom-nav-create");
+      expect(html).not.toContain("data-house-phone-dest-create");
+    }
 
     navigation.pathname = "/aggregation/dashboard";
     const aggregation = renderToStaticMarkup(
       createElement(HousePhoneBottomNav, { workspace: "aggregation" }),
     );
-    expect(aggregation.match(/data-house-phone-bottom-nav-chip=/g)?.length).toBe(1);
-    const dash = aggregation.slice(
-      aggregation.indexOf('data-house-phone-dest="Dashboard"'),
-      aggregation.indexOf('data-house-phone-dest="Titles"'),
-    );
-    expect(dash).toContain("data-house-phone-bottom-nav-chip");
-    expect(dash).toContain("size-6");
-    const titles = aggregation.slice(aggregation.indexOf('data-house-phone-dest="Titles"'));
-    expect(titles).not.toContain("data-house-phone-bottom-nav-chip");
+    expectMarkedDock(aggregation, "Dashboard", "Titles");
 
     navigation.pathname = "/home";
     const home = renderToStaticMarkup(
       createElement(HousePhoneBottomNav, { workspace: "aggregation", homeOwned: true }),
     );
-    expect(home.match(/data-house-phone-bottom-nav-chip=/g)?.length).toBe(1);
-    expect(home).toContain('data-house-phone-dest="Home"');
-    expect(home).toContain('data-house-phone-dest="Industry news"');
+    expectMarkedDock(home, "Home", "Industry news");
+
+    navigation.pathname = "/education/manage";
+    const education = renderToStaticMarkup(
+      createElement(HousePhoneBottomNav, { workspace: "education", isGcStaff: true }),
+    );
+    expectMarkedDock(education, "Manage courses", "Education");
+
+    navigation.pathname = "/staff/queue";
+    const staff = renderToStaticMarkup(
+      createElement(HousePhoneBottomNav, { workspace: "staff", isGcStaff: true }),
+    );
+    expectMarkedDock(staff, "Queue", "Channels");
+
+    navigation.pathname = "/social/explore";
+    const social = renderToStaticMarkup(
+      createElement(HousePhoneBottomNav, { workspace: "social" }),
+    );
+    expect(social).not.toContain("data-house-phone-bottom-nav-chip");
+    expect(social.match(/data-house-phone-bottom-nav-mark=""/g)?.length).toBe(1);
+    const explore = social.slice(
+      social.indexOf('data-house-phone-dest="Explore"'),
+      social.indexOf("</a>", social.indexOf('data-house-phone-dest="Explore"')),
+    );
+    expect(explore).toContain("data-house-phone-bottom-nav-mark");
+    expect(explore).toContain(HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS);
+    const feed = social.slice(
+      social.indexOf('data-house-phone-dest="Feed"'),
+      social.indexOf("</a>", social.indexOf('data-house-phone-dest="Feed"')),
+    );
+    expect(feed).not.toContain("data-house-phone-bottom-nav-mark");
+    const createAt = social.indexOf("data-house-phone-dest-create");
+    const createTag = social.slice(social.lastIndexOf("<button", createAt), social.indexOf("</button>", createAt));
+    expect(createTag).toContain('data-house-phone-bottom-nav-create=""');
+    expect(createTag).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS}"`);
+    expect(createTag).not.toContain("ring-2");
+    // The trigger itself takes no ON/OFF ink — accent on accent would erase the glyph.
+    const triggerClass = createTag.match(/<button[^>]*class="([^"]*)"/)?.[1] ?? "";
+    expect(triggerClass).toBe(HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS);
+    expect(social.match(/data-house-phone-bottom-nav-create=""/g)?.length).toBe(1);
+    expect(social.match(/data-house-phone-bottom-nav-item-active=""/g)?.length).toBe(1);
+
+    navigation.pathname = "/social/live";
+    const live = renderToStaticMarkup(
+      createElement(HousePhoneBottomNav, { workspace: "social" }),
+    );
+    expect(live).toContain("data-house-phone-bottom-nav");
+    expect(live).not.toContain("data-house-phone-bottom-nav-mark");
+    const liveAt = live.indexOf("data-house-phone-dest-create");
+    const liveTag = live.slice(live.lastIndexOf("<button", liveAt), live.indexOf("</button>", liveAt));
+    expect(liveTag).toContain('aria-current="page"');
+    expect(liveTag).toContain(
+      `class="${HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS} ${HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS}"`,
+    );
+    expect(liveTag.match(/<button[^>]*class="([^"]*)"/)?.[1]).toBe(HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS);
   });
 
   it("hides the shared phone bottom bar with social-tab-bar-scroll", () => {
@@ -448,7 +562,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       "Manage courses",
     ]);
     expect(SOCIAL_PHONE_DESTS.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -463,7 +577,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     ]);
     expect(HOME_PHONE_DESTS.map((item) => item.label)).toEqual(["Home", "Industry news"]);
     expect(housePhoneDockDestinations({ isGcStaff: false, workspace: "social" }).map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -507,13 +621,13 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     const social = renderToStaticMarkup(
       createElement(HousePhoneBottomNav, { workspace: "social" }),
     );
-    expect(social).toContain('data-house-phone-dest="Home"');
+    expect(social).toContain('data-house-phone-dest="Feed"');
     expect(social).toContain('data-house-phone-dest="Explore"');
     expect(social).toContain('data-house-phone-dest="Create"');
     expect(social).toContain('data-house-phone-dest="Messages"');
     expect(social).toContain('data-house-phone-dest="Profile"');
-    expect(social).not.toContain('data-house-phone-dest="Feed"');
-    expect(social.indexOf('data-house-phone-dest="Home"')).toBeLessThan(
+    expect(social).not.toContain('data-house-phone-dest="Home"');
+    expect(social.indexOf('data-house-phone-dest="Feed"')).toBeLessThan(
       social.indexOf('data-house-phone-dest="Explore"'),
     );
     expect(social.indexOf('data-house-phone-dest="Explore"')).toBeLessThan(
@@ -536,7 +650,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       createElement(HousePhoneBottomNav, { workspace: "social" }),
     );
     expect(socialFeed).toMatch(
-      /<a[^>]+href="\/social"[^>]*aria-current="page"[^>]*data-house-phone-dest="Home"/,
+      /<a[^>]+href="\/social"[^>]*aria-current="page"[^>]*data-house-phone-dest="Feed"/,
     );
 
     navigation.pathname = "/social/create";
@@ -607,13 +721,13 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       ),
     );
     expect(social).toContain("data-house-phone-bottom-nav");
-    expect(social).toContain('data-house-phone-dest="Home"');
+    expect(social).toContain('data-house-phone-dest="Feed"');
     expect(social).toContain('data-house-phone-dest="Explore"');
     expect(social).toContain('data-house-phone-dest="Create"');
     expect(social).toContain('data-house-phone-dest="Messages"');
     expect(social).toContain('data-house-phone-dest="Profile"');
-    expect(social).not.toContain('data-house-phone-dest="Feed"');
-    expect(social.indexOf('data-house-phone-dest="Home"')).toBeLessThan(
+    expect(social).not.toContain('data-house-phone-dest="Home"');
+    expect(social.indexOf('data-house-phone-dest="Feed"')).toBeLessThan(
       social.indexOf('data-house-phone-dest="Explore"'),
     );
     expect(social.indexOf('data-house-phone-dest="Explore"')).toBeLessThan(

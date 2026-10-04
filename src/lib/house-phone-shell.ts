@@ -6,10 +6,11 @@
 // name in the header. No workspace item in the dock.
 // Avatar stays Settings / account — not a second workspace door.
 // Destinations live in the Mercury floating dock (in-workspace
-// only). Social dest order is Home · Explore · Create ·
-// Messages · Profile (Adam lock 2026-09-20) — same SOCIAL_NAV
-// SoT as the desktop Social rail. Create sits center and opens
-// the equal-tile sheet. Home keeps the Home label; no Feed fork.
+// only). Social dest order is Feed · Explore · Create ·
+// Messages · Profile (Adam lock 2026-09-20; Feed label Adam
+// 2026-10-04) — same SOCIAL_NAV SoT as the desktop Social rail.
+// Create sits center as an accent circle inside the pill and opens
+// the fan. Feed is /social; the Home workspace keeps "Home".
 // Create is Social-only. Aggregation · Education · Home each
 // keep their own dests. Dock hops use the
 // house pending / prefetch SoT — prefetchHrefList on mount,
@@ -17,14 +18,18 @@
 // peer workspace pill rail.
 // Phone OS dark is not the product theme. One house SoT.
 // Phone/tablet trailing is search (when needed) · 24Frame AI · bell · waffle · avatar.
-// Desktop hides the waffle and leads the cluster with the sliding workspace row.
+// Desktop hides the waffle; the sliding workspace row sits after the brand mark.
 // Theme is the avatar drill. No header sun/moon.
 // Ask AI is header + Home module only (#465).
 // Craft is Elevated Mercury (reference, not a pixel clone, not
 // Nextdoor frost): one floating pill, house surface fill, hairline,
 // restrained --elevation-float. No frost. No satellite FAB. No
-// second float. Active dest is a light surface-muted pill behind
-// the glyph. Inactive sit bare. Stroke is Regular for both the
+// second float. Social Create is an accent circle INSIDE the pill
+// (shell-unified-chrome-lock-v1) — same row, not raised. In every
+// dock (Home · Aggregation · Social · Education · Staff) the active
+// dest is accent ink on the glyph plus a small accent mark under
+// it — the mark is the non-colour cue (WCAG 1.4.1), no chip (Adam
+// 2026-10-04, "Match everywhere"). Inactive sit bare. Stroke is Regular for both the
 // Mercury bar and the phone-top AI/bell cluster — one weight
 // register — but the glyph boxes ride TWO independent size SoT
 // tokens. Shell waffle lock: the phone dock glyph matches the phone
@@ -33,10 +38,12 @@
 // alias of HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS. Desktop header
 // trailing glyphs share the same 24px box. The hit stays 44.
 // Header must NOT re-export the bottom-chrome class. Phosphor rail
-// stays size-4. Not Bold/Fill heavy. Active ink is accent
-// on the chip; idle is ink-2 on both the bar off state and the top
-// trailing (AI + bell + phone search) via
-// HOUSE_PHONE_CHROME_IDLE_INK_CLASS.
+// stays size-4. Not Bold/Fill heavy. Active ink is accent in every
+// dock; idle is ink-2 on both the bar off state and the top
+// trailing (bell + phone search + waffle) via
+// HOUSE_PHONE_CHROME_IDLE_INK_CLASS. The Ask 24Frame AI sparkle is
+// the one exception: accent (HOUSE_ASK_AI_MARK_INK_CLASS, Adam
+// 2026-10-04, "Blue, as in the mockup").
 // House tokens only. Hide on scroll-down / show on scroll-up via
 // social-tab-bar-scroll. Content pad stays when the bar hides.
 // Not a Meta skin. Not Mercury lavender.
@@ -153,14 +160,36 @@ export const HOUSE_PHONE_CHROME_ICON_WEIGHT = "regular" satisfies IconWeight;
  *  off state. Perceived stroke weight is not just line thickness — a Regular
  *  glyph on ink-3 reads visibly lighter than the same glyph on ink-2 sitting
  *  in the Mercury bar. One ink SoT is what makes the two Regular clusters
- *  read as one register (#442 shipped weight+stroke, this locks the ink). */
+ *  read as one register (#442 shipped weight+stroke, this locks the ink).
+ *  Amended Adam 2026-10-04 ("Blue, as in the mockup"): the Ask 24Frame AI
+ *  sparkle leaves this ink for accent (HOUSE_ASK_AI_MARK_INK_CLASS). Bell,
+ *  phone search, and the waffle stay on it. */
 export const HOUSE_PHONE_CHROME_IDLE_INK_CLASS = "text-ink-2";
 
 export const HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS = HOUSE_PHONE_CHROME_IDLE_INK_CLASS;
 
-/** Soft light pill behind the selected glyph. Scales with the 24px box. */
-export const HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS =
-  "flex h-9 min-w-9 items-center justify-center rounded-full bg-surface-muted";
+/** Active dest, every dock: the glyph sits in this box so the mark can
+ *  hang under it inside the h-10 row. No size change to the row or pill. */
+export const HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS = "relative flex";
+
+/** Active mark, every dock: a 4px accent dot 2px under the 24px glyph,
+ *  inside the h-10 row. Shape, not colour, says "you are here" — accent
+ *  vs ink-2 alone is ~2:1 light and ~1:1 dark. No chip (Adam
+ *  2026-10-04, "Match everywhere"). */
+export const HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS =
+  "pointer-events-none absolute -bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-accent";
+
+/** Social Create: accent circle inside the pill. Fits the h-10 row, so
+ *  the h-12 pill and the 3rem dock clearance stay. The glyph keeps
+ *  the 24px dock box. Create takes no ON/OFF ink — accent ink on the
+ *  accent fill would erase the glyph on /social/live. */
+export const HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS =
+  "flex size-10 items-center justify-center rounded-full bg-accent text-accent-contrast";
+
+/** Create on its own route (/social/create, /social/live): a 2px accent
+ *  ring 1px off the circle. Box-shadow only — stays inside the pill. */
+export const HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS =
+  "ring-2 ring-accent ring-offset-1 ring-offset-surface";
 
 /** Shared 24px box for header trailing glyphs on phone and desktop.
  *  Own literal, not an alias of the dock class. The dock stays size-6
@@ -169,7 +198,8 @@ export const HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS =
 export const HOUSE_HEADER_TRAILING_ICON_CLASS = "size-6 shrink-0";
 
 /** Phone header trailing instance — Regular size-6 on bottom-bar idle ink.
- *  Hidden from md+, so the ink override does not touch desktop text-ink-3. */
+ *  Hidden from md+, so the ink override does not touch desktop text-ink-3.
+ *  Bell, phone search, waffle. Ask uses HOUSE_ASK_AI_MARK_PHONE_CLASS. */
 export const HOUSE_HEADER_TRAILING_PHONE_CLASS = `${HOUSE_HEADER_TRAILING_ICON_CLASS} md:hidden ${HOUSE_PHONE_CHROME_IDLE_INK_CLASS}`;
 
 /** Desktop header trailing instance — same 24px box as phone.
@@ -177,6 +207,20 @@ export const HOUSE_HEADER_TRAILING_PHONE_CLASS = `${HOUSE_HEADER_TRAILING_ICON_C
  *  Phone dock stays on HOUSE_PHONE_CHROME_ICON_CLASS. Not ~18px.
  *  docs/design-locks/social-home-craft-wave-1-lock-v1.md */
 export const HOUSE_HEADER_TRAILING_DESKTOP_CLASS = "size-6 shrink-0 hidden md:block";
+
+/** Ask 24Frame AI sparkle ink — accent, as in the mockup (Adam
+ *  2026-10-04, "Blue, as in the mockup"). Ask only: the bell and search
+ *  keep their idle ink. Set on the glyph itself so the button's hover
+ *  and pressed ink never repaint it. */
+export const HOUSE_ASK_AI_MARK_INK_CLASS = "text-accent";
+
+/** Phone Ask sparkle — the phone trailing 24px box on accent, not the
+ *  phone idle ink. */
+export const HOUSE_ASK_AI_MARK_PHONE_CLASS = `${HOUSE_HEADER_TRAILING_ICON_CLASS} md:hidden ${HOUSE_ASK_AI_MARK_INK_CLASS}`;
+
+/** Desktop Ask sparkle — same box in both forms (icon circle below xl,
+ *  labeled pill from xl), on accent. */
+export const HOUSE_ASK_AI_MARK_DESKTOP_CLASS = `${HOUSE_HEADER_TRAILING_DESKTOP_CLASS} ${HOUSE_ASK_AI_MARK_INK_CLASS}`;
 
 /** Bottom nav rides the 24px SoT (HOUSE_PHONE_CHROME_ICON_CLASS),
  *  the same optical size as the phone header trailing. The two
@@ -191,7 +235,7 @@ export const HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT = HOUSE_PHONE_CHROME_ICON_WEIGHT
  *  Static literal — same length as Explore caption and rail. */
 export const HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS = HOUSE_PHONE_DOCK_CHROME_PB_CLASS;
 
-/** Social phone dests are SOCIAL_NAV — Home · Explore · Create · Messages · Profile. */
+/** Social phone dests are SOCIAL_NAV — Feed · Explore · Create · Messages · Profile. */
 export const SOCIAL_PHONE_DESTS = mobileNavDestinations(false, "social");
 
 /** Home-owned dests. Industry news is a Home child, not a workspace. */

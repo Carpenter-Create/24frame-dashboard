@@ -120,15 +120,15 @@
   /* Dest-rail slot. One measure for Aggregation, Social, Education,
      Staff, and Settings. Adam 2026-09-22: 256, inside the 240–280
      band. Painted panel is this minus --chrome-gutter (240). Social
-     does not own a second width. Home and Co-Productions hide the
-     rail; they do not inset with this slot. */
+     does not own a second width. Home uses this slot too (Adam
+     2026-10-04); only Co-Productions hides the rail. */
   --sidebar-width: 256px;
   --sidebar-width-collapsed: 60px;
   /* Alias of --sidebar-width. Not a second slot. Home does not use
      this as a canvas inset. Phone zeros the slot below. */
   --access-rail-width: var(--sidebar-width);
-  /* Home canvas at 1440: 32 shell start + 32 shell end + 1376
-     column. Not the dest-rail slot. Not --page-max-width.
+  /* Rail-free Home-frame canvas at 1440 (Co-Productions): 32 shell
+     start + 32 shell end + 1376 column. Not --page-max-width.
      Shell pair: docs/design-locks/shell-desktop-horizontal-gutter-lock-v2.md */
   --home-content-width: 1376px;
   /* Phone trail, dest-rail inset, centered canvas pad. Same value

@@ -122,15 +122,19 @@ export function HouseLeadChrome({
               prefetch={social ? true : undefined}
               className="hidden shrink-0 items-center md:inline-flex"
             />
-            {search ? (
-              <div
-                data-house-lead-search=""
-                data-education-header-search-host={education ? "desktop" : undefined}
-                className={HOUSE_LEAD_SEARCH_DESKTOP_CLASS}
-              >
-                {search}
-              </div>
-            ) : null}
+          </div>
+          {/* Desktop md+: brand mark, then Home · Aggregation · Social ·
+              Education · Staff. Same row on every workspace. */}
+          <div
+            data-app-header-workspace-desktop=""
+            className={APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS}
+          >
+            <WorkspaceSwitcher
+              presentation="pills"
+              current={workspace}
+              options={workspaceOptions}
+              isGcStaff={isGcStaff}
+            />
           </div>
           {afterLead}
           {headerExit}
@@ -149,17 +153,15 @@ export function HouseLeadChrome({
               {trailingNav}
             </div>
           ) : null}
-          <div
-            data-app-header-workspace-desktop=""
-            className={APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS}
-          >
-            <WorkspaceSwitcher
-              presentation="pills"
-              current={workspace}
-              options={workspaceOptions}
-              isGcStaff={isGcStaff}
-            />
-          </div>
+          {search ? (
+            <div
+              data-house-lead-search=""
+              data-education-header-search-host={education ? "desktop" : undefined}
+              className={HOUSE_LEAD_SEARCH_DESKTOP_CLASS}
+            >
+              {search}
+            </div>
+          ) : null}
           <AskAssistantHeaderLink />
           <ActivityBell unread={activityUnread} items={activityItems} workspace={workspace} />
           <div

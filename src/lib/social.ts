@@ -557,7 +557,8 @@ export function socialFeedRelativeTime(iso: string, now = Date.now()): string {
 export const SOCIAL = {
   workspace: SOCIAL_WORKSPACE,
   home: {
-    title: "Home",
+    // Social Feed (/social). Adam 2026-10-04: "Feed", never "Home".
+    title: "Feed",
     subtitle: "Activity from people you follow.",
     empty: "No activity yet",
     emptyHint: "Posts, stories, and updates from people you follow show up here.",
@@ -913,7 +914,7 @@ export const SOCIAL = {
     notFound: "Profile not found",
     notFoundCode: "404",
     notFoundHint: "This handle is not on 24Frame Social — or the profile is private.",
-    goHome: "Go to Home",
+    goHome: "Go to Feed",
     goExplore: "Go to Explore",
     message: "Message",
     noProfileCta: "Create a creator profile to send a message.",
