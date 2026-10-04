@@ -728,14 +728,28 @@ export const SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS =
 // Reposition drag surface. bg-band (near-black in both themes) hides the
 // old cover and matches the JPEG's black under transparent pixels. The
 // `!` focus forms beat the unlayered global :focus-visible rule.
+// overflow-hidden clips a zoomed preview to the band (the cover block
+// around the surface does not clip); touch-none keeps two-finger pinch in
+// the editor instead of zooming the page.
 export const SOCIAL_PROFILE_COVER_DRAG_CLASS =
-  "absolute inset-0 z-0 bg-band touch-none select-none outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-[-2px]! focus-visible:rounded-none! data-[slack]:cursor-grab data-[slack]:active:cursor-grabbing";
+  "absolute inset-0 z-0 overflow-hidden bg-band touch-none select-none outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-[-2px]! focus-visible:rounded-none! data-[slack]:cursor-grab data-[slack]:active:cursor-grabbing";
 
 // The editor preview inside the drag surface. In flow, never positioned:
 // a browser paints an element's own outline before its positioned
 // descendants, so an absolute image would cover the surface's inset focus
-// ring. The surface (absolute inset-0) gives size-full a definite box.
-export const SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS = "block size-full object-cover";
+// ring. The surface (absolute inset-0) gives size-full a definite box until
+// the original decodes; then coverPreviewBox sizes and offsets it with
+// percentage width, height and margins. max-w-none lifts the preflight
+// img max-width so a zoomed box can be wider than the band.
+export const SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS = "block size-full max-w-none object-cover";
+
+// Zoom slider in the head trail, above Cancel/Save. Visible label; the
+// range is 44px tall so the thumb is a full touch target on phone.
+export const SOCIAL_PROFILE_COVER_ZOOM_CLASS =
+  "pointer-events-auto flex w-full items-center justify-end gap-[var(--space-3)] t-body-sm text-ink-2";
+
+export const SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS =
+  "h-11 min-w-0 flex-1 md:max-w-[240px] cursor-pointer accent-accent disabled:cursor-default disabled:opacity-60";
 
 // Editor copy in the head trail: below the band, never over the image.
 export const SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS =

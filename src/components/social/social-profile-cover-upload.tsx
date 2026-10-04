@@ -31,15 +31,23 @@ import {
 } from "@/lib/social-profile-cover";
 import {
   COVER_FOCUS_CENTER,
+  COVER_ZOOM_MIN,
+  COVER_ZOOM_STEP,
   type CoverFocus,
   type CoverFraming,
   type CoverImageSize,
+  type CoverPoint,
   coverCropFrame,
   coverCropRect,
   coverDragKeyAction,
+  coverEditorHint,
   coverFocusFromCrop,
-  coverHasSlack,
-  coverObjectPosition,
+  coverMaxZoom,
+  coverPinchZoom,
+  coverPointerDistance,
+  coverPreviewBox,
+  coverWheelZoom,
+  coverZoomTo,
   moveCoverFocus,
 } from "@/lib/social-profile-cover-frame";
 import {
@@ -67,12 +75,20 @@ import {
   SOCIAL_PROFILE_COVER_TRAIL_BUTTON_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_NOTICE_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS,
+  SOCIAL_PROFILE_COVER_ZOOM_CLASS,
+  SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS,
 } from "@/lib/social-chrome";
 import { socialMediaKindFor } from "@/lib/social-media";
 import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
 import { patchSocialProfileOptimistic } from "@/lib/social-profile-edit";
 
 type CoverMode = "idle" | "menu" | "reposition";
+
+// One finger drags; two fingers pinch-zoom. Each starts from the focus it
+// had when the finger count changed.
+type CoverGesture =
+  | { kind: "drag"; startX: number; startY: number; origin: CoverFocus; width: number }
+  | { kind: "pinch"; distance: number; origin: CoverFocus };
 
 // What the editor frames: a freshly picked file (its original is kept with
 // the save) or the stored original (Reposition; the server keeps it).
@@ -106,7 +122,12 @@ export function SocialProfileCoverUpload({
   const bandPreview = useRef<string | null>(null);
   const saveBlocked = useRef(false);
   const captureEl = useRef<HTMLElement | null>(null);
-  const captureId = useRef<number | null>(null);
+  // Pointers down on the drag surface (captured), by pointerId, at their latest position.
+  const pointers = useRef(new Map<number, CoverPoint>());
+  const gesture = useRef<CoverGesture | null>(null);
+  // The focus the running gesture last set, so a finger joining or leaving
+  // continues from it rather than from a render that has not landed yet.
+  const gestureFocus = useRef<CoverFocus | null>(null);
   const [trail, setTrail] = useState<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -117,12 +138,6 @@ export function SocialProfileCoverUpload({
   const [repositionPreview, setRepositionPreview] = useState<string | null>(null);
   const [repositionSize, setRepositionSize] = useState<CoverImageSize | null>(null);
   const [focus, setFocus] = useState<CoverFocus>(COVER_FOCUS_CENTER);
-  const dragState = useRef<{
-    startX: number;
-    startY: number;
-    origin: CoverFocus;
-    width: number;
-  } | null>(null);
 
   const hasCover = Boolean(coverUrl?.trim());
   const repositionAction = coverRepositionAction({ hasCover, hasSource: coverFraming !== null });
@@ -182,6 +197,64 @@ export function SocialProfileCoverUpload({
     }
   }, [mode]);
 
+  // One pointer drags, two pinch. A finger joining or leaving re-anchors the
+  // gesture at the focus it reached, so nothing jumps.
+  const anchorGesture = useCallback((el: HTMLElement, origin: CoverFocus) => {
+    const [first, second] = [...pointers.current.values()];
+    if (first && second) {
+      gesture.current = { kind: "pinch", distance: coverPointerDistance(first, second), origin };
+    } else if (first) {
+      gesture.current = {
+        kind: "drag",
+        startX: first.x,
+        startY: first.y,
+        origin,
+        width: el.getBoundingClientRect().width,
+      };
+    } else {
+      gesture.current = null;
+    }
+  }, []);
+
+  // Zoom (wheel, keys, slider) and arrow nudges. While a pointer is held they
+  // re-anchor its gesture at the focus they produce, so the next pointer
+  // move carries on from there instead of undoing them.
+  const changeFocus = useCallback(
+    (change: (current: CoverFocus) => CoverFocus) => {
+      const active = gesture.current;
+      const el = captureEl.current;
+      if (!active || !el) {
+        setFocus(change);
+        return;
+      }
+      const next = change(gestureFocus.current ?? active.origin);
+      gestureFocus.current = next;
+      anchorGesture(el, next);
+      setFocus(next);
+    },
+    [anchorGesture],
+  );
+
+  // Ctrl/Cmd + wheel and a trackpad pinch (a wheel with ctrlKey) zoom the
+  // cover, never the page. React's wheel listener is passive, so this one
+  // is native to be able to preventDefault. A plain wheel still scrolls.
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (mode !== "reposition" || !el) return undefined;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      if (uploading || !repositionSize) return;
+      const size = repositionSize;
+      const { deltaY, deltaMode } = event;
+      changeFocus((current) =>
+        coverZoomTo(current, coverWheelZoom(current.zoom, deltaY, deltaMode), size),
+      );
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [changeFocus, mode, repositionSize, uploading]);
+
   useEffect(() => {
     const input = fileRef.current;
     return () => {
@@ -209,15 +282,18 @@ export function SocialProfileCoverUpload({
 
   const releasePointer = useCallback(() => {
     const el = captureEl.current;
-    const id = captureId.current;
+    const ids = [...pointers.current.keys()];
     captureEl.current = null;
-    captureId.current = null;
-    dragState.current = null;
-    if (!el || id == null) return;
-    try {
-      if (el.hasPointerCapture(id)) el.releasePointerCapture(id);
-    } catch {
-      // The pointer already ended.
+    pointers.current.clear();
+    gesture.current = null;
+    gestureFocus.current = null;
+    if (!el) return;
+    for (const id of ids) {
+      try {
+        if (el.hasPointerCapture(id)) el.releasePointerCapture(id);
+      } catch {
+        // The pointer already ended.
+      }
     }
   }, []);
 
@@ -487,64 +563,116 @@ export function SocialProfileCoverUpload({
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (mode !== "reposition" || !repositionSize || uploading) return;
+    if (pointers.current.size >= 2) return;
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
     captureEl.current = el;
-    captureId.current = e.pointerId;
-    dragState.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origin: focus,
-      width: el.getBoundingClientRect().width,
-    };
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    anchorGesture(el, gestureFocus.current ?? focus);
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    const drag = dragState.current;
-    if (!drag || mode !== "reposition" || !repositionSize) return;
-    setFocus(
-      moveCoverFocus(
-        drag.origin,
-        { x: e.clientX - drag.startX, y: e.clientY - drag.startY },
+    const point = pointers.current.get(e.pointerId);
+    const active = gesture.current;
+    if (!point || !active || mode !== "reposition" || !repositionSize || uploading) return;
+    point.x = e.clientX;
+    point.y = e.clientY;
+    let next: CoverFocus;
+    if (active.kind === "pinch") {
+      const [first, second] = [...pointers.current.values()];
+      if (!first || !second) return;
+      const zoom = coverPinchZoom(active.origin.zoom, active.distance, coverPointerDistance(first, second));
+      next = coverZoomTo(active.origin, zoom, repositionSize);
+    } else {
+      next = moveCoverFocus(
+        active.origin,
+        { x: e.clientX - active.startX, y: e.clientY - active.startY },
         repositionSize,
-        drag.width,
-      ),
-    );
+        active.width,
+      );
+    }
+    gestureFocus.current = next;
+    setFocus(next);
   }
 
-  function onPointerUp() {
-    releasePointer();
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    pointers.current.delete(e.pointerId);
+    try {
+      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    } catch {
+      // The pointer already ended.
+    }
+    if (pointers.current.size === 0) {
+      releasePointer();
+      return;
+    }
+    // Pinch to one finger: that finger drags on from where the pinch left off.
+    anchorGesture(el, gestureFocus.current ?? focus);
   }
 
   function onDragKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    const action = coverDragKeyAction(e.key, e.shiftKey, uploading);
+    const action = coverDragKeyAction(
+      e.key,
+      e.shiftKey,
+      uploading,
+      e.ctrlKey || e.metaKey || e.altKey,
+    );
     if (!action) return;
     e.preventDefault();
     if (action.type === "cancel") {
       cancelReposition();
       return;
     }
-    if (action.type !== "nudge" || !repositionSize) return;
-    const { delta } = action;
+    if (!repositionSize) return;
     const size = repositionSize;
+    if (action.type === "zoom") {
+      const { step } = action;
+      changeFocus((current) => coverZoomTo(current, current.zoom + step, size));
+      return;
+    }
+    if (action.type !== "nudge") return;
+    const { delta } = action;
     const width = e.currentTarget.getBoundingClientRect().width;
-    setFocus((current) => moveCoverFocus(current, delta, size, width));
+    changeFocus((current) => moveCoverFocus(current, delta, size, width));
+  }
+
+  function onZoomInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (uploading || !repositionSize) return;
+    const size = repositionSize;
+    const zoom = Number(e.currentTarget.value);
+    changeFocus((current) => coverZoomTo(current, zoom, size));
   }
 
   const isReposition = mode === "reposition";
-  const slack = repositionSize ? coverHasSlack(repositionSize) : false;
+  const hint = isReposition ? coverEditorHint(focus, repositionSize) : null;
+  const slack = hint === "drag";
+  const maxZoom = repositionSize ? coverMaxZoom(repositionSize) : COVER_ZOOM_MIN;
   const ready = Boolean(repositionFile && repositionSize);
+  const preview = coverPreviewBox(focus, repositionSize);
   const coverLabel = hasCover ? SOCIAL.profile.editCover : SOCIAL.profile.addCover;
+  const hintText =
+    hint === "drag" ? SOCIAL.profile.coverDragHint : hint === "zoom" ? SOCIAL.profile.coverZoomHint : null;
 
-  // Nothing paints over the image except the avatar: the hint, the public
-  // note, Cancel/Save and errors sit in the head trail below the band.
+  // Nothing paints over the image except the avatar: the hint, Zoom,
+  // Cancel/Save and errors sit in the head trail below the band.
   const trailContent = (
     <>
-      {isReposition && slack ? (
-        <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{SOCIAL.profile.coverDragHint}</p>
-      ) : null}
+      {hintText ? <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{hintText}</p> : null}
       {isReposition ? (
-        <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{SOCIAL.profile.coverPublicNote}</p>
+        <label data-social-cover-zoom="" className={SOCIAL_PROFILE_COVER_ZOOM_CLASS}>
+          <span>{SOCIAL.profile.coverZoom}</span>
+          <input
+            type="range"
+            min={COVER_ZOOM_MIN}
+            max={maxZoom}
+            step={COVER_ZOOM_STEP}
+            value={focus.zoom}
+            disabled={uploading || !ready || maxZoom <= COVER_ZOOM_MIN}
+            className={SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS}
+            onChange={onZoomInput}
+          />
+        </label>
       ) : null}
       {isReposition ? (
         <div data-social-cover-actions="" className={SOCIAL_PROFILE_COVER_TRAIL_ACTIONS_CLASS}>
@@ -583,13 +711,17 @@ export function SocialProfileCoverUpload({
           data-slack={slack ? "" : undefined}
           role="group"
           tabIndex={0}
-          aria-label={SOCIAL.profile.coverDragHint}
+          // The hint when there is one. Before the original decodes, or when
+          // it can neither move nor zoom, the surface is named for what it is.
+          aria-label={hintText ?? SOCIAL.profile.editCover}
           aria-busy={!ready}
           className={SOCIAL_PROFILE_COVER_DRAG_CLASS}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          // A capture lost without pointerup must not leave a stale finger behind.
+          onLostPointerCapture={onPointerUp}
           onKeyDown={onDragKeyDown}
         >
           {repositionPreview ? (
@@ -599,7 +731,8 @@ export function SocialProfileCoverUpload({
               alt=""
               draggable={false}
               className={SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS}
-              style={{ objectPosition: coverObjectPosition(focus) }}
+              // The saved crop's own frame (coverCropFrame), as a box on the band.
+              style={preview ?? undefined}
               onError={() => setError(SOCIAL.profile.coverCropFailed)}
             />
           ) : null}
