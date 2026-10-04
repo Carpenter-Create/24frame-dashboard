@@ -18,7 +18,11 @@ import { AppearanceCheck } from "./appearance-check";
 import { SegmentedTrack } from "@/components/ui/segmented-track";
 import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
-import { overviewLeadActiveIndex, overviewLeadSelected } from "@/lib/overview";
+import {
+  overviewLeadActiveIndex,
+  overviewLeadSelected,
+  type OverviewLeadPillId,
+} from "@/lib/overview";
 import { clampWorkspaceMode, resolveWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 import {
   houseNavIgnorePendingClick,
@@ -44,13 +48,11 @@ import {
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
-  WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS,
   WORKSPACE_SWITCHER_SEGMENTS_CLASS,
   WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS,
   WORKSPACE_SWITCHER_SHEET_HOST_CLASS,
   WORKSPACE_SWITCHER_SHEET_SCRIM_CLASS,
   WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS,
-  WORKSPACE_SWITCHER_STATIC_CLASS,
   WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS,
   WORKSPACE_WAFFLE_GRID_CLASS,
   WORKSPACE_WAFFLE_HOME,
@@ -69,6 +71,7 @@ import {
   prefetchWorkspaceWaffleIntent,
   workspaceWaffleHomeDest,
   workspaceWaffleIntentPrefetchHrefs,
+  selectWorkspaceLane,
   workspaceSwitcherChromeClearanceBottoms,
   workspaceSwitcherMenuStyle,
   workspaceSwitcherNextSegmentIndex,
@@ -77,7 +80,6 @@ import {
   workspaceSwitcherSegmentTabIndex,
   workspaceSliderSegments,
   workspaceWaffleTiles,
-  workspacePillClickDest,
 } from "@/lib/workspace-switcher";
 
 const WORKSPACE_WAFFLE_ICON = {
@@ -87,9 +89,11 @@ const WORKSPACE_WAFFLE_ICON = {
   staff: Tray,
 } as const;
 
+// Slider segment or waffle tile. Home is a lane id here too: it goes
+// to /home and writes no cookie (selectWorkspaceLane).
 function selectWorkspaceTile(
   current: WorkspaceMode,
-  tile: WorkspaceMenuOption,
+  lane: { id: OverviewLeadPillId; href: string },
   options: readonly WorkspaceMenuOption[],
   router: ReturnType<typeof useRouter>,
   shellPath: string,
@@ -98,17 +102,18 @@ function selectWorkspaceTile(
   event?: HouseNavClickLike,
   navigateOwned?: (href: string, click?: HouseNavClickLike) => boolean,
 ) {
-  const dest = workspacePillClickDest({
+  selectWorkspaceLane({
     shellPath,
     workspace: current,
-    pill: { id: tile.mode, href: tile.href },
+    lane,
     options,
+    isGcStaff,
+    navigate: (dest) => {
+      markPending?.(dest, event);
+      if (navigateOwned?.(dest, event)) return;
+      router.push(dest);
+    },
   });
-  if (!dest) return;
-  workspaceSwitcherPersistLane(tile.mode, isGcStaff);
-  markPending?.(dest, event);
-  if (navigateOwned?.(dest, event)) return;
-  router.push(dest);
 }
 
 function WorkspaceWaffleHomeExit({
@@ -261,7 +266,7 @@ function WorkspaceWaffleTiles({
                   if (houseNavIgnorePendingClick(event)) return;
                   selectWorkspaceTile(
                     current,
-                    tile,
+                    { id: tile.mode, href: tile.href },
                     tiles,
                     router,
                     pathname,
@@ -291,7 +296,7 @@ function WorkspaceWaffleTiles({
               onClick={(event) => {
                 selectWorkspaceTile(
                   current,
-                  tile,
+                  { id: tile.mode, href: tile.href },
                   tiles,
                   router,
                   pathname,
@@ -326,8 +331,9 @@ function WorkspaceSlider({
   const house = useHouseClient();
   const { activePath, markPending } = useHouseNavPending();
   const segmentRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const tiles = workspaceSliderSegments(options);
-  const pills = tiles.map((tile) => ({ id: tile.mode, label: tile.label, href: tile.href }));
+  // Home · Aggregation · Social · Education · Staff (entitled). Home is
+  // a real segment: thumb on /home and /home/news, hop to /home.
+  const pills = workspaceSliderSegments(options);
   const routeWorkspace = resolveWorkspaceMode(activePath, current);
   const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
 
@@ -340,22 +346,6 @@ function WorkspaceSlider({
       event.key === "ArrowRight" ? 1 : -1,
     );
     segmentRefs.current[next]?.focus();
-  }
-
-  if (pills.length <= 1) {
-    const only = pills[0];
-    if (!only) return null;
-    return (
-      <span
-        data-workspace-switcher=""
-        data-workspace-switcher-presentation="pills"
-        className={WORKSPACE_SWITCHER_STATIC_CLASS}
-      >
-        <span data-workspace-switcher-current="" className={WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS}>
-          {only.label}
-        </span>
-      </span>
-    );
   }
 
   return (
@@ -384,15 +374,13 @@ function WorkspaceSlider({
               data-segmented-item=""
               data-workspace-switcher-segment={pill.id}
               aria-selected={selected}
-              tabIndex={workspaceSwitcherSegmentTabIndex(selected)}
+              tabIndex={workspaceSwitcherSegmentTabIndex(index, selectedIndex, pills.length)}
               className={workspaceSwitcherSegmentClass(selected)}
               onClick={(event) => {
-                const tile = tiles.find((row) => row.mode === pill.id);
-                if (!tile) return;
                 selectWorkspaceTile(
                   current,
-                  tile,
-                  tiles,
+                  pill,
+                  options,
                   router,
                   shellPath,
                   isGcStaff,

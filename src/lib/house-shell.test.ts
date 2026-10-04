@@ -34,7 +34,6 @@ import {
   HOUSE_PERIOD_SELECTED_CLASS,
   HOUSE_RAIL_ACTIVE_CLASS,
   HOUSE_RAIL_IDLE_CLASS,
-  HOUSE_RAIL_ICON_CLASS,
   HOUSE_RAIL_ITEM_CLASS,
   HOUSE_RAIL_LABEL_CLASS,
   HOUSE_RAIL_PANEL_CLASS,
@@ -194,7 +193,6 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("text-left");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("t-body leading-6");
     expect(HOUSE_RAIL_ITEM_CLASS).not.toContain("t-body-sm");
-    expect(HOUSE_RAIL_ICON_CLASS).toBe("flex size-5 shrink-0 items-center justify-center");
     expect(HOUSE_RAIL_LABEL_CLASS).toBe("min-w-0 flex-1 truncate text-left");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
     expect(HOUSE_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
@@ -279,8 +277,8 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(readFileSync("src/lib/house-chip-rail.ts", "utf8")).toContain("HOUSE_SCROLL_ROW_CLASS");
     expect(DASHBOARD_NEWS_SOURCE_TRACK_CLASS).toBe(HOUSE_SEGMENTED_TRACK_SCROLL_CLASS);
     expect(DASHBOARD_PERIOD_OPTION_SELECTED_CLASS).toBe(HOUSE_PERIOD_SELECTED_CLASS);
-    expect(sideNav).toContain("HOUSE_RAIL_ACTIVE_CLASS");
-    expect(sideNav).toContain("HOUSE_RAIL_IDLE_CLASS");
+    expect(sideNav).toContain("HOUSE_DEST_RAIL_ACTIVE_CLASS");
+    expect(sideNav).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
     expect(shell).toContain("HousePhoneAppShell");
     expect(readFileSync("src/components/chrome/house-phone-app-shell.tsx", "utf8")).toContain(
       "HOUSE_PAGE_CANVAS_CLASS",

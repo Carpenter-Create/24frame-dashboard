@@ -138,23 +138,23 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(leadSearch).not.toContain("md:flex-none");
   });
 
-  it("places Social and Education search beside the logo — not center-floating", () => {
+  it("places Social and Education search first in the trailing cluster — never beside the logo", () => {
     expect(HOUSE_HEADER_SEARCH_GAP_CLASS).toBe("gap-[var(--space-4)]");
     expect(lead).toContain("data-social-header-lead");
     expect(lead).toContain("HOUSE_LEAD_SLOT_CLASS");
     expect(lead).not.toContain("left-1/2");
     expect(lead).not.toContain("-translate-x-1/2");
     expect(lead.indexOf("data-brand-emblem")).toBeLessThan(
-      lead.indexOf("data-house-lead-search"),
+      lead.indexOf("data-app-header-workspace-desktop"),
     );
-    expect(lead.indexOf("data-house-lead-search")).toBeLessThan(
-      lead.indexOf("data-social-header-actions"),
-    );
-    expect(lead.indexOf("data-social-header-lead")).toBeLessThan(
-      lead.indexOf("data-house-lead-search"),
-    );
-    expect(lead.indexOf("data-house-lead-search")).toBeLessThan(
+    expect(lead.indexOf("data-app-header-workspace-desktop")).toBeLessThan(
       lead.indexOf("data-app-header-trailing"),
+    );
+    expect(lead.indexOf("data-app-header-trailing")).toBeLessThan(
+      lead.indexOf("data-house-lead-search"),
+    );
+    expect(lead.indexOf("data-social-header-actions")).toBeLessThan(
+      lead.indexOf("data-house-lead-search"),
     );
 
     const social = renderToStaticMarkup(
@@ -167,12 +167,17 @@ describe("house chrome rematch miss list v1.1", () => {
       }),
     );
     expect(social).toContain("data-social-header-lead");
-    expect(social).toContain(HOUSE_HEADER_SEARCH_GAP_CLASS);
     expect(social.indexOf("data-brand-emblem")).toBeLessThan(
+      social.indexOf("data-workspace-switcher-pills"),
+    );
+    expect(social.indexOf("data-workspace-switcher-pills")).toBeLessThan(
+      social.indexOf("data-app-header-trailing"),
+    );
+    expect(social.indexOf("data-app-header-trailing")).toBeLessThan(
       social.indexOf("data-social-header-search"),
     );
     expect(social.indexOf("data-social-header-search")).toBeLessThan(
-      social.indexOf("data-app-header-trailing"),
+      social.indexOf("data-ask-assistant-header"),
     );
     expect(social).not.toContain("left-1/2");
 
@@ -186,21 +191,20 @@ describe("house chrome rematch miss list v1.1", () => {
     );
     expect(leading).toContain("data-app-header-brand-search");
     expect(leading).toContain("HOUSE_LEAD_SLOT_CLASS");
-    expect(leading).toContain('data-education-header-search-host={education ? "desktop" : undefined}');
-    expect(leading).not.toContain('data-education-header-search-host={education ? "phone" : undefined}');
-    expect(leading.indexOf("data-brand-emblem")).toBeLessThan(
-      leading.indexOf('data-education-header-search-host={education ? "desktop" : undefined}'),
-    );
+    expect(leading).not.toContain("data-education-header-search-host");
+    expect(leading).not.toContain("{search}");
     expect(lead).toContain("data-house-under-nav");
     expect(lead.indexOf("</header>")).toBeLessThan(lead.indexOf("data-house-under-nav"));
     expect(lead).toContain('data-education-header-search-host={education ? "phone" : undefined}');
+    expect(leading).toContain("<WorkspaceSwitcher");
+    expect(leading).toContain('presentation="pills"');
     expect(trailing).toContain("<WorkspaceSwitcher");
-    expect(trailing).toContain('presentation="pills"');
     expect(trailing).toContain('presentation="waffle"');
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
     expect(trailing).toContain("data-social-header-actions");
-    expect(trailing).not.toContain("data-education-header-search-host");
+    expect(trailing).toContain('data-education-header-search-host={education ? "desktop" : undefined}');
+    expect(trailing.indexOf("{search}")).toBeLessThan(trailing.indexOf("<AskAssistantHeaderLink"));
     expect(shell).not.toContain("SearchField");
   });
 

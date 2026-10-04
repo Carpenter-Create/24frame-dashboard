@@ -30,6 +30,8 @@ import {
   OVERVIEW_AREA_NEWS_CLASS,
   OVERVIEW_AREA_REVENUE_CLASS,
   OVERVIEW_AREA_SOCIAL_CLASS,
+  OVERVIEW_EDUCATION_COVERS_CLASS,
+  OVERVIEW_HOME_FRAME_CLASS,
   OVERVIEW_HOME_LAYOUT_CLASS,
   OVERVIEW_MODULE_ARROW_CLASS,
   OVERVIEW_MODULE_NEST_CLASS,
@@ -44,7 +46,8 @@ import type { SocialHomeChat } from "@/lib/social-home-chats";
 import { socialDmHref, socialInitials } from "@/lib/social";
 
 // Home IA v2 order rewrite. Revenue first. News is the right
-// rail on desktop and the last full-width stack on phone (after AI).
+// rail once the Home frame is two-column (container query — Home
+// sits beside the dest rail) and the last full-width stack otherwise.
 // This-week pulse stays with Revenue. Social stays avatars-only.
 // Period presets share HousePeriodPresets (Reports chips on md+;
 // HousePageSelect on phone). Never a wrapping Home chip fork.
@@ -80,6 +83,7 @@ export function OverviewHome({
   now: Date;
 }) {
   return (
+    <div data-overview-frame="" className={OVERVIEW_HOME_FRAME_CLASS}>
       <div data-overview-layout="" className={OVERVIEW_HOME_LAYOUT_CLASS}>
       <div className={OVERVIEW_AREA_REVENUE_CLASS}>
       <DashboardHomePanel aria-label={OVERVIEW_PAGE.revenue} data-overview-revenue="">
@@ -180,7 +184,7 @@ export function OverviewHome({
         {courses.length > 0 ? (
           <ul
             data-overview-education-covers=""
-            className={`grid grid-cols-1 ${OVERVIEW_MODULE_NEST_CLASS} sm:grid-cols-2 lg:grid-cols-3`}
+            className={OVERVIEW_EDUCATION_COVERS_CLASS}
           >
             {courses.map((course) => (
               <CourseCard
@@ -247,12 +251,14 @@ export function OverviewHome({
         <NewsRail items={news} now={now} viewAll />
       </aside>
       </div>
+    </div>
   );
 }
 
 /** Same grid as live Home so streamed modules do not reflow the chrome. */
 export function HomeOverviewSkeleton() {
   return (
+    <div data-overview-frame="" className={OVERVIEW_HOME_FRAME_CLASS}>
     <div data-overview-layout="" data-overview-skeleton="" className={OVERVIEW_HOME_LAYOUT_CLASS}>
       <div className={OVERVIEW_AREA_REVENUE_CLASS}>
         <Skeleton className="h-40 w-full" />
@@ -272,6 +278,7 @@ export function HomeOverviewSkeleton() {
       <aside className={OVERVIEW_AREA_NEWS_CLASS}>
         <Skeleton className="h-64 w-full" />
       </aside>
+    </div>
     </div>
   );
 }

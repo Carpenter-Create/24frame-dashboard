@@ -5,11 +5,18 @@ import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 
 import { SocialIcon } from "@/components/social/social-icon";
+import { cn } from "@/lib/cn";
+import {
+  HOUSE_HEADER_EXIT_COMPACT_CLASS,
+  HOUSE_HEADER_EXIT_LABEL_CLASS,
+} from "@/lib/house-lead-chrome";
 import { SOCIAL, SOCIAL_ROUTES, exploreExitUsesPriorRoute } from "@/lib/social";
 import { SOCIAL_EXPLORE_EXIT_CLASS } from "@/lib/social-chrome";
 
 // Desktop Explore Exit. The href is Social home. A same-origin
 // referrer that is not Explore itself uses history instead.
+// md to lg the chip shows only its X; "Exit" stays the accessible
+// name (shell-unified-chrome-lock-v1 header width budget).
 export function SocialExploreExit() {
   const router = useRouter();
 
@@ -28,13 +35,13 @@ export function SocialExploreExit() {
     <Link
       href={SOCIAL_ROUTES.home}
       data-social-explore-exit=""
-      className={SOCIAL_EXPLORE_EXIT_CLASS}
+      className={cn(SOCIAL_EXPLORE_EXIT_CLASS, HOUSE_HEADER_EXIT_COMPACT_CLASS)}
       onClick={onClick}
     >
       <span aria-hidden="true" className="inline-flex">
         <SocialIcon name="x" size={16} />
       </span>
-      {SOCIAL.explore.exit}
+      <span className={HOUSE_HEADER_EXIT_LABEL_CLASS}>{SOCIAL.explore.exit}</span>
     </Link>
   );
 }

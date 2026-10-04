@@ -7,6 +7,8 @@ import {
   Pulse,
   SquaresFour,
   ChartBar,
+  House,
+  Rows,
   Storefront,
   Tray,
   CheckCircle,
@@ -343,18 +345,22 @@ describe("mobileNavDestinations", () => {
     expect(EDUCATION_MANAGE_NAV.map((item) => item.icon)).toEqual([BookOpen]);
     expect(EDUCATION_NAV.map((item) => item.href)).not.toContain("/social/courses");
     expect(SOCIAL_NAV.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
       "Profile",
     ]);
+    // Feed (was Home) is /social with the stacked-rows glyph (Adam 2026-10-04).
+    expect(SOCIAL_NAV[0]?.href).toBe("/social");
+    expect(SOCIAL_NAV[0]?.icon).toBe(Rows);
+    expect(SOCIAL_NAV[0]?.icon).not.toBe(House);
     expect(SOCIAL_NAV[2]?.label).toBe("Create");
     expect(isSocialCreateDest(SOCIAL_NAV[2]!)).toBe(true);
     expect(SOCIAL_NAV.filter(isSocialCreateDest)).toHaveLength(1);
     expect(SOCIAL_DESKTOP_NAV).toBe(SOCIAL_NAV);
     expect(SOCIAL_DESKTOP_NAV.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -362,7 +368,7 @@ describe("mobileNavDestinations", () => {
     ]);
     expect(railDestinations(false, "social").items).toBe(SOCIAL_NAV);
     expect(railDestinations(false, "social").items.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",

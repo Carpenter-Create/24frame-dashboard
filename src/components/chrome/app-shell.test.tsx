@@ -55,16 +55,19 @@ vi.mock("./side-nav", () => ({
     isGcStaff,
     workspace,
     collapsed,
+    homeOwned,
   }: {
     isGcStaff?: boolean;
     workspace?: string;
     collapsed?: boolean;
+    homeOwned?: boolean;
   }) =>
     createElement("nav", {
       "data-side-nav": "",
       "data-gc-staff": isGcStaff ? "" : undefined,
       "data-workspace": workspace ?? "aggregation",
       "data-collapsed": collapsed ? "" : undefined,
+      "data-home-owned": homeOwned ? "" : undefined,
     }),
 }));
 vi.mock("./user-menu", () => ({
@@ -88,6 +91,11 @@ vi.mock("./user-menu", () => ({
 import { AppShell } from "./app-shell";
 import type { AppShellChrome } from "@/lib/app-shell-chrome";
 import type { MessagesSurface } from "@/lib/ask-frame-ai";
+import {
+  HOUSE_EXPLORE_HEADER_SEARCH_SLOT_CLASS,
+  HOUSE_HEADER_EXIT_COMPACT_CLASS,
+  HOUSE_HEADER_EXIT_LABEL_CLASS,
+} from "@/lib/house-lead-chrome";
 import {
   RAIL_COLLAPSE_CHEVRON,
   RAIL_COLLAPSE_CHEVRON_CLASS,
@@ -221,7 +229,7 @@ describe("AppShell header", () => {
     expect(html).toContain('data-workspace-switcher-presentation="pills"');
     expect(html).toContain("data-workspace-switcher-pills");
     expect(html).toContain('data-workspace-switcher-segment="social"');
-    expect(html).not.toContain('data-workspace-switcher-segment="home"');
+    expect(html).toContain('data-workspace-switcher-segment="home"');
     expect(html).toContain("hidden md:contents");
     expect(html).not.toContain("data-app-header-workspace-pill");
     expect(html).not.toContain("data-workspace-switcher-rail");
@@ -253,7 +261,7 @@ describe("AppShell header", () => {
 });
 
 describe("AppShell Home chrome", () => {
-  it("hides dest rails on /home and keeps them on workspace destinations", () => {
+  it("shows the Home rail on /home and keeps rails on workspace destinations", () => {
     navigation.pathname = "/home";
     const home = renderShell();
     expect(home).toContain('data-home-chrome=""');
@@ -272,23 +280,24 @@ describe("AppShell Home chrome", () => {
     expect(home).toContain("data-workspace-switcher");
     expect(home).toContain("data-workspace-waffle");
     expect(home).toContain('data-workspace-switcher-segment="social"');
-    expect(home).not.toContain('data-workspace-switcher-segment="home"');
+    expect(home).toContain('data-workspace-switcher-segment="home"');
     expect(home).toContain("data-brand-emblem");
     expect(home).not.toContain("data-theme-toggle");
     expect(home).toContain("data-activity-bell");
     expect(home).toContain("data-user-menu-host");
-    expect(home).not.toContain("data-app-rail");
-    expect(home).not.toContain("data-side-nav");
+    // Adam 2026-10-04: Home gets the same rail as every workspace.
+    expect(home).toContain("data-app-rail");
+    expect(home).toContain('data-home-owned=""');
     expect(home).not.toContain("data-social-rail");
-    expect(home).not.toContain("Collapse sidebar");
-    expect(home).not.toContain("Expand sidebar");
+    expect(home).toContain("Collapse sidebar");
+    expect(home).toContain("margin-left:var(--sidebar-width)");
     expect(home).toContain("data-brand-logo");
     expect(home).toContain('data-brand-logo-mark="emblem"');
     expect(home).not.toMatch(/data-house-lead=""[^>]*\bhidden(?:\s|")/);
     expect(home).not.toContain("data-mobile-nav-trigger");
     expect(home).not.toContain("data-house-phone-dest-chips");
-    expect(home).toContain("--sidebar-width:0px");
-    expect(home).toContain("--sidebar-width-collapsed:0px");
+    expect(home).not.toContain("--sidebar-width:0px");
+    expect(home).not.toContain("--sidebar-width-collapsed:0px");
     expect(shellSrc).toContain("overviewHidesRail");
     expect(shellSrc).toContain("OVERVIEW_RAIL_OFF_WIDTH");
     expect(shellSrc).toContain("data-home-chrome");
@@ -306,24 +315,26 @@ describe("AppShell Home chrome", () => {
       expect(html).toContain("data-app-rail");
       expect(html).toContain("Collapse sidebar");
       expect(html).not.toContain('data-home-chrome=""');
+      expect(html).not.toContain("data-home-owned");
     }
   });
 
-  it("keeps /home/news on Home chrome — no dest rail and no News workspace pill", () => {
+  it("keeps /home/news on Home chrome with the Home rail — no News workspace pill", () => {
     navigation.pathname = "/home/news";
     const news = renderShell();
     expect(news).toContain('data-home-chrome=""');
     expect(news).toContain("data-app-home-frame");
     expect(news).toContain("data-workspace-waffle");
     expect(news).toContain('data-workspace-switcher-segment="social"');
-    expect(news).not.toContain('data-workspace-switcher-segment="home"');
+    expect(news).toContain('data-workspace-switcher-segment="home"');
+    expect(news).not.toContain('data-workspace-switcher-segment="news"');
     expect(news).not.toContain('data-workspace-waffle-tile="news"');
-    expect(news).not.toContain("data-app-rail");
-    expect(news).not.toContain("data-side-nav");
+    expect(news).toContain("data-app-rail");
+    expect(news).toContain('data-home-owned=""');
     expect(news).not.toContain("data-social-rail");
     expect(news).not.toContain("data-social-tab-bar");
     expect(news).not.toContain("data-mobile-nav-trigger");
-    expect(news).toContain("--sidebar-width:0px");
+    expect(news).not.toContain("--sidebar-width:0px");
     expect(homeFrameMarkup(news)).toContain("md:ml-[var(--shell-gutter-inline-start)]");
   });
 
@@ -583,7 +594,7 @@ describe("AppShell /activity account chrome", () => {
         expect(html).toContain("data-workspace-switcher");
         expect(html).toContain("data-workspace-waffle");
         expect(html).toContain('data-workspace-switcher-segment="social"');
-        expect(html).not.toContain('data-workspace-switcher-segment="home"');
+        expect(html).toContain('data-workspace-switcher-segment="home"');
         expect(html).toContain("data-user-menu-host");
         expect(html).toContain("data-house-lead-chrome");
         expect(html).toContain("px-[var(--chrome-gutter)]");
@@ -593,7 +604,7 @@ describe("AppShell /activity account chrome", () => {
       }
     }
     expect(shellSrc).toContain("isAccountChromeNoRailPath");
-    expect(shellSrc).toContain("homeChrome || accountChromeNoRail");
+    expect(shellSrc).toContain("overviewHidesRail(pathname) || accountChromeNoRail");
     expect(shellSrc).toContain(
       "const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage",
     );
@@ -682,7 +693,7 @@ describe("AppShell /help account chrome", () => {
         expect(html).toContain("data-workspace-switcher");
         expect(html).toContain("data-workspace-waffle");
         expect(html).toContain('data-workspace-switcher-segment="social"');
-        expect(html).not.toContain('data-workspace-switcher-segment="home"');
+        expect(html).toContain('data-workspace-switcher-segment="home"');
         expect(html).toContain("data-user-menu-host");
         expect(html).toContain("data-house-lead-chrome");
         expect(html).toContain("px-[var(--chrome-gutter)]");
@@ -1252,6 +1263,41 @@ describe("AppShell rail-collapse chevron", () => {
     expect(stage).not.toContain("max-w-");
   });
 
+  // shell-unified-chrome-lock-v1: at 768–840 the Explore leading row
+  // (wordmark · five lanes · labeled Exit) ran up to ~84px long and
+  // the switcher painted over the wordmark. Below lg the Exit chip
+  // keeps only its X and the header search icon steps out.
+  it("fits desktop Explore from 768: brand never shrinks, Exit compacts, search steps out below lg", () => {
+    navigation.pathname = "/social/explore";
+    const html = renderShell();
+    const desktopHeader = html.slice(
+      html.indexOf("data-social-explore-desktop-header"),
+      html.indexOf("data-social-explore-stage"),
+    );
+    const leadAt = desktopHeader.indexOf("data-house-lead=");
+    const leadTag = desktopHeader.slice(leadAt, desktopHeader.indexOf(">", leadAt));
+    expect(leadTag).toContain("md:shrink-0");
+
+    const exitAt = desktopHeader.indexOf("data-social-explore-exit");
+    const exitTag = desktopHeader.slice(exitAt, desktopHeader.indexOf(">", exitAt));
+    for (const token of HOUSE_HEADER_EXIT_COMPACT_CLASS.split(" ")) {
+      expect(exitTag).toContain(token);
+    }
+    const exitLink = desktopHeader.slice(exitAt, desktopHeader.indexOf("</a>", exitAt));
+    expect(exitLink).toContain(`<span class="${HOUSE_HEADER_EXIT_LABEL_CLASS}">Exit</span>`);
+
+    const searchAt = desktopHeader.indexOf("data-explore-header-search");
+    expect(searchAt).toBeGreaterThan(-1);
+    const searchHost = desktopHeader.slice(searchAt, desktopHeader.indexOf("</a>", searchAt));
+    expect(searchHost).toContain(`class="${HOUSE_EXPLORE_HEADER_SEARCH_SLOT_CLASS}"`);
+    expect(searchHost).toContain("data-social-header-search-icon");
+
+    navigation.pathname = "/social";
+    const social = renderShell();
+    expect(social).not.toContain("data-explore-header-search");
+    expect(social).toContain("data-social-header-search-icon");
+  });
+
   it("hides the Social shell on an open story", () => {
     navigation.pathname = "/social/stories/story-1";
     const html = renderShell();
@@ -1361,7 +1407,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(html).toContain("data-workspace-switcher");
     expect(html).toContain("data-workspace-waffle");
     expect(html).toContain('data-workspace-switcher-segment="education"');
-    expect(html).not.toContain('data-workspace-switcher-segment="home"');
+    expect(html).toContain('data-workspace-switcher-segment="home"');
     expect(html).toContain('data-education-header-search-host="phone"');
     expect(html).toContain('data-education-header-search-host="desktop"');
     expect(html).toContain("data-education-header-search");

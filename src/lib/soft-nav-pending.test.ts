@@ -28,7 +28,7 @@ describe("soft-nav pending selection", () => {
     const sideNav = readFileSync("src/components/chrome/side-nav.tsx", "utf8");
     const settings = readFileSync("src/components/chrome/settings-rail.tsx", "utf8");
     const pills = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
-    expect(sideNav).toContain("const pathForActive = activePath");
+    expect(sideNav).toContain("houseRailActiveIndex(activePath, model, workspace)");
     expect(sideNav).not.toContain("social ? activePath : pathname");
     expect(sideNav).toContain("onClick={(event) => markPending(item.href, event)}");
     expect(sideNav).toContain("<SocialNavPendingProbe");

@@ -13,6 +13,9 @@ import {
   WORKSPACE_WAFFLE_HOME,
   workspaceWaffleHomeDest,
   WORKSPACE_SWITCHER_SEGMENTS_CLASS,
+  WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS,
+  WORKSPACE_SWITCHER_SEGMENT_CLASS,
+  selectWorkspaceLane,
   workspaceSliderSegments,
   workspaceSwitcherNextSegmentIndex,
   workspaceSwitcherPersistLane,
@@ -50,6 +53,7 @@ import {
   workspaceWaffleTiles,
 } from "./workspace-switcher";
 import { persistWorkspaceCookie, workspaceHome } from "./workspace";
+import { HOUSE_SEGMENTED_ITEM_ON_CLASS, HOUSE_SEGMENTED_THUMB_CLASS } from "./house-shell";
 
 const src = readFileSync("src/lib/workspace-switcher.ts", "utf8");
 
@@ -109,7 +113,8 @@ describe("workspace switcher lock", () => {
     expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).not.toContain("md:contents");
     expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("rounded-full");
     expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("bg-surface-muted");
-    expect(workspaceSwitcherSegmentClass(true)).toContain("text-white");
+    expect(workspaceSwitcherSegmentClass(true)).toContain("text-ink");
+    expect(workspaceSwitcherSegmentClass(true)).not.toContain("text-white");
     expect(workspaceSwitcherSegmentClass(false)).toContain("text-ink-2");
     expect(workspaceSwitcherNextSegmentIndex(0, 3, -1)).toBe(2);
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("relative");
@@ -194,26 +199,26 @@ describe("workspace switcher lock", () => {
     ).toEqual({ top: 104, right: 30 });
   });
 
-  it("keeps waffle tiles on Layer 1 in lock order — no Home, no Staff unless entitled", () => {
-    expect(WORKSPACE_WAFFLE_ORDER).toEqual(["social", "education", "aggregation", "staff"]);
+  it("keeps waffle tiles on Layer 1 in the desktop lane order — no Home, no Staff unless entitled", () => {
+    expect(WORKSPACE_WAFFLE_ORDER).toEqual(["aggregation", "social", "education", "staff"]);
     expect(workspaceWaffleTiles().map((tile) => tile.mode)).toEqual([
+      "aggregation",
       "social",
       "education",
-      "aggregation",
     ]);
     expect(workspaceWaffleTiles().map((tile) => tile.label)).toEqual([
+      "Aggregation",
       "Social",
       "Education",
-      "Aggregation",
     ]);
     expect(workspaceWaffleTiles().map((tile) => tile.mode)).not.toContain("staff");
     expect(workspaceWaffleTiles().map((tile) => tile.label)).not.toContain("Home");
     expect(
       workspaceWaffleTiles(availableWorkspaceOptions({ isGcStaff: true })).map((tile) => tile.mode),
-    ).toEqual(["social", "education", "aggregation", "staff"]);
+    ).toEqual(["aggregation", "social", "education", "staff"]);
     expect(
       workspaceWaffleTiles(availableWorkspaceOptions({ isGcStaff: true })).map((tile) => tile.label),
-    ).toEqual(["Social", "Education", "Aggregation", "Staff"]);
+    ).toEqual(["Aggregation", "Social", "Education", "Staff"]);
     expect(workspaceWaffleTiles(availableWorkspaceOptions().slice(0, 1)).map((tile) => tile.mode)).toEqual([
       "aggregation",
     ]);
@@ -222,16 +227,16 @@ describe("workspace switcher lock", () => {
       ...workspaceWaffleTiles().map((tile) => tile.href),
     ]);
     expect(workspaceWaffleIntentPrefetchHrefs()).toEqual([
+      "/aggregation/dashboard",
       "/social",
       "/education",
-      "/aggregation/dashboard",
     ]);
     expect(
       workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true })),
-    ).toEqual(["/social", "/education", "/aggregation/dashboard", "/staff/queue"]);
+    ).toEqual(["/aggregation/dashboard", "/social", "/education", "/staff/queue"]);
     expect(
       workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true }), "social"),
-    ).toEqual(["/education", "/aggregation/dashboard", "/staff/queue"]);
+    ).toEqual(["/aggregation/dashboard", "/education", "/staff/queue"]);
     expect(workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions(), "aggregation")).toEqual([
       "/social",
       "/education",
@@ -275,13 +280,28 @@ describe("workspace switcher lock", () => {
     expect(workspaceWaffleHomeDest("/settings", "social")).toBe("/home");
     expect(workspaceWaffleHomeDest("/home/news", "aggregation")).toBe("/home");
     expect(workspaceWaffleHomeDest("/home", "aggregation")).toBeNull();
-    expect(workspaceSliderSegments().map((tile) => tile.mode)).toEqual(
-      workspaceWaffleTiles().map((tile) => tile.mode),
-    );
+    expect(workspaceSliderSegments().map((pill) => pill.id)).toEqual([
+      "home",
+      ...workspaceWaffleTiles().map((tile) => tile.mode),
+    ]);
+    expect(workspaceSliderSegments().map((pill) => pill.id)).toEqual([
+      "home",
+      "aggregation",
+      "social",
+      "education",
+    ]);
+    expect(workspaceSliderSegments().map((pill) => pill.label)).toEqual([
+      "Home",
+      "Aggregation",
+      "Social",
+      "Education",
+    ]);
+    expect(workspaceSliderSegments()[0]).toEqual({ id: "home", label: "Home", href: "/home" });
     expect(
-      workspaceSliderSegments(availableWorkspaceOptions({ isGcStaff: true })).map((tile) => tile.mode),
-    ).toEqual(["social", "education", "aggregation", "staff"]);
-    expect(workspaceSliderSegments().map((tile) => tile.label)).not.toContain("Home");
+      workspaceSliderSegments(availableWorkspaceOptions({ isGcStaff: true })).map((pill) => pill.id),
+    ).toEqual(["home", "aggregation", "social", "education", "staff"]);
+    expect(workspaceSliderSegments().map((pill) => pill.id)).not.toContain("co-productions");
+    expect(WORKSPACE_WAFFLE_FORBIDDEN_LABELS).toContain("Feed");
     for (const label of WORKSPACE_WAFFLE_FORBIDDEN_LABELS) {
       expect(workspaceWaffleTiles().map((tile) => tile.label)).not.toContain(label);
     }
@@ -299,7 +319,7 @@ describe("workspace switcher lock", () => {
       expect(label).not.toBe("Team");
     }
     expect(APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS).toContain("md:hidden");
-    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe("hidden w-[240px] shrink-0 md:flex");
+    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe("hidden w-[240px] shrink-0 xl:flex");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("flex-1");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("w-[420px]");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("md:max-w-[420px]");
@@ -325,5 +345,65 @@ describe("workspace switcher lock", () => {
     workspaceSwitcherPersistLane("staff", true);
     expect(writes.at(-1)).toContain("24frame_workspace=staff");
     vi.unstubAllGlobals();
+  });
+
+  it("hops the Home segment to /home without a workspace cookie; lanes still write it", () => {
+    const writes: string[] = [];
+    vi.stubGlobal("document", {
+      get cookie() {
+        return writes.at(-1) ?? "";
+      },
+      set cookie(value: string) {
+        writes.push(value);
+      },
+    });
+    try {
+      const options = availableWorkspaceOptions();
+      const [home, aggregation] = workspaceSliderSegments(options);
+      const navigate = vi.fn();
+      expect(
+        selectWorkspaceLane({ shellPath: "/social", workspace: "social", lane: home!, options, navigate }),
+      ).toBe("/home");
+      expect(navigate.mock.calls).toEqual([["/home"]]);
+      expect(writes).toEqual([]);
+
+      // /home/news is Home-lit but still hops to the Home land.
+      expect(
+        selectWorkspaceLane({ shellPath: "/home/news", workspace: "aggregation", lane: home!, options, navigate }),
+      ).toBe("/home");
+      expect(writes).toEqual([]);
+
+      // Already on /home: no hop, no write.
+      expect(
+        selectWorkspaceLane({ shellPath: "/home", workspace: "aggregation", lane: home!, options, navigate }),
+      ).toBeNull();
+      expect(navigate).toHaveBeenCalledTimes(2);
+
+      // A workspace lane from Home writes the existing cookie, then hops.
+      expect(
+        selectWorkspaceLane({ shellPath: "/home", workspace: "aggregation", lane: aggregation!, options, navigate }),
+      ).toBe("/aggregation/dashboard");
+      expect(writes.at(-1)).toContain("24frame_workspace=aggregation");
+      expect(navigate.mock.calls.at(-1)).toEqual(["/aggregation/dashboard"]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("paints the desktop row with a raised surface thumb and ink label — switcher-only", () => {
+    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("bg-surface");
+    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("shadow-[var(--elevation)]");
+    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("dark:bg-hairline");
+    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).toContain("inset-y-[var(--space-1)]");
+    expect(WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS).not.toMatch(/(?:^|\s)bg-accent(?:\s|$)/);
+    expect(WORKSPACE_SWITCHER_SEGMENTS_CLASS).toContain("p-[var(--space-1)]");
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("px-[var(--space-2)]");
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("lg:px-[var(--space-4)]");
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("whitespace-nowrap");
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).not.toContain("truncate");
+    expect(`${WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_CLASS}`).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    // Other segmented tracks keep the shared accent thumb.
+    expect(HOUSE_SEGMENTED_THUMB_CLASS).toContain("bg-accent");
+    expect(HOUSE_SEGMENTED_ITEM_ON_CLASS).toBe("text-white");
   });
 });

@@ -58,7 +58,7 @@ The Messages list drops the page title block. Chrome is an IG-style list header:
 | Token | Lock |
 |-------|------|
 | House shell | Stays on the inbox |
-| Phone dock | Stays. IA A: Home · Explore · Create · Messages · Profile live in the floating dock |
+| Phone dock | Stays. IA A: Feed · Explore · Create · Messages · Profile live in the floating dock (Feed was Home; [`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md)) |
 | Tab flip | **OUT** — do not move primary tabs to a top bar |
 | Desktop For You | Stays in the existing slot beside the center column |
 | Thread route | Unchanged. Dock hide remains the thread immersive lock |

@@ -1,28 +1,27 @@
 // Header workspace switch. Lives in lib/, not JSX.
+// docs/design-locks/shell-unified-chrome-lock-v1.md (Adam 2026-10-04)
 // docs/design-locks/shell-workspace-waffle-layer-lock-v1.md
-// docs/design-locks/shell-desktop-top-nav-slider-waffle-phone-lock-v1.md
 // One Layer 1 inventory. Two faces by host (md = 768).
-// Desktop md+: sliding segmented row of workspace names in the
-// header trailing cluster, before Ask · bell · avatar. No waffle.
+// Desktop md+: sliding segmented row in the header LEADING slot,
+// right after the brand mark: Home · Aggregation · Social ·
+// Education · Staff (when isGcStaff, last). Home is a real
+// segment — /home, no workspace cookie, lit on /home and
+// /home/news. Raised surface thumb, ink label, muted track.
 // Phone/tablet max-md: icon-only waffle in the trailing utility
 // cluster — search · optional (Ask) · bell · waffle · avatar.
 // No labeled Social pill. No workspace-name dropdown. No slider
-// on the phone. Tiles and the desktop slider are Layer 1 only, in
-// lock order: Social · Education · Aggregation (when the existing
-// options gate includes it) · Staff (when isGcStaff). Hide lanes
-// the caller omits. No dead tiles. Social Layer 2 dests stay out
-// of the tiles and the slider (Explore / Create / Messages /
-// Profile, and Social's own Home at /social). Account / Settings /
-// Help stay on the avatar menu. Phone face is the existing app
-// sheet. Same tile inventory as the desktop slider.
-// Phone sheet only: Home is quiet header-exit chrome under the
+// on the phone. Waffle tiles use the slider's lane order:
+// Aggregation · Social · Education · Staff (when isGcStaff).
+// Hide lanes the caller omits. No dead tiles. Social Layer 2
+// dests stay out of the tiles and the slider (Feed / Explore /
+// Create / Messages / Profile). Account / Settings / Help stay on
+// the avatar menu. Phone face is the existing app sheet.
+// Phone sheet: Home is quiet header-exit chrome under the
 // sheet top — ArrowLeft (page-lead back) + "Home", text-sm, muted.
 // No house glyph. No banner fill and no full-width bar. Exact
 // /home gets a tiny muted check.
-// Not a Layer 1 tile, not a desktop slider segment, and not a
-// Social dock tab. WORKSPACES + the 2×2 sit below. Desktop md+
-// stays on the slider and does not list Home. Dock dests stay
-// in-workspace only.
+// Not a waffle tile and not a Social dock tab. WORKSPACES + the
+// 2×2 sit below. Dock dests stay in-workspace only.
 // Leading air (settings back ↔ emblem) is --space-3 (12). Not
 // --space-1. Do not put overflow-hidden on the leading row (#412).
 // Phone trailing: [search if needed] [24Frame AI] [bell]
@@ -35,10 +34,10 @@
 // Ask 24Frame AI sits immediately left of the
 // bell and opens the Mercury overlay. Ask AI is header + Home
 // module only (#465). Do not reintroduce a dest hamburger.
-// Desktop md+ restores the sliding segmented row (hidden md:contents).
-// The labeled workspace pill stays retired. Do not restore tone="pill".
-// No rail / header-lead #321 duplicate. Rail top-left stays the
-// static 24 brand. Do not invent Move / search.
+// Desktop md+ hosts the sliding segmented row (hidden md:contents)
+// in the leading slot. The labeled workspace pill stays retired.
+// Do not restore tone="pill". No rail / header-lead #321 duplicate.
+// Do not invent Move / search.
 // Do not return the Social Messages icon to the top bar.
 //
 // Member lanes are Aggregation · Social · Education. Staff is a
@@ -70,10 +69,7 @@ import {
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
 import {
-  HOUSE_SEGMENTED_ITEM_BASE_CLASS,
   HOUSE_SEGMENTED_ITEM_OFF_CLASS,
-  HOUSE_SEGMENTED_ITEM_ON_CLASS,
-  HOUSE_SEGMENTED_THUMB_CLASS,
   HOUSE_SEGMENTED_TRACK_CLASS,
 } from "@/lib/house-shell";
 import {
@@ -90,6 +86,7 @@ import {
   OVERVIEW_HREF,
   OVERVIEW_PAGE,
   overviewLeadShouldNavigate,
+  type OverviewLeadPill,
   type OverviewLeadPillId,
 } from "@/lib/overview";
 import {
@@ -199,29 +196,34 @@ export const APP_HEADER_LEADING_CLASS =
 export const WORKSPACE_SWITCHER_HOST_CLASS = "relative min-w-0 overflow-visible";
 
 // Desktop md+ sliding row. Parent display:none below md; contents so
-// the track is a trailing-cluster flex item from md up. Pre-#699 slot.
+// the track is a leading-slot flex item from md up, right after the
+// brand mark.
 export const APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden md:contents";
 
 // Waffle is the phone/tablet face. Hidden from md up.
 export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 md:hidden";
 
-// Desktop segmented track — one continuous muted bar, sliding accent
-// thumb. Same grammar as Top Performing. Full words. shrink-0.
-// Hide unavailable lanes in the caller options. No Layer 2 labels.
-export const WORKSPACE_SWITCHER_SEGMENTS_CLASS = HOUSE_SEGMENTED_TRACK_CLASS;
+// Desktop workspace track — switcher-only variant (Adam 2026-10-04,
+// shell-unified-chrome-lock-v1). Muted bar with a --space-1 inset;
+// the thumb is a raised surface pill with the soft house elevation
+// and the label stays ink. Dark: the muted track stays and the thumb
+// lifts one ramp stop (hairline). Other SegmentedTracks keep the
+// accent thumb — do not fold this back into HOUSE_SEGMENTED_*.
+// Full words, never truncated. Items are --space-2 side pad below
+// lg so five lanes + search · Ask · bell · avatar fit at 768, and
+// --space-4 from lg. shrink-0.
+export const WORKSPACE_SWITCHER_SEGMENTS_CLASS =
+  `${HOUSE_SEGMENTED_TRACK_CLASS} p-[var(--space-1)]`;
 
-export const WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS = HOUSE_SEGMENTED_THUMB_CLASS;
+export const WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS =
+  "pointer-events-none absolute inset-y-[var(--space-1)] rounded-full bg-surface shadow-[var(--elevation)] dark:bg-hairline transition-[left,width] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 
-export const WORKSPACE_SWITCHER_SEGMENT_CLASS = HOUSE_SEGMENTED_ITEM_BASE_CLASS;
+export const WORKSPACE_SWITCHER_SEGMENT_CLASS =
+  "relative z-10 inline-flex shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full px-[var(--space-2)] py-[var(--space-2)] t-body-sm lg:px-[var(--space-4)]";
 
-export const WORKSPACE_SWITCHER_SEGMENT_LABEL_CLASS = "whitespace-nowrap";
-
-export const WORKSPACE_SWITCHER_SEGMENT_ON_CLASS = HOUSE_SEGMENTED_ITEM_ON_CLASS;
+export const WORKSPACE_SWITCHER_SEGMENT_ON_CLASS = "text-ink";
 
 export const WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS = HOUSE_SEGMENTED_ITEM_OFF_CLASS;
-
-export const WORKSPACE_SWITCHER_STATIC_CLASS =
-  "flex min-w-0 items-center px-2 py-1 t-body-sm font-medium text-ink";
 
 export function workspaceSwitcherOptions(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
@@ -229,16 +231,21 @@ export function workspaceSwitcherOptions(
   return options;
 }
 
-/** Layer 1 waffle order. Entitlement stays on `options` — omit a lane to hide it. */
+/**
+ * Layer 1 lane order — the desktop slider after Home and the phone
+ * waffle tiles. Entitlement stays on `options` — omit a lane to hide it.
+ */
 export const WORKSPACE_WAFFLE_ORDER = [
+  "aggregation",
   "social",
   "education",
-  "aggregation",
   "staff",
 ] as const satisfies readonly WorkspaceMode[];
 
+/** Social Layer 2 dock labels plus Home. Never waffle tiles. */
 export const WORKSPACE_WAFFLE_FORBIDDEN_LABELS = [
   "Home",
+  "Feed",
   "Explore",
   "Create",
   "Messages",
@@ -246,9 +253,9 @@ export const WORKSPACE_WAFFLE_FORBIDDEN_LABELS = [
 ] as const;
 
 /**
- * Phone waffle sheet only. House homepage — the industry news feed
- * lives on this route. Not a waffle tile and not a slider segment.
- * Social dock Home stays /social.
+ * House homepage — the industry news feed lives on this route. First
+ * desktop slider segment and the phone sheet's header exit. Not a
+ * waffle tile. Social's own Feed stays /social.
  */
 export const WORKSPACE_WAFFLE_HOME = {
   id: "home",
@@ -304,8 +311,20 @@ export function workspaceSwitcherSegmentClass(selected: boolean): string {
     : `${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS}`;
 }
 
-export function workspaceSwitcherSegmentTabIndex(selected: boolean): number {
-  return selected ? 0 : -1;
+/**
+ * Roving tab stop: exactly one segment is tabbable. The lit segment
+ * owns it; on a route that lights none (Settings, Activity, Help,
+ * Co-Productions) the first segment (Home) does, so a keyboard user
+ * can still reach the desktop switcher (the waffle is md:hidden).
+ */
+export function workspaceSwitcherSegmentTabIndex(
+  index: number,
+  selectedIndex: number,
+  count: number,
+): number {
+  const lit = selectedIndex >= 0 && selectedIndex < count;
+  if (lit) return index === selectedIndex ? 0 : -1;
+  return index === 0 ? 0 : -1;
 }
 
 export function workspaceSwitcherNextSegmentIndex(
@@ -317,11 +336,21 @@ export function workspaceSwitcherNextSegmentIndex(
   return (index + direction + count) % count;
 }
 
-/** Desktop slider segments. Same lanes, order, and gate as the waffle. */
+/**
+ * Desktop slider segments: Home first, then the waffle lanes in the
+ * same order and gate (Aggregation · Social · Education · Staff).
+ */
 export function workspaceSliderSegments(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
-): WorkspaceMenuOption[] {
-  return workspaceWaffleTiles(options);
+): OverviewLeadPill[] {
+  return [
+    { ...WORKSPACE_WAFFLE_HOME },
+    ...workspaceWaffleTiles(options).map((tile) => ({
+      id: tile.mode,
+      label: tile.label,
+      href: tile.href,
+    })),
+  ];
 }
 
 export function workspaceWaffleTiles(
@@ -379,6 +408,32 @@ export function workspaceSwitcherPersistLane(
 ): void {
   if (id === "home" || id === "co-productions") return;
   persistWorkspaceCookie(id, isGcStaff);
+}
+
+/**
+ * One lane hop for a slider segment or a waffle tile. Home goes to
+ * /home and writes no cookie; a workspace lane writes the existing
+ * cookie first. `navigate` is the host's pending + router hop.
+ * Returns the dest, or null when the shell is already there.
+ */
+export function selectWorkspaceLane(input: {
+  shellPath: string;
+  workspace: WorkspaceMode;
+  lane: { id: OverviewLeadPillId; href: string };
+  options: readonly { mode: WorkspaceMode }[];
+  isGcStaff?: boolean;
+  navigate: (dest: string) => void;
+}): string | null {
+  const dest = workspacePillClickDest({
+    shellPath: input.shellPath,
+    workspace: input.workspace,
+    pill: input.lane,
+    options: input.options,
+  });
+  if (!dest) return null;
+  workspaceSwitcherPersistLane(input.lane.id, input.isGcStaff);
+  input.navigate(dest);
+  return dest;
 }
 
 export function phoneWorkspaceSwitcherPrefetchHrefs(

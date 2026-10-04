@@ -93,7 +93,9 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     );
     expect(leading).toContain("{leadingNav}");
     expect(leading).not.toContain("data-app-header-workspace-pill");
-    expect(leading).not.toContain("WorkspaceSwitcher");
+    // Desktop row leads after the brand; the phone waffle stays trailing.
+    expect(leading).toContain('presentation="pills"');
+    expect(leading).not.toContain('presentation="waffle"');
     expect(leading).not.toContain("{accountMenu}");
     expect(leading).not.toContain("{trailingNav}");
     expect(shellSrc).not.toContain("afterLead=");
@@ -123,21 +125,22 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
       leadSrc.indexOf("data-app-header-trailing"),
       leadSrc.indexOf("</header>"),
     );
-    expect(trailing).toContain('presentation="pills"');
+    expect(trailing).not.toContain('presentation="pills"');
     expect(trailing).toContain('presentation="waffle"');
-    expect(trailing).toContain("data-app-header-workspace-desktop");
-    expect(trailing).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
+    expect(trailing).not.toContain("data-app-header-workspace-desktop");
+    expect(leadSrc).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
     expect(trailing).not.toContain('tone="pill"');
     expect(trailing).not.toContain("data-app-header-workspace-pill");
     expect(trailing).toContain("{accountMenu}");
     expect(trailing).toContain("{trailingSearch");
     expect(trailing).toContain("{trailingNav}");
     expect(trailing).toContain('data-app-header-trailing-nav="" className="md:hidden"');
-    expect(trailing).not.toContain("data-education-header-search-host");
+    // Desktop search (Social and Education only) sits first in the trailing cluster.
+    expect(trailing).toContain('data-education-header-search-host={education ? "desktop" : undefined}');
     expect(trailing.indexOf("{trailingNav}")).toBeLessThan(
       trailing.indexOf('presentation="waffle"'),
     );
-    expect(trailing.indexOf('presentation="pills"')).toBeLessThan(
+    expect(trailing.indexOf("{search}")).toBeLessThan(
       trailing.indexOf("<AskAssistantHeaderLink"),
     );
     expect(trailing.indexOf("<ActivityBell")).toBeLessThan(

@@ -78,7 +78,7 @@ describe("Explore vs people discovery lock (Adam 2026-09-20)", () => {
 
   it("does not add a sixth dock tab or stack people+Reels as Explore", () => {
     expect(SOCIAL_NAV.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
