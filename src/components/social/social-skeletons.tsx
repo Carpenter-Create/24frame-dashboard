@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import {
   SOCIAL_AVATAR_PROFILE_CLASS,
   SOCIAL_AVATAR_SM_CLASS,
+  SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS,
   SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS,
   SOCIAL_COMPOSER_CLASS,
   SOCIAL_COMPOSER_FIELD_CLASS,
@@ -163,10 +164,10 @@ export function SocialProfileCenterSkeleton() {
     <div className={SOCIAL_PROFILE_CENTER_CLASS}>
       <div className={SOCIAL_PROFILE_IDENTITY_CLASS}>
         <div className={SOCIAL_PROFILE_COVER_STACK_CLASS}>
-          <Skeleton className={`${SOCIAL_PROFILE_COVER_CLASS} ${SOCIAL_PROFILE_COVER_EMPTY_CLASS}`} />
+          <Skeleton className={`${SOCIAL_PROFILE_COVER_CLASS} ${SOCIAL_PROFILE_COVER_EMPTY_CLASS} rounded-none`} />
           <div className={`${SOCIAL_PROFILE_INSET_CLASS} ${SOCIAL_PROFILE_HEAD_OVERLAP_CLASS}`}>
             <div className={SOCIAL_PROFILE_HEAD_CLASS}>
-              <Skeleton className={SOCIAL_AVATAR_PROFILE_CLASS} />
+              <Skeleton className={cn(SOCIAL_AVATAR_PROFILE_CLASS, SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS)} />
               <div className={SOCIAL_PROFILE_NAME_STACK_CLASS}>
                 <Skeleton className="h-7 w-40" />
                 <Skeleton className="h-3 w-24" />

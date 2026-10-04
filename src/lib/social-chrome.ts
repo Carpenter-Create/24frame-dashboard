@@ -697,28 +697,26 @@ export function socialTopicChipSelectClass(selected: boolean): string {
   return selected ? SOCIAL_TOPIC_CHIP_SELECT_ON_CLASS : SOCIAL_TOPIC_CHIP_SELECT_IDLE_CLASS;
 }
 
-// Profile cover — quiet media band on the shared center column. 4:1. Phone 112px,
-// desktop 224px. Owner with no photo keeps the accent wash so Add cover
-// stays on the band. Visitors omit the band when no photo exists
-// (socialProfileRendersCoverBand). Design lock v1: the 80px avatar lips
-// the band by 40px. The lip is the face only — name and counts stay on
-// the canvas under the avatar. Upload master 1784×446 is crop math and
-// is never painted.
-export const SOCIAL_PROFILE_COVER_CLASS =
-  "relative w-full h-[112px] shrink-0 overflow-hidden md:h-[224px]";
+// Profile cover — docs/design-locks/social-profile-header-linkedin-lock-v1.md
+// (founder approved 2026-10-04). One 4:1 band at every width: band =
+// editor frame = crop = stored 1784×446 file = display, so what the member
+// frames is what everyone sees. Owner with no photo keeps the accent wash
+// so Add cover stays on the band. Visitors omit the band when no photo
+// exists (socialProfileRendersCoverBand). Upload master 1784×446 is crop
+// math and is never painted.
+export const SOCIAL_PROFILE_COVER_CLASS = "relative w-full aspect-[4/1] shrink-0 overflow-hidden";
 
 export const SOCIAL_PROFILE_COVER_EMPTY_CLASS = "bg-accent-wash";
 
 export const SOCIAL_PROFILE_COVER_IMAGE_CLASS = "absolute inset-0 size-full object-cover";
 
+// Edit / Add cover: a 36px pencil circle with a 44px hit (after:-inset-1).
+// The label stays as the accessible name and the title. No visible label.
 export const SOCIAL_PROFILE_COVER_EDIT_CLASS =
-  "absolute right-3 top-3 z-10 flex size-9 items-center justify-center rounded-full border border-hairline bg-surface/90 text-ink";
-
-export const SOCIAL_PROFILE_COVER_PILL_CLASS =
-  "flex items-center gap-1.5 rounded-[8px] border border-hairline bg-surface/90 px-3 py-[6px] t-body-sm font-medium text-ink";
+  "relative flex size-9 items-center justify-center rounded-full border border-hairline bg-surface/90 text-ink hover:bg-surface disabled:opacity-60 after:absolute after:-inset-1 after:content-['']";
 
 // Add / Edit cover sits in the top corner of the band so it does not
-// meet the avatar lip.
+// meet the avatar lip. 12px sits inside the card's 16px corner.
 export const SOCIAL_PROFILE_COVER_PILL_ANCHOR_CLASS = "absolute right-3 top-3 z-20";
 
 export const SOCIAL_PROFILE_COVER_MENU_CLASS =
@@ -727,40 +725,89 @@ export const SOCIAL_PROFILE_COVER_MENU_CLASS =
 export const SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS =
   "flex w-full items-center gap-3 px-3 py-2 text-left t-body-sm text-ink hover:bg-surface-muted";
 
-export const SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS =
-  "absolute inset-x-0 top-0 z-30 flex h-10 items-center justify-between bg-ink/70 px-3";
+// Reposition drag surface. bg-band (near-black in both themes) hides the
+// old cover and matches the JPEG's black under transparent pixels. The
+// `!` focus forms beat the unlayered global :focus-visible rule.
+export const SOCIAL_PROFILE_COVER_DRAG_CLASS =
+  "absolute inset-0 z-0 bg-band touch-none select-none outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-[-2px]! focus-visible:rounded-none! data-[slack]:cursor-grab data-[slack]:active:cursor-grabbing";
 
-export const SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS =
-  "pointer-events-none absolute inset-0 z-10 flex items-center justify-center";
+// The editor preview inside the drag surface. In flow, never positioned:
+// a browser paints an element's own outline before its positioned
+// descendants, so an absolute image would cover the surface's inset focus
+// ring. The surface (absolute inset-0) gives size-full a definite box.
+export const SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS = "block size-full object-cover";
 
-export const SOCIAL_PROFILE_COVER_REPOSITION_CLASS =
-  "relative w-full h-[112px] shrink-0 overflow-hidden md:h-[224px] cursor-grab active:cursor-grabbing";
+// Editor copy in the head trail: below the band, never over the image.
+export const SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS =
+  "pointer-events-auto text-right break-words t-body-sm text-ink-2";
+
+export const SOCIAL_PROFILE_COVER_TRAIL_ACTIONS_CLASS =
+  "pointer-events-auto flex flex-wrap justify-end gap-[var(--space-2)]";
+
+// Merged over SOCIAL_ACTION_CLASS / SOCIAL_ACTION_SECONDARY_CLASS with cn
+// so Cancel and Save fit the narrow phone trail.
+export const SOCIAL_PROFILE_COVER_TRAIL_BUTTON_CLASS = "px-[var(--space-4)] disabled:opacity-60";
+
+// Errors show in any mode (a failed Remove too), in the trail, not sr-only.
+export const SOCIAL_PROFILE_COVER_TRAIL_NOTICE_CLASS = "pointer-events-auto";
 
 export const SOCIAL_PROFILE_COVER_STACK_CLASS = "flex flex-col";
 
-// 40px is exactly half of the 80px profile disk. One lip on phone and desktop.
-export const SOCIAL_PROFILE_HEAD_OVERLAP_CLASS = "relative z-10 -mt-[40px]";
+// Exactly half the avatar disc. One variable, no md: fork. The head does
+// not take pointer events so a drag on the lower band reaches the editor;
+// the avatar slot, name stack and trail opt back in.
+export const SOCIAL_PROFILE_HEAD_OVERLAP_CLASS =
+  "pointer-events-none relative z-10 -mt-[calc(var(--social-profile-avatar)/2)]";
 
+// Visitor with no cover: no band. Avatar 24/24 from the desktop card corner.
+export const SOCIAL_PROFILE_HEAD_NO_COVER_CLASS = "pt-[var(--space-4)] md:pt-[var(--space-6)]";
+
+// Avatar row: the avatar slot, then (owner, editing) the head trail. Wraps
+// so the trail drops under the avatar when the inline avatar crop is open.
+export const SOCIAL_PROFILE_AVATAR_ROW_CLASS =
+  "flex min-w-0 flex-wrap items-start gap-x-[var(--space-3)]";
+
+export const SOCIAL_PROFILE_AVATAR_SLOT_CLASS = "pointer-events-auto relative w-fit shrink-0";
+
+// Owner only. A margin, not padding, so the trail box starts 12px below
+// the band and never covers it. Empty (hidden) unless the cover editor is
+// open or a cover error is showing. Children right-align themselves
+// (text-right, justify-end); the head keeps its no-items-end rule.
+export const SOCIAL_PROFILE_HEAD_TRAIL_CLASS =
+  "pointer-events-auto flex min-w-min flex-1 flex-col gap-[var(--space-2)] mt-[calc(var(--social-profile-avatar)/2+var(--space-3))] empty:hidden";
+
+// Avatar on the cover: the one avatar variable, a 4px ring in the colour
+// behind the disc (--bg on phone, --surface on the desktop card), and the
+// live-story ring offset on --surface on desktop. Initials use the 28 step.
 export const SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS =
-  "border-2 border-surface";
+  "size-[var(--social-profile-avatar)] border-4 border-bg md:border-surface text-[length:var(--text-title)] md:ring-offset-[var(--surface)]";
 
 export const SOCIAL_PROFILE_AVATAR_EDIT_CLASS =
   "absolute bottom-0 right-0 z-10 flex size-8 items-center justify-center rounded-full border border-hairline bg-surface text-ink";
 
 // Public profile head. One SoT for own /social/profile and public
-// /social/u/[handle]. Design lock v1 — X profile. Cover, then the
-// avatar, then a full-width identity stack that starts at the avatar
-// bottom. Phone and desktop share this stack. No side identity column.
-// Display name is t-heading on the canvas. @handle is muted under the
-// name. Counts, bio, role pills, links, and actions follow. Counts are
-// a metric row — strong tabular numbers, quiet labels. Topic chips
-// follow the actions. Mutuals are last and omit when empty. Name,
-// handle, and labels wrap; never truncate.
-export const SOCIAL_PROFILE_IDENTITY_CLASS = "flex flex-col";
+// /social/u/[handle]. docs/design-locks/social-profile-header-linkedin-lock-v1.md.
+// Desktop: a card (radius-lg, hairline, surface — the For You rail
+// treatment) whose overflow clips the cover's top corners. Phone: edge to
+// edge and flush under the top bar (founder decision 2); no fill, so text
+// sits on the page. The identity root is the container the avatar
+// variable measures: clamp(88px,25cqw,112px) phone, clamp(96px,19cqw,152px)
+// desktop. Cover, then the avatar, then a full-width identity stack that
+// starts at the avatar bottom. No side identity column. Counts, bio, role
+// pills, links, and actions follow. Mutuals are last and omit when empty.
+// Name, handle, and labels wrap; never truncate.
+export const SOCIAL_PROFILE_IDENTITY_CLASS =
+  `@container flex flex-col [--social-profile-avatar:clamp(88px,25cqw,112px)] md:[--social-profile-avatar:clamp(96px,19cqw,152px)] ${SOCIAL_MOBILE_BLEED_CLASS} max-md:-mt-[var(--space-4)] md:overflow-hidden md:rounded-[var(--radius-lg)] md:border md:border-hairline md:bg-surface`;
 
 // Shared inset. Cover stays full bleed of the column; the avatar and
 // the type stack share one left edge.
 export const SOCIAL_PROFILE_INSET_CLASS = "px-[var(--space-4)] md:px-[var(--space-6)]";
+
+// Tab panel content under the head (the topic chips tab). The phone head bleeds
+// edge to edge, so its text sits on the 16px frame (decision 2): a panel
+// adds no phone inset and lines up with the text and the tabs. Desktop keeps
+// the card's 24 text inset.
+export const SOCIAL_PROFILE_PANEL_INSET_CLASS = "md:px-[var(--space-6)]";
 
 // Column. The avatar and the type stack share one left edge. The type
 // starts under the avatar — not in a row beside it.
@@ -782,16 +829,18 @@ export const SOCIAL_PROFILE_STAT_VALUE_CLASS = "t-heading t-data text-ink";
 export const SOCIAL_PROFILE_STAT_LABEL_CLASS =
   "break-words text-[length:var(--text-xs)] font-normal leading-snug tracking-normal text-ink-3";
 
+// Desktop card closes 24 under the last line. Phone stays 8.
 export const SOCIAL_PROFILE_FACE_CLASS =
-  `flex w-full min-w-0 flex-col gap-[var(--space-4)] pb-[var(--space-2)] ${SOCIAL_PROFILE_INSET_CLASS}`;
+  `flex w-full min-w-0 flex-col gap-[var(--space-4)] pb-[var(--space-2)] md:pb-[var(--space-6)] ${SOCIAL_PROFILE_INSET_CLASS}`;
 
-// Phone and desktop share this stack (Design lock v1).
+// Phone and desktop share this stack (profile header lock).
 // Avatar bottom → name is space-3. Name → handle is space-2.
 // Name is house t-heading on the canvas. @handle is muted body-sm
 // on the next line, under the name. No breakpoint hides the handle.
 // The 720 cap and For You rail stay lg+ only. Cover overlap stays.
+// pointer-events-auto: the head itself is pointer-events-none.
 export const SOCIAL_PROFILE_NAME_STACK_CLASS =
-  `mt-[var(--space-3)] gap-[var(--space-2)] ${HOUSE_PHONE_STACK_CLASS}`;
+  `pointer-events-auto mt-[var(--space-3)] gap-[var(--space-2)] ${HOUSE_PHONE_STACK_CLASS}`;
 
 export const SOCIAL_PROFILE_NAME_CLASS = `${HOUSE_PHONE_WRAP_CLASS} t-heading text-ink`;
 

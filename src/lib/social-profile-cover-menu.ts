@@ -68,3 +68,24 @@ export function coverMenuToggleSequence(times: number): CoverPillMode[] {
   }
   return seen;
 }
+
+/**
+ * Reposition (founder decision 3, keep the original): a cover with a kept
+ * original reopens it at its stored framing; a cover saved before the
+ * original was kept opens the file picker, the same as Choose cover photo.
+ */
+export function coverRepositionAction(input: {
+  hasCover: boolean;
+  hasSource: boolean;
+}): "reopen" | "pick" | null {
+  if (!input.hasCover) return null;
+  return input.hasSource ? "reopen" : "pick";
+}
+
+/** The owner head trail that the cover editor's hint, actions and errors portal into. */
+export const COVER_TRAIL_SELECTOR = "[data-social-profile-head-trail]";
+
+export function coverTrailTarget(node: Element | null): HTMLElement | null {
+  const host = node?.closest("[data-social-profile-identity]");
+  return host?.querySelector<HTMLElement>(COVER_TRAIL_SELECTOR) ?? null;
+}

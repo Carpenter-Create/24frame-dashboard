@@ -19,6 +19,7 @@ import {
   sendSocialDm,
   createSocialProfile,
   clearSocialWelcomeVideo,
+  clearSocialProfileCover,
   saveSocialProfileCover,
   saveSocialWelcomeVideo,
   createSocialStory,
@@ -541,7 +542,11 @@ describe("social actions", () => {
       destinationKey: published,
       contentType: "image/jpeg",
     });
-    expect(updates).toEqual([{ table: "profiles", row: { cover_key: published } }]);
+    // A cover with no original (an older client, or an original too large to keep)
+    // clears any stored original and framing so the pair never goes stale.
+    expect(updates).toEqual([
+      { table: "profiles", row: { cover_key: published, cover_source_key: null, cover_crop: null } },
+    ]);
 
     const foreign = new FormData();
     foreign.set(
@@ -559,6 +564,238 @@ describe("social actions", () => {
     expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.home.mediaMissing });
     expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
     expect(updates).toHaveLength(1);
+  });
+
+  it("keeps the original: publishes the crop and the original, stores both with the framing", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    const { updates } = stub({
+      profile: { id: author, handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const croppedUpload = `posts/upload/${author}/22222222-2222-4222-8222-222222222222.jpg`;
+    const sourceUpload = `posts/upload/${author}/44444444-4444-4444-8444-444444444444.png`;
+    const crop = { x: 0.125, y: 0, w: 0.75, h: 1 };
+    const form = new FormData();
+    form.set("media", JSON.stringify([{ kind: "image", key: croppedUpload, contentType: "image/jpeg" }]));
+    form.set("source", JSON.stringify([{ kind: "image", key: sourceUpload, contentType: "image/png" }]));
+    form.set("crop", JSON.stringify(crop));
+    expect(await saveSocialProfileCover(form)).toEqual({});
+    expect(headSocialMediaObject).toHaveBeenCalledWith(croppedUpload, expect.any(Function));
+    expect(headSocialMediaObject).toHaveBeenCalledWith(sourceUpload, expect.any(Function));
+    expect(copySocialMediaObject).toHaveBeenCalledTimes(2);
+    const copies = vi.mocked(copySocialMediaObject).mock.calls.map(([input]) => input);
+    const coverCopy = copies.find((copy) => copy.sourceKey === croppedUpload)!.destinationKey;
+    const sourceCopy = copies.find((copy) => copy.sourceKey === sourceUpload)!.destinationKey;
+    expect(isOwnedSocialMediaKey(coverCopy, author, "posts")).toBe(true);
+    expect(isOwnedSocialMediaKey(sourceCopy, author, "posts")).toBe(true);
+    expect(sourceCopy).toMatch(/\.png$/);
+    expect(coverCopy).not.toBe(sourceCopy);
+    // One update: cover, original and framing together.
+    expect(updates).toEqual([
+      { table: "profiles", row: { cover_key: coverCopy, cover_source_key: sourceCopy, cover_crop: crop } },
+    ]);
+  });
+
+  it("refuses a malformed framing or original and stores nothing", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    const other = "33333333-3333-4333-8333-333333333333";
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    const { updates } = stub({
+      profile: { id: author, handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const media = JSON.stringify([
+      { kind: "image", key: `posts/upload/${author}/22222222-2222-4222-8222-222222222222.jpg`, contentType: "image/jpeg" },
+    ]);
+    const source = (key: string, contentType = "image/jpeg") =>
+      JSON.stringify([{ kind: contentType.startsWith("video") ? "video" : "image", key, contentType }]);
+    const ownSource = source(`posts/upload/${author}/44444444-4444-4444-8444-444444444444.jpg`);
+    const cases: Array<[string | null, string | null]> = [
+      [ownSource, JSON.stringify({ x: 0.6, y: 0, w: 0.5, h: 1 })],
+      [ownSource, JSON.stringify({ x: 0, y: 0.5, w: 1, h: 0.6 })],
+      [ownSource, JSON.stringify({ x: "0", y: 0, w: 1, h: 1 })],
+      [ownSource, JSON.stringify({ x: 0, y: 0, w: 1 })],
+      [ownSource, JSON.stringify({ x: 0, y: 0, w: 0, h: 1 })],
+      [ownSource, null],
+      [source(`posts/upload/${other}/44444444-4444-4444-8444-444444444444.jpg`), JSON.stringify({ x: 0, y: 0, w: 1, h: 1 })],
+      [source(`posts/${author}/44444444-4444-4444-8444-444444444444.jpg`), JSON.stringify({ x: 0, y: 0, w: 1, h: 1 })],
+      [source(`posts/upload/${author}/44444444-4444-4444-8444-444444444444.mp4`, "video/mp4"), JSON.stringify({ x: 0, y: 0, w: 1, h: 1 })],
+      [media, JSON.stringify({ x: 0, y: 0, w: 1, h: 1 })],
+      [null, JSON.stringify({ x: 1.5, y: 0, w: 1, h: 1 })],
+    ];
+    for (const [sourceField, cropField] of cases) {
+      const form = new FormData();
+      form.set("media", media);
+      if (sourceField !== null) form.set("source", sourceField);
+      if (cropField !== null) form.set("crop", cropField);
+      expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.stories.mediaType });
+    }
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(updates).toEqual([]);
+  });
+
+  it("repositions against the original stored on the profile and never a client-sent key", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    const other = "33333333-3333-4333-8333-333333333333";
+    const storedSource = `posts/${author}/55555555-5555-4555-8555-555555555555.jpg`;
+    const storedCover = `posts/${author}/77777777-7777-4777-8777-777777777777.jpg`;
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    const eqs: Array<[string, unknown]> = [];
+    const updates: unknown[] = [];
+    const selects: string[] = [];
+    let updatedRows: unknown = [{ id: author }];
+    let storedRow: Record<string, unknown> | null = {
+      id: author,
+      handle: "ada",
+      display_name: "Ada Lovelace",
+      status: "active",
+      cover_key: storedCover,
+      cover_source_key: storedSource,
+    };
+    const from = vi.fn(() => {
+      const chain: Record<string, unknown> = {};
+      let updating = false;
+      chain.select = vi.fn((columns: string) => {
+        selects.push(columns);
+        return chain;
+      });
+      chain.eq = vi.fn((column: string, value: unknown) => {
+        eqs.push([column, value]);
+        return chain;
+      });
+      chain.maybeSingle = vi.fn(async () => ({ data: storedRow, error: null }));
+      chain.update = vi.fn((row: unknown) => {
+        updating = true;
+        updates.push(row);
+        return chain;
+      });
+      chain.then = (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({ data: updating ? updatedRows : null, error: null }).then(resolve);
+      return chain;
+    });
+    vi.mocked(createClient).mockResolvedValue({ from, rpc: vi.fn() } as never);
+
+    const crop = { x: 0, y: 0.3, w: 1, h: 0.5 };
+    const form = new FormData();
+    form.set(
+      "media",
+      JSON.stringify([
+        { kind: "image", key: `posts/upload/${author}/22222222-2222-4222-8222-222222222222.jpg`, contentType: "image/jpeg" },
+      ]),
+    );
+    form.set("crop", JSON.stringify(crop));
+    form.set("opened", storedCover);
+    // Not a field the server reads: a reposition never names the original.
+    form.set("cover_source_key", `posts/${other}/66666666-6666-4666-8666-666666666666.jpg`);
+    expect(await saveSocialProfileCover(form)).toEqual({});
+    expect(selects).toContain("cover_key, cover_source_key");
+    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
+    const published = publishedCopyKey();
+    expect(updates).toEqual([{ cover_key: published, cover_crop: crop }]);
+    // The update lands only on the cover the editor opened and its original.
+    expect(eqs).toContainEqual(["cover_key", storedCover]);
+    expect(eqs).toContainEqual(["cover_source_key", storedSource]);
+    expect(JSON.stringify(updates)).not.toContain(other);
+
+    // The original changed under us (another tab): nothing matched, refuse.
+    updatedRows = [];
+    expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.profile.coverCropFailed });
+
+    // No stored original (a cover saved before originals were kept): refuse
+    // before publishing anything.
+    vi.mocked(copySocialMediaObject).mockClear();
+    updates.length = 0;
+    storedRow = {
+      id: author,
+      handle: "ada",
+      display_name: "Ada Lovelace",
+      status: "active",
+      cover_key: storedCover,
+      cover_source_key: null,
+    };
+    expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.profile.coverCropFailed });
+    storedRow = {
+      id: author,
+      handle: "ada",
+      display_name: "Ada Lovelace",
+      status: "active",
+      cover_key: storedCover,
+      cover_source_key: `posts/${other}/55555555-5555-4555-8555-555555555555.jpg`,
+    };
+    expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.profile.coverCropFailed });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(updates).toEqual([]);
+  });
+
+  it("refuses a reposition when another tab replaced the cover after the editor opened", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    // Tab A opens Reposition on cover A (original A, framing A).
+    const coverA = `posts/${author}/77777777-7777-4777-8777-777777777777.jpg`;
+    // Tab B then saves a new photo: a new cover, original and framing.
+    const coverB = `posts/${author}/88888888-8888-4888-8888-888888888888.jpg`;
+    const sourceB = `posts/${author}/99999999-9999-4999-8999-999999999999.png`;
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    const updates: unknown[] = [];
+    const row = {
+      id: author,
+      handle: "ada",
+      display_name: "Ada Lovelace",
+      status: "active",
+      cover_key: coverB,
+      cover_source_key: sourceB,
+      cover_crop: { x: 0, y: 0.1, w: 1, h: 0.4 },
+    };
+    const from = vi.fn(() => {
+      const chain: Record<string, unknown> = {};
+      const filters: Array<[string, unknown]> = [];
+      let updating = false;
+      chain.select = vi.fn(() => chain);
+      chain.eq = vi.fn((column: string, value: unknown) => {
+        filters.push([column, value]);
+        return chain;
+      });
+      chain.maybeSingle = vi.fn(async () => ({ data: row, error: null }));
+      chain.update = vi.fn((patch: unknown) => {
+        updating = true;
+        updates.push(patch);
+        return chain;
+      });
+      // A real update matches only rows that pass every filter.
+      chain.then = (resolve: (value: unknown) => unknown) => {
+        const match = filters.every(([column, value]) => (row as Record<string, unknown>)[column] === value);
+        return Promise.resolve({ data: updating && match ? [{ id: author }] : [], error: null }).then(resolve);
+      };
+      return chain;
+    });
+    vi.mocked(createClient).mockResolvedValue({ from, rpc: vi.fn() } as never);
+
+    // Tab A saves its framing of original A.
+    const form = new FormData();
+    form.set(
+      "media",
+      JSON.stringify([
+        { kind: "image", key: `posts/upload/${author}/22222222-2222-4222-8222-222222222222.jpg`, contentType: "image/jpeg" },
+      ]),
+    );
+    form.set("crop", JSON.stringify({ x: 0, y: 0.3, w: 1, h: 0.5 }));
+    form.set("opened", coverA);
+    expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.profile.coverCropFailed });
+    // Refused before publishing: no orphan copy, and B's cover, original and framing stand.
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(updates).toEqual([]);
+  });
+
+  it("removes the cover, its original and its framing together", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    const { updates, deletes } = stub({
+      profile: { id: author, handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    expect(await clearSocialProfileCover()).toEqual({});
+    expect(updates).toEqual([
+      { table: "profiles", row: { cover_key: null, cover_source_key: null, cover_crop: null } },
+    ]);
+    expect(deletes).toEqual([]);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
   });
 
   it("saves and clears the welcome video pointer without deleting media", async () => {

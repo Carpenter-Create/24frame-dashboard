@@ -225,6 +225,9 @@ export async function cropRectFile(
     canvas.height = outputHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Could not crop photo.");
+    // Chromium defaults to "low", which aliases a 2-3x phone-photo downscale.
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(
       bitmap,
       source.sx,

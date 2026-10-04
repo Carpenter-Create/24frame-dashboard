@@ -3,7 +3,7 @@ import { HouseLink } from "@/components/chrome/house-link";
 import { SocialEmpty } from "@/components/social/social-empty";
 import { cn } from "@/lib/cn";
 import {
-  SOCIAL_PROFILE_INSET_CLASS,
+  SOCIAL_PROFILE_PANEL_INSET_CLASS,
   SOCIAL_TOPIC_CHIP_BANK_CLASS,
   SOCIAL_TOPIC_CHIP_CLASS,
 } from "@/lib/social-chrome";
@@ -45,7 +45,7 @@ export function SocialProfileInterests({
     <div
       data-social-profile-interests=""
       className={cn(
-        SOCIAL_PROFILE_INSET_CLASS,
+        SOCIAL_PROFILE_PANEL_INSET_CLASS,
         "py-[var(--space-4)]",
         SOCIAL_TOPIC_CHIP_BANK_CLASS,
       )}

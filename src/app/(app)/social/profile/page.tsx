@@ -48,6 +48,7 @@ import {
 } from "@/lib/social-feed";
 import { loadCachedProfileSocialCounts } from "@/lib/social-hot-reads";
 import { ensureOwnSocialProfileResult } from "@/lib/social-profile";
+import { loadOwnSocialProfileCoverFraming } from "@/lib/social-profile-cover-source";
 import {
   mergeSocialProfileIdentity,
   readSocialProfileOptimisticCookie,
@@ -110,10 +111,11 @@ async function SocialProfileMain({
   const { profile } = await ensureOwnSocialProfileResult(supabase, ctx.user);
   if (!profile) return null;
 
-  const [photoUrl, coverUrl, liveStoriesPage, counts, jar, commentsPage, postsPage] =
+  const [photoUrl, coverUrl, coverFraming, liveStoriesPage, counts, jar, commentsPage, postsPage] =
     await Promise.all([
       Promise.resolve(socialAvatarHref(profile.id)),
       Promise.resolve(profile.cover_key ? socialMediaHref(profile.cover_key) : null),
+      profile.cover_key ? loadOwnSocialProfileCoverFraming(supabase, ctx.user.id) : Promise.resolve(null),
       loadLiveStories(supabase, [profile.id]),
       loadCachedProfileSocialCounts(supabase, profile.id),
       cookies(),
@@ -171,6 +173,7 @@ async function SocialProfileMain({
         displayName={identity.displayName}
         photoUrl={identity.photoUrl}
         coverUrl={identity.coverUrl}
+        coverFraming={coverFraming}
         bio={identity.bio}
         fallbackBio={SOCIAL.profile.ownFace}
         crafts={identity.crafts}
