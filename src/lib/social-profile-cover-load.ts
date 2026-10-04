@@ -1,7 +1,14 @@
 import { SOCIAL } from "@/lib/social";
-import { SOCIAL_COVER_BYTES_ROUTE } from "@/lib/social-edge";
+import { SOCIAL_COVER_BYTES_ROUTE, SOCIAL_COVER_SOURCE_PARAM } from "@/lib/social-edge";
 
-export { SOCIAL_COVER_BYTES_ROUTE };
+export { SOCIAL_COVER_BYTES_ROUTE, SOCIAL_COVER_SOURCE_PARAM };
+
+/** The owner's current cover, or with `source` the kept uncropped original. */
+export function socialCoverBytesHref(variant: "cover" | "source" = "cover"): string {
+  return variant === "source"
+    ? `${SOCIAL_COVER_BYTES_ROUTE}?${SOCIAL_COVER_SOURCE_PARAM}=1`
+    : SOCIAL_COVER_BYTES_ROUTE;
+}
 
 /** Same-origin owner bytes. Manual redirect so a 302 is a status, not a thrown TypeError. */
 export const COVER_BYTES_FETCH = {
@@ -69,14 +76,18 @@ function fileFromBlob(blob: Blob): File {
   return new File([blob], "cover-source", { type });
 }
 
-/** Owner cover bytes from /api/social/cover. Never follows a redirect to the CDN. */
+/**
+ * Owner cover bytes from /api/social/cover. Never follows a redirect to the
+ * CDN. `source` reads the kept original (?source=1) for Reposition.
+ */
 export async function loadOwnCoverFile(
   fallback: string,
   fetchImpl: typeof fetch = fetch,
+  variant: "cover" | "source" = "cover",
 ): Promise<CoverBytes> {
   let response: Response;
   try {
-    response = await fetchImpl(SOCIAL_COVER_BYTES_ROUTE, COVER_BYTES_FETCH);
+    response = await fetchImpl(socialCoverBytesHref(variant), COVER_BYTES_FETCH);
   } catch (thrown) {
     return { file: null, notice: coverFailureCopy(thrown, fallback) };
   }
@@ -94,6 +105,14 @@ export async function loadOwnCoverFile(
   } catch (thrown) {
     return { file: null, notice: coverFailureCopy(thrown, fallback) };
   }
+}
+
+/** The kept uncropped original (?source=1), for Reposition. */
+export function loadOwnCoverSourceFile(
+  fallback: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<CoverBytes> {
+  return loadOwnCoverFile(fallback, fetchImpl, "source");
 }
 
 /** blob: and data: only. An http(s) or media-proxy URL is not fetched. */

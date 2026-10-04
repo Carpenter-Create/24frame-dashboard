@@ -22,7 +22,8 @@ export const SOCIAL_OVERVIEW_FACE_IMAGE_SIZES = "32px";
 export function socialAvatarImageSizes(size: "sm" | "md" | "lg" | "profile"): string {
   if (size === "sm") return "36px";
   if (size === "lg") return "96px";
-  if (size === "profile") return "80px";
+  // Profile header avatar: clamp caps 112 (phone) and 152 (desktop card).
+  if (size === "profile") return "(max-width: 767px) 112px, 152px";
   return "48px";
 }
 

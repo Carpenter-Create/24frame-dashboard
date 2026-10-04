@@ -533,7 +533,9 @@ export type Database = {
           avatar_key: string | null
           bio: string | null
           birth_date: string | null
+          cover_crop: Json | null
           cover_key: string | null
+          cover_source_key: string | null
           crafts: string[]
           created_at: string
           credits: Json
@@ -572,7 +574,9 @@ export type Database = {
           avatar_key?: string | null
           bio?: string | null
           birth_date?: string | null
+          cover_crop?: Json | null
           cover_key?: string | null
+          cover_source_key?: string | null
           crafts?: string[]
           created_at?: string
           credits?: Json
@@ -611,7 +615,9 @@ export type Database = {
           avatar_key?: string | null
           bio?: string | null
           birth_date?: string
+          cover_crop?: Json | null
           cover_key?: string | null
+          cover_source_key?: string | null
           crafts?: string[]
           created_at?: string
           credits?: Json
@@ -3882,6 +3888,7 @@ export type Database = {
           title_id: string
         }[]
       }
+      profile_cover_crop_valid: { Args: { p_crop: Json }; Returns: boolean }
       rebuild_leaderboards: { Args: never; Returns: undefined }
       reconcile_title_findings: {
         Args: {

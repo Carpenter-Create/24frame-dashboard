@@ -651,7 +651,6 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).toContain("h-[256px]");
     expect(chrome).toContain("w-[136px]");
     expect(chrome).toContain("w-[144px]");
-    expect(chrome).toContain("h-[224px]");
     expect(chrome).toContain("w-[128px]");
     expect(chrome).toContain("w-[112px]");
     expect(chrome).not.toContain("h-[208px]");
@@ -1122,7 +1121,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("w-full");
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).not.toContain("flex-1");
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).not.toContain("--space-1");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toBe("flex flex-col");
+    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("@container");
+    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("flex-col");
     expect(SOCIAL_PROFILE_NAME_CLASS).toContain("t-heading");
     expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("t-title");
     expect(SOCIAL_PROFILE_NAME_CLASS).not.toMatch(/md:|max-md:|text-\[/);

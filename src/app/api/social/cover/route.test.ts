@@ -35,6 +35,34 @@ function profileClient(coverKey: string | null) {
   };
 }
 
+function recordingClient(row: Record<string, string | null>) {
+  const selects: string[] = [];
+  const eqs: Array<[string, unknown]> = [];
+  const client = {
+    from(table: string) {
+      if (table !== "profiles") throw new Error(table);
+      return {
+        select(columns: string) {
+          selects.push(columns);
+          return {
+            eq(column: string, value: unknown) {
+              eqs.push([column, value]);
+              return {
+                maybeSingle: async () => {
+                  const data: Record<string, string | null> = {};
+                  for (const column of columns.split(",").map((c) => c.trim())) data[column] = row[column] ?? null;
+                  return { data, error: null };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+  return { client, selects, eqs };
+}
+
 describe("GET /api/social/cover", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -92,6 +120,58 @@ describe("GET /api/social/cover", () => {
     expect(src).not.toContain("redirect");
     expect(src).not.toContain("signedSocialMediaUrl");
     expect(src).toContain('select("cover_key")');
+  });
+
+  it("?source=1 streams only the owner's kept original, read from the owner's own row", async () => {
+    const source = `posts/${UID}/44444444-4444-4444-8444-444444444444.png`;
+    vi.mocked(getAuthUser).mockResolvedValue({ id: UID, email: "ada@example.com" });
+    const { client, selects, eqs } = recordingClient({ cover_key: KEY, cover_source_key: source });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+    vi.mocked(readSocialMediaObject).mockResolvedValue({
+      bytes: new Uint8Array([9, 8, 7]),
+      contentType: "image/png",
+    });
+    const res = await GET(new Request("http://local/api/social/cover?source=1"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/png");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("Location")).toBeNull();
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([9, 8, 7]));
+    expect(selects).toEqual(["cover_source_key"]);
+    expect(eqs).toEqual([["id", UID]]);
+    expect(readSocialMediaObject).toHaveBeenCalledWith(source);
+    expect(readSocialMediaObject).not.toHaveBeenCalledWith(KEY);
+
+    // Without ?source=1 the same row streams the cropped cover.
+    vi.mocked(readSocialMediaObject).mockClear();
+    const plain = recordingClient({ cover_key: KEY, cover_source_key: source });
+    vi.mocked(createClient).mockResolvedValue(plain.client as never);
+    expect((await GET(new Request("http://local/api/social/cover"))).status).toBe(200);
+    expect(plain.selects).toEqual(["cover_key"]);
+    expect(readSocialMediaObject).toHaveBeenCalledWith(KEY);
+  });
+
+  it("?source=1 is owner-only: 401 without a session, 404 without an original, 400 for a foreign or client key", async () => {
+    vi.mocked(getAuthUser).mockResolvedValue(null);
+    expect((await GET(new Request("http://local/api/social/cover?source=1"))).status).toBe(401);
+    expect(createClient).not.toHaveBeenCalled();
+
+    vi.mocked(getAuthUser).mockResolvedValue({ id: UID, email: "ada@example.com" });
+    const legacy = recordingClient({ cover_key: KEY, cover_source_key: null });
+    vi.mocked(createClient).mockResolvedValue(legacy.client as never);
+    expect((await GET(new Request("http://local/api/social/cover?source=1"))).status).toBe(404);
+
+    const foreign = recordingClient({ cover_key: KEY, cover_source_key: `posts/${OTHER}/${OBJECT}.jpg` });
+    vi.mocked(createClient).mockResolvedValue(foreign.client as never);
+    expect((await GET(new Request("http://local/api/social/cover?source=1"))).status).toBe(400);
+
+    vi.mocked(createClient).mockClear();
+    const keyed = await GET(
+      new Request(`http://local/api/social/cover?source=1&key=${encodeURIComponent(`posts/${OTHER}/${OBJECT}.jpg`)}`),
+    );
+    expect(keyed.status).toBe(400);
+    expect(createClient).not.toHaveBeenCalled();
+    expect(readSocialMediaObject).not.toHaveBeenCalled();
   });
 
   it("is session-gated like other app routes and is not name-blocked", () => {

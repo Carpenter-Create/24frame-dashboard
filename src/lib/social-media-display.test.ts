@@ -29,8 +29,8 @@ describe("social media display", () => {
     expect(isLocalMediaPreviewSrc("")).toBe(false);
   });
 
-  it("sizes profile faces for the 80px disk", () => {
-    expect(socialAvatarImageSizes("profile")).toBe("80px");
+  it("sizes profile faces for the header avatar caps (112 phone, 152 desktop)", () => {
+    expect(socialAvatarImageSizes("profile")).toBe("(max-width: 767px) 112px, 152px");
     expect(socialAvatarImageSizes("sm")).toBe("36px");
   });
 

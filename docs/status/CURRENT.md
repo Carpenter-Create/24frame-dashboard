@@ -137,6 +137,22 @@ Runbook: [`docs/infra/social-topic-tagging.md`](../infra/social-topic-tagging.md
 
 ---
 
+## Social profile cover original (authorized; not applied)
+
+Founder decision: keep the uncropped original of each new profile cover
+and its framing, so Reposition reopens the original at the saved framing.
+The profile cover source migration under `supabase/migrations` adds
+`profiles.cover_source_key`, `profiles.cover_crop` and their CHECKs. It is
+founder-applied and **not applied**. Merge gate: the founder applies it,
+verifies on the PR preview, then merges. Applying it first is safe for the
+app now in production; deploying the app first makes every cover save and
+Remove fail. Rollback order is in the migration header: drop the pair CHECK,
+revert the app, then drop the rest. Visitors are never signed the original.
+Design lock:
+[`docs/design-locks/social-profile-header-linkedin-lock-v1.md`](../design-locks/social-profile-header-linkedin-lock-v1.md).
+
+---
+
 ## Not authority
 
 - [`docs/HANDOFF.md`](../HANDOFF.md) — historical handoff; preserve as evidence; do not act on its branch, SHA, production, or task statements without fresh verification.

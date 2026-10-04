@@ -17,6 +17,7 @@ import {
   SOCIAL_PROFILE_COVER_LOCK_A,
 } from "./social-profile-cover";
 import { SOCIAL } from "./social";
+import { SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS } from "./social-chrome";
 
 describe("rectangular cover crop math", () => {
   it("cover-fits a landscape image into the 4:1 viewport", () => {
@@ -122,12 +123,21 @@ describe("cover upload component (FB-exact)", () => {
     "src/components/social/social-profile-cover-upload.tsx",
     "utf8",
   );
+  const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
+  const slice = (from: string, to: string) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from)));
 
-  it("uses FB-style pill with camera icon + label on cover", () => {
-    expect(src).toContain("SOCIAL_PROFILE_COVER_PILL_CLASS");
-    expect(src).toContain('name="camera"');
+  it("uses the pencil circle with the label as accessible name and title", () => {
+    expect(src).toContain("SOCIAL_PROFILE_COVER_EDIT_CLASS");
+    expect(src).not.toContain("SOCIAL_PROFILE_COVER_PILL_CLASS");
+    expect(src).toContain('name="pencil-simple"');
+    expect(src).not.toContain('name="camera"');
     expect(src).toContain("editCover");
     expect(src).toContain("addCover");
+    const button = slice("data-social-profile-cover-edit", "</button>");
+    expect(button).toContain("aria-label={coverLabel}");
+    expect(button).toContain("title={coverLabel}");
+    // No visible label span on the circle.
+    expect(button).not.toContain("<span");
   });
 
   it("has a menu with all four FB items: Choose / Upload / Reposition / Remove", () => {
@@ -145,28 +155,127 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain('name="trash"');
   });
 
-  it("has reposition mode with Cancel + Save changes bar", () => {
-    expect(src).toContain("SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS");
-    expect(src).toContain("coverCancel");
-    expect(src).toContain("coverSaveChanges");
-    expect(src).toContain("cancelReposition");
-    expect(src).toContain("onSaveReposition");
+  it("keeps the original: Reposition reopens it, a cover without one opens the picker", () => {
+    const click = slice("function onRepositionClick", "async function removeCover");
+    expect(click).toContain('repositionAction === "reopen"');
+    expect(click).toContain("beginReposition(coverFraming)");
+    expect(click).toContain('repositionAction === "pick"');
+    expect(click).toContain("beginUpload()");
+    const reposition = slice("function beginReposition", "function onRepositionClick");
+    expect(reposition).toContain("loadOwnCoverSourceFile");
+    expect(reposition).not.toContain("loadOwnCoverFile(");
+    expect(reposition).toContain("coverFocusFromCrop(crop, size)");
+    // The cover version it opened rides back with Save as a compare-and-swap token.
+    expect(reposition).toContain("openedCover.current = framing.coverKey");
+    expect(reposition).toContain('setEditSource("stored")');
+    expect(reposition).toContain('setMode("reposition")');
+    expect(reposition).not.toContain("fileRef");
+    expect(reposition).not.toContain("fetch(");
+    // The stored original is never named by the client.
+    expect(src).not.toContain("cover_source_key");
+    expect(src).not.toContain("sourceKey");
   });
 
-  it("shows FB drag hint text centered on dimmed cover", () => {
-    expect(src).toContain("SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS");
-    expect(src).toContain("coverDragHint");
-    expect(src).toContain("opacity-70");
-    expect(src).toContain("cursor-grab");
+  it("saves the crop, and the original with its framing only for a picked file", () => {
+    const save = slice("async function onSaveReposition", "function onPointerDown");
+    expect(save).toContain("coverCropFrame(focus, size)");
+    expect(save).toContain("coverCropRect(focus, size)");
+    expect(save).toContain("uploadCoverFile(cropped, presignSocialMediaUpload)");
+    expect(save).toContain('editSource === "picked"');
+    expect(save).toContain("socialProfileCoverSaveForm");
+    expect(save).toContain('crop: editSource === "stored" || keptSource ? crop : null');
+    // Stored original: the opened cover version travels with the save; a picked file sends none.
+    expect(save).toContain('const opened = editSource === "stored" ? openedCover.current : null;');
+    const form = save.slice(save.indexOf("socialProfileCoverSaveForm({"), save.indexOf("}),", save.indexOf("socialProfileCoverSaveForm({")));
+    expect(form).toMatch(/\n\s+opened,\n/);
+    expect(slice("function onFilePick", "function rollbackPreview")).toContain("openedCover.current = null");
+    const pick = slice("function onFilePick", "function rollbackPreview");
+    expect(pick).toContain("coverSourceUploadable(picked)");
+    expect(pick).toContain("uploadCoverFile(picked, presignSocialMediaUpload)");
+    expect(pick).toContain('setEditSource("picked")');
   });
 
-  it("shows public note in reposition bar", () => {
-    expect(src).toContain("coverPublicNote");
+  it("frames with one focus model: no ghost, no fixed pan scale", () => {
+    expect(src).not.toContain("opacity-70");
+    expect(src).not.toContain("computeCropFrame");
+    expect(src).not.toContain("heightDesktop");
+    expect(src).not.toContain("panOffset");
+    expect(src).not.toContain("SOCIAL_PROFILE_COVER_LOCK_A");
+    expect(src).not.toContain("SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS");
+    expect(src).not.toContain("SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS");
+    expect(src).not.toContain("data-social-cover-reposition-bar");
+    expect(src).toContain("coverCropFrame");
+    expect(src).toContain("coverObjectPosition(focus)");
+    expect(src).toContain("moveCoverFocus");
+  });
+
+  it("drags and nudges on a focusable surface over the --band token", () => {
+    const surface = slice("data-social-cover-drag", "</div>");
+    expect(surface).toContain("tabIndex={0}");
+    expect(surface).toContain('role="group"');
+    expect(surface).toContain("aria-label={SOCIAL.profile.coverDragHint}");
+    expect(surface).toContain("className={SOCIAL_PROFILE_COVER_DRAG_CLASS}");
+    expect(surface).toContain("onKeyDown={onDragKeyDown}");
+    expect(surface).toContain("onPointerDown={onPointerDown}");
+    // The preview sits in flow inside the surface. A positioned image paints
+    // after the surface's own outline and hides the inset focus ring.
+    expect(surface).toContain("className={SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS}");
+    expect(surface).not.toContain("SOCIAL_PROFILE_COVER_IMAGE_CLASS");
+    const imageTokens = SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS.split(/\s+/);
+    expect(imageTokens).toEqual(expect.arrayContaining(["block", "size-full", "object-cover"]));
+    for (const token of imageTokens) {
+      expect(token).not.toMatch(/^(?:[\w-]+:)*(?:absolute|relative|fixed|sticky|-?inset-|-?z-|-?top-|-?left-)/);
+    }
+    const drag = chrome.slice(chrome.indexOf("SOCIAL_PROFILE_COVER_DRAG_CLASS ="));
+    const dragDef = drag.slice(0, drag.indexOf(";"));
+    expect(dragDef).toContain("bg-band");
+    expect(dragDef).toContain("touch-none");
+    expect(dragDef).toContain("focus-visible:outline-offset-[-2px]!");
+    expect(dragDef).toContain("focus-visible:rounded-none!");
+    expect(dragDef).toContain("data-[slack]:cursor-grab");
+    const keys = slice("function onDragKeyDown", "const isReposition");
+    // Escape and arrows go through the one key rule, which holds both while
+    // Save runs (Cancel is disabled then too).
+    expect(keys).toContain("coverDragKeyAction(e.key, e.shiftKey, uploading)");
+    expect(keys).not.toContain('e.key === "Escape"');
+    expect(keys).toContain('action.type === "cancel"');
+    expect(keys).toContain("cancelReposition()");
+    expect(keys).toContain("e.preventDefault()");
+    expect(src).toContain("surfaceRef.current?.focus({ preventScroll: true })");
+    expect(src).toContain("editButtonRef.current?.focus({ preventScroll: true })");
+  });
+
+  it("puts the hint, note, Cancel/Save and errors in the head trail, not over the image", () => {
+    expect(src).toContain("createPortal(trailContent, trail)");
+    expect(src).toContain("coverTrailTarget(rootRef.current)");
+    const menu = readFileSync("src/lib/social-profile-cover-menu.ts", "utf8");
+    expect(menu).toContain('"[data-social-profile-head-trail]"');
+    const trail = slice("const trailContent", "return (");
+    expect(trail).toContain("coverDragHint");
+    expect(trail).toContain("coverPublicNote");
+    expect(trail).toContain("coverCancel");
+    expect(trail).toContain("coverSaveChanges");
+    expect(trail).toContain("uploadingPhoto");
+    expect(trail).toContain("cancelReposition");
+    expect(trail).toContain("onSaveReposition");
+    // Errors show in any mode (a failed Remove too).
+    expect(trail).toContain("{error ? (");
+    expect(trail).not.toMatch(/isReposition && error|error && isReposition/);
+    const surface = slice("data-social-cover-drag", "</div>");
+    expect(surface).not.toContain("coverPublicNote");
+    expect(surface).not.toContain("coverCancel");
+    expect(src).not.toContain("bottom-12");
   });
 
   it("errors are visible (not sr-only)", () => {
-    const errorBlock = src.slice(src.lastIndexOf("aria-live"));
+    const from = src.lastIndexOf("aria-live");
+    const errorBlock = src.slice(src.lastIndexOf("<div", from), src.indexOf("</div>", from));
+    expect(errorBlock).toContain("InlineNotice");
+    expect(errorBlock).toContain("SOCIAL_PROFILE_COVER_TRAIL_NOTICE_CLASS");
     expect(errorBlock).not.toContain("sr-only");
+    const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
+    const notice = chrome.slice(chrome.indexOf("SOCIAL_PROFILE_COVER_TRAIL_NOTICE_CLASS ="));
+    expect(notice.slice(0, notice.indexOf(";"))).not.toContain("sr-only");
   });
 
   it("supports Remove action via clearSocialProfileCover", () => {
@@ -177,17 +286,29 @@ describe("cover upload component (FB-exact)", () => {
   it("crops to 1784×446 via presign → PUT → saveSocialProfileCover", () => {
     expect(src).toContain("cropRectFile");
     expect(src).toContain("presignSocialMediaUpload");
-    expect(src).toContain('body.set("lane", "posts")');
     expect(src).toContain("saveSocialProfileCover");
     expect(src).not.toContain("Mux");
+    const save = readFileSync("src/lib/social-profile-cover-save.ts", "utf8");
+    expect(save).toContain('body.set("lane", "posts")');
+    expect(save).toContain('method: "PUT"');
+  });
+
+  it("downscales with high-quality smoothing", () => {
+    const crop = readFileSync("src/lib/account-avatar-crop.ts", "utf8");
+    const rect = crop.slice(crop.indexOf("export async function cropRectFile"));
+    expect(rect).toContain("ctx.imageSmoothingEnabled = true");
+    expect(rect).toContain('ctx.imageSmoothingQuality = "high"');
+    expect(rect.indexOf('imageSmoothingQuality = "high"')).toBeLessThan(rect.indexOf("ctx.drawImage"));
   });
 
   it("supports drag-to-reposition with pointer events", () => {
     expect(src).toContain("onPointerDown");
     expect(src).toContain("onPointerMove");
     expect(src).toContain("onPointerUp");
-    expect(src).toContain("panOffset");
-    expect(src).toContain("touch-none");
+    expect(src).toContain("setFocus(");
+    const down = slice("function onPointerDown", "function onPointerMove");
+    expect(down).toContain("!repositionSize");
+    expect(down).toContain("getBoundingClientRect().width");
   });
 
   it("toggles the cover menu without the outside press eating the next open", () => {
@@ -198,27 +319,15 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain('addEventListener("keydown"');
     expect(src).not.toContain('addEventListener("pointerdown"');
     expect(src).toContain("stopPropagation()");
-    const upload = src.slice(
-      src.indexOf("function beginUpload"),
-      src.indexOf("function beginReposition"),
-    );
-    const reposition = src.slice(
-      src.indexOf("function beginReposition"),
-      src.indexOf("async function removeCover"),
-    );
+    const upload = slice("function beginUpload", "function beginReposition");
     expect(upload).toContain("fileRef.current?.click()");
-    expect(reposition).not.toContain("fileRef");
-    expect(reposition).not.toContain("fetch(");
-    expect(reposition).toContain("loadOwnCoverFile");
-    expect(reposition).toContain("rememberPreview");
-    expect(reposition).toContain('setMode("reposition")');
     expect(src).not.toContain("fileFromOwnCover");
     expect(src).not.toContain('redirect: "error"');
     expect(src).not.toContain("/api/social/media");
     expect(src).not.toContain("coverFileFromUrl");
     expect(src).toContain("coverFailureCopy");
     expect(src).toContain("coverNoticeText");
-    const pick = src.slice(src.indexOf("function onFilePick"), src.indexOf("function computeCropFrame"));
+    const pick = slice("function onFilePick", "function rollbackPreview");
     const armed = pick.indexOf("setRepositionFile(picked)");
     expect(armed).toBeGreaterThan(-1);
     expect(pick.indexOf('setMode("reposition")', armed)).toBeGreaterThan(armed);
@@ -230,12 +339,6 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain("releasePointerCapture");
     expect(src).toContain("fileRef.current?.blur()");
     expect(src).toContain('attributeFilter: ["hidden"]');
-    const repositionUi = src.slice(src.indexOf("{isReposition ? ("), src.indexOf("{!isReposition ? ("));
-    expect(repositionUi).toContain("coverCancel");
-    expect(repositionUi).toContain("coverSaveChanges");
-    expect(repositionUi.indexOf("data-social-cover-reposition-bar")).toBeGreaterThan(
-      repositionUi.indexOf("z-0"),
-    );
     expect(src).not.toContain("setError(result.error)");
     expect(src).not.toContain("setError(signed.error");
   });
@@ -246,12 +349,56 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain("cancelReposition");
   });
 
-  it("revokes blob preview after server save", () => {
-    expect(src).toContain("URL.revokeObjectURL(previewUrl)");
-    const revokeCount = (
-      src.match(/URL\.revokeObjectURL\(previewUrl\)/g) ?? []
-    ).length;
-    expect(revokeCount).toBeGreaterThanOrEqual(3);
+  it("never lets a late save close, clear or error a newer editing session", () => {
+    const save = slice("async function onSaveReposition", "function onPointerDown");
+    expect(save).toContain("const gen = loadGen.current;");
+    expect(save).toContain("const live = () => loadGen.current === gen;");
+    expect(save).toContain("sourceUpload.current?.gen === gen");
+    const settled = save.slice(save.indexOf("try {"));
+    const count = (text: string, pattern: RegExp) => (text.match(pattern) ?? []).length;
+    // Every error, the busy flag and the success close sit behind live().
+    expect(count(settled, /setError\(/g)).toBe(3);
+    expect(count(settled, /if \(live\(\)\) \{?\s*setError\(/g)).toBe(3);
+    expect(count(settled, /setUploading\(false\)/g)).toBe(1);
+    expect(settled).toContain("if (live()) setUploading(false)");
+    const success = settled.indexOf("} else if (live()) {");
+    expect(success).toBeGreaterThan(-1);
+    for (const effect of ["clearReposition()", 'setMode("idle")', "restoreFocus.current = true"]) {
+      expect(count(settled, new RegExp(effect.replace(/[().]/g, "\\$&"), "g"))).toBe(1);
+      expect(settled.indexOf(effect)).toBeGreaterThan(success);
+    }
+  });
+
+  it("revokes blob preview after a failed save", () => {
+    const rollback = slice("function rollbackPreview", "async function onSaveReposition");
+    expect(rollback).toContain("URL.revokeObjectURL(previewUrl)");
+    expect(rollback).toContain("patchSocialProfileOptimistic({ coverUrl: null })");
+    const save = slice("async function onSaveReposition", "function onPointerDown");
+    expect((save.match(/rollbackPreview\(previewUrl\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("never lets a late failed save wipe a newer save's or Remove's band", () => {
+    const rollback = slice("function rollbackPreview", "async function onSaveReposition");
+    const guard = rollback.indexOf("if (bandPreview.current === previewUrl) {");
+    expect(guard).toBeGreaterThan(-1);
+    // Clearing the band sits inside the ownership guard; the revoke does not.
+    for (const effect of ["onPreview?.(null)", "patchSocialProfileOptimistic({ coverUrl: null })"]) {
+      expect(rollback.indexOf(effect)).toBeGreaterThan(guard);
+      expect(rollback.indexOf(effect)).toBeLessThan(rollback.indexOf("URL.revokeObjectURL(previewUrl)"));
+    }
+    const revoke = rollback.indexOf("URL.revokeObjectURL(previewUrl)");
+    expect(rollback.lastIndexOf("}", revoke)).toBeGreaterThan(guard);
+    // Each band writer records its ownership before it paints.
+    const save = slice("async function onSaveReposition", "function onPointerDown");
+    expect(save.indexOf("bandPreview.current = previewUrl;")).toBeGreaterThan(-1);
+    expect(save.indexOf("bandPreview.current = previewUrl;")).toBeLessThan(
+      save.indexOf("patchSocialProfileOptimistic({ coverUrl: previewUrl })"),
+    );
+    const remove = slice("async function removeCover", "function onFilePick");
+    expect(remove.indexOf("bandPreview.current = null;")).toBeGreaterThan(-1);
+    expect(remove.indexOf("bandPreview.current = null;")).toBeLessThan(
+      remove.indexOf("patchSocialProfileOptimistic({ coverUrl: null })"),
+    );
   });
 });
 
@@ -269,14 +416,16 @@ describe("cover banner architecture", () => {
 });
 
 describe("cover chrome tokens", () => {
-  it("has the FB-style chrome classes in social-chrome", () => {
+  it("has the cover editor chrome classes in social-chrome", () => {
     const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
-    expect(chrome).toContain("SOCIAL_PROFILE_COVER_PILL_CLASS");
+    expect(chrome).toContain("SOCIAL_PROFILE_COVER_EDIT_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_COVER_MENU_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS");
-    expect(chrome).toContain("SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS");
-    expect(chrome).toContain("SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS");
-    expect(chrome).toContain("pointer-events-none absolute inset-0 z-10");
+    expect(chrome).toContain("SOCIAL_PROFILE_COVER_DRAG_CLASS");
+    expect(chrome).toContain("SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS");
+    expect(chrome).not.toContain("SOCIAL_PROFILE_COVER_PILL_CLASS");
+    expect(chrome).not.toContain("SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS");
+    expect(chrome).not.toContain("SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS");
   });
 
   it("menu drops below the pill (top, not bottom)", () => {
@@ -289,9 +438,9 @@ describe("cover chrome tokens", () => {
 });
 
 describe("clearSocialProfileCover action", () => {
-  it("exists in the actions file and sets cover_key to null", () => {
+  it("exists in the actions file and clears the cover, the original and the framing", () => {
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
     expect(actions).toContain("clearSocialProfileCover");
-    expect(actions).toContain("cover_key: null");
+    expect(actions).toContain("cover_key: null, cover_source_key: null, cover_crop: null");
   });
 });

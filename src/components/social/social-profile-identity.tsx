@@ -5,12 +5,16 @@ import { cn } from "@/lib/cn";
 import {
   SOCIAL_PROFILE_ACTIONS_CLASS,
   SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS,
+  SOCIAL_PROFILE_AVATAR_ROW_CLASS,
+  SOCIAL_PROFILE_AVATAR_SLOT_CLASS,
   SOCIAL_PROFILE_BIO_CLASS,
   SOCIAL_PROFILE_COVER_STACK_CLASS,
   SOCIAL_PROFILE_FACE_CLASS,
   SOCIAL_PROFILE_FACE_LEAD_CLASS,
   SOCIAL_PROFILE_HEAD_CLASS,
+  SOCIAL_PROFILE_HEAD_NO_COVER_CLASS,
   SOCIAL_PROFILE_HEAD_OVERLAP_CLASS,
+  SOCIAL_PROFILE_HEAD_TRAIL_CLASS,
   SOCIAL_PROFILE_HANDLE_CLASS,
   SOCIAL_PROFILE_IDENTITY_CLASS,
   SOCIAL_PROFILE_INSET_CLASS,
@@ -41,6 +45,7 @@ export function SocialProfileIdentity({
   photoUrl,
   coverUrl,
   coverEdit,
+  owner = false,
   bio,
   roles,
   websiteUrl,
@@ -58,6 +63,8 @@ export function SocialProfileIdentity({
   photoUrl?: string | null;
   coverUrl?: string | null;
   coverEdit?: ReactNode;
+  /** Own profile. Keeps the wash band without a cover, also in the save-hop and loading overlay. */
+  owner?: boolean;
   bio?: string | null;
   roles?: readonly string[] | null;
   websiteUrl?: string | null;
@@ -84,13 +91,15 @@ export function SocialProfileIdentity({
       {actions}
     </div>
   ) : null;
-  const ownerCover = Boolean(coverEdit);
-  const showCoverBand = socialProfileRendersCoverBand({ coverUrl, owner: ownerCover });
+  // Owner band: the own profile, and its save-hop and loading overlay
+  // (owner without coverEdit), keep the wash band so nothing jumps.
+  const ownerBand = owner || Boolean(coverEdit);
+  const showCoverBand = socialProfileRendersCoverBand({ coverUrl, owner: ownerBand });
 
   return (
     <div data-social-profile-identity="" className={SOCIAL_PROFILE_IDENTITY_CLASS}>
       <div data-social-profile-cover-stack="" className={SOCIAL_PROFILE_COVER_STACK_CLASS}>
-        {ownerCover ? (
+        {ownerBand ? (
           <SocialProfileCoverBlock coverUrl={coverUrl} coverEdit={coverEdit} />
         ) : (
           <SocialProfileBanner coverUrl={coverUrl} />
@@ -99,19 +108,25 @@ export function SocialProfileIdentity({
           data-social-profile-head=""
           className={cn(
             SOCIAL_PROFILE_INSET_CLASS,
-            showCoverBand ? SOCIAL_PROFILE_HEAD_OVERLAP_CLASS : "pt-[var(--space-4)]",
+            showCoverBand ? SOCIAL_PROFILE_HEAD_OVERLAP_CLASS : SOCIAL_PROFILE_HEAD_NO_COVER_CLASS,
           )}
         >
           <div className={SOCIAL_PROFILE_HEAD_CLASS}>
-            <div className="relative w-fit shrink-0">
-              <SocialAvatar
-                name={person.avatarName}
-                photoUrl={photoUrl}
-                ring={ring}
-                size="profile"
-                className={SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS}
-              />
-              {photoAction}
+            <div data-social-profile-avatar-row="" className={SOCIAL_PROFILE_AVATAR_ROW_CLASS}>
+              <div data-social-profile-avatar-slot="" className={SOCIAL_PROFILE_AVATAR_SLOT_CLASS}>
+                <SocialAvatar
+                  name={person.avatarName}
+                  photoUrl={photoUrl}
+                  ring={ring}
+                  size="profile"
+                  className={SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS}
+                />
+                {photoAction}
+              </div>
+              {coverEdit ? (
+                // Cover editor hint, note, Cancel/Save and errors portal here.
+                <div data-social-profile-head-trail="" className={SOCIAL_PROFILE_HEAD_TRAIL_CLASS} />
+              ) : null}
             </div>
             {person.name || person.handleLabel ? (
               <div className={SOCIAL_PROFILE_NAME_STACK_CLASS}>

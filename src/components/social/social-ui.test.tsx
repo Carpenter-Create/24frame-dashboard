@@ -53,8 +53,13 @@ import {
   SOCIAL_PROFILE_ACTIONS_CLASS,
   SOCIAL_PROFILE_FACE_LEAD_CLASS,
   SOCIAL_PROFILE_HANDLE_CLASS,
+  SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS,
+  SOCIAL_PROFILE_AVATAR_ROW_CLASS,
+  SOCIAL_PROFILE_AVATAR_SLOT_CLASS,
   SOCIAL_PROFILE_HEAD_CLASS,
+  SOCIAL_PROFILE_HEAD_NO_COVER_CLASS,
   SOCIAL_PROFILE_HEAD_OVERLAP_CLASS,
+  SOCIAL_PROFILE_HEAD_TRAIL_CLASS,
   SOCIAL_PROFILE_IDENTITY_CLASS,
   SOCIAL_PROFILE_NAME_CLASS,
   SOCIAL_PROFILE_NAME_STACK_CLASS,
@@ -278,7 +283,8 @@ describe("Social profile public face", () => {
     );
     expect(identityHead).not.toContain("-mt-[40px]");
     expect(identityHead).not.toContain("md:-mt-");
-    expect(identityHead).toContain("border-2 border-surface");
+    expect(identityHead).toContain("border-4 border-bg md:border-surface");
+    expect(identityHead).not.toContain("border-2 border-surface");
     expect(identityHead).toContain("data-social-avatar");
     expect(identityHead).toContain("data-social-profile-name");
     expect(identityHead).toContain("Ada Lovelace");
@@ -378,7 +384,8 @@ describe("Social profile public face", () => {
     expect(withRoles).not.toContain('data-house-chip-rail-row="1"');
     expect(withRoles).toContain("overflow-x-auto");
     expect(withRoles).toContain("no-scrollbar");
-    expect(withRoles).not.toContain("flex-wrap");
+    // The roles rail never wraps. (The avatar row in the head wraps by design.)
+    expect(withRoles.slice(withRoles.indexOf("data-social-profile-roles"))).not.toContain("flex-wrap");
     expect(withRoles).toContain("bg-surface-muted");
     expect(withRoles).toContain("rounded-full");
     expect(withRoles).toContain("t-body-sm");
@@ -428,7 +435,9 @@ describe("Social profile public face", () => {
     expect(adamDesktop).toContain("Musician");
     expect(adamDesktop).toContain("Music Director");
     expect(adamDesktop).not.toContain("data-social-profile-roles-more");
-    expect(adamDesktop).not.toContain("+2");
+    // No "+N" overflow chip. (The identity root's phone bleed width is
+    // calc(100%+2*gutter); that is a class, not visible text.)
+    expect(adamDesktop.replaceAll("calc(100%+2*var(--chrome-gutter))", "")).not.toContain("+2");
     expect(adamDesktop).not.toContain("Executive Producer · Music Supervisor · Composer +2");
     expect(adamDesktop).not.toContain("Executive Producer · Music Supervisor");
     expect(adamDesktop).toContain("Founder · Investor · Music Executive");
@@ -539,8 +548,9 @@ describe("Social profile public face", () => {
     expect(SOCIAL_PROFILE_HEAD_CLASS).not.toContain("items-center");
     expect(SOCIAL_PROFILE_HEAD_CLASS).not.toContain("items-start");
     expect(SOCIAL_PROFILE_HEAD_CLASS).not.toContain("gap-[var(--space-4)]");
-    expect(withStats).toContain(SOCIAL_AVATAR_PROFILE_CLASS);
-    expect(withStats).toContain("size-20");
+    // The profile disc is the avatar variable; size-20 is merged away.
+    expect(withStats).toContain("size-[var(--social-profile-avatar)]");
+    expect(withStats).not.toContain("size-20");
     expect(withStats).not.toContain("size-[72px]");
     expect(withStats).not.toContain("md:size-[88px]");
     expect(withStats).not.toContain("size-24");
@@ -633,7 +643,7 @@ describe("Social profile public face", () => {
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("w-full");
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).not.toContain("flex-1");
     expect(SOCIAL_PROFILE_NAME_STACK_CLASS).not.toContain("--space-1");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toBe("flex flex-col");
+    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("@container flex flex-col");
     expect(SOCIAL_PROFILE_IDENTITY_CLASS).not.toContain("gap-");
     expect(withStats).not.toContain("truncate");
     expect(withStats).not.toContain("1784");
@@ -1552,9 +1562,13 @@ function expectNameBelowCover(html: string) {
     html.indexOf("data-social-profile-face"),
   );
   expect(head).toContain(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS);
-  expect(head).toContain("-mt-[40px]");
+  expect(head).toContain("-mt-[calc(var(--social-profile-avatar)/2)]");
+  expect(head).not.toContain("-mt-[40px]");
   expect(head).not.toContain("md:-mt-");
   expect(head).toContain(SOCIAL_PROFILE_HEAD_CLASS);
+  expect(head).toContain(SOCIAL_PROFILE_AVATAR_ROW_CLASS);
+  expect(head).toContain(SOCIAL_PROFILE_AVATAR_SLOT_CLASS);
+  expect(head).toContain(SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS);
   expect(head).toContain(SOCIAL_PROFILE_NAME_STACK_CLASS);
   expect(head).not.toContain("items-end");
   expect(head).not.toContain("data-social-profile-avatar-hang");
@@ -1569,7 +1583,7 @@ function expectNameBelowCover(html: string) {
   expect(nameOpen).not.toContain("text-white");
   expect(nameOpen).not.toContain("text-band-ink");
   expect(nameOpen).not.toContain("truncate");
-  expect(head.slice(nameAt)).not.toContain("-mt-[40px]");
+  expect(head.slice(nameAt)).not.toContain("-mt-[calc(");
 }
 
 describe("Social profile cover band", () => {
@@ -1598,9 +1612,14 @@ describe("Social profile cover band", () => {
     expect(html).not.toContain("data-social-profile-cover-empty");
     expect(html).not.toContain("h-[112px]");
     expect(html).not.toContain("md:h-[224px]");
+    expect(html).not.toContain("aspect-[4/1]");
     expect(html).not.toContain("bg-accent-wash");
     expect(html).not.toContain("-mt-[40px]");
-    expect(html).not.toContain("md:-mt-");
+    expect(html).not.toContain(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS);
+    // The identity root's phone flush pull is max-md:-mt-; no desktop lip.
+    expect(html).not.toMatch(/(?<![\w-])md:-mt-/);
+    expect(html).toContain(SOCIAL_PROFILE_HEAD_NO_COVER_CLASS);
+    expect(SOCIAL_PROFILE_HEAD_NO_COVER_CLASS).toBe("pt-[var(--space-4)] md:pt-[var(--space-6)]");
     expect(html).not.toContain("data-social-profile-avatar-hang");
     expect(html).toContain("data-social-profile-head");
     expect(html).toContain(SOCIAL_PROFILE_HEAD_CLASS);
@@ -1667,7 +1686,8 @@ describe("Social profile cover band", () => {
     expect(html).toContain("data-social-profile-cover-block");
     expect(html).toContain("data-social-profile-cover-empty");
     expect(html).toContain("bg-accent-wash");
-    expect(html).toContain("h-[112px]");
+    expect(html).toContain("aspect-[4/1]");
+    expect(html).not.toContain("h-[112px]");
     expect(html).toContain("data-social-profile-cover-edit");
     expect(html).not.toContain("<img");
     const head = html.slice(
@@ -1697,8 +1717,8 @@ describe("Social profile cover band", () => {
   });
 });
 
-describe("Design lock v1 — profile head geometry", () => {
-  it("stacks name under an 80px avatar with a 40px lip (G1–G5)", () => {
+describe("Profile header LinkedIn lock v1 — head geometry", () => {
+  it("stacks name under the variable avatar with a half lip (G1–G5)", () => {
     const longName = "Adam Carpenter of a Very Long Display Name That Must Wrap On Phone";
     const html = renderToStaticMarkup(
       <SocialProfileIdentity
@@ -1729,13 +1749,19 @@ describe("Design lock v1 — profile head geometry", () => {
     );
     expect(head).not.toContain("data-social-profile-stats");
 
+    // SOCIAL_AVATAR_PROFILE_CLASS (the Edit-profile sheet disc) is unchanged;
+    // on the cover the avatar variable replaces size-20 via tailwind-merge.
     expect(SOCIAL_AVATAR_PROFILE_CLASS).toContain("size-20");
     expect(SOCIAL_AVATAR_PROFILE_CLASS).not.toMatch(/size-\[72px\]|md:size-\[88px\]|\bmd:|\blg:/);
-    expect(head).toContain("size-20");
-    expect(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS).toBe("relative z-10 -mt-[40px]");
+    expect(head).toContain("size-[var(--social-profile-avatar)]");
+    expect(head).not.toContain("size-20");
+    expect(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS).toBe(
+      "pointer-events-none relative z-10 -mt-[calc(var(--social-profile-avatar)/2)]",
+    );
     expect(head).toContain(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS);
-    expect(head).toContain("border-2 border-surface");
-    expect(head).not.toContain("border-4");
+    expect(head).toContain("border-4 border-bg md:border-surface");
+    expect(head).toContain("md:ring-offset-[var(--surface)]");
+    expect(head).not.toContain("border-2");
 
     expect(SOCIAL_PROFILE_NAME_CLASS).toContain("t-heading");
     expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("t-title");
@@ -1776,5 +1802,68 @@ describe("Design lock v1 — profile head geometry", () => {
     expect(html).toContain(SOCIAL_PROFILE_FACE_LEAD_CLASS);
     expect(html).not.toContain(SOCIAL_PROFILE_STATS_LEAD_CLASS);
     expect(html).not.toContain("-mt-[40px]");
+    expect(html).not.toContain("-mt-[calc(var(--social-profile-avatar)/2)]");
+  });
+
+  it("renders the head trail only for the owner editor", () => {
+    const visitor = renderToStaticMarkup(
+      <SocialProfileIdentity name="Ada Lovelace" handle="ada" coverUrl="https://cf.example/cover.jpg" />,
+    );
+    expect(visitor).not.toContain("data-social-profile-head-trail");
+    const ownerHop = renderToStaticMarkup(
+      <SocialProfileIdentity name="Ada Lovelace" handle="ada" coverUrl={null} owner />,
+    );
+    expect(ownerHop).not.toContain("data-social-profile-head-trail");
+    const editor = renderToStaticMarkup(
+      <SocialProfileIdentity
+        name="Ada Lovelace"
+        handle="ada"
+        coverUrl={null}
+        coverEdit={<button type="button" data-social-profile-cover-edit="">Add cover photo</button>}
+      />,
+    );
+    expect(editor).toContain('data-social-profile-head-trail=""');
+    expect(editor).toContain(SOCIAL_PROFILE_HEAD_TRAIL_CLASS);
+    const row = editor.slice(editor.indexOf("data-social-profile-avatar-row"));
+    // The trail follows the avatar slot in the row and stays empty (hidden) until the editor portals in.
+    expect(row.indexOf("data-social-profile-avatar-slot")).toBeLessThan(
+      row.indexOf("data-social-profile-head-trail"),
+    );
+    expect(editor).toMatch(/data-social-profile-head-trail="" class="[^"]*"><\/div>/);
+  });
+
+  it("keeps the wash band for an owner with no cover, without the editor (save-hop, loading)", () => {
+    const html = renderToStaticMarkup(
+      <SocialProfileIdentity name="Ada Lovelace" handle="ada" coverUrl={null} owner />,
+    );
+    expect(html).toContain("data-social-profile-cover-block");
+    expect(html).toContain("data-social-profile-cover-empty");
+    expect(html).toContain("bg-accent-wash");
+    expect(html).toContain("aspect-[4/1]");
+    expect(html).not.toContain("data-social-profile-cover-edit");
+    expect(html).toContain(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS);
+    expect(html).not.toContain(SOCIAL_PROFILE_HEAD_NO_COVER_CLASS);
+  });
+
+  it("lets drags on the lower band through the head; only the slot, name stack and trail take pointers", () => {
+    const html = renderToStaticMarkup(
+      <SocialProfileIdentity
+        name="Ada Lovelace"
+        handle="ada"
+        coverUrl="https://cf.example/cover.jpg"
+        coverEdit={<button type="button" data-social-profile-cover-edit="">Edit cover</button>}
+      />,
+    );
+    const headOpen = html.slice(html.indexOf("data-social-profile-head="), html.indexOf(">", html.indexOf("data-social-profile-head=")));
+    expect(headOpen).toContain("pointer-events-none");
+    const openTag = (marker: string) => {
+      const at = html.indexOf(marker);
+      return html.slice(html.lastIndexOf("<", at), html.indexOf(">", at));
+    };
+    expect(openTag("data-social-profile-avatar-slot")).toContain("pointer-events-auto");
+    expect(openTag("data-social-profile-head-trail")).toContain("pointer-events-auto");
+    expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("pointer-events-auto");
+    expect(html).toContain(SOCIAL_PROFILE_NAME_STACK_CLASS);
+    expect(openTag("data-social-profile-avatar-row")).not.toContain("pointer-events");
   });
 });

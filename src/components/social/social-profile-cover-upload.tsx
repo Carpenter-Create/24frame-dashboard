@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   clearSocialProfileCover,
@@ -9,21 +10,15 @@ import {
 } from "@/app/(app)/social/actions";
 import { SocialIcon } from "@/components/social/social-icon";
 import { InlineNotice } from "@/components/ui/inline-notice";
-import {
-  type AvatarCropFrame,
-  cropRectFile,
-  readAccountAvatarCropPreview,
-} from "@/lib/account-avatar-crop";
+import { cropRectFile, readAccountAvatarCropPreview } from "@/lib/account-avatar-crop";
+import { cn } from "@/lib/cn";
 import { HOUSE_CLIENT_SHELL } from "@/lib/house-client-shell";
 import { SOCIAL } from "@/lib/social";
 import {
-  type CoverBytes,
   coverFailureCopy,
   coverFilePickOpensReposition,
   coverNoticeText,
-  coverPreviewIsLocal,
-  loadLocalCoverFile,
-  loadOwnCoverFile,
+  loadOwnCoverSourceFile,
 } from "@/lib/social-profile-cover-load";
 import {
   COVER_CROP_MAX_BYTES,
@@ -33,19 +28,45 @@ import {
   COVER_CROP_VIEW_HEIGHT,
   COVER_CROP_VIEW_WIDTH,
   SOCIAL_PROFILE_COVER_ACCEPT,
-  SOCIAL_PROFILE_COVER_LOCK_A,
 } from "@/lib/social-profile-cover";
 import {
+  COVER_FOCUS_CENTER,
+  type CoverFocus,
+  type CoverFraming,
+  type CoverImageSize,
+  coverCropFrame,
+  coverCropRect,
+  coverDragKeyAction,
+  coverFocusFromCrop,
+  coverHasSlack,
+  coverObjectPosition,
+  moveCoverFocus,
+} from "@/lib/social-profile-cover-frame";
+import {
   coverMenuClosesOnDocumentPress,
+  coverRepositionAction,
+  coverTrailTarget,
   nextCoverPillMode,
 } from "@/lib/social-profile-cover-menu";
 import {
-  SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS,
+  type CoverUploadResult,
+  coverSourceUploadable,
+  socialProfileCoverSaveForm,
+  uploadCoverFile,
+} from "@/lib/social-profile-cover-save";
+import {
+  SOCIAL_ACTION_CLASS,
+  SOCIAL_ACTION_SECONDARY_CLASS,
+  SOCIAL_PROFILE_COVER_DRAG_CLASS,
+  SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS,
+  SOCIAL_PROFILE_COVER_EDIT_CLASS,
   SOCIAL_PROFILE_COVER_MENU_CLASS,
   SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS,
   SOCIAL_PROFILE_COVER_PILL_ANCHOR_CLASS,
-  SOCIAL_PROFILE_COVER_PILL_CLASS,
-  SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS,
+  SOCIAL_PROFILE_COVER_TRAIL_ACTIONS_CLASS,
+  SOCIAL_PROFILE_COVER_TRAIL_BUTTON_CLASS,
+  SOCIAL_PROFILE_COVER_TRAIL_NOTICE_CLASS,
+  SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS,
 } from "@/lib/social-chrome";
 import { socialMediaKindFor } from "@/lib/social-media";
 import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
@@ -53,44 +74,77 @@ import { patchSocialProfileOptimistic } from "@/lib/social-profile-edit";
 
 type CoverMode = "idle" | "menu" | "reposition";
 
+// What the editor frames: a freshly picked file (its original is kept with
+// the save) or the stored original (Reposition; the server keeps it).
+type CoverEditSource = "picked" | "stored";
+
+// docs/design-locks/social-profile-header-linkedin-lock-v1.md — what the
+// member frames is what lands. One focus drives the preview, the crop and
+// the stored framing (src/lib/social-profile-cover-frame.ts).
 export function SocialProfileCoverUpload({
   coverUrl,
+  coverFraming = null,
   onPreview,
 }: {
   coverUrl?: string | null;
+  /** Stored framing of the kept original and its cover. Null: Reposition opens the file picker. */
+  coverFraming?: CoverFraming | null;
   onPreview?: (url: string | null) => void;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const restoreFocus = useRef(false);
   const ownedPreview = useRef<string | null>(null);
   const loadGen = useRef(0);
-  const coverBytes = useRef<Promise<CoverBytes> | null>(null);
+  const sourceUpload = useRef<{ gen: number; pending: Promise<CoverUploadResult> } | null>(null);
+  // The cover version a stored-original edit opened (its compare-and-swap token).
+  const openedCover = useRef<string | null>(null);
+  // The blob a save last put on the band. A late failure undoes only its own.
+  const bandPreview = useRef<string | null>(null);
   const saveBlocked = useRef(false);
   const captureEl = useRef<HTMLElement | null>(null);
   const captureId = useRef<number | null>(null);
+  const [trail, setTrail] = useState<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<CoverMode>("idle");
 
+  const [editSource, setEditSource] = useState<CoverEditSource>("picked");
   const [repositionFile, setRepositionFile] = useState<File | null>(null);
   const [repositionPreview, setRepositionPreview] = useState<string | null>(null);
-  const [repositionSize, setRepositionSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<{
+  const [repositionSize, setRepositionSize] = useState<CoverImageSize | null>(null);
+  const [focus, setFocus] = useState<CoverFocus>(COVER_FOCUS_CENTER);
+  const dragState = useRef<{
     startX: number;
     startY: number;
-    originX: number;
-    originY: number;
+    origin: CoverFocus;
+    width: number;
   } | null>(null);
 
   const hasCover = Boolean(coverUrl?.trim());
+  const repositionAction = coverRepositionAction({ hasCover, hasSource: coverFraming !== null });
+
+  // The trail lives in SocialProfileIdentity (the head row). Resolve it when
+  // the root mounts, and again before showing editor chrome in case the
+  // stored node was replaced.
+  const resolveTrail = useCallback(() => {
+    const next = coverTrailTarget(rootRef.current);
+    setTrail((current) => (current === next && current?.isConnected ? current : next));
+  }, []);
+
+  const attachRoot = useCallback(
+    (node: HTMLDivElement | null) => {
+      rootRef.current = node;
+      if (node) resolveTrail();
+    },
+    [resolveTrail],
+  );
 
   // Arm the outside listener on a later turn than the open click so that
-  // gesture cannot close the menu. A press on the pill is stopped above
+  // gesture cannot close the menu. A press on the circle is stopped above
   // and is not an outside close; the click toggles.
   useEffect(() => {
     if (mode !== "menu") return undefined;
@@ -113,6 +167,19 @@ export function SocialProfileCoverUpload({
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
+  }, [mode]);
+
+  // Opening the editor focuses the drag surface; closing it after Save or
+  // Cancel returns focus to the edit circle.
+  useEffect(() => {
+    if (mode === "reposition") {
+      surfaceRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (mode === "idle" && restoreFocus.current) {
+      restoreFocus.current = false;
+      editButtonRef.current?.focus({ preventScroll: true });
+    }
   }, [mode]);
 
   useEffect(() => {
@@ -145,7 +212,7 @@ export function SocialProfileCoverUpload({
     const id = captureId.current;
     captureEl.current = null;
     captureId.current = null;
-    dragRef.current = null;
+    dragState.current = null;
     if (!el || id == null) return;
     try {
       if (el.hasPointerCapture(id)) el.releasePointerCapture(id);
@@ -159,13 +226,14 @@ export function SocialProfileCoverUpload({
     setRepositionFile(null);
     setRepositionPreview(null);
     setRepositionSize(null);
-    setPanOffset({ x: 0, y: 0 });
+    setFocus(COVER_FOCUS_CENTER);
     if (fileRef.current) fileRef.current.value = "";
   }, [releaseOwnedPreview]);
 
   const dismissCoverEdit = useCallback(() => {
     loadGen.current += 1;
-    coverBytes.current = null;
+    sourceUpload.current = null;
+    openedCover.current = null;
     saveBlocked.current = false;
     releasePointer();
     fileRef.current?.blur();
@@ -176,6 +244,7 @@ export function SocialProfileCoverUpload({
   }, [clearReposition, releasePointer]);
 
   function cancelReposition() {
+    restoreFocus.current = true;
     dismissCoverEdit();
   }
 
@@ -199,39 +268,64 @@ export function SocialProfileCoverUpload({
     fileRef.current?.click();
   }
 
-  function beginReposition() {
+  // Reposition reopens the kept original at its stored framing. The current
+  // cover is that exact window, so it stands in until the original decodes.
+  // Save sends the opened cover version back, so it cannot land on a cover
+  // another tab or device has replaced since.
+  function beginReposition(framing: CoverFraming) {
     const url = coverUrl?.trim();
     if (!url || uploading) return;
+    resolveTrail();
     saveBlocked.current = false;
+    sourceUpload.current = null;
+    openedCover.current = framing.coverKey;
+    const { crop } = framing;
     const gen = (loadGen.current += 1);
     setError("");
+    setEditSource("stored");
     setRepositionFile(null);
     setRepositionSize(null);
-    setPanOffset({ x: 0, y: 0 });
+    setFocus(COVER_FOCUS_CENTER);
     rememberPreview(url, false);
     setMode("reposition");
-    if (coverPreviewIsLocal(url)) {
-      coverBytes.current = null;
-      return;
-    }
-    const pending = loadOwnCoverFile(SOCIAL.profile.coverCropFailed);
-    coverBytes.current = pending;
-    void pending.then((loaded) => {
+    void loadOwnCoverSourceFile(SOCIAL.profile.coverCropFailed).then(async (loaded) => {
       if (loadGen.current !== gen) return;
-      if (loaded.file) {
-        setRepositionFile(loaded.file);
+      if (!loaded.file) {
+        setError(loaded.notice);
         return;
       }
-      coverBytes.current = null;
-      setError(loaded.notice);
+      try {
+        const next = await readAccountAvatarCropPreview(loaded.file);
+        if (loadGen.current !== gen) {
+          URL.revokeObjectURL(next.url);
+          return;
+        }
+        const size = { width: next.width, height: next.height };
+        rememberPreview(next.url, true);
+        setRepositionFile(loaded.file);
+        setRepositionSize(size);
+        setFocus(coverFocusFromCrop(crop, size));
+      } catch {
+        if (loadGen.current === gen) setError(SOCIAL.profile.coverCropFailed);
+      }
     });
   }
 
+  function onRepositionClick() {
+    if (repositionAction === "reopen" && coverFraming) {
+      beginReposition(coverFraming);
+      return;
+    }
+    if (repositionAction === "pick") beginUpload();
+  }
+
   async function removeCover() {
+    resolveTrail();
     setMode("idle");
     setError("");
     setUploading(true);
     try {
+      bandPreview.current = null;
       patchSocialProfileOptimistic({ coverUrl: null });
       onPreview?.(null);
       const result = await clearSocialProfileCover();
@@ -248,13 +342,16 @@ export function SocialProfileCoverUpload({
   function onFilePick(file: File | undefined) {
     if (!coverFilePickOpensReposition(file, uploading) || !file) return;
     const picked = file;
+    resolveTrail();
     fileRef.current?.blur();
     setError("");
-    setPanOffset({ x: 0, y: 0 });
+    setEditSource("picked");
+    setFocus(COVER_FOCUS_CENTER);
     setRepositionSize(null);
+    sourceUpload.current = null;
+    openedCover.current = null;
     if (socialMediaKindFor(picked.type) !== "image") {
       saveBlocked.current = true;
-      coverBytes.current = null;
       setRepositionFile(null);
       setMode("reposition");
       setError(SOCIAL.home.mediaType);
@@ -262,11 +359,20 @@ export function SocialProfileCoverUpload({
     }
     saveBlocked.current = false;
     const gen = (loadGen.current += 1);
-    coverBytes.current = null;
     releaseOwnedPreview();
     setRepositionPreview(null);
     setRepositionFile(picked);
     setMode("reposition");
+    // The original uploads while the member frames; Save adds the crop.
+    // Best effort: a cover saves without an original if this fails.
+    if (coverSourceUploadable(picked)) {
+      sourceUpload.current = {
+        gen,
+        pending: uploadCoverFile(picked, presignSocialMediaUpload).catch(
+          (): CoverUploadResult => ({ ok: false, error: null }),
+        ),
+      };
+    }
     void readAccountAvatarCropPreview(picked)
       .then((next) => {
         if (loadGen.current !== gen) {
@@ -282,28 +388,14 @@ export function SocialProfileCoverUpload({
       });
   }
 
-  function computeCropFrame(size: { width: number; height: number } | null): AvatarCropFrame {
-    if (!size) return { scale: 1, offsetX: 0, offsetY: 0 };
-    const { width: imgW, height: imgH } = size;
-    const viewW = COVER_CROP_VIEW_WIDTH;
-    const viewH = COVER_CROP_VIEW_HEIGHT;
-    const cover = Math.max(viewW / imgW, viewH / imgH);
-    const drawW = imgW * cover;
-    const drawH = imgH * cover;
-    const centerX = (viewW - drawW) / 2;
-    const centerY = (viewH - drawH) / 2;
-    const bandH = SOCIAL_PROFILE_COVER_LOCK_A.heightDesktop;
-    const panScaleX =
-      viewW /
-      (bandH *
-        (SOCIAL_PROFILE_COVER_LOCK_A.aspectWidth /
-          SOCIAL_PROFILE_COVER_LOCK_A.aspectHeight));
-    const panScaleY = viewH / bandH;
-    return {
-      scale: 1,
-      offsetX: centerX + panOffset.x * panScaleX,
-      offsetY: centerY + panOffset.y * panScaleY,
-    };
+  function rollbackPreview(previewUrl: string) {
+    // A newer save or Remove owns the band now: leave it as it is.
+    if (bandPreview.current === previewUrl) {
+      bandPreview.current = null;
+      onPreview?.(null);
+      patchSocialProfileOptimistic({ coverUrl: null });
+    }
+    URL.revokeObjectURL(previewUrl);
   }
 
   async function onSaveReposition() {
@@ -312,34 +404,23 @@ export function SocialProfileCoverUpload({
       setError(SOCIAL.home.mediaType);
       return;
     }
+    const file = repositionFile;
+    const size = repositionSize;
+    if (!file || !size) return;
+    // A dismissed editor (hidden screen, unmount) bumps loadGen. A late result
+    // may still undo its own band preview, but must not close, clear or error
+    // a newer editing session.
+    const gen = loadGen.current;
+    const live = () => loadGen.current === gen;
+    const opened = editSource === "stored" ? openedCover.current : null;
     setError("");
     setUploading(true);
     let previewUrl: string | null = null;
 
     try {
-      let file = repositionFile;
-      if (!file) {
-        const url = coverUrl?.trim() || repositionPreview;
-        if (!url) throw new Error(SOCIAL.profile.coverCropFailed);
-        const loaded = coverPreviewIsLocal(url)
-          ? await loadLocalCoverFile(url, SOCIAL.profile.coverCropFailed)
-          : await (coverBytes.current ?? loadOwnCoverFile(SOCIAL.profile.coverCropFailed));
-        if (!loaded.file) {
-          coverBytes.current = null;
-          throw new Error(loaded.notice);
-        }
-        file = loaded.file;
-      }
-      let size = repositionSize;
-      if (!size) {
-        const measured = await readAccountAvatarCropPreview(file);
-        size = { width: measured.width, height: measured.height };
-        URL.revokeObjectURL(measured.url);
-      }
-      const frame = computeCropFrame(size);
       const cropped = await cropRectFile(
         file,
-        frame,
+        coverCropFrame(focus, size),
         COVER_CROP_VIEW_WIDTH,
         COVER_CROP_VIEW_HEIGHT,
         COVER_CROP_OUTPUT_WIDTH,
@@ -347,192 +428,199 @@ export function SocialProfileCoverUpload({
         COVER_CROP_OUTPUT_NAME,
         COVER_CROP_MAX_BYTES,
       );
+      const crop = coverCropRect(focus, size);
 
       previewUrl = URL.createObjectURL(cropped);
+      bandPreview.current = previewUrl;
       onPreview?.(previewUrl);
       patchSocialProfileOptimistic({ coverUrl: previewUrl });
 
-      const body = new FormData();
-      body.set("content_type", cropped.type);
-      body.set("byte_length", String(cropped.size));
-      body.set("lane", "posts");
-      const signed = await presignSocialMediaUpload(body);
-      if (
-        signed.error ||
-        !signed.url ||
-        !signed.key ||
-        !signed.kind ||
-        !signed.contentType
-      ) {
-        onPreview?.(null);
-        patchSocialProfileOptimistic({ coverUrl: null });
-        URL.revokeObjectURL(previewUrl);
-        setError(coverNoticeText(signed.error, SOCIAL.home.uploadFailed));
+      const pendingSource =
+        editSource === "picked" && sourceUpload.current?.gen === gen
+          ? sourceUpload.current.pending
+          : null;
+      const [upload, source] = await Promise.all([
+        uploadCoverFile(cropped, presignSocialMediaUpload),
+        pendingSource,
+      ]);
+      if (!upload.ok) {
+        rollbackPreview(previewUrl);
+        if (live()) setError(coverNoticeText(upload.error, SOCIAL.home.uploadFailed));
         return;
       }
 
-      const put = await fetch(signed.url, {
-        method: "PUT",
-        headers: { "Content-Type": signed.contentType },
-        body: cropped,
-      });
-      if (!put.ok) {
-        onPreview?.(null);
-        patchSocialProfileOptimistic({ coverUrl: null });
-        URL.revokeObjectURL(previewUrl);
-        setError(SOCIAL.home.uploadFailed);
-        return;
-      }
-
-      const save = new FormData();
-      save.set(
-        "media",
-        JSON.stringify([
-          {
-            kind: signed.kind,
-            key: signed.key,
-            contentType: signed.contentType,
-          },
-        ]),
+      const keptSource = source?.ok ? source.item : null;
+      const result = await saveSocialProfileCover(
+        socialProfileCoverSaveForm({
+          item: upload.item,
+          source: keptSource,
+          // Stored: new framing of the kept original. Picked: framing only
+          // travels with its original.
+          crop: editSource === "stored" || keptSource ? crop : null,
+          opened,
+        }),
       );
-      const result = await saveSocialProfileCover(save);
       if (result.error) {
-        onPreview?.(null);
-        patchSocialProfileOptimistic({ coverUrl: null });
-        URL.revokeObjectURL(previewUrl);
-        setError(coverNoticeText(result.error, SOCIAL.home.uploadFailed));
-      } else {
+        rollbackPreview(previewUrl);
+        if (live()) setError(coverNoticeText(result.error, SOCIAL.home.uploadFailed));
+      } else if (live()) {
+        sourceUpload.current = null;
+        openedCover.current = null;
         clearReposition();
+        restoreFocus.current = true;
         setMode("idle");
       }
     } catch (e) {
-      if (previewUrl) {
-        onPreview?.(null);
-        patchSocialProfileOptimistic({ coverUrl: null });
-        URL.revokeObjectURL(previewUrl);
+      if (previewUrl) rollbackPreview(previewUrl);
+      if (live()) {
+        setError(
+          coverFailureCopy(
+            e,
+            previewUrl ? SOCIAL.home.uploadFailed : SOCIAL.profile.coverCropFailed,
+          ),
+        );
       }
-      setError(
-        coverFailureCopy(
-          e,
-          previewUrl ? SOCIAL.home.uploadFailed : SOCIAL.profile.coverCropFailed,
-        ),
-      );
     } finally {
-      setUploading(false);
+      if (live()) setUploading(false);
     }
   }
 
-  function onPointerDown(e: React.PointerEvent) {
-    if (mode !== "reposition") return;
-    const el = e.currentTarget as HTMLElement;
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (mode !== "reposition" || !repositionSize || uploading) return;
+    const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
     captureEl.current = el;
     captureId.current = e.pointerId;
-    dragRef.current = {
+    dragState.current = {
       startX: e.clientX,
       startY: e.clientY,
-      originX: panOffset.x,
-      originY: panOffset.y,
+      origin: focus,
+      width: el.getBoundingClientRect().width,
     };
   }
 
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragRef.current || mode !== "reposition") return;
-    setPanOffset({
-      x: dragRef.current.originX + (e.clientX - dragRef.current.startX),
-      y: dragRef.current.originY + (e.clientY - dragRef.current.startY),
-    });
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragState.current;
+    if (!drag || mode !== "reposition" || !repositionSize) return;
+    setFocus(
+      moveCoverFocus(
+        drag.origin,
+        { x: e.clientX - drag.startX, y: e.clientY - drag.startY },
+        repositionSize,
+        drag.width,
+      ),
+    );
   }
 
   function onPointerUp() {
     releasePointer();
   }
 
+  function onDragKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const action = coverDragKeyAction(e.key, e.shiftKey, uploading);
+    if (!action) return;
+    e.preventDefault();
+    if (action.type === "cancel") {
+      cancelReposition();
+      return;
+    }
+    if (action.type !== "nudge" || !repositionSize) return;
+    const { delta } = action;
+    const size = repositionSize;
+    const width = e.currentTarget.getBoundingClientRect().width;
+    setFocus((current) => moveCoverFocus(current, delta, size, width));
+  }
+
   const isReposition = mode === "reposition";
-  const showPreview = isReposition && repositionPreview;
+  const slack = repositionSize ? coverHasSlack(repositionSize) : false;
+  const ready = Boolean(repositionFile && repositionSize);
+  const coverLabel = hasCover ? SOCIAL.profile.editCover : SOCIAL.profile.addCover;
+
+  // Nothing paints over the image except the avatar: the hint, the public
+  // note, Cancel/Save and errors sit in the head trail below the band.
+  const trailContent = (
+    <>
+      {isReposition && slack ? (
+        <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{SOCIAL.profile.coverDragHint}</p>
+      ) : null}
+      {isReposition ? (
+        <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{SOCIAL.profile.coverPublicNote}</p>
+      ) : null}
+      {isReposition ? (
+        <div data-social-cover-actions="" className={SOCIAL_PROFILE_COVER_TRAIL_ACTIONS_CLASS}>
+          <button
+            type="button"
+            disabled={uploading}
+            className={cn(SOCIAL_ACTION_SECONDARY_CLASS, SOCIAL_PROFILE_COVER_TRAIL_BUTTON_CLASS)}
+            onClick={cancelReposition}
+          >
+            {SOCIAL.profile.coverCancel}
+          </button>
+          <button
+            type="button"
+            disabled={uploading || !ready}
+            className={cn(SOCIAL_ACTION_CLASS, SOCIAL_PROFILE_COVER_TRAIL_BUTTON_CLASS)}
+            onClick={() => void onSaveReposition()}
+          >
+            {uploading ? SOCIAL.profile.uploadingPhoto : SOCIAL.profile.coverSaveChanges}
+          </button>
+        </div>
+      ) : null}
+      {error ? (
+        <div aria-live="polite" className={SOCIAL_PROFILE_COVER_TRAIL_NOTICE_CLASS}>
+          <InlineNotice tone="error">{error}</InlineNotice>
+        </div>
+      ) : null}
+    </>
+  );
 
   return (
-    <div ref={rootRef} className="contents">
-      {/* --- Reposition mode: bar + hint + draggable preview inside the cover band --- */}
+    <div ref={attachRoot} className="contents">
       {isReposition ? (
-        <>
-          <div className={SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS}>
-            <span className="flex items-center gap-2 rounded-[8px] bg-ink/60 px-3 py-1.5 t-body-sm font-medium text-band-ink">
-              {SOCIAL.profile.coverDragHint}
-            </span>
-          </div>
-          {showPreview ? (
-            // eslint-disable-next-line @next/next/no-img-element -- local blob for reposition preview
+        <div
+          ref={surfaceRef}
+          data-social-cover-drag=""
+          data-slack={slack ? "" : undefined}
+          role="group"
+          tabIndex={0}
+          aria-label={SOCIAL.profile.coverDragHint}
+          aria-busy={!ready}
+          className={SOCIAL_PROFILE_COVER_DRAG_CLASS}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onKeyDown={onDragKeyDown}
+        >
+          {repositionPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element -- local blob of the original for reposition
             <img
               src={repositionPreview}
               alt=""
               draggable={false}
-              className="absolute inset-0 z-0 size-full cursor-grab touch-none select-none object-cover opacity-70 active:cursor-grabbing"
-              style={{
-                objectPosition: `calc(50% + ${panOffset.x}px) calc(50% + ${panOffset.y}px)`,
-              }}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
-              onLoad={(event) => {
-                const image = event.currentTarget;
-                if (image.naturalWidth > 0 && image.naturalHeight > 0) {
-                  setRepositionSize({ width: image.naturalWidth, height: image.naturalHeight });
-                }
-              }}
+              className={SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS}
+              style={{ objectPosition: coverObjectPosition(focus) }}
               onError={() => setError(SOCIAL.profile.coverCropFailed)}
             />
           ) : null}
-          <div
-            data-social-cover-reposition-bar=""
-            className={SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS}
-          >
-            <p className="min-w-0 flex-1 t-body-sm text-band-ink/80">
-              {SOCIAL.profile.coverPublicNote}
-            </p>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                disabled={uploading}
-                className="rounded-[6px] border border-band-ink/30 bg-transparent px-3 py-1 t-body-sm font-medium text-band-ink hover:bg-band-ink/10"
-                onClick={cancelReposition}
-              >
-                {SOCIAL.profile.coverCancel}
-              </button>
-              <button
-                type="button"
-                disabled={uploading}
-                className="rounded-[6px] bg-accent px-3 py-1 t-body-sm font-medium text-accent-contrast hover:opacity-90 disabled:opacity-60"
-                onClick={() => void onSaveReposition()}
-              >
-                {uploading
-                  ? SOCIAL.profile.uploadingPhoto
-                  : SOCIAL.profile.coverSaveChanges}
-              </button>
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {/* --- Idle / menu mode: pill + dropdown below cover --- */}
-      {!isReposition ? (
+        </div>
+      ) : (
         <div
           className={SOCIAL_PROFILE_COVER_PILL_ANCHOR_CLASS}
           ref={menuRef}
           onMouseDown={(event) => event.stopPropagation()}
         >
           <button
+            ref={editButtonRef}
             type="button"
             data-social-profile-cover-edit=""
             disabled={uploading}
             aria-busy={uploading}
             aria-expanded={mode === "menu"}
             aria-haspopup="menu"
-            aria-label={
-              hasCover ? SOCIAL.profile.editCover : SOCIAL.profile.addCover
-            }
-            className={SOCIAL_PROFILE_COVER_PILL_CLASS}
+            aria-label={coverLabel}
+            title={coverLabel}
+            className={SOCIAL_PROFILE_COVER_EDIT_CLASS}
             onClick={() => {
               setMode((current) => {
                 if (current === "reposition") return current;
@@ -540,17 +628,11 @@ export function SocialProfileCoverUpload({
               });
             }}
           >
-            <SocialIcon name="camera" size={SOCIAL_ICON_SIZE_HEADER} />
-            <span>
-              {hasCover ? SOCIAL.profile.editCover : SOCIAL.profile.addCover}
-            </span>
+            <SocialIcon name="pencil-simple" size={SOCIAL_ICON_SIZE_HEADER} />
           </button>
 
           {mode === "menu" ? (
-            <div
-              data-social-cover-menu=""
-              className={SOCIAL_PROFILE_COVER_MENU_CLASS}
-            >
+            <div data-social-cover-menu="" className={SOCIAL_PROFILE_COVER_MENU_CLASS}>
               <button
                 type="button"
                 className={SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS}
@@ -564,23 +646,18 @@ export function SocialProfileCoverUpload({
                 className={SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS}
                 onClick={beginUpload}
               >
-                <SocialIcon
-                  name="upload-simple"
-                  size={SOCIAL_ICON_SIZE_HEADER}
-                />
+                <SocialIcon name="upload-simple" size={SOCIAL_ICON_SIZE_HEADER} />
                 {SOCIAL.profile.coverUpload}
               </button>
               {hasCover ? (
                 <>
                   <button
                     type="button"
+                    data-social-cover-reposition={repositionAction ?? undefined}
                     className={SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS}
-                    onClick={beginReposition}
+                    onClick={onRepositionClick}
                   >
-                    <SocialIcon
-                      name="image"
-                      size={SOCIAL_ICON_SIZE_HEADER}
-                    />
+                    <SocialIcon name="image" size={SOCIAL_ICON_SIZE_HEADER} />
                     {SOCIAL.profile.coverReposition}
                   </button>
                   <button
@@ -588,10 +665,7 @@ export function SocialProfileCoverUpload({
                     className={SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS}
                     onClick={() => void removeCover()}
                   >
-                    <SocialIcon
-                      name="trash"
-                      size={SOCIAL_ICON_SIZE_HEADER}
-                    />
+                    <SocialIcon name="trash" size={SOCIAL_ICON_SIZE_HEADER} />
                     {SOCIAL.profile.coverRemove}
                   </button>
                 </>
@@ -599,7 +673,7 @@ export function SocialProfileCoverUpload({
             </div>
           ) : null}
         </div>
-      ) : null}
+      )}
 
       <input
         ref={fileRef}
@@ -614,11 +688,7 @@ export function SocialProfileCoverUpload({
           onFilePick(picked);
         }}
       />
-      {error ? (
-        <div className="absolute inset-x-3 bottom-12 z-30" aria-live="polite">
-          <InlineNotice tone="error">{error}</InlineNotice>
-        </div>
-      ) : null}
+      {trail ? createPortal(trailContent, trail) : null}
     </div>
   );
 }

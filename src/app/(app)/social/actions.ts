@@ -17,7 +17,6 @@ import {
   socialMediaStagingKey,
   socialPublishedVideoRejection,
   validateMediaUpload,
-  profileCoverItemFromMedia,
   welcomeVideoItemFromMedia,
   type SocialMediaItem,
 } from "@/lib/social-media";
@@ -30,6 +29,7 @@ import {
   socialMuxSettingsFromUploadInput,
 } from "@/lib/social-mux-server";
 import { storyInsertRow, storyViewInsertRow } from "@/lib/social-stories";
+import { parseSocialProfileCoverSave } from "@/lib/social-profile-cover-save";
 import { ensureOwnSocialProfile, isProfileUniqueViolation } from "@/lib/social-profile";
 import { handleTakenError, lookupHandleCollision } from "@/lib/social-handle-taken";
 import { socialProfileRolesWrite } from "@/lib/social-profile-roles";
@@ -221,18 +221,63 @@ export async function clearSocialWelcomeVideo(): Promise<ActionResult> {
   return {};
 }
 
+// Keep the original (docs/design-locks/social-profile-header-linkedin-lock-v1.md).
+// framed: publish the cropped cover and its original, store both + framing.
+// reframe: publish the new crop only; the original is read here, never sent.
+//   save.opened (the cover_key the editor opened) is a compare-and-swap
+//   token only: every cover write mints a new cover_key, so a match means
+//   the original and framing are the ones the editor showed.
+// plain: a cover with no original (clears any stored original and framing).
 export async function saveSocialProfileCover(formData: FormData): Promise<ActionResult> {
   const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
-  const item = profileCoverItemFromMedia(formData.get("media"), user.id);
-  if (!item) return { error: SOCIAL.stories.mediaType };
-  const published = await publishSocialMediaItems([item], user.id, "posts");
-  if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
-  const { error } = await supabase
-    .from("profiles")
-    .update({ cover_key: published.items[0].key })
-    .eq("id", user.id);
-  if (error) return { error: error.message };
+  const save = parseSocialProfileCoverSave(formData, user.id);
+  if (!save) return { error: SOCIAL.stories.mediaType };
+
+  if (save.mode === "reframe") {
+    const { data: current, error: readError } = await supabase
+      .from("profiles")
+      .select("cover_key, cover_source_key")
+      .eq("id", user.id)
+      .maybeSingle();
+    const sourceKey =
+      !readError && typeof current?.cover_source_key === "string" ? current.cover_source_key : "";
+    if (!sourceKey || !isOwnedSocialMediaKey(sourceKey, user.id, "posts")) {
+      return { error: SOCIAL.profile.coverCropFailed };
+    }
+    // Another tab or device replaced or reframed the cover since this editor
+    // opened: refuse before publishing anything.
+    if (current?.cover_key !== save.opened) return { error: SOCIAL.profile.coverCropFailed };
+    const published = await publishSocialMediaItems([save.item], user.id, "posts");
+    if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
+    // Only while the cover and original are still the ones this framing was made on.
+    const { data: updated, error } = await supabase
+      .from("profiles")
+      .update({ cover_key: published.items[0].key, cover_crop: save.crop })
+      .eq("id", user.id)
+      .eq("cover_key", save.opened)
+      .eq("cover_source_key", sourceKey)
+      .select("id");
+    if (error) return { error: error.message };
+    if (!Array.isArray(updated) || updated.length !== 1) return { error: SOCIAL.profile.coverCropFailed };
+  } else {
+    const items = save.mode === "framed" ? [save.item, save.source] : [save.item];
+    const published = await publishSocialMediaItems(items, user.id, "posts");
+    if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
+    const { error } = await supabase
+      .from("profiles")
+      .update(
+        save.mode === "framed"
+          ? {
+              cover_key: published.items[0].key,
+              cover_source_key: published.items[1].key,
+              cover_crop: save.crop,
+            }
+          : { cover_key: published.items[0].key, cover_source_key: null, cover_crop: null },
+      )
+      .eq("id", user.id);
+    if (error) return { error: error.message };
+  }
   await bustSocialProfileHotCache(user.id, [profile?.handle]);
   revalidatePath(SOCIAL_ROUTES.profile);
   revalidatePath(SOCIAL_ROUTES.profileEdit);
@@ -243,7 +288,10 @@ export async function saveSocialProfileCover(formData: FormData): Promise<Action
 export async function clearSocialProfileCover(): Promise<ActionResult> {
   const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
-  const { error } = await supabase.from("profiles").update({ cover_key: null }).eq("id", user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ cover_key: null, cover_source_key: null, cover_crop: null })
+    .eq("id", user.id);
   if (error) return { error: error.message };
   await bustSocialProfileHotCache(user.id, [profile?.handle]);
   revalidatePath(SOCIAL_ROUTES.profile);

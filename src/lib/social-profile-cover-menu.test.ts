@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   coverMenuToggleSequence,
+  coverRepositionAction,
+  coverTrailTarget,
+  COVER_TRAIL_SELECTOR,
   nextCoverPillMode,
   reduceCoverMenu,
   type CoverMenuMachine,
@@ -54,5 +57,29 @@ describe("cover menu toggle", () => {
     expect(seen.every((mode) => mode === "menu")).toBe(true);
     expect(nextCoverPillMode("menu")).toBe("idle");
     expect(nextCoverPillMode("idle")).toBe("menu");
+  });
+});
+
+describe("cover Reposition (keep the original)", () => {
+  it("reopens a kept original and opens the picker for a cover without one", () => {
+    expect(coverRepositionAction({ hasCover: true, hasSource: true })).toBe("reopen");
+    expect(coverRepositionAction({ hasCover: true, hasSource: false })).toBe("pick");
+    expect(coverRepositionAction({ hasCover: false, hasSource: false })).toBeNull();
+    expect(coverRepositionAction({ hasCover: false, hasSource: true })).toBeNull();
+  });
+
+  it("finds the head trail inside the same identity block", () => {
+    const trail = { id: "trail" } as unknown as HTMLElement;
+    const host = {
+      querySelector: (selector: string) => (selector === COVER_TRAIL_SELECTOR ? trail : null),
+    };
+    const node = {
+      closest: (selector: string) => (selector === "[data-social-profile-identity]" ? host : null),
+    } as unknown as Element;
+    expect(COVER_TRAIL_SELECTOR).toBe("[data-social-profile-head-trail]");
+    expect(coverTrailTarget(node)).toBe(trail);
+    expect(coverTrailTarget(null)).toBeNull();
+    const orphan = { closest: () => null } as unknown as Element;
+    expect(coverTrailTarget(orphan)).toBeNull();
   });
 });
