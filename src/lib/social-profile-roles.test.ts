@@ -428,7 +428,9 @@ describe("social profile roles", () => {
     expect(chromeSrc).not.toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_ROLE_PILL_CLASS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_CENTER_CLASS");
-    expect(chromeSrc).toContain("HOUSE_CHIP_RAIL_CLASS");
+    // The Feed topic row (the chip rail's last Social user) is D plain words
+    // since G · Feed (docs/design-locks/social-home-lane-tabs-lock-v1.md).
+    expect(chromeSrc).not.toContain("HOUSE_CHIP_RAIL_CLASS");
     expect(chromeSrc).not.toContain("SOCIAL_PROFILE_ROLES_RAIL_CLASS");
     expect(chromeSrc).not.toContain("SOCIAL_PROFILE_ROLES_LINE_CLASS");
     expect(chromeSrc).not.toContain("SOCIAL_PROFILE_ROLES_PILL_CLASS");

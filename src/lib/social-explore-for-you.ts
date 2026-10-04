@@ -44,7 +44,20 @@ export type ExploreForYouQuery = {
   tag: string;
   person: string;
   discover: boolean;
+  /** `?v=` — a post id the For You stream opens at. "" when absent or not a UUID. */
+  v: string;
 };
+
+/** Explore deep link: `?v=<post uuid>`. Feed Reels tiles open this. */
+export const EXPLORE_FOR_YOU_VIDEO_PARAM = "v";
+
+const EXPLORE_POST_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A post UUID, lower-cased, or "". Anything else is ignored. */
+export function parseExploreForYouVideoParam(raw: string | string[] | undefined): string {
+  const value = firstParam(raw);
+  return EXPLORE_POST_ID_RE.test(value) ? value.toLowerCase() : "";
+}
 
 export type ExploreForYouMode = "for-you" | "keyword" | "hashtag" | "person" | "discover";
 
@@ -105,7 +118,18 @@ export function parseExploreForYouSearch(
     tag: exploreHashtagToken(firstParam(sp.tag)),
     person: normalizeHandle(firstParam(sp.person)) ?? "",
     discover: firstParam(sp.discover) === "1",
+    v: parseExploreForYouVideoParam(sp[EXPLORE_FOR_YOU_VIDEO_PARAM]),
   };
+}
+
+/**
+ * For You opened at a reel: that post first, then the For You page with
+ * it removed. A missing, removed, or non-video post is null and changes
+ * nothing; the video-only filter after this drops a pinned photo.
+ */
+export function pinExploreForYouHit<T extends { id: string }>(hits: readonly T[], pinned: T | null): T[] {
+  if (!pinned) return [...hits];
+  return [pinned, ...hits.filter((hit) => hit.id !== pinned.id)];
 }
 
 // discover=1 with a query is the chooser (lock C). It does not start For You.
@@ -124,12 +148,14 @@ export function exploreForYouHref(filter?: {
   tag?: string;
   person?: string;
   discover?: boolean;
+  v?: string;
 }): string {
   const params = new URLSearchParams();
   if (filter?.discover) params.set("discover", "1");
   if (filter?.q) params.set("q", filter.q);
   if (filter?.tag) params.set("tag", filter.tag);
   if (filter?.person) params.set("person", filter.person);
+  if (filter?.v) params.set(EXPLORE_FOR_YOU_VIDEO_PARAM, filter.v);
   const qs = params.toString();
   return qs ? `${SOCIAL_ROUTES.explore}?${qs}` : SOCIAL_ROUTES.explore;
 }

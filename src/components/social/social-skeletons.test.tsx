@@ -13,6 +13,19 @@ import {
   SOCIAL_PROFILE_STAT_VALUE_CLASS,
   SOCIAL_PROFILE_STATS_CLASS,
   SOCIAL_PROFILE_STATS_GRID_CLASS,
+  SOCIAL_COMPOSER_CLASS,
+  SOCIAL_FEED_ASIDE_CLASS,
+  SOCIAL_FEED_CENTER_CLASS,
+  SOCIAL_FEED_LAYOUT_CLASS,
+  SOCIAL_FEED_WALL_CLASS,
+  SOCIAL_FOR_YOU_RAIL_CLASS,
+  SOCIAL_HOME_LANE_TABS_CLASS,
+  SOCIAL_HOME_STORIES_RAIL_CLASS,
+  SOCIAL_HOME_STORY_ITEM_CLASS,
+  SOCIAL_HOME_STORY_TILE_CLASS,
+  SOCIAL_HOME_TOPIC_CLASS,
+  SOCIAL_HOME_TOPIC_ROW_CLASS,
+  SOCIAL_HOME_TOPIC_TRACK_CLASS,
 } from "@/lib/social-chrome";
 import {
   SocialCreateSkeleton,
@@ -64,32 +77,47 @@ describe("Social loading skeletons", () => {
     const follows = renderToStaticMarkup(<SocialFollowsSkeleton />);
 
     expect(home).toContain("data-social-home-skeleton");
-    expect(home).toContain('data-social-home-stack="lock_topics_composer_stories_wall"');
-    expect(home).toContain("data-social-home-composer-skeleton");
-    expect(home).toContain("data-social-home-topics-skeleton");
+    // G · Feed (Adam 2026-10-04): the skeleton follows the live stack —
+    // tabs → topic words → story tiles → composer bar → wall — on the same
+    // row classes, so nothing moves when the center mounts.
+    expect(home).toContain('data-social-home-stack="lock_tabs_topics_stories_composer_wall"');
+    const order = [
+      "data-social-home-lanes-skeleton",
+      "data-social-home-topics-skeleton",
+      "data-social-stories-skeleton",
+      "data-social-home-composer-skeleton",
+      "data-social-feed-skeleton",
+    ];
+    for (let i = 1; i < order.length; i += 1) {
+      expect(home.indexOf(order[i - 1]!)).toBeGreaterThan(-1);
+      expect(home.indexOf(order[i - 1]!)).toBeLessThan(home.indexOf(order[i]!));
+    }
+    expect(home).toContain(`class="${SOCIAL_FEED_LAYOUT_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_FEED_CENTER_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_HOME_LANE_TABS_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_HOME_TOPIC_ROW_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_COMPOSER_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_FEED_WALL_CLASS}"`);
+    expect(home).toContain(`data-social-stories-skeleton="" class="${SOCIAL_HOME_STORIES_RAIL_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_HOME_TOPIC_TRACK_CLASS}"`);
+    expect(home.split(`class="${SOCIAL_HOME_STORY_ITEM_CLASS}"`).length - 1).toBe(5);
+    expect(home).toContain(SOCIAL_HOME_STORY_TILE_CLASS);
     expect(home).not.toContain("data-social-home-topics-composer-divider");
-    expect(home.indexOf("data-social-home-topics-skeleton")).toBeLessThan(
-      home.indexOf("data-social-home-composer-skeleton"),
-    );
-    expect(home.indexOf("data-social-home-composer-skeleton")).toBeLessThan(
-      home.indexOf("data-social-stories-skeleton"),
-    );
-    expect(home.indexOf("data-social-stories-skeleton")).toBeLessThan(
-      home.indexOf("data-social-feed-skeleton"),
-    );
     expect(home).not.toContain("divide-y divide-hairline");
-    expect(home).not.toContain("bg-surface-muted py-");
+    expect(home).not.toContain("h-[240px]");
     const topicsSkeleton = home.slice(
       home.indexOf("data-social-home-topics-skeleton"),
-      home.indexOf("data-social-home-composer-skeleton"),
+      home.indexOf("data-social-stories-skeleton"),
     );
-    expect(topicsSkeleton).toContain("overflow-x-auto");
-    expect(topicsSkeleton).not.toContain("h-4 w-16");
-    expect(topicsSkeleton).not.toContain("gap-2");
-    expect(topicsSkeleton.match(/h-8 w-24 shrink-0 rounded-full/g)?.length).toBe(8);
+    expect(topicsSkeleton.split(`class="${SOCIAL_HOME_TOPIC_CLASS}"`).length - 1).toBe(8);
     expect(topicsSkeleton).not.toContain("flex-wrap");
+    // Topic words, not pills.
+    expect(topicsSkeleton).not.toContain("rounded-full");
     expect(home).toContain("data-social-stories-skeleton");
-    expect(home).toContain("data-social-for-you-skeleton");
+    // The Feed aside skeleton is the borderless 244 aside.
+    expect(home).toContain('data-social-for-you-skeleton="" data-social-for-you-layout="aside"');
+    expect(home).toContain(`class="${SOCIAL_FEED_ASIDE_CLASS}"`);
+    expect(home).not.toContain(SOCIAL_FOR_YOU_RAIL_CLASS);
     expect(home).not.toContain("data-social-recent-chats-skeleton");
     expect(profile).toContain("data-social-profile-skeleton");
     // Stage lock: the same stage and hero classes as the real face, so the

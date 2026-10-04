@@ -364,7 +364,16 @@ describe("Following wall Mux active gate", () => {
     const author = readFileSync("src/lib/social-author-post-card.ts", "utf8");
     const history = card.slice(card.indexOf("export function SocialAuthorHistory"), card.indexOf("export function SocialPostCard"));
     expect(feed).toContain("SocialFollowingMuxBand");
-    expect(feed).toContain("muxBandId={post.id}");
+    expect(feed).toContain("muxBandId={slot.post.id}");
+    // Feed Reels rail: stills inside the band, never in its order, never a
+    // player (one-player gate). docs/design-locks/social-feed-reel-rail-lock-v1.md
+    const rail = readFileSync("src/components/social/social-feed-reel-rail.tsx", "utf8");
+    expect(feed).toContain("socialFollowingMuxVideoOrder(merged)");
+    expect(feed).toContain("<SocialFeedReelRail");
+    expect(rail).not.toContain("SocialMuxPlayer");
+    expect(rail).not.toContain("muxBandId");
+    expect(rail).not.toContain("useSocialFollowingMux");
+    expect(rail).toContain("SocialStoryMuxThumb");
     expect(feed).toContain("@/components/social/social-post-card");
     expect(feed).not.toContain("social-ui");
     expect(feed.indexOf("<SocialFollowingMuxBand")).toBeLessThan(feed.indexOf("<SocialPostCard"));

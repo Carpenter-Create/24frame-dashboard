@@ -581,6 +581,13 @@ export const SOCIAL = {
     composerCamera: "Camera",
     followingTab: "Following",
     forYouTab: "For you",
+    // G board (Adam pick 2026-10-04): Following / For you text tabs sit in
+    // a nav of this name; the topic words are a group of this name; the
+    // chevron over the topic fade scrolls the row.
+    lanesLabel: "Feed scope",
+    topicsLabel: "Topics",
+    moreTopics: "More topics",
+    storiesLabel: "Stories",
     compose: "Write a post",
     submit: "Post",
     captionPlaceholder: "Add a caption…",
@@ -744,6 +751,8 @@ export const SOCIAL = {
     submit: "Share",
     you: "You",
     yourStory: "Your story",
+    // Feed story tiles (G board): the create tile's accessible name.
+    yourStoryCreate: "Your story, create a story",
     createCta: "Create a story",
     reply: "Reply quietly…",
   },
@@ -770,6 +779,14 @@ export const SOCIAL = {
     followBack: "Follow back",
     newFollowerTitle: "New follower",
     failed: "Could not update follow.",
+  },
+  // Feed Reels rail (Adam pick 2026-10-04, G board copy).
+  // docs/design-locks/social-feed-reel-rail-lock-v1.md
+  reels: {
+    title: "Reels",
+    previous: "Previous reels",
+    next: "Next reels",
+    opensInExplore: "Opens in Explore",
   },
   forYou: {
     title: "For you",

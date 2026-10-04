@@ -7,6 +7,7 @@ import { SocialForYouRail } from "@/components/social/social-for-you";
 import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot";
 import { SocialHomeComposer } from "@/components/social/social-home-composer";
 import { SocialHomeColdSlot, SocialHomeFollowingRail } from "@/components/social/social-home-cold-slot";
+import { SocialHomeLaneTabs } from "@/components/social/social-home-lane-tabs";
 import { SocialHomeTopics } from "@/components/social/social-home-topics";
 import {
   SocialForYouSkeleton,
@@ -14,9 +15,13 @@ import {
 } from "@/components/social/social-skeletons";
 import { SocialStoriesRail } from "@/components/social/social-stories-rail";
 import { warmStoryRailPlaybackTokens } from "@/lib/social-story-rail-mux-warm";
-import { cn } from "@/lib/cn";
-import { SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_HOME_SPINE_CLASS, SOCIAL_PILL_ACTIVE_CLASS, SOCIAL_PILL_CLASS } from "@/lib/social-chrome";
-import { signedAvatarUrls, signedSocialMediaByPostId } from "@/lib/social-edge";
+import {
+  SOCIAL_FEED_CENTER_CLASS,
+  SOCIAL_FEED_LAYOUT_CLASS,
+  SOCIAL_FEED_WALL_CLASS,
+} from "@/lib/social-chrome";
+import { signedAvatarUrls, signedSocialMediaByPostId, socialMediaProxiesByPostId } from "@/lib/social-edge";
+import { socialFeedReelTiles } from "@/lib/social-feed-reels";
 import { socialFollowingWallView } from "@/lib/social-following-wall";
 import { SocialFollowingWallBound } from "@/components/social/social-following-wall-bound";
 import {
@@ -37,6 +42,7 @@ import {
 import {
   groupStoryRail,
   loadGroupsByIds,
+  loadExploreMedia,
   loadLikedPostIds,
   loadLiveStories,
   loadProfilesByIds,
@@ -61,14 +67,18 @@ export default async function SocialHomePage({
   const lane = parseSocialHomeLane(sp[SOCIAL_HOME_LANE_PARAM]);
 
   return (
-    <div data-social-home="" className={SOCIAL_HOME_LAYOUT_CLASS}>
+    <div data-social-home="" className={SOCIAL_FEED_LAYOUT_CLASS}>
       <Suspense fallback={<SocialHomeCenterSkeleton />}>
         <SocialHomeCenter session={session} category={category} cursor={cursor} lane={lane} topic={topic} />
       </Suspense>
       <SocialHomeFollowingRail seedLane={lane} seedTopic={topic}>
         {lane === "following" ? (
-          <Suspense fallback={<SocialForYouSkeleton />}>
-            <SocialDesktopForYouSlot session={session} signCourseCovers={signedEducationCoverUrls} />
+          <Suspense fallback={<SocialForYouSkeleton layout="aside" />}>
+            <SocialDesktopForYouSlot
+              session={session}
+              signCourseCovers={signedEducationCoverUrls}
+              layout="aside"
+            />
           </Suspense>
         ) : null}
       </SocialHomeFollowingRail>
@@ -100,27 +110,31 @@ async function SocialHomeCenter({
   const { ctx, supabase } = session;
   const { profile, followees } = await loadHomeProfile(session);
   const authorIds = followingAuthorIds(ctx.user.id, followees.ids);
-  const [wall, storiesPage, suggested] = await Promise.all([
+  const interest = { topics: profile?.topics ?? [], crafts: profile?.crafts ?? [] };
+  // The Reels rail reads the For you Explore list (same RLS-bound loader
+  // and ranking as Explore). Only the post wall shows rails.
+  const wallLane = lane === "following" && !!profile;
+  const [wall, storiesPage, suggested, reelPage] = await Promise.all([
     profile
       ? loadCachedFollowingPosts(supabase, ctx.user.id, authorIds, { category, cursor })
       : Promise.resolve({ posts: [], truncated: false, nextCursor: null }),
     loadLiveStories(supabase, authorIds),
     lane === "for-you"
-      ? loadSuggestedPeople(supabase, [ctx.user.id, ...followees.ids], {
-          topics: profile?.topics ?? [],
-          crafts: profile?.crafts ?? [],
-        })
+      ? loadSuggestedPeople(supabase, [ctx.user.id, ...followees.ids], interest)
       : Promise.resolve([]),
+    wallLane ? loadExploreMedia(supabase, interest) : Promise.resolve({ hits: [], truncated: false }),
   ]);
   const posts = wall.posts;
   const stories = storiesPage.stories;
   const storyIds = stories.map((story) => story.id);
+  const reelHits = reelPage.hits;
   const peopleIds = [
     ...new Set([
       ctx.user.id,
       ...posts.map((post) => post.author_id),
       ...stories.map((story) => story.author_id),
       ...suggested.map((person) => person.id),
+      ...reelHits.map((hit) => hit.authorId),
     ]),
   ];
   const [viewed, authors, faces, media, groups, liked] = await Promise.all([
@@ -139,22 +153,23 @@ async function SocialHomeCenter({
   const rail = groupStoryRail(stories, viewed);
   const warmedThumbs = await warmStoryRailPlaybackTokens(ctx.user.id, rail);
   const photoUrl = faces.get(ctx.user.id) ?? null;
+  const reels = socialFeedReelTiles({
+    hits: reelHits,
+    mediaByPost: socialMediaProxiesByPostId(
+      reelHits.map((hit) => ({ id: hit.id, author_id: hit.authorId, media: hit.media })),
+    ),
+    authors,
+  });
 
   return (
-    <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={cn(SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_SPINE_CLASS)}>
+    <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={SOCIAL_FEED_CENTER_CLASS}>
       <div className="sr-only">
         <h1>{SOCIAL.home.title}</h1>
         <p>{SOCIAL.home.subtitle}</p>
       </div>
+      <SocialHomeLaneTabs lane={lane} topic={topic} />
       <SocialHomeTopics active={topic} lane={lane} />
       <SocialHomeColdSlot seedLane={lane} seedTopic={topic}>
-        {profile ? (
-          <SocialHomeComposer
-            authorName={profile.display_name}
-            authorHandle={profile.handle}
-            authorPhotoUrl={photoUrl}
-          />
-        ) : null}
         <SocialStoriesRail
           cards={rail}
           authors={authors}
@@ -164,47 +179,56 @@ async function SocialHomeCenter({
           createPhotoUrl={photoUrl}
           warmedThumbs={warmedThumbs}
         />
-        {storiesPage.truncated ? (
-          <InlineNotice tone="info" data-social-stories-truncated="">
-            {SOCIAL.home.truncatedStories}
-          </InlineNotice>
-        ) : null}
-        {followees.truncated ? (
-          <InlineNotice tone="info" data-social-followees-truncated="">
-            {SOCIAL.home.truncatedFollowees}
-          </InlineNotice>
-        ) : null}
-        {lane === "for-you" ? (
-          <SocialHomeForYouLane suggested={suggested} faces={faces} />
-        ) : (
-          <SocialFollowingWallBound
-            viewerId={ctx.user.id}
-            topic={topic}
-            cursor={
-              cursor
-                ? encodeFollowingWallCursor({ created_at: cursor.createdAt, id: cursor.id })
-                : null
-            }
-            wall={socialFollowingWallView({
-              wall,
-              authors,
-              faces,
-              groups,
-              liked,
-              media,
-              canLike: !!profile,
-              viewerId: ctx.user.id,
-            })}
-            empty={
-              <div data-social-following-empty="" className="flex flex-col gap-3">
-                <div data-social-empty-lenses="" className="hidden md:block">
-                  <span className={`${SOCIAL_PILL_CLASS} ${SOCIAL_PILL_ACTIVE_CLASS}`}>{SOCIAL_CATEGORY_ALL}</span>
-                </div>
-                <SocialHomeActivityEmpty findPeople={followees.ids.length === 0} />
-              </div>
-            }
+        {profile ? (
+          <SocialHomeComposer
+            authorName={profile.display_name}
+            authorHandle={profile.handle}
+            authorPhotoUrl={photoUrl}
           />
-        )}
+        ) : null}
+        <div data-social-home-wall="" className={SOCIAL_FEED_WALL_CLASS}>
+          {storiesPage.truncated ? (
+            <InlineNotice tone="info" data-social-stories-truncated="">
+              {SOCIAL.home.truncatedStories}
+            </InlineNotice>
+          ) : null}
+          {followees.truncated ? (
+            <InlineNotice tone="info" data-social-followees-truncated="">
+              {SOCIAL.home.truncatedFollowees}
+            </InlineNotice>
+          ) : null}
+          {lane === "for-you" ? (
+            <SocialHomeForYouLane suggested={suggested} faces={faces} />
+          ) : (
+            <SocialFollowingWallBound
+              viewerId={ctx.user.id}
+              topic={topic}
+              cursor={
+                cursor
+                  ? encodeFollowingWallCursor({ created_at: cursor.createdAt, id: cursor.id })
+                  : null
+              }
+              wall={socialFollowingWallView({
+                wall,
+                authors,
+                faces,
+                groups,
+                liked,
+                media,
+                canLike: !!profile,
+                viewerId: ctx.user.id,
+              })}
+              reels={reels}
+              empty={
+                // The topic row above already marks the current topic: no
+                // second filled "All" pill over the empty wall.
+                <div data-social-following-empty="" className="flex flex-col gap-3">
+                  <SocialHomeActivityEmpty findPeople={followees.ids.length === 0} />
+                </div>
+              }
+            />
+          )}
+        </div>
       </SocialHomeColdSlot>
     </div>
   );

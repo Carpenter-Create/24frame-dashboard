@@ -151,6 +151,7 @@ revert the app, then drop the rest. Visitors are never signed the original.
 Design lock:
 [`docs/design-locks/social-profile-header-linkedin-lock-v1.md`](../design-locks/social-profile-header-linkedin-lock-v1.md).
 Profile layout is A · Stage (founder pick): a 16:7 hero card, the cover framed once with the phone area outlined, no SQL change; lock [`docs/design-locks/social-profile-stage-lock-v1.md`](../design-locks/social-profile-stage-lock-v1.md).
+Social Feed is G (founder picks): Following / For you text tabs, topic words, story tiles, a composer bar, and a Reels rail after every 3 posts that opens Explore at `?v=`, no SQL change; locks [`docs/design-locks/social-home-lane-tabs-lock-v1.md`](../design-locks/social-home-lane-tabs-lock-v1.md) and [`docs/design-locks/social-feed-reel-rail-lock-v1.md`](../design-locks/social-feed-reel-rail-lock-v1.md).
 
 ---
 

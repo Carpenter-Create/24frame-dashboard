@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-29 (CT)  
 **Status:** **LOCKED** — ops / performance gate. No visual invent.  
+**Amended (Adam 2026-10-04, Reels rail):** the Feed's Reels rail tiles are stills (Mux thumbnails, minted when the rail nears the viewport); they never join the band order and never mount a player. One player at a time still holds. See [`social-feed-reel-rail-lock-v1.md`](social-feed-reel-rail-lock-v1.md).  
 **Entity:** Global Content / 24Frame only  
 **SoT:** `src/lib/social-following-mux-active.ts`  
 **Host:** `SocialOptimisticFeed` → `SocialPostCard` `muxBandId` → `social-feed-video.tsx` / `social-feed-carousel.tsx`  

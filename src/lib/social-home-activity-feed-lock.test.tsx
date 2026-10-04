@@ -24,10 +24,13 @@ describe("Social Home activity feed lock v1", () => {
     expect(Object.values(SOCIAL_ROUTES)).not.toContain("/social/home");
     expect(SOCIAL_NAV[0]?.href).toBe("/social");
     expect(home).toContain("data-social-home-stack={SOCIAL_HOME_STACK_LOCK}");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["topics", "composer", "stories", "wall"]);
-    expect(home.indexOf("<SocialHomeTopics")).toBeLessThan(home.indexOf("<SocialHomeComposer"));
-    expect(home.indexOf("<SocialHomeComposer")).toBeLessThan(home.indexOf("<SocialStoriesRail"));
-    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));
+    // G · Feed (Adam 2026-10-04): tabs → topics → stories → composer → wall.
+    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["tabs", "topics", "stories", "composer", "wall"]);
+    expect(home.indexOf("<SocialHomeLaneTabs")).toBeGreaterThan(-1);
+    expect(home.indexOf("<SocialHomeLaneTabs")).toBeLessThan(home.indexOf("<SocialHomeTopics"));
+    expect(home.indexOf("<SocialHomeTopics")).toBeLessThan(home.indexOf("<SocialStoriesRail"));
+    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialHomeComposer"));
+    expect(home.indexOf("<SocialHomeComposer")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));
     expect(home).not.toContain("SocialHomeTabs");
     expect(home).not.toContain("SocialStoriesEmpty");
   });

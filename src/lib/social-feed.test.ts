@@ -18,6 +18,7 @@ import {
   loadAuthorPosts,
   loadExploreMedia,
   loadExploreSearch,
+  loadExploreVideoPost,
   loadPeopleSearch,
   loadFolloweeIds,
   loadFollowingPosts,
@@ -385,6 +386,37 @@ describe("loadExploreMedia", () => {
   });
 });
 
+describe("loadExploreVideoPost (Explore ?v=)", () => {
+  it("reads one post through the same RLS-bound video-post query, narrowed by id", async () => {
+    const row = { id: "v1", body: " Night clip ", author_id: "u1", like_count: 2, comment_count: 1 };
+    const postsChain = feedChain([row]);
+    postsChain.maybeSingle = vi.fn(async () => ({ data: row, error: null }));
+    const from = vi.fn((table: string) => {
+      if (table !== "posts") throw new Error(`Explore ?v= must only read posts, not ${table}`);
+      return postsChain;
+    });
+    const hit = await loadExploreVideoPost({ from } as never, "v1");
+    expect(postsChain.eq).toHaveBeenCalledWith("status", "active");
+    expect(postsChain.is).toHaveBeenCalledWith("group_id", null);
+    expect(postsChain.contains).toHaveBeenCalledWith(
+      "media",
+      JSON.stringify([{ kind: "video", provider: "mux" }]),
+    );
+    expect(postsChain.eq).toHaveBeenCalledWith("id", "v1");
+    expect(postsChain.range).not.toHaveBeenCalled();
+    expect(hit).toMatchObject({ kind: "post", id: "v1", authorId: "u1", body: "Night clip", likeCount: 2 });
+  });
+
+  it("is null for an empty id or a post the read does not return", async () => {
+    const postsChain = feedChain([]);
+    postsChain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+    const from = vi.fn(() => postsChain);
+    expect(await loadExploreVideoPost({ from } as never, "")).toBeNull();
+    expect(from).not.toHaveBeenCalled();
+    expect(await loadExploreVideoPost({ from } as never, "gone")).toBeNull();
+  });
+});
+
 describe("loadPeopleSearch", () => {
   it("probes people independently of Explore posts", async () => {
     const people = Array.from({ length: SOCIAL_EXPLORE_PEOPLE_LIMIT + 1 }, (_, i) => ({
@@ -447,7 +479,15 @@ describe("class 5 Social Home access lock", () => {
     expect(stories).toContain("probeRange(SOCIAL_STORIES_RAIL_LIMIT)");
     expect(explore).toContain("probeRange(SOCIAL_EXPLORE_POSTS_LIMIT)");
     expect(explore).not.toContain("probeRange(SOCIAL_EXPLORE_PEOPLE_LIMIT)");
-    expect(explore.match(/exploreVideoPosts\(supabase\)/g)).toHaveLength(4);
+    // Four paged Explore reads plus the `?v=` single-post read (feed Reels
+    // tiles open Explore at a reel): same query shape, narrowed by id.
+    expect(explore.match(/exploreVideoPosts\(supabase\)/g)).toHaveLength(5);
+    const single = src.slice(
+      src.indexOf("export async function loadExploreVideoPost"),
+      src.indexOf("export async function loadExploreHashtag"),
+    );
+    expect(single).toContain('exploreVideoPosts(supabase).eq("id", postId).maybeSingle()');
+    expect(single).not.toContain("range(");
     const exploreQuery = src.slice(
       src.indexOf("function exploreVideoPosts"),
       src.indexOf("export async function loadExploreSearch"),

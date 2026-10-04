@@ -6,6 +6,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 import type { CourseRow } from "@/lib/courses";
+import {
+  SOCIAL_FEED_ASIDE_CLASS,
+  SOCIAL_FEED_ASIDE_RULE_CLASS,
+  SOCIAL_FEED_EYEBROW_CLASS,
+  SOCIAL_FOLLOW_COMPACT_CLASS,
+  SOCIAL_FOLLOW_QUIET_CLASS,
+  SOCIAL_FOR_YOU_CARD_CLASS,
+  SOCIAL_FOR_YOU_RAIL_CLASS,
+} from "@/lib/social-chrome";
 import { SOCIAL } from "@/lib/social";
 import { SocialForYouRail } from "./social-for-you";
 
@@ -75,5 +84,47 @@ describe("SocialForYouRail person identity", () => {
     expect(html).toContain('loading="lazy"');
     expect(html).not.toContain('rel="preload"');
     expect(html).toContain("data-social-latest-course");
+  });
+
+  // G · Feed aside (D): borderless, no "For you" eyebrow (the tab says it),
+  // Latest course first, a hairline, Suggested people with hairline Follow.
+  // docs/design-locks/social-home-lane-tabs-lock-v1.md
+  it("renders the Feed aside borderless: course, hairline, people, quiet Follow, no accent", () => {
+    const html = renderToStaticMarkup(
+      <SocialForYouRail
+        layout="aside"
+        people={[{ id: "u3", handle: "maya", display_name: "Maya Chen" }]}
+        faces={new Map()}
+        latestCourse={COURSE}
+        latestCourseCoverUrl={null}
+      />,
+    );
+    expect(html).toContain(`data-social-for-you-layout="aside" class="${SOCIAL_FEED_ASIDE_CLASS}"`);
+    expect(html).not.toContain(SOCIAL_FOR_YOU_RAIL_CLASS);
+    expect(html).not.toContain(SOCIAL_FOR_YOU_CARD_CLASS);
+    expect(html).not.toContain(`>${SOCIAL.forYou.title}<`);
+    expect(html).toContain(`<p class="${SOCIAL_FEED_EYEBROW_CLASS}">${SOCIAL.forYou.latestCourse}</p>`);
+    expect(html).toContain(`<p class="${SOCIAL_FEED_EYEBROW_CLASS}">${SOCIAL.forYou.people}</p>`);
+    const course = html.indexOf("data-social-latest-course");
+    const rule = html.indexOf(`class="${SOCIAL_FEED_ASIDE_RULE_CLASS}"`);
+    const people = html.indexOf("data-social-for-you-people");
+    expect(course).toBeGreaterThan(-1);
+    expect(course).toBeLessThan(rule);
+    expect(rule).toBeLessThan(people);
+    expect(html).toContain(`class="${SOCIAL_FOLLOW_QUIET_CLASS}"`);
+    expect(html).not.toContain(SOCIAL_FOLLOW_COMPACT_CLASS);
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("h-[30px]");
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("border-hairline");
+    expect(html).not.toContain("bg-accent");
+  });
+
+  it("keeps the framed rail (Profile, Messages, Create) unchanged", () => {
+    const html = renderToStaticMarkup(
+      <SocialForYouRail people={[{ id: "u3", handle: "maya", display_name: "Maya Chen" }]} faces={new Map()} />,
+    );
+    expect(html).toContain(SOCIAL_FOR_YOU_RAIL_CLASS);
+    expect(html).toContain(SOCIAL.forYou.title);
+    expect(html).toContain(SOCIAL_FOLLOW_COMPACT_CLASS);
+    expect(html).not.toContain(SOCIAL_FOLLOW_QUIET_CLASS);
   });
 });

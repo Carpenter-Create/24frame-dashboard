@@ -1,7 +1,8 @@
 # [GC][24Frame] LOCK — Social Home Topics strip center v1
 
 **Date:** 2026-09-25
-**Status:** **LOCKED** (Adam glance on tip `705672c3`: composer PASS. Nit: Topic pills sit closer to the bottom of the strip than the top.) · **Desktop header inset** amend 2026-09-29: desktop top air is the shared Social header inset. The phone pull stays.
+**Status:** **LOCKED** (Adam glance on tip `705672c3`: composer PASS. Nit: Topic pills sit closer to the bottom of the strip than the top.) · **Desktop header inset** amend 2026-09-29: desktop top air is the shared Social header inset. The phone pull stays.  
+**Superseded (Adam 2026-10-04, G · Feed):** the topic pills are gone; the topic row is D plain words under E's tabs. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
 **Repo citation:** `docs/design-locks/social-home-topics-strip-center-lock-v1.md`
 **Does not reopen:** `docs/design-locks/social-home-composer-fb-row-sheet-lock-v1.6.md`
 

@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-24 (CT)  
 **Status:** **LOCKED** (CoS NOT CLEAR on v1.5 · Adam decisive: keep what we had · slightly less tall · grey top+bottom only · not full box) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · stay #681 **DRAFT** · CoS CLEAR → Dev tip · Design HOLD invent else  
+**Superseded for the Feed face (Adam 2026-10-04, G · Feed):** the composer is D's muted bar (52 tall, radius 16, no rule; Photo / Camera 44 phone, 36 desktop). Prompt copy, the write sheet and icon-only Photo then Camera stay. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
 **Repo citation:** `docs/design-locks/social-home-composer-fb-row-sheet-lock-v1.6.md`  
 **Box draft:** `/workspace/24frame-agg-ux/social-home-composer-fb-row-sheet-lock-v1.6.md`  
 **Pattern:** **FB-row+sheet** — unchanged  

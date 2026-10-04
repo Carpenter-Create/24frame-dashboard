@@ -11,11 +11,14 @@ import { InlineNotice } from "@/components/ui/inline-notice";
 import { SOCIAL_QUERY_STALE_MS, socialFollowingWallQueryKey } from "@/lib/social-cache-keys";
 import type { SocialFollowingWallView } from "@/lib/social-following-wall";
 import type { SocialCategoryLabel } from "@/lib/social-categories";
+import type { SocialFeedReelTile } from "@/lib/social-feed-reels";
 import { socialFollowingWallHref } from "@/lib/social-home-bounds";
 import { SOCIAL } from "@/lib/social";
 
 // Query owns the Following wall after boot. RSC seeds initialData.
 // Follow invalidation must repaint this tree — do not return stale children.
+// Reels ride beside the query as a prop (the For you Explore list, loaded
+// with the RSC); they never join the wall's query or its cache key.
 
 export function SocialFollowingWallBound({
   viewerId,
@@ -23,17 +26,26 @@ export function SocialFollowingWallBound({
   cursor,
   wall,
   empty,
+  reels,
 }: {
   viewerId: string;
   topic: SocialCategoryLabel;
   cursor: string | null;
   wall: SocialFollowingWallView;
   empty?: ReactNode;
+  reels?: readonly SocialFeedReelTile[];
 }) {
   const client = useAppQueryClient();
-  if (!client) return <SocialFollowingWallPaint topic={topic} wall={wall} empty={empty} />;
+  if (!client) return <SocialFollowingWallPaint topic={topic} wall={wall} empty={empty} reels={reels} />;
   return (
-    <SocialFollowingWallBoundLive viewerId={viewerId} topic={topic} cursor={cursor} wall={wall} empty={empty} />
+    <SocialFollowingWallBoundLive
+      viewerId={viewerId}
+      topic={topic}
+      cursor={cursor}
+      wall={wall}
+      empty={empty}
+      reels={reels}
+    />
   );
 }
 
@@ -43,12 +55,14 @@ function SocialFollowingWallBoundLive({
   cursor,
   wall,
   empty,
+  reels,
 }: {
   viewerId: string;
   topic: SocialCategoryLabel;
   cursor: string | null;
   wall: SocialFollowingWallView;
   empty?: ReactNode;
+  reels?: readonly SocialFeedReelTile[];
 }) {
   const query = useQuery({
     queryKey: socialFollowingWallQueryKey(viewerId, topic, cursor),
@@ -56,17 +70,19 @@ function SocialFollowingWallBoundLive({
     initialData: wall,
     staleTime: SOCIAL_QUERY_STALE_MS,
   });
-  return <SocialFollowingWallPaint topic={topic} wall={query.data ?? wall} empty={empty} />;
+  return <SocialFollowingWallPaint topic={topic} wall={query.data ?? wall} empty={empty} reels={reels} />;
 }
 
 function SocialFollowingWallPaint({
   topic,
   wall,
   empty,
+  reels,
 }: {
   topic: SocialCategoryLabel;
   wall: SocialFollowingWallView;
   empty?: ReactNode;
+  reels?: readonly SocialFeedReelTile[];
 }) {
   return (
     <>
@@ -80,7 +96,7 @@ function SocialFollowingWallPaint({
           ) : null}
         </div>
       ) : null}
-      <SocialOptimisticFeed topic={topic} posts={wall.cards} empty={empty} />
+      <SocialOptimisticFeed topic={topic} posts={wall.cards} empty={empty} reels={reels} />
     </>
   );
 }

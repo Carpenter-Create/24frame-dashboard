@@ -4,15 +4,14 @@ import { describe, expect, it } from "vitest";
 import { HOUSE_PILL_ITEM_CLASS, HOUSE_PILL_MEASURE_CLASS } from "@/lib/house-shell";
 import {
   SOCIAL_CHIP_HIT_CLASS,
+  SOCIAL_HOME_TOPIC_CLASS,
+  SOCIAL_HOME_TOPIC_CURRENT_CLASS,
   SOCIAL_PILL_CLASS,
   SOCIAL_PROFILE_ROLE_PILL_CLASS,
   SOCIAL_TOPIC_CHIP_CLASS,
   SOCIAL_TOPIC_CHIP_MEASURE_CLASS,
   SOCIAL_TOPIC_CHIP_SELECT_IDLE_CLASS,
   SOCIAL_TOPIC_CHIP_SELECT_ON_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS,
 } from "@/lib/social-chrome";
 
 const chromeSrc = readFileSync("src/lib/social-chrome.ts", "utf8");
@@ -27,7 +26,7 @@ function exportRhs(name: string): string {
 }
 
 describe("social chip hit", () => {
-  it("locks Home topic chips to one h-8 measure", () => {
+  it("locks Social topic chips to one h-8 measure", () => {
     expect(SOCIAL_CHIP_HIT_CLASS).toBe(CHIP_HIT_LITERAL);
     expect(SOCIAL_CHIP_HIT_CLASS).toContain("h-8");
     expect(SOCIAL_CHIP_HIT_CLASS).toContain("whitespace-nowrap");
@@ -36,20 +35,18 @@ describe("social chip hit", () => {
     expect(SOCIAL_CHIP_HIT_CLASS).not.toContain("text-[11px]");
     expect(SOCIAL_CHIP_HIT_CLASS).not.toMatch(/\bmd:/);
 
-    expect(SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
+    // G · Feed (Adam 2026-10-04): the Feed topic row is D plain words, not
+    // chips. docs/design-locks/social-home-lane-tabs-lock-v1.md
+    expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain(SOCIAL_CHIP_HIT_CLASS);
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain(SOCIAL_CHIP_HIT_CLASS);
+    expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain("rounded-full");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_SELECT_IDLE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_SELECT_ON_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_PILL_CLASS).toBe(SOCIAL_CHIP_HIT_CLASS);
 
-    for (const chip of [
-      SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS,
-      SOCIAL_TOPIC_CHIP_MEASURE_CLASS,
-      SOCIAL_PILL_CLASS,
-    ]) {
+    for (const chip of [SOCIAL_TOPIC_CHIP_MEASURE_CLASS, SOCIAL_PILL_CLASS]) {
       expect(chip).toContain("h-8");
       expect(chip).not.toContain("py-[var(--space-2)]");
       expect(chip).not.toContain(HOUSE_PILL_ITEM_CLASS);
@@ -84,11 +81,7 @@ describe("social chip hit", () => {
     expect(chromeSrc.match(new RegExp(CHIP_HIT_LITERAL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")))
       .toHaveLength(1);
 
-    for (const name of [
-      "SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS",
-      "SOCIAL_TOPIC_CHIP_MEASURE_CLASS",
-      "SOCIAL_PILL_CLASS",
-    ]) {
+    for (const name of ["SOCIAL_TOPIC_CHIP_MEASURE_CLASS", "SOCIAL_PILL_CLASS"]) {
       const rhs = exportRhs(name);
       expect(rhs).toContain("SOCIAL_CHIP_HIT_CLASS");
       expect(rhs).not.toContain("h-8");

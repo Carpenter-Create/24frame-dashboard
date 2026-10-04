@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-26 (CT)  
 **Status:** **LOCKED** · Adam LOCK Explore v2 2026-09-26 · **video-only** fold 2026-09-26 · **Stories-class full-bleed** amend 2026-09-26 · **mute control** amend 2026-09-26 · **mute persistence** amend 2026-09-28 (Adam CLEAR · B2 unmute leak) · **desktop header + Exit** amend 2026-09-29 (Adam LOCK AMEND) · **desktop portrait player** amend 2026-09-29 (Adam LOCK) · Design Own→READY · Design no PR · CoS CLEAR Dev after READY  
+**Amended (Adam 2026-10-04, Reels rail):** For You accepts `?v=<post uuid>` as its start item — that video first (same RLS-bound video read), then the For You page without it; a missing, removed or non-video id is ignored. Exit takes Back when a feed reel opened it. See [`social-feed-reel-rail-lock-v1.md`](social-feed-reel-rail-lock-v1.md).  
 **Repo:** `docs/design-locks/social-explore-for-you-immersive-lock-v2.md`  
 **Box:** `/workspace/24frame-agg-ux/social-explore-for-you-immersive-lock-v2.md`  
 **Supersedes:** `social-explore-discovery-lock-v1.md` (IG grid) · **#693 DRAFT wrong shape** — do not invent on grid; ship from this v2  

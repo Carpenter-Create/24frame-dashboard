@@ -14,11 +14,6 @@
 // house-shell. Feed / stories / create measured IA stays here.
 
 import {
-  HOUSE_CHIP_RAIL_CLASS,
-  HOUSE_CHIP_RAIL_ROW_CLASS,
-  HOUSE_CHIP_RAIL_STACK_CLASS,
-} from "@/lib/house-chip-rail";
-import {
   HOUSE_FILTER_OFF_CLASS,
   HOUSE_FILTER_ON_CLASS,
   HOUSE_MODULE_CLASS,
@@ -127,18 +122,6 @@ const socialShellCenterClass =
 
 export const SOCIAL_HOME_CENTER_CLASS = socialShellCenterClass;
 
-// Home spine only. Phone SoT. Density lock v1.1: 8 between Topics,
-// composer, Stories, and the feed (supersedes v1's 16). Profile,
-// Explore, and Messages keep the shared gap-2 center.
-export const SOCIAL_HOME_SPINE_CLASS = "gap-[var(--space-2)]";
-
-// Topics sit between the header hairline and the composer top rule.
-// Desktop top air is the shared header inset (8), matching the spine
-// gap, so this host does not pull on desktop. Phone frame top stays
-// 16; the phone-only pull restores equal 8 air. Pill hit stays 32.
-export const SOCIAL_HOME_TOPICS_CLASS =
-  "min-w-0 py-0 max-md:-mt-[var(--space-2)]";
-
 // Profile desktop row matches Home: this column plus SocialForYouRail
 // at lg+. Explore and Messages use that same row. The center stays
 // the shared 720. The pair stays tight. Phone stays the full phone canvas.
@@ -216,42 +199,14 @@ export const SOCIAL_STORY_FACE_CLASS =
 export const SOCIAL_STORY_MEDIA_CLASS =
   "relative size-full overflow-hidden rounded-[9px] bg-surface-muted";
 
-// Home tall FB-style cards. Phone SoT 136×240; desktop follows at 144×256.
-// Density lock v1.1 — do not shrink back to v1 120×208, and do not
-// shrink sparse rails (≤2 cards) or invent empty placeholders.
-export const SOCIAL_HOME_STORY_CARD_CLASS =
-  `relative h-[240px] w-[136px] shrink-0 overflow-hidden ${SOCIAL_SURFACE_RADIUS_CLASS} border border-hairline bg-surface md:h-[256px] md:w-[144px]`;
-
-// Rail pad H 0, top 0, bottom 8. Gap 8. Same on phone and desktop.
-export const SOCIAL_HOME_STORIES_TRACK_CLASS = "flex w-max gap-2 px-0 pt-0 pb-2";
-
-// Create plate stays 72 phone / 80 md. The larger card grows the upper
-// media face. Seam = card height − plate (168 phone / 176 md).
-export const SOCIAL_HOME_STORY_CREATE_FACE_CLASS =
-  "absolute inset-x-0 top-0 h-[168px] overflow-hidden bg-surface-muted md:h-[176px]";
-
-// Accent circle + white plus glyph. Not a white-fill well (Plus fill
-// knockout reads as white disc / blue +). border-surface is the seam
-// ring only — not the well fill. Phone + desktop share this class.
-// Centered on the photo/plate seam (168 phone / 176 md). 36 phone / 40 md.
-export const SOCIAL_HOME_STORY_PLUS_CLASS =
-  "absolute left-1/2 top-[150px] z-10 flex size-9 -translate-x-1/2 items-center justify-center rounded-full border-[3px] border-surface bg-accent text-accent-contrast md:top-[156px] md:size-10";
-
 // Adam 2026-09-20 — Create Story is Social chrome, not an eyebrow.
 // t-label uppercase + 0.12em track stacked CREATE / STORY as a
 // leftover specialty face. Same token as Topics / Share something /
 // Create sheet tiles. One SoT for phone + desktop — no device fork.
+// The Feed's story tiles (G) moved to SOCIAL_HOME_STORY_* below; this
+// stays for the /social/stories surface.
 export const SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS =
   "t-body-sm font-medium text-ink";
-
-export const SOCIAL_HOME_STORY_CREATE_LABEL_CLASS =
-  `absolute inset-x-0 bottom-0 flex h-[72px] items-center justify-center bg-surface px-2 text-center ${SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS} md:h-20`;
-
-export const SOCIAL_HOME_STORY_FACE_RING_CLASS =
-  "absolute left-2 top-2 z-10 flex size-8 items-center justify-center overflow-hidden rounded-full border-2 bg-surface p-[2px] md:size-9";
-
-export const SOCIAL_HOME_STORY_FACE_CLASS =
-  "flex size-full items-center justify-center overflow-hidden rounded-full bg-surface t-label font-semibold text-ink";
 
 export const SOCIAL_STORIES_CARD_CLASS =
   `flex h-[168px] w-[112px] shrink-0 items-center justify-center ${SOCIAL_SURFACE_RADIUS_CLASS} p-[3px]`;
@@ -326,36 +281,43 @@ export const SOCIAL_STORY_ACTION_IDLE_CLASS = "text-band-ink/70";
 
 export const SOCIAL_STORY_HEART_LIKED_CLASS = "text-[#1769FF]";
 
-// Home composer share stage. Phone SoT; desktop uses this same row.
-// FB-row lock v1.6. White band, pad Y 8, pad H 16. Content is 40,
-// so the band is 56 before the rules. Hairline is top and bottom
-// only: no side stroke, radius 0. The rules are the host borders.
-// No sibling divider above the band.
-// Field stays v1.2: transparent, no border, no shadow, no outline.
-// Radius 20 is hit geometry only. Gap avatar→field 8.
-// Photo then Camera stay v1.1: glyph 16, hit 32, gap 0, 8px after the
-// field, ink-2. No labels. No Live/Feeling strip.
+// Feed composer bar (G · D, Adam pick 2026-10-04). Supersedes the FB-row
+// v1.6 white band. One muted bar, radius 16, 52 tall, no rule. Desktop:
+// pad 0 6 0 10, gap 10, avatar 32, prompt 40 tall, Photo then Camera at
+// 36 with 18 glyphs. Phone: inset 12 from the viewport (the frame pads
+// 16), pad 0 4 0 10, gap 6, avatar 30, prompt 44, Photo and Camera 44
+// with 20 glyphs. Prompt copy, the write sheet, and the pickers are
+// unchanged. Stack air: 16 (phone) / 18 (desktop) under the story tiles,
+// whose 4px ring pad is subtracted here.
 export const SOCIAL_COMPOSER_CLASS =
-  "flex w-full items-center rounded-none border-x-0 border-y border-hairline bg-surface px-[var(--space-4)] py-[var(--space-2)] text-left";
+  "mt-3 flex h-[52px] w-full items-center gap-1.5 rounded-[var(--radius-lg)] bg-surface-muted pl-2.5 pr-1 text-left max-md:-mx-1 max-md:w-[calc(100%+var(--space-2))] md:mt-[14px] md:gap-2.5 md:pr-1.5";
 
 export const SOCIAL_COMPOSER_ROW_CLASS =
-  "flex min-w-0 flex-1 items-center gap-[var(--space-2)]";
+  "flex min-w-0 flex-1 items-center gap-1.5 md:gap-2.5";
 
-// 8px after the field. Hits sit flush.
-export const SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS =
-  "ml-[var(--space-2)] flex shrink-0 items-center gap-0";
+export const SOCIAL_COMPOSER_AVATAR_CLASS = "size-[30px] md:size-8";
+
+export const SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS = "flex shrink-0 items-center gap-0";
 
 export const SOCIAL_COMPOSER_AFFORDANCE_CLASS =
-  "inline-flex size-8 shrink-0 items-center justify-center bg-transparent text-ink-2";
+  "inline-flex size-11 shrink-0 items-center justify-center bg-transparent text-ink-2 md:size-9";
+
+export const SOCIAL_COMPOSER_AFFORDANCE_GLYPH = 20;
+export const SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS = "text-ink-2 md:size-[18px]";
 
 export const SOCIAL_COMPOSER_FIELD_CLASS =
-  "flex h-10 min-w-0 flex-1 items-center rounded-[20px] border-0 bg-transparent px-[var(--space-4)] t-body text-ink-2 outline-none";
+  "flex h-11 min-w-0 flex-1 items-center border-0 bg-transparent px-1.5 t-body-sm text-ink-2 outline-none md:h-10 md:px-1";
 
 export const SOCIAL_COMPOSER_MEDIA_CLASS =
   "relative flex size-9 shrink-0 cursor-pointer items-center justify-center text-ink-2";
 
 export const SOCIAL_FOLLOW_COMPACT_CLASS =
   "inline-flex items-center rounded-[8px] bg-accent px-[var(--space-3)] py-[var(--space-2)] t-body-sm font-semibold text-accent-contrast";
+
+// Feed aside (G · D): a hairline 30 Follow, no accent fill. The feed
+// screen's only accents are the shell's Ask sparkle and Create.
+export const SOCIAL_FOLLOW_QUIET_CLASS =
+  "inline-flex h-[30px] shrink-0 items-center rounded-[var(--radius)] border border-hairline bg-canvas px-3 text-[length:var(--text-xs)] font-medium text-ink";
 
 export const SOCIAL_FOLLOW_COMPACT_IDLE_CLASS =
   "inline-flex items-center rounded-[8px] border border-hairline bg-surface px-[var(--space-3)] py-[var(--space-2)] t-body-sm font-semibold text-ink";
@@ -504,13 +466,6 @@ export const SOCIAL_POST_ACTION_HEART_NUDGE_CLASS = "translate-y-px";
 // Dark-mode --accent is the soft flip, not this control.
 // docs/design-locks/social-home-post-actions-align-lock-v1.md
 export const SOCIAL_POST_ACTION_LIKED_CLASS = "text-[#1769FF]";
-
-// Phone only. Under the Home Stories rail, same hairline as the feed.
-// The host is already bled, so the rule meets the viewport.
-// Desktop stays without it.
-// docs/design-locks/social-home-stories-feed-hairline-lock-v1.md
-export const SOCIAL_STORIES_FEED_RULE_CLASS =
-  "max-md:border-b max-md:border-solid max-md:border-hairline";
 
 // Adam lock 2026-09-25. Feed posts with 2 or more media items use one
 // swipe stage. The stage is the card width. The row's overflow-hidden
@@ -959,26 +914,174 @@ export const SOCIAL_PROFILE_ROLES_CLASS =
 export const SOCIAL_PROFILE_ROLE_PILL_CLASS =
   "inline-flex min-h-8 max-w-full items-center rounded-full bg-surface-muted px-3 py-1 break-words text-[length:var(--text-xs)] font-medium leading-snug text-ink md:min-h-9 md:px-3.5";
 
-// Home Topics uses the house chip rail host. Not SegmentedTrack: lenses
-// stay discrete chips (All first). Selected uses HOUSE_PILL_SELECTED_CLASS
-// (accent fill + white). Density lock v1.1: chip hit is SOCIAL_CHIP_HIT_CLASS
-// (32 / h-8), not the fat HOUSE_CHIP_RAIL_CHIP_CLASS. Type stays t-body-sm.
-// One horizontal row. Phone scrolls — never truncate. HOUSE_CHIP_RAIL_ROWS
-// stays 2 for every other chip-rail consumer.
-export const SOCIAL_TOPIC_RAIL_ROWS = 1;
-export const SOCIAL_TOPIC_RAIL_CLASS = HOUSE_CHIP_RAIL_CLASS;
-export const SOCIAL_TOPIC_RAIL_STACK_CLASS = HOUSE_CHIP_RAIL_STACK_CLASS;
-export const SOCIAL_TOPIC_CHIP_ROW_CLASS = HOUSE_CHIP_RAIL_ROW_CLASS;
-export const SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS =
-  `relative z-10 cursor-pointer select-none ${SOCIAL_CHIP_HIT_CLASS}`;
-export const SOCIAL_TOPIC_RAIL_CHIP_CLASS =
-  `${SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS} ${HOUSE_FILTER_OFF_CLASS}`;
-export const SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS =
-  `${SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS} ${HOUSE_PILL_SELECTED_CLASS}`;
+// ---------------------------------------------------------------------
+// G · Feed (Adam picks 2026-10-04): "I think I like 1) Feed, Explore from
+// D-Screening Room. ... I do also like the "Following/For you" text tabs
+// on E-Contact sheet." Feed column, E lane tabs, D topic words, D story
+// tiles, D composer bar, borderless aside, the Reels rail. Tokens only.
+// The feed content carries zero accent.
+// docs/design-locks/social-home-lane-tabs-lock-v1.md
+// docs/design-locks/social-feed-reel-rail-lock-v1.md
+// ---------------------------------------------------------------------
 
-export function socialTopicRailChipClass(selected: boolean): string {
-  return selected ? SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS : SOCIAL_TOPIC_RAIL_CHIP_CLASS;
+// D grid: feed column 620, gap 40, aside 244 (pair 904). /social only.
+// Profile, Messages, Create and the stories index keep the 720/32/300
+// row above. Same lg end alignment as that row (lead air stays on the
+// lead side). Below lg the aside is display:none and the column fills.
+export const SOCIAL_FEED_MEASURE = { center: 620, gutter: 40, right: 244 } as const;
+export const SOCIAL_FEED_PAIR_WIDTH =
+  SOCIAL_FEED_MEASURE.center + SOCIAL_FEED_MEASURE.gutter + SOCIAL_FEED_MEASURE.right;
+export const SOCIAL_FEED_LAYOUT_CLASS =
+  "flex w-full items-start gap-[40px] lg:ml-auto lg:max-w-[904px]";
+export const SOCIAL_FEED_CENTER_CLASS =
+  "flex min-w-0 w-full flex-1 flex-col lg:max-w-[620px]";
+export const SOCIAL_FEED_ASIDE_CLASS = "hidden w-[244px] shrink-0 flex-col pt-1 lg:flex";
+
+// Board ink3 is #6B7280 light (= ink-3) and #a7adb4 dark (= ink-2). The
+// house dark ink-3 (#6b7278) is 3.9:1 on the dark page and fails AA for
+// 13–20px labels, so quiet feed labels take ink-2 in dark. Existing
+// tokens only; no new colour.
+export const SOCIAL_FEED_QUIET_INK_CLASS = "text-ink-3 dark:text-ink-2";
+
+// Eyebrow: 13 / 500 / 0.06em / uppercase, quiet ink. Reels and the aside.
+export const SOCIAL_FEED_EYEBROW_CLASS =
+  `m-0 text-[length:var(--text-xs)] font-medium uppercase leading-none tracking-[0.06em] ${SOCIAL_FEED_QUIET_INK_CLASS}`;
+
+// E lane tabs. Own row above the topics, phone and desktop. 20 / 480 /
+// -0.02em, 44 hit, gap 24. Current: ink with a 2px ink underline and
+// aria-current. Idle: quiet ink. The underline is a 2px bottom border
+// inside the 44 box (idle tabs carry it transparent so labels share one
+// baseline); no shadow. Phone sits 4 under the top bar (the frame pads
+// 16), desktop on the shared header inset.
+export const SOCIAL_HOME_LANE_TABS_CLASS = "flex h-11 shrink-0 items-center gap-6 max-md:-mt-3";
+const SOCIAL_HOME_LANE_TAB_BASE_CLASS =
+  "inline-flex h-11 items-center whitespace-nowrap border-b-2 text-[length:var(--text-lg)] leading-none [font-weight:var(--type-title-weight)] tracking-tight";
+export const SOCIAL_HOME_LANE_TAB_CLASS =
+  `${SOCIAL_HOME_LANE_TAB_BASE_CLASS} border-transparent ${SOCIAL_FEED_QUIET_INK_CLASS}`;
+export const SOCIAL_HOME_LANE_TAB_CURRENT_CLASS = `${SOCIAL_HOME_LANE_TAB_BASE_CLASS} border-ink text-ink`;
+export function socialHomeLaneTabClass(current: boolean): string {
+  return current ? SOCIAL_HOME_LANE_TAB_CURRENT_CLASS : SOCIAL_HOME_LANE_TAB_CLASS;
 }
+
+// D topic words. All first, then the 15 topics A to Z. No fill, no pill:
+// the current word is ink 600 over a 2px ink underline; idle words are
+// ink-2 500. Phone: the row meets the viewport and scrolls; items 44
+// tall, pad 12, group pad 4, so "All" sits on the 16 gutter. Desktop:
+// items 30 tall, pad 11, gap 2, pulled 11 so "All" sits under
+// "Following". A fade over the trailing edge carries "More topics";
+// both leave at the end of the row. Labels never truncate.
+// Keyboard: the track's inline-end scroll padding equals the fade width
+// (phone 120, desktop 76), so a focused word scrolls clear of the fade and
+// More topics instead of under them (the row's keyboard focus handler
+// reads this padding: Chromium alone leaves a word that sits whole inside
+// the track under the fade). The track pads 5 top and bottom and
+// takes it back in margin: the focus ring (2 + 3 offset) draws whole
+// inside the scrollport and the row keeps its 44 / 30 height.
+export const SOCIAL_HOME_TOPIC_ROW_CLASS =
+  "relative mt-1 min-w-0 max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))] md:-ml-[11px] md:mt-2 md:w-[calc(100%+11px)]";
+export const SOCIAL_HOME_TOPIC_TRACK_CLASS =
+  "no-scrollbar -my-[5px] flex overflow-x-auto overscroll-x-contain whitespace-nowrap px-1 py-[5px] scroll-pe-30 md:gap-0.5 md:px-0 md:scroll-pe-[76px]";
+// justify-start: "All" keeps its 44 hit on phone and its text still starts
+// on the 16 gutter (4 + 12), under "Following".
+const SOCIAL_HOME_TOPIC_BASE_CLASS =
+  "inline-flex h-11 min-w-11 shrink-0 items-center justify-start whitespace-nowrap px-3 text-[length:var(--text-xs)] leading-none md:h-[30px] md:min-w-0 md:px-[11px]";
+export const SOCIAL_HOME_TOPIC_CLASS = `${SOCIAL_HOME_TOPIC_BASE_CLASS} font-medium text-ink-2`;
+export const SOCIAL_HOME_TOPIC_CURRENT_CLASS = `${SOCIAL_HOME_TOPIC_BASE_CLASS} font-semibold text-ink`;
+export function socialHomeTopicClass(current: boolean): string {
+  return current ? SOCIAL_HOME_TOPIC_CURRENT_CLASS : SOCIAL_HOME_TOPIC_CLASS;
+}
+// Every word sits in a 30 mark with a 2px bottom border: ink on the
+// current word, transparent on the rest, so all labels share a baseline.
+const SOCIAL_HOME_TOPIC_MARK_BASE_CLASS = "inline-flex h-[30px] items-center border-b-2";
+export const SOCIAL_HOME_TOPIC_MARK_CLASS = `${SOCIAL_HOME_TOPIC_MARK_BASE_CLASS} border-transparent`;
+export const SOCIAL_HOME_TOPIC_MARK_CURRENT_CLASS = `${SOCIAL_HOME_TOPIC_MARK_BASE_CLASS} border-ink`;
+export function socialHomeTopicMarkClass(current: boolean): string {
+  return current ? SOCIAL_HOME_TOPIC_MARK_CURRENT_CLASS : SOCIAL_HOME_TOPIC_MARK_CLASS;
+}
+export const SOCIAL_HOME_TOPIC_FADE_CLASS =
+  "pointer-events-none absolute inset-y-0 right-0 flex w-30 items-center justify-end bg-[linear-gradient(90deg,transparent,var(--bg)_55%)] pr-1 md:w-[76px] md:pr-0";
+export const SOCIAL_HOME_TOPIC_MORE_CLASS =
+  "pointer-events-auto grid size-11 place-items-center text-ink-2 md:size-[30px] md:rounded-[var(--radius)] md:border md:border-hairline md:bg-canvas";
+
+// D story tiles. 56×100, radius 10, in a 70 item with the name under it
+// (13px). Unseen: a 2px page gap and a 1.5px ink ring (ring + ring offset,
+// not a shadow). Seen: a hairline ring.
+// The create tile wears a 22 ink badge with a page plus. No accent. Phone
+// bleeds and pads 12 (gap 2); desktop gap 6. py 4 keeps the ring inside
+// the scrollport; the stack margins subtract it (phone 8 / desktop 18
+// after the topics).
+export const SOCIAL_HOME_STORIES_RAIL_CLASS =
+  "no-scrollbar mt-1 flex overflow-x-auto overscroll-x-contain py-1 max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))] max-md:gap-0.5 max-md:px-3 md:mt-[14px] md:gap-1.5";
+export const SOCIAL_HOME_STORY_ITEM_CLASS =
+  "flex w-[70px] shrink-0 flex-col items-center gap-1.5 text-center text-[length:var(--text-xs)] leading-tight";
+export const SOCIAL_HOME_STORY_TILE_CLASS =
+  "relative block h-[100px] w-14 shrink-0 rounded-[var(--radius)] bg-surface-muted";
+export const SOCIAL_HOME_STORY_TILE_MEDIA_CLASS =
+  "absolute inset-0 overflow-hidden rounded-[var(--radius)] bg-surface-muted";
+export const SOCIAL_HOME_STORY_RING_UNSEEN_CLASS =
+  "ring-[1.5px] ring-ink ring-offset-2 ring-offset-canvas";
+export const SOCIAL_HOME_STORY_RING_SEEN_CLASS = "ring-1 ring-hairline";
+export function socialHomeStoryRingClass(unseen: boolean): string {
+  return unseen ? SOCIAL_HOME_STORY_RING_UNSEEN_CLASS : SOCIAL_HOME_STORY_RING_SEEN_CLASS;
+}
+export const SOCIAL_HOME_STORY_NAME_CLASS = "w-full break-words hyphens-auto [overflow-wrap:anywhere]";
+export function socialHomeStoryNameClass(unseen: boolean): string {
+  return `${SOCIAL_HOME_STORY_NAME_CLASS} ${unseen ? "text-ink" : "text-ink-2"}`;
+}
+export const SOCIAL_HOME_STORY_BADGE_CLASS =
+  "absolute -bottom-1.5 -right-1.5 z-10 grid size-[22px] place-items-center rounded-full border-2 border-canvas bg-ink text-canvas";
+
+// Feed Reels rail. After every 3 posts in the post wall (lib plan).
+// Desktop: inside the column, 180×320 tiles, gap 12, arrows page by two
+// tiles; 3 tiles and a peek fit the 620 column. Phone: viewport bleed,
+// 160×284 tiles, gap 8, pad 16, scroll-snap, no arrows. Vertical pans
+// pass through to the page. 32 (desktop) / 28 (phone) air above and
+// below in the 24 feed gutter. Stills only; zero accent.
+export const SOCIAL_FEED_REELS_CLASS =
+  "my-1 flex min-w-0 flex-col max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))] md:my-2";
+// Head: desktop 30 (it holds the 30 arrows); phone is the eyebrow's own
+// 16 line (no arrows), so the tiles start 28 under the rail top.
+export const SOCIAL_FEED_REELS_HEAD_CLASS =
+  "flex h-4 items-center justify-between max-md:px-4 md:h-[30px]";
+export const SOCIAL_FEED_REELS_ARROWS_CLASS = "hidden gap-1.5 md:flex";
+const SOCIAL_FEED_REELS_ARROW_BASE_CLASS =
+  "grid size-[30px] place-items-center rounded-[var(--radius)] border border-hairline bg-canvas";
+export const SOCIAL_FEED_REELS_ARROW_CLASS = `${SOCIAL_FEED_REELS_ARROW_BASE_CLASS} text-ink-2`;
+export const SOCIAL_FEED_REELS_ARROW_OFF_CLASS =
+  `${SOCIAL_FEED_REELS_ARROW_BASE_CLASS} cursor-default text-ink-3 opacity-40`;
+export function socialFeedReelsArrowClass(disabled: boolean): string {
+  return disabled ? SOCIAL_FEED_REELS_ARROW_OFF_CLASS : SOCIAL_FEED_REELS_ARROW_CLASS;
+}
+// The track pads 5 top and bottom so a tile's focus ring (2 + 3 offset)
+// draws whole inside the scrollport; mt 7 + 5 keeps the tiles 12 under
+// the head and -mb 5 keeps the rail's height.
+export const SOCIAL_FEED_REELS_TRACK_CLASS =
+  "no-scrollbar m-0 mt-[7px] -mb-[5px] flex list-none gap-2 overflow-x-auto overscroll-x-contain px-0 py-[5px] [touch-action:pan-x_pan-y] max-md:snap-x max-md:snap-mandatory max-md:scroll-pl-4 max-md:px-4 md:gap-3";
+export const SOCIAL_FEED_REELS_ITEM_CLASS = "shrink-0 snap-start";
+export const SOCIAL_FEED_REEL_TILE_CLASS =
+  "relative block h-[284px] w-40 overflow-hidden rounded-[var(--radius)] bg-band md:h-80 md:w-[180px]";
+// Edge vignette on the still (the board's inset 60px darkening), drawn as
+// a radial gradient: no shadow utility in Social chrome.
+export const SOCIAL_FEED_REEL_VIGNETTE_CLASS =
+  "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(0_0_0/0)_45%,rgb(0_0_0/0.45)_100%)]";
+export const SOCIAL_FEED_REEL_SCRIM_CLASS =
+  "absolute inset-x-0 bottom-0 block bg-linear-to-t from-band/94 via-band/78 via-50% to-band/0 px-2.5 pb-2.5 pt-10 md:px-3 md:pb-3 md:pt-12";
+export const SOCIAL_FEED_REEL_AUTHOR_CLASS = "flex min-w-0 items-center gap-2";
+export const SOCIAL_FEED_REEL_FACE_CLASS = "size-6 shrink-0 ring-[1.5px] ring-band-ink/70";
+export const SOCIAL_FEED_REEL_NAME_CLASS =
+  "min-w-0 break-words [overflow-wrap:anywhere] text-[length:var(--text-xs)] font-semibold leading-tight text-band-ink";
+export const SOCIAL_FEED_REEL_CAPTION_CLASS =
+  "mt-1.5 block break-words [overflow-wrap:anywhere] text-[length:var(--text-xs)] leading-[1.35] text-band-ink";
+
+// The wall block under the composer: stack air 16 (phone) / 22 (desktop).
+// Notices (truncated stories / followees) sit at its head, 12 apart.
+export const SOCIAL_FEED_WALL_CLASS = "mt-4 flex min-w-0 flex-col gap-3 md:mt-[22px]";
+
+// Borderless For You aside (D). No card, no "For you" eyebrow (the For
+// you tab already names it). Latest course first, a hairline, then
+// Suggested people. Section labels are the existing strings as eyebrows.
+export const SOCIAL_FEED_ASIDE_SECTION_CLASS = "flex flex-col gap-3.5";
+export const SOCIAL_FEED_ASIDE_RULE_CLASS = "mb-[18px] mt-6 h-px shrink-0 bg-hairline";
 
 export const SOCIAL_FIRST_WIN_CLASS =
   "flex flex-col items-center justify-center gap-2.5 rounded-[8px] border border-hairline bg-surface px-5 pb-4 pt-5 text-center";

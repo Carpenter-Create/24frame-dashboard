@@ -19,12 +19,15 @@ export function SocialAvatar({
   ring = null,
   size = "md",
   className,
+  loading,
 }: {
   name: string;
   photoUrl?: string | null;
   ring?: "unseen" | "live" | null;
   size?: "sm" | "md" | "lg" | "profile";
   className?: string;
+  /** Eager inside a horizontal scroller (iOS Safari drops lazy loads there). */
+  loading?: "eager" | "lazy";
 }) {
   const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
   const face = photoUrl && brokenSrc !== photoUrl ? photoUrl : null;
@@ -52,6 +55,7 @@ export function SocialAvatar({
           src={face}
           sizes={socialAvatarImageSizes(size)}
           priority={size === "profile"}
+          loading={loading}
           onError={() => setBrokenSrc(face)}
         />
       ) : (

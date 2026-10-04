@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-29 (CT)  
 **Status:** **LOCKED** (Adam / CoS) · Design Own→READY · CoS seeds `docs/design-locks/` · DRAFT stays draft until founder undraft  
+**Amended in part (Adam 2026-10-04, G · Feed):** On the Feed the first row under the header is the Following / For you tabs, not the topic pills. Phone: the tabs pull 12 (`SOCIAL_HOME_LANE_TABS_CLASS`, `max-md:-mt-3`) so they sit 4 under the top bar, and the topic row takes no pull. **G2** now reads on the tabs class: the pull is `max-md` only, no desktop `-mt-`. `SOCIAL_HOME_TOPICS_CLASS` is gone. Desktop: the tabs sit on the shared 8 inset, and the one-inset rule stands. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
 **Scope:** Desktop top air under the house header on Social pages that use the social frame.  
 **Entity:** Global Content / 24Frame only  
 **Amends:** [`social-home-topics-strip-center-lock-v1.md`](social-home-topics-strip-center-lock-v1.md) for the desktop Topics pull only. Phone equal-air stays.  

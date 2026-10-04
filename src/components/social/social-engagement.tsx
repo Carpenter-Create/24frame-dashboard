@@ -29,6 +29,7 @@ import {
   SOCIAL_FEED_META_COPY_CLASS,
   SOCIAL_FOLLOW_COMPACT_CLASS,
   SOCIAL_FOLLOW_COMPACT_IDLE_CLASS,
+  SOCIAL_FOLLOW_QUIET_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTION_LIKED_CLASS,
@@ -60,6 +61,7 @@ export function SocialFollowButton({
   compact = false,
   stretch = false,
   pill = false,
+  quiet = false,
 }: {
   followeeId: string;
   handle: string;
@@ -70,6 +72,8 @@ export function SocialFollowButton({
   stretch?: boolean;
   /** Profile Stage action row: the 44 accent / hairline pills. */
   pill?: boolean;
+  /** Feed aside (G · D): hairline 30 button, no accent fill, both states. */
+  quiet?: boolean;
 }) {
   const queryClient = useAppQueryClient();
   if (!queryClient) {
@@ -83,6 +87,7 @@ export function SocialFollowButton({
         compact={compact}
         stretch={stretch}
         pill={pill}
+        quiet={quiet}
         queryClient={null}
       />
     );
@@ -97,6 +102,7 @@ export function SocialFollowButton({
       compact={compact}
       stretch={stretch}
       pill={pill}
+      quiet={quiet}
     />
   );
 }
@@ -110,6 +116,7 @@ function SocialFollowButtonQuery({
   compact,
   stretch,
   pill,
+  quiet,
 }: {
   followeeId: string;
   handle: string;
@@ -119,6 +126,7 @@ function SocialFollowButtonQuery({
   compact: boolean;
   stretch: boolean;
   pill: boolean;
+  quiet: boolean;
 }) {
   const queryClient = useAppQueryClient();
   const query = useQuery({
@@ -137,6 +145,7 @@ function SocialFollowButtonQuery({
       compact={compact}
       stretch={stretch}
       pill={pill}
+      quiet={quiet}
       queryClient={queryClient}
     />
   );
@@ -151,6 +160,7 @@ function SocialFollowButtonView({
   compact,
   stretch,
   pill,
+  quiet,
   queryClient,
 }: {
   followeeId: string;
@@ -161,6 +171,7 @@ function SocialFollowButtonView({
   compact: boolean;
   stretch: boolean;
   pill: boolean;
+  quiet: boolean;
   queryClient: ReturnType<typeof useAppQueryClient>;
 }) {
   const [override, setOverride] = useState<boolean | null>(null);
@@ -234,7 +245,9 @@ function SocialFollowButtonView({
         <button
           type="submit"
           className={
-            compact
+            quiet
+              ? SOCIAL_FOLLOW_QUIET_CLASS
+              : compact
               ? isFollowing
                 ? SOCIAL_FOLLOW_COMPACT_IDLE_CLASS
                 : SOCIAL_FOLLOW_COMPACT_CLASS

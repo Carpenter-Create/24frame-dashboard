@@ -24,7 +24,6 @@ import {
   SOCIAL_POST_ACTIONS_OPTICAL_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
-  SOCIAL_STORIES_FEED_RULE_CLASS,
 } from "@/lib/social-chrome";
 import { socialLikeCountCopy } from "@/lib/social";
 
@@ -35,7 +34,7 @@ const stories = readFileSync("src/components/social/social-stories-rail.tsx", "u
 const lock = readFileSync("docs/design-locks/social-home-craft-wave-1-lock-v1.md", "utf8");
 
 describe("Social Home craft Wave 1", () => {
-  it("paints feed posts as surface cards and keeps the Stories seam", () => {
+  it("paints feed posts as surface cards; the G story tiles drop the Stories seam", () => {
     const separation = readFileSync(
       "docs/design-locks/social-home-post-separation-lock-v1.md",
       "utf8",
@@ -66,14 +65,22 @@ describe("Social Home craft Wave 1", () => {
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_CLASS);
     expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:bg-|max-md:bg-|md:rounded-|max-md:rounded-/);
     expect(SOCIAL_FEED_ROW_CLASS).not.toContain("divide");
-    expect(SOCIAL_STORIES_FEED_RULE_CLASS).toBe(
-      "max-md:border-b max-md:border-solid max-md:border-hairline",
+    // G · Feed (Adam 2026-10-04): story tiles sit over the composer bar;
+    // D draws no rule under them. The phone Stories→feed hairline is
+    // superseded. docs/design-locks/social-home-lane-tabs-lock-v1.md
+    const hairline = readFileSync(
+      "docs/design-locks/social-home-stories-feed-hairline-lock-v1.md",
+      "utf8",
     );
+    expect(hairline).toContain("Superseded");
+    expect(hairline).toContain("social-home-lane-tabs-lock-v1.md");
     const homeStories = stories.slice(
-      stories.indexOf("function HomeTallStoriesRail"),
+      stories.indexOf("function HomeStoryTiles"),
       stories.indexOf("export function SocialStoriesRail"),
     );
-    expect(homeStories).toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
+    expect(homeStories.length).toBeGreaterThan(0);
+    expect(homeStories).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
+    expect(homeStories).not.toContain("border-b");
   });
 
   it("opens media-to-actions and the likes/caption/time stack to a 1.5 line-space, and keeps padding under the time inside the card", () => {

@@ -69,9 +69,9 @@ import {
   SOCIAL_PROFILE_ROLE_PILL_CLASS,
   SOCIAL_TOPIC_CHIP_MEASURE_CLASS,
   SOCIAL_TOPIC_CHIP_SELECT_ON_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS,
-  socialTopicRailChipClass,
+  SOCIAL_HOME_TOPIC_CLASS,
+  SOCIAL_HOME_TOPIC_CURRENT_CLASS,
+  socialHomeTopicClass,
 } from "@/lib/social-chrome";
 
 vi.mock("next/navigation", () => ({
@@ -323,15 +323,17 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(socialChrome).toContain("HOUSE_FILTER_ON_CLASS");
     expect(socialChrome).toContain("HOUSE_PILL_SELECTED_CLASS");
     expect(SOCIAL_TOPIC_CHIP_SELECT_ON_CLASS).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain("h-8");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain("t-body-sm");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).toContain("h-8");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).not.toContain("py-[var(--space-2)]");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).not.toContain("bg-ink");
-    expect(socialTopicRailChipClass(true)).toBe(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS);
-    expect(socialTopicRailChipClass(false)).toBe(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
+    // G · Feed (Adam 2026-10-04): the Feed topic row is D plain words. The
+    // current word is ink over an ink underline: no accent fill, no pill.
+    // docs/design-locks/social-home-lane-tabs-lock-v1.md
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain("accent");
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain("bg-");
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-ink");
+    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("text-ink-2");
+    expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain("py-[var(--space-2)]");
+    expect(socialHomeTopicClass(true)).toBe(SOCIAL_HOME_TOPIC_CURRENT_CLASS);
+    expect(socialHomeTopicClass(false)).toBe(SOCIAL_HOME_TOPIC_CLASS);
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain("h-8");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain(HOUSE_PILL_ITEM_CLASS);

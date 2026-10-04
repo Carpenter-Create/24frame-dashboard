@@ -15,20 +15,27 @@ import {
   SOCIAL_DESKTOP_HEADER_INSET_CLASS,
   SOCIAL_DESKTOP_MEASURE,
   SOCIAL_FEED_ACTIONS_META_CLASS,
+  SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
+  SOCIAL_FEED_LAYOUT_CLASS,
+  SOCIAL_FEED_MEASURE,
+  SOCIAL_FEED_PAIR_WIDTH,
   SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
   SOCIAL_FEED_META_COPY_CLASS,
   SOCIAL_FEED_META_ROW_GAP_CLASS,
   SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS,
   SOCIAL_FEED_ROW_CLASS,
-  SOCIAL_HOME_TOPICS_CLASS,
+  SOCIAL_HOME_LANE_TABS_CLASS,
+  SOCIAL_HOME_STORIES_RAIL_CLASS,
+  SOCIAL_HOME_STORY_BADGE_CLASS,
+  SOCIAL_HOME_STORY_TILE_CLASS,
+  SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTIONS_CLASS,
   SOCIAL_POST_ACTIONS_GAP_CLASS,
   SOCIAL_POST_ACTIONS_OPTICAL_CLASS,
   SOCIAL_POST_ACTIONS_ROW_CLASS,
-  SOCIAL_STORIES_FEED_RULE_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
   SOCIAL_FIGMA_PROFILE_BIO,
@@ -101,10 +108,13 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).toContain("SocialHomeTopics");
     expect(home).toContain("data-social-home-stack={SOCIAL_HOME_STACK_LOCK}");
     expect(homeSkeleton).toContain("data-social-home-stack={SOCIAL_HOME_STACK_LOCK}");
-    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_topics_composer_stories_wall");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["topics", "composer", "stories", "wall"]);
-    expect(home.indexOf("<SocialHomeTopics")).toBeLessThan(home.indexOf("<SocialHomeComposer"));
-    expect(home.indexOf("<SocialHomeComposer")).toBeLessThan(home.indexOf("<SocialStoriesRail"));
+    // G · Feed (Adam 2026-10-04): tabs → topics → stories → composer → wall.
+    // docs/design-locks/social-home-lane-tabs-lock-v1.md
+    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_tabs_topics_stories_composer_wall");
+    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["tabs", "topics", "stories", "composer", "wall"]);
+    expect(home.indexOf("<SocialHomeLaneTabs")).toBeLessThan(home.indexOf("<SocialHomeTopics"));
+    expect(home.indexOf("<SocialHomeTopics")).toBeLessThan(home.indexOf("<SocialStoriesRail"));
+    expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialHomeComposer"));
     expect(home).not.toContain("data-social-home-topics-composer-divider");
     expect(home).not.toContain("SOCIAL_HOME_TOPICS_COMPOSER_DIVIDER_CLASS");
     expect(homeSkeleton).not.toContain("data-social-home-topics-composer-divider");
@@ -112,13 +122,16 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));
     expect(home).not.toContain("SocialHomeTabs");
     expect(home).not.toContain("data-social-home-tabs");
-    expect(homeSkeleton.indexOf("data-social-home-topics-skeleton")).toBeLessThan(
-      homeSkeleton.indexOf("data-social-home-composer-skeleton"),
+    expect(homeSkeleton.indexOf("data-social-home-lanes-skeleton")).toBeLessThan(
+      homeSkeleton.indexOf("data-social-home-topics-skeleton"),
     );
-    expect(homeSkeleton.indexOf("data-social-home-composer-skeleton")).toBeLessThan(
+    expect(homeSkeleton.indexOf("data-social-home-topics-skeleton")).toBeLessThan(
       homeSkeleton.indexOf("SocialStoriesRailSkeleton"),
     );
     expect(homeSkeleton.indexOf("SocialStoriesRailSkeleton")).toBeLessThan(
+      homeSkeleton.indexOf("data-social-home-composer-skeleton"),
+    );
+    expect(homeSkeleton.indexOf("data-social-home-composer-skeleton")).toBeLessThan(
       homeSkeleton.indexOf("data-social-feed-skeleton"),
     );
     expect(home).toContain("<SocialHomeTopics active={topic} lane={lane}");
@@ -216,7 +229,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(postCard).toContain("SocialCommentTrigger");
     expect(pkg).toContain('"next": "16.3.6"');
     expect(existsSync("src/components/social/social-mobile-dock.tsx")).toBe(false);
-    expect(home).not.toContain("Reels");
+    // Feed Reels rail (Adam 2026-10-04) rides the post wall on Home; Explore
+    // itself stays a video For You with no Reels section.
+    // docs/design-locks/social-feed-reel-rail-lock-v1.md
+    expect(home).toContain("socialFeedReelTiles");
+    expect(home).toContain("reels={reels}");
     expect(explore).not.toContain("Reels");
   });
 
@@ -227,10 +244,12 @@ describe("Social Home miss list v1 P0 lock", () => {
     const topics = readFileSync("src/components/social/social-home-topics.tsx", "utf8");
     expect(existsSync("src/components/social/social-rail-extras.tsx")).toBe(false);
     expect(rail).toContain("SOCIAL_ICON_SIZE_STORY_PLUS");
-    expect(rail).toContain("SOCIAL_HOME_STORY_CARD_CLASS");
+    expect(rail).toContain("SOCIAL_HOME_STORY_TILE_CLASS");
+    expect(rail).toContain("SOCIAL_HOME_STORY_BADGE_CLASS");
     expect(rail).toContain("SocialAvatar");
     expect(rail).toContain("createPhotoUrl");
-    expect(rail).toContain("data-social-stories-tall");
+    expect(rail).not.toContain("data-social-stories-tall");
+    expect(rail).toContain("aria-label={SOCIAL.home.storiesLabel}");
     expect(rail).toContain("data-social-story-media");
     expect(rail).toContain("bg-accent");
     expect(rail).toContain("bg-hairline");
@@ -265,7 +284,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(composer).not.toContain("socialInitials");
     expect(composer).not.toContain("md:hidden");
     expect(composer).not.toContain("What's on your mind");
-    expect(composer).toContain("text-ink-2");
+    expect(composer).toContain("SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS");
     expect(composer).not.toContain("text-accent");
     expect(composer).not.toContain("data-social-composer-media");
     expect(composer).not.toContain("SOCIAL_MEDIA_ACCEPT");
@@ -282,43 +301,33 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(composer).toContain("SOCIAL.home.composerCamera");
     expect(composer).toContain("useSocialCreateMediaPick");
     expect(composer).toContain("SOCIAL_CREATE_CAMERA_ACCEPT");
-    expect(SOCIAL_COMPOSER_CLASS).toMatch(/^flex /);
+    // G · Feed composer bar (D): muted, radius 16, 52 tall, no rule.
+    expect(SOCIAL_COMPOSER_CLASS).toContain("flex ");
     expect(SOCIAL_COMPOSER_CLASS).toContain("items-center");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("flex-col");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("hidden");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-20");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-y");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-x-0");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-hairline");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-none");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("bg-surface");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("px-[var(--space-4)]");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("py-[var(--space-2)]");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-transparent");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("py-0");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("h-[52px]");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-[var(--radius-lg)]");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("border-y");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("rounded-none");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-hairline");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-px");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("rounded-[var(--radius-lg)]");
     expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)border(?:\s|$)/);
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("p-[var(--space-4)]");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("gap-[var(--space-2)]");
-    expect(composer).toContain('className="size-10"');
-    expect(composer).not.toContain("size-8");
-    expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("gap-[var(--space-2)]");
-    expect(SOCIAL_COMPOSER_ROW_CLASS).not.toContain("gap-[var(--space-3)]");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("h-10");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("rounded-[20px]");
+    expect(composer).toContain("SOCIAL_COMPOSER_AVATAR_CLASS");
+    expect(composer).not.toContain('className="size-10"');
+    expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("gap-1.5");
+    expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("md:gap-2.5");
+    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("h-11");
+    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("md:h-10");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("border-0");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("bg-transparent");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("outline-none");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("h-8");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("rounded-[16px]");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("border-hairline");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("shadow-");
     expect(chrome).toContain("SOCIAL_COMPOSER_ROW_CLASS");
-    expect(chrome).toContain("gap-[var(--space-3)]");
     expect(chrome).toContain("SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS");
-    expect(chrome).toContain("ml-[var(--space-2)]");
     expect(chrome).not.toContain("pl-[calc(2.5rem+var(--space-3))]");
     expect(shell).not.toContain("SocialRailAccountChip");
     expect(shell).not.toContain("data-social-rail-account");
@@ -332,12 +341,13 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(forYou).not.toContain("data-social-for-you-topics");
     expect(forYou).not.toContain("SOCIAL.forYou.topics");
     expect(forYou).not.toContain("SocialHomeTopics");
+    // G · Feed: D topic words (no chip rail, no accent fill).
     expect(topics).toContain("data-social-home-topics");
     expect(topics).toContain("data-social-home-topics-rail");
-    expect(topics).toContain("HouseChipRail");
+    expect(topics).not.toContain("HouseChipRail");
     expect(topics).not.toContain("SOCIAL.forYou.topics");
     expect(topics).not.toMatch(/>Topics</);
-    expect(topics).toContain("socialTopicRailChipClass");
+    expect(topics).toContain("socialHomeTopicClass");
     expect(topics).toContain("SOCIAL_CATEGORY_LABELS");
     expect(topics).not.toContain("SOCIAL_FOR_YOU_CARD_CLASS");
     expect(topics).not.toContain("socialInterestTopics");
@@ -347,16 +357,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).not.toContain("SocialHomeTopics topics=");
     expect(topics).not.toContain("flex-wrap");
     expect(topics).not.toContain("truncate");
-    expect(topics).toContain("SOCIAL_TOPIC_RAIL_ROWS");
-    expect(chrome).toContain("SOCIAL_TOPIC_RAIL_ROWS");
-    expect(chrome).toContain("SOCIAL_TOPIC_RAIL_CLASS");
-    expect(chrome).toContain("HOUSE_CHIP_RAIL_CLASS");
-    expect(chrome).toContain("HOUSE_CHIP_RAIL_STACK_CLASS");
-    expect(chrome).toContain("HOUSE_CHIP_RAIL_ROW_CLASS");
-    expect(chrome).toContain("HOUSE_CHIP_RAIL_CHIP_CLASS");
-    expect(chrome).toContain("SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS");
+    expect(chrome).not.toContain("SOCIAL_TOPIC_RAIL_ROWS");
+    expect(chrome).not.toContain("HOUSE_CHIP_RAIL_CLASS");
+    expect(chrome).not.toContain("socialTopicRailChipClass");
     expect(chrome).toContain("HOUSE_PILL_SELECTED_CLASS");
-    expect(chrome).toContain("socialTopicRailChipClass");
     expect(chrome).not.toContain("rounded-[14px]");
     expect(chrome).toContain("SOCIAL_COMPOSER_CLASS");
     expect(chrome).toContain("SOCIAL_EMPTY_PANEL_CLASS");
@@ -396,10 +400,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     );
     expect(SOCIAL_POST_ACTION_HIT_CLASS).not.toContain("scale");
     expect(SOCIAL_POST_ACTION_HEART_NUDGE_CLASS).toBe("translate-y-px");
-    expect(SOCIAL_STORIES_FEED_RULE_CLASS).toBe(
-      "max-md:border-b max-md:border-solid max-md:border-hairline",
-    );
-    expect(SOCIAL_STORIES_FEED_RULE_CLASS.startsWith("max-md:")).toBe(true);
+    // The phone Stories→feed hairline is superseded by the G story tiles.
+    expect(chrome).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
     const postCard = card.slice(card.indexOf("export function SocialPostCard"));
     expect(postCard).toContain("SOCIAL_POST_ACTIONS_CLASS");
     expect(postCard).toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
@@ -426,9 +428,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(alignLock).not.toMatch(/Idle `#5E646E`/);
     expect(comments).toContain("SOCIAL_POST_ACTION_HIT_CLASS");
     expect(comments).not.toContain("HEART_NUDGE");
-    const homeStories = rail.slice(rail.indexOf("function HomeTallStoriesRail"), rail.indexOf("export function SocialStoriesRail"));
-    expect(homeStories).toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
-    expect(rail.slice(rail.indexOf("export function SocialStoriesRail"))).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
+    const homeStories = rail.slice(rail.indexOf("function HomeStoryTiles"), rail.indexOf("export function SocialStoriesRail"));
+    expect(homeStories.length).toBeGreaterThan(0);
+    expect(homeStories).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
+    expect(rail).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("bg-surface-muted");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("py-");
     expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
@@ -456,13 +459,16 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_POST_MEDIA_CLASS).toContain("px-0");
     expect(SOCIAL_POST_MEDIA_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_CLASS);
     expect(SOCIAL_COMPOSER_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_CLASS);
-    expect(SOCIAL_HOME_TOPICS_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_CLASS);
+    // D topic words and story tiles meet the phone viewport and scroll.
+    expect(SOCIAL_HOME_TOPIC_ROW_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
+    expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("max-md:px-[var(--chrome-gutter)]");
     expect(chrome).toContain('export const SOCIAL_FEED_CHROME_CLASS = "px-[var(--space-4)]"');
-    expect(chrome).toContain('export const SOCIAL_HOME_SPINE_CLASS = "gap-[var(--space-2)]"');
-    expect(home).toContain("SOCIAL_HOME_SPINE_CLASS");
-    expect(rail).toContain("SOCIAL_HOME_STORIES_TRACK_CLASS");
-    expect(chrome).toContain('export const SOCIAL_HOME_STORIES_TRACK_CLASS = "flex w-max gap-2 px-0 pt-0 pb-2"');
+    // G · Feed spacing is per block (D), not one spine gap.
+    expect(chrome).not.toContain("SOCIAL_HOME_SPINE_CLASS");
+    expect(home).not.toContain("SOCIAL_HOME_SPINE_CLASS");
+    expect(rail).toContain("SOCIAL_HOME_STORIES_RAIL_CLASS");
+    expect(chrome).not.toContain("SOCIAL_HOME_STORIES_TRACK_CLASS");
     expect(rail).not.toContain("pr-4 pb-2");
     expect(card).not.toContain("SOCIAL_FEED_CHROME_CLASS");
     expect(SOCIAL_FEED_ACTIONS_META_CLASS).toBe("flex flex-col gap-[var(--space-1)]");
@@ -488,7 +494,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(postMedia).toContain("w-full");
     expect(postMedia).toContain("SOCIAL_POST_MEDIA_CLASS");
     expect(card).not.toContain("md:rounded-[8px]");
-    expect(chrome).toContain("SOCIAL_HOME_STORY_CARD_CLASS");
+    expect(chrome).toContain("SOCIAL_HOME_STORY_TILE_CLASS");
     expect(chrome).toContain("SOCIAL_FOR_YOU_CARD_CLASS");
     expect(forYou).not.toContain("SOCIAL.forYou.native");
     expect(forYou).not.toContain("Social-native");
@@ -570,7 +576,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).toContain("SocialHomeActivityEmpty");
     expect(home).not.toContain("SOCIAL.home.emptyQuiet");
     expect(home).not.toContain("md:hidden");
-    expect(home).toContain("data-social-empty-lenses");
+    // G · Feed: the topic row marks the current topic; the empty wall
+    // repeats no filled "All" pill.
+    expect(home).not.toContain("data-social-empty-lenses");
+    expect(home).not.toContain("SOCIAL_PILL_ACTIVE_CLASS");
     expect(shell).not.toContain("Destinations");
     expect(shell).not.toContain("SocialRailCreateCta");
     expect(shell).not.toContain("SOCIAL_RAIL.workspace");
@@ -625,32 +634,31 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(rail).toContain("w-[112px]");
     expect(rail).toContain("SOCIAL_STORIES_CARD_CLASS");
     expect(rail).toContain("SOCIAL_STORIES_PLUS_WELL_CLASS");
-    expect(rail).not.toContain("SOCIAL_HOME_STORY_NAME_CLASS");
+    // G · Feed (D): the first name sits under the tile, never on it.
+    expect(rail).toContain("socialHomeStoryNameClass");
     expect(rail).toContain("aria-label={name}");
-    expect(chrome).not.toContain("SOCIAL_HOME_STORY_NAME_CLASS");
+    expect(chrome).toContain("SOCIAL_HOME_STORY_NAME_CLASS");
     expect(chrome).not.toContain("from-band/72");
     expect(rail).toContain("SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS");
     expect(chrome).toMatch(
       /export const SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS =\s*"t-body-sm font-medium text-ink"/,
     );
-    expect(chrome).toMatch(
-      /export const SOCIAL_HOME_STORY_CREATE_LABEL_CLASS =\s*`[^`]*\$\{SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS\}[^`]*`/,
-    );
+    expect(chrome).not.toContain("SOCIAL_HOME_STORY_CREATE_LABEL_CLASS");
     expect(chrome).not.toContain("SOCIAL_HOME_STORY_CREATE_INITIAL_CLASS");
     expect(rail).toContain("function StoryCreatePlus");
     expect(rail).toMatch(/function StoryCreatePlus\(\) \{[\s\S]*?name="plus"[\s\S]*?\}/);
     expect(rail).not.toMatch(/function StoryCreatePlus\(\) \{[\s\S]*?\bactive\b/);
-    expect(chrome).toMatch(
-      /export const SOCIAL_HOME_STORY_PLUS_CLASS =\s*"[^"]*\bbg-accent\b[^"]*\btext-accent-contrast\b/,
-    );
+    // The Feed create badge is ink with a page plus: no accent in the feed.
+    expect(SOCIAL_HOME_STORY_BADGE_CLASS).toContain("bg-ink");
+    expect(SOCIAL_HOME_STORY_BADGE_CLASS).not.toContain("accent");
     expect(chrome).toMatch(
       /export const SOCIAL_STORIES_PLUS_WELL_CLASS =\s*"[^"]*\bbg-accent\b[^"]*\btext-accent-contrast\b/,
     );
     expect(chrome).toContain("h-[168px]");
-    expect(chrome).toContain("h-[240px]");
-    expect(chrome).toContain("h-[256px]");
-    expect(chrome).toContain("w-[136px]");
-    expect(chrome).toContain("w-[144px]");
+    expect(SOCIAL_HOME_STORY_TILE_CLASS).toContain("h-[100px]");
+    expect(SOCIAL_HOME_STORY_TILE_CLASS).toContain("w-14");
+    expect(chrome).not.toContain("h-[240px]");
+    expect(chrome).not.toContain("w-[136px]");
     expect(chrome).toContain("w-[128px]");
     expect(chrome).toContain("w-[112px]");
     expect(chrome).not.toContain("h-[208px]");
@@ -938,7 +946,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_ROLES_CLASS");
     expect(chrome).not.toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
-    expect(chrome).toContain("HOUSE_CHIP_RAIL_CLASS");
+    expect(chrome).not.toContain("HOUSE_CHIP_RAIL_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_ROLE_PILL_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_CENTER_CLASS");
     expect(chrome).toContain("SOCIAL_PROFILE_POSTS_EMPTY_CLASS");
@@ -1089,8 +1097,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("pt-4");
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("pb-4");
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).not.toMatch(/(?:^|\s)py-4(?:\s|$)/);
-    expect(SOCIAL_HOME_TOPICS_CLASS).toBe("min-w-0 py-0 max-md:-mt-[var(--space-2)]");
-    expect(SOCIAL_HOME_TOPICS_CLASS).not.toMatch(/(?:^|\s)-mt-/);
+    // G · Feed: the E tabs lead the column. Phone pulls them to 4 under the
+    // top bar (frame pads 16); desktop sits on the shared header inset.
+    expect(SOCIAL_HOME_LANE_TABS_CLASS).toContain("max-md:-mt-3");
+    expect(SOCIAL_HOME_LANE_TABS_CLASS).not.toMatch(/(?:^|\s)-mt-/);
+    expect(SOCIAL_HOME_LANE_TABS_CLASS).not.toMatch(/(?:^|\s)md:-mt/);
     for (const page of [
       "src/app/(app)/social/page.tsx",
       "src/app/(app)/social/dms/page.tsx",
@@ -1151,7 +1162,19 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(publicProfile).toContain("SocialDesktopForYouSlot");
     expect(publicProfile).not.toContain("SOCIAL_HOME_CENTER_CLASS");
     expect(ownFace).toContain("SOCIAL_PROFILE_CENTER_CLASS");
-    expect(home).toContain("SOCIAL_HOME_CENTER_CLASS");
+    // G · Feed (D grid): /social is the 620 column + 40 + 244 aside. The
+    // other Social rows keep the 720/32/300 pair above.
+    expect(home).toContain("SOCIAL_FEED_CENTER_CLASS");
+    expect(home).toContain("SOCIAL_FEED_LAYOUT_CLASS");
+    expect(home).not.toContain("SOCIAL_HOME_CENTER_CLASS");
+    expect(home).not.toContain("SOCIAL_HOME_LAYOUT_CLASS");
+    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 620, gutter: 40, right: 244 });
+    expect(SOCIAL_FEED_PAIR_WIDTH).toBe(904);
+    expect(SOCIAL_FEED_LAYOUT_CLASS).toBe("flex w-full items-start gap-[40px] lg:ml-auto lg:max-w-[904px]");
+    expect(SOCIAL_FEED_CENTER_CLASS).toBe("flex min-w-0 w-full flex-1 flex-col lg:max-w-[620px]");
+    expect(SOCIAL_FEED_LAYOUT_CLASS).not.toContain("justify-between");
+    expect(SOCIAL_FEED_LAYOUT_CLASS).not.toMatch(/(^|\s)max-w-/);
+    expect(home).toContain('layout="aside"');
     expect(home).toContain("SocialDesktopForYouSlot");
     expect(home).not.toContain("SOCIAL_PROFILE_CENTER_CLASS");
     expect(explore).toContain("SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS");

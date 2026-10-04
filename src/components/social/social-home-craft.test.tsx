@@ -24,26 +24,29 @@ import {
   SOCIAL_CHECKLIST_TRACK_NESTED_CLASS,
   SOCIAL_COMPOSER_AFFORDANCE_CLASS,
   SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS,
+  SOCIAL_COMPOSER_AVATAR_CLASS,
   SOCIAL_COMPOSER_CLASS,
   SOCIAL_COMPOSER_ROW_CLASS,
   SOCIAL_FOR_YOU_CARD_CLASS,
   SOCIAL_COMPOSER_FIELD_CLASS,
-  SOCIAL_HOME_STORY_CARD_CLASS,
-  SOCIAL_HOME_STORIES_TRACK_CLASS,
   SOCIAL_EMPTY_ACTION_CLASS,
   SOCIAL_EMPTY_PANEL_CLASS,
-  SOCIAL_HOME_STORY_CREATE_LABEL_CLASS,
-  SOCIAL_HOME_STORY_PLUS_CLASS,
+  SOCIAL_HOME_STORIES_RAIL_CLASS,
+  SOCIAL_HOME_STORY_BADGE_CLASS,
+  SOCIAL_HOME_STORY_ITEM_CLASS,
+  SOCIAL_HOME_STORY_RING_SEEN_CLASS,
+  SOCIAL_HOME_STORY_RING_UNSEEN_CLASS,
+  SOCIAL_HOME_STORY_TILE_CLASS,
+  SOCIAL_HOME_TOPIC_CLASS,
+  SOCIAL_HOME_TOPIC_CURRENT_CLASS,
+  SOCIAL_HOME_TOPIC_FADE_CLASS,
+  SOCIAL_HOME_TOPIC_MARK_CLASS,
+  SOCIAL_HOME_TOPIC_TRACK_CLASS,
   SOCIAL_STORIES_EMPTY_ACTION_CLASS,
   SOCIAL_STORIES_PLUS_WELL_CLASS,
   SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS,
-  SOCIAL_TOPIC_CHIP_ROW_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS,
-  SOCIAL_TOPIC_RAIL_CLASS,
-  SOCIAL_TOPIC_RAIL_ROWS,
 } from "@/lib/social-chrome";
-import { HOUSE_PILL_SELECTED_CLASS, HOUSE_SCROLL_ROW_CLASS } from "@/lib/house-shell";
+import { HOUSE_FILTER_ON_CLASS, HOUSE_PILL_SELECTED_CLASS } from "@/lib/house-shell";
 import { SOCIAL_CATEGORY_ALL, SOCIAL_CATEGORY_LABELS, SOCIAL_CATEGORY_TOPICS, sortTopicsAlpha } from "@/lib/social-categories";
 import { SOCIAL_ICON_SIZE_STORY_PLUS } from "@/lib/social-icons";
 import { SOCIAL_CREATE_CAMERA_ACCEPT, SOCIAL_CREATE_MEDIA_ACCEPT } from "@/lib/social-create-media";
@@ -97,8 +100,6 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain('data-social-composer-affordance="camera"');
     expect(html).toContain('data-social-icon="image"');
     expect(html).toContain('data-social-icon="camera"');
-    expect(html).toContain(`width="16"`);
-    expect(html).not.toContain(`width="20"`);
     expect(html).not.toContain("t-label");
     expect(html).toContain(`aria-label="${SOCIAL.home.composerPhoto}"`);
     expect(html).toContain(`aria-label="${SOCIAL.home.composerCamera}"`);
@@ -108,58 +109,62 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain(`accept="${SOCIAL_CREATE_CAMERA_ACCEPT}"`);
     expect(html).toContain('capture="environment"');
     expect(html).toContain('data-social-create-media-capture="environment"');
+    // The visible Photo / Camera buttons open the pickers. The file inputs
+    // are no tab stop (no 1px focus ring) and hidden from assistive tech
+    // (no second "Photo" / "Camera").
+    const pickers = html.match(/<input[^>]*data-social-create-media-input[^>]*>/g) ?? [];
+    expect(pickers).toHaveLength(2);
+    for (const picker of pickers) {
+      expect(picker).toContain('tabindex="-1"');
+      expect(picker).toContain('aria-hidden="true"');
+    }
     const photoAt = html.indexOf('data-social-composer-affordance="photo"');
     const cameraAt = html.indexOf('data-social-composer-affordance="camera"');
     expect(photoAt).toBeGreaterThan(html.indexOf("data-social-composer-prompt"));
     expect(cameraAt).toBeGreaterThan(photoAt);
-    expect(SOCIAL_COMPOSER_CLASS).toMatch(/^flex /);
+    // G · Feed composer bar (D, Adam 2026-10-04): one muted bar, radius 16,
+    // 52 tall, no rule. Supersedes the FB-row v1.6 white band.
+    expect(SOCIAL_COMPOSER_CLASS).toContain("flex ");
     expect(SOCIAL_COMPOSER_CLASS).toContain("items-center");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("flex-col");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("hidden");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-20");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-y");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-x-0");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-hairline");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-none");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("bg-surface");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-transparent");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("px-[var(--space-4)]");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("py-[var(--space-2)]");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("py-0");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("rounded-[var(--radius-lg)]");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("h-[52px]");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-[var(--radius-lg)]");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("pl-2.5");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("pr-1");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("md:pr-1.5");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("max-md:-mx-1");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("border-y");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("border-hairline");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("rounded-none");
     expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)border(?:\s|$)/);
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("p-[var(--space-4)]");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("gap-[var(--space-2)]");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("accent");
     expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("flex-1");
     expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("items-center");
-    expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("gap-[var(--space-2)]");
-    expect(SOCIAL_COMPOSER_ROW_CLASS).not.toContain("gap-[var(--space-3)]");
-    expect(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS).toContain("ml-[var(--space-2)]");
+    expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("gap-1.5");
+    expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("md:gap-2.5");
     expect(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS).toContain("gap-0");
-    expect(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS).not.toContain("gap-[var(--space-2)]");
-    expect(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS).not.toContain("pl-[calc(2.5rem+var(--space-3))]");
-    expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("size-8");
-    expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).not.toContain("size-10");
+    // Photo and Camera: 44 hits on phone, 36 on desktop; glyph 20 / 18.
+    expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("size-11");
+    expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("md:size-9");
     expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("text-ink-2");
     expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).not.toContain("bg-accent");
+    expect(html).toContain(`width="20"`);
+    expect(html).toContain("md:size-[18px]");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("bg-transparent");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("border-0");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("outline-none");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("shadow-");
     expect(html).toContain("shadow-none");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("bg-surface");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("bg-surface-muted");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("border-hairline");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("h-10");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("rounded-[20px]");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("h-8");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("rounded-[16px]");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("px-[var(--space-4)]");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("t-body");
+    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("h-11");
+    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("md:h-10");
+    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("t-body-sm");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("text-ink-2");
-    expect(html).toContain("size-10");
-    expect(html).toContain("size-8");
-    expect(html).not.toContain("size-11");
+    expect(SOCIAL_COMPOSER_AVATAR_CLASS).toBe("size-[30px] md:size-8");
+    expect(html).toContain(SOCIAL_COMPOSER_AVATAR_CLASS);
   });
 
   it("shows the composer author photo when a signed URL exists", () => {
@@ -174,60 +179,67 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).not.toContain("AC");
   });
 
-  it("renders Topics as a one-row house chip rail, not a wrapping card", () => {
+  // G · Feed (Adam 2026-10-04): D topic words. Plain words, the current
+  // one ink over a 2px ink underline, no pill and no accent; All first,
+  // then the 15 topics A to Z; one row that scrolls and never truncates.
+  it("renders Topics as D plain words on one scrolling row, not chips", () => {
     const html = renderToStaticMarkup(<SocialHomeTopics />);
     expect(html).toContain("data-social-home-topics");
-    expect(html).toContain("data-social-home-topics-rail");
-    expect(html).toContain("data-house-chip-rail");
-    expect(html).toContain('data-house-chip-rail-row="0"');
-    expect(html).not.toContain('data-house-chip-rail-row="1"');
+    expect(html).toContain('role="group" aria-label="Topics" data-social-home-topics-rail=""');
     expect(html).not.toMatch(/>Topics</);
-    expect(html).toContain(SOCIAL_TOPIC_RAIL_CLASS);
-    expect(html).toContain(SOCIAL_TOPIC_CHIP_ROW_CLASS);
-    expect(html).toContain(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
-    expect(html).toContain(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS);
-    expect(html).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).toContain("h-8");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).toContain("t-body-sm");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).not.toContain("py-[var(--space-2)]");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain("h-8");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain("t-body-sm");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(html).toContain("h-8");
-    expect(html).toContain("py-0");
-    expect(html).toContain("max-md:-mt-[var(--space-2)]");
-    expect(html).not.toMatch(/(?:^|[\s"])-mt-\[var\(--space-2\)\]/);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).toContain("h-8");
-    expect(html).not.toContain("text-[11px]");
-    expect(html).not.toContain("py-[5px]");
-    expect(SOCIAL_TOPIC_RAIL_CLASS).toBe(HOUSE_SCROLL_ROW_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CLASS).toContain("overflow-x-auto");
+    expect(html).not.toContain("data-house-chip-rail");
+    expect(html).toContain(SOCIAL_HOME_TOPIC_TRACK_CLASS);
+    expect(html).toContain(SOCIAL_HOME_TOPIC_CLASS);
+    expect(html).toContain(SOCIAL_HOME_TOPIC_CURRENT_CLASS);
+    expect(html).toContain(SOCIAL_HOME_TOPIC_MARK_CLASS);
+    expect(SOCIAL_HOME_TOPIC_MARK_CLASS).toContain("border-b-2");
+    for (const cls of [SOCIAL_HOME_TOPIC_CLASS, SOCIAL_HOME_TOPIC_CURRENT_CLASS]) {
+      expect(cls).toContain("h-11");
+      expect(cls).toContain("md:h-[30px]");
+      expect(cls).toContain("text-[length:var(--text-xs)]");
+      expect(cls).toContain("whitespace-nowrap");
+      expect(cls).not.toContain("rounded-full");
+      expect(cls).not.toContain("bg-");
+      expect(cls).not.toContain("accent");
+    }
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-ink");
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("font-semibold");
+    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("text-ink-2");
+    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("font-medium");
+    expect(html).not.toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(html).not.toContain(HOUSE_FILTER_ON_CLASS);
+    expect(html).not.toContain("bg-accent");
     expect(html.match(/overflow-x-auto/g)?.length).toBe(1);
-    expect(SOCIAL_TOPIC_RAIL_CLASS).not.toContain("flex-wrap");
-    expect(SOCIAL_TOPIC_CHIP_ROW_CLASS).not.toContain("flex-wrap");
-    expect(html).not.toContain(SOCIAL_FOR_YOU_CARD_CLASS);
     expect(html).not.toContain("flex-wrap");
+    expect(html).not.toContain("truncate");
+    expect(html).not.toContain("line-clamp");
+    expect(html).not.toContain(SOCIAL_FOR_YOU_CARD_CLASS);
+    // The fade over the trailing edge carries "More topics".
+    expect(html).toContain(SOCIAL_HOME_TOPIC_FADE_CLASS);
+    expect(html).toContain(`aria-label="${SOCIAL.home.moreTopics}"`);
+    expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("var(--bg)");
+    expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("pointer-events-none");
+    // No lane chips in this row any more: the tabs own the lane.
+    expect(html).not.toContain("data-social-home-lane");
     expect(html).toContain("Cinematography");
     expect(html).toContain("Vertical micro dramas");
     expect(html).not.toContain("Topics for you");
     expect(html).not.toContain("Trending topics");
-    expect(html).not.toContain("Topics.");
-    expect(html).not.toContain("truncate");
     expect(html).not.toContain("data-social-for-you-topics");
     expect(SOCIAL.forYou).not.toHaveProperty("topics");
-    expect(SOCIAL_TOPIC_RAIL_ROWS).toBe(1);
     expect(SOCIAL_CATEGORY_TOPICS).toHaveLength(15);
-    const row = html.slice(html.indexOf('data-house-chip-rail-row="0"'));
-    const chips = [...row.matchAll(/data-social-home-topic="([^"]+)"/g)].map((match) => match[1]);
+    const chips = [...html.matchAll(/data-social-home-topic="([^"]+)"/g)].map((match) => match[1]);
     expect(chips[0]).toBe(SOCIAL_CATEGORY_ALL);
     expect(chips).toEqual([...SOCIAL_CATEGORY_LABELS]);
     expect(chips.slice(1)).toEqual([...SOCIAL_CATEGORY_TOPICS]);
     expect(chips.slice(1)).toEqual(sortTopicsAlpha(chips.slice(1)));
-    expect(row).toContain("Acting");
-    expect(row).toContain("AI filmmaking");
+    expect(html).toMatch(/data-social-home-topic="All"[^>]*aria-current="true"/);
   });
 
-  it("renders tall FB-style story tiles with a plus well and unseen face rings", () => {
+  // G · Feed (Adam 2026-10-04): D story tiles. 56×100 in a 70 item, the
+  // first name under the tile, an ink ring when unseen, a hairline when
+  // seen, "Your story" with an ink badge. No accent anywhere on the rail.
+  it("renders D story tiles: 56×100, names under, ink unseen ring, no accent", () => {
     const html = renderToStaticMarkup(
       <SocialStoriesRail
         canCreate
@@ -250,69 +262,51 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
         ]}
       />,
     );
+    expect(html).toContain('role="group" aria-label="Stories"');
+    expect(html).toContain(SOCIAL_HOME_STORIES_RAIL_CLASS);
+    expect(html).toContain(SOCIAL_HOME_STORY_ITEM_CLASS);
+    expect(html).toContain(SOCIAL_HOME_STORY_TILE_CLASS);
+    expect(SOCIAL_HOME_STORY_TILE_CLASS).toContain("h-[100px]");
+    expect(SOCIAL_HOME_STORY_TILE_CLASS).toContain("w-14");
+    expect(SOCIAL_HOME_STORY_TILE_CLASS).toContain("rounded-[var(--radius)]");
+    expect(SOCIAL_HOME_STORY_ITEM_CLASS).toContain("w-[70px]");
+    expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("md:gap-1.5");
+    expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("max-md:gap-0.5");
+    expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("max-md:px-3");
+    expect(html).not.toContain("w-[136px]");
+    expect(html).not.toContain("h-[240px]");
+    expect(html).not.toContain("data-social-stories-tall");
+    // Create tile: "Your story" under it, the board's accessible name, ink badge.
     expect(html).toContain("data-social-story-create");
-    expect(html).toContain(`width="${SOCIAL_ICON_SIZE_STORY_PLUS}"`);
-    expect(html).toContain(`height="${SOCIAL_ICON_SIZE_STORY_PLUS}"`);
-    expect(html).toContain(SOCIAL.stories.create);
-    expect(html).not.toContain(SOCIAL.stories.yourStory);
-    expect(html).toContain("data-social-stories-tall");
-    expect(html).toContain("data-social-story-unseen");
-    expect(html).toContain("data-social-story-media");
-    expect(html).toContain('src="https://s3.example/signed-avatar"');
-    expect(html).toContain("data-social-avatar");
-    expect(html).toContain('aria-label="Maya Chen"');
-    expect(html).not.toContain("Maya C.");
-    expect(html).not.toContain("from-band/72");
-    expect(html).not.toContain("bg-gradient-to-t");
-    expect(html).toContain("w-[136px]");
-    expect(html).toContain("h-[240px]");
-    expect(html).toContain("md:w-[144px]");
-    expect(html).toContain("md:h-[256px]");
-    expect(html).not.toContain("w-[120px]");
-    expect(html).not.toContain("h-[208px]");
-    expect(html).toContain(SOCIAL_HOME_STORIES_TRACK_CLASS);
-    expect(html).toContain("gap-2");
-    expect(html).toContain("px-0");
-    expect(html).toContain("pt-0");
-    expect(html).toContain("pb-2");
-    expect(html).not.toContain("pr-4");
-    expect(html).not.toContain("w-[108px]");
-    expect(html).not.toContain("h-[192px]");
-    expect(html).toContain("rounded-[var(--radius-lg)]");
-    expect(html).toContain("bg-accent");
-    expect(html).not.toContain("bg-band/55");
-    expect(html).toContain("h-[168px]");
-    expect(html).toContain("md:h-[176px]");
-    expect(html).toContain("h-[72px]");
-    expect(html).toContain("md:h-20");
-    expect(html).toContain("top-[150px]");
-    expect(html).toContain("md:top-[156px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("h-[240px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("w-[136px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("md:h-[256px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("md:w-[144px]");
-    expect(html).toContain("md:size-10");
-    expect(html).toContain("font-medium");
-    expect(html).toContain(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS);
-    expect(html).toContain(SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS);
+    expect(html).toContain(`aria-label="${SOCIAL.stories.yourStoryCreate}"`);
+    expect(html).toContain(`>${SOCIAL.stories.yourStory}<`);
+    expect(html).toContain(SOCIAL_HOME_STORY_BADGE_CLASS);
+    expect(SOCIAL_HOME_STORY_BADGE_CLASS).toContain("bg-ink");
+    expect(SOCIAL_HOME_STORY_BADGE_CLASS).toContain("text-canvas");
+    expect(SOCIAL_HOME_STORY_BADGE_CLASS).toContain("size-[22px]");
+    expect(html).not.toContain("accent");
+    // Unseen: ink ring with a page gap. Seen is the hairline.
+    expect(SOCIAL_HOME_STORY_RING_UNSEEN_CLASS).toBe("ring-[1.5px] ring-ink ring-offset-2 ring-offset-canvas");
+    expect(SOCIAL_HOME_STORY_RING_SEEN_CLASS).toBe("ring-1 ring-hairline");
     const userCard = html.slice(html.indexOf("data-social-story-card"));
-    expect(userCard.indexOf("data-social-avatar")).toBeGreaterThan(userCard.indexOf("data-social-story-media"));
-    expect(userCard).not.toContain(SOCIAL.stories.create);
-    expect(html.indexOf(SOCIAL.stories.create)).toBeLessThan(html.indexOf("data-social-story-card"));
+    expect(userCard).toContain(SOCIAL_HOME_STORY_RING_UNSEEN_CLASS);
+    expect(userCard).toContain("data-social-story-unseen");
+    expect(userCard).toContain("data-social-story-media");
+    expect(userCard).toContain('aria-label="Maya Chen"');
+    expect(userCard).toContain(">Maya<");
+    expect(userCard).not.toContain("Maya C.");
+    expect(userCard).not.toContain(SOCIAL.stories.yourStory);
+    expect(html).not.toContain("truncate");
+    expect(html.indexOf(SOCIAL.stories.yourStory)).toBeLessThan(html.indexOf("data-social-story-card"));
   });
 
   it("sets Create Story in house t-body-sm, not t-label stacked caps", () => {
     expect(SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS).toBe("t-body-sm font-medium text-ink");
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain(SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS);
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("t-body-sm");
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).not.toContain("t-label");
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).not.toContain("uppercase");
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).not.toContain("tracking-");
     expect(SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS).not.toContain("t-label");
     expect(SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS).not.toContain("uppercase");
   });
 
-  it("paints Create Story plus as a white glyph on the accent well, not a fill knockout", () => {
+  it("paints the Home create badge in ink and keeps the Stories page accent well", () => {
     const home = renderToStaticMarkup(
       <SocialStoriesRail canCreate authors={authors} faces={faces} cards={[]} />,
     );
@@ -325,17 +319,15 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
         cards={[]}
       />,
     );
-    expect(home).toContain(SOCIAL_HOME_STORY_PLUS_CLASS);
+    expect(home).toContain(SOCIAL_HOME_STORY_BADGE_CLASS);
     expect(home).toContain('data-social-icon="plus"');
-    expect(home).toContain("text-accent-contrast");
+    expect(home).toContain('width="12"');
+    expect(home).not.toContain("bg-accent");
+    expect(home).not.toContain("text-accent-contrast");
     expect(home).not.toContain("data-social-icon-active");
     expect(stories).toContain(SOCIAL_STORIES_PLUS_WELL_CLASS);
     expect(stories).toContain('data-social-icon="plus"');
     expect(stories).not.toContain("data-social-icon-active");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("bg-accent");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("text-accent-contrast");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).not.toContain("bg-surface ");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).not.toContain("bg-surface-muted");
     expect(SOCIAL_STORIES_PLUS_WELL_CLASS).toContain("bg-accent");
     expect(SOCIAL_STORIES_PLUS_WELL_CLASS).toContain("text-accent-contrast");
     expect(SOCIAL_STORIES_PLUS_WELL_CLASS).not.toContain("bg-surface");
@@ -479,7 +471,7 @@ describe("Social Stories craft (Figma 138:163 / 138:889 / 138:943)", () => {
         ]}
       />,
     );
-    const media = image.slice(image.indexOf("data-social-story-media"), image.indexOf("data-social-avatar"));
+    const media = image.slice(image.indexOf("data-social-story-media"));
     expect(media).toContain('data-social-story-rail-cover="held"');
     expect(media).not.toContain("/api/social/media?key=");
     expect(media).not.toContain(encodeURIComponent(imageKey));
@@ -514,8 +506,9 @@ describe("Social Stories craft (Figma 138:163 / 138:889 / 138:943)", () => {
     expect(video).not.toContain("<video");
     expect(video).not.toContain(encodeURIComponent(videoKey));
     expect(video).not.toContain("autoplay");
-    expect(video).toContain("border-hairline");
-    expect(video).not.toContain("border-accent");
+    expect(video).toContain(SOCIAL_HOME_STORY_RING_SEEN_CLASS);
+    expect(video).not.toContain(SOCIAL_HOME_STORY_RING_UNSEEN_CLASS);
+    expect(video).not.toContain("accent");
   });
 
   it("does not paint an unsigned Mux poster on a signed story card", () => {
@@ -558,24 +551,20 @@ describe("Social Stories craft (Figma 138:163 / 138:889 / 138:943)", () => {
     expect(html).not.toContain("<img");
   });
 
-  it("keeps Home rail tall FB-style and Create story when surface is home", () => {
+  it("keeps the Home surface on D tiles with Your story first", () => {
     const html = renderToStaticMarkup(
       <SocialStoriesRail canCreate createName="Adam Carpenter" authors={authors} faces={faces} cards={[]} />,
     );
     expect(html).toContain('data-social-stories-surface="home"');
-    expect(html).toContain("data-social-stories-tall");
-    expect(html).toContain("w-[136px]");
-    expect(html).toContain("h-[240px]");
-    expect(html).not.toContain("w-[120px]");
-    expect(html).not.toContain("h-[208px]");
-    expect(html).toContain("gap-2");
-    expect(html).not.toContain("gap-4");
-    expect(html).toContain(`width="${SOCIAL_ICON_SIZE_STORY_PLUS}"`);
-    expect(html).toContain(SOCIAL.stories.create);
+    expect(html).not.toContain("data-social-stories-tall");
+    expect(html).toContain("h-[100px] w-14");
+    expect(html).not.toContain("w-[136px]");
+    expect(html).not.toContain("h-[240px]");
+    expect(html).toContain(SOCIAL.stories.yourStory);
     expect(html).toContain("data-social-avatar");
     expect(html).toContain("AC");
     expect(html).not.toContain("<img");
-    expect(html).not.toContain(SOCIAL.stories.yourStory);
+    expect(html).not.toContain(`>${SOCIAL.stories.create}<`);
     expect(html).not.toContain("w-[68px]");
   });
 

@@ -6,19 +6,21 @@ import { SocialStoryRailCover } from "@/components/social/social-story-rail-cove
 import { SocialStoryRailFace } from "@/components/social/social-story-rail-face";
 import { cn } from "@/lib/cn";
 import {
-  SOCIAL_HOME_STORY_CARD_CLASS,
+  SOCIAL_HOME_STORIES_RAIL_CLASS,
+  SOCIAL_HOME_STORY_BADGE_CLASS,
+  SOCIAL_HOME_STORY_ITEM_CLASS,
+  SOCIAL_HOME_STORY_NAME_CLASS,
+  SOCIAL_HOME_STORY_RING_SEEN_CLASS,
+  SOCIAL_HOME_STORY_TILE_CLASS,
+  SOCIAL_HOME_STORY_TILE_MEDIA_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
-  SOCIAL_STORIES_FEED_RULE_CLASS,
-  SOCIAL_HOME_STORIES_TRACK_CLASS,
-  SOCIAL_HOME_STORY_CREATE_FACE_CLASS,
-  SOCIAL_HOME_STORY_CREATE_LABEL_CLASS,
-  SOCIAL_HOME_STORY_FACE_RING_CLASS,
-  SOCIAL_HOME_STORY_PLUS_CLASS,
   SOCIAL_STORIES_CARD_CLASS,
   SOCIAL_STORIES_FACE_CLASS,
   SOCIAL_STORIES_MEDIA_CLASS,
   SOCIAL_STORIES_PLUS_WELL_CLASS,
   SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS,
+  socialHomeStoryNameClass,
+  socialHomeStoryRingClass,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_STORY_PLUS } from "@/lib/social-icons";
 import { socialStoryRailCover } from "@/lib/social-edge";
@@ -64,10 +66,19 @@ function warmForCard(
   return { playbackId: match.playbackId, thumbnail: match.thumbnail };
 }
 
-function HomeTallStoriesRail({
+/** Board names the tile by first name; the link's name stays the full name. */
+function storyTileName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+// D story tiles (G · Feed, Adam pick 2026-10-04). 56×100 tiles, radius 10,
+// in a 70 item with the first name under it. Unseen: an ink ring; seen: a
+// hairline. "Your story" wears an ink badge with a page plus. No accent.
+// The cover fill and its mint-on-visible stay SocialStoryRailCover.
+// docs/design-locks/social-home-lane-tabs-lock-v1.md (stack + tiles)
+function HomeStoryTiles({
   cards,
   authors,
-  faces,
   canCreate,
   createName,
   createPhotoUrl,
@@ -75,7 +86,6 @@ function HomeTallStoriesRail({
 }: {
   cards: readonly SocialStoryRailCard[];
   authors: ReadonlyMap<string, { display_name: string; handle?: string }>;
-  faces: ReadonlyMap<string, string | null>;
   canCreate: boolean;
   createName?: string | null;
   createPhotoUrl?: string | null;
@@ -83,72 +93,62 @@ function HomeTallStoriesRail({
 }) {
   return (
     <div
+      role="group"
+      aria-label={SOCIAL.home.storiesLabel}
       data-social-stories=""
       data-social-stories-surface="home"
-      data-social-stories-tall=""
-      className={cn("overflow-x-auto", SOCIAL_MOBILE_BLEED_CLASS, SOCIAL_STORIES_FEED_RULE_CLASS)}
+      className={SOCIAL_HOME_STORIES_RAIL_CLASS}
     >
-      <div className={SOCIAL_HOME_STORIES_TRACK_CLASS}>
-        {canCreate ? (
-          <Link
-            href={SOCIAL_ROUTES.storiesNew}
-            data-social-story-create=""
-            aria-label={SOCIAL.stories.create}
-            className={SOCIAL_HOME_STORY_CARD_CLASS}
-          >
-            <span className={SOCIAL_HOME_STORY_CREATE_FACE_CLASS}>
+      {canCreate ? (
+        <Link
+          href={SOCIAL_ROUTES.storiesNew}
+          data-social-story-create=""
+          aria-label={SOCIAL.stories.yourStoryCreate}
+          className={cn(SOCIAL_HOME_STORY_ITEM_CLASS, "text-ink-2")}
+        >
+          <span className={cn(SOCIAL_HOME_STORY_TILE_CLASS, SOCIAL_HOME_STORY_RING_SEEN_CLASS)}>
+            <span className={SOCIAL_HOME_STORY_TILE_MEDIA_CLASS}>
               <SocialAvatar
                 name={createName ?? SOCIAL.home.you}
                 photoUrl={createPhotoUrl}
                 className="absolute inset-0 size-full rounded-none"
               />
             </span>
-            <span className={SOCIAL_HOME_STORY_PLUS_CLASS}>
-              <StoryCreatePlus />
+            <span className={SOCIAL_HOME_STORY_BADGE_CLASS}>
+              <SocialIcon name="plus" size={12} />
             </span>
-            <span className={SOCIAL_HOME_STORY_CREATE_LABEL_CLASS}>{SOCIAL.stories.create}</span>
-          </Link>
-        ) : null}
-        {cards.map((card) => {
-          const author = authors.get(card.authorId);
-          const name = socialPersonLabel({
-            handle: author?.handle ?? "",
-            displayName: author?.display_name,
-          });
-          const photo = faces.get(card.authorId);
-          return (
-            <Link
-              key={card.authorId}
-              href={storyCardHref(card)}
-              data-social-story-card={card.authorId}
-              data-social-story-unseen={card.unseen ? "" : undefined}
-              aria-label={name}
-              className={SOCIAL_HOME_STORY_CARD_CLASS}
-            >
-              <span data-social-story-media="" className="absolute inset-0 bg-surface-muted">
+          </span>
+          <span className={SOCIAL_HOME_STORY_NAME_CLASS}>{SOCIAL.stories.yourStory}</span>
+        </Link>
+      ) : null}
+      {cards.map((card) => {
+        const author = authors.get(card.authorId);
+        const name = socialPersonLabel({
+          handle: author?.handle ?? "",
+          displayName: author?.display_name,
+        });
+        return (
+          <Link
+            key={card.authorId}
+            href={storyCardHref(card)}
+            data-social-story-card={card.authorId}
+            data-social-story-unseen={card.unseen ? "" : undefined}
+            aria-label={name}
+            className={SOCIAL_HOME_STORY_ITEM_CLASS}
+          >
+            <span className={cn(SOCIAL_HOME_STORY_TILE_CLASS, socialHomeStoryRingClass(card.unseen))}>
+              <span data-social-story-media="" className={SOCIAL_HOME_STORY_TILE_MEDIA_CLASS}>
                 <SocialStoryRailCover
                   media={card.latest.media}
                   authorId={card.authorId}
                   warm={warmForCard(card, warmedThumbs)}
                 />
               </span>
-              <span
-                className={cn(
-                  SOCIAL_HOME_STORY_FACE_RING_CLASS,
-                  card.unseen ? "border-accent" : "border-hairline",
-                )}
-              >
-                <SocialAvatar
-                  name={name}
-                  photoUrl={photo ?? null}
-                  size="sm"
-                  className="size-full"
-                />
-              </span>
-            </Link>
-          );
-        })}
-      </div>
+            </span>
+            <span className={socialHomeStoryNameClass(card.unseen)}>{storyTileName(name)}</span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -175,10 +175,9 @@ export function SocialStoriesRail({
 }) {
   if (surface === "home") {
     return (
-      <HomeTallStoriesRail
+      <HomeStoryTiles
         cards={cards}
         authors={authors}
-        faces={faces}
         canCreate={canCreate}
         createName={createName}
         createPhotoUrl={createPhotoUrl}

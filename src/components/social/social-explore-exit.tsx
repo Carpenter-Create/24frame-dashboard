@@ -12,9 +12,12 @@ import {
 } from "@/lib/house-lead-chrome";
 import { SOCIAL, SOCIAL_ROUTES, exploreExitUsesPriorRoute } from "@/lib/social";
 import { SOCIAL_EXPLORE_EXIT_CLASS } from "@/lib/social-chrome";
+import { socialFeedReelOpenedExplore } from "@/lib/social-feed-reels";
 
 // Desktop Explore Exit. The href is Social home. A same-origin
-// referrer that is not Explore itself uses history instead.
+// referrer that is not Explore itself uses history instead. So does an
+// Explore address a feed Reels tile opened in this tab: Back lands on the
+// feed, where the house shell restores its scroll (same spot).
 // md to lg the chip shows only its X; "Exit" stays the accessible
 // name (shell-unified-chrome-lock-v1 header width budget).
 export function SocialExploreExit() {
@@ -25,7 +28,11 @@ export function SocialExploreExit() {
     if (event.button !== 0 || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) {
       return;
     }
-    if (exploreExitUsesPriorRoute(document.referrer, window.location.origin)) {
+    const here = `${window.location.pathname}${window.location.search}`;
+    if (
+      exploreExitUsesPriorRoute(document.referrer, window.location.origin) ||
+      socialFeedReelOpenedExplore(here)
+    ) {
       event.preventDefault();
       router.back();
     }

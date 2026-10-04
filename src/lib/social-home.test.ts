@@ -19,25 +19,22 @@ import {
 } from "./social-stories";
 
 describe("Social Home stack lock", () => {
-  it("locks Topics → composer → Stories → wall on phone and desktop", () => {
-    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_topics_composer_stories_wall");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["topics", "composer", "stories", "wall"]);
-    expect(SOCIAL_COMPOSER_CLASS).toMatch(/^flex /);
+  // G · Feed (Adam 2026-10-04): tabs → topic words → story tiles → composer
+  // bar → wall. Supersedes lock_topics_composer_stories_wall.
+  // docs/design-locks/social-home-lane-tabs-lock-v1.md
+  it("locks tabs → topics → stories → composer → wall on phone and desktop", () => {
+    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_tabs_topics_stories_composer_wall");
+    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["tabs", "topics", "stories", "composer", "wall"]);
+    expect(SOCIAL_COMPOSER_CLASS).toContain("flex ");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("hidden");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-y");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-x-0");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("border-hairline");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-none");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("bg-surface");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-transparent");
     expect(SOCIAL_COMPOSER_CLASS).toContain("items-center");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("flex-col");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("gap-[var(--space-2)]");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("px-[var(--space-4)]");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("py-[var(--space-2)]");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("py-0");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("h-[52px]");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-[var(--radius-lg)]");
+    expect(SOCIAL_COMPOSER_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("border-y");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("rounded-none");
     expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)border(?:\s|$)/);
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("p-[var(--space-4)]");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-20");
   });
 });

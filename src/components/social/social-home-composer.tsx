@@ -8,18 +8,20 @@ import { SocialIcon } from "@/components/social/social-icon";
 import { SocialWriteComposeSheet } from "@/components/social/social-write-compose-sheet";
 import {
   SOCIAL_COMPOSER_AFFORDANCE_CLASS,
+  SOCIAL_COMPOSER_AFFORDANCE_GLYPH,
+  SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS,
   SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS,
+  SOCIAL_COMPOSER_AVATAR_CLASS,
   SOCIAL_COMPOSER_CLASS,
   SOCIAL_COMPOSER_FIELD_CLASS,
   SOCIAL_COMPOSER_ROW_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL_CREATE_CAMERA_ACCEPT } from "@/lib/social-create-media";
-import { SOCIAL_ICON_SIZE_SEARCH } from "@/lib/social-icons";
 import { SOCIAL, socialComposerPrompt } from "@/lib/social";
 
-// FB-row lock v1.6. One row on phone and desktop. White band, pad Y 8.
-// Top and bottom hairlines only. Share something has no drawn edge.
-// Photo and Camera stay glyph 16, hit 32, flush.
+// Feed composer bar (G · D, Adam pick 2026-10-04): one muted bar, radius
+// 16, 52 tall, on phone and desktop. Supersedes the FB-row v1.6 band.
+// Photo and Camera stay icon-only: 44 hits on phone, 36 on desktop.
 // Prompt and avatar open write compose in the house sheet. No Create sheet hop.
 // docs/design-locks/share-something-write-compose-sheet-lock-v1.md
 // Photo reuses the Create media library pick. Camera reuses that pick
@@ -51,7 +53,11 @@ function ComposerAffordance({
         className={SOCIAL_COMPOSER_AFFORDANCE_CLASS}
         onClick={openPicker}
       >
-        <SocialIcon name={icon} size={SOCIAL_ICON_SIZE_SEARCH} className="text-ink-2" />
+        <SocialIcon
+          name={icon}
+          size={SOCIAL_COMPOSER_AFFORDANCE_GLYPH}
+          className={SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS}
+        />
       </button>
       {input}
     </>
@@ -83,7 +89,12 @@ export function SocialHomeComposer({
         className={SOCIAL_COMPOSER_ROW_CLASS}
         onClick={() => setWriteOpen(true)}
       >
-        <SocialAvatar name={authorName} photoUrl={authorPhotoUrl} size="sm" className="size-10" />
+        <SocialAvatar
+          name={authorName}
+          photoUrl={authorPhotoUrl}
+          size="sm"
+          className={SOCIAL_COMPOSER_AVATAR_CLASS}
+        />
         <span data-social-composer-prompt="" className={`${SOCIAL_COMPOSER_FIELD_CLASS} shadow-none`}>
           {socialComposerPrompt(authorName)}
         </span>
