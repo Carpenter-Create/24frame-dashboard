@@ -102,6 +102,8 @@ export function SocialProfileCoverUpload({
   const sourceUpload = useRef<{ gen: number; pending: Promise<CoverUploadResult> } | null>(null);
   // The cover version a stored-original edit opened (its compare-and-swap token).
   const openedCover = useRef<string | null>(null);
+  // The blob a save last put on the band. A late failure undoes only its own.
+  const bandPreview = useRef<string | null>(null);
   const saveBlocked = useRef(false);
   const captureEl = useRef<HTMLElement | null>(null);
   const captureId = useRef<number | null>(null);
@@ -323,6 +325,7 @@ export function SocialProfileCoverUpload({
     setError("");
     setUploading(true);
     try {
+      bandPreview.current = null;
       patchSocialProfileOptimistic({ coverUrl: null });
       onPreview?.(null);
       const result = await clearSocialProfileCover();
@@ -386,8 +389,12 @@ export function SocialProfileCoverUpload({
   }
 
   function rollbackPreview(previewUrl: string) {
-    onPreview?.(null);
-    patchSocialProfileOptimistic({ coverUrl: null });
+    // A newer save or Remove owns the band now: leave it as it is.
+    if (bandPreview.current === previewUrl) {
+      bandPreview.current = null;
+      onPreview?.(null);
+      patchSocialProfileOptimistic({ coverUrl: null });
+    }
     URL.revokeObjectURL(previewUrl);
   }
 
@@ -424,6 +431,7 @@ export function SocialProfileCoverUpload({
       const crop = coverCropRect(focus, size);
 
       previewUrl = URL.createObjectURL(cropped);
+      bandPreview.current = previewUrl;
       onPreview?.(previewUrl);
       patchSocialProfileOptimistic({ coverUrl: previewUrl });
 

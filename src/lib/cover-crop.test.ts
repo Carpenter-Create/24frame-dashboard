@@ -376,6 +376,30 @@ describe("cover upload component (FB-exact)", () => {
     const save = slice("async function onSaveReposition", "function onPointerDown");
     expect((save.match(/rollbackPreview\(previewUrl\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
   });
+
+  it("never lets a late failed save wipe a newer save's or Remove's band", () => {
+    const rollback = slice("function rollbackPreview", "async function onSaveReposition");
+    const guard = rollback.indexOf("if (bandPreview.current === previewUrl) {");
+    expect(guard).toBeGreaterThan(-1);
+    // Clearing the band sits inside the ownership guard; the revoke does not.
+    for (const effect of ["onPreview?.(null)", "patchSocialProfileOptimistic({ coverUrl: null })"]) {
+      expect(rollback.indexOf(effect)).toBeGreaterThan(guard);
+      expect(rollback.indexOf(effect)).toBeLessThan(rollback.indexOf("URL.revokeObjectURL(previewUrl)"));
+    }
+    const revoke = rollback.indexOf("URL.revokeObjectURL(previewUrl)");
+    expect(rollback.lastIndexOf("}", revoke)).toBeGreaterThan(guard);
+    // Each band writer records its ownership before it paints.
+    const save = slice("async function onSaveReposition", "function onPointerDown");
+    expect(save.indexOf("bandPreview.current = previewUrl;")).toBeGreaterThan(-1);
+    expect(save.indexOf("bandPreview.current = previewUrl;")).toBeLessThan(
+      save.indexOf("patchSocialProfileOptimistic({ coverUrl: previewUrl })"),
+    );
+    const remove = slice("async function removeCover", "function onFilePick");
+    expect(remove.indexOf("bandPreview.current = null;")).toBeGreaterThan(-1);
+    expect(remove.indexOf("bandPreview.current = null;")).toBeLessThan(
+      remove.indexOf("patchSocialProfileOptimistic({ coverUrl: null })"),
+    );
+  });
 });
 
 describe("cover banner architecture", () => {
