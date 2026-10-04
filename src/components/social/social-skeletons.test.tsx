@@ -9,7 +9,10 @@ import {
   SOCIAL_PROFILE_HERO_CLASS,
   SOCIAL_PROFILE_LINKS_CLASS,
   SOCIAL_PROFILE_STAGE_CLASS,
+  SOCIAL_PROFILE_STAT_LABEL_CLASS,
+  SOCIAL_PROFILE_STAT_VALUE_CLASS,
   SOCIAL_PROFILE_STATS_CLASS,
+  SOCIAL_PROFILE_STATS_GRID_CLASS,
 } from "@/lib/social-chrome";
 import {
   SocialCreateSkeleton,
@@ -106,6 +109,19 @@ describe("Social loading skeletons", () => {
     expect(profile.indexOf("data-social-profile-actions-skeleton")).toBeLessThan(profile.indexOf(SOCIAL_PROFILE_STATS_CLASS));
     expect(profile.indexOf(SOCIAL_PROFILE_STATS_CLASS)).toBeLessThan(profile.indexOf("data-social-profile-roles-skeleton"));
     expect(profile.indexOf("data-social-profile-roles-skeleton")).toBeLessThan(profile.indexOf("data-social-profile-links-skeleton"));
+    // Stats cells carry the real value and label lines, so the phone strip
+    // keeps the real cell height (it was 40 vs 73), and the bars take the
+    // surface on phone so they show on the surface-muted strip.
+    const statCells = profile.split("data-social-profile-stat-skeleton").slice(1);
+    expect(statCells).toHaveLength(3);
+    for (const cell of statCells) {
+      const valueAt = cell.indexOf(`class="${SOCIAL_PROFILE_STAT_VALUE_CLASS}"`);
+      const labelAt = cell.indexOf(`class="${SOCIAL_PROFILE_STAT_LABEL_CLASS}"`);
+      expect(valueAt).toBeGreaterThan(-1);
+      expect(labelAt).toBeGreaterThan(valueAt);
+      expect(cell.match(/max-md:bg-surface"/g)?.length).toBe(2);
+    }
+    expect(SOCIAL_PROFILE_STATS_GRID_CLASS).toContain("bg-surface-muted");
     // The real links row pulls 6 so a glyph in a clear hit box lines up with
     // the text; the skeleton paints whole boxes, so it starts on the column
     // edge (it sat 6 outside it: x 350 vs 356 at 1440, 10 vs 16 at 390).

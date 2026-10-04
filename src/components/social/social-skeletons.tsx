@@ -46,6 +46,8 @@ import {
   SOCIAL_PROFILE_ROLES_CLASS,
   SOCIAL_PROFILE_STAGE_CLASS,
   SOCIAL_PROFILE_STAT_CLASS,
+  SOCIAL_PROFILE_STAT_LABEL_CLASS,
+  SOCIAL_PROFILE_STAT_VALUE_CLASS,
   SOCIAL_PROFILE_STATS_CLASS,
   SOCIAL_PROFILE_STATS_GRID_CLASS,
   SOCIAL_STORY_CARD_CLASS,
@@ -197,9 +199,17 @@ export function SocialProfileCenterSkeleton() {
           </div>
           <div className={SOCIAL_PROFILE_STATS_CLASS}>
             <div className={SOCIAL_PROFILE_STATS_GRID_CLASS}>
+              {/* The real cell's value and label lines, so the phone strip
+                  keeps its height when the face mounts. On phone the bars
+                  take the surface: the strip itself is surface-muted. */}
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className={SOCIAL_PROFILE_STAT_CLASS}>
-                  <Skeleton className="h-5 w-16" />
+                <div key={i} data-social-profile-stat-skeleton="" className={SOCIAL_PROFILE_STAT_CLASS}>
+                  <div className={SOCIAL_PROFILE_STAT_VALUE_CLASS}>
+                    <Skeleton className="inline-block h-[0.8em] w-10 align-middle max-md:bg-surface" />
+                  </div>
+                  <div className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>
+                    <Skeleton className="inline-block h-[0.8em] w-14 align-middle max-md:bg-surface" />
+                  </div>
                 </div>
               ))}
             </div>
