@@ -2,16 +2,14 @@ import { HouseLink } from "@/components/chrome/house-link";
 
 import { SocialEmpty } from "@/components/social/social-empty";
 import { cn } from "@/lib/cn";
-import {
-  SOCIAL_PROFILE_PANEL_INSET_CLASS,
-  SOCIAL_TOPIC_CHIP_BANK_CLASS,
-  SOCIAL_TOPIC_CHIP_CLASS,
-} from "@/lib/social-chrome";
+import { SOCIAL_TOPIC_CHIP_BANK_CLASS, SOCIAL_TOPIC_CHIP_CLASS } from "@/lib/social-chrome";
 import { SOCIAL, socialProfileEditTopicsHref } from "@/lib/social";
 import { parseSocialProfileTopics } from "@/lib/social-profile-topics";
 
 // Profile Interests tab. Same topic chip SoT the face used. Roles stay
-// on the face. Choosing Topics stays the Edit profile drill.
+// on the face. Choosing Topics stays the Edit profile drill. No side inset:
+// the Stage face below the hero starts at the column edge on phone and
+// desktop (docs/design-locks/social-profile-stage-lock-v1.md).
 export function SocialProfileInterests({
   topics,
   owner = false,
@@ -44,11 +42,7 @@ export function SocialProfileInterests({
   return (
     <div
       data-social-profile-interests=""
-      className={cn(
-        SOCIAL_PROFILE_PANEL_INSET_CLASS,
-        "py-[var(--space-4)]",
-        SOCIAL_TOPIC_CHIP_BANK_CLASS,
-      )}
+      className={cn("py-[var(--space-4)]", SOCIAL_TOPIC_CHIP_BANK_CLASS)}
     >
       {interestTopics.map((topic) => (
         <span key={topic} data-social-profile-topic={topic} className={SOCIAL_TOPIC_CHIP_CLASS}>

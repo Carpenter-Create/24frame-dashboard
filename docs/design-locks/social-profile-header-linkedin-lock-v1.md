@@ -1,8 +1,11 @@
 # [GC][24Frame] LOCK — Social profile header · LinkedIn proportions v1
 
 **Date:** 2026-10-04 (CT)  
-**Status:** **APPROVED** (founder, 2026-10-04)  
+**Status:** **APPROVED** (founder, 2026-10-04) · **Header geometry SUPERSEDED** by [`social-profile-stage-lock-v1.md`](social-profile-stage-lock-v1.md) (founder pick "A · Stage", 2026-10-04)  
 **Scope:** Profile head on `/social/profile` and `/social/u/[handle]`, plus its skeleton, save-hop and loading overlay, and the cover editor.  
+
+> **Superseded in part.** The Stage lock replaces this lock's header geometry: the 4:1 band (One rule, Desktop, Phone, States), the 1784×446 output, the desktop card, the clamped avatar and its half overlap, decision 2 ("Edge to edge, flush" — the founder picked the Stage mockup, which shows an inset card), the visitor no-band rule, the name at t-heading below the cover, the stack order, and gates G1–G7. **Still in force:** decision 3 (keep the original) and the Editor rules on focus, pan, keys, the in-flow preview and focus ring, the kept original, Reposition, the compare-and-swap on the opened cover, Remove, the Zoom rules and the removed public note, and gates G8–G11 — now applied to the 16:7 frame with the phone-safe outline described in the Stage lock. In that frame the zoom numbers are the Stage lock's: window `min(iw, (16/7)·ih) / z`, upscale cap against the 2400 output, so the 1784 and 4:1 figures below are this lock's history.
+
 **Entity:** Global Content / 24Frame only  
 **Supersedes:**
 - "Lock A" display sizes in `src/lib/social-profile-cover.ts` (phone 112, desktop 224, avatar 80, lip 40).

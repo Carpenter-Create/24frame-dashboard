@@ -37,7 +37,7 @@
 | Voice face | Diameter **220** (raise from 192 — kill sparse) · optical center of stage · fill `#EEEEF0` (denser than page white) · hairline ring `#ECEDF0` **1px** **IN** · **0** shadow |
 | Voice glyph | House Phosphor **microphone** · optical **bold/fill** weight · glyph **56** · ink `#14171A` — **OUT** thin Lucide/wireframe doodle |
 | Voice listening | Sporty Blue ring **2px** outside face · calm pulse ≤ house · wash idle none |
-| Voice recording | Soft Sporty wash **8–12%** fill + ring · house-calm |
+| Voice recording | Soft Sporty wash **8–12%** fill + ring · house-calm · glyph on the wash in `--accent-ink` (founder pick "Deeper blue text", Adam 2026-10-04: 4.61:1 painted light, Sporty Blue was 4.07:1; see [`social-profile-stage-lock-v1.md`](social-profile-stage-lock-v1.md) Accessibility) · fill and ring stay `--accent` |
 | Voice OUT | ChatGPT orb / cloud texture / dark stage · parody glow · bounce |
 | Bottom bar idle | Height **48** · radius **24** pill · fill `#EEEEF0` (cite §0.2) · **0** border · pad H **16** · inset **16** · above safe-area |
 | Bottom bar type | Placeholder **Share something** · `t-body` **0.9375rem** · `text-ink-2` / `#3D4450` · **optical vertical center** in h48 (see §0.1) |

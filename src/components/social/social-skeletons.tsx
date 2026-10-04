@@ -31,21 +31,23 @@ import {
   SOCIAL_HOME_SPINE_CLASS,
   SOCIAL_HOME_TOPICS_CLASS,
   SOCIAL_PROFILE_CENTER_CLASS,
-  SOCIAL_PROFILE_COVER_CLASS,
-  SOCIAL_PROFILE_COVER_EMPTY_CLASS,
-  SOCIAL_PROFILE_COVER_STACK_CLASS,
+  SOCIAL_PROFILE_AVATAR_ROW_CLASS,
   SOCIAL_PROFILE_HEAD_CLASS,
-  SOCIAL_PROFILE_HEAD_OVERLAP_CLASS,
+  SOCIAL_PROFILE_HERO_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
   SOCIAL_PROFILE_EDIT_HOST_CLASS,
   SOCIAL_PROFILE_EDIT_SHEET_CLASS,
   SOCIAL_PROFILE_ACTIONS_CLASS,
   SOCIAL_PROFILE_FACE_CLASS,
+  SOCIAL_PROFILE_INTRO_CLASS,
   SOCIAL_PROFILE_LINKS_CLASS,
   SOCIAL_PROFILE_IDENTITY_CLASS,
-  SOCIAL_PROFILE_INSET_CLASS,
   SOCIAL_PROFILE_NAME_STACK_CLASS,
-  SOCIAL_PROFILE_STATS_LEAD_CLASS,
+  SOCIAL_PROFILE_ROLES_CLASS,
+  SOCIAL_PROFILE_STAGE_CLASS,
+  SOCIAL_PROFILE_STAT_CLASS,
+  SOCIAL_PROFILE_STAT_LABEL_CLASS,
+  SOCIAL_PROFILE_STAT_VALUE_CLASS,
   SOCIAL_PROFILE_STATS_CLASS,
   SOCIAL_PROFILE_STATS_GRID_CLASS,
   SOCIAL_STORY_CARD_CLASS,
@@ -159,39 +161,69 @@ export function SocialHomeSkeleton() {
   );
 }
 
+// Profile Stage skeleton (docs/design-locks/social-profile-stage-lock-v1.md):
+// the same stage, hero and face classes as SocialProfileIdentity, so the
+// hero box (aspect, radius, phone inset) is identical when the real face
+// mounts. The hero shows its --band fill, the no-cover state.
 export function SocialProfileCenterSkeleton() {
   return (
     <div className={SOCIAL_PROFILE_CENTER_CLASS}>
-      <div className={SOCIAL_PROFILE_IDENTITY_CLASS}>
-        <div className={SOCIAL_PROFILE_COVER_STACK_CLASS}>
-          <Skeleton className={`${SOCIAL_PROFILE_COVER_CLASS} ${SOCIAL_PROFILE_COVER_EMPTY_CLASS} rounded-none`} />
-          <div className={`${SOCIAL_PROFILE_INSET_CLASS} ${SOCIAL_PROFILE_HEAD_OVERLAP_CLASS}`}>
+      <div data-social-profile-identity-skeleton="" className={SOCIAL_PROFILE_IDENTITY_CLASS}>
+        <div className={SOCIAL_PROFILE_STAGE_CLASS}>
+          <div data-social-profile-hero-skeleton="" className={SOCIAL_PROFILE_HERO_CLASS}>
             <div className={SOCIAL_PROFILE_HEAD_CLASS}>
-              <Skeleton className={cn(SOCIAL_AVATAR_PROFILE_CLASS, SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS)} />
+              <div className={SOCIAL_PROFILE_AVATAR_ROW_CLASS}>
+                <Skeleton
+                  className={cn(
+                    SOCIAL_AVATAR_PROFILE_CLASS,
+                    SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS,
+                    "rounded-full bg-band-ink/15",
+                  )}
+                />
+              </div>
               <div className={SOCIAL_PROFILE_NAME_STACK_CLASS}>
-                <Skeleton className="h-7 w-40" />
-                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-7 w-40 bg-band-ink/15 @min-[40rem]/hero:h-14 @min-[40rem]/hero:w-72" />
+                <Skeleton className="h-3.5 w-24 bg-band-ink/15 @min-[40rem]/hero:h-4" />
               </div>
             </div>
           </div>
         </div>
-        <div className={`${SOCIAL_PROFILE_FACE_CLASS} ${SOCIAL_PROFILE_STATS_LEAD_CLASS}`}>
+        <div className={SOCIAL_PROFILE_FACE_CLASS}>
+          <div className={SOCIAL_PROFILE_INTRO_CLASS}>
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <div data-social-profile-actions-skeleton="" className={SOCIAL_PROFILE_ACTIONS_CLASS}>
+            <Skeleton className="h-11 w-32 rounded-full" />
+            <Skeleton className="h-11 w-32 rounded-full" />
+          </div>
           <div className={SOCIAL_PROFILE_STATS_CLASS}>
             <div className={SOCIAL_PROFILE_STATS_GRID_CLASS}>
-              <Skeleton className="h-8 w-10" />
-              <Skeleton className="h-8 w-10" />
-              <Skeleton className="h-8 w-10" />
+              {/* The real cell's value and label lines, so the phone strip
+                  keeps its height when the face mounts. On phone the bars
+                  take the surface: the strip itself is surface-muted. */}
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} data-social-profile-stat-skeleton="" className={SOCIAL_PROFILE_STAT_CLASS}>
+                  <div className={SOCIAL_PROFILE_STAT_VALUE_CLASS}>
+                    <Skeleton className="inline-block h-[0.8em] w-10 align-middle max-md:bg-surface" />
+                  </div>
+                  <div className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>
+                    <Skeleton className="inline-block h-[0.8em] w-14 align-middle max-md:bg-surface" />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <Skeleton className="h-3 w-2/3" />
-          <Skeleton className="h-7 w-24 rounded-full" />
-          <div data-social-profile-links-skeleton="" className={SOCIAL_PROFILE_LINKS_CLASS}>
-            <Skeleton className="size-9 rounded-[8px]" />
-            <Skeleton className="size-9 rounded-[8px]" />
+          <div data-social-profile-roles-skeleton="" className={SOCIAL_PROFILE_ROLES_CLASS}>
+            <Skeleton className="h-8 w-24 rounded-full md:h-9" />
+            <Skeleton className="h-8 w-28 rounded-full md:h-9" />
           </div>
-          <div className={SOCIAL_PROFILE_ACTIONS_CLASS}>
-            <Skeleton className="h-8 w-28 rounded-[8px]" />
-            <Skeleton className="size-[44px] shrink-0 rounded-full" />
+          {/* The real row pulls 6 so a glyph inside a clear hit box lines up
+              with the text above; the skeleton paints the whole box, so it
+              starts on the column edge instead. */}
+          <div data-social-profile-links-skeleton="" className={cn(SOCIAL_PROFILE_LINKS_CLASS, "ml-0")}>
+            <Skeleton className="size-11 rounded-[8px] md:size-8" />
+            <Skeleton className="size-11 rounded-[8px] md:size-8" />
           </div>
         </div>
       </div>

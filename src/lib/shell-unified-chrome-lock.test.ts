@@ -29,6 +29,11 @@ describe("shell unified chrome lock v1 (Adam 2026-10-04)", () => {
     expect(lock).toContain("**Aggregation · Social · Education · Staff**");
     expect(lock).toContain("`bg-accent text-accent-contrast`");
     expect(lock).toContain("Phosphor **Rows**");
+    // Settings and the Education course rail: wash row, accent-ink label
+    // (founder pick "Deeper blue text", 2026-10-04).
+    expect(lock).toContain(
+      '| Settings, Education course rail | Keep their current active styling: `--accent-wash` row, label in `--accent-ink` (`HOUSE_RAIL_ACTIVE_CLASS`). Founder pick "Deeper blue text" (Adam, 2026-10-04): 4.62:1 light',
+    );
     expect(lock).toContain("**Go to Feed**");
     expect(lock).toContain("A \"24\" tile, or any change to the brand mark");
     expect(lock).toContain("Search on Home, Aggregation, or Staff");

@@ -68,7 +68,7 @@
 // /settings path. Pad 16. Active wash follows the hub section.
 // Rail keeps house Settings title + Profile · Organization · Preferences · Security.
 // Body H1 is the hub section only — never repeat Settings in the pane.
-// Selected wash uses house workspace-rail SoT (accent-wash + accent text).
+// Selected wash uses house workspace-rail SoT (accent-wash + accent-ink text).
 // Desktop: section rail + pane. Mobile: list → push.
 // Spacing 8 / 16 / 24 / 48 (Mercury density). Design polish may follow.
 

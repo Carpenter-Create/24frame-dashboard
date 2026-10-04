@@ -43,9 +43,11 @@ import {
   coverEditorHint,
   coverFocusFromCrop,
   coverMaxZoom,
+  coverPhoneSafeRegion,
   coverPinchZoom,
   coverPointerDistance,
   coverPreviewBox,
+  coverRegionStyle,
   coverWheelZoom,
   coverZoomTo,
   moveCoverFocus,
@@ -68,8 +70,11 @@ import {
   SOCIAL_PROFILE_COVER_DRAG_CLASS,
   SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS,
   SOCIAL_PROFILE_COVER_EDIT_CLASS,
+  SOCIAL_PROFILE_COVER_EDIT_LABEL_CLASS,
   SOCIAL_PROFILE_COVER_MENU_CLASS,
   SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS,
+  SOCIAL_PROFILE_COVER_PHONE_LABEL_CLASS,
+  SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
   SOCIAL_PROFILE_COVER_PILL_ANCHOR_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_ACTIONS_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_BUTTON_CLASS,
@@ -79,7 +84,7 @@ import {
   SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS,
 } from "@/lib/social-chrome";
 import { socialMediaKindFor } from "@/lib/social-media";
-import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
+import { SOCIAL_ICON_SIZE_COVER_EDIT, SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
 import { patchSocialProfileOptimistic } from "@/lib/social-profile-edit";
 
 type CoverMode = "idle" | "menu" | "reposition";
@@ -94,9 +99,17 @@ type CoverGesture =
 // the save) or the stored original (Reposition; the server keeps it).
 type CoverEditSource = "picked" | "stored";
 
-// docs/design-locks/social-profile-header-linkedin-lock-v1.md — what the
-// member frames is what lands. One focus drives the preview, the crop and
-// the stored framing (src/lib/social-profile-cover-frame.ts).
+// docs/design-locks/social-profile-stage-lock-v1.md — frame once: the
+// member drags and zooms in the 16:7 desktop frame, which outlines the part
+// phones show. What the member frames is what lands. One focus (zoom and
+// position) drives the preview, the crop and the stored framing
+// (src/lib/social-profile-cover-frame.ts). Editor and storage rules carried
+// from social-profile-header-linkedin-lock-v1.
+
+// The phone-safe outline is the same region the phone hero renders. It is
+// frame space, not image space: the phone shows a fixed part of the saved
+// crop, so the outline stays put while the image zooms and pans under it.
+const PHONE_SAFE = coverRegionStyle(coverPhoneSafeRegion());
 export function SocialProfileCoverUpload({
   coverUrl,
   coverFraming = null,
@@ -654,8 +667,8 @@ export function SocialProfileCoverUpload({
   const hintText =
     hint === "drag" ? SOCIAL.profile.coverDragHint : hint === "zoom" ? SOCIAL.profile.coverZoomHint : null;
 
-  // Nothing paints over the image except the avatar: the hint, Zoom,
-  // Cancel/Save and errors sit in the head trail below the band.
+  // Nothing paints over the image except the phone outline: the hint, Zoom,
+  // Cancel/Save and errors sit in the trail below the hero.
   const trailContent = (
     <>
       {hintText ? <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{hintText}</p> : null}
@@ -731,11 +744,20 @@ export function SocialProfileCoverUpload({
               alt=""
               draggable={false}
               className={SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS}
-              // The saved crop's own frame (coverCropFrame), as a box on the band.
+              // The saved crop's own frame (coverCropFrame), as a box in the frame.
               style={preview ?? undefined}
               onError={() => setError(SOCIAL.profile.coverCropFailed)}
             />
           ) : null}
+          <div
+            data-social-cover-phone-outline=""
+            className={SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS}
+            style={PHONE_SAFE}
+          >
+            <span className={SOCIAL_PROFILE_COVER_PHONE_LABEL_CLASS}>
+              {SOCIAL.profile.coverPhoneView}
+            </span>
+          </div>
         </div>
       ) : (
         <div
@@ -751,7 +773,6 @@ export function SocialProfileCoverUpload({
             aria-busy={uploading}
             aria-expanded={mode === "menu"}
             aria-haspopup="menu"
-            aria-label={coverLabel}
             title={coverLabel}
             className={SOCIAL_PROFILE_COVER_EDIT_CLASS}
             onClick={() => {
@@ -761,7 +782,8 @@ export function SocialProfileCoverUpload({
               });
             }}
           >
-            <SocialIcon name="pencil-simple" size={SOCIAL_ICON_SIZE_HEADER} />
+            <SocialIcon name="pencil-simple" size={SOCIAL_ICON_SIZE_COVER_EDIT} />
+            <span className={SOCIAL_PROFILE_COVER_EDIT_LABEL_CLASS}>{coverLabel}</span>
           </button>
 
           {mode === "menu" ? (

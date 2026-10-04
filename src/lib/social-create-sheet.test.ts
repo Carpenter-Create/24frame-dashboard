@@ -95,8 +95,12 @@ describe("Social Create sheet SoT", () => {
     expect(SOCIAL_CREATE_TILE_WELL_CLASS).toContain("size-16");
     expect(SOCIAL_CREATE_TILE_WELL_CLASS).not.toContain("border");
     expect(SOCIAL_CREATE_TILE_WELL_CLASS).not.toContain("shadow");
-    expect(SOCIAL_CREATE_TILE_ICON_CLASS).toContain("group-hover:text-accent");
-    expect(SOCIAL_CREATE_TILE_ICON_CLASS).toContain("group-active:text-accent");
+    // The icon sits on the wash on hover/press, so it takes --accent-ink
+    // (founder pick "Deeper blue text", 2026-10-04), not --accent.
+    const icon = SOCIAL_CREATE_TILE_ICON_CLASS.split(" ");
+    expect(icon).toEqual(expect.arrayContaining(["group-hover:text-accent-ink", "group-active:text-accent-ink"]));
+    expect(icon).not.toContain("group-hover:text-accent");
+    expect(icon).not.toContain("group-active:text-accent");
     expect(SOCIAL_CREATE_TILE_ICON_CLASS).toContain("transition-colors");
     expect(SOCIAL_CREATE_TILE_LABEL_CLASS).toContain("whitespace-normal");
     expect(SOCIAL_CREATE_TILE_LABEL_CLASS).toContain("t-body-sm");

@@ -54,9 +54,12 @@ export const SOCIAL_ICON_SIZE_SEARCH = 16;
 /** Post Like / Comment / Share glyph. Hit stays 40. */
 export const SOCIAL_ICON_SIZE_POST_ACTION = 24;
 export const SOCIAL_ICON_SIZE_HEADER = 20;
-export const SOCIAL_ICON_SIZE_PROFILE_LINK = 20;
-// Profile action-row Share is the glyph inside a 44px hit.
-export const SOCIAL_ICON_SIZE_SHARE = 20;
+// Profile Stage links (docs/design-locks/social-profile-stage-lock-v1.md):
+// quiet icon-only socials at 15, the website globe at 14 beside its host.
+export const SOCIAL_ICON_SIZE_PROFILE_LINK = 15;
+export const SOCIAL_ICON_SIZE_PROFILE_WEBSITE = 14;
+// Edit cover pencil: in the desktop glass pill and the phone circle.
+export const SOCIAL_ICON_SIZE_COVER_EDIT = 15;
 export const SOCIAL_ICON_SIZE_PROFILE_PLAY = 16;
 export const SOCIAL_ICON_SIZE_SHARE_SHEET_CLOSE = 18;
 export const SOCIAL_ICON_SIZE_SHARE_SHEET_ACTION = 22;

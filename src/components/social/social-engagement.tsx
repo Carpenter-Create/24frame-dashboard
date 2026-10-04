@@ -32,6 +32,8 @@ import {
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTION_LIKED_CLASS,
+  SOCIAL_PROFILE_ACTION_PILL_CLASS,
+  SOCIAL_PROFILE_ACTION_PILL_SECONDARY_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import {
@@ -57,6 +59,7 @@ export function SocialFollowButton({
   followsYou = false,
   compact = false,
   stretch = false,
+  pill = false,
 }: {
   followeeId: string;
   handle: string;
@@ -65,6 +68,8 @@ export function SocialFollowButton({
   followsYou?: boolean;
   compact?: boolean;
   stretch?: boolean;
+  /** Profile Stage action row: the 44 accent / hairline pills. */
+  pill?: boolean;
 }) {
   const queryClient = useAppQueryClient();
   if (!queryClient) {
@@ -77,6 +82,7 @@ export function SocialFollowButton({
         followsYou={followsYou}
         compact={compact}
         stretch={stretch}
+        pill={pill}
         queryClient={null}
       />
     );
@@ -90,6 +96,7 @@ export function SocialFollowButton({
       followsYou={followsYou}
       compact={compact}
       stretch={stretch}
+      pill={pill}
     />
   );
 }
@@ -102,6 +109,7 @@ function SocialFollowButtonQuery({
   followsYou,
   compact,
   stretch,
+  pill,
 }: {
   followeeId: string;
   handle: string;
@@ -110,6 +118,7 @@ function SocialFollowButtonQuery({
   followsYou: boolean;
   compact: boolean;
   stretch: boolean;
+  pill: boolean;
 }) {
   const queryClient = useAppQueryClient();
   const query = useQuery({
@@ -127,6 +136,7 @@ function SocialFollowButtonQuery({
       followsYou={followsYou}
       compact={compact}
       stretch={stretch}
+      pill={pill}
       queryClient={queryClient}
     />
   );
@@ -140,6 +150,7 @@ function SocialFollowButtonView({
   followsYou,
   compact,
   stretch,
+  pill,
   queryClient,
 }: {
   followeeId: string;
@@ -149,6 +160,7 @@ function SocialFollowButtonView({
   followsYou: boolean;
   compact: boolean;
   stretch: boolean;
+  pill: boolean;
   queryClient: ReturnType<typeof useAppQueryClient>;
 }) {
   const [override, setOverride] = useState<boolean | null>(null);
@@ -226,10 +238,17 @@ function SocialFollowButtonView({
               ? isFollowing
                 ? SOCIAL_FOLLOW_COMPACT_IDLE_CLASS
                 : SOCIAL_FOLLOW_COMPACT_CLASS
-              : cn(
-                  isFollowing ? SOCIAL_ACTION_SECONDARY_CLASS : SOCIAL_ACTION_CLASS,
-                  stretch && "w-full",
-                )
+              : pill
+                ? cn(
+                    isFollowing
+                      ? SOCIAL_PROFILE_ACTION_PILL_SECONDARY_CLASS
+                      : SOCIAL_PROFILE_ACTION_PILL_CLASS,
+                    stretch && "w-full",
+                  )
+                : cn(
+                    isFollowing ? SOCIAL_ACTION_SECONDARY_CLASS : SOCIAL_ACTION_CLASS,
+                    stretch && "w-full",
+                  )
           }
         >
           {followButtonLabel(isFollowing, followsYou)}

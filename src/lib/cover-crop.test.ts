@@ -14,15 +14,17 @@ import {
   COVER_CROP_OUTPUT_WIDTH,
   COVER_CROP_VIEW_HEIGHT,
   COVER_CROP_VIEW_WIDTH,
-  SOCIAL_PROFILE_COVER_LOCK_A,
+  SOCIAL_PROFILE_COVER_STAGE,
 } from "./social-profile-cover";
 import { SOCIAL } from "./social";
 import {
   SOCIAL_PROFILE_COVER_DRAG_CLASS,
   SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS,
+  SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
   SOCIAL_PROFILE_COVER_ZOOM_CLASS,
   SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS,
 } from "./social-chrome";
+import { SOCIAL_IMAGE_MAX_BYTES } from "./social-media";
 
 describe("rectangular cover crop math", () => {
   it("cover-fits a landscape image into the 4:1 viewport", () => {
@@ -85,23 +87,28 @@ describe("rectangular cover crop math", () => {
   });
 });
 
-describe("cover crop constants", () => {
-  it("output dimensions match Lock A master", () => {
-    expect(COVER_CROP_OUTPUT_WIDTH).toBe(SOCIAL_PROFILE_COVER_LOCK_A.masterWidth);
-    expect(COVER_CROP_OUTPUT_HEIGHT).toBe(SOCIAL_PROFILE_COVER_LOCK_A.masterHeight);
-    expect(COVER_CROP_OUTPUT_WIDTH / COVER_CROP_OUTPUT_HEIGHT).toBe(4);
+describe("cover crop constants (Stage lock: frame once at 16:7)", () => {
+  it("outputs a 2400×1050 crop", () => {
+    expect(COVER_CROP_OUTPUT_WIDTH).toBe(2400);
+    expect(COVER_CROP_OUTPUT_HEIGHT).toBe(1050);
+    expect(COVER_CROP_OUTPUT_WIDTH).toBe(SOCIAL_PROFILE_COVER_STAGE.outputWidth);
+    expect(COVER_CROP_OUTPUT_HEIGHT).toBe(SOCIAL_PROFILE_COVER_STAGE.outputHeight);
+    expect(COVER_CROP_OUTPUT_WIDTH / COVER_CROP_OUTPUT_HEIGHT).toBe(16 / 7);
   });
 
-  it("view aspect matches 4:1", () => {
-    expect(COVER_CROP_VIEW_WIDTH / COVER_CROP_VIEW_HEIGHT).toBe(4);
+  it("view aspect matches the 16:7 frame", () => {
+    expect(COVER_CROP_VIEW_WIDTH).toBe(320);
+    expect(COVER_CROP_VIEW_HEIGHT).toBe(140);
+    expect(COVER_CROP_VIEW_WIDTH / COVER_CROP_VIEW_HEIGHT).toBe(16 / 7);
   });
 
   it("output file is named cover.jpg", () => {
     expect(COVER_CROP_OUTPUT_NAME).toBe("cover.jpg");
   });
 
-  it("max bytes allows up to 10 MB", () => {
+  it("max bytes is the posts stills lane cap (10 MB)", () => {
     expect(COVER_CROP_MAX_BYTES).toBe(10 * 1024 * 1024);
+    expect(COVER_CROP_MAX_BYTES).toBe(SOCIAL_IMAGE_MAX_BYTES);
   });
 });
 
@@ -134,7 +141,7 @@ describe("cover upload component (FB-exact)", () => {
   const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
   const slice = (from: string, to: string) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from)));
 
-  it("uses the pencil circle with the label as accessible name and title", () => {
+  it("uses the glass pill: pencil plus the existing label on desktop, the label sr-only on phone", () => {
     expect(src).toContain("SOCIAL_PROFILE_COVER_EDIT_CLASS");
     expect(src).not.toContain("SOCIAL_PROFILE_COVER_PILL_CLASS");
     expect(src).toContain('name="pencil-simple"');
@@ -142,10 +149,12 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain("editCover");
     expect(src).toContain("addCover");
     const button = slice("data-social-profile-cover-edit", "</button>");
-    expect(button).toContain("aria-label={coverLabel}");
     expect(button).toContain("title={coverLabel}");
-    // No visible label span on the circle.
-    expect(button).not.toContain("<span");
+    // The label is the content (accessible name): visible from md, sr-only on phone.
+    expect(button).toContain("<span className={SOCIAL_PROFILE_COVER_EDIT_LABEL_CLASS}>{coverLabel}</span>");
+    expect(button).not.toContain("aria-label=");
+    const label = chrome.slice(chrome.indexOf("SOCIAL_PROFILE_COVER_EDIT_LABEL_CLASS ="));
+    expect(label.slice(0, label.indexOf(";"))).toContain('"max-md:sr-only"');
   });
 
   it("has a menu with all four FB items: Choose / Upload / Reposition / Remove", () => {
@@ -241,16 +250,25 @@ describe("cover upload component (FB-exact)", () => {
     expect(surface).toContain("className={SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS}");
     expect(surface).not.toContain("SOCIAL_PROFILE_COVER_IMAGE_CLASS");
     const imageTokens = SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS.split(/\s+/);
-    expect(imageTokens).toEqual(expect.arrayContaining(["block", "size-full", "object-cover"]));
-    for (const token of imageTokens) {
+    expect(imageTokens).toEqual(expect.arrayContaining(["block", "size-full", "object-cover", "[grid-area:1/1]"]));
+    // The phone outline shares the preview's grid cell. Neither is positioned,
+    // so the surface's inset focus ring paints over both (G10).
+    const outlineTokens = SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS.split(/\s+/);
+    expect(outlineTokens).toEqual(expect.arrayContaining(["[grid-area:1/1]", "pointer-events-none", "border-dashed", "border-band-ink"]));
+    for (const token of [...imageTokens, ...outlineTokens]) {
       expect(token).not.toMatch(/^(?:[\w-]+:)*(?:absolute|relative|fixed|sticky|-?inset-|-?z-|-?top-|-?left-)/);
     }
+    // Nothing outside the phone area is dimmed: desktop shows the whole frame.
+    expect(SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS).not.toMatch(/\bbg-|opacity-|shadow-|ring-/);
     const drag = chrome.slice(chrome.indexOf("SOCIAL_PROFILE_COVER_DRAG_CLASS ="));
     const dragDef = drag.slice(0, drag.indexOf(";"));
+    expect(dragDef).toContain("absolute inset-0");
+    expect(dragDef).toContain("grid grid-cols-1 grid-rows-1");
+    expect(dragDef).toContain("rounded-[var(--radius-xl)]");
     expect(dragDef).toContain("bg-band");
     expect(dragDef).toContain("touch-none");
     expect(dragDef).toContain("focus-visible:outline-offset-[-2px]!");
-    expect(dragDef).toContain("focus-visible:rounded-none!");
+    expect(dragDef).toContain("focus-visible:rounded-[var(--radius-xl)]!");
     expect(dragDef).toContain("data-[slack]:cursor-grab");
     const keys = slice("function onDragKeyDown", "function onZoomInput");
     // Escape, arrows and the zoom keys go through the one key rule, which
@@ -267,7 +285,24 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain("editButtonRef.current?.focus({ preventScroll: true })");
   });
 
-  it("puts the hint, note, Cancel/Save and errors in the head trail, not over the image", () => {
+  it("outlines the phone-safe region from the one shared function, with lib copy", () => {
+    const surface = slice("data-social-cover-drag", "{trail ? createPortal");
+    expect(surface).toContain("data-social-cover-phone-outline");
+    expect(surface).toContain("className={SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS}");
+    // The whole box comes from coverRegionStyle: margins, not left/top, so
+    // the outline stays unpositioned (the focus ring paints over it).
+    expect(surface).toContain("style={PHONE_SAFE}");
+    expect(surface).not.toMatch(/marginTop: PHONE_SAFE\.top|PHONE_SAFE\.left/);
+    expect(surface).toContain("{SOCIAL.profile.coverPhoneView}");
+    expect(src).toContain("const PHONE_SAFE = coverRegionStyle(coverPhoneSafeRegion());");
+    expect(SOCIAL.profile.coverPhoneView).toBe("Phone view");
+    // The outline comes after the preview so it paints on top of it.
+    expect(surface.indexOf("SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS")).toBeLessThan(
+      surface.indexOf("data-social-cover-phone-outline"),
+    );
+  });
+
+  it("puts the hint, Zoom, Cancel/Save and errors in the head trail, not over the image", () => {
     expect(src).toContain("createPortal(trailContent, trail)");
     expect(src).toContain("coverTrailTarget(rootRef.current)");
     const menu = readFileSync("src/lib/social-profile-cover-menu.ts", "utf8");
@@ -279,6 +314,10 @@ describe("cover upload component (FB-exact)", () => {
       'hint === "drag" ? SOCIAL.profile.coverDragHint : hint === "zoom" ? SOCIAL.profile.coverZoomHint : null;',
     );
     expect(src).not.toContain("coverPublicNote");
+    // No public note in any form (founder, 2026-10-04): no "public" wording
+    // in the editor, and the hint is the trail's only line of text.
+    expect(src).not.toMatch(/public/i);
+    expect((trail.match(/<p\b/g) ?? []).length).toBe(1);
     expect(trail).toContain("coverCancel");
     expect(trail).toContain("coverSaveChanges");
     expect(trail).toContain("uploadingPhoto");
@@ -308,7 +347,7 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain("removeCover");
   });
 
-  it("crops to 1784×446 via presign → PUT → saveSocialProfileCover", () => {
+  it("crops to 2400×1050 via presign → PUT → saveSocialProfileCover", () => {
     expect(src).toContain("cropRectFile");
     expect(src).toContain("presignSocialMediaUpload");
     expect(src).toContain("saveSocialProfileCover");
@@ -467,9 +506,32 @@ describe("cover editor zoom (LinkedIn-style)", () => {
     }
   });
 
-  it("clips the zoomed preview to the band and lets the image box grow past it", () => {
+  it("clips the zoomed preview to the 16:7 frame and lets the image box grow past it", () => {
     expect(SOCIAL_PROFILE_COVER_DRAG_CLASS.split(/\s+/)).toContain("overflow-hidden");
     expect(SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS.split(/\s+/)).toContain("max-w-none");
+    // The Stage surface is a one-cell grid. Tailwind's grid-cols-1 /
+    // grid-rows-1 are minmax(0, 1fr) tracks, so a zoomed box wider than the
+    // frame never grows the cell; the image's percentage box and margins
+    // resolve against the cell (the frame), pinned to its top-left.
+    expect(SOCIAL_PROFILE_COVER_DRAG_CLASS).toContain("grid grid-cols-1 grid-rows-1");
+    expect(SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS.split(/\s+/)).toEqual(
+      expect.arrayContaining(["[grid-area:1/1]", "self-start", "justify-self-start"]),
+    );
+  });
+
+  it("keeps the phone outline in frame space: one module constant, never tied to zoom or the preview box", () => {
+    // PHONE_SAFE is computed once at module scope, before the component, so
+    // no zoom, focus or preview value can reach it.
+    const decl = src.indexOf("const PHONE_SAFE = coverRegionStyle(coverPhoneSafeRegion());");
+    expect(decl).toBeGreaterThan(-1);
+    expect(decl).toBeLessThan(src.indexOf("export function SocialProfileCoverUpload("));
+    const outline = slice("data-social-cover-phone-outline", "</div>");
+    expect(outline).toContain("style={PHONE_SAFE}");
+    expect(outline).not.toMatch(/focus|preview|zoom/i);
+    // The preview alone carries the zoomed box.
+    const image = slice("<img\n              src={repositionPreview}", "/>");
+    expect(image).toContain("style={preview ?? undefined}");
+    expect(image).not.toContain("PHONE_SAFE");
   });
 
   it("zooms from the keyboard on the drag surface: + / = in, - out", () => {
@@ -568,16 +630,20 @@ describe("cover editor zoom (LinkedIn-style)", () => {
   });
 });
 
-describe("cover banner architecture", () => {
-  it("uses SocialProfileCoverBlock for own-profile (menu escapes overflow)", () => {
+describe("cover hero architecture", () => {
+  it("mounts the owner controls on the stage, outside the hero's clip (the menu drops past a short hero)", () => {
     const ui = readFileSync("src/components/social/social-profile-identity.tsx", "utf8");
-    expect(ui).toContain("SocialProfileCoverBlock");
-    const banner = readFileSync(
-      "src/components/social/social-profile-banner.tsx",
-      "utf8",
-    );
-    expect(banner).toContain("SocialProfileCoverBlock");
-    expect(banner).toContain("data-social-profile-cover-block");
+    const stage = ui.slice(ui.indexOf('data-social-profile-stage=""'), ui.indexOf("data-social-profile-head-trail"));
+    const hero = stage.slice(stage.indexOf('data-social-profile-hero=""'));
+    // {coverEdit} renders after the hero closes, as the stage's own child.
+    expect(stage).toContain("{coverEdit}");
+    expect(hero.lastIndexOf("</div>", hero.indexOf("{coverEdit}"))).toBeGreaterThan(hero.indexOf("data-social-profile-name-stack"));
+    const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
+    const stageDef = chrome.slice(chrome.indexOf("SOCIAL_PROFILE_STAGE_CLASS ="));
+    expect(stageDef.slice(0, stageDef.indexOf(";"))).not.toMatch(/overflow-(?:hidden|clip)/);
+    const banner = readFileSync("src/components/social/social-profile-banner.tsx", "utf8");
+    expect(banner).toContain("export function SocialProfileCover(");
+    expect(banner).not.toContain("SocialProfileCoverBlock");
   });
 });
 

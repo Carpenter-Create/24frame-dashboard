@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { uploadAccountPhoto } from "@/app/(app)/account/actions";
 import { AccountAvatarCrop } from "@/components/account/account-avatar-crop";
@@ -15,12 +16,18 @@ import {
 } from "@/lib/account-avatar-crop";
 import { AVATAR_ACCEPT } from "@/lib/account-avatar";
 import { SOCIAL_PROFILE_AVATAR_EDIT_CLASS } from "@/lib/social-chrome";
+import { coverTrailTarget } from "@/lib/social-profile-cover-menu";
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
 import { patchSocialProfileOptimistic } from "@/lib/social-profile-edit";
 
+// Owner avatar edit on the profile hero. The inline crop opens in the trail
+// under the hero (docs/design-locks/social-profile-stage-lock-v1.md), never
+// over the cover photo; without a trail it stays inline.
 export function SocialProfileAvatarEdit() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [trail, setTrail] = useState<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -46,6 +53,7 @@ export function SocialProfileAvatarEdit() {
     void readAccountAvatarCropPreview(file)
       .then((next) => {
         if (cropPreview) URL.revokeObjectURL(cropPreview);
+        setTrail(coverTrailTarget(buttonRef.current));
         setCropFile(file);
         setCropPreview(next.url);
         setCropSize({ width: next.width, height: next.height });
@@ -80,9 +88,21 @@ export function SocialProfileAvatarEdit() {
     }
   }
 
+  const crop =
+    cropFile && cropPreview && cropSize ? (
+      <AccountAvatarCrop
+        previewUrl={cropPreview}
+        imageWidth={cropSize.width}
+        imageHeight={cropSize.height}
+        onCancel={clearCrop}
+        onConfirm={(frame) => void onCropConfirm(frame)}
+      />
+    ) : null;
+
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         data-social-profile-avatar-edit=""
         disabled={uploading}
@@ -102,15 +122,7 @@ export function SocialProfileAvatarEdit() {
         tabIndex={-1}
         onChange={(e) => beginCrop(e.target.files?.[0])}
       />
-      {cropFile && cropPreview && cropSize ? (
-        <AccountAvatarCrop
-          previewUrl={cropPreview}
-          imageWidth={cropSize.width}
-          imageHeight={cropSize.height}
-          onCancel={clearCrop}
-          onConfirm={(frame) => void onCropConfirm(frame)}
-        />
-      ) : null}
+      {crop && trail?.isConnected ? createPortal(crop, trail) : crop}
       {error ? (
         <div className="sr-only" aria-live="polite">
           <InlineNotice tone="error">{error}</InlineNotice>

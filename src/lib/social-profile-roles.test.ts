@@ -416,7 +416,7 @@ describe("social profile roles", () => {
     expect(rolesSrc).not.toContain('kind: "more"');
     expect(chromeSrc).toContain("SOCIAL_PROFILE_HEAD_CLASS");
     expect(chromeSrc).not.toContain("SOCIAL_PROFILE_META_CLASS");
-    expect(chromeSrc).toContain("SOCIAL_PROFILE_INSET_CLASS");
+    expect(chromeSrc).toContain("SOCIAL_PROFILE_FACE_CLASS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_LINKS_CLASS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_LINK_CLASS");
@@ -424,8 +424,8 @@ describe("social profile roles", () => {
     expect(chromeSrc).toContain("never +N");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_STATS_CLASS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_STATS_GRID_CLASS");
-    expect(chromeSrc).toContain("SOCIAL_PROFILE_ROLES_ROW_CLASS");
-    expect(chromeSrc).toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
+    expect(chromeSrc).toContain("SOCIAL_PROFILE_ROLES_CLASS");
+    expect(chromeSrc).not.toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_ROLE_PILL_CLASS");
     expect(chromeSrc).toContain("SOCIAL_PROFILE_CENTER_CLASS");
     expect(chromeSrc).toContain("HOUSE_CHIP_RAIL_CLASS");
@@ -433,25 +433,25 @@ describe("social profile roles", () => {
     expect(chromeSrc).not.toContain("SOCIAL_PROFILE_ROLES_LINE_CLASS");
     expect(chromeSrc).not.toContain("SOCIAL_PROFILE_ROLES_PILL_CLASS");
     expect(identitySrc).toContain("socialProfileRolesRailItems");
-    expect(identitySrc).toContain("HouseChipRail");
-    expect(identitySrc).toContain("SOCIAL_PROFILE_ROLES_RAIL_ROWS");
+    // Stage lock: wrapping chips, not the one-row scroll rail.
+    expect(identitySrc).not.toContain("HouseChipRail");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_ROLES_CLASS");
     expect(identitySrc).not.toContain("socialProfileRolesLine");
     expect(identitySrc).not.toContain("data-social-profile-roles-more");
     expect(identitySrc).not.toContain('item.kind === "more"');
     expect(identitySrc).toContain("data-social-profile-head");
     expect(identitySrc).not.toContain("data-social-profile-meta");
     expect(identitySrc).toContain("data-social-profile-actions");
-    expect(identitySrc).toContain("SOCIAL_PROFILE_INSET_CLASS");
+    expect(identitySrc).toContain("SOCIAL_PROFILE_FACE_CLASS");
     expect(identitySrc).not.toContain("SOCIAL_PROFILE_META_CLASS");
     expect(identitySrc).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
     expect(identitySrc).not.toContain("SOCIAL_PROFILE_ROLES_RAIL_CLASS");
     const rolesBlock = identitySrc.slice(
-      identitySrc.indexOf("<HouseChipRail"),
+      identitySrc.indexOf('data-social-profile-roles=""'),
       identitySrc.indexOf("<SocialProfileLinkRow"),
     );
-    expect(rolesBlock).toContain("HouseChipRail");
-    expect(rolesBlock).toContain("data-social-profile-roles");
-    expect(rolesBlock).not.toContain("flex-wrap");
+    expect(rolesBlock).toContain("className={SOCIAL_PROFILE_ROLES_CLASS}");
+    expect(rolesBlock).toContain("data-social-profile-role={item.slug}");
     expect(rolesSrc.match(/export const SOCIAL_PROFILE_ROLE_GROUPS/g)).toEqual([
       "export const SOCIAL_PROFILE_ROLE_GROUPS",
     ]);

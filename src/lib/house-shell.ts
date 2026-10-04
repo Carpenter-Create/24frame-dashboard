@@ -84,10 +84,12 @@ export const HOUSE_RAIL_ITEM_CLASS =
 
 export const HOUSE_RAIL_LABEL_CLASS = "min-w-0 flex-1 truncate text-left";
 
-// Active = wash + accent. Idle inherits body 420. t-rail is tracking only
-// (A4). No font-normal (400). Differentiate by color only; do not bold
-// the rail (Coinbase-pop A2).
-export const HOUSE_RAIL_ACTIVE_CLASS = "bg-accent-wash text-accent";
+// Active = wash + accent ink. Idle inherits body 420. t-rail is tracking
+// only (A4). No font-normal (400). Differentiate by color only; do not bold
+// the rail (Coinbase-pop A2). The label is --accent-ink, not --accent:
+// Sporty Blue on the wash is 4.07:1 (founder pick "Deeper blue text",
+// Adam 2026-10-04; tokens.css).
+export const HOUSE_RAIL_ACTIVE_CLASS = "bg-accent-wash text-accent-ink";
 
 export const HOUSE_RAIL_IDLE_CLASS = "text-ink hover:bg-surface-muted";
 

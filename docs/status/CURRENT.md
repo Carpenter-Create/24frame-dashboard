@@ -150,6 +150,7 @@ Remove fail. Rollback order is in the migration header: drop the pair CHECK,
 revert the app, then drop the rest. Visitors are never signed the original.
 Design lock:
 [`docs/design-locks/social-profile-header-linkedin-lock-v1.md`](../design-locks/social-profile-header-linkedin-lock-v1.md).
+Profile layout is A · Stage (founder pick): a 16:7 hero card, the cover framed once with the phone area outlined, no SQL change; lock [`docs/design-locks/social-profile-stage-lock-v1.md`](../design-locks/social-profile-stage-lock-v1.md).
 
 ---
 
