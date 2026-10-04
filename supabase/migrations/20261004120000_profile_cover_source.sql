@@ -40,7 +40,8 @@
 --   Existing rows have null in both new columns, so all three CHECKs validate.
 --   Existing profiles_update_self RLS stays the write gate. No DELETE.
 --
--- EXECUTE (house rule, 20260726000400; appended after the approved block):
+-- EXECUTE (house rule, 20260726000400; appended after the approved block,
+--   founder approved these two statements separately on 2026-10-04):
 --   revoke from public, anon; grant to authenticated, service_role. Same
 --   treatment as gc_check_digit. A CHECK evaluates its function with the
 --   writing role's privileges, so authenticated (profile updates through
@@ -115,6 +116,7 @@ comment on column public.profiles.cover_source_key is
 comment on column public.profiles.cover_crop is
   'Framing of the current cover inside cover_source_key: {x, y, w, h} as fractions 0..1.';
 
--- House EXECUTE rule (see header). Not part of the approved block above.
+-- House EXECUTE rule (see header). Not part of the approved block above;
+-- founder approved these two statements separately (2026-10-04).
 revoke execute on function public.profile_cover_crop_valid(jsonb) from public, anon;
 grant execute on function public.profile_cover_crop_valid(jsonb) to authenticated, service_role;
