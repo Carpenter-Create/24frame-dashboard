@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
 
-import { SocialMediaImage } from "@/components/social/social-media-image";
+import { SocialProfileCoverImage } from "@/components/social/social-profile-cover-image";
 import { cn } from "@/lib/cn";
 import {
   SOCIAL_PROFILE_COVER_CLASS,
   SOCIAL_PROFILE_COVER_EMPTY_CLASS,
-  SOCIAL_PROFILE_COVER_IMAGE_CLASS,
 } from "@/lib/social-chrome";
-import { SOCIAL_PROFILE_COVER_IMAGE_SIZES } from "@/lib/social-media-display";
 import { socialProfileCoverPhoto } from "@/lib/social-profile-cover";
 
 // Cover bytes load through the same-origin signer, which 302s to a presigned
@@ -26,12 +24,7 @@ export function SocialProfileBanner({ coverUrl }: { coverUrl?: string | null }) 
       data-social-profile-cover=""
       className={cn(SOCIAL_PROFILE_COVER_CLASS, "bg-surface-muted")}
     >
-      <SocialMediaImage
-        src={photo}
-        sizes={SOCIAL_PROFILE_COVER_IMAGE_SIZES}
-        loading="lazy"
-        className={SOCIAL_PROFILE_COVER_IMAGE_CLASS}
-      />
+      <SocialProfileCoverImage src={photo} />
     </div>
   );
 }
@@ -54,14 +47,7 @@ export function SocialProfileCoverBlock({
           !photo ? SOCIAL_PROFILE_COVER_EMPTY_CLASS : "bg-surface-muted",
         )}
       >
-        {photo ? (
-          <SocialMediaImage
-            src={photo}
-            sizes={SOCIAL_PROFILE_COVER_IMAGE_SIZES}
-            loading="lazy"
-            className={SOCIAL_PROFILE_COVER_IMAGE_CLASS}
-          />
-        ) : null}
+        {photo ? <SocialProfileCoverImage src={photo} /> : null}
       </div>
       {coverEdit}
     </div>

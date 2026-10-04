@@ -7,6 +7,7 @@ import { readSocialProfile } from "@/app/(app)/social/query-actions";
 import { SocialProfileAvatarEdit } from "@/components/social/social-profile-avatar-edit";
 import { SocialProfileCoverUpload } from "@/components/social/social-profile-cover-upload";
 import { SocialProfileIdentity } from "@/components/social/social-profile-identity";
+import { SocialForYouSkeleton } from "@/components/social/social-skeletons";
 import { SocialWelcomeVideo } from "@/components/social/social-welcome-video";
 import { useAppQueryClient } from "@/components/query-provider";
 import {
@@ -15,7 +16,8 @@ import {
 } from "@/components/social/use-social-profile-optimistic";
 import { HOUSE_PAGE_CANVAS_CLASS } from "@/lib/house-shell";
 import { SOCIAL_QUERY_STALE_MS, socialProfileQueryKey } from "@/lib/social-cache-keys";
-import { SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
+import type { CoverFraming } from "@/lib/social-profile-cover-frame";
 import { socialProfileFaceFromRow } from "@/lib/social-query";
 import {
   SOCIAL_PROFILE_IDENTITY_EMPTY,
@@ -29,6 +31,8 @@ import {
 } from "@/lib/social-profile-edit";
 
 type OwnProfileFace = SocialProfileIdentityView & {
+  /** Stored framing of the kept original and its cover. Null: no original (Reposition opens the picker). */
+  coverFraming?: CoverFraming | null;
   fallbackBio?: string;
   ring?: "unseen" | "live" | null;
   profileId?: string;
@@ -43,19 +47,26 @@ function SocialProfileOptimisticIdentity({
 }) {
   const view = mergeSocialProfileIdentity(SOCIAL_PROFILE_IDENTITY_EMPTY, overlay);
   if (!view.handle && !view.displayName) return null;
+  // Same layout row as the real page, For You placeholder included, so the
+  // centre column (and the band and avatar sized from it) does not change
+  // width when the real face mounts. Below lg the placeholder is hidden.
   return (
-    <div data-social-profile-optimistic="" className={SOCIAL_PROFILE_CENTER_CLASS}>
+    <div data-social-profile-optimistic="" className={SOCIAL_HOME_LAYOUT_CLASS}>
+      <div className={SOCIAL_PROFILE_CENTER_CLASS}>
         <SocialProfileIdentity
           name={view.displayName}
           handle={view.handle}
           photoUrl={view.photoUrl}
           coverUrl={view.coverUrl}
+          owner
           bio={view.bio.trim() ? view.bio : undefined}
           roles={view.crafts}
           websiteUrl={view.websiteUrl}
           imdbUrl={view.imdbUrl}
         />
         {view.welcomeVideoUrl ? <SocialWelcomeVideo present /> : null}
+      </div>
+      <SocialForYouSkeleton />
     </div>
   );
 }
@@ -81,6 +92,7 @@ function SocialOwnProfileFaceQuery(props: OwnProfileFace & { profileId: string }
 }
 
 function SocialOwnProfileFaceView({
+  coverFraming = null,
   fallbackBio = "",
   ring = null,
   profileId,
@@ -157,7 +169,8 @@ function SocialOwnProfileFaceView({
         handle={merged.handle}
         photoUrl={merged.photoUrl}
         coverUrl={merged.coverUrl}
-        coverEdit={<SocialProfileCoverUpload coverUrl={merged.coverUrl} />}
+        owner
+        coverEdit={<SocialProfileCoverUpload coverUrl={merged.coverUrl} coverFraming={coverFraming} />}
         photoAction={<SocialProfileAvatarEdit />}
         bio={shownBio}
         roles={merged.crafts}

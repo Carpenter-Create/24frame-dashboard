@@ -1,24 +1,24 @@
-// Profile cover banner — Lock A (Adam 2026-09-20 / 2026-09-21).
-// One SoT for sizes, upload master, and avatar hang. UI tokens live in
-// social-chrome; this module is the numeric lock tests import.
+// Profile cover banner. Display geometry:
+// docs/design-locks/social-profile-header-linkedin-lock-v1.md (founder
+// approved 2026-10-04). It supersedes Lock A's display sizes (phone 112,
+// desktop 224, avatar 80, lip 40). UI tokens live in social-chrome; this
+// module is the numeric lock tests import.
 //
 // Upload master / LinkedIn header SoT = 1784×446 (Adam 2026-09-21).
 // masterWidth × masterHeight is the named LinkedIn header lock.
 // coverFit 1584×396 is a legacy cover-fit also accepted by LinkedIn —
 // it is not the primary size. 1784×446 is the canonical target.
 //
-// Display: phone 112px, desktop 224px, column = SOCIAL_DESKTOP_MEASURE.center, aspect 4:1.
-// Design lock v1: avatar 80, lip 40 (exactly half). Same on phone and desktop.
-// The lip is the face only. Name and counts stay on the canvas under the avatar.
-// Crop master stays 1784×446 and is never painted in the profile UI.
+// Display: one 4:1 band at every width (aspect-[4/1]). A 4:1 file in a
+// 4:1 band with object-cover shows the whole file, so what is framed is
+// what lands. Crop master stays 1784×446 and is never painted in the
+// profile UI.
 
 import { SOCIAL_DESKTOP_MEASURE } from "@/lib/social-chrome";
 import { SOCIAL_IMAGE_CONTENT_TYPES } from "@/lib/social-media";
 
 export const SOCIAL_PROFILE_COVER_LOCK_A = {
   columnWidth: SOCIAL_DESKTOP_MEASURE.center,
-  heightMobile: 112,
-  heightDesktop: 224,
   aspectWidth: 4,
   aspectHeight: 1,
   /** LinkedIn header SoT — 1784×446 (Adam 2026-09-21). */
@@ -29,17 +29,18 @@ export const SOCIAL_PROFILE_COVER_LOCK_A = {
   coverFitHeight: 396,
   /** Legacy cover-fit also accepted by LinkedIn — not the primary size. */
   coverFitWidth: 396 * 4,
-  /** Design lock v1 — one disk on phone and desktop. */
-  avatarSize: 80,
-  /** Exactly half the avatar. */
-  avatarLipRatio: 0.5,
 } as const;
 
-export const SOCIAL_PROFILE_AVATAR_SIZE_PX = SOCIAL_PROFILE_COVER_LOCK_A.avatarSize;
-
-export const SOCIAL_PROFILE_AVATAR_LIP_PX = Math.round(
-  SOCIAL_PROFILE_AVATAR_SIZE_PX * SOCIAL_PROFILE_COVER_LOCK_A.avatarLipRatio,
-);
+/**
+ * Profile header lock numbers. The literal clamp strings in social-chrome
+ * must match (Tailwind only sees literals; tests compare them).
+ */
+export const SOCIAL_PROFILE_HEADER_LOCK = {
+  avatarPhone: { min: 88, cqw: 25, max: 112 },
+  avatarDesktop: { min: 96, cqw: 19, max: 152 },
+  ringPx: 4,
+  lipRatio: 0.5,
+} as const;
 
 export const SOCIAL_PROFILE_COVER_ACCEPT = SOCIAL_IMAGE_CONTENT_TYPES.join(",");
 

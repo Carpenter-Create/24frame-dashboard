@@ -27,6 +27,8 @@ export const SOCIAL_AVATAR_ROUTE = "/api/social/avatar";
 export const SOCIAL_MEDIA_ROUTE = "/api/social/media";
 /** Owner cover bytes. Streams the object; never a redirect to the CDN. */
 export const SOCIAL_COVER_BYTES_ROUTE = "/api/social/cover";
+/** `?source=1` on the cover route: the owner's kept original, for Reposition. */
+export const SOCIAL_COVER_SOURCE_PARAM = "source";
 
 export function socialAvatarHref(userId: string): string {
   return `${SOCIAL_AVATAR_ROUTE}/${userId}`;

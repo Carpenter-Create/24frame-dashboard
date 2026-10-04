@@ -12,7 +12,27 @@ import {
   coverPreviewIsLocal,
   loadLocalCoverFile,
   loadOwnCoverFile,
+  loadOwnCoverSourceFile,
+  socialCoverBytesHref,
 } from "./social-profile-cover-load";
+
+describe("cover original load (keep the original)", () => {
+  it("reads the kept original from ?source=1 with the same no-redirect fetch", async () => {
+    expect(socialCoverBytesHref()).toBe("/api/social/cover");
+    expect(socialCoverBytesHref("source")).toBe("/api/social/cover?source=1");
+    const fallback = "Could not crop cover photo.";
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("/api/social/cover?source=1");
+      expect(init).toEqual(COVER_BYTES_FETCH);
+      return new Response(new Uint8Array([1, 2]), { headers: { "Content-Type": "image/png" } });
+    });
+    const loaded = await loadOwnCoverSourceFile(fallback, fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(loaded.file?.type).toBe("image/png");
+    const missing = vi.fn(async () => new Response(null, { status: 404 }));
+    expect(await loadOwnCoverSourceFile(fallback, missing)).toEqual({ file: null, notice: fallback });
+  });
+});
 
 describe("cover reposition load", () => {
   it("opens reposition chrome for any picked file before decode", () => {

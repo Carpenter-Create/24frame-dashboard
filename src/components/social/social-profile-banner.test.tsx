@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -93,5 +94,26 @@ describe("SocialProfileCoverBlock", () => {
     expect(html).toContain("data-social-profile-cover-edit");
     expect(html).not.toContain("data-social-profile-cover-empty");
     expect(html).not.toContain(SOCIAL_PROFILE_COVER_EMPTY_CLASS);
+  });
+});
+
+describe("SocialProfileCoverImage", () => {
+  it("is the one cover image for visitors and owners, with a broken-src fallback", () => {
+    const banner = readFileSync("src/components/social/social-profile-banner.tsx", "utf8");
+    const visitor = banner.slice(
+      banner.indexOf("export function SocialProfileBanner"),
+      banner.indexOf("export function SocialProfileCoverBlock"),
+    );
+    const owner = banner.slice(banner.indexOf("export function SocialProfileCoverBlock"));
+    expect(visitor).toContain("<SocialProfileCoverImage src={photo} />");
+    expect(owner).toContain("<SocialProfileCoverImage src={photo} />");
+    expect(banner).not.toContain("<SocialMediaImage");
+    const image = readFileSync("src/components/social/social-profile-cover-image.tsx", "utf8");
+    expect(image.startsWith('"use client";')).toBe(true);
+    expect(image).toContain("onError={() => setBrokenSrc(src)}");
+    expect(image).toContain("if (brokenSrc === src) return null;");
+    expect(image).toContain('loading="lazy"');
+    expect(image).toContain("SOCIAL_PROFILE_COVER_IMAGE_SIZES");
+    expect(image).not.toContain("priority");
   });
 });

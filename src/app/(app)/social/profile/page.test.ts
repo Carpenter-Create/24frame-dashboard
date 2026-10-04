@@ -255,7 +255,8 @@ describe("Social profile public face", () => {
       html.indexOf("data-social-profile-head"),
       html.indexOf("data-social-profile-face"),
     );
-    expect(head).toContain("-mt-[40px]");
+    expect(head).toContain("-mt-[calc(var(--social-profile-avatar)/2)]");
+    expect(head).not.toContain("-mt-[40px]");
     expect(head).not.toContain("md:-mt-");
     expect(head).toContain("data-social-profile-name");
     expect(head.indexOf("data-social-avatar")).toBeLessThan(head.indexOf("data-social-profile-name"));

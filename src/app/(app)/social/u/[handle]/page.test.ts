@@ -174,9 +174,13 @@ describe("Social public profile", () => {
     expect(head).toContain("Ada Lovelace");
     expect(head).not.toContain("data-social-profile-stats");
     expect(head).not.toContain("-mt-[40px]");
+    expect(head).not.toContain("-mt-[calc(var(--social-profile-avatar)/2)]");
+    expect(head).toContain("pt-[var(--space-4)] md:pt-[var(--space-6)]");
     expect(head).not.toContain("md:-mt-");
     expect(head).not.toContain("data-social-profile-avatar-hang");
     expect(head).not.toContain("h-[112px]");
+    // Visitors (isSelf too) get no head trail.
+    expect(head).not.toContain("data-social-profile-head-trail");
     expect(html).not.toContain("data-social-profile-avatar-edit");
     expect(html).toContain("Ada Lovelace");
     expect(html).toContain("@ada");
@@ -253,7 +257,8 @@ describe("Social public profile", () => {
       html.indexOf("data-social-profile-head"),
       html.indexOf("data-social-profile-face"),
     );
-    expect(head).toContain("-mt-[40px]");
+    expect(head).toContain("-mt-[calc(var(--social-profile-avatar)/2)]");
+    expect(head).not.toContain("-mt-[40px]");
     expect(head).not.toContain("md:-mt-");
     expect(head.indexOf("data-social-avatar")).toBeLessThan(head.indexOf("data-social-profile-name"));
     expect(head).not.toContain("data-social-profile-avatar-hang");
