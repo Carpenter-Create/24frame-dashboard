@@ -23,7 +23,10 @@ import {
   migrateSidebarCollapsedCookie,
   persistSidebarCollapsed,
 } from "@/lib/rail-collapse";
-import { HOUSE_LEAD_SCROLL_CLASS } from "@/lib/house-lead-chrome";
+import {
+  HOUSE_EXPLORE_HEADER_SEARCH_SLOT_CLASS,
+  HOUSE_LEAD_SCROLL_CLASS,
+} from "@/lib/house-lead-chrome";
 import {
   HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS,
   housePhoneShowsBottomDests,
@@ -82,7 +85,8 @@ type Org = { id: string; name: string };
 // Phone: the rail is gone (hidden + width tokens collapse). Local dests
 // live in HousePhoneBottomNav — client dests on Aggregation, operator
 // dests on Staff. Phone workspace switch is the header waffle.
-// Desktop md+ uses the sliding Layer 1 row. No hamburger.
+// Desktop md+ uses the sliding Layer 1 row (Home · Aggregation ·
+// Social · Education · Staff) right after the brand mark. No hamburger.
 // One return tree — Social is a flag, not a second shell. Workspace
 // hops keep chrome mounted so the sheet and dock do not freeze.
 // Desktop collapse path is unchanged. Width is `--sidebar-width`.
@@ -93,10 +97,12 @@ type Org = { id: string; name: string };
 // slot — Settings title + You / Social / Education / Aggregation. Not a
 // second column. Collapse stays off. Phone list is the same sections;
 // pushed panes back to Settings. Hamburger stays off. Avatar 32 stays.
-// /home: no dest rail (Adam 2026-09-18). Unify-lead chrome + modules
-// only. Aggregation · Social · Education rails return off Home.
-// Home SoT (HOME-width-lock.md): desktop shell gutters 32 / 32
-// (shell-desktop-horizontal-gutter-lock-v2). Not the dest-rail slot.
+// /home and /home/news show the Home rail — Home · Industry news —
+// with the same eyebrow + icon-tile rows as every workspace (Adam
+// 2026-10-04, shell-unified-chrome-lock-v1; supersedes the
+// 2026-09-18 no-rail Home). Co-Productions stays rail-free.
+// Home SoT (HOME-width-lock.md): Home modules keep the shell gutters
+// 32 / 32 (shell-desktop-horizontal-gutter-lock-v2) inside main.
 // Header full-bleed. No --page-max-width.
 export function AppShell({
   chrome,
@@ -178,7 +184,11 @@ export function AppShell({
   // shell gutter (avatar ink) and are not the Education page-max.
   // Messages keeps `--content-inset` vertical.
   const titlesBleed = pathname === TITLES_HREF || pathname === QUEUE_HREF;
-  const homeChrome = overviewHidesRail(pathname);
+  // Home frame: /home, /home/news, and Co-Productions. Only
+  // Co-Productions still hides the rail (overviewHidesRail).
+  const homeOwned = isHomeOwnedPath(pathname);
+  const coProductions = isCoProductionsPath(pathname);
+  const homeChrome = homeOwned || coProductions;
   // Home (`/` + /home chrome) stays off --page-max-width. /home uses the
   // shell gutter pair (32 / 32).
   const homePage = pathname === "/" || homeChrome;
@@ -189,9 +199,9 @@ export function AppShell({
   // Adam lock 2026-09-20: Get Help and Activity share one no-rail
   // account chrome — header + content column only. No Aggregation
   // rail, no Settings rail, no twin. Settings keeps the same dest-rail
-  // slot. Home / Co-Productions still hide via overviewHidesRail.
+  // slot. Co-Productions still hides via overviewHidesRail.
   const accountChromeNoRail = isAccountChromeNoRailPath(pathname);
-  const hideProductRail = homeChrome || accountChromeNoRail;
+  const hideProductRail = overviewHidesRail(pathname) || accountChromeNoRail;
   // Create-story lock v1.1: dedicated stage. House lead stays.
   // Social dest-rail does not sit beside the Your story rail.
   const storyCreateStage = isSocialStoryCreatePath(pathname);
@@ -210,8 +220,6 @@ export function AppShell({
   const exploreStage = isSocialExplorePath(pathname);
   const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage;
   const socialChrome = workspace === "social" && !settingsPage && !hideProductRail;
-  const homeOwned = isHomeOwnedPath(pathname);
-  const coProductions = isCoProductionsPath(pathname);
   const accountChrome = settingsPage || helpPage || activityPage;
   const phoneDestDock =
     !storyCreateStage &&
@@ -267,7 +275,25 @@ export function AppShell({
         ) : undefined
       }
       trailingSearch={
-        socialChrome ? <HouseLeadSearch tone="live" presentation="icon" /> : undefined
+        socialChrome ? (
+          exploreStage ? (
+            // Explore md to lg: the icon steps out so lanes + Exit fit
+            // (Explore's discover search sits on the media).
+            <span data-explore-header-search="" className={HOUSE_EXPLORE_HEADER_SEARCH_SLOT_CLASS}>
+              <HouseLeadSearch tone="live" presentation="icon" />
+            </span>
+          ) : (
+            <HouseLeadSearch tone="live" presentation="icon" />
+          )
+        ) : workspace === "education" && !settingsPage && !helpPage && !activityPage ? (
+          <Suspense fallback={null}>
+            <HouseLeadSearch
+              tone="quiet"
+              presentation="icon"
+              inputId="education-header-q-compact"
+            />
+          </Suspense>
+        ) : undefined
       }
       underNav={
         socialChrome
@@ -323,12 +349,9 @@ export function AppShell({
           data-settings-rail={settingsPage ? "" : undefined}
         >
           {settingsPage ? null : <RailCollapse collapsed={collapsed} onToggle={toggle} />}
+          {/* One inner pad for every workspace rail (Social included). */}
           <div
-            className={cn(
-              socialChrome
-                ? cn("flex min-h-0 flex-1 flex-col overflow-y-auto", collapsed ? "gap-2 px-1 pb-2" : "gap-3 p-4")
-                : cn("flex-1 overflow-y-auto", settingsPage ? SETTINGS_RAIL_PAD_CLASS : "pt-1"),
-            )}
+            className={cn("flex-1 overflow-y-auto", settingsPage ? SETTINGS_RAIL_PAD_CLASS : "pt-1")}
           >
             {settingsPage ? (
               <SettingsRail />
@@ -338,6 +361,7 @@ export function AppShell({
                 isGcStaff={socialChrome ? false : isGcStaff}
                 collapsed={collapsed}
                 workspace={socialChrome ? "social" : workspace}
+                homeOwned={homeOwned}
               />
             )}
           </div>
@@ -354,13 +378,14 @@ export function AppShell({
           Ask AI is header + Home module only
           (#465). Phone emblem returns to Home (/home). Desktop
           wordmark stays the workspace home. Neither opens the rail.
-          Desktop keeps the sliding
-          workspace row, then Ask · bell · avatar. No waffle. Brand sits on the full-width top, not a
-          second rail chrome. Period stays on the Dashboard org row.
-          No org switcher on any route. Aggregation mid-lead stays
-          empty. Education mounts a quiet course/video search
-          immediately right of the logo on desktop, same
-          Facebook-compact slot as Social live search. Phone
+          Desktop leads with the wordmark, then the sliding
+          workspace row (Home first); trailing is search (Social and
+          Education only) · Ask · bell · avatar. No waffle. Brand sits
+          on the full-width top, not a second rail chrome. Period
+          stays on the Dashboard org row. No org switcher on any
+          route. Aggregation, Home, and Staff mount no search.
+          Education's quiet course/video search and Social live
+          search are the 240 pill from xl and an icon below xl. Phone
           Education search sits in a full-width row under the header —
           not in the top nav. Search also mounts on the Access
           leftover `/messages` path (retired — 404), and on mobile `/titles` (528:542).
@@ -577,11 +602,13 @@ function SideNavSlot({
   isGcStaff,
   collapsed,
   workspace,
+  homeOwned,
 }: {
   chrome?: Promise<AppShellChrome>;
   isGcStaff: boolean;
   collapsed: boolean;
   workspace: WorkspaceMode;
+  homeOwned: boolean;
 }) {
   if (!chrome) {
     return (
@@ -589,6 +616,7 @@ function SideNavSlot({
         isGcStaff={isGcStaff}
         collapsed={collapsed}
         workspace={clampWorkspaceMode(workspace, isGcStaff)}
+        homeOwned={homeOwned}
       />
     );
   }
@@ -599,6 +627,7 @@ function SideNavSlot({
           isGcStaff={isGcStaff}
           collapsed={collapsed}
           workspace={clampWorkspaceMode(workspace, isGcStaff)}
+          homeOwned={homeOwned}
         />
       }
     >
@@ -606,6 +635,7 @@ function SideNavSlot({
         chrome={chrome}
         collapsed={collapsed}
         workspace={workspace}
+        homeOwned={homeOwned}
       />
     </Suspense>
   );
@@ -615,10 +645,12 @@ function SideNavFromChrome({
   chrome,
   collapsed,
   workspace,
+  homeOwned,
 }: {
   chrome: Promise<AppShellChrome>;
   collapsed: boolean;
   workspace: WorkspaceMode;
+  homeOwned: boolean;
 }) {
   const data = use(chrome);
   return (
@@ -626,7 +658,7 @@ function SideNavFromChrome({
       isGcStaff={data.isGcStaff}
       collapsed={collapsed}
       workspace={clampWorkspaceMode(workspace, data.isGcStaff)}
+      homeOwned={homeOwned}
     />
   );
 }
-

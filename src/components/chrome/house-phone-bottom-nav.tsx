@@ -17,17 +17,22 @@ import {
   HOUSE_PHONE_BOTTOM_NAV,
   HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS,
   housePhoneDestActive,
   housePhoneDestGlyph,
   housePhoneDestIsCreate,
+  housePhoneDockActiveStyle,
   housePhoneDockDestinations,
   housePhoneDockLabel,
   housePhonePrefetchDestHrefs,
@@ -44,6 +49,9 @@ import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 // G9 page scroll lives on main (`[data-house-lead-scroll]`), not window.
 // Shared across every workspace that mounts this bar.
 // IA A: dests inside the current workspace only. No workspace item.
+// Social: active dest is accent ink plus a small accent mark under
+// the glyph (no chip), and Create is the accent circle inside the
+// pill (shell-unified-chrome-lock-v1). Other docks keep the chip.
 
 function useHousePhoneBottomNavHidden(pathname: string) {
   const [nav, setNav] = useState({ path: pathname, hidden: false });
@@ -108,6 +116,7 @@ export function HousePhoneBottomNav({
     });
   const items = housePhoneDockDestinations({ isGcStaff, workspace, homeOwned });
   const destWorkspace = homeOwned ? "aggregation" : workspace;
+  const activeStyle = housePhoneDockActiveStyle(destWorkspace);
 
   useEffect(() => {
     if (!visible) return;
@@ -135,7 +144,9 @@ export function HousePhoneBottomNav({
                 weight={HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT}
               />
             );
-            const chip = active ? (
+            const face = !active ? (
+              glyph
+            ) : activeStyle === "chip" ? (
               <span
                 data-house-phone-bottom-nav-chip=""
                 className={HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS}
@@ -143,7 +154,14 @@ export function HousePhoneBottomNav({
                 {glyph}
               </span>
             ) : (
-              glyph
+              <span className={HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS}>
+                {glyph}
+                <span
+                  aria-hidden
+                  data-house-phone-bottom-nav-mark=""
+                  className={HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS}
+                />
+              </span>
             );
             const destClass = cn(
               HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
@@ -167,9 +185,17 @@ export function HousePhoneBottomNav({
                       data-house-phone-dest={item.label}
                       data-house-phone-dest-create=""
                       data-social-create-fan-trigger=""
-                      className={destClass}
+                      className={HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS}
                     >
-                      {chip}
+                      <span
+                        data-house-phone-bottom-nav-create=""
+                        className={cn(
+                          HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
+                          active && HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
+                        )}
+                      >
+                        {glyph}
+                      </span>
                     </button>
                   }
                 />
@@ -190,7 +216,7 @@ export function HousePhoneBottomNav({
                 className={destClass}
               >
                 <HouseNavPendingProbe href={item.href} onPending={markPending} />
-                {chip}
+                {face}
               </HouseLink>
             );
           })}

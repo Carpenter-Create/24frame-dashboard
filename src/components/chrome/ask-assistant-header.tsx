@@ -1,7 +1,10 @@
 "use client";
 
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
-import { HOUSE_ASK_AI_HEADER_CLASS } from "@/lib/house-lead-chrome";
+import {
+  HOUSE_ASK_AI_HEADER_CLASS,
+  HOUSE_ASK_AI_HEADER_LABEL_CLASS,
+} from "@/lib/house-lead-chrome";
 import {
   HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
   HOUSE_HEADER_TRAILING_PHONE_CLASS,
@@ -15,7 +18,9 @@ import { AskAiOpenButton } from "./ask-ai-overlay";
 // path + overlay query. Never a workspace hop. Never a second
 // window. Glyph is the house Adam sparkle cluster. Phone trailing
 // is Regular-stroke; desktop header stays filled. Pressed ink
-// follows open.
+// follows open. From xl the same control shows the headline as a
+// visible label (shell-unified-chrome-lock-v1); below xl it is the
+// icon-only circle and the headline stays the accessible name.
 export function AskAssistantHeaderLink() {
   return (
     <AskAiOpenButton
@@ -26,6 +31,9 @@ export function AskAssistantHeaderLink() {
     >
       <HouseAiMark className={HOUSE_HEADER_TRAILING_PHONE_CLASS} register="stroke" />
       <HouseAiMark className={HOUSE_HEADER_TRAILING_DESKTOP_CLASS} register="fill" />
+      <span aria-hidden="true" data-ask-assistant-header-label="" className={HOUSE_ASK_AI_HEADER_LABEL_CLASS}>
+        {ASK_FRAME_AI.headline}
+      </span>
     </AskAiOpenButton>
   );
 }

@@ -72,6 +72,15 @@ In the Slice 2 pull request — not production-applied.
 
 ---
 
+## Shared shell chrome
+
+Adam lock: one desktop header and one side-menu pattern on every
+workspace (Home, Aggregation, Social, Education, Staff). Home has its
+own rail; Social's own Home tab is Feed. Light default, dark available.
+Lock: [`docs/design-locks/shell-unified-chrome-lock-v1.md`](../design-locks/shell-unified-chrome-lock-v1.md).
+
+---
+
 ## Industry News AWS (authorized; not created)
 
 Adam lock: News storage + scheduled ingest are **AWS only** on the E8

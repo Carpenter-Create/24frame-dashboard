@@ -22,7 +22,7 @@ Do **not** invent `/social/home`. Do **not** treat `/social/stories` as Home.
 | Token | Lock |
 |-------|------|
 | Job | Live feed of **all** follow-visible user activity on Social |
-| Page title | **Home** (`SOCIAL.home.title`) |
+| Page title | **Feed** (`SOCIAL.home.title`) — was Home; renamed by [`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md) (Adam 2026-10-04). Route stays `/social` |
 | Subtitle | Activity feed framing — e.g. **Activity from people you follow.** (replace “Posts from people you follow…” / any Stories-only subtitle on this page) |
 | Not | A Stories index, Stories empty, or Create-story landing dressed as Home |
 

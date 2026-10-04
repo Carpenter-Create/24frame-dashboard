@@ -19,7 +19,8 @@ Tapping the floating dock **+** fans **Media · Write · Go live** in a tight ar
 | Craft | Soft surface circles, hairline, dock float shadow, Regular 24px glyphs, ink-2. Each label sits on a soft surface pill above its circle (hairline, full words, no truncate) |
 | Contrast | While open, a soft ink wash at 25% and a light blur cover the feed under the dock. The dock pill and the circles stay clear. Not the house sheet’s 40% wash and not a sheet |
 | Motion | Scale out from the + and back. The scrim fades with the fan. Reduced motion skips the transition |
-| Other dock items | Home, Explore, Messages, Profile stay |
+| Other dock items | Feed (was Home), Explore, Messages, Profile stay |
+| Dock + face | Accent circle (`bg-accent text-accent-contrast`) inside the pill — [`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md), Adam 2026-10-04. A 2px accent ring marks it on its own route. The fan circles stay surface |
 | Desktop rail Create | Existing Create dialog stays. This lock is the phone dock |
 | Home composer | Share something, Photo, and Camera stay. They do not open this fan |
 

@@ -1,5 +1,5 @@
 import {
-  House,
+  Rows,
   Compass,
   Plus,
   ChatCircle,
@@ -92,8 +92,11 @@ export const NAV: PhosphorNavItem[] = [
 ];
 
 // Social workspace dests. One SoT for the phone dock and the desktop
-// rail (Adam lock 2026-09-20): Home · Explore · Create · Messages ·
-// Profile. Create sits center (IG-style). Profile last. Avatar stays
+// rail (Adam lock 2026-09-20; Feed label Adam 2026-10-04,
+// shell-unified-chrome-lock-v1): Feed · Explore · Create · Messages ·
+// Profile. Feed is /social — renamed from "Home" so it never reads as
+// the Home workspace; glyph is Phosphor Rows (stacked posts).
+// Create sits center (IG-style). Profile last. Avatar stays
 // the account / Settings door — not Social Profile. Messages here is
 // DMs — never /messages. Groups / Courses / Leaderboard stay parked
 // off this rail. Education land is house chrome + an Education rail
@@ -102,7 +105,7 @@ export const NAV: PhosphorNavItem[] = [
 // family. SOCIAL_NAV uses the same Phosphor family as Aggregation.
 // Social interiors stay SocialIcon (Social Figma V1).
 export const SOCIAL_NAV: PhosphorNavItem[] = [
-  { label: "Home", href: SOCIAL_ROUTES.home, family: "phosphor", icon: House, exact: true },
+  { label: "Feed", href: SOCIAL_ROUTES.home, family: "phosphor", icon: Rows, exact: true },
   { label: "Explore", href: SOCIAL_ROUTES.explore, family: "phosphor", icon: Compass },
   { label: "Create", href: SOCIAL_ROUTES.create, family: "phosphor", icon: Plus },
   { label: "Messages", href: SOCIAL_ROUTES.dms, family: "phosphor", icon: ChatCircle },
@@ -188,7 +191,7 @@ export function isClientNavActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname.startsWith(item.href);
 }
 
-/** Home is exact `/social`. Stories paths never wash Home. Public profiles sit under Profile. */
+/** Feed is exact `/social`. Stories paths never wash Feed. Public profiles sit under Profile. */
 export function isSocialTabActive(pathname: string, item: NavItem): boolean {
   if (item.href === SOCIAL_ROUTES.home) {
     return pathname === SOCIAL_ROUTES.home;
@@ -219,7 +222,7 @@ export function clientNavCurrent(pathname: string): NavItem {
 // Adam 2026-09-20: Aggregation dock is client NAV only — never
 // concatenate GC_NAV. Staff workspace dock is GC_NAV only.
 // Social phone dests and the desktop Social rail both read
-// SOCIAL_NAV — Home keeps the Home label; Create stays center
+// SOCIAL_NAV — /social is labeled Feed; Create stays center
 // and opens the equal-tile sheet. Activity is the header bell,
 // not a dest. Ask 24Frame AI is header + overlay.
 export function mobileNavDestinations(

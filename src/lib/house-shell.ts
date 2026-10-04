@@ -10,8 +10,10 @@
 // SegmentedTrack (white on accent thumb). Standalone dest and news
 // source lenses are already SegmentedTrack. Period chips stay muted.
 // Sporty Blue fill is reserved for the primary CTA, the selected rail
-// pill, dest/news selected pills, and links. Stay on the social/fun chrome lane
-// — do not flatten toward a professional register.
+// pill, dest/news selected pills, links, the active dest-rail icon
+// tile, and the phone dock Create circle (shell-unified-chrome-lock-v1).
+// Stay on the social/fun chrome lane — do not flatten toward a
+// professional register.
 
 export const HOUSE_PAGE_CANVAS_CLASS = "bg-bg";
 
@@ -80,13 +82,6 @@ export const HOUSE_RAIL_TITLE_CLASS = "px-2 pb-1 t-label text-ink-3";
 export const HOUSE_RAIL_ITEM_CLASS =
   "relative inline-flex w-full items-center rounded-full text-left t-body leading-6 t-rail transition-colors";
 
-// Dest icon column + label start. Social glyphs are 20 (size-5);
-// Create Plus must share this box so "Create" lines up with Home ·
-// Explore · Messages · Profile. Button triggers use the same row
-// class as Links — not a filled CTA pill. Adam 2026-09-20.
-export const HOUSE_RAIL_ICON_CLASS =
-  "flex size-5 shrink-0 items-center justify-center";
-
 export const HOUSE_RAIL_LABEL_CLASS = "min-w-0 flex-1 truncate text-left";
 
 // Active = wash + accent. Idle inherits body 420. t-rail is tracking only
@@ -95,6 +90,25 @@ export const HOUSE_RAIL_LABEL_CLASS = "min-w-0 flex-1 truncate text-left";
 export const HOUSE_RAIL_ACTIVE_CLASS = "bg-accent-wash text-accent";
 
 export const HOUSE_RAIL_IDLE_CLASS = "text-ink hover:bg-surface-muted";
+
+// Dest rail rows — every workspace, Home included (Adam 2026-10-04,
+// docs/design-locks/shell-unified-chrome-lock-v1.md). Row is
+// [28 icon tile + label]. Idle: muted tile, ink-2 glyph and label.
+// Active: muted row wash, ink label, accent-filled tile. One active
+// row per path (houseRailActiveIndex). Color only — no bold.
+// Settings and the Education course rail keep HOUSE_RAIL_ACTIVE_CLASS
+// (no tiles there). The 28 tile fits the 60 collapsed slot with the
+// nav at --space-1 side pad.
+export const HOUSE_DEST_RAIL_TILE_CLASS =
+  "flex size-7 shrink-0 items-center justify-center rounded-[var(--radius)]";
+
+export const HOUSE_DEST_RAIL_TILE_IDLE_CLASS = "bg-surface-muted text-ink-2";
+
+export const HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS = "bg-accent text-accent-contrast";
+
+export const HOUSE_DEST_RAIL_ACTIVE_CLASS = "bg-surface-muted text-ink";
+
+export const HOUSE_DEST_RAIL_IDLE_CLASS = "text-ink-2 hover:bg-surface-muted";
 
 export const HOUSE_SEARCH_PILL_CLASS = "rounded-full border-0 bg-surface-muted";
 

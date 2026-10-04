@@ -8,18 +8,35 @@ import {
 } from "@/lib/house-shell";
 import {
   HOME_CONTENT_COLUMN_PX,
+  HOME_DEST_RAIL_PX,
   HOME_FIGMA_FRAME_PX,
   HOME_LEFT_INSET_PX,
+  HOME_RAIL_CONTENT_COLUMN_PX,
   HOME_RIGHT_INSET_PX,
   HOME_WIDTH_LOCK,
 } from "@/lib/home-width-lock";
+import { overviewHidesRail } from "@/lib/overview";
 
 const stamp = readFileSync("src/lib/HOME-width-lock.md", "utf8");
 const tokens = readFileSync("src/app/tokens.css", "utf8");
 const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 
 describe("Home width lock", () => {
-  it("stamps 32 left + 32 right + 1376 content at the 1440 frame", () => {
+  it("stamps the 1440 frame: rail 256 + 32 + 1120 + 32 on Home, 1376 rail-free (Co-Productions)", () => {
+    expect(HOME_DEST_RAIL_PX).toBe(256);
+    expect(HOME_RAIL_CONTENT_COLUMN_PX).toBe(1120);
+    expect(
+      HOME_DEST_RAIL_PX + HOME_LEFT_INSET_PX + HOME_RAIL_CONTENT_COLUMN_PX + HOME_RIGHT_INSET_PX,
+    ).toBe(HOME_FIGMA_FRAME_PX);
+    expect(stamp).toContain("| Dest rail | On. `--sidebar-width` (256); 60 collapsed. |");
+    expect(stamp).toContain("1120px with the rail (1440 − 256 − 32 − 32)");
+    expect(stamp).toContain("| Rail-free frame | 1376px (1440 − 32 − 32). Co-Productions only. |");
+    // Stale before 2026-10-04: Home no longer skips the rail slot.
+    expect(stamp).not.toContain("| Visible dest rail | Off |");
+    expect(stamp).not.toContain("Home does not use it");
+    expect(stamp).not.toContain("Dest/Access rail stays off on Home");
+    expect(stamp).not.toContain("On Home the shell sets `--sidebar-width` to `0px`");
+
     expect(HOME_FIGMA_FRAME_PX).toBe(1440);
     expect(HOME_LEFT_INSET_PX).toBe(32);
     expect(HOME_RIGHT_INSET_PX).toBe(32);
@@ -45,7 +62,13 @@ describe("Home width lock", () => {
     expect(stamp).not.toContain("Phantom Access rail inset");
   });
 
-  it("insets Home with house tokens — not the dest-rail slot or page cap", () => {
+  it("sits Home behind the dest-rail slot with the shell gutters inside main — not the page cap", () => {
+    expect(overviewHidesRail("/home")).toBe(false);
+    expect(overviewHidesRail("/home/news")).toBe(false);
+    expect(overviewHidesRail("/co-productions")).toBe(true);
+    expect(shell).toContain('style={{ marginLeft: "var(--sidebar-width)" }}');
+    expect(shell).toContain("const hideProductRail = overviewHidesRail(pathname) || accountChromeNoRail;");
+    expect(tokens).toMatch(new RegExp(`--sidebar-width:\\s*${HOME_DEST_RAIL_PX}px;`));
     expect(tokens).toMatch(/--sidebar-width:\s*256px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--content-inset:\s*48px;/);

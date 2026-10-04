@@ -4,8 +4,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  HOUSE_DEST_RAIL_ACTIVE_CLASS,
+  HOUSE_DEST_RAIL_IDLE_CLASS,
+  HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS,
+  HOUSE_DEST_RAIL_TILE_CLASS,
+  HOUSE_DEST_RAIL_TILE_IDLE_CLASS,
   HOUSE_RAIL_ACTIVE_CLASS,
-  HOUSE_RAIL_ICON_CLASS,
   HOUSE_RAIL_IDLE_CLASS,
   HOUSE_RAIL_ITEM_CLASS,
   HOUSE_RAIL_LABEL_CLASS,
@@ -39,7 +43,7 @@ describe("SideNav Access rail", () => {
     expect(navSrc).not.toContain("isHouseAiNavItem");
   });
 
-  it("uses house --text-base / t-body labels, 16px Phosphor Bold/Fill, and an 8px item gap", () => {
+  it("uses house --text-base / t-body labels, 16px Phosphor Bold/Fill in a 28 tile, and a 4px row gap", () => {
     const tokens = readFileSync("src/app/tokens.css", "utf8");
     const globals = readFileSync("src/app/globals.css", "utf8");
     expect(navSrc).toContain("HOUSE_RAIL_ITEM_CLASS");
@@ -58,8 +62,8 @@ describe("SideNav Access rail", () => {
     expect(navSrc).not.toContain("markSrc");
     expect(navSrc).not.toContain("ask-globee-16.png");
     expect(navSrc).not.toContain("size-6");
-    expect(navSrc).toContain("flex flex-col gap-2 px-2");
-    expect(navSrc).toContain("gap-2 px-2 py-2");
+    expect(navSrc).toContain('cn("flex flex-col gap-1", collapsed ? "px-1" : "px-2")');
+    expect(navSrc).toContain('collapsed ? "justify-center px-0 py-1" : "gap-3 py-1 pl-2 pr-3"');
     expect(navSrc).not.toContain('collapsed ? "px-1.5" : "px-3"');
     expect(navSrc).not.toContain("gap-2.5 px-3");
     expect(navSrc).not.toContain("gap-2.5");
@@ -85,8 +89,10 @@ describe("SideNav Access rail", () => {
     expect(navSrc).not.toContain("four destinations");
   });
 
-  it("keeps Social Create as a quiet dest row with the shared icon column", () => {
-    expect(navSrc).toContain("HOUSE_RAIL_ICON_CLASS");
+  it("keeps Social Create as a quiet dest row with the shared icon tile", () => {
+    expect(navSrc).toContain("HOUSE_DEST_RAIL_TILE_CLASS");
+    expect(navSrc).not.toContain("HOUSE_RAIL_ICON_CLASS");
+    expect(navSrc).not.toContain("SocialIcon");
     expect(navSrc).toContain("HOUSE_RAIL_LABEL_CLASS");
     expect(navSrc).toContain("data-side-nav-icon");
     expect(navSrc).toContain("className={rowClass}");
@@ -97,14 +103,26 @@ describe("SideNav Access rail", () => {
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("w-full");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("text-left");
     expect(HOUSE_RAIL_ITEM_CLASS).not.toMatch(/(?:^|[\s"])bg-accent(?:[\s"]|$)/);
-    expect(HOUSE_RAIL_ICON_CLASS).toBe("flex size-5 shrink-0 items-center justify-center");
     expect(HOUSE_RAIL_LABEL_CLASS).toBe("min-w-0 flex-1 truncate text-left");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
   });
 
-  it("marks the active item with a light-blue pill wash and Sporty Blue type", () => {
-    expect(navSrc).toContain("HOUSE_RAIL_ACTIVE_CLASS");
-    expect(navSrc).toContain("HOUSE_RAIL_IDLE_CLASS");
+  it("marks the active row with a muted wash, ink label, and an accent tile (Adam 2026-10-04)", () => {
+    expect(navSrc).toContain("HOUSE_DEST_RAIL_ACTIVE_CLASS");
+    expect(navSrc).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
+    expect(navSrc).toContain("HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS");
+    expect(navSrc).toContain("HOUSE_DEST_RAIL_TILE_IDLE_CLASS");
+    expect(navSrc).toContain("houseRailActiveIndex");
+    expect(navSrc).not.toContain("HOUSE_RAIL_ACTIVE_CLASS");
+    expect(HOUSE_DEST_RAIL_TILE_CLASS).toBe(
+      "flex size-7 shrink-0 items-center justify-center rounded-[var(--radius)]",
+    );
+    expect(HOUSE_DEST_RAIL_TILE_IDLE_CLASS).toBe("bg-surface-muted text-ink-2");
+    expect(HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS).toBe("bg-accent text-accent-contrast");
+    expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).toBe("bg-surface-muted text-ink");
+    expect(HOUSE_DEST_RAIL_IDLE_CLASS).toBe("text-ink-2 hover:bg-surface-muted");
+    expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
+    // Settings and the Education course rail keep the wash + accent rows.
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
     expect(HOUSE_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
@@ -116,9 +134,13 @@ describe("SideNav Access rail", () => {
     expect(navSrc).not.toContain("BrandWordmark");
   });
 
-  it("uses the shared HOUSE_RAIL_TITLE_CLASS for the staff eyebrow", () => {
+  it("uses the shared HOUSE_RAIL_TITLE_CLASS for the workspace and staff eyebrows", () => {
     expect(navSrc).toContain("HOUSE_RAIL_TITLE_CLASS");
     expect(navSrc).toContain("className={HOUSE_RAIL_TITLE_CLASS}");
+    expect(navSrc).toContain("data-side-nav-eyebrow");
+    expect(navSrc).toContain("houseRailModel");
+    expect(navSrc).not.toContain("Destinations");
+    expect(navSrc).not.toContain("SOCIAL_RAIL.workspace");
     expect(HOUSE_RAIL_TITLE_CLASS).toBe("px-2 pb-1 t-label text-ink-3");
     expect(navSrc).not.toContain('"px-2 pb-1 t-label text-ink-3"');
   });

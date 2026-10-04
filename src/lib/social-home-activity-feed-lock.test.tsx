@@ -16,7 +16,9 @@ const nav = readFileSync("src/lib/nav.ts", "utf8");
 
 describe("Social Home activity feed lock v1", () => {
   it("keeps Home a live activity feed at /social and never invents /social/home", () => {
-    expect(SOCIAL.home.title).toBe("Home");
+    // Adam 2026-10-04: Social's own Home is Feed (shell-unified-chrome-lock-v1).
+    expect(SOCIAL.home.title).toBe("Feed");
+    expect(SOCIAL.member.goHome).toBe("Go to Feed");
     expect(SOCIAL.home.subtitle).toBe("Activity from people you follow.");
     expect(SOCIAL_ROUTES.home).toBe("/social");
     expect(Object.values(SOCIAL_ROUTES)).not.toContain("/social/home");

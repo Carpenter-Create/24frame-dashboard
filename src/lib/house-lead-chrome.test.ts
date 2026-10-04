@@ -44,8 +44,12 @@ import {
   HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS,
   HOUSE_HEADER_TRAILING_SLOT_CLASS,
   HOUSE_ASK_AI_HEADER_CLASS,
+  HOUSE_ASK_AI_HEADER_LABEL_CLASS,
+  HOUSE_LEAD_SEARCH_ICON_CLASS,
+  HOUSE_LEAD_SEARCH_TOGGLE_HOST_CLASS,
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
+import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { HOUSE_HEADER_SEARCH_GAP_CLASS, HOUSE_SEARCH_PILL_CLASS } from "@/lib/house-shell";
 import { EDUCATION_SEARCH } from "@/lib/course-search";
 import { SOCIAL } from "@/lib/social";
@@ -122,9 +126,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     );
   });
 
-  it("G3 mounts Social live explore search in mid-lead at Facebook-compact width", () => {
+  it("G3 mounts Social live search first in the trailing cluster at Facebook-compact width", () => {
     expect(HOUSE_LEAD_SEARCH_WIDTH_PX).toBe(240);
-    expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe("hidden w-[240px] shrink-0 md:flex");
+    // The 240 pill shows from xl; below xl the icon form keeps the row unclipped.
+    expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe("hidden w-[240px] shrink-0 xl:flex");
     expect(leadLib).toContain("Facebook-compact");
     expect(leadSearch).toContain("HOUSE_LEAD_SEARCH_PILL_CLASS");
     expect(leadSearch).toContain("data-social-header-search");
@@ -140,9 +145,60 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(social).toContain('action="/social/search"');
     expect(social).toContain('value="people"');
     expect(social).not.toContain("w-[420px]");
-    expect(social.indexOf("data-house-lead-search")).toBeLessThan(
-      social.indexOf("data-app-header-trailing"),
+    expect(social.indexOf("data-app-header-trailing")).toBeLessThan(
+      social.indexOf("data-house-lead-search"),
     );
+    expect(social.indexOf("data-house-lead-search")).toBeLessThan(
+      social.indexOf("data-ask-assistant-header"),
+    );
+  });
+
+  it("G10 orders desktop as brand · switcher | search · Ask · bell · avatar, and labels Ask from xl", () => {
+    for (const workspace of ["aggregation", "social", "education"] as const) {
+      const html = leadHtml(workspace);
+      const brand = html.indexOf("data-brand-emblem");
+      const row = html.indexOf("data-workspace-switcher-pills");
+      const trailing = html.indexOf("data-app-header-trailing");
+      expect(brand, workspace).toBeGreaterThan(-1);
+      expect(brand, workspace).toBeLessThan(row);
+      expect(row, workspace).toBeLessThan(trailing);
+      expect(html.indexOf('data-workspace-switcher-segment="home"'), workspace).toBeLessThan(
+        html.indexOf('data-workspace-switcher-segment="aggregation"'),
+      );
+      expect(html.indexOf("data-ask-assistant-header"), workspace).toBeLessThan(
+        html.indexOf("data-activity-bell"),
+      );
+      const label = html.slice(html.indexOf("data-ask-assistant-header-label"));
+      expect(label, workspace).toContain(`class="${HOUSE_ASK_AI_HEADER_LABEL_CLASS}">${ASK_FRAME_AI.headline}<`);
+    }
+    expect(leadHtml("aggregation")).not.toContain("data-house-lead-search");
+    expect(HOUSE_ASK_AI_HEADER_LABEL_CLASS).toBe("hidden whitespace-nowrap t-body-sm text-ink xl:inline");
+    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:w-auto");
+    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:border-hairline");
+    // Below xl it is still the 44 circle; phone never shows the label.
+    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
+    expect(HOUSE_ASK_AI_HEADER_CLASS).not.toMatch(/(?:^|\s)(?:md:)?(?:w-auto|border)(?:\s|$)/);
+  });
+
+  it("G11 collapses Social and Education search to an icon below xl — Social links to Search, Education opens the field", () => {
+    expect(HOUSE_LEAD_SEARCH_ICON_CLASS).toBe(`${HOUSE_THEME_TOGGLE_CLASS} xl:hidden`);
+    expect(HOUSE_LEAD_SEARCH_TOGGLE_HOST_CLASS).toBe("relative hidden md:flex xl:hidden");
+    const socialIcon = renderToStaticMarkup(
+      createElement(HouseLeadSearch, { tone: "live", presentation: "icon" }),
+    );
+    expect(socialIcon).toContain('href="/social/search?intent=people"');
+    expect(socialIcon).toContain(HOUSE_LEAD_SEARCH_ICON_CLASS);
+    expect(socialIcon).not.toContain("md:hidden\"");
+    const educationIcon = renderToStaticMarkup(
+      createElement(HouseLeadSearch, { tone: "quiet", presentation: "icon" }),
+    );
+    expect(educationIcon).toContain("data-house-lead-search-toggle");
+    expect(educationIcon).toContain(HOUSE_LEAD_SEARCH_TOGGLE_HOST_CLASS);
+    expect(educationIcon).toContain(`aria-label="${EDUCATION_SEARCH.label}"`);
+    expect(educationIcon).toContain('aria-expanded="false"');
+    expect(educationIcon).not.toContain("data-house-lead-search-panel");
+    expect(educationIcon).not.toContain("href=");
+    expect(shell).toContain('inputId="education-header-q-compact"');
   });
 
   it("G4 mounts Education quiet search with the same gap and width as Social", () => {

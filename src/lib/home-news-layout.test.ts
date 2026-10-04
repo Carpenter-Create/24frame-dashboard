@@ -31,8 +31,12 @@ import {
   HOME_RIGHT_INSET_PX,
 } from "@/lib/home-width-lock";
 import { HOUSE_HOME_RAIL_COLUMN_CLASS } from "@/lib/house-shell";
+import { HomeOverviewSkeleton } from "@/components/overview/overview-home";
 import {
+  OVERVIEW_AREA_NEWS_CLASS,
+  OVERVIEW_EDUCATION_COVERS_CLASS,
   OVERVIEW_HOME_COLUMN_GUTTER,
+  OVERVIEW_HOME_FRAME_CLASS,
   OVERVIEW_HOME_LAYOUT_CLASS,
   OVERVIEW_NEWS_RAIL_WIDTH,
   OVERVIEW_PHONE_MODULE_ORDER,
@@ -77,8 +81,10 @@ describe("Home News layout + register lock", () => {
     expect(HOUSE_HOME_RAIL_COLUMN_CLASS).toContain("--shell-gutter-inline-end");
     expect(HOUSE_HOME_RAIL_COLUMN_CLASS).not.toContain("--content-inset");
     expect(HOUSE_HOME_RAIL_COLUMN_CLASS).not.toContain("--access-rail-width");
-    expect(overviewHidesRail("/home")).toBe(true);
-    expect(overviewHidesRail("/home/news")).toBe(true);
+    // Adam 2026-10-04: Home shows the Home rail; Co-Productions stays rail-free.
+    expect(overviewHidesRail("/home")).toBe(false);
+    expect(overviewHidesRail("/home/news")).toBe(false);
+    expect(overviewHidesRail("/co-productions")).toBe(true);
     expect(isHomeOwnedPath("/home/news")).toBe(true);
     expect(overviewLeadSelected("home", "/home/news", "aggregation")).toBe(true);
     expect(overviewLeadSelected("aggregation", "/home/news", "aggregation")).toBe(false);
@@ -86,9 +92,9 @@ describe("Home News layout + register lock", () => {
     expect(OVERVIEW_RAIL_OFF_WIDTH).toBe("0px");
     expect(OVERVIEW_NEWS_RAIL_WIDTH).toBe("22rem");
     expect(OVERVIEW_HOME_COLUMN_GUTTER).toBe("var(--chrome-gutter)");
-    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("lg:grid-cols-[minmax(0,1fr)_22rem]");
+    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem]");
     expect(readFileSync("src/lib/overview.ts", "utf8")).toContain(
-      "lg:grid-cols-[minmax(0,1fr)_22rem]",
+      "@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem]",
     );
     expect(readFileSync("src/lib/overview.ts", "utf8")).not.toContain(
       "${OVERVIEW_NEWS_RAIL_WIDTH}",
@@ -198,10 +204,43 @@ describe("Home News layout + register lock", () => {
     expect(DASHBOARD_NEWS_HISTORY_THUMB_CLASS.startsWith(DASHBOARD_NEWS_THUMB_CLASS)).toBe(true);
   });
 
+  // Home sits beside the dest rail (shell-unified-chrome-lock-v1). With
+  // viewport lg:/sm: the 22rem News column and 3-up covers kicked in
+  // at 1024 even though the rail left main ~336px (cards ~93px). The
+  // Home frame is a size container, so the grids follow the column.
+  it("lays Home out on its own frame width, not the viewport — the rail sits beside it", () => {
+    expect(OVERVIEW_HOME_FRAME_CLASS).toBe("@container w-full");
+    for (const cls of [
+      OVERVIEW_HOME_LAYOUT_CLASS,
+      OVERVIEW_AREA_NEWS_CLASS,
+      OVERVIEW_EDUCATION_COVERS_CLASS,
+    ]) {
+      expect(cls).not.toMatch(/(?:^|\s)(?:sm|md|lg|xl|2xl):/);
+    }
+    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain(
+      "@min-[60rem]:[grid-template-areas:'revenue_news'_'social_news'_'education_news'_'needs_news'_'ai_news']",
+    );
+    expect(OVERVIEW_AREA_NEWS_CLASS).toContain("@min-[60rem]:sticky");
+    expect(OVERVIEW_AREA_NEWS_CLASS).toContain("@min-[60rem]:overflow-y-auto");
+    expect(OVERVIEW_EDUCATION_COVERS_CLASS).toBe(
+      "grid grid-cols-1 gap-[var(--space-3)] px-[var(--space-4)] py-[var(--space-4)] @min-[37rem]:grid-cols-2 @min-[60rem]:grid-cols-3",
+    );
+    expect(home).not.toContain("sm:grid-cols-2 lg:grid-cols-3");
+    for (const html of [
+      emptyHome(),
+      renderToStaticMarkup(createElement(HomeOverviewSkeleton)),
+    ]) {
+      const frameAt = html.indexOf('data-overview-frame=""');
+      expect(frameAt).toBe(html.indexOf("<div") + "<div ".length);
+      expect(html.slice(frameAt, html.indexOf(">", frameAt))).toContain("@container");
+      expect(html.indexOf("data-overview-layout")).toBeGreaterThan(frameAt);
+    }
+  });
+
   it("keeps the News column when the rail is empty", () => {
     const html = emptyHome();
     expect(html).toContain("data-overview-layout");
-    expect(html).toContain("lg:grid-cols-[minmax(0,1fr)_22rem]");
+    expect(html).toContain("@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem]");
     expect(html).toContain("gap-x-[var(--chrome-gutter)]");
     expect(html).toContain("data-overview-news");
     expect(html).toContain('data-overview-module="news"');

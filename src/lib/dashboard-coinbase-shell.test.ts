@@ -67,10 +67,11 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(globals).not.toMatch(/\[data-dashboard[^\]]*\]\s*\{/);
   });
 
-  it("paints the active rail as a Sporty Blue tint pill and inactive ink", () => {
+  it("paints the active dest rail as a muted row with an accent tile; Settings keeps the tint pill", () => {
     expect(sideNav).toContain("HOUSE_RAIL_ITEM_CLASS");
-    expect(sideNav).toContain("HOUSE_RAIL_ACTIVE_CLASS");
-    expect(sideNav).toContain("HOUSE_RAIL_IDLE_CLASS");
+    expect(sideNav).toContain("HOUSE_DEST_RAIL_ACTIVE_CLASS");
+    expect(sideNav).toContain("HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS");
+    expect(sideNav).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
     expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
     expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");

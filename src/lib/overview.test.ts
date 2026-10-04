@@ -192,15 +192,16 @@ describe("Home lead pills", () => {
     const switcher = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
     const lanes = readFileSync("src/lib/workspace-switcher.ts", "utf8");
     expect(switcher).toContain("router.push(dest)");
-    expect(switcher).toContain("workspacePillClickDest");
+    expect(switcher).toContain("selectWorkspaceLane");
+    expect(lanes).toContain("workspacePillClickDest");
     expect(lanes).toContain("overviewLeadShouldNavigate");
   });
 
-  it("hides dest rails on Home and keeps them on workspace routes", () => {
-    expect(overviewHidesRail("/home")).toBe(true);
-    expect(overviewHidesRail("/home/x")).toBe(true);
+  it("shows the Home rail on Home (Adam 2026-10-04) and keeps rails on workspace routes", () => {
+    expect(overviewHidesRail("/home")).toBe(false);
+    expect(overviewHidesRail("/home/x")).toBe(false);
     expect(overviewHidesRail("/overview")).toBe(false);
-    expect(overviewHidesRail(NEWS_HREF)).toBe(true);
+    expect(overviewHidesRail(NEWS_HREF)).toBe(false);
     expect(overviewHidesRail("/news")).toBe(false);
     expect(overviewHidesRail("/aggregation/dashboard")).toBe(false);
     expect(overviewHidesRail("/social")).toBe(false);
@@ -264,7 +265,7 @@ describe("Home module caps", () => {
     expect(overviewHref({ period: "ytd" })).toBe(`${OVERVIEW_HREF}?period=ytd`);
     expect(OVERVIEW_NEWS_RAIL_WIDTH).toBe("22rem");
     expect(OVERVIEW_HOME_COLUMN_GUTTER).toBe("var(--chrome-gutter)");
-    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("lg:grid-cols-[minmax(0,1fr)_22rem]");
+    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem]");
     expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("gap-x-[var(--chrome-gutter)]");
     expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("gap-y-[var(--space-6)]");
     expect(OVERVIEW_HOME_LAYOUT_CLASS).not.toMatch(/(?:^| )gap-\[var\(--space-6\)\]/);

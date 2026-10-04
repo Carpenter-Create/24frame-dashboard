@@ -205,7 +205,7 @@ describe("OverviewHome", () => {
     expect(html).toContain(`href="${OVERVIEW_HREF}?period=ytd"`);
     expect(html).toContain("data-overview-news");
     expect(html).toContain("data-overview-layout");
-    expect(html).toContain("lg:grid-cols-[minmax(0,1fr)_22rem]");
+    expect(html).toContain("@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem]");
     expect(html).toContain("gap-x-[var(--chrome-gutter)]");
     expect(html).toContain("gap-y-[var(--space-6)]");
     expect(html).toContain('data-overview-module="social"');
@@ -465,9 +465,10 @@ describe("OverviewHome", () => {
     expect(html).not.toMatch(/summary|rewrite|republish/i);
     expect(html.indexOf("data-overview-revenue")).toBeLessThan(html.indexOf("data-overview-pulse"));
     expect(html).toContain("data-overview-education-covers");
-    expect(html).toContain("lg:grid-cols-3");
-    expect(html).not.toContain("lg:grid-cols-4");
-    expect(html).not.toContain("lg:grid-cols-5");
+    expect(html).toContain("@min-[60rem]:grid-cols-3");
+    expect(html).not.toContain("lg:grid-cols-3");
+    expect(html).not.toContain("grid-cols-4");
+    expect(html).not.toContain("grid-cols-5");
     expect(html).toContain("Craft");
     expect(html).toContain('data-course-card-density="home"');
     expect(html).toContain("data-course-cover-title");

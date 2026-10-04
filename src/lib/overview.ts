@@ -25,11 +25,13 @@ import type { WorkspaceMode } from "@/lib/workspace";
 // three workspace destinations. /home/news is Home-owned 90-day
 // history — same Home chrome, not a workspace and not an Aggregation /
 // Social / Education destination. No leftover /overview or /news hops.
-// Home IA v2 (Adam 2026-09-18): no dest rail on /home — unify-lead
-// chrome. Same-day order rewrite: Revenue first, then Social ·
+// Home IA v2 (Adam 2026-09-18) order: Revenue first, then Social ·
 // Education · Needs you. Top performing is not on Home. News stays
-// the Home rail (/home/news is View-all). Rails return in
-// Aggregation · Social · Education. Copy lives here, not JSX.
+// the Home news column (/home/news is View-all). Desktop dest rail:
+// Adam 2026-10-04 (shell-unified-chrome-lock-v1) gives Home the same
+// rail as every workspace, built only from Home's own dests (Home ·
+// Industry news). Co-Productions stays rail-free. Copy lives here,
+// not JSX.
 // Home 24Frame AI module stays as a quiet overlay opener (Adam
 // 2026-09-18 addendum). Out of sight = out of mind. Do not delete
 // the teaser to "clean up" for the overlay. Tap opens `?ai=1` on
@@ -71,6 +73,14 @@ export const OVERVIEW_NEWS_RAIL_WIDTH = "22rem";
 /** Main↔News gutter — same chrome gap as Aggregation main↔dest rail. */
 export const OVERVIEW_HOME_COLUMN_GUTTER = HOUSE_CHROME_GUTTER;
 
+/** Home frame is a size container. Home sits beside the dest rail
+ *  (shell-unified-chrome-lock-v1), so its grids follow the frame's
+ *  width, not the viewport. 60rem (960) is the old rail-free `lg`
+ *  frame (1024 − 32 − 32): two columns only when main keeps its
+ *  592 floor beside the 22rem News column. 37rem (592) is the old
+ *  phone `sm` frame (640 − 24 − 24). */
+export const OVERVIEW_HOME_FRAME_CLASS = "@container w-full";
+
 /** Desktop: News is the right rail. Phone uses the stacked areas.
  *  Vertical air is house section (24). Column gutter is chrome (16).
  *  Empty News keeps the 22rem column — do not stretch main. */
@@ -78,8 +88,8 @@ export const OVERVIEW_HOME_LAYOUT_CLASS =
   "grid w-full grid-cols-1 items-start " +
   "gap-y-[var(--space-6)] gap-x-[var(--chrome-gutter)] " +
   "[grid-template-areas:'revenue'_'social'_'education'_'needs'_'ai'_'news'] " +
-  "lg:grid-cols-[minmax(0,1fr)_22rem] " +
-  "lg:[grid-template-areas:'revenue_news'_'social_news'_'education_news'_'needs_news'_'ai_news']";
+  "@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem] " +
+  "@min-[60rem]:[grid-template-areas:'revenue_news'_'social_news'_'education_news'_'needs_news'_'ai_news']";
 
 export const OVERVIEW_AREA_REVENUE_CLASS = "[grid-area:revenue]";
 export const OVERVIEW_AREA_SOCIAL_CLASS = "[grid-area:social]";
@@ -88,13 +98,20 @@ export const OVERVIEW_AREA_NEEDS_CLASS = "[grid-area:needs]";
 export const OVERVIEW_AREA_AI_CLASS = "[grid-area:ai]";
 // Desktop News rail: page-sticky column + own scroller. The module
 // header pins at top-0 *inside* this overflow — do not add a second
-// sticky offset here. Phone uses the page scroller (no lg:overflow).
+// sticky offset here. Stacked Home uses the page scroller. Same 60rem
+// frame switch as the two-column grid.
 export const OVERVIEW_AREA_NEWS_CLASS =
-  "[grid-area:news] lg:sticky lg:top-[calc(var(--header-height)+var(--space-4))] lg:max-h-[calc(100dvh-var(--header-height)-var(--space-8))] lg:overflow-y-auto";
+  "[grid-area:news] @min-[60rem]:sticky @min-[60rem]:top-[calc(var(--header-height)+var(--space-4))] @min-[60rem]:max-h-[calc(100dvh-var(--header-height)-var(--space-8))] @min-[60rem]:overflow-y-auto";
 
 /** Inner pad + gap for tiles inside a Home module shell (Education covers, News cards). */
 export const OVERVIEW_MODULE_NEST_CLASS =
   "gap-[var(--space-3)] px-[var(--space-4)] py-[var(--space-4)]";
+
+/** Home Education covers. Columns follow the Home frame container:
+ *  2-up from the 592 frame, 3-up once the frame is two-column (main
+ *  ≥ 592, card ≥ ~179 — the old rail-free floor). */
+export const OVERVIEW_EDUCATION_COVERS_CLASS =
+  `grid grid-cols-1 ${OVERVIEW_MODULE_NEST_CLASS} @min-[37rem]:grid-cols-2 @min-[60rem]:grid-cols-3`;
 
 /** Overview/Home trailing arrow tap target. Home-scoped helper — do not
  *  export as a global affordance. Glyph is HouseActionArrow (16 · Sporty
@@ -196,9 +213,9 @@ export function isHomeOwnedPath(pathname: string): boolean {
   return isOverviewPath(pathname) || isNewsHistoryPath(pathname);
 }
 
-/** Dest rails stay off Home (+ /home/news) and Co-Productions. Aggregation · Social · Education keep today's rail. */
+/** Dest rail stays off Co-Productions only. Home (+ /home/news) shows the Home rail (Adam 2026-10-04). */
 export function overviewHidesRail(pathname: string): boolean {
-  return isHomeOwnedPath(pathname) || isCoProductionsPath(pathname);
+  return isCoProductionsPath(pathname);
 }
 
 export function overviewLeadPills(

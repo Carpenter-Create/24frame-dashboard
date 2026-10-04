@@ -29,7 +29,7 @@ Applies when route = `/social/dms/…` thread (1:1 or multi-party DM). Inbox lis
 | Token | Lock |
 |-------|------|
 | Social shell header | **HIDDEN** while in thread — 24 logo · Social switcher · search · AI · bell · avatar chrome **OUT** of thread viewport |
-| Phone bottom tab dock | **HIDDEN** while in thread — Home / Explore / Create / Messages / Profile **OUT** |
+| Phone bottom tab dock | **HIDDEN** while in thread — Feed / Explore / Create / Messages / Profile **OUT** (Feed was Home) |
 | Escape | Back in peer header returns to inbox/list (or prior Social route) · Social shell header **and** bottom dock **restore** on leave-thread |
 | Browser chrome | Not ours (Safari) — ignore |
 | Floating debug / list FAB | **OUT** of thread (FAIL shot noise on right edge) |

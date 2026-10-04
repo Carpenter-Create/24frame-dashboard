@@ -58,6 +58,8 @@ Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media�
 | Tap | Keep **44** tap targets |
 | Scope | Header trailing cluster (search peers / bell / waffle / avatar) — do not resize phone **dock** under this row |
 
+**Amend 2026-10-04** ([`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md), Adam): from `xl` the desktop Ask control shows its **Ask 24Frame AI** label in a hairline pill; below `xl` and on phone it stays the 24 glyph in the 44 tap.
+
 **Note vs density M3:** Wave 1 locks trailing **24pt box** + waffle=bell weight + avatar ~28. Prefer this Wave 1 SoT for Social/header trailing craft rematch; no arbitrary ~18px.
 
 **PASS:** Even 24 boxes · waffle matches bell · avatar ~28 · 44 taps.  

@@ -67,7 +67,7 @@ const pkg = readFileSync("package.json", "utf8");
 describe("Social Home miss list v1 P0 lock", () => {
   it("keeps the five Social jobs and parks Groups / Courses / Leaderboard", () => {
     expect(SOCIAL_NAV.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -82,7 +82,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     ]);
     expect(SOCIAL_DESKTOP_NAV).toBe(SOCIAL_NAV);
     expect(SOCIAL_DESKTOP_NAV.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -575,7 +575,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(shell).not.toContain("SocialRailCreateCta");
     expect(shell).not.toContain("SOCIAL_RAIL.workspace");
     expect(SOCIAL_DESKTOP_NAV.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -698,7 +698,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(dests).not.toContain("data-social-create-fab");
     expect(dests).not.toContain("data-social-mobile-pill");
     expect(SOCIAL_NAV.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -706,7 +706,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     ]);
     expect(SOCIAL_PHONE_DESTS).toEqual(SOCIAL_NAV);
     expect(SOCIAL_PHONE_DESTS.map((item) => item.label)).toEqual([
-      "Home",
+      "Feed",
       "Explore",
       "Create",
       "Messages",
@@ -719,7 +719,7 @@ describe("Social Home miss list v1 P0 lock", () => {
       SOCIAL_ROUTES.dms,
       SOCIAL_ROUTES.profile,
     ]);
-    const homeItem = SOCIAL_PHONE_DESTS.find((item) => item.label === "Home");
+    const homeItem = SOCIAL_PHONE_DESTS.find((item) => item.label === "Feed");
     expect(homeItem?.href).toBe(SOCIAL_ROUTES.home);
     expect(homeItem?.exact).toBe(true);
   });
@@ -853,7 +853,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(settingsAggregation).toContain("CompanyProfileForm");
     expect(settingsLead).toContain("PageHeaderBackLink");
     expect(settingsLead).not.toContain("CaretLeft");
-    expect(sideNav).toContain("SocialIcon");
+    expect(sideNav).not.toContain("SocialIcon");
     expect(sideNav).toContain("<NavGlyph item={item} active={active} />");
     expect(home).not.toContain("PageHeader");
     expect(create).not.toContain("PageHeader");

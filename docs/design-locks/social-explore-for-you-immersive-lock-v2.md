@@ -42,13 +42,13 @@
 
 | Token | Lock (one SoT) |
 |-------|----------------|
-| Column | The stage still sits **below** the house header. Header stays: logo, Layer 1 slider, Exit. Not a fullscreen trap. Do not hide the header on desktop |
+| Column | The stage still sits **below** the house header. Header stays: logo, Layer 1 slider (Home · Aggregation · Social · Education per [`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md)), Exit. Not a fullscreen trap. Do not hide the header on desktop |
 | Player | Centered **9:16** box in that column. Height fits the column. Width is `9/16` of that height, capped by the column width. Black gutters left and right are the stage **`#0A0A0B`**. No new color token |
 | Vertical | The whole portrait picture is visible. **`object-fit: contain`** inside the player. Cover-cropping a vertical into the wide column is **FAIL** |
 | Landscape | Stays landscape **inside** the player. Black bars above and below, same stage color. Do not stretch. Do not crop the landscape into the portrait frame |
 | Caption | Sits on the portrait box. Phone caption geometry stays |
 | Rail | Trailing rail stays. Phone dock clearance stays |
-| Exit | Label **Exit** (`SOCIAL.explore.exit`). A filled header chip (44 hit), with an X, not a bare text link beside search. Href is Social home (`/social`). A same-origin referrer whose path is not Explore uses history. No open redirect. Header search stays |
+| Exit | Label **Exit** (`SOCIAL.explore.exit`). A filled header chip (44 hit), with an X, not a bare text link beside search. Href is Social home (`/social`). A same-origin referrer whose path is not Explore uses history. No open redirect. Header search stays. **Amended 2026-10-04** ([`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md) §1, header width): from `md` to `lg` the chip shows only its X (accessible name stays Exit) and the header search icon steps out; from `lg` both return |
 | Phone | Do not apply this box, this contain fit, or Exit below `md` |
 
 ---

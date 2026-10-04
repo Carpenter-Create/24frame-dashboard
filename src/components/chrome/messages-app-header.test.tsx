@@ -280,7 +280,9 @@ describe("MessagesAppHeader", () => {
     expect(leadLib).toContain("HOUSE_LEAD_PHONE_PAD_CLASS");
     expect(leadLib).toContain("HOUSE_PHONE_TRAILING_GUTTER_CLASS");
     expect(leadLib).toContain("HOUSE_SHELL_GUTTER_X_CLASS");
-    expect(shell).toContain("gap-3");
+    // One rail inner pad on every workspace (shell-unified-chrome-lock-v1).
+    expect(shell).toContain('cn("flex-1 overflow-y-auto", settingsPage ? SETTINGS_RAIL_PAD_CLASS : "pt-1")');
+    expect(shell).not.toContain('"gap-3 p-4"');
     expect(landing).not.toContain("MessagesThreadOverflow");
     expect(landing).not.toContain("data-ask-frame-ai-title-cluster");
     expect(titles).not.toContain("MessagesThreadOverflow");
