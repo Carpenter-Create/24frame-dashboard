@@ -3,25 +3,33 @@
 // docs/design-locks/social-profile-stage-lock-v1.md (editor and storage
 // rules carried over from social-profile-header-linkedin-lock-v1.md).
 //
-// Focus is object-position fractions (0..1; 0.5 = centred). With
-// object-fit: cover a percentage object-position gives
-//   offset = (box - draw) × p
-// so the visible source window is min(iw, (16/7)·ih) wide and starts at
-// p × (iw - window), whatever the frame width. The preview, the 320×140
-// crop view and every desktop hero therefore show the same source pixels.
-// Phones show the centred phone-safe part of that frame
-// (coverPhoneSafeRegion), which the editor outlines.
+// Focus is a zoom and object-position fractions (0..1; 0.5 = centred).
+// Zoom 1 is cover-fit in the 16:7 frame: the visible source window is
+// min(iw, (16/7)·ih) wide. Zoom z shows a window 1/z of that, and focus
+// places it in the slack:
+//   window = min(iw, (16/7)·ih) / z wide, left edge = focus.x × (iw - window)
+// and the same for y. The window does not depend on the frame width, so the
+// preview, the 320×140 crop view and every desktop hero show the same
+// source pixels. coverPreviewBox paints the preview from coverCropFrame,
+// the frame the saved crop is cut with. Phones show the centred phone-safe
+// part of that frame (coverPhoneSafeRegion), which the editor outlines in
+// frame space, so the outline does not move with zoom.
 
 import { z } from "zod";
 
-import { type AvatarCropFrame, rectCoverDrawSize } from "@/lib/account-avatar-crop";
 import {
+  AVATAR_CROP_MAX_SCALE,
+  type AvatarCropFrame,
+  rectCoverDrawSize,
+} from "@/lib/account-avatar-crop";
+import {
+  COVER_CROP_OUTPUT_WIDTH,
   COVER_CROP_VIEW_HEIGHT,
   COVER_CROP_VIEW_WIDTH,
   SOCIAL_PROFILE_COVER_STAGE,
 } from "@/lib/social-profile-cover";
 
-export type CoverFocus = { x: number; y: number };
+export type CoverFocus = { x: number; y: number; zoom: number };
 
 export type CoverImageSize = { width: number; height: number };
 
@@ -36,11 +44,36 @@ export type CoverCrop = { x: number; y: number; w: number; h: number };
  */
 export type CoverFraming = { crop: CoverCrop; coverKey: string };
 
-export const COVER_FOCUS_CENTER: Readonly<CoverFocus> = { x: 0.5, y: 0.5 };
+export const COVER_FOCUS_CENTER: Readonly<CoverFocus> = { x: 0.5, y: 0.5, zoom: 1 };
 
 /** Arrow-key nudge in band px (house space-2). Shift multiplies it. */
 export const COVER_KEY_NUDGE_PX = 8;
 export const COVER_KEY_NUDGE_SHIFT = 4;
+
+/** Zoom 1 = cover-fit. The ceiling is also the crop's own scale clamp. */
+export const COVER_ZOOM_MIN = 1;
+export const COVER_ZOOM_MAX = AVATAR_CROP_MAX_SCALE;
+
+/**
+ * Upscale cap: the saved crop's source window is never narrower than half
+ * the 2400 output (COVER_CROP_OUTPUT_WIDTH, the Stage 2400×1050 crop), so a
+ * small original is never blown up more than 2×.
+ */
+export const COVER_ZOOM_MAX_UPSCALE = 2;
+
+/** Slider grid. The max zoom is floored onto it, so the slider reaches it exactly. */
+export const COVER_ZOOM_STEPS_PER_UNIT = 100;
+export const COVER_ZOOM_STEP = 1 / COVER_ZOOM_STEPS_PER_UNIT;
+
+/** + / = and - zoom by this much. Shift multiplies it by COVER_KEY_NUDGE_SHIFT. */
+export const COVER_ZOOM_KEY_STEP = 0.1;
+
+/** Ctrl/Cmd + wheel and trackpad pinch: zoom × e^(-deltaY px × rate). */
+export const COVER_ZOOM_WHEEL_RATE = 0.002;
+
+// Wheel deltaMode 1 (lines, Firefox mouse wheels) and 2 (pages) in px.
+const WHEEL_LINE_PX = 16;
+const WHEEL_PAGE_PX = 400;
 
 /**
  * Overflow at or under half a pixel counts as none. Exact 16:7 files carry
@@ -75,14 +108,45 @@ function validSize(image: CoverImageSize): boolean {
   );
 }
 
-/** How far the cover-fit image overflows a 16:7 frame of this width, per axis, in frame px. */
+/** Source window at this zoom: min(iw, (16/7)·ih) / zoom wide, 16:7. */
+function coverWindow(image: CoverImageSize, zoom = COVER_ZOOM_MIN): { width: number; height: number } {
+  const width = Math.min(image.width, COVER_ASPECT * image.height) / zoom;
+  return { width, height: width / COVER_ASPECT };
+}
+
+/**
+ * Highest zoom for this original: 3, capped so the crop's source window
+ * stays at least half the output width (no worse than 2× upscaling), and
+ * floored onto the slider grid. Small originals get 1 (no zoom).
+ */
+export function coverMaxZoom(image: CoverImageSize): number {
+  if (!validSize(image)) return COVER_ZOOM_MIN;
+  const upscale = (coverWindow(image).width * COVER_ZOOM_MAX_UPSCALE) / COVER_CROP_OUTPUT_WIDTH;
+  const steps = Math.floor(Math.min(COVER_ZOOM_MAX, upscale) * COVER_ZOOM_STEPS_PER_UNIT);
+  return Math.max(COVER_ZOOM_MIN, steps / COVER_ZOOM_STEPS_PER_UNIT);
+}
+
+/** Zoom kept in [1, coverMaxZoom(image)]. Anything not finite is 1. */
+export function clampCoverZoom(zoom: number, image: CoverImageSize): number {
+  if (!Number.isFinite(zoom)) return COVER_ZOOM_MIN;
+  return Math.min(coverMaxZoom(image), Math.max(COVER_ZOOM_MIN, zoom));
+}
+
+/** How far the image at this zoom overflows a 16:7 frame of this width, per axis, in frame px. */
 export function coverBandOverflow(
   image: CoverImageSize,
   bandWidth: number,
+  zoom: number,
 ): { x: number; y: number } {
   if (!validSize(image) || !Number.isFinite(bandWidth) || bandWidth <= 0) return { x: 0, y: 0 };
   const bandHeight = bandWidth / COVER_ASPECT;
-  const draw = rectCoverDrawSize(image.width, image.height, bandWidth, bandHeight, 1);
+  const draw = rectCoverDrawSize(
+    image.width,
+    image.height,
+    bandWidth,
+    bandHeight,
+    clampCoverZoom(zoom, image),
+  );
   const x = draw.width - bandWidth;
   const y = draw.height - bandHeight;
   return {
@@ -98,11 +162,56 @@ export function moveCoverFocus(
   image: CoverImageSize,
   bandWidth: number,
 ): CoverFocus {
-  const overflow = coverBandOverflow(image, bandWidth);
+  const zoom = clampCoverZoom(focus.zoom, image);
+  const overflow = coverBandOverflow(image, bandWidth, zoom);
   return {
     x: overflow.x > 0 ? clamp01(focus.x - delta.x / overflow.x) : 0.5,
     y: overflow.y > 0 ? clamp01(focus.y - delta.y / overflow.y) : 0.5,
+    zoom,
   };
+}
+
+// Focus on one axis that puts the window's centre where it was, clamped to the image.
+function refocusAxis(focus: number, size: number, from: number, to: number): number {
+  const centre = clamp01(focus) * Math.max(0, size - from) + from / 2;
+  const slack = size - to;
+  if (slack <= COVER_SLACK_MIN_PX) return 0.5;
+  return clamp01((centre - to / 2) / slack);
+}
+
+/**
+ * Change zoom with the visible centre fixed, then clamp: the window never
+ * leaves the image, and an axis with no slack centres.
+ */
+export function coverZoomTo(focus: CoverFocus, zoom: number, image: CoverImageSize): CoverFocus {
+  if (!validSize(image)) return { ...COVER_FOCUS_CENTER };
+  const next = clampCoverZoom(zoom, image);
+  const from = coverWindow(image, clampCoverZoom(focus.zoom, image));
+  const to = coverWindow(image, next);
+  return {
+    x: refocusAxis(focus.x, image.width, from.width, to.width),
+    y: refocusAxis(focus.y, image.height, from.height, to.height),
+    zoom: next,
+  };
+}
+
+/** Ctrl/Cmd + wheel or a trackpad pinch (a wheel with ctrlKey): up zooms in. Unclamped. */
+export function coverWheelZoom(zoom: number, deltaY: number, deltaMode = 0): number {
+  if (!Number.isFinite(deltaY)) return zoom;
+  const px = deltaY * (deltaMode === 1 ? WHEEL_LINE_PX : deltaMode === 2 ? WHEEL_PAGE_PX : 1);
+  return zoom * Math.exp(-px * COVER_ZOOM_WHEEL_RATE);
+}
+
+export type CoverPoint = { x: number; y: number };
+
+export function coverPointerDistance(a: CoverPoint, b: CoverPoint): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/** Two-finger pinch: zoom scales with the finger spread. Unclamped. */
+export function coverPinchZoom(startZoom: number, startDistance: number, distance: number): number {
+  if (!(startDistance > 0) || !Number.isFinite(distance)) return startZoom;
+  return startZoom * (distance / startDistance);
 }
 
 /** Arrow keys nudge like a drag of COVER_KEY_NUDGE_PX band px (Shift × 4). */
@@ -115,59 +224,122 @@ export function coverKeyDelta(key: string, shift: boolean): { x: number; y: numb
   return null;
 }
 
+/**
+ * + or = zooms in, - zooms out, by COVER_ZOOM_KEY_STEP (Shift × 4). On a US
+ * layout Shift+= is "+" and Shift+- is "_", so those are the Shift steps.
+ */
+export function coverZoomKeyStep(key: string, shift: boolean): number | null {
+  const step = COVER_ZOOM_KEY_STEP * (shift ? COVER_KEY_NUDGE_SHIFT : 1);
+  if (key === "+" || key === "=") return step;
+  if (key === "-" || key === "_") return -step;
+  return null;
+}
+
 export type CoverDragKeyAction =
   | { type: "cancel" }
   | { type: "nudge"; delta: { x: number; y: number } }
+  | { type: "zoom"; step: number }
   | { type: "hold" };
 
 /**
  * Drag-surface keys: Escape is the keyboard Cancel, arrows the keyboard
- * drag. While Save runs both are held (swallowed, no effect), because Cancel
- * is disabled then and a cancel would close the editor while the save still
- * lands. Null: not an editor key, so the browser keeps it.
+ * drag, + / = and - the keyboard zoom. While Save runs all are held
+ * (swallowed, no effect), because Cancel is disabled then and a cancel
+ * would close the editor while the save still lands. Zoom keys with
+ * Ctrl, Cmd or Alt stay the browser's (page zoom). Null: not an editor
+ * key, so the browser keeps it.
  */
 export function coverDragKeyAction(
   key: string,
   shift: boolean,
   saving: boolean,
+  modified = false,
 ): CoverDragKeyAction | null {
   if (key === "Escape") return saving ? { type: "hold" } : { type: "cancel" };
   const delta = coverKeyDelta(key, shift);
-  if (!delta) return null;
-  return saving ? { type: "hold" } : { type: "nudge", delta };
-}
-
-/** CSS object-position for a focus. */
-export function coverObjectPosition(focus: CoverFocus): string {
-  return `${clamp01(focus.x) * 100}% ${clamp01(focus.y) * 100}%`;
+  if (delta) return saving ? { type: "hold" } : { type: "nudge", delta };
+  const step = coverZoomKeyStep(key, shift);
+  if (step === null || modified) return null;
+  return saving ? { type: "hold" } : { type: "zoom", step };
 }
 
 /** The 320×140 crop-view frame that paints exactly what the preview shows. */
 export function coverCropFrame(focus: CoverFocus, image: CoverImageSize): AvatarCropFrame {
   if (!validSize(image)) return { scale: 1, offsetX: 0, offsetY: 0 };
+  const zoom = clampCoverZoom(focus.zoom, image);
   const draw = rectCoverDrawSize(
     image.width,
     image.height,
     COVER_CROP_VIEW_WIDTH,
     COVER_CROP_VIEW_HEIGHT,
-    1,
+    zoom,
   );
   return {
-    scale: 1,
+    scale: zoom,
     offsetX: (COVER_CROP_VIEW_WIDTH - draw.width) * clamp01(focus.x),
     offsetY: (COVER_CROP_VIEW_HEIGHT - draw.height) * clamp01(focus.y),
   };
 }
 
-/** True when the image can move inside the frame (it is not already 16:7). */
-export function coverHasSlack(image: CoverImageSize): boolean {
-  const overflow = coverBandOverflow(image, COVER_CROP_VIEW_WIDTH);
+export type CoverPreviewBox = {
+  width: string;
+  height: string;
+  marginLeft: string;
+  marginTop: string;
+};
+
+function percent(value: number): string {
+  return `${value * 100}%`;
+}
+
+/**
+ * The editor preview: the image box is the drawn image of coverCropFrame,
+ * scaled from the 320-wide crop view to the frame as percentages, so it is
+ * the saved crop at every frame width. Margins keep the image in flow (no
+ * positioned box over the surface's focus ring); a margin percentage
+ * resolves against the frame (grid cell) width, hence both margins divide
+ * by the view width. Null until the original's size is known.
+ */
+export function coverPreviewBox(
+  focus: CoverFocus,
+  image: CoverImageSize | null,
+): CoverPreviewBox | null {
+  if (!image || !validSize(image)) return null;
+  const frame = coverCropFrame(focus, image);
+  const draw = rectCoverDrawSize(
+    image.width,
+    image.height,
+    COVER_CROP_VIEW_WIDTH,
+    COVER_CROP_VIEW_HEIGHT,
+    frame.scale,
+  );
+  return {
+    width: percent(draw.width / COVER_CROP_VIEW_WIDTH),
+    height: percent(draw.height / COVER_CROP_VIEW_HEIGHT),
+    marginLeft: percent(frame.offsetX / COVER_CROP_VIEW_WIDTH),
+    marginTop: percent(frame.offsetY / COVER_CROP_VIEW_WIDTH),
+  };
+}
+
+/** True when the image can move inside the 16:7 frame at this zoom. */
+export function coverHasSlack(image: CoverImageSize, zoom: number): boolean {
+  const overflow = coverBandOverflow(image, COVER_CROP_VIEW_WIDTH, zoom);
   return overflow.x > 0 || overflow.y > 0;
 }
 
-function coverWindow(image: CoverImageSize): { width: number; height: number } {
-  const width = Math.min(image.width, COVER_ASPECT * image.height);
-  return { width, height: width / COVER_ASPECT };
+/**
+ * Editor hint: drag when the image can move; zoom in when it cannot yet
+ * but zooming would free it (an exact 16:7 photo at zoom 1); none when the
+ * original is too small to zoom, or before it has loaded.
+ */
+export function coverEditorHint(
+  focus: CoverFocus,
+  image: CoverImageSize | null,
+): "drag" | "zoom" | null {
+  if (!image || !validSize(image)) return null;
+  const zoom = clampCoverZoom(focus.zoom, image);
+  if (coverHasSlack(image, zoom)) return "drag";
+  return coverMaxZoom(image) > zoom ? "zoom" : null;
 }
 
 function toUnits(value: number): number {
@@ -176,13 +348,13 @@ function toUnits(value: number): number {
 
 /**
  * Framing to store with the original: the visible window as fractions of
- * the original's natural size. Window = min(iw, (16/7)·ih) wide; its left
- * edge is focus.x × (iw - window), and the same for y. The fractions carry
- * no aspect, so profiles.cover_crop needs no change for the 16:7 frame.
+ * the original's natural size. Window = min(iw, (16/7)·ih) / zoom wide; its
+ * left edge is focus.x × (iw - window), and the same for y. The fractions
+ * carry no aspect, so profiles.cover_crop needs no change for the 16:7 frame.
  */
 export function coverCropRect(focus: CoverFocus, image: CoverImageSize): CoverCrop {
   if (!validSize(image)) return { x: 0, y: 0, w: 1, h: 1 };
-  const view = coverWindow(image);
+  const view = coverWindow(image, clampCoverZoom(focus.zoom, image));
   const w = Math.min(COVER_CROP_UNITS, Math.max(1, toUnits(view.width / image.width)));
   const h = Math.min(COVER_CROP_UNITS, Math.max(1, toUnits(view.height / image.height)));
   const xPx = clamp01(focus.x) * (image.width - view.width);
@@ -198,14 +370,17 @@ export function coverCropRect(focus: CoverFocus, image: CoverImageSize): CoverCr
 }
 
 /**
- * Focus that reopens the original at its stored framing. The 16:7 window is
- * centred on the stored window's centre, so a framing saved in this frame
- * reopens exactly, and one saved in the earlier 4:1 band reopens around the
- * same subject (clamped to the image edge).
+ * Focus that reopens the original at its stored framing. Zoom comes from
+ * the stored window width (a framing saved before zoom is zoom 1), clamped
+ * to this original's range. The 16:7 window at that zoom is then centred on
+ * the stored window's centre, so a framing saved in this frame reopens
+ * exactly (same zoom, same window), and one saved in the earlier 4:1 band
+ * reopens around the same subject (clamped to the image edge).
  */
 export function coverFocusFromCrop(crop: CoverCrop, image: CoverImageSize): CoverFocus {
   if (!validSize(image)) return { ...COVER_FOCUS_CENTER };
-  const view = coverWindow(image);
+  const zoom = clampCoverZoom(coverWindow(image).width / (crop.w * image.width), image);
+  const view = coverWindow(image, zoom);
   const spanX = image.width - view.width;
   const spanY = image.height - view.height;
   const leftPx = (crop.x + crop.w / 2) * image.width - view.width / 2;
@@ -213,6 +388,7 @@ export function coverFocusFromCrop(crop: CoverCrop, image: CoverImageSize): Cove
   return {
     x: spanX > COVER_SLACK_MIN_PX ? clamp01(leftPx / spanX) : 0.5,
     y: spanY > COVER_SLACK_MIN_PX ? clamp01(topPx / spanY) : 0.5,
+    zoom,
   };
 }
 

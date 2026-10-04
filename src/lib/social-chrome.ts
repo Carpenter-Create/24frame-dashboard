@@ -810,31 +810,51 @@ export const SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS =
 // and the phone outline, both in flow: a browser paints an element's own
 // outline before its positioned descendants, so nothing positioned may sit
 // inside or it would cover the inset focus ring. The `!` focus forms beat
-// the unlayered global :focus-visible rule.
+// the unlayered global :focus-visible rule. overflow-hidden clips a zoomed
+// preview to the frame; touch-none keeps two-finger pinch in the editor
+// instead of zooming the page. The grid tracks are minmax(0, 1fr), so a
+// zoomed preview wider than the frame never grows the cell.
 export const SOCIAL_PROFILE_COVER_DRAG_CLASS =
   "absolute inset-0 z-30 grid grid-cols-1 grid-rows-1 overflow-hidden rounded-[var(--radius-xl)] bg-band touch-none select-none outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-[-2px]! focus-visible:rounded-[var(--radius-xl)]! data-[slack]:cursor-grab data-[slack]:active:cursor-grabbing";
 
-// The editor preview inside the drag surface. In flow, never positioned.
+// The editor preview inside the drag surface. In flow, never positioned:
+// a browser paints an element's own outline before its positioned
+// descendants, so an absolute image would cover the surface's inset focus
+// ring. The grid cell (the 16:7 frame) gives size-full a definite box until
+// the original decodes; then coverPreviewBox sizes and offsets it with
+// percentage width, height and margins, which resolve against the cell.
+// max-w-none lifts the preflight img max-width so a zoomed box can be wider
+// than the frame; self-start and justify-self-start pin the box to the
+// cell's top-left so the margins alone place it.
 export const SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS =
-  "block size-full object-cover [grid-area:1/1]";
+  "block size-full max-w-none object-cover self-start justify-self-start [grid-area:1/1]";
 
 // Phone-safe outline: the centred, full-height part of the frame phones
 // show. Its box is set inline from coverPhoneSafeRegion, the one function
-// the phone hero's geometry is tested against. In flow in the same grid
-// cell, so it never covers the focus ring. Nothing outside it is dimmed:
-// desktop shows the whole frame. A dashed band-ink line with a band
-// hairline reads on any photo.
+// the phone hero's geometry is tested against. Frame space, not image
+// space, so it stays put at every zoom. In flow in the same grid cell, so
+// it never covers the focus ring. Nothing outside it is dimmed: desktop
+// shows the whole frame. A dashed band-ink line with a band hairline reads
+// on any photo.
 export const SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS =
   "pointer-events-none flex flex-col items-start self-start justify-self-start border-2 border-dashed border-band-ink outline outline-1 outline-band/60 [grid-area:1/1]";
 
 export const SOCIAL_PROFILE_COVER_PHONE_LABEL_CLASS =
   "m-2 rounded-full bg-band/75 px-2 py-0.5 text-[length:var(--text-xs)] font-medium text-band-ink";
 
-// Owner trail under the hero: the cover editor's hint, public note,
+// Owner trail under the hero: the cover editor's hint, Zoom slider,
 // Cancel/Save and errors, and the inline avatar crop, portal here. Never
 // over the image. Empty (hidden) unless one of them is showing.
 export const SOCIAL_PROFILE_HEAD_TRAIL_CLASS =
   "mt-3 flex min-w-0 flex-col gap-[var(--space-2)] empty:hidden";
+
+// Zoom slider in the trail, above Cancel/Save. Visible label; the range is
+// 44px tall so the thumb is a full touch target on phone.
+export const SOCIAL_PROFILE_COVER_ZOOM_CLASS =
+  "pointer-events-auto flex w-full items-center justify-end gap-[var(--space-3)] t-body-sm text-ink-2";
+
+export const SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS =
+  "h-11 min-w-0 flex-1 md:max-w-[240px] cursor-pointer accent-accent disabled:cursor-default disabled:opacity-60";
 
 // Editor copy in the trail.
 export const SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS =

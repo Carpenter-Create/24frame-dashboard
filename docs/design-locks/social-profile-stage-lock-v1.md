@@ -10,7 +10,7 @@
 - The LinkedIn lock's amendment of [`shell-desktop-header-content-inset-lock-v1.md`](shell-desktop-header-content-inset-lock-v1.md) (phone row, Profile only: the flush `-16` pull). The phone hero now pulls 4 (`max-md:-mx-1 max-md:-mt-1`) so it sits 12 from the screen. Desktop G3 (no page `md:pt` / `md:mt`) is untouched.
 - On the profile face only: the one-row roles chip rail (`src/lib/social-profile-roles.ts`, "phone scrolls sideways") and the shared `h-8` chip measure for roles (`SOCIAL_CHIP_HIT_CLASS`); the icon-only Share circle; the underlined tab strip.
 
-**Keeps (from the LinkedIn lock):** its editor and storage rules — WYSIWYG focus model, the kept original and its framing, Reposition through the owner-only route with the server-trusted source key, the compare-and-swap on the cover the editor opened, Remove clearing cover, original and framing together, arrow keys and Escape, the held keys while Save runs, the in-flow preview so the focus ring shows (its decision 3, G9, G10). No SQL change: `profiles.cover_crop` fractions carry no aspect.
+**Keeps (from the LinkedIn lock):** its editor and storage rules — WYSIWYG focus model, the kept original and its framing, Reposition through the owner-only route with the server-trusted source key, the compare-and-swap on the cover the editor opened, Remove clearing cover, original and framing together, arrow keys and Escape, the held keys while Save runs, the in-flow preview so the focus ring shows (its decision 3, G9, G10), LinkedIn-style **zoom** (its Zoom rules and G11, with the Stage numbers under Editor below) and **no "Your cover photo is public." note** (founder: "remove the 'your cover photo is public' copy. that's obvious."). No SQL change: `profiles.cover_crop` fractions carry no aspect.
 
 ---
 
@@ -96,9 +96,12 @@ Every step keeps at least **12** of photo above the avatar and holds a **two-lin
 - The drag surface is the 16:7 frame over the hero at every width; on phone the card turns 16:7 while the editor is open. The identity overlay and scrim step aside, so the photo shows alone at full opacity on `--band`.
 - A clear outline of the phone-safe region: centred, full height, 48.52% of the frame width (61:55 ÷ 16:7), a dashed `--band-ink` line with a `--band` hairline, labelled **"Phone view"** (`SOCIAL.profile.coverPhoneView`). Its box is set inline from `coverPhoneSafeRegion()` through `coverRegionStyle()`, as margins (percentage margins resolve against the frame's width on both axes, so the top margin is y × 7/16; today's region has y = 0). Nothing outside it is dimmed: desktop shows the whole frame.
 - The preview and the outline share one grid cell, in flow, never positioned, so the surface's inset focus ring paints over both (G10 carried).
+- **Zoom (carried from the LinkedIn lock, Stage numbers).** Zoom 1 is cover-fit in the 16:7 frame: the source window is `min(iw, (16/7)·ih) / z` wide, placed by the focus fractions in the slack. Range 1 to 3, capped so the saved crop's source window is never narrower than half the **2400** output (1200 source px, no worse than 2× upscaling), floored to the 0.01 slider step: a 2400×1050 photo zooms to 2, a 4000×3000 photo to 3, a 1920×1080 photo to 1.6. Controls, keys, Ctrl/Cmd + wheel, trackpad and two-finger pinch, the centre-preserving zoom, the re-anchoring of a held gesture, the hint ("Drag or use arrow keys to reposition image" / "Zoom in to reposition image") and the surface's accessible name are as in the LinkedIn lock. An exact 16:7 photo cannot move at zoom 1 and shows the zoom hint. The 1584×396 LinkedIn banner is wider than 16:7, so it drags sideways at zoom 1; its 16:7 window is 905 px, under the 1200 floor, so it cannot zoom (the slider is disabled).
+- What you see is what saves at every zoom: the preview is `coverPreviewBox` (the crop frame's drawn image) as percentage width, height and margins in the grid cell. The cell's tracks are `minmax(0, 1fr)`, so a zoomed image wider than the frame never grows it; the surface clips it (`overflow-hidden`, radius 24); the image is pinned to the cell's top-left (`self-start justify-self-start`) so its margins alone place it.
+- The phone outline is **frame space**: one module constant from `coverPhoneSafeRegion()`, with no zoom or focus input, so it stays put while the image zooms and pans under it. It outlines exactly the part of the saved crop the phone card shows at every zoom.
 - Crop view 320×140; output 2400×1050 JPEG q0.92 with high-quality smoothing; byte cap = the posts stills lane cap, 10 MB (a worst-case 2400×1050 JPEG is far under it).
-- Hint, public note, Cancel / Save and errors sit in the owner trail under the hero, never over the image. The owner's inline avatar crop opens in the same trail, not over the cover.
-- Existing 4:1 covers render with `object-cover` in the new frame (the sides crop). Reposition reframes them when an original is stored: the 16:7 window reopens centred on the stored window's centre, clamped to the image. A cover saved before originals were kept still opens the file picker.
+- Hint, the Zoom slider, Cancel / Save and errors sit in the owner trail under the hero, never over the image. No public note. The owner's inline avatar crop opens in the same trail, not over the cover.
+- Existing 4:1 covers render with `object-cover` in the new frame (the sides crop). Reposition reframes them when an original is stored: the zoom reopens from the stored window's width (a framing saved before zoom is zoom 1; a zoom past this original's range reads at its max), and the 16:7 window at that zoom reopens centred on the stored window's centre, clamped to the image. A framing saved in the 16:7 frame reopens exactly (same zoom, same window). A cover saved before originals were kept still opens the file picker.
 
 ## States
 
@@ -120,7 +123,7 @@ Every step keeps at least **12** of photo above the avatar and holds a **two-lin
 - Links as a panel, a list, labelled chips or brand-coloured icons.
 - Truncation, ellipsis, line clamps; sideways scrolling for roles or tabs on phone.
 - Dimming outside the phone outline; a ghost preview; controls painted over the photo while framing.
-- New user-facing copy beyond "Phone view".
+- New user-facing copy beyond "Phone view" (the editor's "Zoom" and "Zoom in to reposition image" are carried from the LinkedIn lock).
 - SQL or RLS changes.
 
 ## Gates
@@ -135,6 +138,7 @@ Every step keeps at least **12** of photo above the avatar and holds a **two-lin
 - **S8:** phone targets ≥ 44 (Chromium).
 - **S9:** no new eslint warnings.
 - **S10 (carried G9/G10):** Reposition reads the stored original server-side and lands only on the cover it opened; the drag preview and outline stay unpositioned.
+- **S11 (carried G4/G11, Stage numbers):** the preview-vs-crop check passes for 6 images × 9 frame widths × 4 positions × 5 zooms; an exact 16:7 photo cannot move at zoom 1 and can after zooming; zoom never exceeds 3 or 2× upscaling of the 2400 output; reopen restores the saved zoom and window; the phone outline equals the phone render at every zoom. Chromium: a 1584×396 banner and a 4000×3000 photo in the 16:7 editor, outline vs phone render at zoom 1 and zoomed, saved crop vs on-screen view, reopen.
 
 ## Founder checkpoints left open
 
@@ -145,4 +149,5 @@ Every step keeps at least **12** of photo above the avatar and holds a **two-lin
 - **Singular stat labels.** One of a count now reads "1 post" / "1 follower" (the mockup shows "1 follower"); the words "post" and "follower" are new lib copy (`SOCIAL.profile.postStatOne`, `followerStatOne`). The follows page tab label (`socialFollowsTabLabel`) still says "1 followers"; it is outside this lock.
 - **Long names.** Names of three or more lines grow the card (see Hero overlay steps). The alternative is a smaller name for long names on wide heroes (28 instead of 56), a typography call.
 - **Tight step at 1024.** Beside For You the 388 hero uses a 48 avatar and 16 padding so a two-line name fits 16:7; removing For You on the profile would remove this step's main use.
+- **Banner zoom.** Under the 2× upscale cap against the 2400 output, the 1584×396 LinkedIn banner cannot zoom in the 16:7 frame (it still drags sideways). Raising the cap (e.g. 3× upscaling) would let it zoom at a visible loss of sharpness.
 - **Edit cover label** keeps the existing copy ("Edit cover photo" / "Add cover photo"); the mockup shows "Edit cover".

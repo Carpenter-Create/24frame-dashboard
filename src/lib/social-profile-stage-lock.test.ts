@@ -72,6 +72,28 @@ describe("Social profile Stage lock v1 (founder picks 2026-10-03/04)", () => {
     expect(a11y).not.toContain("so it is a founder checkpoint");
   });
 
+  it("carries #760's zoom into the Stage editor with Stage numbers, and no public note in either lock", () => {
+    // Stage lock: the editor includes zoom, capped against the 2400 output,
+    // with the phone outline in frame space.
+    expect(lock).toContain("LinkedIn-style **zoom**");
+    expect(lock).toContain("- **Zoom (carried from the LinkedIn lock, Stage numbers).**");
+    expect(lock).toContain("`min(iw, (16/7)·ih) / z`");
+    expect(lock).toContain("half the **2400** output");
+    expect(lock).toContain("The phone outline is **frame space**");
+    expect(lock).toContain("- **S11 (carried G4/G11, Stage numbers):**");
+    const editor = lock.slice(lock.indexOf("## Editor"), lock.indexOf("## States"));
+    expect(editor).toContain("Hint, the Zoom slider, Cancel / Save and errors");
+    expect(editor).not.toMatch(/Hint, public note/);
+    // LinkedIn lock: its editor section keeps zoom and the note removal, and
+    // its still-in-force list names both.
+    const linkedinEditor = linkedin.slice(linkedin.indexOf("## Editor"));
+    expect(linkedinEditor).toContain("- **Zoom (2026-10-04).**");
+    expect(linkedinEditor).toContain('- No "Your cover photo is public." note.');
+    expect(linkedinEditor).toContain("The hint, the Zoom slider, Cancel/Save and errors");
+    expect(linkedin).toContain("the Zoom rules and the removed public note, and gates G8–G11");
+    expect(linkedin).not.toContain("The hint, the public note");
+  });
+
   it("marks what it supersedes, including the flush phone header, and keeps the editor rules", () => {
     expect(lock).toContain('decision 2, **"Edge to edge, flush"**');
     expect(lock).toContain("**Keeps (from the LinkedIn lock):**");

@@ -18,8 +18,11 @@ import {
 } from "./social-profile-cover";
 import { SOCIAL } from "./social";
 import {
+  SOCIAL_PROFILE_COVER_DRAG_CLASS,
   SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS,
   SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
+  SOCIAL_PROFILE_COVER_ZOOM_CLASS,
+  SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS,
 } from "./social-chrome";
 import { SOCIAL_IMAGE_MAX_BYTES } from "./social-media";
 
@@ -120,7 +123,10 @@ describe("cover FB-exact copy", () => {
     expect(SOCIAL.profile.coverDragHint).toBe(
       "Drag or use arrow keys to reposition image",
     );
-    expect(SOCIAL.profile.coverPublicNote).toBe("Your cover photo is public.");
+    expect(SOCIAL.profile.coverZoomHint).toBe("Zoom in to reposition image");
+    expect(SOCIAL.profile.coverZoom).toBe("Zoom");
+    // Founder (2026-10-04): "remove the 'your cover photo is public' copy. that's obvious."
+    expect(SOCIAL.profile).not.toHaveProperty("coverPublicNote");
     expect(SOCIAL.profile.coverSaveChanges).toBe("Save changes");
     expect(SOCIAL.profile.coverCancel).toBe("Cancel");
     expect(SOCIAL.profile.coverCropFailed).toBeTruthy();
@@ -216,15 +222,26 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).not.toContain("SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS");
     expect(src).not.toContain("data-social-cover-reposition-bar");
     expect(src).toContain("coverCropFrame");
-    expect(src).toContain("coverObjectPosition(focus)");
     expect(src).toContain("moveCoverFocus");
+    // The preview is the saved crop's own frame (coverPreviewBox wraps
+    // coverCropFrame), not a separate object-position guess.
+    expect(src).toContain("const preview = coverPreviewBox(focus, repositionSize);");
+    const image = slice("<img\n              src={repositionPreview}", "/>");
+    expect(image).toContain("style={preview ?? undefined}");
+    expect(src).not.toContain("coverObjectPosition");
+    expect(src).not.toContain("objectPosition");
   });
 
   it("drags and nudges on a focusable surface over the --band token", () => {
     const surface = slice("data-social-cover-drag", "</div>");
     expect(surface).toContain("tabIndex={0}");
     expect(surface).toContain('role="group"');
-    expect(surface).toContain("aria-label={SOCIAL.profile.coverDragHint}");
+    // The surface names what it does now: drag, or zoom in first. With no
+    // hint (still decoding, or it can neither move nor zoom) it never tells
+    // anyone to drag; it is named for what it is.
+    expect(surface).toContain("aria-label={hintText ?? SOCIAL.profile.editCover}");
+    expect(surface).not.toContain("?? SOCIAL.profile.coverDragHint");
+    expect(surface).not.toContain("?? SOCIAL.profile.coverZoomHint");
     expect(surface).toContain("className={SOCIAL_PROFILE_COVER_DRAG_CLASS}");
     expect(surface).toContain("onKeyDown={onDragKeyDown}");
     expect(surface).toContain("onPointerDown={onPointerDown}");
@@ -253,10 +270,13 @@ describe("cover upload component (FB-exact)", () => {
     expect(dragDef).toContain("focus-visible:outline-offset-[-2px]!");
     expect(dragDef).toContain("focus-visible:rounded-[var(--radius-xl)]!");
     expect(dragDef).toContain("data-[slack]:cursor-grab");
-    const keys = slice("function onDragKeyDown", "const isReposition");
-    // Escape and arrows go through the one key rule, which holds both while
-    // Save runs (Cancel is disabled then too).
-    expect(keys).toContain("coverDragKeyAction(e.key, e.shiftKey, uploading)");
+    const keys = slice("function onDragKeyDown", "function onZoomInput");
+    // Escape, arrows and the zoom keys go through the one key rule, which
+    // holds them all while Save runs (Cancel is disabled then too). Zoom keys
+    // with Ctrl/Cmd/Alt stay the browser's page zoom.
+    expect(keys).toMatch(
+      /coverDragKeyAction\(\s*e\.key,\s*e\.shiftKey,\s*uploading,\s*e\.ctrlKey \|\| e\.metaKey \|\| e\.altKey,?\s*\)/,
+    );
     expect(keys).not.toContain('e.key === "Escape"');
     expect(keys).toContain('action.type === "cancel"');
     expect(keys).toContain("cancelReposition()");
@@ -282,14 +302,22 @@ describe("cover upload component (FB-exact)", () => {
     );
   });
 
-  it("puts the hint, note, Cancel/Save and errors in the head trail, not over the image", () => {
+  it("puts the hint, Zoom, Cancel/Save and errors in the head trail, not over the image", () => {
     expect(src).toContain("createPortal(trailContent, trail)");
     expect(src).toContain("coverTrailTarget(rootRef.current)");
     const menu = readFileSync("src/lib/social-profile-cover-menu.ts", "utf8");
     expect(menu).toContain('"[data-social-profile-head-trail]"');
     const trail = slice("const trailContent", "return (");
-    expect(trail).toContain("coverDragHint");
-    expect(trail).toContain("coverPublicNote");
+    expect(trail).toContain("{hintText ? <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{hintText}</p> : null}");
+    expect(src).toContain("const hint = isReposition ? coverEditorHint(focus, repositionSize) : null;");
+    expect(src).toContain(
+      'hint === "drag" ? SOCIAL.profile.coverDragHint : hint === "zoom" ? SOCIAL.profile.coverZoomHint : null;',
+    );
+    expect(src).not.toContain("coverPublicNote");
+    // No public note in any form (founder, 2026-10-04): no "public" wording
+    // in the editor, and the hint is the trail's only line of text.
+    expect(src).not.toMatch(/public/i);
+    expect((trail.match(/<p\b/g) ?? []).length).toBe(1);
     expect(trail).toContain("coverCancel");
     expect(trail).toContain("coverSaveChanges");
     expect(trail).toContain("uploadingPhoto");
@@ -299,7 +327,6 @@ describe("cover upload component (FB-exact)", () => {
     expect(trail).toContain("{error ? (");
     expect(trail).not.toMatch(/isReposition && error|error && isReposition/);
     const surface = slice("data-social-cover-drag", "</div>");
-    expect(surface).not.toContain("coverPublicNote");
     expect(surface).not.toContain("coverCancel");
     expect(src).not.toContain("bottom-12");
   });
@@ -345,7 +372,9 @@ describe("cover upload component (FB-exact)", () => {
     expect(src).toContain("setFocus(");
     const down = slice("function onPointerDown", "function onPointerMove");
     expect(down).toContain("!repositionSize");
-    expect(down).toContain("getBoundingClientRect().width");
+    expect(down).toContain("anchorGesture(el, gestureFocus.current ?? focus)");
+    const anchor = slice("const anchorGesture = useCallback", "const changeFocus");
+    expect(anchor).toContain("getBoundingClientRect().width");
   });
 
   it("toggles the cover menu without the outside press eating the next open", () => {
@@ -436,6 +465,168 @@ describe("cover upload component (FB-exact)", () => {
     expect(remove.indexOf("bandPreview.current = null;")).toBeLessThan(
       remove.indexOf("patchSocialProfileOptimistic({ coverUrl: null })"),
     );
+  });
+});
+
+describe("cover editor zoom (LinkedIn-style)", () => {
+  const src = readFileSync("src/components/social/social-profile-cover-upload.tsx", "utf8");
+  const slice = (from: string, to: string) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from)));
+
+  it("has a labelled range slider in the head trail, just above Cancel/Save", () => {
+    const trail = slice("const trailContent", "return (");
+    const zoom = trail.slice(trail.indexOf("<label data-social-cover-zoom"), trail.indexOf("</label>"));
+    expect(zoom).toContain("className={SOCIAL_PROFILE_COVER_ZOOM_CLASS}");
+    // A visible label from lib copy, wrapping the input (implicit association).
+    expect(zoom).toContain("<span>{SOCIAL.profile.coverZoom}</span>");
+    expect(zoom).toContain('type="range"');
+    expect(zoom).toContain("min={COVER_ZOOM_MIN}");
+    expect(zoom).toContain("max={maxZoom}");
+    expect(zoom).toContain("step={COVER_ZOOM_STEP}");
+    expect(zoom).toContain("value={focus.zoom}");
+    expect(zoom).toContain("onChange={onZoomInput}");
+    expect(zoom).toContain("className={SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS}");
+    // Held while Save runs (as Cancel is), before the original decodes, and for originals too small to zoom.
+    expect(zoom).toContain("disabled={uploading || !ready || maxZoom <= COVER_ZOOM_MIN}");
+    expect(src).toContain("const maxZoom = repositionSize ? coverMaxZoom(repositionSize) : COVER_ZOOM_MIN;");
+    const at = (needle: string) => trail.indexOf(needle);
+    expect(at("data-social-cover-zoom")).toBeLessThan(at("data-social-cover-actions"));
+    const input = slice("function onZoomInput", "const isReposition");
+    expect(input).toContain("if (uploading || !repositionSize) return;");
+    expect(input).toContain("changeFocus((current) => coverZoomTo(current, zoom, size))");
+  });
+
+  it("zoom slider chrome: 44px tall, token accent, phone-first width", () => {
+    const tokens = SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS.split(/\s+/);
+    expect(tokens).toEqual(expect.arrayContaining(["h-11", "accent-accent", "min-w-0", "flex-1", "disabled:opacity-60"]));
+    expect(SOCIAL_PROFILE_COVER_ZOOM_CLASS.split(/\s+/)).toEqual(
+      expect.arrayContaining(["pointer-events-auto", "flex", "justify-end", "items-center"]),
+    );
+    for (const cls of [SOCIAL_PROFILE_COVER_ZOOM_CLASS, SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS]) {
+      expect(cls).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    }
+  });
+
+  it("clips the zoomed preview to the 16:7 frame and lets the image box grow past it", () => {
+    expect(SOCIAL_PROFILE_COVER_DRAG_CLASS.split(/\s+/)).toContain("overflow-hidden");
+    expect(SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS.split(/\s+/)).toContain("max-w-none");
+    // The Stage surface is a one-cell grid. Tailwind's grid-cols-1 /
+    // grid-rows-1 are minmax(0, 1fr) tracks, so a zoomed box wider than the
+    // frame never grows the cell; the image's percentage box and margins
+    // resolve against the cell (the frame), pinned to its top-left.
+    expect(SOCIAL_PROFILE_COVER_DRAG_CLASS).toContain("grid grid-cols-1 grid-rows-1");
+    expect(SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS.split(/\s+/)).toEqual(
+      expect.arrayContaining(["[grid-area:1/1]", "self-start", "justify-self-start"]),
+    );
+  });
+
+  it("keeps the phone outline in frame space: one module constant, never tied to zoom or the preview box", () => {
+    // PHONE_SAFE is computed once at module scope, before the component, so
+    // no zoom, focus or preview value can reach it.
+    const decl = src.indexOf("const PHONE_SAFE = coverRegionStyle(coverPhoneSafeRegion());");
+    expect(decl).toBeGreaterThan(-1);
+    expect(decl).toBeLessThan(src.indexOf("export function SocialProfileCoverUpload("));
+    const outline = slice("data-social-cover-phone-outline", "</div>");
+    expect(outline).toContain("style={PHONE_SAFE}");
+    expect(outline).not.toMatch(/focus|preview|zoom/i);
+    // The preview alone carries the zoomed box.
+    const image = slice("<img\n              src={repositionPreview}", "/>");
+    expect(image).toContain("style={preview ?? undefined}");
+    expect(image).not.toContain("PHONE_SAFE");
+  });
+
+  it("zooms from the keyboard on the drag surface: + / = in, - out", () => {
+    const keys = slice("function onDragKeyDown", "function onZoomInput");
+    const zoom = keys.slice(keys.indexOf('if (action.type === "zoom") {'));
+    expect(zoom).toContain("changeFocus((current) => coverZoomTo(current, current.zoom + step, size))");
+    // Cancel is handled first, so Escape works before the original decodes.
+    expect(keys.indexOf('action.type === "cancel"')).toBeLessThan(keys.indexOf("if (!repositionSize) return;"));
+  });
+
+  it("zooms with Ctrl/Cmd + wheel and trackpad pinch without scrolling or zooming the page", () => {
+    const wheel = slice("// Ctrl/Cmd + wheel and a trackpad pinch", "const releaseOwnedPreview");
+    expect(wheel).toContain('addEventListener("wheel", onWheel, { passive: false })');
+    expect(wheel).toContain('removeEventListener("wheel", onWheel)');
+    expect(wheel).toContain("if (!event.ctrlKey && !event.metaKey) return;");
+    const prevent = wheel.indexOf("event.preventDefault()");
+    expect(prevent).toBeGreaterThan(wheel.indexOf("if (!event.ctrlKey && !event.metaKey) return;"));
+    expect(prevent).toBeLessThan(wheel.indexOf("if (uploading || !repositionSize) return;"));
+    expect(wheel).toContain("coverZoomTo(current, coverWheelZoom(current.zoom, deltaY, deltaMode), size)");
+    expect(wheel).toContain("[changeFocus, mode, repositionSize, uploading]");
+    // React's onWheel is passive and cannot preventDefault.
+    expect(src).not.toContain("onWheel={");
+  });
+
+  it("pinches with two pointers and hands back to a one-finger drag without a jump", () => {
+    const down = slice("function onPointerDown", "function onPointerMove");
+    expect(down).toContain("if (pointers.current.size >= 2) return;");
+    expect(down).toContain("el.setPointerCapture(e.pointerId)");
+    const anchor = slice("const anchorGesture = useCallback", "const changeFocus");
+    expect(anchor).toContain('kind: "pinch", distance: coverPointerDistance(first, second), origin');
+    expect(anchor).toContain('kind: "drag"');
+    const move = slice("function onPointerMove", "function onPointerUp");
+    expect(move).toContain("uploading) return;");
+    expect(move).toContain(
+      "coverPinchZoom(active.origin.zoom, active.distance, coverPointerDistance(first, second))",
+    );
+    expect(move).toContain("next = coverZoomTo(active.origin, zoom, repositionSize);");
+    expect(move).toContain("gestureFocus.current = next;");
+    const up = slice("function onPointerUp", "function onDragKeyDown");
+    expect(up).toContain("pointers.current.delete(e.pointerId)");
+    expect(up).toContain("releasePointerCapture(e.pointerId)");
+    expect(up).toContain("anchorGesture(el, gestureFocus.current ?? focus)");
+    // Up, cancel and a lost capture all retire the finger, so none goes stale.
+    const surface = slice("data-social-cover-drag", "</div>");
+    expect(surface).toContain("onPointerUp={onPointerUp}");
+    expect(surface).toContain("onPointerCancel={onPointerUp}");
+    expect(surface).toContain("onLostPointerCapture={onPointerUp}");
+    const release = slice("const releasePointer = useCallback", "const clearReposition");
+    expect(release).toContain("for (const id of ids)");
+    expect(release).toContain("pointers.current.clear()");
+    expect(release).toContain("gestureFocus.current = null");
+  });
+
+  it("keeps a zoom or nudge made while a pointer is held: the gesture re-anchors at it", () => {
+    const change = slice("const changeFocus = useCallback", "// Ctrl/Cmd + wheel and a trackpad pinch");
+    // No pointer held: a plain functional update.
+    expect(change).toContain("const active = gesture.current;");
+    expect(change).toContain("const el = captureEl.current;");
+    const idle = change.indexOf("if (!active || !el) {");
+    expect(idle).toBeGreaterThan(-1);
+    expect(change.indexOf("setFocus(change);")).toBeGreaterThan(idle);
+    // Held: apply the change to the focus the gesture last set, then anchor the
+    // gesture there, so the next pointer move starts from it instead of
+    // undoing it.
+    const held = change.slice(change.indexOf("return;", idle));
+    expect(held).toContain("const next = change(gestureFocus.current ?? active.origin);");
+    expect(held).toContain("gestureFocus.current = next;");
+    expect(held).toContain("anchorGesture(el, next);");
+    expect(held).toContain("setFocus(next);");
+    expect(held.indexOf("gestureFocus.current = next;")).toBeLessThan(held.indexOf("setFocus(next);"));
+    expect(held.indexOf("anchorGesture(el, next);")).toBeLessThan(held.indexOf("setFocus(next);"));
+    // Every zoom input and the arrow nudge go through it; none sets focus around it.
+    const wheel = slice("// Ctrl/Cmd + wheel and a trackpad pinch", "const releaseOwnedPreview");
+    const keys = slice("function onDragKeyDown", "function onZoomInput");
+    const input = slice("function onZoomInput", "const isReposition");
+    expect(wheel).toContain("changeFocus((current) =>");
+    expect(keys).toContain("changeFocus((current) => coverZoomTo(current, current.zoom + step, size))");
+    expect(keys).toContain("changeFocus((current) => moveCoverFocus(current, delta, size, width))");
+    expect(input).toContain("changeFocus((current) => coverZoomTo(current, zoom, size))");
+    for (const handler of [wheel, keys, input]) expect(handler).not.toContain("setFocus(");
+    // Only the gesture itself, changeFocus and the open/close resets set focus directly.
+    expect((src.match(/setFocus\(/g) ?? []).length).toBe(7);
+    expect(slice("function onPointerMove", "function onPointerUp")).toContain("setFocus(next);");
+  });
+
+  it("drags whenever the current zoom leaves slack, and reopens at the stored zoom", () => {
+    expect(src).toContain('const slack = hint === "drag";');
+    expect(src).toContain('data-slack={slack ? "" : undefined}');
+    expect(src).not.toContain("coverHasSlack(repositionSize)");
+    const reposition = slice("function beginReposition", "function onRepositionClick");
+    expect(reposition).toContain("setFocus(coverFocusFromCrop(crop, size))");
+    // Save cuts the crop and the stored framing from the same focus (zoom included) the preview paints.
+    const save = slice("async function onSaveReposition", "function onPointerDown");
+    expect(save).toContain("coverCropFrame(focus, size)");
+    expect(save).toContain("coverCropRect(focus, size)");
   });
 });
 

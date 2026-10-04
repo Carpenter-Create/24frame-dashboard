@@ -819,7 +819,9 @@ export const SOCIAL = {
     coverRemove: "Remove",
     coverChoose: "Choose cover photo",
     coverDragHint: "Drag or use arrow keys to reposition image",
-    coverPublicNote: "Your cover photo is public.",
+    // A banner that already fits 4:1 cannot move until it is zoomed in.
+    coverZoomHint: "Zoom in to reposition image",
+    coverZoom: "Zoom",
     coverSaveChanges: "Save changes",
     coverCancel: "Cancel",
     coverCropFailed: "Could not crop cover photo.",
