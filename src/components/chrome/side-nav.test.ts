@@ -104,7 +104,7 @@ describe("SideNav Access rail", () => {
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("text-left");
     expect(HOUSE_RAIL_ITEM_CLASS).not.toMatch(/(?:^|[\s"])bg-accent(?:[\s"]|$)/);
     expect(HOUSE_RAIL_LABEL_CLASS).toBe("min-w-0 flex-1 truncate text-left");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
+    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
   });
 
   it("marks the active row with a muted wash, ink label, and an accent tile (Adam 2026-10-04)", () => {
@@ -122,9 +122,9 @@ describe("SideNav Access rail", () => {
     expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).toBe("bg-surface-muted text-ink");
     expect(HOUSE_DEST_RAIL_IDLE_CLASS).toBe("text-ink-2 hover:bg-surface-muted");
     expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
-    // Settings and the Education course rail keep the wash + accent rows.
+    // Settings and the Education course rail keep the wash + accent-ink rows.
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent");
+    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
     expect(HOUSE_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
     expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
     expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");

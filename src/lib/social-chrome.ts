@@ -985,7 +985,8 @@ export const SOCIAL_PROFILE_TAB_CLASS =
   "flex shrink-0 flex-col items-center gap-2 whitespace-nowrap px-4 py-2.5 t-body md:gap-2 md:px-4";
 
 // Profile section tabs (Stage lock): pills, no underline. Active:
-// accent-wash fill, accent text 600; idle ink-2 500. Desktop: a row of 36
+// accent-wash fill, accent-ink text 600 (founder pick "Deeper blue text",
+// 2026-10-04: 4.62:1 on the wash); idle ink-2 500. Desktop: a row of 36
 // pills, 6 apart. Phone: one full-width segmented row on a muted track,
 // equal segments 44 tall, labels centred with no side padding so a label
 // has the whole segment; one wider than its segment ("Highlights" below
@@ -1003,7 +1004,7 @@ export const SOCIAL_PROFILE_SECTION_TAB_CLASS =
 // and it wraps there (at a hyphenation point where the browser has one).
 export const SOCIAL_PROFILE_SECTION_TAB_LABEL_CLASS = "min-w-0 break-words hyphens-auto";
 
-export const SOCIAL_PROFILE_SECTION_TAB_ACTIVE_CLASS = "bg-accent-wash font-semibold text-accent";
+export const SOCIAL_PROFILE_SECTION_TAB_ACTIVE_CLASS = "bg-accent-wash font-semibold text-accent-ink";
 
 export const SOCIAL_PROFILE_SECTION_TAB_IDLE_CLASS = "font-medium text-ink-2 hover:text-ink";
 
@@ -1173,7 +1174,10 @@ export const SOCIAL_WRITE_VOICE_HERO_CLASS =
 
 export const SOCIAL_WRITE_VOICE_HERO_LISTENING_CLASS = "ring-2 ring-accent";
 
-export const SOCIAL_WRITE_VOICE_HERO_RECORDING_CLASS = "bg-accent/10 text-accent ring-2 ring-accent";
+// Recording: 10% Sporty tint (paints like --accent-wash). The glyph on it is
+// --accent-ink (founder pick "Deeper blue text", Adam 2026-10-04): 4.61:1
+// painted light, where --accent was 4.07:1. The ring stays --accent.
+export const SOCIAL_WRITE_VOICE_HERO_RECORDING_CLASS = "bg-accent/10 text-accent-ink ring-2 ring-accent";
 
 // §0.4. iMessage compose row. Type is transparent on white. Feed write has no mic.
 // Hairline is the top edge only. No gray fill. Bottom pad is 16 above the safe area.
@@ -1220,7 +1224,8 @@ export const SOCIAL_WRITE_COMPOSE_MIC_CLASS =
 
 export const SOCIAL_WRITE_COMPOSE_MIC_LISTENING_CLASS = "ring-2 ring-accent";
 
-export const SOCIAL_WRITE_COMPOSE_MIC_RECORDING_CLASS = "bg-accent/10 text-accent ring-2 ring-accent";
+// Same tint and --accent-ink glyph as the 220 face recording state.
+export const SOCIAL_WRITE_COMPOSE_MIC_RECORDING_CLASS = "bg-accent/10 text-accent-ink ring-2 ring-accent";
 
 // §5. Full content width (host inset 16). Radius 16. Cap 50vh. object-cover face.
 export const SOCIAL_WRITE_COMPOSE_PREVIEW_CLASS =

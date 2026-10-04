@@ -99,12 +99,13 @@ export const SOCIAL_CREATE_TILE_CLASS =
   "group flex min-w-0 flex-col items-center justify-center gap-[var(--space-3)] px-[var(--space-2)] py-[var(--space-6)] text-ink";
 
 // Circular well (~64px), muted rest fill. Hover/active: Sporty Blue wash +
-// accent icon. Coinbase-calm creator tile. Not a colored orb.
+// accent-ink icon (the ink for anything on the wash, founder pick
+// 2026-10-04). Coinbase-calm creator tile. Not a colored orb.
 export const SOCIAL_CREATE_TILE_WELL_CLASS =
   "flex size-16 items-center justify-center rounded-full bg-surface-muted transition-colors group-hover:bg-accent-wash group-active:bg-accent-wash";
 
 export const SOCIAL_CREATE_TILE_ICON_CLASS =
-  "text-ink transition-colors group-hover:text-accent group-active:text-accent";
+  "text-ink transition-colors group-hover:text-accent-ink group-active:text-accent-ink";
 
 export const SOCIAL_CREATE_TILE_LABEL_CLASS =
   "whitespace-normal text-center t-body-sm font-medium text-ink";

@@ -34,6 +34,7 @@
 |----------|------|---------|
 | Layout | **"A · Stage"** | A rounded hero card carries the cover, the avatar, the name and the handle; everything else sits under it on the page |
 | Cover frame | **"Frame once, phone area shown"** | Members drag once in the wide desktop frame. The editor outlines the part phones will show, like YouTube banners |
+| Active tab contrast (Adam, 2026-10-04) | **"Deeper blue text"** | The option as offered: "Add one slightly darker shade of your Sporty Blue, used only for text on light-blue fills. Passes the standard, and the look barely changes." Recorded under Accessibility |
 
 ---
 
@@ -57,7 +58,7 @@ One frame: the desktop hero is **16:7** at every desktop width, the editor's dra
 | Actions | Owner: **Edit profile** accent pill 44; **Share profile** hairline secondary pill 44. Visitor: the existing **Follow** (accent) / **Following** (hairline) and **Share profile** in the same pills. |
 | Roles | Chips 36, `--surface-muted`, label 13/500, A→Z, wrap, never +N. Plain chips: the codebase maps no icons to roles, so none are invented. |
 | Links | Quiet row, never a panel or list: a website is its host as 13 text beside a 14 globe; socials are 32 icon-only hits in ink-3, named by platform. |
-| Tabs | Pills Activity · Highlights · Credits · Interests (Interests hidden for a visitor when the member has none). Active: `--accent-wash` fill, accent text 600, `aria-current="page"`. Idle ink-2 500. No underline. 36 tall, 6 apart, 24 under the face. |
+| Tabs | Pills Activity · Highlights · Credits · Interests (Interests hidden for a visitor when the member has none). Active: `--accent-wash` fill, `--accent-ink` text 600 (see Accessibility), `aria-current="page"`. Idle ink-2 500. No underline. 36 tall, 6 apart, 24 under the face. |
 
 ## Phone (`<md`)
 
@@ -110,7 +111,7 @@ Every step keeps at least **12** of photo above the avatar and holds a **two-lin
 - Real links and buttons. The pills, tab pills and Edit cover keep their round shape on focus; Edit cover and the avatar badge add a `--band-ink` ring to the house accent outline, so focus shows on any photo.
 - Phone targets ≥ 44 (pills, tabs, links, stats cells; the pencil and avatar badge through a 44 hit area).
 - Name and handle keep ≥ 4.5:1 over the scrim on any photo in both themes. Measured in headless Chromium, worst pixel under the text: white cover — light 6.97:1 name / 5.50:1 handle, dark 6.64 / 5.26; black cover — light 17.25 / 12.32, dark 16.33 / 11.67; no cover — light 16.07 / 11.60, dark 15.25 / 11.02. The eased avatar-row ramp leaves these unchanged (re-measured; the text sits on the solid part).
-- **Active tab label below 4.5:1 in light mode.** `--accent` on `--accent-wash` measures **4.07:1** for the 15/600 active label (dark mode 6.17:1). It is the mockup's pairing and the house rail's (`HOUSE_RAIL_ACTIVE_CLASS`), so it is a founder checkpoint (below), not changed here.
+- **Active tab label: decided, founder pick "Deeper blue text" (Adam, 2026-10-04).** `--accent` on `--accent-wash` measured **4.07:1** for the 15/600 active label in light mode (AA asks 4.5:1). Text and icons on the wash now use **`--accent-ink`**: Sporty Blue one step darker, only lightness lowered (OKLCH 0.572 → 0.543, same hue and chroma; the smallest such step that reaches 4.6:1). Light: **4.62:1** on the wash, 5.29:1 on white. Dark maps `--accent-ink` to `--accent`: 6.17:1, unchanged. Measured in headless Chromium with the compiled build CSS on a static page that uses the exact lib class strings (not the signed-in app): light 4.62:1 computed and painted; dark 6.17:1 computed, 6.16:1 painted. The same ink covers the house rail (`HOUSE_RAIL_ACTIVE_CLASS`: Settings and the Education course rail), the Create tile icon on hover and press, and the write-compose voice mic while recording (`bg-accent/10` over the white compose paints the wash to within one 8-bit step, (231,240,255), so the glyph takes `--accent-ink`: 4.61:1 painted in headless Chromium, was 4.07:1; dark 6.24:1 painted, unchanged). Not a new accent: fills, buttons, links, focus rings, the switcher and accent text on white keep `--accent`.
 
 ## OUT
 
@@ -141,7 +142,6 @@ Every step keeps at least **12** of photo above the avatar and holds a **two-lin
 - **"Phone view"** outline label copy.
 - **Phone link hits 44** (the touch floor) where the mockup draws 36.
 - **Scrim strength.** `band/75` under the text is darker than the mockup's 0.7→0 fade so the name and handle stay ≥ 4.5:1 on any photo; on a bright photo the name sits on an even grey block. Only the ramp above it is eased (no edge at the avatar's foot).
-- **Active tab contrast.** `--accent` on `--accent-wash` is 4.07:1 in light mode for the 15/600 label (AA asks 4.5:1). Options: a deeper accent text token for text on the wash (a colour decision), or accept the house pairing (it is the rail's too).
 - **Singular stat labels.** One of a count now reads "1 post" / "1 follower" (the mockup shows "1 follower"); the words "post" and "follower" are new lib copy (`SOCIAL.profile.postStatOne`, `followerStatOne`). The follows page tab label (`socialFollowsTabLabel`) still says "1 followers"; it is outside this lock.
 - **Long names.** Names of three or more lines grow the card (see Hero overlay steps). The alternative is a smaller name for long names on wide heroes (28 instead of 56), a typography call.
 - **Tight step at 1024.** Beside For You the 388 hero uses a 48 avatar and 16 padding so a two-line name fits 16:7; removing For You on the profile would remove this step's main use.

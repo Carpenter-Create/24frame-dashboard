@@ -63,7 +63,11 @@ describe("SocialProfileTabs", () => {
     expect(active).toContain('aria-current="page"');
     expect(active).toContain("data-social-profile-tab-active");
     for (const token of SOCIAL_PROFILE_SECTION_TAB_ACTIVE_CLASS.split(" ")) expect(active).toContain(token);
-    expect(SOCIAL_PROFILE_SECTION_TAB_ACTIVE_CLASS).toBe("bg-accent-wash font-semibold text-accent");
+    // Founder pick "Deeper blue text" (2026-10-04): ink on the wash is
+    // --accent-ink (4.62:1), never Sporty Blue itself (4.07:1).
+    expect(SOCIAL_PROFILE_SECTION_TAB_ACTIVE_CLASS).toBe("bg-accent-wash font-semibold text-accent-ink");
+    expect(active).toMatch(/(?:\s|")text-accent-ink(?:\s|")/);
+    expect(active).not.toMatch(/(?:\s|")text-accent(?:\s|")/);
     for (const tab of ["activity", "credits", "interests"]) {
       const idle = openTag(tab);
       expect(idle).not.toContain("aria-current");

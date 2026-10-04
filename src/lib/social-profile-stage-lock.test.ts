@@ -44,10 +44,32 @@ describe("Social profile Stage lock v1 (founder picks 2026-10-03/04)", () => {
     // Landscape phones get the 16:7 frame.
     expect(lock).toContain("from **30rem** of viewport");
     // Founder checkpoints for what this pass could not decide.
-    expect(lock).toContain("- **Active tab contrast.**");
-    expect(lock).toContain("**4.07:1**");
-    expect(lock).toContain("- **Singular stat labels.**");
-    expect(lock).toContain("- **Long names.**");
+    const openAt = lock.indexOf("## Founder checkpoints left open");
+    expect(openAt).toBeGreaterThan(-1);
+    const open = lock.slice(openAt);
+    expect(open).toContain("- **Singular stat labels.**");
+    expect(open).toContain("- **Long names.**");
+    // Tab contrast is no longer open: the founder picked "Deeper blue text".
+    expect(open).not.toContain("Active tab contrast");
+    expect(open).not.toContain("accent-ink");
+  });
+
+  it("records the tab-contrast decision with the measured ratios (Adam 2026-10-04)", () => {
+    expect(lock).toContain('| Active tab contrast (Adam, 2026-10-04) | **"Deeper blue text"** |');
+    expect(lock).toContain(
+      '"Add one slightly darker shade of your Sporty Blue, used only for text on light-blue fills. Passes the standard, and the look barely changes."',
+    );
+    expect(lock).toContain("Active: `--accent-wash` fill, `--accent-ink` text 600");
+    const a11yAt = lock.indexOf("## Accessibility");
+    const a11y = lock.slice(a11yAt, lock.indexOf("## OUT"));
+    expect(a11y).toContain('- **Active tab label: decided, founder pick "Deeper blue text" (Adam, 2026-10-04).**');
+    expect(a11y).toContain("measured **4.07:1**");
+    expect(a11y).toContain("Light: **4.62:1** on the wash, 5.29:1 on white.");
+    expect(a11y).toContain("6.17:1");
+    expect(a11y).toContain("`HOUSE_RAIL_ACTIVE_CLASS`");
+    expect(a11y).toContain("the write-compose voice mic while recording (`bg-accent/10`");
+    expect(a11y).toContain("`--accent-ink`: 4.61:1 painted in headless Chromium, was 4.07:1");
+    expect(a11y).not.toContain("so it is a founder checkpoint");
   });
 
   it("marks what it supersedes, including the flush phone header, and keeps the editor rules", () => {
