@@ -146,12 +146,17 @@ export const HOUSE_HEADER_TRAILING_AVATAR_CLASS =
 export const HOUSE_THEME_TOGGLE_CLASS =
   `${HOUSE_HEADER_TRAILING_HIT_CLASS} text-ink-3 transition-colors hover:text-ink`;
 
-// Header Ask AI uses the shared hit. Pressed ink marks open.
+// Header Ask AI uses the shared hit.
 // xl+ widens the same control into a hairline pill that carries the
 // visible "Ask 24Frame AI" label (Adam 2026-10-04). Below xl it stays
-// the 44 circle. Phone never shows the label.
+// the 44 circle. Phone never shows the label. The sparkle carries its
+// own accent ink (HOUSE_ASK_AI_MARK_INK_CLASS, Adam 2026-10-04) and the
+// label its own ink, so the hit's ink cannot show hover or open. Hover
+// and open (aria-pressed) take the muted wash the bell and waffle use
+// (ACTIVITY_BELL_TRIGGER_CLASS, WORKSPACE_WAFFLE_TRIGGER_CLASS). Idle
+// stays bare.
 export const HOUSE_ASK_AI_HEADER_CLASS =
-  `${HOUSE_THEME_TOGGLE_CLASS} aria-pressed:text-ink xl:w-auto xl:gap-[var(--space-2)] xl:border xl:border-hairline xl:pl-[var(--space-3)] xl:pr-[var(--space-4)]`;
+  `${HOUSE_THEME_TOGGLE_CLASS} hover:bg-surface-muted aria-pressed:bg-surface-muted xl:w-auto xl:gap-[var(--space-2)] xl:border xl:border-hairline xl:pl-[var(--space-3)] xl:pr-[var(--space-4)]`;
 
 export const HOUSE_ASK_AI_HEADER_LABEL_CLASS =
   "hidden whitespace-nowrap t-body-sm text-ink xl:inline";

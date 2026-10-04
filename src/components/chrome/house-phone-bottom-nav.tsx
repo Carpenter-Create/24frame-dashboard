@@ -15,7 +15,6 @@ import { SocialCreateFan } from "@/components/social/social-create-fan";
 import { cn } from "@/lib/cn";
 import {
   HOUSE_PHONE_BOTTOM_NAV,
-  HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
@@ -32,7 +31,6 @@ import {
   housePhoneDestActive,
   housePhoneDestGlyph,
   housePhoneDestIsCreate,
-  housePhoneDockActiveStyle,
   housePhoneDockDestinations,
   housePhoneDockLabel,
   housePhonePrefetchDestHrefs,
@@ -49,9 +47,10 @@ import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 // G9 page scroll lives on main (`[data-house-lead-scroll]`), not window.
 // Shared across every workspace that mounts this bar.
 // IA A: dests inside the current workspace only. No workspace item.
-// Social: active dest is accent ink plus a small accent mark under
-// the glyph (no chip), and Create is the accent circle inside the
-// pill (shell-unified-chrome-lock-v1). Other docks keep the chip.
+// Every dock: active dest is accent ink plus a small accent mark under
+// the glyph, no chip (Adam 2026-10-04, "Match everywhere"). Social
+// alone has Create, the accent circle inside the pill
+// (shell-unified-chrome-lock-v1).
 
 function useHousePhoneBottomNavHidden(pathname: string) {
   const [nav, setNav] = useState({ path: pathname, hidden: false });
@@ -116,7 +115,6 @@ export function HousePhoneBottomNav({
     });
   const items = housePhoneDockDestinations({ isGcStaff, workspace, homeOwned });
   const destWorkspace = homeOwned ? "aggregation" : workspace;
-  const activeStyle = housePhoneDockActiveStyle(destWorkspace);
 
   useEffect(() => {
     if (!visible) return;
@@ -146,13 +144,6 @@ export function HousePhoneBottomNav({
             );
             const face = !active ? (
               glyph
-            ) : activeStyle === "chip" ? (
-              <span
-                data-house-phone-bottom-nav-chip=""
-                className={HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS}
-              >
-                {glyph}
-              </span>
             ) : (
               <span className={HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS}>
                 {glyph}

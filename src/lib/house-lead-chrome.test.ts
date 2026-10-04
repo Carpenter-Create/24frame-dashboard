@@ -50,6 +50,7 @@ import {
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
+import { ACTIVITY_BELL_TRIGGER_CLASS, ACTIVITY_BELL_TRIGGER_OPEN_CLASS } from "@/lib/activity";
 import { HOUSE_HEADER_SEARCH_GAP_CLASS, HOUSE_SEARCH_PILL_CLASS } from "@/lib/house-shell";
 import { EDUCATION_SEARCH } from "@/lib/course-search";
 import { SOCIAL } from "@/lib/social";
@@ -58,6 +59,8 @@ import {
   APP_HEADER_LEADING_CLASS,
   APP_HEADER_TRAILING_CLUSTER_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
 } from "@/lib/workspace-switcher";
 
 const leadLib = readFileSync("src/lib/house-lead-chrome.ts", "utf8");
@@ -288,7 +291,35 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("violet");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("border-hairline");
     expect(HOUSE_ASK_AI_HEADER_CLASS).toContain(HOUSE_THEME_TOGGLE_CLASS);
-    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("aria-pressed:text-ink");
+    // Open is marked by the bell's wash, not pressed ink (the sparkle owns its accent).
+    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("aria-pressed:bg-surface-muted");
+  });
+
+  it("marks Ask hover and open with the bell's and waffle's wash, since no child takes the hit's ink", () => {
+    // Every visible child of the Ask hit sets its own ink: both sparkles are
+    // text-accent (Adam 2026-10-04, "Blue, as in the mockup") and the xl label
+    // is text-ink. Hover or pressed ink on the hit repaints nothing, so hover
+    // and open (aria-pressed) need a non-ink cue on the hit itself.
+    const html = leadHtml("aggregation");
+    const askAt = html.indexOf('data-ask-assistant-header=""');
+    const ask = html.slice(askAt, html.indexOf("</button>", askAt));
+    const marks = [...ask.matchAll(/<svg[^>]*class="([^"]*)"/g)].map((m) => m[1].split(" "));
+    expect(marks).toHaveLength(2);
+    for (const cls of marks) expect(cls).toContain("text-accent");
+    expect(htmlClass(ask, "data-ask-assistant-header-label").split(" ")).toContain("text-ink");
+
+    const hit = htmlClass(html, 'data-ask-assistant-header=""').split(" ");
+    expect(hit).toEqual(HOUSE_ASK_AI_HEADER_CLASS.split(" "));
+    expect(hit).toContain("hover:bg-surface-muted");
+    expect(hit).toContain(`aria-pressed:${ACTIVITY_BELL_TRIGGER_OPEN_CLASS}`);
+    // The same wash the trailing toggles that own a panel already use — not a new treatment.
+    expect(ACTIVITY_BELL_TRIGGER_CLASS.split(" ")).toContain("hover:bg-surface-muted");
+    expect(WORKSPACE_WAFFLE_TRIGGER_CLASS.split(" ")).toContain("hover:bg-surface-muted");
+    expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).toBe(ACTIVITY_BELL_TRIGGER_OPEN_CLASS);
+    // Idle stays bare, and no dead pressed ink is left on the hit.
+    expect(hit).not.toContain(ACTIVITY_BELL_TRIGGER_OPEN_CLASS);
+    expect(hit.some((c) => c.startsWith("aria-pressed:text-"))).toBe(false);
+    expect(leadLib).not.toContain("Pressed ink marks open");
   });
 
   it("locks desktop header height and the sizes that derive from it", () => {
