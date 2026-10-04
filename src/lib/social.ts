@@ -819,7 +819,7 @@ export const SOCIAL = {
     coverRemove: "Remove",
     coverChoose: "Choose cover photo",
     coverDragHint: "Drag or use arrow keys to reposition image",
-    // A banner that already fits 4:1 cannot move until it is zoomed in.
+    // A photo that already fits the 16:7 frame exactly cannot move until it is zoomed in.
     coverZoomHint: "Zoom in to reposition image",
     coverZoom: "Zoom",
     coverSaveChanges: "Save changes",
