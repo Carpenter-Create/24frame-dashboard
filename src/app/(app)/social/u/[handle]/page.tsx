@@ -219,6 +219,7 @@ export default async function SocialPublicProfilePage({
                   following={following}
                   viewerId={ctx.user.id}
                   stretch
+                  pill
                 />
                 <SocialShareButton handle={member.handle} />
               </>

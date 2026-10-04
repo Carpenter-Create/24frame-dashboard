@@ -23,13 +23,15 @@ import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { SOCIAL } from "@/lib/social";
 import {
   SOCIAL_PROFILE_LINK_CLASS,
+  SOCIAL_PROFILE_LINK_TEXT_CLASS,
   SOCIAL_PROFILE_LINKS_CLASS,
   SOCIAL_PROFILE_LINKS_SHEET_CLASS,
   SOCIAL_PROFILE_LINKS_SHEET_LINK_CLASS,
 } from "@/lib/social-chrome";
-import { SOCIAL_ICON_SIZE_PROFILE_LINK } from "@/lib/social-icons";
+import { SOCIAL_ICON_SIZE_PROFILE_LINK, SOCIAL_ICON_SIZE_PROFILE_WEBSITE } from "@/lib/social-icons";
 import {
   socialProfileLinkAccessibleName,
+  socialProfileLinkFaceText,
   socialProfileLinkGlyph,
   type SocialProfileLink,
   type SocialProfileLinkGlyphName,
@@ -48,31 +50,45 @@ const GLYPH: Record<SocialProfileLinkGlyphName, Icon> = {
   globe: GlobeSimple,
 };
 
-function SocialProfileLinkGlyph({ platform }: { platform: SocialProfileLink["platform"] }) {
+function SocialProfileLinkGlyph({
+  platform,
+  size = SOCIAL_ICON_SIZE_PROFILE_LINK,
+}: {
+  platform: SocialProfileLink["platform"];
+  size?: number;
+}) {
   const name = socialProfileLinkGlyph(platform);
   const Glyph = GLYPH[name];
   return (
     <Glyph
       aria-hidden="true"
       data-social-profile-link-glyph={name}
-      size={SOCIAL_ICON_SIZE_PROFILE_LINK}
+      size={size}
       weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
+      className="shrink-0"
     />
   );
 }
 
+// Stage lock: a website reads as its host beside a small globe; every
+// other link is a quiet icon-only hit named by its platform.
 function SocialProfileFaceLink({ link }: { link: SocialProfileLink }) {
+  const text = socialProfileLinkFaceText(link);
   return (
     <a
       href={link.url}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={socialProfileLinkAccessibleName(link.url, link.platform)}
+      aria-label={text ? undefined : socialProfileLinkAccessibleName(link.url, link.platform)}
       data-social-profile-link={link.platform}
       data-social-profile-imdb={link.platform === "imdb" ? "" : undefined}
-      className={SOCIAL_PROFILE_LINK_CLASS}
+      className={text ? SOCIAL_PROFILE_LINK_TEXT_CLASS : SOCIAL_PROFILE_LINK_CLASS}
     >
-      <SocialProfileLinkGlyph platform={link.platform} />
+      <SocialProfileLinkGlyph
+        platform={link.platform}
+        size={text ? SOCIAL_ICON_SIZE_PROFILE_WEBSITE : SOCIAL_ICON_SIZE_PROFILE_LINK}
+      />
+      {text ? <span className="min-w-0 break-words">{text}</span> : null}
     </a>
   );
 }

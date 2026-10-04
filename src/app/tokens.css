@@ -96,8 +96,10 @@
 
   /* --- Radius + hairline elevation ---
      --radius-lg is the house card corner (16). Shared on purpose — no
-     Dashboard-only radius fork. Controls stay on --radius / --radius-sm. */
-  --radius-sm: 6px; --radius: 10px; --radius-lg: 16px;
+     Dashboard-only radius fork. Controls stay on --radius / --radius-sm.
+     --radius-xl (24) is the stage corner: the Social profile hero card
+     (docs/design-locks/social-profile-stage-lock-v1.md). */
+  --radius-sm: 6px; --radius: 10px; --radius-lg: 16px; --radius-xl: 24px;
   --border-width: 1px;
 
   /* --- Layout --- */

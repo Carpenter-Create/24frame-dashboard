@@ -13,7 +13,7 @@ import {
   SOCIAL_PROFILE_STATS_CLASS,
   SOCIAL_PROFILE_STATS_GRID_CLASS,
 } from "@/lib/social-chrome";
-import { formatSocialCount, SOCIAL, socialProfileFollowsHref } from "@/lib/social";
+import { formatSocialCount, socialProfileFollowsHref, socialProfileStatLabel } from "@/lib/social";
 import type { SocialProfileCounts } from "@/lib/social-feed";
 
 export function SocialProfileStats({
@@ -62,7 +62,7 @@ function SocialProfileStatsView({
       <div className={SOCIAL_PROFILE_STATS_GRID_CLASS}>
         <p data-social-profile-stat="posts" className={SOCIAL_PROFILE_STAT_CLASS}>
           <span className={SOCIAL_PROFILE_STAT_VALUE_CLASS}>{formatSocialCount(stats.posts)}</span>
-          <span className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>{SOCIAL.profile.postsStat}</span>
+          <span className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>{socialProfileStatLabel("posts", stats.posts)}</span>
         </p>
         <HouseLink
           href={socialProfileFollowsHref(handle, "followers")}
@@ -70,7 +70,7 @@ function SocialProfileStatsView({
           className={SOCIAL_PROFILE_STAT_CLASS}
         >
           <span className={SOCIAL_PROFILE_STAT_VALUE_CLASS}>{formatSocialCount(stats.followers)}</span>
-          <span className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>{SOCIAL.profile.followersStat}</span>
+          <span className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>{socialProfileStatLabel("followers", stats.followers)}</span>
         </HouseLink>
         <HouseLink
           href={socialProfileFollowsHref(handle, "following")}
@@ -78,7 +78,7 @@ function SocialProfileStatsView({
           className={SOCIAL_PROFILE_STAT_CLASS}
         >
           <span className={SOCIAL_PROFILE_STAT_VALUE_CLASS}>{formatSocialCount(stats.following)}</span>
-          <span className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>{SOCIAL.profile.followingStat}</span>
+          <span className={SOCIAL_PROFILE_STAT_LABEL_CLASS}>{socialProfileStatLabel("following", stats.following)}</span>
         </HouseLink>
       </div>
     </div>

@@ -18,13 +18,14 @@ vi.mock("@/app/(app)/account/actions", () => ({ uploadAccountPhoto: vi.fn() }));
 import {
   SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_PROFILE_CENTER_CLASS,
-  SOCIAL_PROFILE_HEAD_OVERLAP_CLASS,
+  SOCIAL_PROFILE_HERO_CLASS,
+  SOCIAL_PROFILE_STAGE_CLASS,
 } from "@/lib/social-chrome";
 
 import { SocialProfileOptimisticShell } from "./social-own-profile";
 
 describe("Social profile save-hop and loading overlay", () => {
-  it("paints the owner band inside the real layout row with the For You placeholder (G6)", () => {
+  it("paints the same Stage hero inside the real layout row with the For You placeholder", () => {
     const html = renderToStaticMarkup(
       <SocialProfileOptimisticShell
         serverOverlay={{ handle: "ada", displayName: "Ada Lovelace", coverUrl: null }}
@@ -41,19 +42,23 @@ describe("Social profile save-hop and loading overlay", () => {
     expect(centerAt).toBeGreaterThan(0);
     expect(identityAt).toBeGreaterThan(centerAt);
     expect(forYouAt).toBeGreaterThan(identityAt);
-    // Owner with no cover keeps the wash band, so nothing jumps when the real face mounts.
-    expect(html).toContain("data-social-profile-cover-empty");
-    expect(html).toContain("bg-accent-wash");
-    expect(html).toContain(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS);
+    // The same stage and hero classes as the real face (no cover: the band
+    // fill), so the hero box does not move when the real face mounts.
+    expect(html).toContain(`data-social-profile-stage="" class="${SOCIAL_PROFILE_STAGE_CLASS}"`);
+    expect(html).toContain(`data-social-profile-cover-empty="" class="${SOCIAL_PROFILE_HERO_CLASS}"`);
+    expect(html).not.toContain("bg-accent-wash");
+    expect(html).toContain("Ada Lovelace");
     // No editor chrome in the overlay.
     expect(html).not.toContain("data-social-profile-cover-edit");
     expect(html).not.toContain("data-social-profile-head-trail");
   });
 
-  it("passes owner on the real own face and the stored framing to the editor", () => {
+  it("passes the stored framing to the editor and the empty-bio hint as the muted line", () => {
     const src = readFileSync("src/components/social/social-own-profile.tsx", "utf8");
     const view = src.slice(src.indexOf("function SocialOwnProfileFaceView"));
-    expect(view).toContain("owner");
     expect(view).toContain("coverFraming={coverFraming}");
+    expect(view).toContain("bio={merged.bio}");
+    expect(view).toContain("bioHint={fallbackBio}");
+    expect(src).not.toMatch(/\n\s+owner\n/);
   });
 });

@@ -4,11 +4,11 @@
 // IMDb help-page category clone. Persist ordered slugs on
 // profiles.crafts. primary_role stays the first selected slug.
 // UI label is Professions — not Topics, not Category, not crafts.
-// Public header is one house chip-rail row of gray pills: every
-// selected Role as its own chip, A→Z by label (sortByLabelAlpha,
-// same helper as Topics). Persist and primary_role stay selection
-// order. Phone scrolls sideways (Topics SoT). Desktop uses the same
-// one-row rail. No +N / more chip — overflow scrolls. Omit when empty.
+// Public profile face: gray chips, every selected Role as its own
+// chip, A→Z by label (sortByLabelAlpha, same helper as Topics).
+// Persist and primary_role stay selection order. The chips wrap on
+// phone and desktop (Stage lock 2026-10-04, supersedes the one-row
+// scroll rail). No +N / more chip. Omit when empty.
 // Edit max 5. Select and write stay sync. Not on SocialPersonRow.
 // Investor is a Business add. Bio middots stay the author's copy.
 // Edit face is one Settings drill-in row. Selecting stays on the

@@ -1,9 +1,10 @@
 // Profile cover save — keep the original (founder decision 3, 2026-10-04).
-// docs/design-locks/social-profile-header-linkedin-lock-v1.md
+// Storage and editor rules: docs/design-locks/social-profile-header-linkedin-lock-v1.md.
+// Crop geometry: docs/design-locks/social-profile-stage-lock-v1.md.
 //
-// A new cover sends three things: the cropped 1784×446 JPEG ("media"), the
-// uncropped original ("source") and the framing ("crop", fractions of the
-// original). Both files are fresh staging uploads that the server copies to
+// A new cover sends three things: the cropped 16:7 JPEG, 2400×1050
+// ("media"), the uncropped original ("source") and the framing ("crop",
+// fractions of the original). Both files are fresh staging uploads that the server copies to
 // immutable keys before it stores them.
 //
 // Reposition sends only a new cropped JPEG and new framing, plus "opened":

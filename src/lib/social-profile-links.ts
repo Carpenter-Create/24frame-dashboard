@@ -4,7 +4,8 @@ import { SOCIAL } from "@/lib/social";
 // External profile links. Persist the ordered list on profiles.website_url
 // (identity-spine text): one URL stays a URL; two or more is a JSON array.
 // Face chrome is a quiet icon rail (Adam 2026-09-22): known hosts map to
-// a Phosphor glyph; unknown hosts use a globe. Accessible name is the
+// a Phosphor glyph; unknown hosts use a globe (Stage lock 2026-10-04: the
+// globe sits beside the website's host as quiet text). Accessible name is the
 // platform label, or the host when the platform is website. Every public
 // link icon is on the face, up to SOCIAL_PROFILE_LINKS_MAX. No +N collapse.
 // The Links sheet and the Edit Profile drill keep readable host labels.
@@ -194,6 +195,14 @@ export function socialProfileLinkReadableLabel(
   } catch {
     return "website";
   }
+}
+
+// Stage lock face text (docs/design-locks/social-profile-stage-lock-v1.md):
+// links are found, never the focus. A website shows its host as quiet text
+// beside a globe; every known platform stays icon-only (null).
+export function socialProfileLinkFaceText(link: Pick<SocialProfileLink, "url" | "platform">): string | null {
+  if (link.platform !== "website") return null;
+  return hostnameOf(link.url) || null;
 }
 
 // Face icon accessible name. Known hosts use the platform label.

@@ -2,222 +2,306 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
-  SOCIAL_AVATAR_PROFILE_CLASS,
-  SOCIAL_DESKTOP_MEASURE,
-  SOCIAL_MOBILE_BLEED_CLASS,
+  SOCIAL_PROFILE_AVATAR_EDIT_CLASS,
   SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS,
-  SOCIAL_PROFILE_AVATAR_ROW_CLASS,
-  SOCIAL_PROFILE_AVATAR_SLOT_CLASS,
   SOCIAL_PROFILE_COVER_CLASS,
   SOCIAL_PROFILE_COVER_DRAG_CLASS,
   SOCIAL_PROFILE_COVER_EDIT_CLASS,
+  SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
   SOCIAL_PROFILE_FACE_CLASS,
-  SOCIAL_PROFILE_HEAD_NO_COVER_CLASS,
-  SOCIAL_PROFILE_HEAD_OVERLAP_CLASS,
+  SOCIAL_PROFILE_HANDLE_CLASS,
+  SOCIAL_PROFILE_HEAD_CLASS,
   SOCIAL_PROFILE_HEAD_TRAIL_CLASS,
+  SOCIAL_PROFILE_HERO_CLASS,
   SOCIAL_PROFILE_IDENTITY_CLASS,
+  SOCIAL_PROFILE_NAME_CLASS,
   SOCIAL_PROFILE_NAME_STACK_CLASS,
+  SOCIAL_PROFILE_AVATAR_ROW_CLASS,
+  SOCIAL_PROFILE_STAGE_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL_PROFILE_COVER_IMAGE_SIZES, SOCIAL_POST_IMAGE_SIZES } from "@/lib/social-media-display";
+import { SOCIAL_IMAGE_MAX_BYTES } from "@/lib/social-media";
 import {
-  SOCIAL_PROFILE_COVER_LOCK_A,
-  SOCIAL_PROFILE_HEADER_LOCK,
+  COVER_CROP_MAX_BYTES,
+  COVER_CROP_OUTPUT_HEIGHT,
+  COVER_CROP_OUTPUT_WIDTH,
+  SOCIAL_PROFILE_COVER_STAGE,
+  SOCIAL_PROFILE_STAGE_HERO,
   socialProfileCoverPhoto,
-  socialProfileRendersCoverBand,
+  socialProfileHeroOverlayPx,
 } from "@/lib/social-profile-cover";
 
-const PROFILE_HEADER_CONSTANTS = [
-  SOCIAL_PROFILE_IDENTITY_CLASS,
+const STAGE_CONSTANTS = [
+  SOCIAL_PROFILE_STAGE_CLASS,
+  SOCIAL_PROFILE_HERO_CLASS,
   SOCIAL_PROFILE_COVER_CLASS,
+  SOCIAL_PROFILE_HEAD_CLASS,
+  SOCIAL_PROFILE_AVATAR_ROW_CLASS,
+  SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS,
+  SOCIAL_PROFILE_AVATAR_EDIT_CLASS,
+  SOCIAL_PROFILE_NAME_STACK_CLASS,
+  SOCIAL_PROFILE_NAME_CLASS,
+  SOCIAL_PROFILE_HANDLE_CLASS,
   SOCIAL_PROFILE_COVER_EDIT_CLASS,
   SOCIAL_PROFILE_COVER_DRAG_CLASS,
-  SOCIAL_PROFILE_HEAD_OVERLAP_CLASS,
-  SOCIAL_PROFILE_HEAD_NO_COVER_CLASS,
-  SOCIAL_PROFILE_AVATAR_ROW_CLASS,
-  SOCIAL_PROFILE_AVATAR_SLOT_CLASS,
+  SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
   SOCIAL_PROFILE_HEAD_TRAIL_CLASS,
-  SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS,
-  SOCIAL_PROFILE_NAME_STACK_CLASS,
+  SOCIAL_PROFILE_IDENTITY_CLASS,
   SOCIAL_PROFILE_FACE_CLASS,
 ];
 
-describe("SOCIAL_PROFILE_COVER_LOCK_A", () => {
-  it("keeps column width and the 1784×446 master; display sizes moved to the header lock", () => {
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.columnWidth).toBe(SOCIAL_DESKTOP_MEASURE.center);
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.columnWidth).toBe(720);
-    expect(SOCIAL_POST_IMAGE_SIZES).toBe(`(max-width: 1023px) 100vw, ${SOCIAL_DESKTOP_MEASURE.center}px`);
-    expect(SOCIAL_PROFILE_COVER_IMAGE_SIZES).toBe(SOCIAL_POST_IMAGE_SIZES);
-    expect(SOCIAL_POST_IMAGE_SIZES).not.toContain("892");
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.masterWidth).toBe(1784);
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.masterHeight).toBe(446);
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.masterWidth / SOCIAL_PROFILE_COVER_LOCK_A.masterHeight).toBe(4);
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.aspectWidth / SOCIAL_PROFILE_COVER_LOCK_A.aspectHeight).toBe(4);
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.coverFitWidth).toBe(1584);
-    expect(SOCIAL_PROFILE_COVER_LOCK_A.coverFitHeight).toBe(396);
-    expect(SOCIAL_PROFILE_COVER_LOCK_A).not.toHaveProperty("heightMobile");
-    expect(SOCIAL_PROFILE_COVER_LOCK_A).not.toHaveProperty("heightDesktop");
-    expect(SOCIAL_PROFILE_COVER_LOCK_A).not.toHaveProperty("avatarSize");
-    expect(SOCIAL_PROFILE_HEADER_LOCK).toEqual({
-      avatarPhone: { min: 88, cqw: 25, max: 112 },
-      avatarDesktop: { min: 96, cqw: 19, max: 152 },
-      ringPx: 4,
-      lipRatio: 0.5,
+const tokens = (value: string) => value.split(/\s+/);
+
+describe("Profile Stage lock — numbers (docs/design-locks/social-profile-stage-lock-v1.md)", () => {
+  it("frames once at 16:7 and saves a 2400×1050 crop", () => {
+    expect(SOCIAL_PROFILE_COVER_STAGE).toEqual({
+      aspectWidth: 16,
+      aspectHeight: 7,
+      phoneAspectWidth: 61,
+      phoneAspectHeight: 55,
+      phoneCardBelowRem: 30,
+      outputWidth: 2400,
+      outputHeight: 1050,
+      radiusPx: 24,
+      phoneInsetPx: 12,
     });
+    expect(COVER_CROP_OUTPUT_WIDTH / COVER_CROP_OUTPUT_HEIGHT).toBe(16 / 7);
+    expect(SOCIAL_PROFILE_STAGE_HERO).toEqual({
+      heroTightMaxRem: 28,
+      heroLargeMinRem: 40,
+      desktopMinHeroPx: 388,
+      topGapPx: 12,
+      avatarRingPx: 3,
+      steps: {
+        tight: { avatarPx: 48, padPx: 16, avatarNameGapPx: 8, nameLinePx: 30.8, nameHandleGapPx: 4, handleLinePx: 17.875 },
+        compact: { avatarPx: 64, padPx: 20, avatarNameGapPx: 12, nameLinePx: 30.8, nameHandleGapPx: 4, handleLinePx: 17.875 },
+        large: { avatarPx: 80, padPx: 28, avatarNameGapPx: 16, nameLinePx: 56, nameHandleGapPx: 8, handleLinePx: 20.625 },
+      },
+    });
+    // The crop uploads through the posts stills lane; its cap is the lane cap,
+    // far above a worst-case 2400×1050 JPEG (about 3 bytes a pixel).
+    expect(COVER_CROP_MAX_BYTES).toBe(SOCIAL_IMAGE_MAX_BYTES);
+    expect(COVER_CROP_MAX_BYTES).toBeGreaterThan(2400 * 1050 * 3);
+    expect(SOCIAL_PROFILE_COVER_IMAGE_SIZES).toBe(SOCIAL_POST_IMAGE_SIZES);
   });
 
-  it("keeps chrome tokens aligned with the profile header lock", () => {
-    const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
-    const { avatarPhone, avatarDesktop, ringPx } = SOCIAL_PROFILE_HEADER_LOCK;
-    const phoneClamp = `clamp(${avatarPhone.min}px,${avatarPhone.cqw}cqw,${avatarPhone.max}px)`;
-    const desktopClamp = `clamp(${avatarDesktop.min}px,${avatarDesktop.cqw}cqw,${avatarDesktop.max}px)`;
-    expect(phoneClamp).toBe("clamp(88px,25cqw,112px)");
-    expect(desktopClamp).toBe("clamp(96px,19cqw,152px)");
-    expect(chrome).toContain("aspect-[4/1]");
-    expect(chrome).toContain(phoneClamp);
-    expect(chrome).toContain(desktopClamp);
-    expect(chrome).toContain(`border-${ringPx} border-bg md:border-surface`);
-    expect(chrome).toContain("md:ring-offset-[var(--surface)]");
-    expect(chrome).toContain("-mt-[calc(var(--social-profile-avatar)/2)]");
-    expect(chrome).not.toContain("h-[112px]");
-    expect(chrome).not.toContain("md:h-[224px]");
-    expect(chrome).toContain("bg-accent-wash");
-    // Phone Topics pull is max-md:-mt-. That is not a desktop avatar lip.
-    expect(chrome).not.toMatch(/md:-mt-\[\d+px\]/);
-    expect(chrome).not.toContain("-mt-[40px]");
+  it("keeps the literal hero, phone and overlay classes in step with the numbers", () => {
+    const { aspectWidth, aspectHeight, phoneAspectWidth, phoneAspectHeight, phoneCardBelowRem, radiusPx } =
+      SOCIAL_PROFILE_COVER_STAGE;
+    const { heroTightMaxRem, heroLargeMinRem, topGapPx, steps } = SOCIAL_PROFILE_STAGE_HERO;
+    const step = `@min-[${heroLargeMinRem}rem]/hero:`;
+    const tight = `md:@max-[${heroTightMaxRem}rem]/hero:`;
+    // Tailwind spacing is 4px a step.
+    const sp = (px: number) => String(px / 4);
+    const frame = [
+      `aspect-[${phoneAspectWidth}/${phoneAspectHeight}]`,
+      // Landscape phones and small tablets get the 16:7 frame, never a card
+      // taller than a landscape screen.
+      `min-[${phoneCardBelowRem}rem]:aspect-[${aspectWidth}/${aspectHeight}]`,
+      // The editor turns the phone card into the 16:7 frame too.
+      `group-has-[[data-social-cover-drag]]/hero:aspect-[${aspectWidth}/${aspectHeight}]`,
+    ];
+    const hero = tokens(SOCIAL_PROFILE_HERO_CLASS);
+    expect(hero).toEqual(expect.arrayContaining(frame));
+    expect(hero.filter((token) => token.includes("aspect-"))).toHaveLength(frame.length);
+    expect(hero).toContain("rounded-[var(--radius-xl)]");
+    expect(hero).toContain("bg-band");
+    // Not a scroll container: a name too long for the frame grows the card, never cut.
+    expect(hero).toContain("overflow-clip");
+    expect(hero).not.toContain("overflow-hidden");
+    expect(SOCIAL_PROFILE_HERO_CLASS).not.toMatch(/(?:^|\s)h-\[|aspect-\[4\/1\]/);
 
-    expect(SOCIAL_PROFILE_COVER_CLASS).toBe("relative w-full aspect-[4/1] shrink-0 overflow-hidden");
-    expect(SOCIAL_PROFILE_COVER_CLASS).not.toMatch(/\bh-\[/);
+    // The cover layer is its own frame box at the top of the card, never the
+    // card's content height, so a taller card never re-crops the framed photo.
+    const cover = tokens(SOCIAL_PROFILE_COVER_CLASS);
+    expect(cover).toEqual(expect.arrayContaining(["absolute", "inset-x-0", "top-0", "overflow-hidden", ...frame]));
+    expect(cover.filter((token) => token.includes("aspect-"))).toHaveLength(frame.length);
+    expect(cover).not.toContain("inset-0");
+    expect(cover).not.toContain("bottom-0");
+    const tokensCss = readFileSync("src/app/tokens.css", "utf8");
+    expect(tokensCss).toContain(`--radius-xl: ${radiusPx}px;`);
 
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("@container");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain(`[--social-profile-avatar:${phoneClamp}]`);
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain(`md:[--social-profile-avatar:${desktopClamp}]`);
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("md:rounded-[var(--radius-lg)]");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toMatch(/(?:^|\s)md:border(?:\s|$)/);
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("md:border-hairline");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("md:overflow-hidden");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("md:bg-surface");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain(SOCIAL_MOBILE_BLEED_CLASS);
-    // Decision 2 (a): flush under the top bar on phone.
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("max-md:-mt-[var(--space-4)]");
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).not.toContain("shadow-");
-    // Phone root has no fill: text sits on the page.
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).not.toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
+    // Phone card: 12 from the screen edges (frame gutter 16, pulled 4).
+    const stage = tokens(SOCIAL_PROFILE_STAGE_CLASS);
+    expect(stage).toEqual(expect.arrayContaining(["@container/hero", "group/hero", "relative", "max-md:-mx-1", "max-md:-mt-1"]));
+    expect(stage).not.toContain("w-full");
+    expect(stage).not.toContain("overflow-hidden");
 
-    const lip = `/${1 / SOCIAL_PROFILE_HEADER_LOCK.lipRatio})`;
-    expect(SOCIAL_PROFILE_HEAD_OVERLAP_CLASS).toBe(
-      `pointer-events-none relative z-10 -mt-[calc(var(--social-profile-avatar)${lip}]`,
+    // Overlay steps: avatar 48 (tight) / 64 / 80 with a 3px band-ink ring,
+    // title 28 → hero 56 at the large step.
+    const avatar = tokens(SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS);
+    expect(avatar).toEqual(
+      expect.arrayContaining([
+        `size-${sp(steps.compact.avatarPx)}`,
+        `${tight}size-${sp(steps.tight.avatarPx)}`,
+        `${step}size-${sp(steps.large.avatarPx)}`,
+        "border-[3px]",
+        "border-band-ink",
+      ]),
     );
-    expect(SOCIAL_PROFILE_HEAD_TRAIL_CLASS).toContain("mt-[calc(");
-    expect(SOCIAL_PROFILE_HEAD_TRAIL_CLASS).not.toContain("pt-[calc(");
-    expect(SOCIAL_PROFILE_HEAD_TRAIL_CLASS).toContain("pointer-events-auto");
-    expect(SOCIAL_PROFILE_HEAD_TRAIL_CLASS).toContain("empty:hidden");
-    expect(SOCIAL_PROFILE_AVATAR_SLOT_CLASS).toContain("pointer-events-auto");
-    expect(SOCIAL_PROFILE_NAME_STACK_CLASS).toContain("pointer-events-auto");
-    expect(SOCIAL_PROFILE_AVATAR_ON_COVER_CLASS).toBe(
-      "size-[var(--social-profile-avatar)] border-4 border-bg md:border-surface text-[length:var(--text-title)] md:ring-offset-[var(--surface)]",
+    const name = tokens(SOCIAL_PROFILE_NAME_CLASS);
+    expect(name).toEqual(
+      expect.arrayContaining(["t-title", "text-band-ink", `${step}text-[length:var(--text-hero)]`, `${step}leading-none`, `${step}tracking-display`]),
     );
-    expect(SOCIAL_PROFILE_HEAD_NO_COVER_CLASS).toBe("pt-[var(--space-4)] md:pt-[var(--space-6)]");
-    expect(SOCIAL_PROFILE_FACE_CLASS).toContain("pb-[var(--space-2)] md:pb-[var(--space-6)]");
-    expect(SOCIAL_PROFILE_COVER_EDIT_CLASS).toContain("size-9");
-    expect(SOCIAL_PROFILE_COVER_EDIT_CLASS).toContain("after:-inset-1");
-    for (const value of PROFILE_HEADER_CONSTANTS) {
-      expect(value).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    // The tight step keeps the house title size: only the avatar and padding shrink.
+    expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain(tight);
+    const handle = tokens(SOCIAL_PROFILE_HANDLE_CLASS);
+    expect(handle).toEqual(expect.arrayContaining(["text-[length:var(--text-xs)]", `${step}text-[length:var(--text-sm)]`, "text-band-ink/84"]));
+    expect(tokens(SOCIAL_PROFILE_NAME_STACK_CLASS)).toEqual(
+      expect.arrayContaining([
+        `px-${sp(steps.compact.padPx)}`,
+        `pb-${sp(steps.compact.padPx)}`,
+        `pt-${sp(steps.compact.avatarNameGapPx)}`,
+        `gap-${sp(steps.compact.nameHandleGapPx)}`,
+        `${tight}px-${sp(steps.tight.padPx)}`,
+        `${tight}pb-${sp(steps.tight.padPx)}`,
+        `${tight}pt-${sp(steps.tight.avatarNameGapPx)}`,
+        `${step}px-${sp(steps.large.padPx)}`,
+        `${step}pb-${sp(steps.large.padPx)}`,
+        `${step}pt-${sp(steps.large.avatarNameGapPx)}`,
+        `${step}gap-${sp(steps.large.nameHandleGapPx)}`,
+      ]),
+    );
+    // The least photo above the avatar, and the row's side padding per step.
+    expect(tokens(SOCIAL_PROFILE_AVATAR_ROW_CLASS)).toEqual(
+      expect.arrayContaining([
+        `pt-${sp(topGapPx)}`,
+        `px-${sp(steps.compact.padPx)}`,
+        `${tight}px-${sp(steps.tight.padPx)}`,
+        `${step}px-${sp(steps.large.padPx)}`,
+      ]),
+    );
+    // No hero class still uses an old step.
+    for (const value of STAGE_CONSTANTS) expect(value).not.toMatch(/@min-\[35rem\]\/hero:/);
+  });
+
+  it("keeps a two-line name inside 16:7, with photo above the avatar, at the narrowest hero of every step", () => {
+    const { heroTightMaxRem, heroLargeMinRem, desktopMinHeroPx, steps } = SOCIAL_PROFILE_STAGE_HERO;
+    const { aspectWidth, aspectHeight, phoneAspectWidth, phoneAspectHeight, phoneCardBelowRem, phoneInsetPx } =
+      SOCIAL_PROFILE_COVER_STAGE;
+    const frameHeight = (width: number) => (width * aspectHeight) / aspectWidth;
+    const fits = (step: (typeof steps)[keyof typeof steps], width: number, height: number, lines = 2) =>
+      socialProfileHeroOverlayPx(step, lines) <= height;
+    // Desktop: tight from the 388 column at 1024 beside For You; compact from
+    // 28rem; large from 40rem. Each is checked at the narrowest width it serves.
+    expect(fits(steps.tight, desktopMinHeroPx, frameHeight(desktopMinHeroPx))).toBe(true);
+    expect(fits(steps.compact, heroTightMaxRem * 16, frameHeight(heroTightMaxRem * 16))).toBe(true);
+    expect(fits(steps.large, heroLargeMinRem * 16, frameHeight(heroLargeMinRem * 16))).toBe(true);
+    // Phones: the 61:55 card at 320, and the 16:7 card from 30rem of viewport.
+    const phone320 = 320 - 2 * phoneInsetPx;
+    expect(fits(steps.compact, phone320, (phone320 * phoneAspectHeight) / phoneAspectWidth)).toBe(true);
+    const wide = phoneCardBelowRem * 16 - 2 * phoneInsetPx;
+    expect(fits(steps.compact, wide, frameHeight(wide))).toBe(true);
+    // Why the steps sit where they do: the compact step overflows the 388
+    // column, and the large step overflows below 40rem (the old 35rem step).
+    expect(fits(steps.compact, desktopMinHeroPx, frameHeight(desktopMinHeroPx))).toBe(false);
+    expect(fits(steps.large, 35 * 16, frameHeight(35 * 16))).toBe(false);
+    // Three lines at the large step grow the card even at 720 (the lock's
+    // documented "grows" case); the cover keeps its own frame box then.
+    expect(fits(steps.large, 720, frameHeight(720), 3)).toBe(false);
+    // The model is the CSS: a 1-line large overlay is 12 + 80 + 16 + 56 + 8 + 20.625 + 28.
+    expect(socialProfileHeroOverlayPx(steps.large, 1)).toBeCloseTo(220.625, 6);
+  });
+
+  it("builds the scrim from the --band token, solid under the text", () => {
+    // The avatar row eases from band/75 at its foot to clear at its top on a
+    // smoothstep curve (flat at both ends), so there is no edge where it meets
+    // the solid band/75 under the name: not a straight ramp.
+    const row = tokens(SOCIAL_PROFILE_AVATAR_ROW_CLASS);
+    const gradient = row.find((token) => token.startsWith("bg-[linear-gradient(")) ?? "";
+    expect(gradient).toBe(
+      "bg-[linear-gradient(to_top,color-mix(in_oklab,var(--band)_75%,transparent),color-mix(in_oklab,var(--band)_67%,transparent)_20%,color-mix(in_oklab,var(--band)_49%,transparent)_40%,color-mix(in_oklab,var(--band)_26%,transparent)_60%,color-mix(in_oklab,var(--band)_8%,transparent)_80%,transparent)]",
+    );
+    const stops = [...gradient.matchAll(/var\(--band\)_(\d+)%,transparent\)(?:_(\d+)%)?/g)].map((m) => ({
+      alpha: Number(m[1]) / 100,
+      at: m[2] ? Number(m[2]) / 100 : 0,
+    }));
+    for (const { alpha, at } of stops) {
+      expect(alpha).toBeCloseTo(0.75 * (1 - (3 * at ** 2 - 2 * at ** 3)), 2);
     }
-
-    // The 88px Edit-profile sheet avatar is untouched.
-    expect(SOCIAL_AVATAR_PROFILE_CLASS).toContain("size-20");
-    expect(SOCIAL_AVATAR_PROFILE_CLASS).not.toContain("size-[72px]");
-    expect(SOCIAL_AVATAR_PROFILE_CLASS).not.toContain("md:size-[88px]");
-    expect(chrome).toContain("SOCIAL_PROFILE_COVER_EDIT_CLASS");
-    expect(chrome).toContain("social-profile-header-linkedin-lock-v1");
-    expect(chrome).toContain("Phone and desktop share this stack");
-    expect(chrome).toContain("Name is house t-heading");
-    expect(chrome).toContain("mt-[var(--space-3)]");
-    expect(chrome).toContain("gap-[var(--space-2)]");
-    expect(chrome).not.toContain("SOCIAL_PROFILE_HEAD_ON_COVER_CLASS");
-    expect(chrome).not.toContain("SOCIAL_PROFILE_NAME_STACK_ON_COVER_CLASS");
-    expect(chrome).not.toContain("SOCIAL_PROFILE_COVER_PILL_CLASS");
-    expect(chrome).not.toContain("SOCIAL_PROFILE_COVER_REPOSITION_BAR_CLASS");
-    expect(chrome).not.toContain("SOCIAL_PROFILE_COVER_REPOSITION_CLASS");
-    expect(chrome).not.toContain("SOCIAL_PROFILE_COVER_DRAG_HINT_CLASS");
-    expect(chrome).toContain(
-      "export const SOCIAL_PROFILE_NAME_CLASS = `${HOUSE_PHONE_WRAP_CLASS} t-heading text-ink`;",
-    );
-    expect(chrome).not.toMatch(
-      /export const SOCIAL_PROFILE_NAME_CLASS = "[^"]*t-title/,
-    );
-    const ui = readFileSync("src/components/social/social-profile-identity.tsx", "utf8");
-    const identity = ui.slice(ui.indexOf("export function SocialProfileIdentity"));
-    expect(identity).not.toContain("data-social-profile-avatar-hang");
-    const headHost = identity.slice(
-      identity.indexOf('data-social-profile-head=""'),
-      identity.indexOf("data-social-profile-name"),
-    );
-    expect(headHost).toContain("SOCIAL_PROFILE_HEAD_OVERLAP_CLASS");
-    expect(headHost).toContain("SOCIAL_PROFILE_HEAD_NO_COVER_CLASS");
-    expect(headHost).toContain("SOCIAL_PROFILE_HEAD_CLASS");
-    expect(headHost).toContain("SOCIAL_PROFILE_AVATAR_ROW_CLASS");
-    expect(headHost).toContain("SOCIAL_PROFILE_AVATAR_SLOT_CLASS");
-    expect(headHost).toContain("SOCIAL_PROFILE_HEAD_TRAIL_CLASS");
+    expect(row).not.toContain("from-band/75");
+    expect(tokens(SOCIAL_PROFILE_NAME_STACK_CLASS)).toContain("bg-band/75");
+    // While the editor is open the identity steps aside: the photo shows alone.
+    expect(tokens(SOCIAL_PROFILE_HEAD_CLASS)).toContain("group-has-[[data-social-cover-drag]]/hero:hidden");
   });
 
-  it("omits the visitor band unless a real cover photo exists", () => {
+  it("uses tokens only and never truncates", () => {
+    for (const value of STAGE_CONSTANTS) {
+      expect(value).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+      expect(value).not.toMatch(/\btruncate\b|text-ellipsis|line-clamp/);
+      expect(value).not.toMatch(/\bshadow-/);
+    }
+  });
+
+  it("puts the owner controls on glass with a focus ring that shows on any photo", () => {
+    const edit = tokens(SOCIAL_PROFILE_COVER_EDIT_CLASS);
+    expect(edit).toEqual(
+      expect.arrayContaining([
+        "size-9",
+        "rounded-full",
+        "border-hairline",
+        "bg-surface/86",
+        "backdrop-blur-[16px]",
+        "after:-inset-1",
+        "focus-visible:ring-2",
+        "focus-visible:ring-band-ink",
+        "focus-visible:rounded-full!",
+        "md:w-auto",
+      ]),
+    );
+    const avatarEdit = tokens(SOCIAL_PROFILE_AVATAR_EDIT_CLASS);
+    expect(avatarEdit).toEqual(expect.arrayContaining(["size-7", "after:-inset-2", "focus-visible:ring-band-ink"]));
+  });
+
+  it("drops the visitor-band and LinkedIn-era constants", () => {
+    const src = readFileSync("src/lib/social-profile-cover.ts", "utf8");
+    expect(src).not.toContain("masterWidth");
+    expect(src).not.toContain("SOCIAL_PROFILE_COVER_LOCK_A");
+    expect(src).not.toContain("socialProfileRendersCoverBand");
+    expect(src).toContain("social-profile-stage-lock-v1");
+    // The save module describes the Stage crop, not the 4:1 one.
+    const save = readFileSync("src/lib/social-profile-cover-save.ts", "utf8");
+    expect(save).not.toMatch(/1784|446\b/);
+    expect(save).toContain("2400×1050");
+    expect(save).toContain("docs/design-locks/social-profile-stage-lock-v1.md");
+    const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
+    for (const gone of [
+      "SOCIAL_PROFILE_HEAD_OVERLAP_CLASS",
+      "SOCIAL_PROFILE_HEAD_NO_COVER_CLASS",
+      "SOCIAL_PROFILE_COVER_EMPTY_CLASS",
+      "SOCIAL_PROFILE_COVER_STACK_CLASS",
+      "SOCIAL_PROFILE_ROLES_RAIL_ROWS",
+      "SOCIAL_PROFILE_PANEL_INSET_CLASS",
+      "SOCIAL_SHARE_CLASS",
+      "aspect-[4/1]",
+      "--social-profile-avatar",
+    ]) {
+      expect(chrome).not.toContain(gone);
+    }
+  });
+});
+
+describe("socialProfileCoverPhoto", () => {
+  it("treats blank as no cover (the hero shows its band)", () => {
     expect(socialProfileCoverPhoto(null)).toBeNull();
     expect(socialProfileCoverPhoto(undefined)).toBeNull();
     expect(socialProfileCoverPhoto("")).toBeNull();
     expect(socialProfileCoverPhoto("   ")).toBeNull();
-    expect(socialProfileCoverPhoto("  https://cf.example/cover.jpg  ")).toBe(
-      "https://cf.example/cover.jpg",
-    );
-    expect(socialProfileRendersCoverBand({ coverUrl: null, owner: false })).toBe(false);
-    expect(socialProfileRendersCoverBand({ coverUrl: "   ", owner: false })).toBe(false);
-    expect(
-      socialProfileRendersCoverBand({
-        coverUrl: "https://cf.example/cover.jpg",
-        owner: false,
-      }),
-    ).toBe(true);
-    expect(socialProfileRendersCoverBand({ coverUrl: null, owner: true })).toBe(true);
-    expect(
-      socialProfileRendersCoverBand({
-        coverUrl: "https://cf.example/cover.jpg",
-        owner: true,
-      }),
-    ).toBe(true);
-
-    const banner = readFileSync("src/components/social/social-profile-banner.tsx", "utf8");
-    const visitor = banner.slice(
-      banner.indexOf("export function SocialProfileBanner"),
-      banner.indexOf("export function SocialProfileCoverBlock"),
-    );
-    expect(visitor).toContain("if (!photo) return null");
-    expect(visitor).not.toContain("SOCIAL_PROFILE_COVER_EMPTY_CLASS");
-    expect(visitor).not.toContain("data-social-profile-cover-empty");
-    const owner = banner.slice(banner.indexOf("export function SocialProfileCoverBlock"));
-    expect(owner).toContain("SOCIAL_PROFILE_COVER_EMPTY_CLASS");
-    expect(owner).toContain("data-social-profile-cover-empty");
+    expect(socialProfileCoverPhoto("  https://cf.example/cover.jpg  ")).toBe("https://cf.example/cover.jpg");
   });
+});
 
-  it("labels master as LinkedIn header SoT", () => {
-    const src = readFileSync("src/lib/social-profile-cover.ts", "utf8");
-    expect(src).toContain("LinkedIn header SoT");
-    expect(src).toContain("1784");
-    expect(src).toContain("446");
-  });
-
-  it("keeps master dims in crop math and out of the profile UI", () => {
+describe("cover upload wiring", () => {
+  it("keeps crop numbers in crop math and out of the profile UI copy", () => {
     const social = readFileSync("src/lib/social.ts", "utf8");
     expect(social).not.toContain("coverDims");
-    expect(social).not.toContain("1784");
-    expect(social).not.toContain("446 px");
+    expect(social).not.toContain("2400");
+    expect(social).not.toContain("1050");
     const upload = readFileSync("src/components/social/social-profile-cover-upload.tsx", "utf8");
     expect(upload).not.toContain("data-social-profile-cover-dims");
-    expect(upload).not.toContain("masterWidth");
-    expect(upload).not.toContain("masterHeight");
     expect(upload).toContain("COVER_CROP_OUTPUT_WIDTH");
     expect(upload).toContain("COVER_CROP_OUTPUT_HEIGHT");
     expect(upload).toContain("SOCIAL_PROFILE_COVER_PILL_ANCHOR_CLASS");
-    expect(upload).not.toContain("bottom-3 right-3");
   });
 
   it("routes cover saves through the posts stills lane", () => {

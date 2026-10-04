@@ -339,13 +339,13 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain("text-[11px]");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain("py-[5px]");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain("py-[var(--space-2)]");
-    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
-    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain("h-8");
+    // Profile roles: the Stage chip (docs/design-locks/social-profile-stage-lock-v1.md).
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain("min-h-8");
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain(HOUSE_PILL_ITEM_CLASS);
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain(HOUSE_PILL_MEASURE_CLASS);
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain("py-[var(--space-2)]");
-    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain(HOUSE_FILTER_OFF_CLASS);
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).toContain("text-ink");
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain("text-[11px]");
     expect(SOCIAL_PROFILE_ROLE_PILL_CLASS).not.toContain("overflow-x-auto");
     expect(SOCIAL_PILL_ACTIVE_CLASS).toBe(HOUSE_FILTER_ON_CLASS);
