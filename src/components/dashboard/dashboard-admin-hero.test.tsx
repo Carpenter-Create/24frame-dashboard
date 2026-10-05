@@ -68,7 +68,7 @@ describe("DashboardAdminHero", () => {
     expect(html).not.toContain("data-dashboard-period-kicker");
     expect(html).toContain(DASHBOARD_ADMIN.revenue);
     expect(html).toContain(DASHBOARD_ADMIN.activity);
-    expect(html).toContain("Recent activity");
+    expect(html).toContain(DASHBOARD_ADMIN.activity);
     expect(html).not.toContain("Recent account activity");
     expect(html).not.toContain("Licensing status");
     expect(html).not.toContain(">Attention<");

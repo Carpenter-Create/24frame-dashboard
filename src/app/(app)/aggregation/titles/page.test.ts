@@ -222,7 +222,7 @@ describe("client /titles catalog", () => {
     const headerOperateAt = html.indexOf("data-titles-catalog-header-operate");
     const iconAt = html.indexOf("data-add-title-icon");
     const toolbarAt = html.indexOf("data-titles-catalog-toolbar");
-    const searchAt = html.indexOf("Search titles...");
+    const searchAt = html.indexOf(TITLES_CATALOG.searchPlaceholder);
     const chromeAt = html.indexOf("data-titles-catalog-chrome");
     const labeledAt = html.indexOf("data-add-title-labeled");
     expect(titleClose).toBeGreaterThan(-1);
@@ -242,7 +242,7 @@ describe("client /titles catalog", () => {
 
     expect(html).toContain(TITLES_CATALOG.addTitle);
     expect(html).toContain(`aria-label="${TITLES_CATALOG.addTitle}"`);
-    expect(html).toContain("Filter by status");
+    expect(html).toContain(TITLES_CATALOG.statusFilterLabel);
     expect(html).toContain("data-house-page-select");
     expect(html).toContain("data-titles-catalog-status-current");
     expect(html).toContain(">All<");
@@ -258,7 +258,7 @@ describe("client /titles catalog", () => {
     const html = await renderCatalog();
 
     expect(html).toContain(TITLES_CATALOG.title);
-    expect(html).toContain("Search titles...");
+    expect(html).toContain(TITLES_CATALOG.searchPlaceholder);
     expect(html).toContain(TITLES_CATALOG.searchPlaceholder);
     expect(html).toContain(TITLES_CATALOG.addTitle);
     expect(html).toContain("data-add-title");
@@ -589,11 +589,11 @@ describe("client /titles catalog", () => {
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     const html = await renderCatalog();
 
-    expect(html).toContain('placeholder="Search titles..."');
+    expect(html).toContain(`placeholder="${TITLES_CATALOG.searchPlaceholder}"`);
     expect(html).toContain("data-titles-catalog-search");
     const searchAt = html.indexOf("data-titles-catalog-search");
     const searchOpen = html.slice(html.lastIndexOf("<", searchAt), html.indexOf(">", searchAt) + 1);
-    expect(html.slice(searchAt)).toContain("Search titles...");
+    expect(html.slice(searchAt)).toContain(TITLES_CATALOG.searchPlaceholder);
     expect(searchOpen).not.toContain("max-md:hidden");
     expect(html).not.toContain("⌘K");
     expect(html).not.toContain("CommandK");
@@ -674,8 +674,8 @@ describe("client /titles catalog", () => {
     const labeled = openingTagsWith(html, 'data-add-title-labeled=""');
 
     expect(html).toContain(TITLES_CATALOG.empty);
-    expect(html).toContain("No titles yet.");
-    expect(html.split("No titles yet.").length - 1).toBe(1);
+    expect(html).toContain(TITLES_CATALOG.empty);
+    expect(html.split(TITLES_CATALOG.empty).length - 1).toBe(1);
     expect(html).not.toContain("in catalog");
     expect(html).not.toContain("data-titles-catalog-count");
     expect(html).toContain(TITLES_CATALOG.addTitle);

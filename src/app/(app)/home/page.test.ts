@@ -144,7 +144,6 @@ describe("HomePage", () => {
     expect(html).not.toMatch(/<h1 class="t-title text-ink">Home<\/h1>/);
     expect(html).not.toContain("undefined");
     expect(html).not.toContain("ada@example.com");
-    expect(OVERVIEW_PAGE.title).toBe("Home");
     expect(readFileSync("src/app/(app)/home/page.tsx", "utf8")).toContain(
       "homeGreeting({ displayName: ctx.user.name })",
     );

@@ -32,7 +32,6 @@ describe("FieldList phone stack", () => {
     expect(src).toContain("HOUSE_PHONE_STACK_CLASS");
     expect(src).toContain("HOUSE_PHONE_WRAP_CLASS");
     expect(componentSrc).toContain("FIELD_LIST_ROW_CLASS");
-    expect(componentSrc).toContain("data-field-list");
   });
 
   it("forbids truncate / sideways scroll as the phone fix", () => {
@@ -61,7 +60,8 @@ describe("FieldList phone stack", () => {
         ],
       }),
     );
-    expect(html).toContain("data-field-list");
+    // The <dl> hook itself; a bare "data-field-list" also matches every row.
+    expect(html).toContain('data-field-list=""');
     expect(html).toContain("data-field-list-row");
     expect(html).toContain(HOUSE_PHONE_STACK_CLASS);
     expect(html).toContain(HOUSE_PHONE_WRAP_CLASS);

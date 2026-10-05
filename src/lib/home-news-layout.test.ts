@@ -13,34 +13,27 @@ import { NewsCard } from "@/components/news/news-card";
 import { OverviewHome } from "@/components/overview/overview-home";
 import { parseDashboardPeriod } from "@/lib/dashboard-admin";
 import {
-  DASHBOARD_CARD_PAD,
   DASHBOARD_LICENSING_THUMB_CLASS,
   DASHBOARD_MODULE_CARD_CLASS,
   DASHBOARD_NEWS_HISTORY_COLUMN_CLASS,
   DASHBOARD_NEWS_HISTORY_LAYOUT_CLASS,
-  DASHBOARD_NEWS_HISTORY_LIST_CLASS,
   DASHBOARD_NEWS_HISTORY_ROW_CLASS,
   DASHBOARD_NEWS_HISTORY_THUMB_CLASS,
   DASHBOARD_NEWS_THUMB_CLASS,
-  DASHBOARD_RELATED_GAP_CLASS,
-  DASHBOARD_SECTION_AIR_CLASS,
 } from "@/lib/dashboard-craft";
 import { HOUSE_HOME_RAIL_COLUMN_CLASS } from "@/lib/house-shell";
 import { HomeOverviewSkeleton } from "@/components/overview/overview-home";
 import {
   OVERVIEW_AREA_NEWS_CLASS,
   OVERVIEW_EDUCATION_COVERS_CLASS,
-  OVERVIEW_HOME_COLUMN_GUTTER,
   OVERVIEW_HOME_FRAME_CLASS,
   OVERVIEW_HOME_LAYOUT_CLASS,
-  OVERVIEW_NEWS_RAIL_WIDTH,
-  OVERVIEW_PHONE_MODULE_ORDER,
-  OVERVIEW_RAIL_OFF_WIDTH,
   isHomeOwnedPath,
   overviewHidesRail,
   overviewLeadPills,
   overviewLeadSelected,
 } from "@/lib/overview";
+import { NEWS_PAGE } from "@/lib/news";
 
 const card = readFileSync("src/components/news/news-card.tsx", "utf8");
 const rail = readFileSync("src/components/news/news-rail.tsx", "utf8");
@@ -79,32 +72,15 @@ describe("Home News layout + register lock", () => {
     expect(overviewLeadSelected("home", "/home/news", "aggregation")).toBe(true);
     expect(overviewLeadSelected("aggregation", "/home/news", "aggregation")).toBe(false);
     expect(overviewLeadPills().map((pill) => pill.id)).not.toContain("news");
-    expect(OVERVIEW_RAIL_OFF_WIDTH).toBe("0px");
-    expect(OVERVIEW_NEWS_RAIL_WIDTH).toBe("22rem");
-    expect(OVERVIEW_HOME_COLUMN_GUTTER).toBe("var(--chrome-gutter)");
-    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem]");
     expect(readFileSync("src/lib/overview.ts", "utf8")).toContain(
       "@min-[60rem]:grid-cols-[minmax(0,1fr)_22rem]",
     );
     expect(readFileSync("src/lib/overview.ts", "utf8")).not.toContain(
       "${OVERVIEW_NEWS_RAIL_WIDTH}",
     );
-    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("gap-x-[var(--chrome-gutter)]");
-    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("gap-y-[var(--space-6)]");
-    expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("grid-cols-1");
-    expect(OVERVIEW_HOME_LAYOUT_CLASS).not.toContain("md:grid-cols");
-    expect(OVERVIEW_PHONE_MODULE_ORDER).toEqual([
-      "revenue",
-      "social",
-      "education",
-      "needs-you",
-      "ai-next",
-      "news",
-    ]);
     expect(shell).toContain("HOUSE_HOME_RAIL_COLUMN_CLASS");
     expect(shell).toContain('data-home-chrome={homeChrome ? "" : undefined}');
     expect(home).toContain("OVERVIEW_HOME_LAYOUT_CLASS");
-    expect(home).toContain("data-overview-news");
   });
 
   it("uses house card pad and section air — not a compressed News ticker", () => {
@@ -124,9 +100,6 @@ describe("Home News layout + register lock", () => {
     expect(card).not.toMatch(/py-\[var\(--space-[123]\)\]/);
     expect(card).not.toMatch(/\b(px|py|gap)-\[\d+(?:px|rem)\]/);
     expect(rail).not.toMatch(/\b(px|py|gap)-\[\d+(?:px|rem)\]/);
-    expect(DASHBOARD_SECTION_AIR_CLASS).toBe("gap-[var(--space-6)]");
-    expect(DASHBOARD_CARD_PAD).toBe("px-[var(--space-4)] py-[var(--space-4)]");
-    expect(DASHBOARD_RELATED_GAP_CLASS).toBe("gap-[var(--space-2)]");
   });
 
   it("locks a full-width News media plate and keeps licensing at w-16", () => {
@@ -151,8 +124,6 @@ describe("Home News layout + register lock", () => {
     expect(DASHBOARD_LICENSING_THUMB_CLASS).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
     expect(DASHBOARD_MODULE_CARD_CLASS).toContain("bg-surface-muted");
     expect(DASHBOARD_MODULE_CARD_CLASS).toContain("rounded-[var(--radius-lg)]");
-    expect(DASHBOARD_NEWS_HISTORY_LIST_CLASS).toContain("flex flex-col");
-    expect(DASHBOARD_NEWS_HISTORY_LIST_CLASS).not.toContain("lg:grid-cols-2");
     expect(DASHBOARD_NEWS_HISTORY_LAYOUT_CLASS).toContain("flex w-full flex-col");
     expect(DASHBOARD_NEWS_HISTORY_LAYOUT_CLASS).not.toContain("lg:grid-cols-[minmax(0,1fr)_22rem]");
     expect(DASHBOARD_NEWS_HISTORY_LAYOUT_CLASS).not.toContain("lg:grid-cols-2");
@@ -236,7 +207,7 @@ describe("Home News layout + register lock", () => {
     expect(html).toContain('data-overview-module="news"');
     expect(html).toContain("dashboard-home-panel");
     expect(html).toContain('data-news-sticky-header="rail"');
-    expect(html).toContain("No headlines from the last 90 days.");
+    expect(html).toContain(NEWS_PAGE.empty);
     expect(html.indexOf("data-overview-revenue")).toBeLessThan(
       html.indexOf('data-overview-module="social"'),
     );

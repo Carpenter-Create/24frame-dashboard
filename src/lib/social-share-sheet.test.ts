@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BRAND_MARK_FILL } from "@/lib/brand";
 import { PRODUCT_NAME } from "@/lib/product";
-import { SOCIAL, socialProfilePublicUrl } from "@/lib/social";
+import { socialProfilePublicUrl } from "@/lib/social";
 import { SOCIAL_FIGMA_PROFILE_SHARE } from "@/lib/social-chrome";
 import {
   copySocialProfileUrl,
@@ -114,8 +114,5 @@ describe("Profile share sheet lock", () => {
     expect(identity).not.toContain("data-social-profile-url");
     expect(src).toContain("errorCorrectionLevel: \"H\"");
     expect(src).toContain("socialProfilePublicUrl");
-    expect(SOCIAL.profile.shareProfile).toBe("Share profile");
-    expect(SOCIAL.profile.shareCopyLink).toBe("Copy link");
-    expect(SOCIAL.profile.shareDownload).toBe("Download");
   });
 });

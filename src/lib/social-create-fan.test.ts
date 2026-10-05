@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS } from "./house-phone-shell";
-import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "./social";
+import { SOCIAL_ROUTES, socialCreateHref } from "./social";
 import { SOCIAL_CREATE_TILES } from "./social-create-sheet";
 import {
   SOCIAL_CREATE_FAN_ANGLES_DEG,
@@ -21,7 +21,6 @@ import {
 
 describe("Social Create fan", () => {
   it("places Media · Write · Go live on a 90° arc clustered over the plus", () => {
-    expect(SOCIAL_CREATE_TILES.map((tile) => tile.id)).toEqual(["media", "write", "live"]);
     expect(SOCIAL_CREATE_FAN_ANGLES_DEG).toEqual([135, 90, 45]);
     const [left, top, right] = SOCIAL_CREATE_FAN_ANGLES_DEG;
     expect(left - right).toBe(90);
@@ -86,9 +85,6 @@ describe("Social Create fan", () => {
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-ink/40");
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-ink/60");
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("rounded-t-");
-    expect(SOCIAL.create.media).toBe("Media");
-    expect(SOCIAL.create.write).toBe("Write");
-    expect(SOCIAL.create.goLive).toBe("Go live");
   });
 
   it("scales from the plus and skips motion when reduced", () => {

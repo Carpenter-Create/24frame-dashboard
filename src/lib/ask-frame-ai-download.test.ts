@@ -79,6 +79,8 @@ describe("buildAskFrameAiDownloadPdf", () => {
 
     expect(ASK_FRAME_AI_DOWNLOAD_CONTENT_TYPE).toBe("application/pdf");
     expect(ASK_FRAME_AI_DOWNLOAD.contentType).toBe("application/pdf");
+    // Alias: the value is pinned once, in ask-frame-ai.test.ts.
+    expect(ASK_FRAME_AI_DOWNLOAD.attributionName).toBe(ASK_FRAME_AI.attributionName);
     expect(askFrameAiDownloadBlob({
       title: "What needs attention",
       userPrompt: "What needs attention",
@@ -90,7 +92,7 @@ describe("buildAskFrameAiDownloadPdf", () => {
     expect(raw.startsWith("%PDF-")).toBe(true);
     expect(raw).toContain(`/MediaBox [0 0 ${ASK_FRAME_AI_DOWNLOAD.pageWidth} ${ASK_FRAME_AI_DOWNLOAD.pageHeight}]`);
     expect(text).toContain("24Frame");
-    expect(text).toContain("24Frame AI");
+    expect(text).toContain(ASK_FRAME_AI_DOWNLOAD.attributionName);
     expect(text).toContain("What needs attention");
     expect(text).toContain("Harbor Cut is missing Genre.");
     expect(text).toContain("Genre is required before it can go live.");
@@ -132,7 +134,7 @@ describe("buildAskFrameAiDownloadPdf", () => {
     const text = pdfVisibleText(bytes);
 
     expect(text).toContain("24Frame");
-    expect(text).toContain("24Frame AI");
+    expect(text).toContain(ASK_FRAME_AI_DOWNLOAD.attributionName);
     expect(text).toContain("What needs attention");
     expect(text).toContain("What is blocking a title");
     expect(text).toContain("Harbor Cut is missing Genre.");
@@ -163,7 +165,7 @@ describe("buildAskFrameAiDownloadPdf", () => {
     const text = pdfVisibleText(bytes);
 
     expect(text).toContain("24Frame");
-    expect(text).toContain("24Frame AI");
+    expect(text).toContain(ASK_FRAME_AI_DOWNLOAD.attributionName);
     expect(text).toContain("User turn 0 asks about Harbor Cut.");
     expect(text).toContain("Assistant turn 0 answers about Harbor Cut.");
     expect(text).toContain("User turn 15 asks about Harbor Cut.");
@@ -187,7 +189,7 @@ describe("buildAskFrameAiDownloadPdf", () => {
     expect(text).toContain("Synopsis");
     expect(text).toContain("Runtime");
     expect(text).toContain("Director");
-    expect(text).toContain("24Frame AI");
+    expect(text).toContain(ASK_FRAME_AI_DOWNLOAD.attributionName);
     expect(text).not.toContain("**");
     expect(text).not.toContain("Mercury");
   });

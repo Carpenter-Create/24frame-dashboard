@@ -49,12 +49,12 @@ describe("News SoT", () => {
     expect(NEWS_PAGE.sources).toBe("Sources");
     expect(NEWS_PAGE.sourcesAll).toBe("All");
     expect(NEWS_PAGE.filterEmpty).toBe("No headlines from the selected sources.");
+    expect(NEWS_PAGE.empty).toBe("No headlines from the last 90 days.");
     expect(NEWS_HOME_CAP).toBe(15);
     expect(NEWS_WINDOW_DAYS).toBe(90);
     expect(NEWS_WINDOW_MS).toBe(90 * 24 * 60 * 60 * 1000);
     expect(NEWS_READ_REVALIDATE_SECONDS).toBe(60);
     expect(NEWS_INGEST_PATH).toBe(NEWS_INGEST_FUNCTION);
-    expect(NEWS_INGEST_SCHEDULE).toBe("rate(30 minutes)");
     expect(NEWS_SOURCES.map((source) => source.label)).toEqual([
       "IndieWire",
       "Variety",

@@ -234,9 +234,6 @@ describe("settings hub lock", () => {
     expect(SETTINGS_HUB_NAV.map((item) => item.label)).not.toContain("Aggregation");
     expect(SETTINGS.agreementsEmpty).not.toMatch(/accepted yet|download|view agreement/i);
     expect(USER_MENU_ACTIONS.map((item) => item.kind)).toContain("settings");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).toContain("theme");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).toContain("help");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("profile");
     expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("agreements");
     expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("refer");
     expect(SETTINGS_HUB_NAV.map((item) => item.label)).not.toContain("Get Help");
@@ -281,7 +278,6 @@ describe("settings hub lock", () => {
       href: SETTINGS.dashboardHref,
       label: SETTINGS.back,
     });
-    expect(SETTINGS_ABSENT).toContain("Home");
     expect(settingsHeaderBack("/settings/preferences")).toEqual({
       href: "/settings",
       label: "Settings",
@@ -344,7 +340,6 @@ describe("settings hub lock", () => {
     });
     expect(settingsDrillParentLabel("/settings/preferences")).toBe("Preferences");
     expect(settingsDrillParentLabel("/settings/unknown")).toBe("Settings");
-    expect(SETTINGS.dashboardHref).toBe("/aggregation/dashboard");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).toBe("md:hidden");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("absolute");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("text-accent");
@@ -460,6 +455,7 @@ describe("settings hub lock", () => {
     expect(SETTINGS_GROUP_LABEL_CLASS).toBe(SETTINGS_SECTION_LABEL_CLASS);
     expect(SETTINGS_GROUP_LABEL_CLASS).toBe("t-label text-ink-3");
     expect(SETTINGS_GROUP_STACK_CLASS).toContain("gap-[var(--space-2)]");
+    expect(SETTINGS_GROUP_STACK_CLASS).toBe("flex flex-col gap-[var(--space-2)]");
     expect(SETTINGS_GROUP_LIST_CLASS).toBe(
       "flex list-none flex-col divide-y divide-hairline",
     );
@@ -521,9 +517,10 @@ describe("settings hub lock", () => {
     expect(SETTINGS_DIALOG_GROUP_CLASS).toContain(HOUSE_MODULE_CLASS);
     expect(SETTINGS_DIALOG_GROUP_CLASS).toContain(HOUSE_CARD_PAD);
     expect(SETTINGS_DIALOG_FOOTER_CLASS).toContain("max-md:flex-col-reverse");
-    expect(SETTINGS_DRILL_ROW_CLASS).toContain("justify-between");
-    expect(SETTINGS_DRILL_VALUE_CLASS).toBe("t-body-sm text-ink-3");
     expect(SETTINGS_DRILL_ROW_CLASS).not.toContain("#");
+    expect(SETTINGS_DRILL_ROW_CLASS).toBe(
+      "flex min-h-11 w-full items-center justify-between gap-[var(--space-4)] py-[var(--space-3)] text-left t-body leading-5 text-ink",
+    );
   });
 
   it("keeps Appearance on the house muted module — not a new surface", () => {

@@ -148,7 +148,6 @@ describe("OverviewHome", () => {
     const html = renderToStaticMarkup(createElement(OverviewHome, homeProps()));
     expect(html).not.toMatch(/<h1 class="t-title text-ink">/);
     expect(html).not.toContain("hideHeader");
-    expect(OVERVIEW_PAGE.title).toBe("Home");
     const homeSrc = readFileSync(new URL("./overview-home.tsx", import.meta.url), "utf8");
     const pageSrc = readFileSync(new URL("../../app/(app)/home/page.tsx", import.meta.url), "utf8");
     expect(homeSrc).not.toContain("homeGreeting");
@@ -480,7 +479,7 @@ describe("OverviewHome", () => {
     expect(html).toContain('data-overview-ai-next="a1"');
     expect(html).toContain('data-overview-ai-next="a2"');
     expect(html).toContain('data-overview-ai-next="a3"');
-    expect(html).toContain("Ask 24Frame AI");
+    expect(html).toContain(OVERVIEW_PAGE.aiAsk);
     expect(html).toContain(`aria-label="${OVERVIEW_PAGE.aiAsk}"`);
     expect(html).toContain(`href="${OVERVIEW_PAGE.revenueHref}"`);
     expect(html).toContain("data-overview-ai-ask");

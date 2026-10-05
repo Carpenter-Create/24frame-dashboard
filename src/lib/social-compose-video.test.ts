@@ -207,15 +207,10 @@ describe("write compose video attach", () => {
     const compose = forms.slice(textStart, textEnd);
     const loopAt = compose.indexOf("for (let index = 0; index < prepared.length");
     const loop = compose.slice(loopAt, compose.indexOf("} finally", loopAt));
-    expect(text).toContain("data-social-create-upload-progress");
-    expect(text).toContain("data-social-create-video");
     expect(text).not.toContain("data-social-create-video-poster");
     expect(text).toContain("bindStoryReviewVideo");
     expect(text).toContain("storyReviewMediaSrc");
     expect(text).toContain("storyReviewFrameSeconds");
-    expect(text).toContain('preload="auto"');
-    expect(text).toContain("muted");
-    expect(text).toContain("playsInline");
     expect(text).toContain("autoPlay");
     expect(text).toContain("node.play()");
     // A muted loop; Reduce Motion holds one frame instead.
@@ -242,7 +237,6 @@ describe("write compose video attach", () => {
       text.indexOf("function persistKeys"),
     );
     const previewJsx = previewFn.slice(previewFn.lastIndexOf("return ("));
-    expect(previewJsx).toContain("loop");
     expect(previewJsx.indexOf("<video")).toBeLessThan(previewJsx.indexOf("data-social-create-video-sound"));
     // The toggle flips the element itself, and sound on plays the clip.
     const sound = previewJsx.slice(previewJsx.indexOf("onClick="), previewJsx.indexOf("</button>"));

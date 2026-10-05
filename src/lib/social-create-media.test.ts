@@ -13,7 +13,6 @@ import {
 
 describe("Social Create Media SoT", () => {
   it("opens a mixed photo-and-video library, then one caption screen", () => {
-    expect(SOCIAL.create.media).toBe("Media");
     expect("next" in SOCIAL.create).toBe(false);
     expect(SOCIAL_CREATE_MEDIA_ACCEPT).toBe("image/*,video/*");
     expect(SOCIAL_CREATE_MEDIA_ACCEPT).not.toContain("image/jpeg");

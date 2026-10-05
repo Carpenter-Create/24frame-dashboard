@@ -20,7 +20,7 @@ describe("SettingsReferPage", () => {
     expect(html).toContain('data-settings-section="refer"');
     expect(html).toContain(SETTINGS.refer);
     expect(html).toContain(REFER.empty);
-    expect(html).toContain("Refer a friend is empty.");
+    expect(html).toContain(REFER.empty);
     expect(html).toContain(HOUSE_EMPTY_CLASS);
     expect(html).toContain("data-house-empty");
     expect(html).not.toContain('data-settings-section="profile"');

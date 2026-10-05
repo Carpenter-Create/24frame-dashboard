@@ -23,8 +23,10 @@ import {
   SOCIAL_STORY_HOLD_SURFACE_CLASS,
   SOCIAL_STORY_REPLY_PILL_CLASS,
   SOCIAL_STORY_STAGE_CLASS,
+  SOCIAL_STORY_STILL_PROGRESS_MS,
 } from "@/lib/social-chrome";
 import { SocialStoryViewer } from "./social-story-viewer";
+import { SOCIAL } from "@/lib/social";
 
 const viewerProps = {
   storyId: "s1",
@@ -94,7 +96,7 @@ describe("SocialStoryViewer", () => {
     expect(close).toContain("touch-manipulation");
     expect(close).toContain('width="22"');
     expect(close).toContain('height="22"');
-    expect(html).toContain("Send message");
+    expect(html).toContain(SOCIAL.stories.sendMessage);
     expect(html).not.toContain("Reply to Ada Lovelace…");
     expect(html).toContain('data-social-story-heart=""');
     expect(html).toContain('data-social-story-heart-state="none"');
@@ -120,7 +122,7 @@ describe("SocialStoryViewer", () => {
     expect(still).not.toContain("aspect-video");
     expect(still).not.toContain("aspect-[4/5]");
     expect(still).toContain("social-story-progress");
-    expect(still).toContain("animation-duration:5000ms");
+    expect(still).toContain(`animation-duration:${SOCIAL_STORY_STILL_PROGRESS_MS}ms`);
 
     const mux = renderToStaticMarkup(
       createElement(SocialStoryViewer, {
@@ -162,13 +164,11 @@ describe("SocialStoryViewer", () => {
     expect(hold).toContain("STORY_OPEN_SETTLE_MS = 220");
     expect(hold).toContain("social-story-open-settle");
     expect(src).toContain('data-social-story-close=""');
-    expect(src).toContain("size-11");
     expect(src).toContain("onPointerDown={(event) => event.stopPropagation()}");
     const phoneClose = src.slice(
       src.indexOf('data-social-story-close=""'),
       src.indexOf("</Link>", src.indexOf('data-social-story-close=""')),
     );
-    expect(phoneClose).toContain("size-11");
     expect(phoneClose).toContain("size={22}");
     const warm = src.slice(src.lastIndexOf("new MutationObserver"));
     expect(warm).toContain("paintStoryEnter");

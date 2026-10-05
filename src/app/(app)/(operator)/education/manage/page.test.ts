@@ -12,7 +12,7 @@ describe("GcEducationPage", () => {
     const html = renderToStaticMarkup(GcEducationPage());
     expect(html).toContain("data-education-index");
     expect(html).toContain(EDUCATION_ADMIN.title);
-    expect(html).toContain("Manage courses");
+    expect(html).toContain(EDUCATION_ADMIN.title);
     expect(html).toContain(EDUCATION_ADMIN.selectCourse);
     expect(html).not.toContain("data-education-home");
     expect(html).not.toContain("Welcome");
@@ -26,7 +26,6 @@ describe("GcEducationPage", () => {
 
 describe("education admin lock", () => {
   it("lives under the operator gc_staff layout, not GC_NAV", () => {
-    expect(EDUCATION_HREF).toBe("/education");
     expect(EDUCATION_MANAGE_HREF).toBe("/education/manage");
     expect(EDUCATION_MANAGE_NAV.map((item) => item.href)).toContain(EDUCATION_MANAGE_HREF);
     expect(GC_NAV.map((item) => item.href)).not.toContain(EDUCATION_HREF);

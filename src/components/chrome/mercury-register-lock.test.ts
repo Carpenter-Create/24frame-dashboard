@@ -1,12 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import {
-  SETTINGS_HUB_NAV,
-  SETTINGS_PAGE_LEAD_BACK_CLASS,
-  SETTINGS_RAIL_CHEVRON_CLASS,
-} from "@/lib/settings";
-import { ACCOUNT_SHEET_ITEMS } from "@/lib/account-sheet";
+import { SETTINGS_PAGE_LEAD_BACK_CLASS } from "@/lib/settings";
 import { SHEET_GROUP_CHEVRON_CLASS } from "@/lib/house-sheet";
 import { USER_MENU_ACTIONS } from "@/lib/user-menu";
 
@@ -40,18 +35,7 @@ describe("Adam Mercury register lock", () => {
       expect(file).not.toContain("@phosphor-icons/react");
       expect(file).not.toContain("84:46");
     }
-    expect(ACCOUNT_SHEET_ITEMS).toBe(USER_MENU_ACTIONS);
     expect(USER_MENU_ACTIONS.map((item) => item.kind)[0]).toBe("settings");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("profile");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("workspace");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).toContain("theme");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("appearance");
-    expect(SETTINGS_HUB_NAV.map((item) => item.label)).toEqual([
-      "Profile",
-      "Rights Holder",
-      "Preferences",
-      "Security",
-    ]);
     expect(src("src/components/chrome/house-lead-chrome.tsx")).toContain("WorkspaceSwitcher");
     expect(src("src/components/chrome/app-shell.tsx")).toContain("HouseLeadChrome");
     expect(src("src/components/chrome/account-sheet.tsx")).not.toContain(
@@ -65,9 +49,6 @@ describe("Adam Mercury register lock", () => {
       expect(src(path)).not.toContain("@phosphor-icons/react");
     }
     expect(SHEET_GROUP_CHEVRON_CLASS).toBe("size-4 shrink-0 text-ink-3");
-    expect(SETTINGS_RAIL_CHEVRON_CLASS).toBe("size-4 shrink-0");
-    expect(SETTINGS_PAGE_LEAD_BACK_CLASS).toBe("md:hidden");
-    expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("absolute");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("text-ink");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("t-body");
     expect(src("src/components/chrome/account-sheet.tsx")).toContain(

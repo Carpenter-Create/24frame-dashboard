@@ -11,6 +11,7 @@ import { DASHBOARD_FIXTURE } from "@/lib/dashboard-fixture";
 import {
   DASHBOARD_FIXTURE_BANNER_CLASS,
   DASHBOARD_PERIOD_TRIGGER_CLASS,
+  DASHBOARD_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-craft";
 import { HOUSE_RAIL_ITEM_CLASS } from "@/lib/house-shell";
 
@@ -49,12 +50,7 @@ const HOUSE_ROLE_PATHS = [
 
 describe("house type ladder", () => {
   it("locks the shared rem ladder to 13 / 15 / 17 / 20 / 28 / 56", () => {
-    expect(tokens).toMatch(/--text-xs:\s*0\.8125rem;/);
-    expect(tokens).toMatch(/--text-sm:\s*0\.9375rem;/);
-    expect(tokens).toMatch(/--text-base:\s*1\.0625rem;/);
-    expect(tokens).toMatch(/--text-lg:\s*1\.25rem;/);
-    expect(tokens).toMatch(/--text-title:\s*1\.75rem;/);
-    expect(tokens).toMatch(/--text-hero:\s*3\.5rem;/);
+    // The ladder values are pinned once in src/app/tokens.test.ts; this lock keeps the old ladders out.
     expect(tokens).not.toMatch(/--text-xs:\s*0\.75rem;/);
     expect(tokens).not.toMatch(/--text-xs:\s*0\.6875rem;/);
     expect(tokens).not.toMatch(/--text-base:\s*0\.9375rem;/);
@@ -148,9 +144,7 @@ describe("house type roles", () => {
   });
 
   it("locks light-mode ink and body subpixel smoothing (Coinbase-pop A)", () => {
-    expect(tokens).toMatch(/--text:\s*#0A0B0D;/);
     expect(tokens).toMatch(/--text-secondary:\s*#3D4450;/);
-    expect(tokens).toMatch(/--text-tertiary:\s*#6B7280;/);
     expect(tokens).not.toMatch(/--text:\s*#14171a;/i);
     expect(tokens).not.toMatch(/--text-secondary:\s*#5e646e;/i);
     expect(tokens).not.toMatch(/--text-tertiary:\s*#9aa0a9;/i);
@@ -227,11 +221,9 @@ describe("Dashboard type jobs", () => {
     expect(html.indexOf("data-dashboard-revenue-compare")).toBeLessThan(
       html.indexOf("data-dashboard-revenue-asof"),
     );
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_ADMIN.revenue}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_ADMIN.revenue}`);
     expect(html).not.toContain(`t-label text-ink-3">${DASHBOARD_ADMIN.revenue}`);
     expect(html).toContain(DASHBOARD_PERIOD_TRIGGER_CLASS);
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("t-body-sm");
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).not.toContain("t-display");
     expect(html).toContain("t-body-sm text-ink-3");
     expect(html).toContain("data-dashboard-activity-clock");
     expect(html).not.toContain("t-display t-body-sm");

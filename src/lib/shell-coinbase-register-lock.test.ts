@@ -100,7 +100,6 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
 
   it("decision 1b — the Social header search pill reads \"Search Social\"; Education keeps its wording", () => {
     expect(SOCIAL.search.headerPlaceholder).toBe("Search Social");
-    expect(SOCIAL.search.searchPlaceholder).toBe("Search people");
     expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toContain("h-[var(--header-control-size)]");
     expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toContain("rounded-full border-0 bg-surface-muted");
     expect(readFileSync("src/components/chrome/house-lead-search.tsx", "utf8")).toContain(

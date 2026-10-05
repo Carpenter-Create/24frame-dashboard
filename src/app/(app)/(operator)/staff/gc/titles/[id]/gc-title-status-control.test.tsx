@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TITLE_STATUS_OVERRIDE } from "@/lib/title-status-override";
 import { GcTitleStatusControl } from "./gc-title-status-control";
+import { GC_TITLE_STATUS_LABELS } from "@/lib/titles";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
@@ -42,7 +43,7 @@ describe("GcTitleStatusControl", () => {
     expect(html).toContain("data-gc-title-status-confirm");
     expect(html).toContain(TITLE_STATUS_OVERRIDE.confirm);
     expect(html).toContain(TITLE_STATUS_OVERRIDE.reasonPlaceholder);
-    expect(html).toContain("Approved · ready to deliver");
+    expect(html).toContain(GC_TITLE_STATUS_LABELS.in_delivery);
     expect(html).not.toContain(TITLE_STATUS_OVERRIDE.locked);
   });
 

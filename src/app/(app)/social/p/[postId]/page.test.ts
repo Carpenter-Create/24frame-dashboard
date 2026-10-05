@@ -1,13 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { SOCIAL, SOCIAL_ROUTES, socialPostHref } from "@/lib/social";
+import { SOCIAL, socialPostHref } from "@/lib/social";
 
 describe("social post detail SoT", () => {
   it("owns /social/p/[postId] and keeps the group path as a redirect", () => {
     const page = readFileSync("src/app/(app)/social/p/[postId]/page.tsx", "utf8");
     const group = readFileSync("src/app/(app)/social/groups/[slug]/posts/[postId]/page.tsx", "utf8");
-    expect(SOCIAL_ROUTES.post).toBe("/social/p");
     expect(socialPostHref("p1")).toBe("/social/p/p1");
     expect(page).toContain("data-social-post-detail");
     expect(page).toContain("SocialPostCard");

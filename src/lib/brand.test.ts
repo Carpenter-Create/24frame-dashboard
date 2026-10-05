@@ -79,11 +79,7 @@ describe("full 24Frame wordmark header lock", () => {
     expect(html).toContain("h-5");
     expect(html).toContain("md:h-6");
     expect(html).toContain("w-auto");
-    expect(logoSrc).toContain("BRAND_EMBLEM_SRC");
-    expect(logoSrc).toContain("BRAND_LOGO_LIGHT_SRC");
-    expect(logoSrc).toContain("BRAND_LOGO_DARK_SRC");
     expect(logoSrc).toContain("BRAND_PHONE_EMBLEM_CLASS");
-    expect(logoSrc).toContain("BRAND_DESKTOP_WORDMARK_CLASS");
     expect(existsSync("src/components/chrome/brand-emblem.tsx")).toBe(false);
   });
 
@@ -125,10 +121,10 @@ describe("Asset 8 phone emblem + Adam favicon PNG lock", () => {
     expect(BRAND_EMBLEM_SRC).toBe("/brand/24frame-emblem.svg");
     expect(BRAND_PHONE_EMBLEM_CLASS).toContain("md:hidden");
     expect(BRAND_PHONE_EMBLEM_CLASS).not.toContain("md:block");
+    expect(BRAND_DESKTOP_WORDMARK_CLASS).toBe("hidden h-5 w-auto md:h-6");
     expect(BRAND_DESKTOP_WORDMARK_CLASS).toContain("hidden");
     expect(BRAND_DESKTOP_WORDMARK_CLASS).toContain("md:h-6");
     expect(BRAND_DESKTOP_WORDMARK_CLASS).not.toContain("md:hidden");
-    expect(logoSrc).toContain("BRAND_EMBLEM_SRC");
     expect(leadSrc).not.toContain(BRAND_EMBLEM_SRC);
     expect(existsSync("src/components/chrome/brand-emblem.tsx")).toBe(false);
     expect(BRAND_CORNER_FILL_LIGHT).toBe("#14171A");

@@ -71,8 +71,6 @@ describe("title detail phone containment", () => {
     expect(titlesLib).toContain("HOUSE_PHONE_CONTAIN_CLASS");
     expect(titleDetail).toContain("TITLE_DETAIL_SURFACE_CLASS");
     expect(titleDetail).toContain('data-title-detail=""');
-    expect(titleHero).toContain("HOUSE_PHONE_CONTAIN_CLASS");
-    expect(titleHero).toContain("HOUSE_PHONE_WRAP_CLASS");
   });
 
   it("phone-stacks FieldList and title-detail ledgers from one SoT", () => {

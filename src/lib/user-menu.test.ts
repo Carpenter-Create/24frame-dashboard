@@ -41,10 +41,7 @@ describe("user menu lock", () => {
 
   it("keeps Profile as a Settings pane href — Theme is /settings/preferences/theme", () => {
     expect(USER_MENU.profileHref).toBe("/settings/profile");
-    expect(USER_MENU.settingsHref).toBe("/settings");
-    expect(USER_MENU.themeHref).toBe("/settings/preferences/theme");
     expect(USER_MENU.agreementsHref).toBe("/settings/agreements");
-    expect(USER_MENU.helpHref).toBe("/help");
     expect(USER_MENU.referHref).toBe("/settings/refer");
     expect(USER_MENU).not.toHaveProperty("legal");
     expect(USER_MENU).not.toHaveProperty("legalHref");
@@ -53,7 +50,6 @@ describe("user menu lock", () => {
     expect(USER_MENU).not.toHaveProperty("companyProfile");
     expect(USER_MENU).not.toHaveProperty("companyProfileHref");
     expect(USER_MENU.appearance).toBe("Appearance");
-    expect(USER_MENU.theme).toBe("Theme");
     expect(USER_MENU.workspace).toBe("Workspace");
     expect(USER_MENU_ACTIONS[0]).toEqual({
       kind: "settings",
@@ -83,7 +79,6 @@ describe("user menu lock", () => {
     for (const absent of USER_MENU_ABSENT) {
       expect(labels).not.toContain(absent);
     }
-    expect(labels).not.toContain("Profile");
     expect(labels).toContain("Settings");
     expect(labels).toContain("Theme");
     expect(labels).toContain("Get Help");
@@ -103,8 +98,6 @@ describe("user menu lock", () => {
   });
 
   it("parks Legal and versions from package.json", () => {
-    expect(USER_MENU).not.toHaveProperty("legal");
-    expect(USER_MENU).not.toHaveProperty("legalHref");
     expect(USER_MENU_ABSENT).toContain("Legal");
     expect(userMenuVersion()).toBe("v0.1.0");
     expect(USER_MENU.versionPrefix).toBe("v");

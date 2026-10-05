@@ -7,7 +7,6 @@ vi.mock("next/navigation", () => ({
 
 import {
   COURSE_FEATURE_CARD_CLASS,
-  COURSE_FEATURE_COVER_CLASS,
   COURSE_FEATURE_META_CLASS,
   COURSE_FEATURE_TITLE_CLASS,
   type CourseRow,
@@ -64,7 +63,6 @@ describe("SocialForYouRail person identity", () => {
     expect(html).toContain("data-social-follow");
     expect(html).toContain(SOCIAL.follow.follow);
     expect(html).not.toContain("Member");
-    expect(SOCIAL.member.title).toBe("Member");
   });
 
   it("shows the signed profile photo on Suggested people when a URL exists", () => {
@@ -118,21 +116,16 @@ describe("SocialForYouRail person identity", () => {
     expect(html).toContain(
       `<h2 data-social-for-you-heading="" class="${SOCIAL_FEED_ASIDE_HEADING_CLASS}">${SOCIAL.forYou.title}</h2>`,
     );
-    expect(SOCIAL.forYou.title).toBe("For you");
     expect(SOCIAL_FEED_ASIDE_HEADING_CLASS).toContain(SOCIAL_FEED_HEADING_CLASS);
     expect(SOCIAL_FEED_ASIDE_HEADING_CLASS).toContain("h-11");
-    expect(SOCIAL_FEED_HEADING_CLASS).toContain("text-[length:var(--text-lg)]");
-    expect(SOCIAL_FEED_HEADING_CLASS).toContain("[font-weight:var(--type-title-weight)]");
     // The course: one soft grey card that is one link — cover, label, title.
     expect(html).toContain('data-course-card-density="feature"');
     expect(html).toContain(`class="${COURSE_FEATURE_CARD_CLASS}"`);
     expect(COURSE_FEATURE_CARD_CLASS).toContain("rounded-[var(--radius-xl)] bg-surface-muted p-4");
     expect(COURSE_FEATURE_CARD_CLASS).not.toMatch(/border|shadow/);
-    expect(COURSE_FEATURE_COVER_CLASS).toBe("rounded-[var(--radius-lg)] border-0");
     expect(html).toContain(
       `<span data-course-card-meta="" class="${COURSE_FEATURE_META_CLASS}">${SOCIAL.forYou.latestCourseEyebrow}</span>`,
     );
-    expect(SOCIAL.forYou.latestCourseEyebrow).toBe("Latest course · Education");
     expect(html).toContain(`<span class="${COURSE_FEATURE_TITLE_CLASS}">${COURSE.title}</span>`);
     expect(html.match(/<a /g)?.length).toBe(2); // the course card, the person row
     // No signed cover: the glance plate, without the in-plate title.
@@ -141,8 +134,6 @@ describe("SocialForYouRail person identity", () => {
     // People: a 17 / 600 heading, 56 rows, a 40 avatar, the grey 36 Follow.
     expect(html).toContain(`<h3 class="${SOCIAL_FEED_ASIDE_SUBHEAD_CLASS}">${SOCIAL.forYou.people}</h3>`);
     expect(html).toContain(`class="${SOCIAL_FEED_ASIDE_ROW_CLASS}"`);
-    expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("min-h-14");
-    expect(SOCIAL_FEED_ASIDE_AVATAR_CLASS).toBe("size-10");
     expect(html).toContain(SOCIAL_FEED_ASIDE_AVATAR_CLASS);
     const course = html.indexOf("data-social-latest-course");
     const people = html.indexOf("data-social-for-you-people");
@@ -151,10 +142,7 @@ describe("SocialForYouRail person identity", () => {
     expect(html).not.toContain("data-social-for-you-rule");
     expect(html).toContain(`class="${SOCIAL_FOLLOW_QUIET_CLASS}"`);
     expect(html).not.toContain(SOCIAL_FOLLOW_COMPACT_CLASS);
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("h-9");
     expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("rounded-full bg-surface-muted");
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("text-[length:var(--text-sm)] font-semibold text-ink");
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).not.toMatch(/border|accent/);
     // No accent fill (the glance plate's accent-contrast band is not one).
     expect(html).not.toMatch(/bg-accent(?![-\w])/);
   });

@@ -14,6 +14,7 @@ vi.mock("next/dynamic", () => ({
 }));
 
 import { SocialFeedVideo } from "./social-feed-video";
+import { SOCIAL_FEED_PLAY_DISC_CLASS } from "@/lib/social-chrome";
 
 describe("SocialFeedVideo", () => {
   it("uses Mux Player when a playback id is present", () => {
@@ -26,7 +27,7 @@ describe("SocialFeedVideo", () => {
     expect(html).toContain('data-social-mux-player="abc12345xx"');
     expect(html).toContain("data-social-post-video");
     expect(html).toContain("data-social-play-disc");
-    expect(html).toContain("social-feed-play-disc");
+    expect(html).toContain(SOCIAL_FEED_PLAY_DISC_CLASS);
     expect(html).not.toContain("<video");
   });
 
@@ -122,6 +123,6 @@ describe("SocialFeedVideo", () => {
       }),
     );
     expect(chromeless).not.toContain("data-social-play-disc");
-    expect(chromeless).not.toContain("social-feed-play-disc");
+    expect(chromeless).not.toContain(SOCIAL_FEED_PLAY_DISC_CLASS);
   });
 });

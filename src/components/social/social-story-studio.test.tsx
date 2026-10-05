@@ -20,6 +20,9 @@ import {
   socialStoryStudioPreviewClass,
 } from "@/lib/social-chrome";
 
+// --accent read from tokens.css, so this guard follows the pending GC accent checkpoint.
+const ACCENT = readFileSync("src/app/tokens.css", "utf8").match(/--accent:\s*(#[0-9a-fA-F]{6});/)?.[1];
+
 describe("SocialStoryCompose create stage", () => {
   it("opens on two media cards and keeps Record and Upload off the first face", () => {
     const html = renderToStaticMarkup(<SocialStoryCompose displayName="Ada Lovelace" />);
@@ -53,7 +56,8 @@ describe("SocialStoryCompose create stage", () => {
     expect(html).not.toContain("data-social-story-studio");
     expect(html).not.toContain("HouseDialog");
     expect(html).not.toContain("#1877F2");
-    expect(html).not.toContain("#1769FF");
+    expect(ACCENT).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(html.toLowerCase()).not.toContain(String(ACCENT).toLowerCase());
     expect(housePhoneForbidsTruncate(html)).toBe(true);
     expect((html.match(/data-social-story-photo=/g) ?? []).length).toBe(1);
     expect((html.match(/data-social-story-video=/g) ?? []).length).toBe(1);
@@ -92,7 +96,6 @@ describe("SocialStoryCompose create stage", () => {
     expect(src).toContain("storyStudioMirrorsPreview");
     expect(src).toContain("storyRecorderVideoConstraints");
     expect(src).toContain("socialStoryStudioPreviewClass");
-    expect(src).toContain("SOCIAL_STORY_STUDIO_REVIEW_CLASS");
     expect(src).toContain("new MediaRecorder(stream");
     expect(src).not.toContain("width: { ideal: 720 }");
     expect(src).not.toContain("height: { ideal: 1280 }");

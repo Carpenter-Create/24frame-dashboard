@@ -1,9 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { PRODUCT_NAME } from "@/lib/product";
-import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
+import { SOCIAL } from "@/lib/social";
 import {
   DEFAULT_LEADERBOARD_WINDOW,
   formatLeaderboardComputedAt,
@@ -45,7 +44,6 @@ describe("leaderboard kill switch", () => {
       isLeaderboardPublic({ leaderboard_public: true, gamification_enabled: false }),
     ).toBe(false);
     expect(isLeaderboardPublic(null)).toBe(false);
-    expect(SOCIAL.leaderboard.private).toBe("The leaderboard is private.");
     expect(SOCIAL.leaderboard.private).not.toMatch(/—/);
     expect(SOCIAL.leaderboard.subtitle).toContain(PRODUCT_NAME);
   });
@@ -68,7 +66,6 @@ describe("leaderboard stay on materialized rows", () => {
     expect(page).toContain("loadLeaderboardBoard");
     expect(page).toContain("leaderboardHref");
     expect(lib).toContain("SOCIAL_ROUTES.leaderboard");
-    expect(SOCIAL_ROUTES.leaderboard).toBe("/social/leaderboard");
     expect(page).not.toContain("rebuild_leaderboards");
     expect(lib).not.toContain("rpc(");
     expect(lib).not.toContain("rebuild_leaderboards");
@@ -78,7 +75,6 @@ describe("leaderboard stay on materialized rows", () => {
     expect(existsSync("src/app/(app)/aggregation/messages/ask-ai-legacy-intercept.tsx")).toBe(
       false,
     );
-    expect(ASK_FRAME_AI.headline).toBe("Ask 24Frame AI");
     expect(lib).not.toMatch(/from ["']@24frame\/shared["']/);
     expect(page).not.toContain("—");
   });

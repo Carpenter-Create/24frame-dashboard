@@ -26,7 +26,7 @@ import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 import { signedAvatarUrls, signedSocialMediaByPostId } from "@/lib/social-edge";
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
-import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
+import { SOCIAL } from "@/lib/social";
 import { SOCIAL_CATEGORY_ALL } from "@/lib/social-categories";
 import {
   SOCIAL_FOLLOWEES_LIMIT,
@@ -539,7 +539,6 @@ describe("Social home", () => {
     expect(html).not.toContain("data-social-chat-row");
     expect(html).not.toContain(SOCIAL.home.recentChats);
     expect(html).not.toContain("data-social-chats-empty");
-    expect(SOCIAL_ROUTES.dms).toBe("/social/dms");
     expect(html).not.toContain('"/messages"');
   });
 

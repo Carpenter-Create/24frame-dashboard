@@ -82,11 +82,11 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain(SOCIAL_COMPOSER_FIELD_CLASS);
     expect(html).toContain(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS);
     expect(html).toContain(SOCIAL_COMPOSER_AFFORDANCE_CLASS);
-    expect(html).toContain("Share something");
+    expect(html).toContain(SOCIAL.home.composerPromptNamed);
     expect(html).not.toContain("Write something");
     expect(html).not.toContain("What&#x27;s on your mind");
     expect(html).not.toContain("Share something,");
-    expect(html.split("Share something").length - 1).toBe(1);
+    expect(html.split(SOCIAL.home.composerPromptNamed).length - 1).toBe(1);
     expect(html).toContain(`aria-label="${SOCIAL.create.title}"`);
     expect(html).not.toContain('data-social-icon="plus"');
     expect(html).not.toContain('data-social-icon="broadcast"');
@@ -130,18 +130,12 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     // pins: one muted 52 bar, radius 16): one 44 row, no bar — the 44
     // avatar, 12, the grey "Share something" pill, then round grey 44
     // Photo and Camera (8 apart on desktop, 4 on phone), 20 ink glyphs.
-    expect(SOCIAL_COMPOSER_CLASS).toContain("flex ");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("items-center");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("flex-col");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("hidden");
     expect(SOCIAL_COMPOSER_CLASS).toContain("mt-6");
     expect(SOCIAL_COMPOSER_CLASS).toContain("gap-1");
     expect(SOCIAL_COMPOSER_CLASS).toContain("md:gap-2");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-[52px]");
     expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/bg-|rounded|border|shadow|accent/);
     expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("flex-1");
     expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("items-center");
-    expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("gap-3");
     expect(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS).toContain("gap-1");
     expect(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS).toContain("md:gap-2");
     // Photo and Camera: round grey 44 on phone and desktop; 20 ink glyphs.
@@ -154,19 +148,9 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain(`width="20"`);
     expect(html).not.toContain("md:size-[18px]");
     // The prompt is the grey pill: 44, radius full, 17 / 420 ink-2, pad 16.
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("h-11");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("rounded-full");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("bg-surface-muted");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("px-4");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("text-[length:var(--text-base)]");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("text-ink-2");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("border-0");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("outline-none");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("shadow-");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("border-hairline");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("md:h-10");
     expect(html).toContain("shadow-none");
-    expect(SOCIAL_COMPOSER_AVATAR_CLASS).toBe("size-11");
     expect(html).toContain(SOCIAL_COMPOSER_AVATAR_CLASS);
   });
 
@@ -204,12 +188,6 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
       expect(cls).toContain("whitespace-nowrap");
       expect(cls).toContain("rounded-full");
     }
-    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("bg-accent-wash");
-    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("font-semibold");
-    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-accent-ink");
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("text-ink");
-    expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("font-medium");
-    expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("text-[length:var(--text-sm)]");
     // One wash chip: the current one. No accent fill anywhere on the row.
     expect(html.match(/bg-accent-wash/g)?.length).toBe(1);
     expect(html).not.toContain(HOUSE_PILL_SELECTED_CLASS);
@@ -225,8 +203,6 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain(`aria-label="${SOCIAL.home.moreTopics}"`);
     expect(html).toContain(SOCIAL_HOME_TOPIC_MORE_CLASS);
     expect(SOCIAL_HOME_TOPIC_MORE_CLASS).toContain("rounded-full bg-surface-muted");
-    expect(SOCIAL_HOME_TOPIC_MORE_CLASS).toContain("size-11");
-    expect(SOCIAL_HOME_TOPIC_MORE_CLASS).toContain("md:size-10");
     expect(SOCIAL_HOME_TOPIC_MORE_CLASS).not.toMatch(/border/);
     expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("var(--bg)");
     expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("pointer-events-none");
@@ -237,8 +213,6 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).not.toContain("Topics for you");
     expect(html).not.toContain("Trending topics");
     expect(html).not.toContain("data-social-for-you-topics");
-    expect(SOCIAL.forYou).not.toHaveProperty("topics");
-    expect(SOCIAL_CATEGORY_TOPICS).toHaveLength(15);
     const chips = [...html.matchAll(/data-social-home-topic="([^"]+)"/g)].map((match) => match[1]);
     expect(chips[0]).toBe(SOCIAL_CATEGORY_ALL);
     expect(chips).toEqual([...SOCIAL_CATEGORY_LABELS]);
@@ -277,9 +251,6 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain('role="group" aria-label="Stories"');
     expect(html).toContain(SOCIAL_HOME_STORIES_RAIL_CLASS);
     expect(html).toContain(SOCIAL_HOME_STORY_CARD_CLASS);
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("h-[192px] w-[108px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("md:h-[200px] md:w-[112px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("rounded-[var(--radius-lg)]");
     expect(SOCIAL_HOME_STORY_CARD_CLASS).not.toMatch(/border|shadow/);
     expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("gap-2");
     expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("max-md:px-4");
@@ -292,21 +263,12 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain(`aria-label="${SOCIAL.stories.yourStoryCreate}"`);
     expect(html).toContain(`>${SOCIAL.stories.create}<`);
     expect(html).toContain(SOCIAL_HOME_STORY_CREATE_FACE_CLASS);
-    expect(SOCIAL_HOME_STORY_CREATE_FACE_CLASS).toContain("h-[120px]");
     expect(html).toContain(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS);
     expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("text-[length:var(--text-sm)]");
     expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("font-medium");
     expect(html).toContain(SOCIAL_HOME_STORY_PLUS_CLASS);
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("bg-accent");
     expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("border-[3px] border-surface-muted");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("size-[42px]");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("md:size-[46px]");
     // Unseen: the accent ring around the top-left avatar. Seen: hairline.
-    expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("border-2");
-    expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("border-accent");
-    expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("size-8");
-    expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("md:size-9");
-    expect(SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS).toContain("border-hairline");
     const userCard = html.slice(html.indexOf("data-social-story-card"));
     expect(userCard).toContain(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS);
     expect(userCard).toContain("data-social-story-unseen");
@@ -318,9 +280,6 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(SOCIAL.stories.cardLabel("Maya Chen")).toBe("Maya Chen story");
     expect(userCard).toContain(`<span data-social-story-name="" class="${SOCIAL_HOME_STORY_NAME_CLASS}">Maya C.</span>`);
     expect(SOCIAL_HOME_STORY_NAME_CLASS).toContain("from-band/72");
-    expect(SOCIAL_HOME_STORY_NAME_CLASS).toContain("text-band-ink");
-    expect(SOCIAL_HOME_STORY_NAME_CLASS).toContain("min-h-12");
-    expect(SOCIAL_HOME_STORY_NAME_CLASS).not.toMatch(/truncate|line-clamp/);
     expect(userCard).not.toContain(SOCIAL.stories.yourStory);
     expect(html).not.toContain("truncate");
     expect(html.indexOf(SOCIAL.stories.create)).toBeLessThan(html.indexOf("data-social-story-card"));

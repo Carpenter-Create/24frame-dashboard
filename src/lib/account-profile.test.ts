@@ -31,7 +31,6 @@ const companyEditorSrc = readFileSync(
   "utf8",
 );
 const inputSrc = readFileSync(join(here, "../components/ui/input.tsx"), "utf8");
-const globalsSrc = readFileSync(join(here, "../app/globals.css"), "utf8");
 
 describe("account profile copy", () => {
   it("keeps Profile and Company titles, no banned voice", () => {
@@ -160,8 +159,6 @@ describe("account name persist read-after-write", () => {
 
 describe("account field 16px lock", () => {
   it("uses the shared form-control primitive — no per-surface 16px override", () => {
-    expect(globalsSrc).toMatch(/\.t-control\s*\{[\s\S]*?font-size:\s*16px/);
-    expect(globalsSrc).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
     expect(inputSrc).toContain("formControlClass");
     expect(inputSrc).not.toContain("t-body");
     expect(formSrc).toContain("<Input");

@@ -134,7 +134,6 @@ describe("SettingsPreferencesPage", () => {
     expect(html).not.toContain("data-settings-section=\"appearance\"");
     expect(html).toContain(NOTIFICATION_PREF_WRAP_CLASS);
     expect(html).toContain('data-settings-notification-wrap=""');
-    expect(NOTIFICATION_PREF_WRAP_CLASS).not.toContain(HOUSE_MODULE_CLASS);
     expect(html).toContain(SETTINGS_GROUP_STACK_CLASS);
     expect(html).toContain(SETTINGS_GROUP_LABEL_CLASS);
     expect(html).toContain(SETTINGS_GROUP_CLASS);

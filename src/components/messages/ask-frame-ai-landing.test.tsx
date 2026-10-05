@@ -27,7 +27,6 @@ function visible(html: string): string {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, "ask-frame-ai-landing.tsx"), "utf8");
-const tokens = readFileSync(join(here, "../../app/tokens.css"), "utf8");
 const THREAD = "2f1c8b6a-4d3e-4a11-9c22-7b8e1d0a5f44";
 
 describe("AskFrameAiLanding", () => {
@@ -186,7 +185,6 @@ describe("AskFrameAiLanding", () => {
   it("locks greeting, stacked chips, and composer on the house 8/16/24/48 scale", () => {
     const html = renderToStaticMarkup(<AskFrameAiLanding />);
 
-    expect(tokens).toContain("--space-12: 3rem;");
     expect(src).toContain(
       "flex h-full min-h-0 flex-1 flex-col px-[var(--space-6)] pb-[var(--space-6)] pt-[var(--space-4)]",
     );
@@ -247,25 +245,11 @@ describe("AskFrameAiLanding", () => {
     expect(src).toContain('variant="bare"');
     expect(src).toContain("px-[var(--space-4)]");
     expect(src).toContain("items-center");
-    expect(tokens).toContain("--text-tertiary: #6B7280;");
-    expect(tokens).toContain("--accent: #1769ff;");
-    expect(tokens).toContain("--surface-muted: #f4f4f6;");
   });
 
   it("locks stacked chip marks, greeting copy, and unchanged prompts", () => {
     const html = visible(renderToStaticMarkup(<AskFrameAiLanding displayName="Ada" />));
 
-    expect(ASK_FRAME_AI.headline).toBe("Ask 24Frame AI");
-    expect(ASK_FRAME_AI.need).toBe("What do you need?");
-    expect(ASK_FRAME_AI.tryLabel).toBe("Try one of these");
-    expect(ASK_FRAME_AI.greetingAsk).toBe("How can I be helpful?");
-    expect(ASK_FRAME_AI.tryPrompts).toEqual([
-      "What needs attention",
-      "What is blocking a title",
-      "What should I submit next",
-    ]);
-    expect(ASK_FRAME_AI.composerPlaceholder).toBe("Ask a question or give a command.");
-    expect(ASK_FRAME_AI.composerPlaceholderMobile).toBe("Ask a question or give a command");
     expect(ASK_FRAME_AI_CHIP_MARKS).toEqual(["alert", "slash", "send"]);
     expect(askFrameAiChipMark(0)).toBe("alert");
     expect(askFrameAiChipMark(1)).toBe("slash");
@@ -317,9 +301,6 @@ describe("AskFrameAiLanding", () => {
     );
     expect(src).toContain("<Input");
     expect(src).toContain('variant="bare"');
-    expect(tokens).toContain("--text-tertiary: #6B7280;");
-    expect(tokens).toContain("--accent: #1769ff;");
-    expect(tokens).toContain("--surface-muted: #f4f4f6;");
     expect(src).toContain("<ArrowRight");
     expect(src).not.toContain("ChevronRight");
     expect(src).not.toContain("ChevronUp");

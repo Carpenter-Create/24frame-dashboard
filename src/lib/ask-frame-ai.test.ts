@@ -123,7 +123,6 @@ describe("24Frame AI copy lock", () => {
       "Synopsis and Runtime are also required. Director is recommended.",
     );
     expect(ASK_FRAME_AI.attribution).toBe("24Frame AI · 7:10 AM");
-    expect(ASK_FRAME_AI.composerPlaceholder).toBe("Ask a question or give a command.");
   });
 });
 

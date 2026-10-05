@@ -85,7 +85,7 @@ describe("Share something write compose sheet", () => {
     expect(html).toContain("data-social-composer-prompt-row");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain("Share something");
+    expect(html).toContain(SOCIAL.home.composerPromptNamed);
     expect(html).not.toContain('href="/social/create?kind=text"');
     expect(html).not.toContain("data-social-write-compose-sheet");
     expect(html).not.toContain("data-social-create-form");

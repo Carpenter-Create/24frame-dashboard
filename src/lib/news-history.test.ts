@@ -7,8 +7,6 @@ import {
   NEWS_SOURCE_PARAM,
   NEWS_SOURCES,
   NEWS_SOURCE_FILTER_SOURCES,
-  NEWS_WINDOW_DAYS,
-  NEWS_WINDOW_MS,
   canonicalizeNewsSourceFilter,
   filterNewsBySources,
   newsHistoryEmptyCopy,
@@ -115,8 +113,6 @@ describe("news history source filter rows", () => {
 
 describe("news history retention window", () => {
   it("locks 90 days for history / TTL / query — not the Home cap", () => {
-    expect(NEWS_WINDOW_DAYS).toBe(90);
-    expect(NEWS_WINDOW_MS).toBe(90 * 24 * 60 * 60 * 1000);
     expect(NEWS_PAGE.empty).toContain("90 days");
     expect(NEWS_PAGE.subtitle).toContain("90 days");
     expect(NEWS_PAGE.empty).not.toContain("30 days");

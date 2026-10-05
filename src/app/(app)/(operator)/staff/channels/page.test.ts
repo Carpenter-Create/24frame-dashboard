@@ -4,8 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createClient } from "@/lib/supabase/server";
 import { UNPAGINATED_MAX } from "@/lib/list-bounds";
-import { CHANNELS_PAGE, VENDOR_FORM_FIELD_LABELS } from "@/lib/vendors-directory";
-import { GC_NAV, NAV } from "@/lib/nav";
+import { CHANNELS_PAGE, VENDOR_FORM_FIELD_LABELS, VENDOR_MODE_LABELS } from "@/lib/vendors-directory";
 
 import GcChannelsPage from "./page";
 
@@ -171,7 +170,7 @@ describe("staff /channels card grid", () => {
     expect(html).toContain(`/channels/${REAL_VENDOR.id}`);
     expect(html).toContain(`/channels/${inactive.id}`);
     expect(html).toContain("Email");
-    expect(html).toContain("Portal upload");
+    expect(html).toContain(VENDOR_MODE_LABELS.portal_upload);
     expect(html).toContain("Active");
     expect(html).toContain("Inactive");
     expect(html).toContain("AD");
@@ -225,24 +224,6 @@ describe("staff /channels card grid", () => {
 });
 
 describe("staff rail and neighboring locks", () => {
-  it("keeps operator dests on GC_NAV, not concatenated under Aggregation", () => {
-    expect(GC_NAV.map((item) => item.label)).toEqual([
-      "Queue",
-      "Avails",
-      "Licensing Status",
-      "Channels",
-      "Finance",
-      "Clients",
-    ]);
-    expect(NAV.map((item) => item.label)).toEqual([
-      "Dashboard",
-      "Titles",
-      "Recent activity",
-      "Reports",
-    ]);
-    expect(GC_NAV.map((item) => item.label)).not.toContain("Ask 24Frame AI");
-  });
-
   it("does not restyle 24Frame AI, client home, Access, or /aggregation/titles", () => {
     const ask = readFileSync("src/components/messages/ask-frame-ai-landing.tsx", "utf8");
     const titles = readFileSync("src/app/(app)/aggregation/titles/page.tsx", "utf8");

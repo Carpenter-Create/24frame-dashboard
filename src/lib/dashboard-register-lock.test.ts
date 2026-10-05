@@ -18,11 +18,26 @@ import {
   DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS,
   DASHBOARD_TOP_PILL_BUTTON_ON_CLASS,
   DASHBOARD_TOP_PILL_CLUSTER_CLASS,
+  DASHBOARD_NEWS_HISTORY_LIST_CLASS,
+  DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS,
+  DASHBOARD_TITLE_DESKTOP_CLASS,
+  DASHBOARD_TITLE_MOBILE_CLASS,
+  DASHBOARD_PERIOD_TRIGGER_CLASS,
+  DASHBOARD_HERO_ASOF_CLASS,
+  DASHBOARD_ADMIN_OVERVIEW_CLASS,
+  DASHBOARD_MAP_PAD_CLASS,
+  DASHBOARD_MAP_FRAME_CLASS,
+  DASHBOARD_CARD_CLASS,
+  DASHBOARD_ADMIN_TOP_ROW_CELL_CLASS,
+  DASHBOARD_ADMIN_HERO_REVENUE_CLASS,
+  DASHBOARD_ADMIN_HERO_ATTENTION_CLASS,
 } from "@/lib/dashboard-craft";
 import { DASHBOARD_HOME } from "@/lib/dashboard-home";
+import { HOUSE_MODULE_CLASS, HOUSE_SEGMENTED_TRACK_CLASS } from "@/lib/house-shell";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/supabase/context";
 import { loadRecipientDashboard } from "@/lib/finance-recipient-load";
+import { DASHBOARD_LICENSING } from "@/lib/dashboard-licensing";
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((to: string) => {
@@ -114,6 +129,7 @@ describe("Aggregation Dashboard Coinbase register lock", () => {
     expect(html).toMatch(/data-dashboard-stat="revenue"[^>]*t-display t-data/);
     expect(html).toContain("$0.00");
     expect(DASHBOARD_HERO_VALUE_CLASS).toContain("t-display");
+    expect(DASHBOARD_HERO_VALUE_CLASS).toBe("t-display t-data text-ink");
     expect(html).toContain("data-dashboard-revenue-asof");
     expect(html.indexOf('data-dashboard-stat="revenue"')).toBeLessThan(
       html.indexOf("data-dashboard-revenue-asof"),
@@ -123,10 +139,10 @@ describe("Aggregation Dashboard Coinbase register lock", () => {
     expect(html).not.toContain('data-dashboard-module="attention"');
     expect(html).not.toContain("Recent account activity");
     expect(html).toContain('data-dashboard-module="licensing-status"');
-    expect(html).toContain("Licensing status");
+    expect(html).toContain(DASHBOARD_LICENSING.title);
     expect(html).toContain('data-dashboard-module="recent-activity"');
     expect(html).toContain(DASHBOARD_ADMIN.activity);
-    expect(html).toContain("Recent activity");
+    expect(html).toContain(DASHBOARD_ADMIN.activity);
     expect(html).toContain("data-dashboard-top-performing");
     expect(html).toContain(DASHBOARD_HOME.topTitles);
     expect(html).toContain(DASHBOARD_HOME.topPlatforms);
@@ -150,14 +166,17 @@ describe("Aggregation Dashboard Coinbase register lock", () => {
     expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).toContain("bg-surface-muted");
     expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).not.toContain("divide-x");
     expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).not.toContain("border-hairline");
+    // The track value is pinned once, through WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS.
+    expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).toBe(HOUSE_SEGMENTED_TRACK_CLASS);
     expect(DASHBOARD_VIEW_ALL_CLASS).toContain("text-accent");
     expect(DASHBOARD_SECTION_TITLE_CLASS).toBe("t-heading text-ink");
+    expect(DASHBOARD_SECTION_TITLE_CLASS).not.toContain("t-label");
     expect(html).toContain(`t-heading text-ink">${DASHBOARD_ADMIN.revenue}`);
     expect(html).toContain(`t-heading text-ink">${DASHBOARD_ADMIN.activity}`);
-    expect(html).toContain(`t-heading text-ink">Recent activity`);
+    expect(html).toContain(`t-heading text-ink">${DASHBOARD_ADMIN.activity}`);
     expect(html).not.toContain(`t-heading text-ink">Attention`);
     expect(html).not.toContain(`t-heading text-ink">Recent account activity`);
-    expect(html).toContain(`t-heading text-ink">Licensing status`);
+    expect(html).toContain(`t-heading text-ink">${DASHBOARD_LICENSING.title}`);
     expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.topTitles}`);
     expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.topPlatforms}`);
     expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.topTerritories}`);
@@ -190,9 +209,9 @@ describe("Aggregation Dashboard Coinbase register lock", () => {
     expect(html).not.toContain("Added this month");
     expect(html).not.toContain("In pipeline");
     expect(html).not.toContain("Top works");
-    expect(html).toContain("Top titles");
-    expect(html).toContain("Top platforms");
-    expect(html).toContain("Top territories");
+    expect(html).toContain(DASHBOARD_HOME.topTitles);
+    expect(html).toContain(DASHBOARD_HOME.topPlatforms);
+    expect(html).toContain(DASHBOARD_HOME.topTerritories);
     expect(DASHBOARD_HOME.territories).toBe("Territories");
     expect(DASHBOARD_HOME.topTerritories).toBe("Top territories");
     expect(html).not.toContain("HeadlineStats");
@@ -235,5 +254,33 @@ describe("Aggregation Dashboard Coinbase register lock", () => {
     expect(html).not.toContain("lg:grid-cols-2");
     expect(hero).toContain("DASHBOARD_ROW_LIST_CLASS");
     expect(craft).toContain("shadow-none");
+  });
+
+  it("owns one value pin per Dashboard craft class; other tests reference the constant", () => {
+    expect(DASHBOARD_NEWS_HISTORY_LIST_CLASS).toBe("flex flex-col gap-[var(--space-2)]");
+    expect(DASHBOARD_NEWS_HISTORY_LIST_CLASS).not.toContain("lg:grid-cols-2");
+    expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).not.toContain("bg-accent");
+    expect(DASHBOARD_TITLE_DESKTOP_CLASS).toBe("t-title text-ink max-md:hidden");
+    expect(DASHBOARD_TITLE_DESKTOP_CLASS).not.toContain("t-label");
+    expect(DASHBOARD_TITLE_MOBILE_CLASS).toBe("t-heading text-ink md:hidden");
+    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toBe(
+      "group flex min-w-[10rem] items-center justify-between gap-[var(--space-2)] rounded-[var(--radius-sm)] border border-hairline bg-surface-muted px-[var(--space-4)] py-[var(--space-2)] t-body-sm text-ink max-md:min-w-0 max-md:flex-none max-md:justify-end max-md:border-0 max-md:bg-transparent max-md:px-0 max-md:py-0",
+    );
+    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).not.toContain("bg-accent");
+    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).not.toContain("t-display");
+    expect(DASHBOARD_HERO_ASOF_CLASS).toBe("t-body-sm text-ink-3");
+    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toBe(
+      "grid w-full grid-cols-1 items-start gap-[var(--space-6)] max-md:flex max-md:w-full max-md:flex-col max-md:items-stretch lg:grid-cols-5 lg:items-stretch",
+    );
+    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS.split(/\s+/)).not.toContain("md:items-stretch");
+    expect(DASHBOARD_MAP_PAD_CLASS).toBe("p-[var(--space-6)]");
+    expect(DASHBOARD_MAP_FRAME_CLASS).toBe("relative w-full min-h-[340px]");
+    // Composed values: the base classes are pinned in house-shell.test.ts
+    // (HOUSE_MODULE_CLASS) and dashboard-top-row-height.test.ts (the top-row cell).
+    expect(DASHBOARD_CARD_CLASS).toBe(
+      `${HOUSE_MODULE_CLASS} dashboard-home-panel flex h-full flex-col overflow-hidden shadow-none`,
+    );
+    expect(DASHBOARD_ADMIN_HERO_REVENUE_CLASS).toBe(`${DASHBOARD_ADMIN_TOP_ROW_CELL_CLASS} lg:col-span-3`);
+    expect(DASHBOARD_ADMIN_HERO_ATTENTION_CLASS).toBe(`${DASHBOARD_ADMIN_TOP_ROW_CELL_CLASS} lg:col-span-2`);
   });
 });

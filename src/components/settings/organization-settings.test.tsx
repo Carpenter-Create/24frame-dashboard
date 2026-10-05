@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { SETTINGS } from "@/lib/settings";
 import { ACCOUNT_INVITE } from "@/lib/account-invite";
 
 describe("organization settings hosts Team with Mercury Users grammar", () => {
@@ -19,9 +18,6 @@ describe("organization settings hosts Team with Mercury Users grammar", () => {
     expect(pane).not.toContain("CardBody");
     expect(pane).not.toContain("card-surface");
     expect(pane).toContain("currentUserId");
-    expect(SETTINGS.team).toBe("Team");
-    expect(SETTINGS.roles).toBe("Roles");
-    expect(SETTINGS.rolesHref).toBe("/settings/organization/roles");
     expect(settings).toContain("Team invite");
     expect(settings).not.toContain("organizationHref: \"/settings/team\"");
     expect(teamForm).toContain("data-roles-link");

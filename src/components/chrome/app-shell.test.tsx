@@ -107,9 +107,10 @@ import {
   RAIL_EXPAND_CHEVRON_CLASS,
   RAIL_COLLAPSE_CHEVRON_ICON_CLASS,
   RAIL_WIDTH_CLASS,
-  SIDEBAR_COLLAPSED_COOKIE,
 } from "@/lib/rail-collapse";
 import { APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS } from "@/lib/workspace-switcher";
+import { SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS } from "@/lib/social-chrome";
+import { BRAND_LOGO_LIGHT_SRC, BRAND_LOGO_DARK_SRC } from "@/lib/brand";
 
 afterEach(() => {
   resetAccountChromeIdentityForTests();
@@ -321,13 +322,11 @@ describe("AppShell Home chrome", () => {
     expect(home).not.toContain("--sidebar-width-collapsed:0px");
     expect(shellSrc).toContain("overviewHidesRail");
     expect(shellSrc).toContain("OVERVIEW_RAIL_OFF_WIDTH");
-    expect(shellSrc).toContain("data-home-chrome");
     const homeArm = shellSrc.slice(shellSrc.indexOf(": homePage"), shellSrc.indexOf(": cn(\"mx-auto"));
     expect(homeArm).not.toContain("mx-auto");
     expect(homeArm).not.toContain("page-max-width");
     expect(homeArm).toContain("HOUSE_HOME_RAIL_COLUMN_CLASS");
     expect(homeArm).toContain("HOUSE_CANVAS_X_CLASS");
-    expect(shellSrc).toContain("data-app-home-frame");
     expect(shellSrc.match(/<HouseScreenOutlet>/g)?.length).toBe(1);
 
     for (const path of ["/aggregation/dashboard", "/social", "/education"]) {
@@ -622,7 +621,6 @@ describe("AppShell /activity account chrome", () => {
     expect(shellSrc).not.toContain("activityPage ? (\n              <SettingsRail");
     expect(shellSrc).toContain("isActivityPath");
     expect(shellSrc).toContain("hideProductRail");
-    expect(shellSrc).toContain("data-activity-chrome");
     expect(shellSrc).not.toContain("/aggregation/activity");
   });
 
@@ -712,7 +710,6 @@ describe("AppShell /help account chrome", () => {
     }
     expect(shellSrc).toContain("isHelpPath");
     expect(shellSrc).toContain("hideProductRail");
-    expect(shellSrc).toContain("data-help-chrome");
     expect(shellSrc).not.toContain("/education/help");
   });
 });
@@ -851,7 +848,6 @@ describe("AppShell rail-collapse chevron", () => {
     expect(shellSrc).toContain("AskAssistantChromeProvider");
     expect(shellSrc).not.toContain("SocialMobileDock");
     expect(shellSrc).toContain('workspace === "social" && !settingsPage');
-    expect(shellSrc).toContain("data-education-workspace");
     expect(shellSrc).toContain('workspace === "education"');
     expect(shellSrc).not.toContain("PanelLeftOpen");
     expect(shellSrc).not.toContain("PanelLeftClose");
@@ -864,8 +860,8 @@ describe("AppShell rail-collapse chevron", () => {
     const expanded = renderShell();
     expect(expanded).toContain("data-brand-emblem");
     expect(expanded).toContain("data-brand-logo");
-    expect(expanded).toContain("/brand/24frame-logo-light.svg");
-    expect(expanded).toContain("/brand/24frame-logo-dark.svg");
+    expect(expanded).toContain(BRAND_LOGO_LIGHT_SRC);
+    expect(expanded).toContain(BRAND_LOGO_DARK_SRC);
     expect(expanded).toContain('aria-label="24Frame"');
     expect(expanded).toContain('href="/aggregation/dashboard"');
     expect(expanded).not.toContain("data-brand-emblem-mark");
@@ -925,7 +921,6 @@ describe("AppShell rail-collapse chevron", () => {
     expect(shellSrc).not.toContain("gc_sidebar_collapsed");
     expect(shellSrc).toContain("defaultCollapsed");
     expect(shellSrc).not.toContain("DestChipsSlot");
-    expect(SIDEBAR_COLLAPSED_COOKIE).toBe("24frame_sidebar_collapsed");
     navigation.pathname = "/settings";
     expect(renderShell(undefined, undefined, true)).not.toContain("Expand sidebar");
     expect(renderShell(undefined, undefined, true)).not.toContain(RAIL_EXPAND_CHEVRON_CLASS);
@@ -1268,7 +1263,7 @@ describe("AppShell rail-collapse chevron", () => {
     expect(html).not.toContain("data-social-rail");
     expect(html).toContain("--sidebar-width:0px");
     expect(html).toContain("data-house-phone-bottom-nav");
-    expect(html).toContain("max-md:fixed max-md:inset-0 overflow-hidden bg-[#0A0A0B] md:absolute md:inset-0");
+    expect(html).toContain(SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS);
     expect(html).toContain("relative overflow-hidden");
     const stage = html.slice(html.indexOf("data-social-explore-stage"), html.indexOf("data-house-phone-bottom-nav"));
     expect(stage).not.toContain("rounded-");

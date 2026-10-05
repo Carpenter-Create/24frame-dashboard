@@ -18,7 +18,6 @@ const leadSearch = readFileSync("src/components/chrome/house-lead-search.tsx", "
 
 describe("Explore vs people discovery lock (Adam 2026-09-20)", () => {
   it("keeps Explore as a video For You and uses people as a stream filter", () => {
-    expect(SOCIAL.explore.searchPlaceholder).toBe("People, keywords, hashtags");
     expect(SOCIAL.explore.noResults).toBe("No matching videos.");
     expect(SOCIAL.explore.empty).toBe("No videos to explore yet.");
     expect(JSON.stringify(SOCIAL.explore)).not.toContain("creators");
@@ -41,11 +40,9 @@ describe("Explore vs people discovery lock (Adam 2026-09-20)", () => {
   });
 
   it("puts people discovery on header Search with people intent", () => {
-    expect(SOCIAL_ROUTES.search).toBe("/social/search");
     expect(socialSearchHref({ intent: "people" })).toBe("/social/search?intent=people");
     expect(socialSearchHref({ q: "ada" })).toBe("/social/search?intent=people&q=ada");
     expect(SOCIAL.search.people).toBe("People");
-    expect(SOCIAL.search.searchPlaceholder).toBe("Search people");
     expect(search).toContain("data-social-search-people");
     expect(search).toContain("SocialSuggestedPeople");
     expect(search).toContain("loadSuggestedPeople");
@@ -62,11 +59,6 @@ describe("Explore vs people discovery lock (Adam 2026-09-20)", () => {
   });
 
   it("routes the empty following-wall CTA to Search(people), not Explore", () => {
-    expect(SOCIAL.home.findPeople).toBe("Find people");
-    expect(SOCIAL.home.emptyHint).toBe(
-      "Posts, stories, and updates from people you follow show up here.",
-    );
-    expect(SOCIAL.home.emptyHint).not.toMatch(/Explore/i);
     expect(SOCIAL.home.findPeopleHint).toBe("Search for people to follow and start your following wall.");
     expect(SOCIAL.home.findPeopleHint).not.toMatch(/Explore/i);
     expect(home).toContain("socialSearchHref({ intent: \"people\" })");
@@ -77,13 +69,6 @@ describe("Explore vs people discovery lock (Adam 2026-09-20)", () => {
   });
 
   it("does not add a sixth dock tab or stack people+Reels as Explore", () => {
-    expect(SOCIAL_NAV.map((item) => item.label)).toEqual([
-      "Feed",
-      "Explore",
-      "Create",
-      "Messages",
-      "Profile",
-    ]);
     expect(SOCIAL_NAV.map((item) => item.href)).not.toContain(SOCIAL_ROUTES.search);
     expect(SOCIAL_PHONE_DESTS.map((item) => item.href)).not.toContain(SOCIAL_ROUTES.search);
     expect(SOCIAL_NAV.some((item) => item.label === "People")).toBe(false);

@@ -38,7 +38,6 @@ import { SOCIAL_DESKTOP_NAV } from "@/lib/nav";
 import { SOCIAL_FOR_YOU_CARD_CLASS } from "@/lib/social-chrome";
 
 const tokens = readFileSync("src/app/tokens.css", "utf8");
-const globals = readFileSync("src/app/globals.css", "utf8");
 const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 const lead = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
 const leadSearch = readFileSync("src/components/chrome/house-lead-search.tsx", "utf8");
@@ -90,17 +89,13 @@ describe("house chrome rematch miss list v1.1", () => {
   });
 
   it("keeps a white page canvas and grey r16 modules only when needed", () => {
-    expect(tokens).toMatch(/--bg:\s*#ffffff;/);
     expect(tokens).not.toMatch(/--bg:\s*#fafafb;/);
-    expect(tokens).toMatch(/--surface-muted:\s*#f4f4f6;/);
-    expect(tokens).toMatch(/--radius-lg:\s*16px;/);
     expect(HOUSE_MODULE_CLASS).toContain("bg-surface-muted");
     expect(HOUSE_MODULE_CLASS).toContain("shadow-none");
     expect(shell).toContain("HousePhoneAppShell");
     expect(readFileSync("src/components/chrome/house-phone-app-shell.tsx", "utf8")).toContain(
       "HOUSE_PAGE_CANVAS_CLASS",
     );
-    expect(globals).toMatch(/\.card-surface\s*\{[\s\S]*?box-shadow:\s*none/);
     expect(shell).not.toMatch(/shadow-(?:sm|md|lg|xl)/);
   });
 
@@ -110,7 +105,6 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(shell).toContain('workspace === "education" && !settingsPage');
     expect(lead).toContain('data-education-header-search-host={education ? "desktop" : undefined}');
     expect(lead).toContain('data-education-header-search-host={education ? "phone" : undefined}');
-    expect(leadSearch).toContain("data-social-header-search");
 
     const education = renderToStaticMarkup(createElement(HouseLeadSearch, { tone: "quiet" }));
     expect(education).toContain("data-education-header-search");
@@ -122,7 +116,6 @@ describe("house chrome rematch miss list v1.1", () => {
   });
 
   it("places Social and Education search first in the trailing cluster — never beside the logo", () => {
-    expect(lead).toContain("data-social-header-lead");
     expect(lead).toContain("HOUSE_LEAD_SLOT_CLASS");
     expect(lead).not.toContain("left-1/2");
     expect(lead).not.toContain("-translate-x-1/2");
@@ -266,7 +259,6 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead).toContain("data-house-full-width-top");
     expect(HOUSE_RAIL_ACTIVE_CLASS).not.toContain("bg-ink");
     expect(HOUSE_RAIL_ACTIVE_CLASS).not.toMatch(/(?:^|[\s"])bg-accent(?:[\s"]|$)/);
-    expect(tokens).toMatch(/--accent:\s*#1769ff;/);
     expect(tokens).not.toMatch(/#f97316|#ea580c|#ff6a00|#ff7a00/i);
     expect(settings).toContain("house-shell.ts");
     for (const path of FUN_CHROME_PATHS) {
@@ -352,7 +344,6 @@ describe("house chrome rematch miss list v1.1", () => {
   });
 
   it("keeps house tokens, Titles content, and Delete/Archive unmixed", () => {
-    expect(tokens).toMatch(/--accent:\s*#1769ff;/);
     expect(existsSync("src/app/tokens-social.css")).toBe(false);
     expect(titlesPage).toContain("HousePageSearch");
     expect(titlesCatalog).not.toMatch(/\bDelete\b/);

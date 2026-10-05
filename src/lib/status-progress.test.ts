@@ -41,7 +41,6 @@ describe("titleStatusProgress", () => {
     const inDelivery = titleStatusProgress("in_delivery");
     expect(inDelivery.label).toBe("In delivery");
     expect(inDelivery.label).not.toBe(TITLE_STATUS_LABELS.in_delivery);
-    expect(TITLE_STATUS_LABELS.in_delivery).toBe("Submitted");
     expect(inDelivery.currentIndex).toBe(3);
     expect(statusProgressFilledCount(inDelivery)).toBe(4);
 

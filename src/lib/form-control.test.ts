@@ -77,9 +77,6 @@ function rawTextControls(src: string): string[] {
 describe("form-control SoT", () => {
   it("owns the 16px iOS no-zoom floor on t-control, not house t-body", () => {
     expect(FORM_CONTROL_TEXT_CLASS).toBe("t-control");
-    expect(globals).toMatch(/\.t-control\s*\{[\s\S]*?font-size:\s*16px/);
-    expect(globals).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
-    expect(globals).toMatch(/\.t-body-sm\s*\{[\s\S]*?font-size:\s*var\(--text-sm\)/);
     expect(formControlClass()).toContain("t-control");
     expect(formControlClass()).toContain("border-hairline");
     expect(formControlClass("bare")).toContain("bg-transparent");

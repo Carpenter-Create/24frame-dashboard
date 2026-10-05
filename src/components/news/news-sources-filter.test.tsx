@@ -19,7 +19,7 @@ import {
   HOUSE_SEGMENTED_TRACK_SCROLL_CLASS,
 } from "@/lib/house-shell";
 import { NEWS_PAGE, NEWS_SOURCE_FILTER_SOURCES } from "@/lib/news";
-import { SEGMENTED_ITEM_SELECTED_ATTR, SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
+import { SEGMENTED_ITEM_SELECTED_ATTR } from "@/lib/segmented-track";
 
 const src = readFileSync("src/components/news/news-sources-filter.tsx", "utf8");
 
@@ -41,7 +41,6 @@ describe("NewsSourceChips", () => {
     expect(html).toContain(NEWS_PAGE.sourcesAll);
     expect(html).not.toContain("type=\"checkbox\"");
     expect(html).not.toContain("gap-[var(--space-2)]");
-    expect(SEGMENTED_TRACK_PERSIST.newsSource).toBe("news-source");
     expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).toBe(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS);
     expect(DASHBOARD_NEWS_SOURCE_CHIP_OFF_CLASS).toBe(DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS);
     expect(src).toContain("({ selectedIndex })");

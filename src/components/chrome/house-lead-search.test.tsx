@@ -70,7 +70,6 @@ describe("HouseLeadSearch — one SoT for Social live and Education quiet", () =
     // Founder 2026-10-05, decision 1: "Search Social" is the header's
     // default text on Social (the Search page keeps "Search people").
     expect(live).toContain(`placeholder="${SOCIAL.search.headerPlaceholder}"`);
-    expect(SOCIAL.search.headerPlaceholder).toBe("Search Social");
     expect(live).not.toContain(`placeholder="${SOCIAL.search.searchPlaceholder}"`);
     expect(live).toContain(SOCIAL.explore.searchSocial);
     expect(live).toContain('id="social-header-q"');

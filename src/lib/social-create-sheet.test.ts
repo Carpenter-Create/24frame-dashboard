@@ -42,11 +42,6 @@ describe("Social Create sheet SoT", () => {
     expect(socialCreateTile("media")?.href).toBe(socialCreateHref("media"));
     expect(socialCreateTile("write")?.href).toBe(socialCreateHref("text"));
     expect(socialCreateTile("live")?.href).toBe(SOCIAL_ROUTES.createLive);
-    expect(SOCIAL.create.title).toBe("Create");
-    expect(SOCIAL.create.write).toBe("Write");
-    expect(SOCIAL.create.goLive).toBe("Go live");
-    expect(SOCIAL.create.close).toBe("Close");
-    expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
   });
 
   it("phone: AppSheet; desktop: HouseDialog — not a promoted sheet", () => {

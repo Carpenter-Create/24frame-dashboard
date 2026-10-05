@@ -92,7 +92,6 @@ describe("SettingsPageLead", () => {
     expect(pageHeaderSrc).not.toContain("flex flex-col gap-1");
     expect(pageHeaderSrc).not.toContain("CaretLeft");
     expect(PAGE_LEAD_STACK_CLASS).toBe("flex flex-col gap-3");
-    expect(SETTINGS_PAGE_LEAD_BACK_CLASS).toBe("md:hidden");
 
     const editLead = renderToStaticMarkup(
       createElement(SettingsPageLead, {

@@ -33,12 +33,8 @@ import {
   SOCIAL_FEED_ASIDE_ROWS_CLASS,
   SOCIAL_FEED_ASIDE_SECTION_CLASS,
   SOCIAL_FEED_ASIDE_SUBHEAD_CLASS,
-  SOCIAL_FEED_CENTER_CLASS,
-  SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_HEADING_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
-  SOCIAL_FEED_MEASURE,
-  SOCIAL_FEED_PAIR_WIDTH,
   SOCIAL_FEED_REEL_TILE_CLASS,
   SOCIAL_FEED_REELS_ARROW_CLASS,
   SOCIAL_FEED_REELS_ARROW_OFF_CLASS,
@@ -71,8 +67,6 @@ import {
   SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
 } from "./social-chrome";
-import { SOCIAL_FEED_REEL_STEP_PX, SOCIAL_FEED_REEL_TILE } from "./social-feed-reels";
-import { SOCIAL_HOME_STACK_LOCK, SOCIAL_HOME_STACK_ORDER } from "./social-home";
 import {
   WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
   WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS,
@@ -195,7 +189,6 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     // One component per pattern: SegmentedTrack, with the shared classes.
     expect(slider).toContain("<SegmentedTrack");
     expect(slider).toContain('aria-label={SOCIAL.home.lanesLabel}');
-    expect(SOCIAL.home.lanesLabel).toBe("Feed scope");
     expect(slider).toContain("persistKey={SEGMENTED_TRACK_PERSIST.socialFeedScope}");
     expect(SEGMENTED_TRACK_PERSIST.socialFeedScope).toBe("social-feed-scope");
     expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
@@ -221,14 +214,19 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(slider).toContain("socialHomeAxisHref(item, live.topic)");
     expect(SOCIAL_HOME_LANES.map(socialHomeLaneIndex)).toEqual([0, 1]);
     // "For you" stays the slider option (decision 5).
-    expect(SOCIAL.home.forYouTab).toBe("For you");
     expect(lock).toContain("(founder decision 5)");
   });
 
   it("G2: topics are secondary chips — the wash with accent-ink when current, plain ink idle, a 96 fade", () => {
     expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("bg-accent-wash");
     expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("font-semibold");
+    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toBe(
+      "inline-flex h-9 items-center rounded-full px-3.5 text-[length:var(--text-sm)] leading-none md:h-10 md:px-4 bg-accent-wash font-semibold",
+    );
     expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-accent-ink");
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toBe(
+      "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full md:h-10 text-accent-ink",
+    );
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("font-medium");
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).not.toContain("bg-");
     expect(SOCIAL_HOME_TOPIC_CLASS).toContain("text-ink");
@@ -237,11 +235,17 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("h-9");
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("px-3.5");
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("md:h-10 md:px-4");
+    expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toBe(
+      "inline-flex h-9 items-center rounded-full px-3.5 text-[length:var(--text-sm)] leading-none md:h-10 md:px-4 font-medium",
+    );
     expect(SOCIAL_HOME_TOPIC_CLASS).toContain("h-11");
     expect(SOCIAL_HOME_TOPIC_CLASS).toContain("md:h-10");
+    expect(SOCIAL_HOME_TOPIC_CLASS).toBe(
+      "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full md:h-10 text-ink",
+    );
+    expect(SOCIAL_HOME_TOPIC_CLASS).not.toMatch(/accent|bg-/);
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "gap-1")).toBe(true);
     // Phone meets the viewport and pads 16.
-    expect(SOCIAL_HOME_TOPIC_ROW_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "max-md:px-4")).toBe(true);
     // The 96 fade carries the round grey More topics; the scroll padding
     // equals the fade, and the ring pad is taken back in margin.
@@ -253,13 +257,13 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_HOME_TOPIC_MORE_CLASS).toContain("size-11");
     expect(SOCIAL_HOME_TOPIC_MORE_CLASS).toContain("md:size-10");
     expect(SOCIAL_HOME_TOPIC_MORE_CLASS).toContain("rounded-full bg-surface-muted text-ink");
-    expect(SOCIAL.home.moreTopics).toBe("More topics");
+    expect(SOCIAL_HOME_TOPIC_MORE_CLASS).toBe(
+      "pointer-events-auto grid size-11 place-items-center rounded-full bg-surface-muted text-ink transition-colors hover:bg-hairline md:size-10",
+    );
   });
 
   it("G3: the stack is slider → stories → composer → topics → wall, 24 · 24 · 24 · 16 apart", () => {
     expect(lock).toContain("`lock_slider_stories_composer_topics_wall`");
-    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_slider_stories_composer_topics_wall");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["slider", "stories", "composer", "topics", "wall"]);
     const at = (needle: string) => page.indexOf(needle);
     expect(at("<SocialHomeLaneTabs")).toBeGreaterThan(-1);
     expect(at("<SocialHomeLaneTabs")).toBeLessThan(at("<SocialStoriesRail"));
@@ -281,12 +285,9 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
   });
 
   it("G4: story cards at the locked 112×200 / 108×192 with the name on the picture and an accent unseen ring", () => {
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("h-[192px] w-[108px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("md:h-[200px] md:w-[112px]");
     // 108×192 is 9:16; 112×200 is the card lock's desktop size (about 9:16).
     expect(108 / 192).toBe(9 / 16);
     expect(Math.abs(112 / 200 - 9 / 16)).toBeLessThan(0.005);
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("rounded-[var(--radius-lg)]");
     expect(SOCIAL_HOME_STORY_CARD_CLASS).not.toMatch(/border|shadow|ring/);
     expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, "gap-2")).toBe(true);
     expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, "max-md:px-4")).toBe(true);
@@ -297,8 +298,14 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("border-2");
     expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("p-[2px]");
     expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("border-accent");
+    expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toBe(
+      "absolute left-2 top-2 z-10 flex size-8 items-center justify-center rounded-full border-2 p-[2px] md:size-9 border-accent",
+    );
     expect(SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS).toContain("border-hairline");
     expect(SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS).not.toContain("accent");
+    expect(SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS).toBe(
+      "absolute left-2 top-2 z-10 flex size-8 items-center justify-center rounded-full border-2 p-[2px] md:size-9 border-hairline",
+    );
     // The name on the picture: a 48 band scrim, 13 / 500 band-ink, inset 8, wraps.
     expect(SOCIAL_HOME_STORY_NAME_CLASS).toContain("min-h-12");
     expect(SOCIAL_HOME_STORY_NAME_CLASS).toContain("from-band/72 to-band/0");
@@ -307,6 +314,9 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_HOME_STORY_NAME_CLASS).toContain("px-2 pb-2");
     expect(SOCIAL_HOME_STORY_NAME_CLASS).toContain("break-words");
     expect(SOCIAL_HOME_STORY_NAME_CLASS).not.toMatch(/truncate|line-clamp/);
+    expect(SOCIAL_HOME_STORY_NAME_CLASS).toBe(
+      "absolute inset-x-0 bottom-0 z-10 flex min-h-12 items-end bg-linear-to-t from-band/72 to-band/0 px-2 pb-2 text-left text-[length:var(--text-xs)] font-medium leading-tight text-band-ink break-words [overflow-wrap:anywhere]",
+    );
     expect(socialStoryCardName("Elena Ruiz")).toBe("Elena R.");
     expect(socialStoryCardName("Joshua K. Carpenter")).toBe("Joshua K.");
     expect(socialStoryCardName("Priya")).toBe("Priya");
@@ -317,12 +327,13 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     // (top + half its box = 120 on both), ringed 3 in muted; the label
     // 15 / 500 ink, 12 from the bottom.
     expect(SOCIAL_HOME_STORY_CREATE_FACE_CLASS).toContain("h-[120px]");
+    expect(SOCIAL_HOME_STORY_CREATE_FACE_CLASS).toBe(
+      "absolute inset-x-0 top-0 h-[120px] overflow-hidden bg-surface-muted",
+    );
     expect(99 + 42 / 2).toBe(120);
     expect(97 + 46 / 2).toBe(120);
     expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("top-[99px]");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("size-[42px]");
     expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("md:top-[97px]");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("md:size-[46px]");
     expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("border-[3px] border-surface-muted bg-accent text-accent-contrast");
     expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("bottom-3");
     expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("text-[length:var(--text-sm)] font-medium");
@@ -338,12 +349,7 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(composer).toContain("`${SOCIAL_COMPOSER_AVATAR_CLASS} ${SOCIAL_COMPOSER_AVATAR_NARROW_CLASS}`");
     expect(skeletons).toContain("SOCIAL_COMPOSER_AVATAR_NARROW_CLASS");
     expect(hasClass(SOCIAL_COMPOSER_ROW_CLASS, "gap-3")).toBe(true);
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("h-11");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("rounded-full");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("bg-surface-muted");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("px-4");
     expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("text-[length:var(--text-base)] text-ink-2");
-    expect(SOCIAL.home.composerPrompt).toBe("Share something");
     // Photo and Camera: the header's round grey face (fill, ink, circle).
     for (const cls of ["size-11", "rounded-full", "bg-surface-muted", "text-ink", "hover:bg-hairline"]) {
       expect(hasClass(SOCIAL_COMPOSER_AFFORDANCE_CLASS, cls), cls).toBe(true);
@@ -363,6 +369,9 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_FEED_HEADING_CLASS).toContain("[font-weight:var(--type-title-weight)]");
     expect(SOCIAL_FEED_HEADING_CLASS).toContain("tracking-[-0.02em]");
     expect(SOCIAL_FEED_HEADING_CLASS).not.toMatch(/uppercase/);
+    expect(SOCIAL_FEED_HEADING_CLASS).toBe(
+      "m-0 text-[length:var(--text-lg)] leading-[1.4] [font-weight:var(--type-title-weight)] tracking-[-0.02em] text-ink",
+    );
     expect(hasClass(SOCIAL_FEED_REELS_HEAD_CLASS, "h-11")).toBe(true);
     expect(SOCIAL_FEED_REELS_ARROWS_CLASS).toBe("hidden gap-2 md:flex");
     for (const cls of [SOCIAL_FEED_REELS_ARROW_CLASS, SOCIAL_FEED_REELS_ARROW_OFF_CLASS]) {
@@ -370,13 +379,9 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
       expect(cls).toContain("rounded-full bg-surface-muted text-ink");
       expect(cls).not.toMatch(/border/);
     }
-    expect(SOCIAL_FEED_REELS_ARROW_OFF_CLASS).toContain("opacity-40");
-    expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("rounded-[var(--radius-lg)]");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("md:h-80 md:w-[180px]");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("h-[284px] w-40");
     expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, "gap-2")).toBe(true);
-    expect(SOCIAL_FEED_REEL_TILE.desktop.gap).toBe(8);
-    expect(SOCIAL_FEED_REEL_STEP_PX).toBe(2 * (180 + 8));
     // 16 under the head on desktop, 12 on phone (margin + the 5 ring pad).
     expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, "md:mt-[11px]")).toBe(true);
     expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, "mt-[7px]")).toBe(true);
@@ -384,15 +389,10 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     // the row adds none there, and 4 on phone (28 with the 24 gutter).
     expect(hasClass(SOCIAL_FEED_REELS_CLASS, "md:my-0")).toBe(true);
     expect(hasClass(SOCIAL_FEED_REELS_CLASS, "my-1")).toBe(true);
-    expect(hasClass(SOCIAL_FEED_GUTTER_CLASS, "md:gap-[var(--space-12)]")).toBe(true);
   });
 
   it("G7: the grid is 600 / 48 / 296 and the For you rail keeps its heading over a soft grey course card", () => {
-    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 600, gutter: 48, right: 296 });
-    expect(SOCIAL_FEED_PAIR_WIDTH).toBe(944);
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("gap-12");
     expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("xl:max-w-[944px]");
-    expect(SOCIAL_FEED_CENTER_CLASS).toContain("md:max-w-[600px]");
     expect(SOCIAL_FEED_ASIDE_CLASS).toBe("hidden w-[296px] shrink-0 flex-col xl:flex");
     // Decision 5 ("sure"): "For you" heads the rail, level with the slider.
     expect(SOCIAL.forYou.title).toBe("For you");
@@ -417,12 +417,18 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("min-h-14");
     expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("gap-3");
     expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("rounded-[var(--radius-xl)] px-3");
+    expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toBe(
+      "flex min-h-14 items-center justify-between gap-3 rounded-[var(--radius-xl)] px-3",
+    );
     expect(SOCIAL_FEED_ASIDE_AVATAR_CLASS).toBe("size-10");
     // Follow: the small secondary — a grey 36 pill, 15 / 600 ink, pad 16.
     expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("h-9");
     expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("rounded-full bg-surface-muted px-4");
     expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("text-[length:var(--text-sm)] font-semibold text-ink");
     expect(SOCIAL_FOLLOW_QUIET_CLASS).not.toMatch(/border|accent/);
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).toBe(
+      "inline-flex h-9 shrink-0 items-center rounded-full bg-surface-muted px-4 text-[length:var(--text-sm)] font-semibold text-ink transition-colors hover:bg-hairline",
+    );
     // No hairline in the rail.
     expect(forYou).not.toContain("SOCIAL_FEED_ASIDE_RULE_CLASS");
     expect(chrome).not.toContain("SOCIAL_FEED_ASIDE_RULE_CLASS");

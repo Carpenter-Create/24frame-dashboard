@@ -7,7 +7,6 @@ import {
   SOCIAL_STORY_PROGRESS_FILL_CLASS,
   SOCIAL_STORY_SHUTTER_CLASS,
   SOCIAL_STORY_STAGE_CLASS,
-  SOCIAL_STORY_STILL_PROGRESS_MS,
 } from "@/lib/social-chrome";
 
 const css = readFileSync("src/app/globals.css", "utf8");
@@ -22,7 +21,6 @@ describe("rich calm visual register v1.4", () => {
     expect(SOCIAL_STORY_ACTIVATE_NEXT_CLASS).toBe("social-story-activate");
     expect(SOCIAL_STORY_ACTIVATE_PREV_CLASS).toBe("social-story-activate-prev");
     expect(SOCIAL_STORY_PROGRESS_FILL_CLASS).toBe("social-story-progress");
-    expect(SOCIAL_STORY_STILL_PROGRESS_MS).toBe(5000);
     expect(css).not.toContain("social-story-stage-in");
     expect(motion).toContain("animation: social-story-activate 220ms ease-out both");
     expect(motion).toContain("animation: social-story-open-settle 220ms ease-out both");

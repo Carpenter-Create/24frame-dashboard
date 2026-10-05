@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { SOCIAL_STORY_STILL_PROGRESS_MS } from "@/lib/social-chrome";
 import {
   SOCIAL_STORY_HOLD_TAP_MS,
   SOCIAL_STORY_SWIPE_PX,
@@ -24,10 +23,6 @@ function author(id: string, items: string[]): SocialStoryTrayAuthor {
 const tray = [author("a", ["a1", "a2"]), author("b", ["b1"])];
 
 describe("story tray", () => {
-  it("keeps a still at 5000ms", () => {
-    expect(SOCIAL_STORY_STILL_PROGRESS_MS).toBe(5000);
-  });
-
   it("advances within the author, then to the next author, then closes", () => {
     expect(storyTrayStep(tray, { author: 0, item: 0 }, "next")).toEqual({ author: 0, item: 1 });
     expect(storyTrayStep(tray, { author: 0, item: 1 }, "next")).toEqual({ author: 1, item: 0 });

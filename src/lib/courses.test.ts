@@ -145,16 +145,10 @@ describe("course routes and copy", () => {
   it("uses Education land copy on Route A and stays browse-only", () => {
     expect(educationCourseHref("welcome-to-24frame")).toBe("/education/welcome-to-24frame");
     expect(courseHref("social-education")).toBe("/education/social-education");
-    expect(SOCIAL.courses.title).toBe("Education");
     expect(SOCIAL.courses.subtitle).toBe(`Education in ${PRODUCT_NAME}.`);
-    expect(SOCIAL.courses.subtitle).not.toContain("Social+Education");
     expect(SOCIAL.courses.subtitle).not.toMatch(/placeholder/i);
-    expect(SOCIAL.courses.empty).toBe("Nothing here yet.");
-    expect(SOCIAL.courses.playlist).toBe("Playlist");
-    expect(SOCIAL.courses.lessonOne).toBe("1 lesson");
     expect(SOCIAL.courses.lessons).toBe("lessons");
     expect(SOCIAL.courses.progressComplete).toBe("complete");
-    expect(SOCIAL.courses.error).toBe("Education could not be loaded.");
     expect(SOCIAL.courses.denied).toBe("This course is not available.");
     expect(SOCIAL.courses.denied).not.toMatch(/LOCKED|Buy|price/i);
     expect(JSON.stringify(SOCIAL.courses)).not.toMatch(/—/);

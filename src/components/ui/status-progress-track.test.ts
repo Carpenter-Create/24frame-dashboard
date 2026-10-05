@@ -2,9 +2,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { STATUS_PROGRESS_SEG_ON_CLASS } from "@/lib/status-progress";
+import { STATUS_PROGRESS_SEG_ON_CLASS, TITLE_STATUS_TRACK_STEPS } from "@/lib/status-progress";
 
 import { StatusProgressTrack } from "./status-progress-track";
+import { TITLE_STATUS_LABELS } from "@/lib/titles";
 
 function renderTitle(status: string, liveCount = 0) {
   return renderToStaticMarkup(
@@ -26,7 +27,7 @@ describe("StatusProgressTrack", () => {
     expect(html).toContain("gap-1.5");
     expect(html).toContain("t-body-sm text-ink-3");
     expect(html).not.toContain("t-label");
-    expect(html).toContain("In review");
+    expect(html).toContain(TITLE_STATUS_TRACK_STEPS[2]);
     expect(html.indexOf("data-status-progress-label")).toBeLessThan(
       html.indexOf("data-status-progress-track"),
     );
@@ -37,7 +38,7 @@ describe("StatusProgressTrack", () => {
   it("renders official off-pipeline as a muted badge with no track", () => {
     const html = renderTitle("takedown_requested");
     expect(html).toContain('data-status-progress-variant="off"');
-    expect(html).toContain("Takedown requested");
+    expect(html).toContain(TITLE_STATUS_LABELS.takedown_requested);
     expect(html).toContain("border-hairline");
     expect(html).not.toContain("data-status-progress-track");
     expect(html).not.toContain(STATUS_PROGRESS_SEG_ON_CLASS);
