@@ -19,7 +19,8 @@ import {
   SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
-  SOCIAL_FEED_ROW_CLASS,
+  SOCIAL_POST_CLASS,
+  SOCIAL_POST_TEXT_CARD_CLASS,
 } from "@/lib/social-chrome";
 
 const dockSrc = readFileSync("src/lib/house-phone-dock.ts", "utf8");
@@ -28,10 +29,10 @@ const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 const socialChrome = readFileSync("src/lib/social-chrome.ts", "utf8");
 const explore = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
 
-/** Pill h-12 + dock float + house 16. Safe-area replaces the 16px float
- *  (the board's bottom 16, screening chrome; was 12). */
+/** Pill h-14 (the Coinbase-register 56; was h-12) + dock float + house
+ *  16. Safe-area replaces the 16px float (the board's bottom 16). */
 const HOUSE_PHONE_DOCK_CLEARANCE_FORMULA =
-  "--house-phone-dock-clearance: calc(3rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));";
+  "--house-phone-dock-clearance: calc(3.5rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));";
 
 describe("phone dock clearance", () => {
   it("keeps one length: pill + float + house 16, and emits static utilities", () => {
@@ -62,8 +63,10 @@ describe("phone dock clearance", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).not.toContain("max(12px");
     const float = HOUSE_PHONE_BOTTOM_NAV_CLASS.match(/pb-\[max\((\d+px),env\(safe-area-inset-bottom\)\)\]/)?.[1];
     expect(float).toBe("16px");
-    expect(tokens).toContain(`calc(3rem + max(${float}, env(safe-area-inset-bottom)) + var(--space-4))`);
-    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-12");
+    // The clearance carries the 56 pill (3.5rem) and the same float.
+    expect(tokens).toContain(`calc(3.5rem + max(${float}, env(safe-area-inset-bottom)) + var(--space-4))`);
+    expect(tokens).not.toContain("calc(3rem + max(");
+    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-14");
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("rounded-full");
   });
 
@@ -98,10 +101,13 @@ describe("phone dock clearance", () => {
     );
     expect(shell).toContain("cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad");
     expect(shell).toContain('data-house-lead-scroll=""');
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS}`);
+    // H · Posts: the wall is 24 / 48; no post carries dock chrome.
+    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS} md:gap-[var(--space-12)]`);
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("house-phone-dock-clearance");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("house-phone-dock-clearance");
+    for (const post of [SOCIAL_POST_CLASS, SOCIAL_POST_TEXT_CARD_CLASS]) {
+      expect(post).not.toContain(HOUSE_MODULE_CLASS);
+      expect(post).not.toContain("border-y-2");
+      expect(post).not.toContain("house-phone-dock-clearance");
+    }
   });
 });

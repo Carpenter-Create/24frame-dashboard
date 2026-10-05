@@ -50,6 +50,8 @@ export const SEGMENTED_TRACK_PERSIST = {
   phoneDest: "phone-dest",
   newsSource: "news-source",
   socialActivity: "social-activity",
+  // Feed Following / For you (the primary pill slider, H register).
+  socialFeedScope: "social-feed-scope",
 } as const;
 
 export type SegmentedVisualPersist = {

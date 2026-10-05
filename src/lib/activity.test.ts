@@ -269,9 +269,12 @@ describe("Activity bell cap", () => {
     expect(ACTIVITY_PAGE).not.toHaveProperty("view");
     expect(ACTIVITY_PAGE).not.toHaveProperty("markAllDone");
     expect(ACTIVITY_BELL_TRIGGER_CLASS).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
-    expect(ACTIVITY_BELL_TRIGGER_CLASS).toContain("hover:bg-surface-muted");
+    // H register: the round grey 44 (muted fill), one stop darker on
+    // hover and while open; unread is an accent dot, never a count.
+    expect(ACTIVITY_BELL_TRIGGER_CLASS).toContain("bg-surface-muted");
+    expect(ACTIVITY_BELL_TRIGGER_CLASS).toContain("hover:bg-hairline");
     expect(ACTIVITY_BELL_TRIGGER_CLASS).toContain("rounded-full");
-    expect(ACTIVITY_BELL_TRIGGER_OPEN_CLASS).toBe("bg-surface-muted");
+    expect(ACTIVITY_BELL_TRIGGER_OPEN_CLASS).toBe("bg-hairline");
     expect(ACTIVITY_BELL_OPEN_DOT_CLASS).toContain("bg-accent");
     expect(ACTIVITY_BELL_POPOVER_CLASS).toContain("border-hairline");
     expect(ACTIVITY_BELL_POPOVER_CLASS).toContain("bg-surface");

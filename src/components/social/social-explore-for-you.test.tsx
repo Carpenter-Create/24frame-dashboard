@@ -277,12 +277,16 @@ describe("SocialExploreForYouStream", () => {
     const exitTag = exitHtml.slice(exitHtml.lastIndexOf("<", exitOpen), exitHtml.indexOf(">", exitOpen) + 1);
     expect(exitTag.startsWith("<a ")).toBe(true);
     expect(exitTag).toContain('href="/social"');
-    // Screening chrome: a 34 muted chip, radius 10, ink label.
-    expect(exitTag).toContain("rounded-[var(--radius)]");
+    // H register: the secondary grey pill — 44, radius full, a 20 X,
+    // "Exit" 17 / 600 ink (supersedes the screening chrome's 34 chip).
+    expect(exitTag).toContain("rounded-full");
+    expect(exitTag).not.toContain("rounded-[var(--radius)]");
     expect(exitTag).toContain("bg-surface-muted");
     expect(exitTag).toContain("text-ink");
+    expect(exitTag).toContain("text-[length:var(--text-base)] font-semibold");
     expect(exitTag).not.toContain("bg-ink");
     expect(exitTag).toContain("min-h-[var(--header-desktop-control-size)]");
+    expect(exitHtml).toContain('width="20"');
     expect(exitTag).toContain("md:inline-flex");
     expect(exitTag).toContain("hidden");
     expect(exitHtml).toContain(">Exit<");

@@ -76,6 +76,9 @@ export const ACTIVITY_PAGE = {
   viewAll: "View all",
   truncated: `Showing the first ${UNPAGINATED_MAX} alerts. More exist — this list is not complete.`,
   bellLabel: "Notifications",
+  // Accessible name while anything is unread (the board's
+  // "Notifications, new"); the dot is the visible cue.
+  bellLabelNew: "Notifications, new",
   bellEmpty: "You're all caught up.",
   close: "Close notifications",
   navAria: "Notifications",
@@ -94,14 +97,21 @@ export const ACTIVITY_LEAD_ROW_CLASS =
 // so labels stay whole. Never ellipsis.
 export const ACTIVITY_FAMILY_SCROLL_CLASS = "no-scrollbar overflow-x-auto";
 
-// House circular icon hit + soft ghost wash on hover / open.
-// Phone hug lives on HOUSE_HEADER_TRAILING_HIT_CLASS (via theme
-// toggle) so the bell is a flex sibling of Ask and the avatar.
-// That hug is the size-4 box — not padding cancelled with -mx.
-// Sporty Blue stays off the trigger — accent is the open-row dot.
-export const ACTIVITY_BELL_TRIGGER_CLASS =
-  `${HOUSE_THEME_TOGGLE_CLASS} relative hover:bg-surface-muted`;
-export const ACTIVITY_BELL_TRIGGER_OPEN_CLASS = "bg-surface-muted";
+// The round grey 44 (HOUSE_THEME_TOGGLE_CLASS, H register):
+// a flex sibling of Ask and the avatar. Hover and open step the fill to
+// the hairline grey. Sporty Blue stays off the trigger itself — accent
+// is the unread dot (ACTIVITY_BELL_UNREAD_DOT_CLASS) and the open-row
+// dot.
+export const ACTIVITY_BELL_TRIGGER_CLASS = `${HOUSE_THEME_TOGGLE_CLASS} relative`;
+export const ACTIVITY_BELL_TRIGGER_OPEN_CLASS = "bg-hairline";
+// Unread: a 10 accent dot with a 2px page-colour ring (14 box), 6 in
+// from the 44 circle's top-right (the board). Never a count, never red.
+export const ACTIVITY_BELL_UNREAD_DOT_CLASS =
+  "pointer-events-none absolute right-1.5 top-1.5 size-3.5 rounded-full border-2 border-bg bg-accent";
+
+export function activityBellLabel(unread: number): string {
+  return unread > 0 ? ACTIVITY_PAGE.bellLabelNew : ACTIVITY_PAGE.bellLabel;
+}
 export const ACTIVITY_BELL_OPEN_DOT_CLASS = "size-2 shrink-0 rounded-full bg-accent";
 // Desktop peek reuses the house panel already used by Reports scope.
 // Phone peek is the house app-sheet — same host + surface as the

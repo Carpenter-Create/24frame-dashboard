@@ -5,10 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { InlineNotice } from "@/components/ui/inline-notice";
-import { cn } from "@/lib/cn";
-import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import {
-  displayHandle,
   SOCIAL,
   socialFeedRelativeTime,
   socialGroupHref,
@@ -17,19 +14,24 @@ import {
 } from "@/lib/social";
 import { type SocialPostCardModel } from "@/lib/social-author-post-card";
 import {
-  SOCIAL_FEED_ACTIONS_META_CLASS,
-  SOCIAL_FEED_AUTHOR_EDGE_CLASS,
-  SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
-  SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS,
-  SOCIAL_FEED_META_EDGE_CLASS,
-  SOCIAL_FEED_META_ROW_GAP_CLASS,
-  SOCIAL_FEED_ROW_CLASS,
-  SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
-  SOCIAL_POST_ACTION_HIT_CLASS,
-  SOCIAL_POST_ACTIONS_CLASS,
-  SOCIAL_POST_ACTIONS_OPTICAL_CLASS,
-  SOCIAL_POST_TIME_CLASS,
+  SOCIAL_POST_AUTHOR_CLASS,
+  SOCIAL_POST_GROUP_CLASS,
+  SOCIAL_POST_LIKE_CLASS,
+  SOCIAL_POST_MORE_SLOT_CLASS,
+  SOCIAL_POST_NAME_CLASS,
+  SOCIAL_POST_NAME_STACK_CLASS,
+  SOCIAL_POST_ROUND_GLYPH,
+  SOCIAL_POST_WHO_CLASS,
+  socialPostActionsClass,
+  socialPostAvatarEmptyClass,
+  socialPostBodyClass,
+  socialPostClass,
+  socialPostFootClass,
+  socialPostKind,
+  socialPostRoundClass,
+  socialPostTimeClass,
+  type SocialPostSurface,
 } from "@/lib/social-chrome";
 
 import { SocialAvatar } from "./social-avatar";
@@ -83,23 +85,21 @@ export function SocialPostCard({
   permalink?: boolean;
   muxBandId?: string;
 }) {
-  // One card at every breakpoint.
-  // Text + media: docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
-  //   author → media → actions → likes → caption → comments when N > 0
-  //   → under-post time, the last chrome line, then the post-separation air.
-  // Text-only: author → actions → likes → caption → comments when N > 0 → time.
-  // Media-only: author → media → actions → likes → time.
-  // Time is not author-row meta. Nh / Nd. No clock.
-  // docs/design-locks/social-feed-under-post-time-lock-v1.md
-  // docs/design-locks/social-home-post-separation-lock-v1.md
-  // docs/design-locks/social-home-craft-wave-1-lock-v1.md
-  // Two or more media items (Adam lock 2026-09-25): that media face is one
-  // full-bleed swipe carousel with dots and N of M. No collage.
-  // Forbidden: FB reaction pile, labeled action bar, clock time, share count, collage.
-  const media = post.media.length > 0;
+  // H · Posts (founder 2026-10-05; H §5.1). One face at every breakpoint,
+  // everywhere this card renders:
+  //   media (the card itself) → credit row (40 avatar, name, time; the
+  //   round grey Like · Comment · Share with counts beside, the quiet ⋯)
+  //   → caption (17 / 420 ink-2, never clamped).
+  // Text-only: the soft grey card → credit row → the body at 20 / 480.
+  // Phone: the media meets the viewport; the actions take their own row
+  // under the caption. No role line until members choose one.
+  // docs/design-locks/social-feed-register-lock-v1.md §7
+  // Two or more media items (Adam lock 2026-09-25): one swipe carousel
+  // with dots and the counter chip. No collage.
+  const kind = socialPostKind(post.media);
+  const surface: SocialPostSurface = kind === "text" ? "card" : "page";
   const [immersiveIndex, setImmersiveIndex] = useState<number | null>(null);
   const closeImmersive = useCallback(() => setImmersiveIndex(null), []);
-  const handle = post.authorHandle ? displayHandle(post.authorHandle).slice(1) : post.authorName;
   const href = socialPostHref(post.id);
   const thread = {
     id: post.id,
@@ -107,109 +107,105 @@ export function SocialPostCard({
     groupSlug: post.groupSlug,
     canComment: post.canLike,
   };
+  const timeClass = socialPostTimeClass(surface);
   const time = (
-    <time dateTime={post.createdAt} data-social-post-time="" className={SOCIAL_POST_TIME_CLASS}>
+    <time dateTime={post.createdAt} data-social-post-time="">
       {socialFeedRelativeTime(post.createdAt)}
     </time>
+  );
+  const author = (
+    <>
+      <SocialAvatar
+        name={post.authorName}
+        photoUrl={post.authorPhotoUrl}
+        size="post"
+        emptyClassName={socialPostAvatarEmptyClass(surface)}
+      />
+      {/* The role eyebrow's slot heads this stack once members choose a
+          main role ("Members choose one; no line until they do"). */}
+      <span data-social-post-name="" className={SOCIAL_POST_NAME_STACK_CLASS}>
+        <span className={SOCIAL_POST_NAME_CLASS}>{post.authorName}</span>
+      </span>
+    </>
   );
   return (
     <SocialPostPresence postId={post.id}>
     <article
       data-social-post={post.id}
+      data-social-post-kind={kind}
       data-social-post-owned={post.owned ? "" : undefined}
       data-social-post-href={permalink ? href : undefined}
-      className="block min-w-0 shrink-0"
+      className={socialPostClass(kind)}
     >
-      <div className={SOCIAL_FEED_ROW_CLASS}>
-      <div className={cn("flex min-w-0 items-center gap-2.5", SOCIAL_FEED_AUTHOR_EDGE_CLASS)}>
-        <SocialAvatar name={post.authorName} photoUrl={post.authorPhotoUrl} size="sm" />
-        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
-          {post.authorHandle ? (
-            <Link
-              href={socialMemberHref(post.authorHandle)}
-              className="min-w-0 break-words t-body-sm font-semibold text-ink"
-            >
-              {post.authorName}
-            </Link>
-          ) : (
-            <span className="min-w-0 break-words t-body-sm font-semibold text-ink">{post.authorName}</span>
-          )}
-          {post.groupSlug && post.groupName ? (
-            <>
-              <span className="t-label text-ink-2" aria-hidden>
-                ·
-              </span>
-              <Link href={socialGroupHref(post.groupSlug)} className="min-w-0 break-words t-label text-ink-2">
-                {post.groupName}
-              </Link>
-            </>
-          ) : null}
-        </div>
-        {post.owned ? (
-          <SocialPostOwnerMenu
-            postId={post.id}
-            body={post.body}
-            hasMedia={media}
-            groupSlug={post.groupSlug}
-          />
-        ) : null}
-      </div>
-      {media ? (
-        <SocialPostMedia items={post.media} onOpen={setImmersiveIndex} muxBandId={muxBandId} />
+      {kind !== "text" ? (
+        <SocialPostMedia
+          items={post.media}
+          onOpen={setImmersiveIndex}
+          muxBandId={muxBandId}
+          topic={post.topic ?? null}
+        />
       ) : null}
       {immersiveIndex != null ? (
         <SocialFeedImmersive post={post} index={immersiveIndex} onClose={closeImmersive} />
       ) : null}
-      <div
-        className={cn(
-          SOCIAL_FEED_ACTIONS_META_CLASS,
-          SOCIAL_FEED_META_EDGE_CLASS,
-          media ? SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS : SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS,
-        )}
-      >
-        <div
-          data-social-post-actions=""
-          className={cn(SOCIAL_POST_ACTIONS_CLASS, SOCIAL_POST_ACTIONS_OPTICAL_CLASS)}
-        >
-          {post.canLike ? (
-            <SocialLikeButton
-              postId={post.id}
-              liked={post.liked}
-              likeCount={post.likeCount}
-              groupSlug={post.groupSlug ?? undefined}
-              icon
-            />
+      <div data-social-post-credit="" className={socialPostFootClass(kind)}>
+        <div className={SOCIAL_POST_WHO_CLASS}>
+          {post.authorHandle ? (
+            <Link href={socialMemberHref(post.authorHandle)} className={SOCIAL_POST_AUTHOR_CLASS}>
+              {author}
+            </Link>
           ) : (
-            <span className={SOCIAL_POST_ACTION_HIT_CLASS}>
-              <SocialIcon
-                name="heart"
-                size={SOCIAL_ICON_SIZE_POST_ACTION}
-                className={SOCIAL_POST_ACTION_HEART_NUDGE_CLASS}
-              />
-            </span>
+            <span className={SOCIAL_POST_AUTHOR_CLASS}>{author}</span>
           )}
-          <SocialCommentTrigger post={thread} icon />
-          <SocialPostShareButton postId={post.id} />
-        </div>
-        <div className={SOCIAL_FEED_META_ROW_GAP_CLASS}>
-          <SocialLikeCount postId={post.id} liked={post.liked} likeCount={post.likeCount} />
-          <SocialPostCaptionPlace
-            postId={post.id}
-            serverBody={post.body}
-            href={href}
-            permalink={permalink}
-            handle={handle}
-          />
-          <SocialCommentTrigger post={thread} />
           {permalink ? (
-            <Link href={href} className="self-start">
+            <Link href={href} className={timeClass}>
               {time}
             </Link>
           ) : (
-            time
+            <span className={timeClass}>{time}</span>
           )}
+          {post.groupSlug && post.groupName ? (
+            <Link href={socialGroupHref(post.groupSlug)} className={SOCIAL_POST_GROUP_CLASS}>
+              <span aria-hidden>· </span>
+              {post.groupName}
+            </Link>
+          ) : null}
         </div>
-      </div>
+        <div data-social-post-actions="" className={socialPostActionsClass(kind)}>
+          <span className={SOCIAL_POST_LIKE_CLASS}>
+            {post.canLike ? (
+              <SocialLikeButton
+                postId={post.id}
+                liked={post.liked}
+                likeCount={post.likeCount}
+                groupSlug={post.groupSlug ?? undefined}
+                round={surface}
+              />
+            ) : (
+              <span className={socialPostRoundClass(surface)}>
+                <SocialIcon name="heart" size={SOCIAL_POST_ROUND_GLYPH} />
+              </span>
+            )}
+            <SocialLikeCount postId={post.id} liked={post.liked} likeCount={post.likeCount} />
+          </span>
+          <SocialCommentTrigger post={thread} round={surface} />
+          <SocialPostShareButton postId={post.id} round={surface} />
+        </div>
+        {post.owned ? (
+          <span className={SOCIAL_POST_MORE_SLOT_CLASS}>
+            <SocialPostOwnerMenu
+              postId={post.id}
+              body={post.body}
+              hasMedia={kind !== "text"}
+              groupSlug={post.groupSlug}
+            />
+          </span>
+        ) : null}
+        <SocialPostCaptionPlace
+          postId={post.id}
+          serverBody={post.body}
+          className={socialPostBodyClass(kind)}
+        />
       </div>
     </article>
     </SocialPostPresence>

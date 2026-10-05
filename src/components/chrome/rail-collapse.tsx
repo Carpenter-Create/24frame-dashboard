@@ -12,8 +12,10 @@ import {
 
 // One house collapse control. Aggregation · Education · Social · Staff ·
 // Home all mount this — do not invent a Social-only sticker chevron.
-// Screening chrome: SideNav places it in the menu's top row beside the
-// workspace eyebrow (28 box); collapsed, it heads the 64 column (40×32).
+// H register: AppShell places it at the bottom of the side menu
+// (a quiet 44 round button, « 20 ink-2); collapsed, centred at the
+// bottom of the 80 column (»). One <button> in both states, in one
+// slot, so React keeps the node and keyboard focus stays on it.
 export function RailCollapse({
   collapsed,
   onToggle,

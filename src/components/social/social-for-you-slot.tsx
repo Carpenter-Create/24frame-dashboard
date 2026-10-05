@@ -17,9 +17,12 @@ type SignCourseCovers = (
 export async function SocialDesktopForYouSlot({
   session,
   signCourseCovers,
+  layout = "rail",
 }: {
   session: SocialSession;
   signCourseCovers?: SignCourseCovers;
+  /** "aside": the Feed's borderless D aside. Other routes keep the rail. */
+  layout?: "rail" | "aside";
 }) {
   const { ctx, supabase } = session;
   const [profile, followees] = await Promise.all([
@@ -42,6 +45,7 @@ export async function SocialDesktopForYouSlot({
   ]);
   return (
     <SocialForYouRail
+      layout={layout}
       people={suggested}
       faces={faces}
       latestCourse={latestCourse}

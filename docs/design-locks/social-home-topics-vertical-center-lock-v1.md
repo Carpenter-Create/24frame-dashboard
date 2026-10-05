@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-24 (CT)  
 **Status:** **LOCKED** (Adam PASS composer v1.6 same-turn · Topics pills perfect vertical center in section · equal air top/bottom · tip-first CLEAR · Design thin lock parallel/after · no invent) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · Design HOLD invent else  
+**Superseded (Adam 2026-10-04, G · Feed):** the 32 topic chip is gone; the topic row is D plain words (30 desktop, 44 phone) under E's tabs. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
 **Repo citation:** `docs/design-locks/social-home-topics-vertical-center-lock-v1.md`  
 **Box draft:** `/workspace/24frame-agg-ux/social-home-topics-vertical-center-lock-v1.md`  
 **Keeps:** Topics chip height **32** from `social-home-spine-density-lock-v1.1.md` §C · Share something / composer v1.6 · mobile full-bleed lock when seeded  

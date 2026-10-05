@@ -12,15 +12,19 @@ import {
   workspaceWaffleIntentPrefetchHrefs,
   WORKSPACE_WAFFLE_HOME,
   workspaceWaffleHomeDest,
-  WORKSPACE_SWITCHER_LANES_CLASS,
-  WORKSPACE_SWITCHER_LANE_CLASS,
-  WORKSPACE_SWITCHER_LANE_OFF_CLASS,
-  WORKSPACE_SWITCHER_LANE_ON_CLASS,
+  WORKSPACE_SWITCHER_SEGMENT_CLASS,
+  WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS,
+  WORKSPACE_SWITCHER_SEGMENT_ON_CLASS,
+  WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
+  WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS,
+  WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_BARE_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT,
+  WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS,
   selectWorkspaceLane,
   workspaceSliderSegments,
-  workspaceSwitcherLaneClass,
+  workspaceSwitcherSegmentClass,
   workspaceSwitcherNextSegmentIndex,
   workspaceSwitcherPersistLane,
   workspaceSwitcherTriggerLabel,
@@ -58,7 +62,11 @@ import {
   workspaceWaffleTiles,
 } from "./workspace-switcher";
 import { persistWorkspaceCookie, workspaceHome } from "./workspace";
-import { HOUSE_SEGMENTED_ITEM_ON_CLASS, HOUSE_SEGMENTED_THUMB_CLASS } from "./house-shell";
+import {
+  HOUSE_SEGMENTED_ITEM_ON_CLASS,
+  HOUSE_SEGMENTED_THUMB_CLASS,
+  HOUSE_SEGMENTED_TRACK_CLASS,
+} from "./house-shell";
 
 const src = readFileSync("src/lib/workspace-switcher.ts", "utf8");
 
@@ -113,18 +121,23 @@ describe("workspace switcher lock", () => {
     }
     expect(src).not.toContain('tone === "pill"');
     expect(src).not.toContain("presentation: \"pills\"");
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toBe("hidden md:contents");
-    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("shrink-0 md:hidden");
-    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).not.toContain("md:contents");
-    // Screening chrome: lanes are plain words — no track, no pill.
-    expect(WORKSPACE_SWITCHER_LANES_CLASS).not.toContain("rounded-full");
-    expect(WORKSPACE_SWITCHER_LANES_CLASS).not.toContain("bg-surface-muted");
-    expect(workspaceSwitcherLaneClass(true)).toContain("text-ink");
-    expect(workspaceSwitcherLaneClass(true)).not.toContain("text-white");
-    expect(workspaceSwitcherLaneClass(false)).toContain("text-ink-3 dark:text-ink-2");
+    // Coinbase register: the slider from lg; the grey pill below lg
+    // (phone and md to lg, where the slider cannot fit beside the 240
+    // side menu and the trailing controls).
+    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toBe("hidden lg:contents");
+    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("shrink-0 lg:hidden");
+    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).not.toContain("lg:contents");
+    // The slider is the house muted track; the thumb is ink, not accent.
+    expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toBe(HOUSE_SEGMENTED_TRACK_CLASS);
+    expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toContain("rounded-full bg-surface-muted");
+    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toContain("bg-ink");
+    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).not.toContain("bg-accent");
+    expect(workspaceSwitcherSegmentClass(true)).toContain("text-bg");
+    expect(workspaceSwitcherSegmentClass(true)).not.toContain("text-white");
+    expect(workspaceSwitcherSegmentClass(false)).toContain("text-ink");
     expect(workspaceSwitcherNextSegmentIndex(0, 3, -1)).toBe(2);
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("relative");
-    expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).toBe("bg-surface-muted");
+    expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).toBe("bg-hairline");
     expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).not.toContain("bg-accent");
   });
 
@@ -157,10 +170,12 @@ describe("workspace switcher lock", () => {
   });
 
   it("keeps header cluster air and does not host a workspace pill", () => {
-    // Screening chrome: 8 on both faces (phone emblem → grid button;
-    // desktop mark · hairline · lanes · Exit); md+ stretches to the bar.
+    // Coinbase register: phone 8 (emblem → pill), desktop 16 (mark →
+    // switcher → Exit). md+ the lead is its own width and never shrinks.
     expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).toContain("md:self-stretch");
+    expect(APP_HEADER_LEADING_CLASS).toContain("md:gap-[var(--space-4)]");
+    expect(APP_HEADER_LEADING_CLASS).toContain("md:flex-none md:shrink-0");
+    expect(APP_HEADER_LEADING_CLASS).not.toContain("md:self-stretch");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-3)]");
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
@@ -170,19 +185,19 @@ describe("workspace switcher lock", () => {
     expect(WORKSPACE_SWITCHER_HOST_CLASS).toBe("relative min-w-0 overflow-visible");
     expect(WORKSPACE_SWITCHER_HOST_CLASS).not.toMatch(/overflow-hidden/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("shrink-0");
-    // Phone hits abut; desktop controls are 8 apart (screening chrome).
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    // Coinbase register: phone hits 4 apart; desktop controls 8 apart.
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(/(?:^|\s)gap-0(?:\s|$)/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(/\d+px/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("min-w-0");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("max-md:shrink-0");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
-    expect(src).toContain("Phone hits abut (no gap); desktop");
+    expect(src).toContain("Phone hits 4 apart; desktop");
     expect(src).not.toContain("--space-2 on every breakpoint");
     const phoneGap = APP_HEADER_LEADING_CLASS.match(
       /(?<![a-z0-9:-])gap-\[var\((--space-\d+)\)\]/,
@@ -327,16 +342,20 @@ describe("workspace switcher lock", () => {
       expect(label).not.toBe("Team");
     }
     expect(APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS).toContain("md:hidden");
-    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe("hidden w-[232px] shrink-0 xl:flex");
+    // Coinbase register: the wide grey pill flexes 240–360 from xl.
+    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe(
+      "hidden min-w-[240px] max-w-[360px] flex-[0_1_360px] xl:flex",
+    );
+    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("w-[232px]");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("flex-1");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("w-[420px]");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("md:max-w-[420px]");
   });
 
-  // Screening chrome: the phone grid button names where you are — the
-  // lane the desktop underline lights — and is the grid alone where no
-  // lane is lit. Accessible name starts with the visible name.
-  it("names the phone grid button with the lit lane, or nothing where none is lit", () => {
+  // Coinbase register: the grey workspace pill names where you are — the
+  // segment the desktop slider lights — and is the grid alone where none
+  // is lit. Accessible name starts with the visible name.
+  it("names the grey workspace pill with the lit segment, or nothing where none is lit", () => {
     const staff = availableWorkspaceOptions({ isGcStaff: true });
     expect(workspaceSwitcherTriggerName("/home", "aggregation")).toBe("Home");
     expect(workspaceSwitcherTriggerName("/home/news", "social")).toBe("Home");
@@ -350,13 +369,18 @@ describe("workspace switcher lock", () => {
     }
     expect(workspaceSwitcherTriggerLabel("Social")).toBe("Social, Workspaces");
     expect(workspaceSwitcherTriggerLabel(null)).toBe("Workspaces");
-    // 44 tall, hugs its content (never a fixed width), 13 / 500 ink.
+    // 44 tall grey pill, radius full, pad 12 / 16, an 18 filled grid, 8,
+    // the name at 15 / 600 ink; hugs its content (never a fixed width).
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toBe(
-      "relative flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius)] px-[var(--space-2)] text-[length:var(--text-xs)] font-medium text-ink transition-colors hover:bg-surface-muted",
+      "relative flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center gap-[var(--space-2)] whitespace-nowrap rounded-full bg-surface-muted pl-[var(--space-3)] pr-[var(--space-4)] text-[length:var(--text-sm)] font-semibold text-ink transition-colors hover:bg-hairline max-[359px]:w-[var(--header-control-size)] max-[359px]:px-0",
     );
-    expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).not.toMatch(/(?:^|\s)w-\[|size-\[/);
+    expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).not.toMatch(/(?:^|\s)w-\[|(?:^|\s)size-\[/);
     expect(housePhoneForbidsTruncate(WORKSPACE_WAFFLE_TRIGGER_CLASS)).toBe(true);
-    expect(WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS).toBe("size-4 shrink-0");
+    // Below 360 the visible name steps out (the bar fits at 320); the
+    // accessible name keeps it. Where no segment is lit: the 44 circle.
+    expect(WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS).toBe("max-[359px]:hidden");
+    expect(WORKSPACE_WAFFLE_TRIGGER_BARE_CLASS).toBe("w-[var(--header-control-size)] px-0");
+    expect(WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS).toBe("size-[18px] shrink-0");
     expect(WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT).toBe("fill");
   });
 
@@ -428,21 +452,35 @@ describe("workspace switcher lock", () => {
   // Screening chrome (Adam 2026-10-04, "Yes, everywhere"): plain words,
   // 13px, idle 500 quiet ink, current 600 ink with a 2px ink underline
   // on the bar's bottom edge. No track, thumb, or grey pill.
-  it("paints the desktop lanes as plain words with an ink underline on the current one", () => {
-    expect(WORKSPACE_SWITCHER_LANES_CLASS).toBe("flex shrink-0 self-stretch");
-    expect(WORKSPACE_SWITCHER_LANE_CLASS).toBe(
-      "relative inline-flex shrink-0 cursor-pointer select-none items-center whitespace-nowrap px-[10px] text-[length:var(--text-xs)] transition-colors",
+  // Founder 2026-10-05 ("I like the designs. Let's use them."): the
+  // workspace switcher is the primary pill slider — muted track, no
+  // inset, an ink thumb that slides 220ms ease-out, 17 / 600 labels 44
+  // tall with 16 pads. Supersedes the screening chrome's text lanes.
+  it("paints the desktop switcher as the pill slider — muted track, ink thumb, 17 / 600, 44", () => {
+    expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toBe(
+      "relative flex shrink-0 items-center rounded-full bg-surface-muted",
     );
-    expect(WORKSPACE_SWITCHER_LANE_ON_CLASS).toBe("font-semibold text-ink shadow-[inset_0_-2px_0_var(--text)]");
-    expect(WORKSPACE_SWITCHER_LANE_OFF_CLASS).toBe("font-medium text-ink-3 dark:text-ink-2 hover:text-ink");
-    expect(workspaceSwitcherLaneClass(true)).toBe(`${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_ON_CLASS}`);
-    expect(workspaceSwitcherLaneClass(false)).toBe(`${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_OFF_CLASS}`);
-    expect(WORKSPACE_SWITCHER_LANE_CLASS).not.toContain("truncate");
-    expect(WORKSPACE_SWITCHER_LANE_CLASS).not.toContain("rounded");
-    expect(`${WORKSPACE_SWITCHER_LANES_CLASS} ${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_ON_CLASS}`).not.toMatch(/bg-|accent/);
-    expect(`${WORKSPACE_SWITCHER_LANE_ON_CLASS} ${WORKSPACE_SWITCHER_LANE_OFF_CLASS}`).not.toMatch(/#[0-9a-f]{3,8}\b/i);
-    expect(src).not.toContain("WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS");
-    expect(src).not.toContain("HOUSE_SEGMENTED_TRACK_CLASS");
+    expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).not.toMatch(/(?:^|\s)p[xy]?-/);
+    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toBe(
+      "pointer-events-none absolute inset-y-0 rounded-full bg-ink transition-[left,width] duration-[220ms] ease-out motion-reduce:transition-none",
+    );
+    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS).toBe(220);
+    // Until the thumb is placed (the server paint), the lit segment
+    // carries the thumb's ink so "Social" never paints white on grey.
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toBe(
+      "relative z-10 inline-flex h-[var(--header-control-size)] shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full px-[var(--space-4)] text-[length:var(--text-base)] font-semibold in-data-segmented-pending:data-segmented-selected:bg-ink",
+    );
+    expect(WORKSPACE_SWITCHER_SEGMENT_ON_CLASS).toBe("text-bg");
+    expect(WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS).toBe("text-ink");
+    expect(workspaceSwitcherSegmentClass(true)).toBe(`${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_ON_CLASS}`);
+    expect(workspaceSwitcherSegmentClass(false)).toBe(`${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS}`);
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).not.toContain("truncate");
+    // Label ink snaps with the thumb's index (no colour transition).
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).not.toContain("transition");
+    expect(`${WORKSPACE_SWITCHER_SEGMENT_ON_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS} ${WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS}`).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    // The retired lanes are gone.
+    expect(src).not.toContain("WORKSPACE_SWITCHER_LANE");
+    expect(src).not.toContain("shadow-[inset_0_-2px_0_var(--text)]");
     // Other segmented tracks keep the shared accent thumb.
     expect(HOUSE_SEGMENTED_THUMB_CLASS).toContain("bg-accent");
     expect(HOUSE_SEGMENTED_ITEM_ON_CLASS).toBe("text-white");

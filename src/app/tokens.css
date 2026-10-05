@@ -67,6 +67,13 @@
      the greyscale ramp (not a colour). The accent stays reserved. */
   --band:          #1b1f23;
   --band-ink:      #fafafb;
+  /* The screen: the near-black frame a feed video plays in, the
+     letterbox and pillarbox around it, and its top band (H register
+     §5.1, Adam 2026-10-05, docs/design-locks/social-feed-register-lock-v1.md).
+     Greyscale, not a colour. --band (#1b1f23) reads as charcoal grey
+     around a picture; the screen is the page black of the dark theme.
+     .dark takes it to true black so the frame still reads on #0f0f0f. */
+  --screen:        #0f0f0f;
 
   /* --- NO status colors by default (greyscale + one accent). --- */
 
@@ -117,28 +124,30 @@
   /* --- Dashboard shell proportions ---
      Ported from watershedportal's shell (proportions kept, vocabulary dropped —
      see docs/known-divergences.md D2). GC had no equivalents, so these fill the gap.
-     Desktop header: the screening-room bar, 52 (Adam 2026-10-04,
-     docs/design-locks/shell-screening-chrome-lock-v1.md). Supersedes
-     the 88 "Joshua bar 2026-09-22". Phone is 60 (below). */
-  --header-height: 52px;
-  /* Avatar 28 on desktop, 30 on phone (inside the 44 phone hit). */
-  --header-avatar-size: 28px;
-  /* Phone header hits stay 44. Other 44 hits (Messages compose) read
-     this token too. Desktop header controls, the Explore Exit compact
-     box included, are 34 (--header-desktop-control-size, below). */
+     Desktop header: the H-register bar, 80 (Adam 2026-10-05,
+     the shell register lock v1 in docs/design-locks). The side
+     menu's top band (the brand mark) is the same 80. Supersedes the
+     screening bar's 52. Phone is 60 (below). */
+  --header-height: 80px;
+  /* Avatar 44 on desktop and phone: the photo is the 44 control. */
+  --header-avatar-size: 44px;
+  /* Header controls are 44 on phone and desktop (round grey buttons,
+     the search pill, the workspace slider and pill). Other 44 hits
+     (Messages compose) read this token too. */
   --header-control-size: 44px;
-  /* Desktop header controls: Search, Ask, bell, Exit (and its md–lg
-     X-only box) are 34 (screening-chrome lock). Desktop only; phone
-     keeps 44. */
-  --header-desktop-control-size: 34px;
+  /* Desktop header controls: 44, the same as phone (H register;
+     the screening chrome's 34 is retired). Search, Ask, bell, Exit (and
+     its md–lg X-only circle) read this token. */
+  --header-desktop-control-size: 44px;
   --header-search-height: 48px;
   /* Dest-rail slot. One measure for Home, Aggregation, Social,
-     Education, Staff, and Settings. Screening chrome (Adam
-     2026-10-04): a 200 column with a hairline on its right, no card;
-     64 collapsed. Supersedes 256 / 60. Social does not own a second
-     width. Only Co-Productions hides the rail. */
-  --sidebar-width: 200px;
-  --sidebar-width-collapsed: 64px;
+     Education, Staff, and Settings. H register (Adam
+     2026-10-05): a 240 column, full height, the brand mark in its 80
+     top band, a hairline on its right, no card; 80 collapsed.
+     Supersedes the screening chrome's 200 / 64. Social does not own a
+     second width. Only Co-Productions hides the rail. */
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 80px;
   /* Alias of --sidebar-width. Not a second slot. Home does not use
      this as a canvas inset. Phone zeros the slot below. */
   --access-rail-width: var(--sidebar-width);
@@ -151,12 +160,12 @@
      (page reading measure). */
   --chrome-gutter: 16px;
   /* Phone floating dock. One length for Explore chrome and the lead
-     scroll pad. Pill is h-12 (3rem). Float matches the dock padding:
-     max(16px, safe-area) — the board's bottom 16 (screening chrome;
-     was 12). The safe area replaces the 16px, it is not added again.
-     House 16 (--space-4) is the gap above the pill so name and caption
-     clear the bar. Video may still bleed under it. */
-  --house-phone-dock-clearance: calc(3rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));
+     scroll pad. Pill is h-14 (3.5rem, the H-register 56; was
+     h-12). Float matches the dock padding: max(16px, safe-area) — the
+     board's bottom 16. The safe area replaces the 16px, it is not added
+     again. House 16 (--space-4) is the gap above the pill so name and
+     caption clear the bar. Video may still bleed under it. */
+  --house-phone-dock-clearance: calc(3.5rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));
   /* Desktop shell horizontal gutters. Viewport → logo ink 32.
      Viewport → avatar ink 32. Same number both sides. Full-bleed
      columns that share the shell use the same pair. Not 44. Not 48. */
@@ -172,15 +181,15 @@
 }
 
 /* Phone chrome: persistent rail is gone. Width tokens collapse so header +
-   main go full-canvas. Desktop rail stays --sidebar-width (200) /
-   --sidebar-width-collapsed (64) at md and up. */
+   main go full-canvas. Desktop rail stays --sidebar-width (240) /
+   --sidebar-width-collapsed (80) at md and up. */
 @media (max-width: 767px) {
   :root {
     --sidebar-width: 0px;
     --sidebar-width-collapsed: 0px;
     --access-rail-width: 0px;
     --header-height: 60px;
-    --header-avatar-size: 30px;
+    --header-avatar-size: 44px;
     --header-control-size: 44px;
     --header-search-height: 44px;
   }
@@ -218,6 +227,9 @@
      reads as a distinct full-bleed section. */
   --band:          #191d22;
   --band-ink:      #f1f3f6;
+  /* The video screen on the dark page (H register §1.1 "screen" dark):
+     true black, so the frame still reads against the #0f0f0f canvas. */
+  --screen:        #000000;
 }
 
 @media (prefers-reduced-motion: reduce) {

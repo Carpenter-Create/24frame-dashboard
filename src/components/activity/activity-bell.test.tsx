@@ -17,6 +17,7 @@ import {
   ACTIVITY_BELL_SHEET_SURFACE_CLASS,
   ACTIVITY_BELL_TRIGGER_CLASS,
   ACTIVITY_BELL_VIEW_ALL_CLASS,
+  ACTIVITY_BELL_UNREAD_DOT_CLASS,
   ACTIVITY_HREF,
   ACTIVITY_PAGE,
   activityHref,
@@ -28,8 +29,7 @@ import {
   HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS,
 } from "@/lib/house-lead-chrome";
 import {
-  HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
-  HOUSE_HEADER_TRAILING_PHONE_CLASS,
+  HOUSE_HEADER_ROUND_GLYPH_CLASS,
   HOUSE_PHONE_CHROME_ICON_WEIGHT,
   HOUSE_PHONE_CHROME_IDLE_INK_CLASS,
 } from "@/lib/house-phone-shell";
@@ -49,7 +49,9 @@ const OPEN = {
 };
 
 describe("ActivityBell", () => {
-  it("keeps a closed trigger with the unread badge and Notifications label", () => {
+  // H register (Adam 2026-10-05): unread is an accent dot with a page
+  // ring — never a count badge, never red; "new" lives in the name.
+  it("keeps a closed trigger with the unread dot and the Notifications label", () => {
     const html = renderToStaticMarkup(
       createElement(ActivityBell, {
         unread: 3,
@@ -57,11 +59,18 @@ describe("ActivityBell", () => {
       }),
     );
     expect(html).toContain("data-activity-bell");
-    expect(html).toContain(`aria-label="${ACTIVITY_PAGE.bellLabel}"`);
+    expect(html).toContain(`aria-label="${ACTIVITY_PAGE.bellLabelNew}"`);
     expect(ACTIVITY_PAGE.bellLabel).toBe("Notifications");
+    expect(ACTIVITY_PAGE.bellLabelNew).toBe("Notifications, new");
     expect(html).not.toContain(`aria-label="Activity"`);
-    expect(html).toContain("data-activity-bell-badge");
-    expect(html).toContain("3");
+    expect(html).not.toContain("data-activity-bell-badge");
+    expect(html.match(/data-activity-bell-dot=""/g)?.length).toBe(2);
+    expect(html).toContain(`class="${ACTIVITY_BELL_UNREAD_DOT_CLASS}"`);
+    expect(html).not.toMatch(/>3</);
+    expect(html).not.toContain("9+");
+    const quiet = renderToStaticMarkup(createElement(ActivityBell, { unread: 0, items: [] }));
+    expect(quiet).not.toContain("data-activity-bell-dot");
+    expect(quiet).toContain(`aria-label="${ACTIVITY_PAGE.bellLabel}"`);
     expect(html).toContain(ACTIVITY_BELL_TRIGGER_CLASS);
     expect(html).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
     expect(html).toContain("data-activity-bell-phone");
@@ -228,23 +237,15 @@ describe("ActivityBell", () => {
   it("matches #391 chrome idle weight on the desktop bell", () => {
     expect(PHOSPHOR_CHROME_IDLE_WEIGHT).toBe("bold");
     expect(PHOSPHOR_CHROME_ICON_CLASS).toBe("size-4 shrink-0");
-    // Screening chrome: phone header glyphs 20, desktop 18 (in the 34
-    // box). Dock stays its own 24px literal. Phosphor rail stays 16px.
-    expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toBe(
-      "size-5 shrink-0 md:hidden text-ink-2",
-    );
-    // Phone bell rides bottom-bar idle ink; desktop bell stays on the
-    // HOUSE_THEME_TOGGLE_CLASS text-ink-3 / hover:text-ink from #442.
-    expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
-    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-4.5 shrink-0 hidden md:block");
-    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
-    expect(bellSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
-    expect(bellSrc).toContain("HOUSE_HEADER_TRAILING_DESKTOP_CLASS");
-    expect(bellSrc).toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");
-    expect(bellSrc).toContain("HOUSE_PHONE_CHROME_ICON_WEIGHT");
-    expect(bellSrc).toContain(
-      "weight={phone ? HOUSE_PHONE_CHROME_ICON_WEIGHT : PHOSPHOR_CHROME_IDLE_WEIGHT}",
-    );
+    // H register: one 20 Regular bell on phone and desktop, in the round
+    // grey 44 (ink on muted). Dock stays its own 24px literal. Phosphor
+    // rail stays 16px.
+    expect(HOUSE_HEADER_ROUND_GLYPH_CLASS).toBe("size-5 shrink-0");
+    expect(HOUSE_HEADER_ROUND_GLYPH_CLASS).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
+    expect(bellSrc).toContain("<Bell className={HOUSE_HEADER_ROUND_GLYPH_CLASS} weight={HOUSE_PHONE_CHROME_ICON_WEIGHT} />");
+    expect(bellSrc).not.toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
+    expect(bellSrc).not.toContain("HOUSE_HEADER_TRAILING_DESKTOP_CLASS");
+    expect(bellSrc).not.toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");
     expect(bellSrc).toContain('register="phone"');
     expect(bellSrc).toContain('register="desktop"');
     expect(HOUSE_PHONE_CHROME_ICON_WEIGHT).toBe("regular");
@@ -257,8 +258,9 @@ describe("ActivityBell", () => {
 
   it("uses the house AI mark on the 24Frame AI header slot — not Phosphor Sparkle", () => {
     expect(askHeaderSrc).toContain("<HouseAiMark");
+    // H register: one stroke sparkle on phone and desktop.
     expect(askHeaderSrc).toContain('register="stroke"');
-    expect(askHeaderSrc).toContain('register="fill"');
+    expect(askHeaderSrc).not.toContain('register="fill"');
     expect(askHeaderSrc).not.toContain("Sparkle");
     expect(askHeaderSrc).not.toContain("Sparkles");
     expect(askHeaderSrc).not.toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");

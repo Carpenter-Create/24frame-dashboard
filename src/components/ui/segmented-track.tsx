@@ -45,6 +45,9 @@ export interface SegmentedTrackProps
   persistKey?: string;
   trackClass?: string;
   thumbClass?: string;
+  /** Thumb slide duration for the remount flight. Match the thumb
+   *  class's CSS duration. Defaults to the house 320ms. */
+  durationMs?: number;
   children: (selection: SegmentedTrackSelection) => ReactNode;
 }
 
@@ -100,6 +103,7 @@ export function SegmentedTrack({
   persistKey,
   trackClass = HOUSE_SEGMENTED_TRACK_CLASS,
   thumbClass = HOUSE_SEGMENTED_THUMB_CLASS,
+  durationMs = HOUSE_SEGMENTED_THUMB_DURATION_MS,
   children,
   onClickCapture,
   ...rest
@@ -125,6 +129,10 @@ export function SegmentedTrack({
     );
     return segmentedThumbStyle(view.box);
   });
+  // Until the thumb is placed (the server paint; the first layout pass
+  // places it before the browser paints again), the track says so and
+  // the lit segment can paint the thumb's fill itself.
+  const [pending, setPending] = useState(() => thumbStyle.opacity === 0);
 
   useLayoutEffect(() => {
     if (routeIndexRef.current === activeIndex) return;
@@ -149,6 +157,7 @@ export function SegmentedTrack({
     const apply = (box: SegmentedThumbBox, snap = false, durationMs?: number) => {
       lastBoxRef.current = box;
       setThumbStyle(thumbCss(box, snap, durationMs));
+      setPending(false);
     };
 
     let cancelRestore: (() => void) | undefined;
@@ -175,7 +184,7 @@ export function SegmentedTrack({
           from,
           next,
           now,
-          HOUSE_SEGMENTED_THUMB_DURATION_MS,
+          durationMs,
         );
       }
       apply(next);
@@ -184,7 +193,7 @@ export function SegmentedTrack({
     return () => {
       cancelRestore?.();
     };
-  }, [visualIndex, persistKey]);
+  }, [visualIndex, persistKey, durationMs]);
 
   useLayoutEffect(() => {
     const track = trackRef.current;
@@ -223,6 +232,7 @@ export function SegmentedTrack({
       ref={trackRef}
       className={trackClass}
       data-segmented-persist={persistKey}
+      data-segmented-pending={pending ? "" : undefined}
       onClickCapture={handleClickCapture}
     >
       <div

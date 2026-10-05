@@ -18,7 +18,9 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_GLYPH_HOST_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
@@ -26,9 +28,9 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS,
   housePhoneDestActive,
   housePhoneDestGlyph,
   housePhoneDestIsCreate,
@@ -41,19 +43,27 @@ import {
   createSocialTabBarScrollTracker,
   stepSocialTabBarScroll,
 } from "@/lib/social-tab-bar-scroll";
-import { isSocialDmImmersivePath, isSocialStoryCreatePath, isSocialStoryOpenPath, isSocialWriteComposePath } from "@/lib/social";
+import {
+  isSocialDmImmersivePath,
+  isSocialStoryCreatePath,
+  isSocialStoryOpenPath,
+  isSocialWriteComposePath,
+  socialMessagesNavLabel,
+} from "@/lib/social";
+import { isSocialMessagesDest } from "@/lib/nav";
 import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 
 // Prior Social float: hide on scroll-down, show on scroll-up.
 // G9 page scroll lives on main (`[data-house-lead-scroll]`), not window.
 // Shared across every workspace that mounts this bar.
 // IA A: dests inside the current workspace only. No workspace item.
-// Icons only, with accessible names. Every dock: the current dest is an
-// ink Bold glyph with a 4px ink dot under it, no chip and no accent
-// (screening chrome, Adam 2026-10-04,
-// docs/design-locks/shell-screening-chrome-lock-v1.md). Each target
-// fills the 46 pill row. Social alone has Create, the accent circle
-// inside the pill — the dock's only accent; it never shows the dot.
+// Icons only, with accessible names. Every dock: the current dest is
+// the FILLED glyph painted accent — no dot, no chip (H register,
+// Adam 2026-10-05, the shell register lock v1 in docs/design-locks).
+// Each target fills the 56 pill row. Social alone has Create, the 44
+// accent circle inside the pill. Messages shows an 8 accent unread dot
+// (2px dock-surface ring) at the glyph's top-right; the count stays in
+// the accessible name.
 
 function useHousePhoneBottomNavHidden(pathname: string) {
   const [nav, setNav] = useState({ path: pathname, hidden: false });
@@ -93,12 +103,15 @@ export function HousePhoneBottomNav({
   homeOwned = false,
   accountChrome = false,
   coProductions = false,
+  messagesUnread = 0,
 }: {
   workspace: WorkspaceMode;
   isGcStaff?: boolean;
   homeOwned?: boolean;
   accountChrome?: boolean;
   coProductions?: boolean;
+  /** Social DM unread total: the Messages dot and accessible name. */
+  messagesUnread?: number;
 }) {
   const workspace = clampWorkspaceMode(requestedWorkspace, isGcStaff);
   const pathname = useHousePathname();
@@ -139,25 +152,26 @@ export function HousePhoneBottomNav({
           {items.map((item) => {
             const active = housePhoneDestActive(activePath, item, destWorkspace);
             const Glyph = housePhoneDestGlyph(item);
+            const unread = isSocialMessagesDest(item) && messagesUnread > 0;
             const glyph = (
               <Glyph
                 className={HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS}
                 weight={active ? HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT : HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT}
               />
             );
-            // The dot hangs off the 46 target (the item is relative), so
-            // the glyph stays centred in every slot.
-            const face = !active ? (
+            // The unread dot hangs off the glyph's own box, so the
+            // glyph stays centred in every slot.
+            const face = !unread ? (
               glyph
             ) : (
-              <>
+              <span className={HOUSE_PHONE_BOTTOM_NAV_GLYPH_HOST_CLASS}>
                 {glyph}
                 <span
                   aria-hidden
-                  data-house-phone-bottom-nav-mark=""
-                  className={HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS}
+                  data-house-phone-bottom-nav-unread=""
+                  className={HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS}
                 />
-              </>
+              </span>
             );
             const destClass = cn(
               HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
@@ -192,7 +206,7 @@ export function HousePhoneBottomNav({
                       >
                         <Glyph
                           className={HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS}
-                          weight={HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT}
+                          weight={HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_WEIGHT}
                         />
                       </span>
                     </button>
@@ -205,7 +219,7 @@ export function HousePhoneBottomNav({
                 key={item.href}
                 href={item.href}
                 prefetch
-                aria-label={item.label}
+                aria-label={unread ? socialMessagesNavLabel(item.label, messagesUnread) : item.label}
                 aria-current={active ? "page" : undefined}
                 tabIndex={hidden ? -1 : undefined}
                 data-house-phone-bottom-nav-item={item.href}

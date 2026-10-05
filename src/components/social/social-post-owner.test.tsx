@@ -7,6 +7,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { SOCIAL } from "@/lib/social";
+import { SOCIAL_POST_MORE_CLASS, SOCIAL_POST_MORE_SLOT_CLASS } from "@/lib/social-chrome";
 import { SocialPostCard } from "./social-post-card";
 
 const createdAt = "2020-01-01T00:00:00.000Z";
@@ -36,17 +37,35 @@ function card(owned: boolean) {
 }
 
 describe("owner post overflow", () => {
-  it("shows Edit and Delete on the author row for the owner only", () => {
+  // H · Posts (founder 2026-10-05): the owner's quiet ⋯ ends the credit
+  // row — after the round actions on desktop, at the row's end on phone —
+  // outside the Like · Comment · Share group, never a fourth round.
+  // docs/design-locks/social-feed-register-lock-v1.md §7
+  it("shows Edit and Delete behind the quiet ⋯ at the credit row's end, for the owner only", () => {
     const owned = card(true);
     const other = card(false);
     expect(owned).toContain('data-social-post-owner=""');
     expect(owned).toContain(SOCIAL.post.overflow);
-    expect(owned.indexOf("data-social-post-owner")).toBeLessThan(owned.indexOf("data-social-post-actions"));
-    const actions = owned.slice(owned.indexOf("data-social-post-actions"));
-    expect(actions).not.toContain("data-social-post-owner");
-    expect(actions).toContain("gap-2");
+    const actions = owned.slice(
+      owned.indexOf("data-social-post-actions"),
+      owned.indexOf("data-social-post-owner"),
+    );
+    expect(owned.indexOf("data-social-post-actions")).toBeLessThan(owned.indexOf("data-social-post-owner"));
+    expect(actions).toContain("data-social-post-share");
+    expect(actions).toMatch(/\bgap-2\b/);
     expect(actions).not.toContain("gap-3.5");
     expect(actions).not.toContain("gap-4");
+    // The ⋯ slot: phone order 2 (the credit row's end), desktop order 3.
+    const slot = owned.slice(owned.lastIndexOf("<span", owned.indexOf("data-social-post-owner")));
+    expect(slot).toContain(SOCIAL_POST_MORE_SLOT_CLASS);
+    expect(SOCIAL_POST_MORE_SLOT_CLASS).toContain("order-2");
+    expect(SOCIAL_POST_MORE_SLOT_CLASS).toContain("md:order-3");
+    // Quiet: a clear 44 hit (desktop 40), glyph ink-2, no fill at rest.
+    expect(owned).toContain(SOCIAL_POST_MORE_CLASS);
+    expect(SOCIAL_POST_MORE_CLASS).toContain("size-11");
+    expect(SOCIAL_POST_MORE_CLASS).toContain("md:size-10");
+    expect(SOCIAL_POST_MORE_CLASS).toContain("text-ink-2");
+    expect(SOCIAL_POST_MORE_CLASS).not.toMatch(/(?:^|\s)bg-/);
     expect(other).not.toContain("data-social-post-owner");
     const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
     expect(src).toContain("ThreadPopoverContent");
@@ -56,9 +75,9 @@ describe("owner post overflow", () => {
     expect(src).not.toContain("data-social-post-actions");
     const cardSrc = readFileSync("src/components/social/social-post-card.tsx", "utf8");
     const postCard = cardSrc.slice(cardSrc.indexOf("export function SocialPostCard"));
-    expect(postCard.indexOf("SocialPostOwnerMenu")).toBeLessThan(postCard.indexOf("data-social-post-actions"));
-    expect(postCard).toContain("SOCIAL_POST_ACTIONS_CLASS");
-    expect(postCard).toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
+    expect(postCard.indexOf("data-social-post-actions")).toBeLessThan(postCard.indexOf("<SocialPostOwnerMenu"));
+    expect(postCard).toContain("socialPostActionsClass(kind)");
+    expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
     expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
     expect(postCard).not.toContain("gap-3.5");
     expect(postCard).not.toContain("gap-4");

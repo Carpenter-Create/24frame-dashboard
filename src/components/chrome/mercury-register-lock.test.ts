@@ -79,7 +79,8 @@ describe("Adam Mercury register lock", () => {
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("absolute");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("text-ink");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("t-body");
-    expect(RAIL_COLLAPSE_CHEVRON_ICON_CLASS).toBe("h-4 w-4");
+    // H register: the collapse glyph is 20 in the quiet 44 round button.
+    expect(RAIL_COLLAPSE_CHEVRON_ICON_CLASS).toBe("size-5");
     expect(src("src/components/chrome/account-sheet.tsx")).toContain(
       "className={SHEET_GROUP_CHEVRON_CLASS}",
     );

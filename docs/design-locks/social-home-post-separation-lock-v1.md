@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-29 (CT) · interior air and in-feed video aspect 2026-09-30 (CT) · footer density 2026-10-01 (CT), line-space pass the same day · 1.5 line-space the same day
 **Status:** **LOCKED** · CoS / Adam · **Option A** supersedes the #715 2px rule
+**Superseded in part (founder 2026-10-05, H · Posts):** Option A is retired on the post face: a media post is no card (the photo or video screen is the card, radius 24, edge to edge on phone), a text-only post is the soft grey card at radius 24 (pad 24, phone 16), the in-card 16 inset and the pb 24 under the time are gone, and the wall is 24 on phone and 48 from md. The in-feed video frame by its edges stays (it now sits on the screen). See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7.  
 **Entity:** Global Content / 24Frame only
 **Amends:**
 - The #715 `border-y-2 border-hairline` rule on `SOCIAL_FEED_ROW_CLASS`

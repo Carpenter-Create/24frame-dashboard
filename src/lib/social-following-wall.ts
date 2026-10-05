@@ -1,3 +1,4 @@
+import { normalizeSocialCategory, type SocialCategoryTopic } from "@/lib/social-categories";
 import type { SocialEdgeMediaItem } from "@/lib/social-edge";
 import type { SocialFollowingWallPage, SocialPostRow, SocialProfileRow } from "@/lib/social-feed";
 import { socialPersonLabel } from "@/lib/social";
@@ -22,6 +23,8 @@ export type SocialFollowingWallCard = {
   groupName: string | null;
   canLike: boolean;
   owned: boolean;
+  /** The post's topic (the tagger's category), or null: the topic chip on the media. */
+  topic: SocialCategoryTopic | null;
   media: SocialEdgeMediaItem[];
 };
 
@@ -80,6 +83,7 @@ function socialFollowingWallCard(
     groupName: group?.name ?? null,
     canLike: input.canLike,
     owned: socialPostOwnedBy(post.author_id, input.viewerId),
+    topic: normalizeSocialCategory(post.category),
     media: [...(input.media.get(post.id) ?? [])],
   };
 }

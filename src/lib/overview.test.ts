@@ -160,10 +160,12 @@ describe("Home lead pills", () => {
     expect(switcher).toContain("overviewLeadSelected");
     expect(switcher).toContain("workspaceWaffleTiles");
     expect(switcher).toContain("overviewLeadActiveIndex");
-    // Screening chrome: plain lanes, no sliding track; the lit lane is the
-    // route index itself.
-    expect(switcher).not.toContain("SegmentedTrack");
-    expect(switcher).toContain("const selected = index === routeIndex;");
+    // Coinbase register: the house SegmentedTrack slider; the lit segment
+    // is the route index itself (no lit segment hides the thumb — never
+    // parked on Home).
+    expect(switcher).toContain("<SegmentedTrack");
+    expect(switcher).toContain("activeIndex={routeIndex}");
+    expect(switcher).toContain("const lit = index === routeIndex;");
     expect(switcher).not.toContain("activeIndex >= 0 ? activeIndex : 0");
     expect(switcher).not.toContain("routeIndex >= 0 ? routeIndex : 0");
   });

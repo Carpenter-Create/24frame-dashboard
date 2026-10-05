@@ -25,41 +25,36 @@ vi.mock("next/link", async () => {
   return { __esModule: true, default: MockLink, useLinkStatus: () => ({ pending: false }) };
 });
 
+import { readFileSync } from "node:fs";
+
 import {
   HOUSE_DEST_RAIL_ACTIVE_CLASS,
-  HOUSE_DEST_RAIL_COLLAPSED_RULE_CLASS,
-  HOUSE_DEST_RAIL_CREATE_GLYPH_CLASS,
-  HOUSE_DEST_RAIL_CREATE_GLYPH_COLLAPSED_CLASS,
-  HOUSE_DEST_RAIL_CREATE_TILE_CLASS,
-  HOUSE_DEST_RAIL_CREATE_TILE_COLLAPSED_CLASS,
   HOUSE_DEST_RAIL_DIVIDER_CLASS,
   HOUSE_DEST_RAIL_DIVIDER_COLLAPSED_CLASS,
-  HOUSE_DEST_RAIL_EYEBROW_CLASS,
   HOUSE_DEST_RAIL_GLYPH_SLOT_CLASS,
   HOUSE_DEST_RAIL_IDLE_CLASS,
   HOUSE_DEST_RAIL_LABEL_CLASS,
   HOUSE_DEST_RAIL_ROW_CLASS,
   HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS,
   HOUSE_DEST_RAIL_SECTION_EYEBROW_CLASS,
-  HOUSE_DEST_RAIL_TOP_ROW_CLASS,
-  HOUSE_DEST_RAIL_TOP_ROW_COLLAPSED_CLASS,
+  HOUSE_DEST_RAIL_UNREAD_DOT_CLASS,
+  HOUSE_DEST_RAIL_UNREAD_DOT_COLLAPSED_CLASS,
+  HOUSE_RAIL_FOOT_CLASS,
+  HOUSE_RAIL_FOOT_COLLAPSED_CLASS,
 } from "@/lib/house-shell";
 import { STAFF_RAIL_EYEBROW } from "@/lib/nav";
 import type { WorkspaceMode } from "@/lib/workspace";
 import { RailCollapse } from "./rail-collapse";
 import { SideNav } from "./side-nav";
 
+const appShellSrc = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
+
 function render(
   pathname: string,
   workspace: WorkspaceMode,
-  opts: { collapsed?: boolean; isGcStaff?: boolean; homeOwned?: boolean; control?: boolean; rail?: boolean } = {},
+  opts: { collapsed?: boolean; isGcStaff?: boolean; homeOwned?: boolean; messagesUnread?: number } = {},
 ): string {
   navigation.pathname = pathname;
-  const control = opts.rail ? (
-    <RailCollapse collapsed={opts.collapsed ?? false} onToggle={() => {}} />
-  ) : opts.control ? (
-    <button type="button" data-probe-collapse="" />
-  ) : undefined;
   try {
     return renderToStaticMarkup(
       <SideNav
@@ -67,7 +62,7 @@ function render(
         collapsed={opts.collapsed}
         isGcStaff={opts.isGcStaff}
         homeOwned={opts.homeOwned}
-        collapseControl={control}
+        messagesUnread={opts.messagesUnread}
       />,
     );
   } finally {
@@ -75,18 +70,17 @@ function render(
   }
 }
 
-/** The nav's first child, up to its closing tag (the top row holds no nested div). */
-function navFirstChild(html: string): string {
-  const open = html.indexOf(">", html.indexOf("<nav ")) + 1;
-  return html.slice(open, html.indexOf("</div>", open) + "</div>".length);
-}
+/** Accent fill other than the current row's wash. */
+const ACCENT_FILL = /bg-accent(?!-wash)/;
 
-/** Social's Create tile span and the class of the plus inside it. */
-function createTile(html: string): { tile: string; glyph: string } {
-  const tile = /<span data-side-nav-icon=""[^>]*data-side-nav-create-tile=""[^>]*class="([^"]*)"/.exec(html);
-  const after = html.slice(tile?.index ?? 0);
-  const glyph = /<svg[^>]*class="([^"]*)"/.exec(after);
-  return { tile: tile?.[1] ?? "", glyph: glyph?.[1] ?? "" };
+/** The row (link or button) holding the given label. */
+function rowWith(html: string, label: string): string {
+  const at = html.indexOf(`>${label}<`);
+  const start = Math.max(html.lastIndexOf("<a ", at), html.lastIndexOf("<button", at));
+  const end = Math.min(
+    ...["</a>", "</button>"].map((tag) => html.indexOf(tag, at)).filter((i) => i >= 0),
+  );
+  return html.slice(start, end);
 }
 
 function activeGlyphs(html: string): number {
@@ -99,65 +93,47 @@ function rowLabels(html: string): string[] {
   );
 }
 
-describe("SideNav — one rail pattern on every workspace (screening chrome)", () => {
-  it("leads with the workspace eyebrow and the collapse control in one row, expanded only", () => {
-    for (const [path, workspace, eyebrow, opts] of [
+describe("SideNav — one rail pattern on every workspace (Coinbase register)", () => {
+  it("is the rows alone — no workspace eyebrow, no top-row control; the workspace names the nav", () => {
+    for (const [path, workspace, name, opts] of [
       ["/home", "aggregation", "Home", { homeOwned: true }],
       ["/aggregation/dashboard", "aggregation", "Aggregation", {}],
       ["/social", "social", "Social", {}],
       ["/education", "education", "Education", {}],
       ["/staff/queue", "staff", "Staff", { isGcStaff: true }],
     ] as const) {
-      const html = render(path, workspace, { ...opts, control: true });
-      const nav = html.slice(0, html.indexOf("<a "));
-      expect(nav, path).toContain(`data-side-nav-eyebrow="" class="${HOUSE_DEST_RAIL_EYEBROW_CLASS}">${eyebrow}<`);
-      // Eyebrow, then the collapse control, inside the one top row.
-      const top = nav.slice(nav.indexOf("data-side-nav-top"));
-      expect(top.indexOf("data-side-nav-eyebrow"), path).toBeLessThan(top.indexOf("data-probe-collapse"));
-      const collapsed = render(path, workspace, { ...opts, collapsed: true, control: true });
+      const html = render(path, workspace, opts);
+      expect(html, path).toMatch(new RegExp(`^<nav [^>]*aria-label="${name}"`));
+      expect(html, path).not.toContain("data-side-nav-eyebrow");
+      expect(html, path).not.toContain("data-side-nav-top");
+      expect(html, path).not.toContain("data-rail-collapse");
+      // The nav's first child is the first row.
+      const first = html.slice(html.indexOf(">") + 1);
+      expect(first, path).toMatch(/^<(?:a|button) /);
+      const collapsed = render(path, workspace, { ...opts, collapsed: true });
       expect(collapsed, path).not.toContain("data-side-nav-eyebrow");
+      expect(collapsed, path).not.toContain("data-side-nav-rule");
       expect(collapsed, path).toContain("data-side-nav-collapsed");
-      expect(collapsed, path).toContain(
-        `<span aria-hidden="true" data-side-nav-rule="" class="${HOUSE_DEST_RAIL_COLLAPSED_RULE_CLASS}"></span>`,
-      );
-      expect(html, path).not.toContain("data-side-nav-rule");
-      expect(collapsed.indexOf("data-probe-collapse"), path).toBeLessThan(collapsed.indexOf("data-side-nav-rule"));
       expect(collapsed, path).toContain(HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS);
       expect(collapsed, path).not.toContain("data-side-nav-label");
     }
   });
 
-  // Review fix (focus): the collapse control must sit in the same element,
-  // in the same slot, in both states. A different parent type (a Fragment
-  // collapsed, a div expanded) made React unmount the focused button on
-  // Enter, dropping keyboard focus to <body>.
-  it("keeps the one collapse button in the same top-row slot in both states, so focus survives the toggle", () => {
-    for (const [path, workspace, opts] of [
-      ["/home", "aggregation", { homeOwned: true }],
-      ["/aggregation/dashboard", "aggregation", {}],
-      ["/social", "social", {}],
-      ["/education", "education", {}],
-      ["/staff/queue", "staff", { isGcStaff: true }],
-    ] as const) {
-      const expanded = render(path, workspace, { ...opts, rail: true });
-      const collapsed = render(path, workspace, { ...opts, rail: true, collapsed: true });
-      const top = navFirstChild(expanded);
-      const topCollapsed = navFirstChild(collapsed);
-      const topOpen = `<div data-side-nav-top="" class="${HOUSE_DEST_RAIL_TOP_ROW_CLASS}"><span data-side-nav-eyebrow=""`;
-      const topCollapsedOpen = `<div data-side-nav-top="" class="${HOUSE_DEST_RAIL_TOP_ROW_COLLAPSED_CLASS}"><button `;
-      expect(top.slice(0, topOpen.length), path).toBe(topOpen);
-      expect(topCollapsed.slice(0, topCollapsedOpen.length), path).toBe(topCollapsedOpen);
-      for (const row of [top, topCollapsed]) {
-        // The button is the row's last child in both states (the eyebrow
-        // slot before it is empty when collapsed), and the only control.
-        expect(row, path).toMatch(/<button [^>]*data-rail-collapse="chevron"[^>]*>(?:(?!<button).)*<\/button><\/div>$/);
-        expect(row.match(/<button /g)?.length, path).toBe(1);
-      }
-      // The 24×1 rule follows the row, outside it.
-      expect(collapsed.slice(collapsed.indexOf(topCollapsed) + topCollapsed.length), path).toMatch(
-        /^<span aria-hidden="true" data-side-nav-rule=""/,
-      );
-    }
+  // Focus: the collapse control sits in one foot element at the bottom
+  // of the column, rendered in both states with only its class changing,
+  // so React keeps the one <button> and keyboard focus stays on it.
+  it("keeps the one collapse button in the same foot slot in both states, so focus survives the toggle", () => {
+    const foot = appShellSrc.slice(appShellSrc.indexOf("data-app-rail-foot"));
+    expect(foot.slice(0, foot.indexOf("</div>"))).toContain(
+      "className={collapsed ? HOUSE_RAIL_FOOT_COLLAPSED_CLASS : HOUSE_RAIL_FOOT_CLASS}",
+    );
+    expect(foot.slice(0, foot.indexOf("</div>"))).toContain("<RailCollapse collapsed={collapsed} onToggle={toggle} />");
+    expect(appShellSrc.match(/<RailCollapse /g)?.length).toBe(1);
+    // The foot follows the rows (after the scroll body), never the band.
+    expect(appShellSrc.indexOf("data-app-rail-body")).toBeLessThan(appShellSrc.indexOf("data-app-rail-foot"));
+    expect(appShellSrc.indexOf("<RailBrand")).toBeLessThan(appShellSrc.indexOf("data-app-rail-body"));
+    expect(HOUSE_RAIL_FOOT_CLASS).toBe("flex shrink-0 px-[var(--space-6)] pb-[var(--space-6)] pt-[var(--space-2)]");
+    expect(HOUSE_RAIL_FOOT_COLLAPSED_CLASS).toBe("flex shrink-0 justify-center pb-[var(--space-6)] pt-[var(--space-2)]");
     // RailCollapse renders a bare <button> in both states, so the same
     // DOM node carries focus from "Collapse sidebar" to "Expand sidebar".
     for (const state of [false, true]) {
@@ -165,7 +141,7 @@ describe("SideNav — one rail pattern on every workspace (screening chrome)", (
     }
   });
 
-  it("paints rows with no icon tiles and exactly one current row per path", () => {
+  it("paints rows with no icon tiles and exactly one current row per path — the wash, filled glyph", () => {
     for (const [path, workspace, label, opts] of [
       ["/home", "aggregation", "Home", { homeOwned: true }],
       ["/home/news", "aggregation", "Industry news", { homeOwned: true }],
@@ -178,46 +154,49 @@ describe("SideNav — one rail pattern on every workspace (screening chrome)", (
     ] as const) {
       const html = render(path, workspace, opts);
       expect(activeGlyphs(html), path).toBe(1);
-      const activeAt = html.indexOf('data-side-nav-icon-active=""');
-      const rowStart = Math.max(html.lastIndexOf("<a ", activeAt), html.lastIndexOf("<button", activeAt));
-      const row = html.slice(rowStart, html.indexOf(label === "Create" ? "</button>" : "</a>", activeAt));
+      const row = rowWith(html, label);
       expect(row, path).toContain(`${HOUSE_DEST_RAIL_ROW_CLASS} ${HOUSE_DEST_RAIL_ACTIVE_CLASS}`);
-      expect(row, path).toContain(`>${label}<`);
       expect(row, path).toContain('aria-current="page"');
       expect(html.match(/aria-current="page"/g)?.length, path).toBe(1);
-      // No accent anywhere on the rows except Social's Create tile.
-      const withoutCreate = html.replace(/<span data-side-nav-icon=""[^>]*data-side-nav-create-tile=""[^>]*>/g, "");
-      expect(withoutCreate, path).not.toContain("bg-accent");
+      expect(html.match(/bg-accent-wash/g)?.length, path).toBe(1);
+      // No accent fill anywhere: Create is an ordinary row.
+      expect(html, path).not.toMatch(ACCENT_FILL);
     }
     const idle = render("/aggregation/titles", "aggregation");
     expect(idle.match(new RegExp(`${HOUSE_DEST_RAIL_ROW_CLASS} ${HOUSE_DEST_RAIL_IDLE_CLASS}`.replace(/[[\]().*+?^$|]/g, "\\$&"), "g"))?.length).toBe(3);
     expect(idle.match(new RegExp(HOUSE_DEST_RAIL_GLYPH_SLOT_CLASS.replace(/[[\]().*+?^$|]/g, "\\$&"), "g"))?.length).toBe(4);
   });
 
-  it("keeps Social's Create the menu's only accent — a small tile with a plus", () => {
-    const html = render("/social", "social");
-    expect(html.match(/data-side-nav-create-tile=""/g)?.length).toBe(1);
-    expect(html).toContain(HOUSE_DEST_RAIL_CREATE_TILE_CLASS);
-    expect(html.match(/bg-accent/g)?.length).toBe(1);
-    // Expanded: the 22 tile with the 14 plus. Collapsed: the 26 tile with
-    // the 15 plus (lock §2 / G3) — never the other size.
-    expect(createTile(html)).toEqual({
-      tile: HOUSE_DEST_RAIL_CREATE_TILE_CLASS,
-      glyph: HOUSE_DEST_RAIL_CREATE_GLYPH_CLASS,
-    });
-    const collapsed = render("/social", "social", { collapsed: true });
-    expect(collapsed.match(/data-side-nav-create-tile=""/g)?.length).toBe(1);
-    expect(createTile(collapsed)).toEqual({
-      tile: HOUSE_DEST_RAIL_CREATE_TILE_COLLAPSED_CLASS,
-      glyph: HOUSE_DEST_RAIL_CREATE_GLYPH_COLLAPSED_CLASS,
-    });
-    expect(collapsed.match(/bg-accent/g)?.length).toBe(1);
-    expect(createTile(render("/social/live", "social", { collapsed: true })).tile).toBe(
-      HOUSE_DEST_RAIL_CREATE_TILE_COLLAPSED_CLASS,
-    );
+  it("makes Social's Create an ordinary row — no tile, no accent, collapsed or not", () => {
+    for (const collapsed of [false, true]) {
+      const html = render("/social", "social", { collapsed });
+      expect(html).not.toContain("data-side-nav-create-tile");
+      expect(html).not.toMatch(ACCENT_FILL);
+      const create = html.slice(html.indexOf('data-social-create-sheet="dest"'));
+      const button = html.slice(html.lastIndexOf("<button", html.indexOf('data-social-create-sheet="dest"')), html.indexOf("</button>", html.indexOf('data-social-create-sheet="dest"')));
+      expect(create.length).toBeGreaterThan(0);
+      expect(button).toContain(collapsed ? HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS : HOUSE_DEST_RAIL_ROW_CLASS);
+      expect(button).toContain(HOUSE_DEST_RAIL_IDLE_CLASS);
+    }
     const agg = render("/aggregation/dashboard", "aggregation");
-    expect(agg).not.toContain("bg-accent");
+    expect(agg).not.toMatch(ACCENT_FILL);
     expect(agg).not.toContain("data-side-nav-create-tile");
+  });
+
+  it("dots Messages when DMs are unread — 8 accent, count in the accessible name; nothing at zero", () => {
+    const idle = render("/social", "social");
+    expect(idle).not.toContain("data-side-nav-unread");
+    expect(idle).not.toContain("unread");
+    const html = render("/social", "social", { messagesUnread: 2 });
+    expect(html.match(/data-side-nav-unread=""/g)?.length).toBe(1);
+    const messages = rowWith(html, "Messages");
+    expect(messages).toContain('aria-label="Messages, 2 unread"');
+    expect(messages).toContain(`<span aria-hidden="true" data-side-nav-unread="" class="${HOUSE_DEST_RAIL_UNREAD_DOT_CLASS}"></span>`);
+    const collapsed = render("/social", "social", { messagesUnread: 1, collapsed: true });
+    expect(collapsed).toContain('aria-label="Messages, 1 unread"');
+    expect(collapsed).toContain(`class="${HOUSE_DEST_RAIL_UNREAD_DOT_COLLAPSED_CLASS}"`);
+    // Only Social shows it; other rails have no Messages row.
+    expect(render("/aggregation/dashboard", "aggregation", { messagesUnread: 3 })).not.toContain("data-side-nav-unread");
   });
 
   it("splits the Education staff rows with a hairline and the Team eyebrow (a short rule when collapsed)", () => {

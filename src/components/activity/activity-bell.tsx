@@ -16,9 +16,11 @@ import {
   ACTIVITY_BELL_SHEET_SURFACE_CLASS,
   ACTIVITY_BELL_TRIGGER_CLASS,
   ACTIVITY_BELL_TRIGGER_OPEN_CLASS,
+  ACTIVITY_BELL_UNREAD_DOT_CLASS,
   ACTIVITY_BELL_VIEW_ALL_CLASS,
   ACTIVITY_PAGE,
   activityBellItems,
+  activityBellLabel,
   activityFamilyForWorkspace,
   activityHref,
   type ActivityItem,
@@ -31,11 +33,9 @@ import type { WorkspaceMode } from "@/lib/workspace";
 import { HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS } from "@/lib/house-lead-chrome";
 import { APP_SHEET_HEAD_CLASS, APP_SHEET_SCRIM_CLASS } from "@/lib/house-sheet";
 import {
-  HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
-  HOUSE_HEADER_TRAILING_PHONE_CLASS,
+  HOUSE_HEADER_ROUND_GLYPH_CLASS,
   HOUSE_PHONE_CHROME_ICON_WEIGHT,
 } from "@/lib/house-phone-shell";
-import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { cn } from "@/lib/cn";
 
 function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
@@ -328,6 +328,9 @@ function ActivityBellTriggers({
   );
 }
 
+// Round grey 44 with a 20 ink bell (H register). Unread is a
+// 10 accent dot with a 2px page ring at the glyph's top-right — never a
+// count badge, never red; "new" is in the accessible name.
 function ActivityBellTrigger({
   count,
   register = "desktop",
@@ -341,30 +344,22 @@ function ActivityBellTrigger({
   panelId: string;
   onToggle: () => void;
 }) {
-  const phone = register === "phone";
   return (
     <button
       type="button"
       data-activity-bell=""
+      data-activity-bell-register={register}
       data-activity-bell-open={open ? "" : undefined}
-      aria-label={ACTIVITY_PAGE.bellLabel}
+      aria-label={activityBellLabel(count)}
       aria-expanded={open}
       aria-haspopup="dialog"
       aria-controls={panelId}
       className={cn(ACTIVITY_BELL_TRIGGER_CLASS, open && ACTIVITY_BELL_TRIGGER_OPEN_CLASS)}
       onClick={onToggle}
     >
-      <Bell
-        className={phone ? HOUSE_HEADER_TRAILING_PHONE_CLASS : HOUSE_HEADER_TRAILING_DESKTOP_CLASS}
-        weight={phone ? HOUSE_PHONE_CHROME_ICON_WEIGHT : PHOSPHOR_CHROME_IDLE_WEIGHT}
-      />
+      <Bell className={HOUSE_HEADER_ROUND_GLYPH_CLASS} weight={HOUSE_PHONE_CHROME_ICON_WEIGHT} />
       {count > 0 ? (
-        <span
-          data-activity-bell-badge=""
-          className="absolute right-0 top-0 min-w-4 rounded-full bg-accent px-1 text-center t-label text-[var(--accent-contrast)]"
-        >
-          {count > 9 ? "9+" : count}
-        </span>
+        <span aria-hidden="true" data-activity-bell-dot="" className={ACTIVITY_BELL_UNREAD_DOT_CLASS} />
       ) : null}
     </button>
   );

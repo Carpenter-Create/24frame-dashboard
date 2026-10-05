@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { SOCIAL } from "@/lib/social";
 import {
   SOCIAL_FEED_CAROUSEL_MIN_ITEMS,
+  socialFeedCarouselChip,
   socialFeedCarouselIndex,
   socialFeedCarouselLabel,
   socialFeedCarouselShowLabel,
@@ -31,6 +32,14 @@ describe("social feed carousel", () => {
     expect(socialFeedCarouselIndex(10, 0, 3)).toBe(0);
   });
 
+  it("draws the counter chip as N / M while the live region says N of M", () => {
+    expect(socialFeedCarouselChip(0, 3)).toBe("1 / 3");
+    expect(socialFeedCarouselChip(2, 3)).toBe("3 / 3");
+    expect(socialFeedCarouselChip(9, 3)).toBe("3 / 3");
+    expect(socialFeedCarouselChip(0, 0)).toBe("0 / 0");
+    expect(SOCIAL.post.carouselChip(1, 3)).toBe("1 / 3");
+  });
+
   it("labels the visible slide as N of M", () => {
     expect(socialFeedCarouselLabel(0, 3)).toBe("1 of 3");
     expect(socialFeedCarouselLabel(2, 3)).toBe("3 of 3");
@@ -50,13 +59,19 @@ describe("social feed carousel", () => {
     ).toBe(false);
   });
 
-  it("keeps the slide cap on the Media Immersion box and out of Stories", () => {
+  // H · Posts (founder 2026-10-05): every slide fills one box, the post's
+  // photo frame at the first still's true shape (no 560 cap).
+  // docs/design-locks/social-feed-register-lock-v1.md §7
+  it("keeps one Media Immersion box for every slide (the photo frame's true shape) and out of Stories", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
     const card = readFileSync("src/components/social/social-post-media.tsx", "utf8");
     const carousel = readFileSync("src/components/social/social-feed-carousel.tsx", "utf8");
-    expect(css).toContain("height: min(70vh, 560px);");
-    expect(css).toContain("max-height: min(70vh, 560px);");
+    const slide = css.slice(css.indexOf(".social-feed-carousel-slide {"));
+    expect(slide.slice(0, slide.indexOf("}"))).toContain("height: 100%;");
+    expect(slide.slice(0, slide.indexOf("}"))).not.toContain("min(70vh, 560px)");
+    expect(carousel).toContain("style={{ aspectRatio: String(aspect) }}");
+    expect(carousel).toContain("socialPostPhotoAspect(");
     expect(chrome).toContain("SOCIAL_FEED_CAROUSEL_BLEED_CLASS");
     expect(chrome).not.toContain("grid-cols-2");
     expect(carousel).not.toContain("<video");

@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-23 (CT)  
 **Status:** **LOCKED** (Adam product signal 2026-09-23 · prod shots `/social/stories` empty + Create story modal) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS routes Dev  
+**Amended (Adam 2026-10-04, G · Feed):** stack order is now tabs → topics → stories → composer → wall (`lock_tabs_topics_stories_composer_wall`, [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md)), and the wall carries a Reels rail after every 3 posts ([`social-feed-reel-rail-lock-v1.md`](social-feed-reel-rail-lock-v1.md)). Purpose, URLs and the empty state stay.  
+**Amended again (founder 2026-10-05, H · Feed):** the stack is now slider → stories → composer → topics → wall (`lock_slider_stories_composer_topics_wall`); the Reels row stays after every 3 posts. Purpose, URLs and the empty state stay. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md).  
 **Prompt copy superseded** by [`social-home-composer-share-copy-lock-v1.md`](social-home-composer-share-copy-lock-v1.md) — the live Home composer prompt and empty primary CTA are **Share something**. Purpose, stack, and URLs in this lock stay.  
 **Scope:** Social **Home purpose**, **canonical URL**, **Home rail mapping**, **page empty-state copy/CTAs**, and **Stories rail vs feed** relationship. Not full feed-card craft.  
 **Evidence:** Adam prod — sidebar **Home** selected while URL is `/social/stories`; page empty is stories-only (“No stories yet…” + Create a story). Second shot: `/social/stories/new` Create a story (Video only).  

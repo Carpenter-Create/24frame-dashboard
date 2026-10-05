@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-29 (CT)
 **Status:** **LOCKED** · CoS / Adam
+**Superseded (founder 2026-10-05, H · Posts):** the time is no longer the last line under the caption: it sits in the credit row under the media, after the name (15, quiet ink, a 44 permalink hit). Relative Nh / Nd and never a t-label stay. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7.  
 **Entity:** Global Content / 24Frame only
 **Cite:** [`social-home-craft-wave-1-lock-v1.md`](social-home-craft-wave-1-lock-v1.md) · [`social-feed-text-media-caption-below-lock-v1.md`](social-feed-text-media-caption-below-lock-v1.md)
 **Amended (air + hairline only):** [`social-home-post-separation-lock-v1.md`](social-home-post-separation-lock-v1.md)

@@ -565,6 +565,22 @@ export async function loadExploreMedia(
   };
 }
 
+/**
+ * Explore `?v=` deep link. The same RLS-bound video-post read as For You,
+ * narrowed to one id: a missing, removed, group, or non-Mux-video post is
+ * null. No new query shape and no SQL change.
+ */
+export async function loadExploreVideoPost(
+  supabase: ServerClient,
+  postId: string,
+  viewer: { topics?: unknown; crafts?: unknown } | readonly string[] = [],
+): Promise<SocialExploreHit | null> {
+  if (!postId) return null;
+  const { data: post } = await exploreVideoPosts(supabase).eq("id", postId).maybeSingle();
+  if (!post) return null;
+  return explorePostHits([post], viewer)[0] ?? null;
+}
+
 export async function loadExploreHashtag(
   supabase: ServerClient,
   tag: string,

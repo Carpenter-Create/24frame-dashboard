@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-24 (CT)  
 **Status:** **LOCKED** (Adam phone glance #681 preview 2026-09-24 · composer bottom hairline present · **missing** grey under Stories / above first feed post · Adam wants one · Design **AGREE** · house speed — no invent bounce) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · Design HOLD invent else  
+**Superseded (Adam 2026-10-04, G · Feed):** the story tiles now sit above the composer bar and D draws no rule under them, so this hairline is removed. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
 **Repo citation:** `docs/design-locks/social-home-stories-feed-hairline-lock-v1.md`  
 **Box draft:** `/workspace/24frame-agg-ux/social-home-stories-feed-hairline-lock-v1.md`  
 **Adam miss shot:** `/workspace/cloud-agent-artifacts/adam-glance/stories-feed-hairline-miss.png` (also `-sm.png`)  

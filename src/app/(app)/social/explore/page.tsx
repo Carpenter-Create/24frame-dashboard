@@ -19,6 +19,7 @@ import {
   loadExploreMedia,
   loadExploreProfileByHandle,
   loadExploreSearch,
+  loadExploreVideoPost,
   loadLikedPostIds,
   loadPeopleSearch,
   loadProfilesByIds,
@@ -33,6 +34,7 @@ import {
   exploreForYouVideoItems,
   exploreHashtagToken,
   parseExploreForYouSearch,
+  pinExploreForYouHit,
   type ExploreForYouMode,
   type ExploreForYouQuery,
 } from "@/lib/social-explore-for-you";
@@ -240,5 +242,12 @@ async function loadExploreForYouPage(
   if (mode === "keyword") {
     return { page: await loadExploreSearch(session.supabase, query.q, viewer), author: null };
   }
-  return { page: await loadExploreMedia(session.supabase, viewer), author: null };
+  // `?v=`: For You opened at one reel (a feed reel tile). That post loads
+  // through the same RLS-bound video-post read, goes first, and leaves
+  // the page below it. Missing, removed, or not a video: For You as usual.
+  const [page, pinned] = await Promise.all([
+    loadExploreMedia(session.supabase, viewer),
+    query.v ? loadExploreVideoPost(session.supabase, query.v, viewer) : Promise.resolve(null),
+  ]);
+  return { page: { ...page, hits: pinExploreForYouHit(page.hits, pinned) }, author: null };
 }

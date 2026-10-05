@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-24 (CT)  
 **Status:** **LOCKED** · **Own→READY** (v1.4 — video **and** photo at Instagram / TikTok / YouTube level · **G0** stays · Coinbase / professional / 24Frame / **thoughtful** stay · **no ornamental invent**) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS routes Dev  
+**Amended in part (Adam 2026-10-04, G · Feed):** On the Feed only, accent punch leaves the feed content (one accent element per screen; the feed carries zero accent): the unseen story ring and the "Your story" badge are ink, and Follow in the aside is a hairline button, not Sporty Blue. Feed stories are D's 56×100 tiles with the name under them, not FB-grade rail cards (Surface map, Stories rail row). Feed air is the G board's (4, 18 and 22 between blocks, among others), not only 8 / 16 / 24 / 48. Media vitality, no drop shadows and listed motion stay. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
+**Amended in part (founder 2026-10-05, H · Feed):** the G Feed-only amendment is reversed in part: the unseen story ring and the Create story plus are Sporty Blue again, the Feed's story cards are the FB-grade cards, Follow in the For you rail is the grey pill (not Sporty Blue, not a hairline button), the current topic is the accent wash with accent-ink type, and the Feed's air is 8 / 16 / 24 / 48. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md).  
 **Version:** Cite **v1.4 only**. Supersedes v1.3. Do not paint against v1.3. Thoughtful stays IN.  
 **Scope:** House visual register for **24Frame** — **Social + Stories first**. Amends feel bar only. **Does not** reopen geometry. Stories geometry is closed.  
 **Cites (geometry stays):**  

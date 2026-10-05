@@ -73,10 +73,16 @@ describe("soft-nav pending selection", () => {
 
   it("reads Home lane and topic from the owned href without swapping the center", () => {
     const topics = readFileSync("src/components/social/social-home-topics.tsx", "utf8");
+    const tabs = readFileSync("src/components/social/social-home-lane-tabs.tsx", "utf8");
     const slot = readFileSync("src/components/social/social-home-cold-slot.tsx", "utf8");
     const home = readFileSync("src/app/(app)/social/page.tsx", "utf8");
+    // G · Feed: the lane moved to E text tabs on their own row; both rows
+    // read the same owned href (docs/design-locks/social-home-lane-tabs-lock-v1.md).
     expect(topics).toContain("useSocialHomeLive");
-    expect(topics).toContain("data-social-home-lane");
+    expect(topics).toContain("data-social-home-topic");
+    expect(tabs).toContain("useSocialHomeLive");
+    expect(tabs).toContain("data-social-home-lane");
+    expect(home).toContain("<SocialHomeLaneTabs lane={lane} topic={topic}");
     expect(slot).toContain("return children");
     expect(slot).toContain("router.push(house.href, { scroll: false })");
     expect(slot).toContain("pushed.current = null");
@@ -109,8 +115,13 @@ describe("soft-nav pending selection", () => {
 });
 
 describe("soft-nav Explore query hops", () => {
-  it("keeps q, tag, person, and discover as separate screens from default For You", () => {
-    expect(houseScreenQueryNames(SOCIAL_ROUTES.explore)).toEqual(["q", "tag", "person", "discover"]);
+  it("keeps q, tag, person, discover, and a ?v= reel as separate screens from default For You", () => {
+    expect(houseScreenQueryNames(SOCIAL_ROUTES.explore)).toEqual(["q", "tag", "person", "discover", "v"]);
+    // A feed reel tile opens /social/explore?v=<post>: a Next navigation that loads that reel.
+    const reel = houseHrefKey("/social/explore?v=11111111-1111-4111-8111-111111111111");
+    expect(reel).toBe("/social/explore?v=11111111-1111-4111-8111-111111111111");
+    expect(houseHop(houseScreenKey(SOCIAL_ROUTES.explore), reel)).toBe("next");
+    expect(houseHop("/social", reel)).toBe("next");
     const base = houseScreenKey(SOCIAL_ROUTES.explore);
     const keyword = houseHrefKey("/social/explore?q=ada");
     const tag = houseHrefKey("/social/explore?tag=night");

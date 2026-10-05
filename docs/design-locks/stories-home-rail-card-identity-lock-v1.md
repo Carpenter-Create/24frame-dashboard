@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-24 (CT)  
 **Status:** **LOCKED** (Adam phone 2026-09-24 — avatar is enough · no bottom name on user story cards · CoS Own→READY) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS routes Dev  
+**Superseded on the Feed (Adam 2026-10-04, G · Feed):** D's tiles carry no avatar ring; the first name sits under the tile (never on it, no scrim). See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
+**Superseded on the Feed (founder 2026-10-05, H · Feed):** the Feed's story cards carry the avatar ring top-left and the name on the picture ("Elena R.") over a dark scrim, as the approved H board draws them. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md).  
 **Repo citation:** `docs/design-locks/stories-home-rail-card-identity-lock-v1.md`  
 **Box draft:** `/workspace/24frame-agg-ux/stories-home-rail-card-identity-lock-v1.md`  
 **Adam glance:** `/workspace/24frame-agg-ux/stories-rail-identity-adam-glance.png`  

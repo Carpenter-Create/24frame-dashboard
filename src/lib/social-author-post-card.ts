@@ -1,3 +1,4 @@
+import { normalizeSocialCategory, type SocialCategoryTopic } from "@/lib/social-categories";
 import type { SocialMediaOrientation } from "@/lib/social-media-display";
 import type { SocialMuxPlaybackPolicy } from "@/lib/social-mux";
 
@@ -28,6 +29,11 @@ export type SocialPostCardModel = {
   canLike: boolean;
   media: SocialPostMediaItem[];
   owned?: boolean;
+  /**
+   * The post's topic (H register §5.1): a chip on the photo, the left of
+   * a video's screen band. Absent or null: no topic shown.
+   */
+  topic?: SocialCategoryTopic | null;
 };
 
 // Pure card model. Lives outside the client module so server pages can call it.
@@ -41,6 +47,7 @@ export function socialAuthorPostCard(input: {
     like_count: number;
     comment_count?: number;
     created_at: string;
+    category?: string | null;
   };
   authorHandle: string;
   authorName: string;
@@ -66,5 +73,6 @@ export function socialAuthorPostCard(input: {
     canLike: input.canLike,
     media: input.media,
     owned: input.owned ?? false,
+    topic: normalizeSocialCategory(input.post.category),
   };
 }

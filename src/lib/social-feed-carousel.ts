@@ -28,6 +28,13 @@ export function socialFeedCarouselLabel(index: number, total: number): string {
   return SOCIAL.post.carouselCount(current, total);
 }
 
+/** The counter chip on the photo (H register): "1 / 3". */
+export function socialFeedCarouselChip(index: number, total: number): string {
+  if (!Number.isInteger(total) || total <= 0) return SOCIAL.post.carouselChip(0, 0);
+  const current = Math.min(total, Math.max(1, Math.trunc(index) + 1));
+  return SOCIAL.post.carouselChip(current, total);
+}
+
 export function socialFeedCarouselShowLabel(index: number, total: number): string {
   if (!Number.isInteger(total) || total <= 0) return SOCIAL.post.carouselShow(0, 0);
   const current = Math.min(total, Math.max(1, Math.trunc(index) + 1));

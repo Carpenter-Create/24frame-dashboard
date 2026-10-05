@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-24 (CT)  
 **Status:** **LOCKED** (Adam signal 2026-09-24 — Home bare vs FB · after #680 · **Adam confirm: judge density mobile-first** · CoS Own→READY) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS routes Dev  
+**Superseded in part (Adam 2026-10-04, G · Feed):** the stack below is no longer Topics → composer → Stories → Feed; it is tabs → topics → stories → composer → wall (`lock_tabs_topics_stories_composer_wall`). For the Feed only, the shared 720 centre gives way to the 620 feed column, a 40 gap and a 244 aside; Profile, Messages and Create keep the 720 centre. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
 **Repo citation:** `docs/design-locks/social-home-spine-density-lock-v1.md`  
 **Box draft:** `/workspace/24frame-agg-ux/social-home-spine-density-lock-v1.md`  
 **FB structure ref (spine only, not chrome clone):** `/workspace/24frame-agg-ux/create-story-ref-fb-home-rail.png`  
