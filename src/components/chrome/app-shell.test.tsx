@@ -100,15 +100,16 @@ import {
   HOUSE_HEADER_EXIT_COMPACT_CLASS,
   HOUSE_HEADER_EXIT_LABEL_CLASS,
 } from "@/lib/house-lead-chrome";
+import { HOUSE_CANVAS_X_CLASS } from "@/lib/house-shell";
 import {
   RAIL_COLLAPSE_CHEVRON,
   RAIL_COLLAPSE_CHEVRON_CLASS,
   RAIL_EXPAND_CHEVRON_CLASS,
   RAIL_COLLAPSE_CHEVRON_ICON_CLASS,
-  RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT,
   RAIL_WIDTH_CLASS,
   SIDEBAR_COLLAPSED_COOKIE,
 } from "@/lib/rail-collapse";
+import { APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS } from "@/lib/workspace-switcher";
 
 afterEach(() => {
   resetAccountChromeIdentityForTests();
@@ -240,7 +241,7 @@ describe("AppShell header", () => {
     expect(html).not.toContain("data-workspace-switcher-lanes");
     expect(html).toContain('data-workspace-switcher-segment="social"');
     expect(html).toContain('data-workspace-switcher-segment="home"');
-    expect(html).toContain("hidden lg:contents");
+    expect(html).toContain(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS);
     expect(html).not.toContain("data-app-header-workspace-pill");
     expect(html).not.toContain("data-workspace-switcher-rail");
     expect(html).not.toContain("data-workspace-switcher-lead");
@@ -381,17 +382,6 @@ describe("AppShell Access rail and home frame", () => {
       join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
       "utf8",
     );
-    // H register (Adam 2026-10-05): side menu 240, header 80.
-    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
-    expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
-    expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
-    expect(tokens).toMatch(/--content-inset:\s*48px;/);
-    expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(tokens).toMatch(/--header-height:\s*80px;/);
-    expect(tokens).toMatch(/--header-avatar-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-control-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-search-height:\s*48px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*60px;/);
     expect(tokens).not.toMatch(/--sidebar-width:\s*190px;/);
 
     navigation.pathname = "/";
@@ -404,7 +394,7 @@ describe("AppShell Access rail and home frame", () => {
     expect(html).not.toMatch(/<aside class="[^"]*bg-surface-muted/);
     expect(html).not.toMatch(/<aside class="[^"]*rounded-/);
     expect(html).toContain("data-app-home-frame");
-    expect(html).toContain("px-[var(--chrome-gutter)]");
+    expect(html).toContain(HOUSE_CANVAS_X_CLASS);
     expect(html).toContain("py-[var(--space-8)]");
     expect(homeFrameMarkup(html)).not.toContain("mx-auto");
     expect(homeFrameMarkup(html)).not.toContain("page-max-width");
@@ -437,7 +427,7 @@ describe("AppShell Access rail and home frame", () => {
 
     navigation.pathname = "/activity";
     const activity = renderShell();
-    expect(activity).toContain("px-[var(--chrome-gutter)]");
+    expect(activity).toContain(HOUSE_CANVAS_X_CLASS);
     expect(activity).toContain("pb-24 pt-8");
     expect(activity).not.toContain("px-6 pb-24 pt-8");
     expect(activity).not.toContain("data-app-home-frame");
@@ -446,7 +436,7 @@ describe("AppShell Access rail and home frame", () => {
 
     navigation.pathname = "/aggregation/attention";
     const health = renderShell();
-    expect(health).toContain("px-[var(--chrome-gutter)]");
+    expect(health).toContain(HOUSE_CANVAS_X_CLASS);
     expect(health).toContain("pb-24 pt-8");
     expect(health).not.toContain("px-6 pb-24 pt-8");
     expect(health).not.toContain("data-app-home-frame");
@@ -480,7 +470,7 @@ describe("AppShell Access rail and home frame", () => {
     expect(education).not.toContain("data-aggregation-shell-column");
     expect(educationCanvas).toContain("mx-auto");
     expect(educationCanvas).toContain("max-width:var(--page-max-width)");
-    expect(educationCanvas).toContain("px-[var(--chrome-gutter)]");
+    expect(educationCanvas).toContain(HOUSE_CANVAS_X_CLASS);
     expect(educationCanvas).toContain("pb-24 pt-8");
 
     expect(shellSrc).toContain('const homePage = pathname === "/" || homeChrome');
@@ -518,14 +508,7 @@ describe("AppShell client mobile chrome", () => {
       join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
       "utf8",
     );
-    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
-    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*80px;/);
-    expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
-    expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
     expect(tokens).toMatch(/@media \(max-width:\s*767px\)/);
-    expect(tokens).toMatch(/--sidebar-width:\s*0px;/);
-    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*0px;/);
-    expect(tokens).toMatch(/--access-rail-width:\s*0px;/);
 
     navigation.pathname = "/";
     const html = renderShell();
@@ -622,7 +605,7 @@ describe("AppShell /activity account chrome", () => {
         expect(html).toContain('data-workspace-switcher-segment="home"');
         expect(html).toContain("data-user-menu-host");
         expect(html).toContain("data-house-lead-chrome");
-        expect(html).toContain("px-[var(--chrome-gutter)]");
+        expect(html).toContain(HOUSE_CANVAS_X_CLASS);
         expect(html).toContain("pb-24 pt-8");
         expect(html).toContain("max-width:var(--page-max-width)");
         expect(html).not.toContain("/aggregation/activity");
@@ -671,8 +654,8 @@ describe("AppShell /activity account chrome", () => {
       expect(chrome).not.toContain("Rights Holder");
     }
     expect(activityLead.includes("<aside")).toBe(helpLead.includes("<aside"));
-    expect(activity).toContain("px-[var(--chrome-gutter)]");
-    expect(help).toContain("px-[var(--chrome-gutter)]");
+    expect(activity).toContain(HOUSE_CANVAS_X_CLASS);
+    expect(help).toContain(HOUSE_CANVAS_X_CLASS);
     expect(activity).toContain("max-width:var(--page-max-width)");
     expect(help).toContain("max-width:var(--page-max-width)");
   });
@@ -721,7 +704,7 @@ describe("AppShell /help account chrome", () => {
         expect(html).toContain('data-workspace-switcher-segment="home"');
         expect(html).toContain("data-user-menu-host");
         expect(html).toContain("data-house-lead-chrome");
-        expect(html).toContain("px-[var(--chrome-gutter)]");
+        expect(html).toContain(HOUSE_CANVAS_X_CLASS);
         expect(html).toContain("pb-24 pt-8");
         expect(html).toContain("max-width:var(--page-max-width)");
         expect(html).not.toContain("/education/help");
@@ -736,12 +719,6 @@ describe("AppShell /help account chrome", () => {
 
 describe("AppShell /settings rail", () => {
   it("puts one house dest rail in the Access slot and kills the dashboard destinations", () => {
-    const tokens = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
-      "utf8",
-    );
-    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
-
     navigation.pathname = "/settings";
     const html = renderShell();
     expect(html).toContain("data-app-rail");
@@ -864,7 +841,6 @@ describe("AppShell rail-collapse chevron", () => {
       expect(html).toContain("24Frame");
     }
     expect(railCollapseSrc).toContain("weight={RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT}");
-    expect(RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT).toBe("regular");
     expect(railCollapseSrc).toContain("CaretDoubleLeft");
     expect(railCollapseSrc).toContain("CaretDoubleRight");
     expect(railCollapseSrc).toContain("RAIL_COLLAPSE_CHEVRON");

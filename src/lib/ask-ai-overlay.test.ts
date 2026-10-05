@@ -77,18 +77,28 @@ describe("ask AI overlay URL", () => {
     expect(askAiOverlayDesktopHostClass(false)).toContain("pointer-events-none");
     expect(askAiOverlayDesktopHostClass(true)).not.toContain("pointer-events-none");
     expect(ASK_AI_OVERLAY_COMPACT_CLASS).not.toContain("40rem");
+    expect(ASK_AI_OVERLAY_EXPAND_CLASS).toBe("flex size-[44px] items-center justify-center text-ink-3");
     expect(ASK_AI_OVERLAY_EXPAND_CLASS).not.toContain("hidden");
     expect(ASK_AI_OVERLAY_EXPAND_CLASS).not.toContain("md:flex");
+    expect(ASK_AI_OVERLAY_BODY_CLASS).toBe(
+      "relative flex min-h-0 flex-1 flex-col overflow-hidden [&_[data-ask-frame-ai-gate]]:h-full [&_[data-ask-frame-ai-gate]]:min-h-0 [&_[data-ask-frame-ai-landing]]:h-full [&_[data-ask-frame-ai-landing]]:min-h-0 [&_[data-ask-frame-ai-thread]]:h-full [&_[data-ask-frame-ai-thread]]:min-h-0",
+    );
     expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("overflow-hidden");
     expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("[&_[data-ask-frame-ai-landing]]:h-full");
     expect(ASK_AI_OVERLAY_BODY_CLASS).toContain("[&_[data-ask-frame-ai-thread]]:h-full");
     expect(ASK_AI_OVERLAY_BODY_CLASS).not.toContain("overflow-auto");
     expect(askAiOverlayPhoneClass(false)).toContain("overscroll-none");
+    expect(ASK_AI_OVERLAY_PHONE_SCROLL_CLASS).toBe(
+      "max-md:overflow-y-scroll max-md:overscroll-contain max-md:[touch-action:pan-y] max-md:[-webkit-overflow-scrolling:touch]",
+    );
     expect(ASK_AI_OVERLAY_PHONE_SCROLL_CLASS).toContain("max-md:overflow-y-scroll");
     expect(ASK_AI_OVERLAY_PHONE_SCROLL_CLASS).toContain("max-md:overscroll-contain");
     expect(ASK_AI_OVERLAY_PHONE_SCROLL_CLASS).toContain("max-md:[touch-action:pan-y]");
     expect(ASK_AI_OVERLAY_PHONE_SCROLL_CLASS).toContain(
       "max-md:[-webkit-overflow-scrolling:touch]",
+    );
+    expect(ASK_AI_OVERLAY_PHONE_HISTORY_HOST_CLASS).toBe(
+      "hidden min-h-0 flex-1 flex-col bg-surface max-md:flex",
     );
     expect(ASK_AI_OVERLAY_PHONE_HISTORY_HOST_CLASS).toContain("max-md:flex");
     expect(ASK_AI_OVERLAY_PHONE_HISTORY_HOST_CLASS).toContain("flex-1");

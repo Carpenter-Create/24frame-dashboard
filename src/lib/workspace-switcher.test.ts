@@ -41,6 +41,7 @@ import {
   WORKSPACE_SWITCHER_HOST_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
   WORKSPACE_SWITCHER_PANEL_CLASS,
+  WORKSPACE_SWITCHER_PANEL_SURFACE_CLASS,
   WORKSPACE_SWITCHER_SHORT_LABELS,
   workspaceSwitcherMenuStyle,
   workspaceSwitcherMenuTopPx,
@@ -62,11 +63,8 @@ import {
   workspaceWaffleTiles,
 } from "./workspace-switcher";
 import { persistWorkspaceCookie, workspaceHome } from "./workspace";
-import {
-  HOUSE_SEGMENTED_ITEM_ON_CLASS,
-  HOUSE_SEGMENTED_THUMB_CLASS,
-  HOUSE_SEGMENTED_TRACK_CLASS,
-} from "./house-shell";
+import { HOUSE_LEAD_SEARCH_DESKTOP_CLASS } from "./house-lead-chrome";
+import { HOUSE_SEGMENTED_TRACK_CLASS } from "./house-shell";
 
 const src = readFileSync("src/lib/workspace-switcher.ts", "utf8");
 
@@ -150,12 +148,17 @@ describe("workspace switcher lock", () => {
     expect(WORKSPACE_SWITCHER_HEADER_CLASS).not.toMatch(/font-/);
     expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).toContain("py-[var(--space-1)]");
     expect(WORKSPACE_WAFFLE_HOME_EXIT_CLASS).not.toMatch(/px-/);
+    expect(WORKSPACE_WAFFLE_GRID_CLASS).toBe("grid grid-cols-2 gap-[var(--space-3)] pb-[var(--space-4)]");
     expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("grid-cols-2");
     expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("gap-[var(--space-3)]");
     expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("pb-[var(--space-4)]");
     expect(WORKSPACE_WAFFLE_GRID_CLASS).not.toMatch(/px-/);
     expect(WORKSPACE_WAFFLE_DESKTOP_PANEL_CLASS).toContain("px-[var(--space-4)]");
     expect(WORKSPACE_SWITCHER_OPTION_CHECK_CLASS).toBe("text-accent");
+    expect(WORKSPACE_SWITCHER_PANEL_SURFACE_CLASS).toBe(
+      "flex min-w-[16rem] flex-col overflow-hidden rounded-[12px] border border-hairline bg-surface py-[var(--space-2)] shadow-none",
+    );
+    expect(WORKSPACE_SWITCHER_PANEL_CLASS).toBe(`fixed z-50 ${WORKSPACE_SWITCHER_PANEL_SURFACE_CLASS}`);
     expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("border-hairline");
     expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("fixed");
     expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("z-50");
@@ -172,6 +175,9 @@ describe("workspace switcher lock", () => {
   it("keeps header cluster air and does not host a workspace pill", () => {
     // Coinbase register: phone 8 (emblem → pill), desktop 16 (mark →
     // switcher → Exit). md+ the lead is its own width and never shrinks.
+    expect(APP_HEADER_LEADING_CLASS).toBe(
+      "mr-auto flex min-w-0 flex-1 items-center gap-[var(--space-2)] overflow-visible md:flex-none md:shrink-0 md:gap-[var(--space-4)]",
+    );
     expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_LEADING_CLASS).toContain("md:flex-none md:shrink-0");
@@ -180,10 +186,14 @@ describe("workspace switcher lock", () => {
     expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-3)]");
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
+    expect(APP_HEADER_LEADING_CLASS).toContain("min-w-0");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("max-md:flex-col");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("max-md:items-start");
     expect(WORKSPACE_SWITCHER_HOST_CLASS).toBe("relative min-w-0 overflow-visible");
     expect(WORKSPACE_SWITCHER_HOST_CLASS).not.toMatch(/overflow-hidden/);
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toBe(
+      "flex min-w-0 items-center gap-[var(--space-1)] md:gap-[var(--space-2)] max-md:shrink-0",
+    );
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("shrink-0");
     // Coinbase register: phone hits 4 apart; desktop controls 8 apart.
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
@@ -343,9 +353,7 @@ describe("workspace switcher lock", () => {
     }
     expect(APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS).toContain("md:hidden");
     // Coinbase register: the wide grey pill flexes 240–360 from xl.
-    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe(
-      "hidden min-w-[240px] max-w-[360px] flex-[0_1_360px] xl:flex",
-    );
+    expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).toBe(HOUSE_LEAD_SEARCH_DESKTOP_CLASS);
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("w-[232px]");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("flex-1");
     expect(APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS).not.toContain("w-[420px]");
@@ -481,8 +489,5 @@ describe("workspace switcher lock", () => {
     // The retired lanes are gone.
     expect(src).not.toContain("WORKSPACE_SWITCHER_LANE");
     expect(src).not.toContain("shadow-[inset_0_-2px_0_var(--text)]");
-    // Other segmented tracks keep the shared accent thumb.
-    expect(HOUSE_SEGMENTED_THUMB_CLASS).toContain("bg-accent");
-    expect(HOUSE_SEGMENTED_ITEM_ON_CLASS).toBe("text-white");
   });
 });

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
+import { HOUSE_DEST_RAIL_GLYPH_CLASS } from "@/lib/house-shell";
 import { NAV, SOCIAL_NAV, type HouseAiNavItem } from "@/lib/nav";
 import { NavGlyph } from "./nav-glyph";
 
@@ -14,13 +15,13 @@ describe("NavGlyph", () => {
     const active = renderToStaticMarkup(<NavGlyph item={NAV[0]} active />);
     const idle = renderToStaticMarkup(<NavGlyph item={NAV[0]} active={false} />);
     const Glyph = NAV[0].icon;
-    const bold = renderToStaticMarkup(<Glyph weight="bold" className="size-6 shrink-0" />);
-    const regular = renderToStaticMarkup(<Glyph weight="regular" className="size-6 shrink-0" />);
-    const fill = renderToStaticMarkup(<Glyph weight="fill" className="size-6 shrink-0" />);
+    const bold = renderToStaticMarkup(<Glyph weight="bold" className={HOUSE_DEST_RAIL_GLYPH_CLASS} />);
+    const regular = renderToStaticMarkup(<Glyph weight="regular" className={HOUSE_DEST_RAIL_GLYPH_CLASS} />);
+    const fill = renderToStaticMarkup(<Glyph weight="fill" className={HOUSE_DEST_RAIL_GLYPH_CLASS} />);
     expect(active).toBe(fill);
     expect(idle).toBe(regular);
     expect(active).not.toBe(bold);
-    expect(active).toContain("size-6 shrink-0");
+    expect(active).toContain(HOUSE_DEST_RAIL_GLYPH_CLASS);
     expect(active).toContain('fill="currentColor"');
     expect(idle).toContain('fill="currentColor"');
     expect(active).not.toContain("lucide-");

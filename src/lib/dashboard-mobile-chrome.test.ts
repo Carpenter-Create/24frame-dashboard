@@ -15,7 +15,6 @@ import {
 } from "@/lib/dashboard-craft";
 import {
   APP_HEADER_LEADING_CLASS,
-  APP_HEADER_TRAILING_CLUSTER_CLASS,
   WORKSPACE_SWITCHER,
   WORKSPACE_SWITCHER_PANEL_CLASS,
 } from "@/lib/workspace-switcher";
@@ -65,10 +64,6 @@ function chromeHtml() {
 
 describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under top", () => {
   it("keeps the emblem alone on the lead — no workspace pill, no hamburger", () => {
-    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-1)]");
-    expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
     expect(APP_HEADER_LEADING_CLASS).not.toContain("justify-center");
     expect(switcherSrc).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
     expect(switcherSrc).not.toContain("WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS");
@@ -107,17 +102,6 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
   });
 
   it("leaves the trailing avatar alone — no Aggregation+avatar phone cluster", () => {
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("shrink-0");
-    // Coinbase register: phone hits 4 apart; desktop controls 8 apart.
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
-      /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
-    );
-    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden lg:contents"');
-    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 lg:hidden"');
     expect(leadSrc).toContain("data-app-header-trailing");
     expect(leadSrc).toContain("APP_HEADER_TRAILING_CLUSTER_CLASS");
     const trailing = leadSrc.slice(
@@ -153,9 +137,6 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
   });
 
   it("opens a portaled Workspaces panel of Layer 1 tiles", () => {
-    expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("fixed");
-    expect(WORKSPACE_SWITCHER_PANEL_CLASS).toContain("z-50");
-    expect(WORKSPACE_SWITCHER_PANEL_CLASS).not.toContain("absolute");
     expect(WORKSPACE_SWITCHER.heading).toBe("Workspaces");
     const open = renderToStaticMarkup(
       createElement(WorkspaceSwitcher, {

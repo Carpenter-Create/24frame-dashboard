@@ -12,11 +12,7 @@ import {
   DASHBOARD_FIXTURE_BANNER_CLASS,
   DASHBOARD_PERIOD_TRIGGER_CLASS,
 } from "@/lib/dashboard-craft";
-import {
-  HOUSE_RAIL_ACTIVE_CLASS,
-  HOUSE_RAIL_IDLE_CLASS,
-  HOUSE_RAIL_ITEM_CLASS,
-} from "@/lib/house-shell";
+import { HOUSE_RAIL_ITEM_CLASS } from "@/lib/house-shell";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -178,11 +174,7 @@ describe("house type roles", () => {
     // A4: t-rail tracking only. Do not invent a second rail weight.
     expect(HOUSE_RAIL_ITEM_CLASS).toMatch(/(?:^|[\s"])t-body(?:[\s"]|$)/);
     expect(HOUSE_RAIL_ITEM_CLASS).toMatch(/(?:^|[\s"])t-rail(?:[\s"]|$)/);
-    expect(HOUSE_RAIL_ITEM_CLASS).not.toContain("t-body-sm");
     expect(HOUSE_RAIL_ITEM_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
-    expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
   });
 });
 

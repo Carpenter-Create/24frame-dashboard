@@ -6,33 +6,21 @@ import { activityBellLabel, ACTIVITY_BELL_UNREAD_DOT_CLASS } from "./activity";
 import {
   HOUSE_ASK_AI_HEADER_CLASS,
   HOUSE_HEADER_ROUND_BUTTON_CLASS,
-  HOUSE_HEADER_TRAILING_AVATAR_CLASS,
   HOUSE_LEAD_CHROME_CLASS,
-  HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS,
-  HOUSE_LEAD_DESKTOP_PAD_CLASS,
   HOUSE_LEAD_LOGO_CLASS,
-  HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS,
   HOUSE_LEAD_STACK_CLASS,
   HOUSE_THEME_TOGGLE_CLASS,
 } from "./house-lead-chrome";
 import {
-  HOUSE_ASK_AI_MARK_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT,
-  HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS,
 } from "./house-phone-shell";
 import {
-  HOUSE_DEST_RAIL_ACTIVE_CLASS,
-  HOUSE_DEST_RAIL_GLYPH_CLASS,
   HOUSE_DEST_RAIL_ROW_CLASS,
   HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS,
-  HOUSE_DEST_RAIL_UNREAD_DOT_CLASS,
-  HOUSE_PHONE_TRAILING_GUTTER_CLASS,
   HOUSE_RAIL_BRAND_BAND_CLASS,
-  HOUSE_RAIL_COLUMN_CLASS,
   houseDestRailGlyphWeight,
 } from "./house-shell";
 import { SOCIAL_RAIL_CREATE_ICON } from "./nav";
@@ -40,16 +28,9 @@ import { RAIL_COLLAPSE_CHEVRON_CLASS } from "./rail-collapse";
 import { SOCIAL, socialMessagesNavLabel } from "./social";
 import { SOCIAL_EXPLORE_EXIT_CLASS } from "./social-chrome";
 import {
-  APP_HEADER_TRAILING_CLUSTER_CLASS,
-  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
-  APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
   WORKSPACE_SWITCHER_SEGMENT_CLASS,
-  WORKSPACE_SWITCHER_SEGMENT_ON_CLASS,
   WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
-  WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS,
-  WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
-  WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS,
 } from "./workspace-switcher";
 
 const lock = readFileSync("docs/design-locks/shell-coinbase-register-lock-v1.md", "utf8");
@@ -58,7 +39,6 @@ const current = readFileSync("docs/status/CURRENT.md", "utf8");
 const screening = readFileSync("docs/design-locks/shell-screening-chrome-lock-v1.md", "utf8");
 const unified = readFileSync("docs/design-locks/shell-unified-chrome-lock-v1.md", "utf8");
 const explore = readFileSync("docs/design-locks/social-explore-for-you-immersive-lock-v2.md", "utf8");
-const tokens = readFileSync("src/app/tokens.css", "utf8");
 const appShell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 const lead = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
 const switcher = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
@@ -111,7 +91,6 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     expect(HOUSE_ASK_AI_HEADER_CLASS).toBe(HOUSE_HEADER_ROUND_BUTTON_CLASS);
     expect(HOUSE_HEADER_ROUND_BUTTON_CLASS).toContain("size-[var(--header-control-size)]");
     expect(HOUSE_HEADER_ROUND_BUTTON_CLASS).toContain("rounded-full bg-surface-muted text-ink");
-    expect(HOUSE_ASK_AI_MARK_CLASS).toBe("size-5 shrink-0 text-accent");
     expect(ask).toContain("aria-label={ASK_FRAME_AI.headline}");
     expect(ask).toContain("title={ASK_FRAME_AI.headline}");
     expect(ask).not.toContain("{ASK_FRAME_AI.headline}\n      </span>");
@@ -124,7 +103,6 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     expect(SOCIAL.search.searchPlaceholder).toBe("Search people");
     expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toContain("h-[var(--header-control-size)]");
     expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toContain("rounded-full border-0 bg-surface-muted");
-    expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe("hidden min-w-[240px] max-w-[360px] flex-[0_1_360px] xl:flex");
     expect(readFileSync("src/components/chrome/house-lead-search.tsx", "utf8")).toContain(
       "placeholder ?? (live ? SOCIAL.search.headerPlaceholder : EDUCATION_SEARCH.placeholder)",
     );
@@ -153,28 +131,17 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
   });
 
   it("the header is 80, starts at the full-height side menu's edge, and pads 24 / 32", () => {
-    expect(tokens).toMatch(/--header-height:\s*80px;/);
-    expect(HOUSE_RAIL_COLUMN_CLASS).toBe("fixed bottom-0 left-0 top-0 z-30 hidden flex-col md:flex");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("md:ml-[var(--sidebar-width)]");
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("border-b border-hairline");
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:gap-[var(--space-6)]");
-    expect(HOUSE_LEAD_DESKTOP_PAD_CLASS).toBe("md:pl-[var(--space-6)] md:pr-[var(--shell-gutter-inline-end)]");
-    expect(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS).toBe(
-      "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]",
-    );
   });
 
   it("the workspace switcher is the primary pill slider from lg: muted track, ink thumb, 220ms, 17 / 600, 44", () => {
     expect(switcher).toContain("<SegmentedTrack");
-    expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toBe("relative flex shrink-0 items-center rounded-full bg-surface-muted");
     expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toContain("absolute inset-y-0 rounded-full bg-ink");
     expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toContain("duration-[220ms] ease-out");
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS).toBe(220);
     expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("h-[var(--header-control-size)]");
     expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("px-[var(--space-4)] text-[length:var(--text-base)] font-semibold");
-    expect(WORKSPACE_SWITCHER_SEGMENT_ON_CLASS).toBe("text-bg");
-    expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toBe("hidden lg:contents");
-    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("shrink-0 lg:hidden");
     // Keyboard and current: one Tab stop, arrows, aria-current, Home writes no cookie.
     expect(switcher).toContain("tabIndex={workspaceSwitcherSegmentTabIndex(index, routeIndex, pills.length)}");
     expect(switcher).toContain('aria-current={lit ? "page" : undefined}');
@@ -182,10 +149,7 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
   });
 
   it("trailing: round grey 44s 8 apart (4 on phone), the 44 avatar, and a bell dot that is never a count", () => {
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("gap-[var(--space-1)] md:gap-[var(--space-2)]");
     expect(HOUSE_THEME_TOGGLE_CLASS).toBe(HOUSE_HEADER_ROUND_BUTTON_CLASS);
-    expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).toContain("size-[var(--header-avatar-size)]");
-    expect(tokens).toMatch(/--header-avatar-size:\s*44px;/);
     expect(ACTIVITY_BELL_UNREAD_DOT_CLASS).toBe(
       "pointer-events-none absolute right-1.5 top-1.5 size-3.5 rounded-full border-2 border-bg bg-accent",
     );
@@ -196,27 +160,19 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
   });
 
   it("the side menu: 240 / 80, 56 rows at 17 / 500, current = wash + filled glyph, no tiles, collapse at the foot", () => {
-    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
-    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*80px;/);
     expect(HOUSE_DEST_RAIL_ROW_CLASS).toContain("min-h-14");
     expect(HOUSE_DEST_RAIL_ROW_CLASS).toContain("rounded-full px-[var(--space-4)] text-left text-[length:var(--text-base)] font-medium");
     expect(HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS).toContain("size-14");
-    expect(HOUSE_DEST_RAIL_GLYPH_CLASS).toBe("size-6 shrink-0");
-    expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
     expect(houseDestRailGlyphWeight(true)).toBe("fill");
     expect(SOCIAL_RAIL_CREATE_ICON).toBe(PlusSquare);
     expect(RAIL_COLLAPSE_CHEVRON_CLASS).toContain("size-11");
     expect(appShell.indexOf("data-app-rail-body")).toBeLessThan(appShell.indexOf("data-app-rail-foot"));
-    expect(HOUSE_DEST_RAIL_UNREAD_DOT_CLASS).toBe("ml-auto size-2 shrink-0 rounded-full bg-accent");
     expect(socialMessagesNavLabel("Messages", 1)).toBe("Messages, 1 unread");
   });
 
   it("the phone bar: 60, the grey workspace pill (name out below 360), pads 16 / 12", () => {
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*60px;/);
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("rounded-full bg-surface-muted pl-[var(--space-3)] pr-[var(--space-4)]");
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("text-[length:var(--text-sm)] font-semibold text-ink");
-    expect(WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS).toBe("max-[359px]:hidden");
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-3)]");
     // The emblem link is a 44 × 44 hit (phone targets ≥ 44): it reaches
     // 11 into the 16 lead gutter so the 33-wide mark keeps its place.
     expect(HOUSE_LEAD_LOGO_CLASS).toContain("h-[var(--header-control-size)] min-w-[var(--header-control-size)]");
@@ -227,11 +183,8 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toBe(
       "flex h-14 w-full max-w-[420px] items-center rounded-full bg-surface shadow-[var(--elevation-float)]",
     );
-    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS).toBe("text-accent");
-    expect(HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT).toBe("fill");
     expect(HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS).toContain("size-11");
     expect(HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS).toContain("border-2 border-surface bg-accent");
-    expect(tokens).toContain("--house-phone-dock-clearance: calc(3.5rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));");
   });
 
   it("Explore's Exit is the grey 44 pill; the Messages dot reads the inbox without SQL", () => {

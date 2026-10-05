@@ -1094,8 +1094,6 @@ describe("Social Home miss list v1 P0 lock", () => {
       readFileSync("src/app/tokens.css", "utf8").match(/--shell-gutter-inline-end:\s*(\d+)px;/)?.[1],
     );
     // H register: the side menu slot is 240; the Feed pair still fits at 1440.
-    expect(railSlot).toBe(240);
-    expect(shellEnd).toBe(32);
     const leadPad = SOCIAL_DESKTOP_MEASURE.padR;
     const canvas = 1440 - railSlot - leadPad - shellEnd;
     expect(canvas).toBeGreaterThanOrEqual(SOCIAL_CONTENT_PAIR_WIDTH);

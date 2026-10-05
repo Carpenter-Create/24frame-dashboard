@@ -29,13 +29,10 @@ vi.mock("next/link", async () => {
 
 import { availableWorkspaceOptions } from "@/lib/workspace-menu";
 import {
-  APP_HEADER_LEADING_CLASS,
-  APP_HEADER_TRAILING_CLUSTER_CLASS,
   WORKSPACE_SWITCHER,
   WORKSPACE_SWITCHER_ABSENT,
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_WAFFLE_FORBIDDEN_LABELS,
-  WORKSPACE_WAFFLE_GRID_CLASS,
   WORKSPACE_WAFFLE_HOME_CHECK_CLASS,
   WORKSPACE_WAFFLE_HOME_EXIT_CLASS,
   WORKSPACE_WAFFLE_HOME_EXIT_CURRENT_CLASS,
@@ -44,6 +41,7 @@ import {
   WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS,
   WORKSPACE_SWITCHER_SEGMENT_ON_CLASS,
   WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_BARE_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
@@ -104,7 +102,7 @@ describe("workspace waffle header control", () => {
         expect(html, path).not.toContain("data-workspace-waffle-name");
         expect(html, path).toContain(`aria-label="${WORKSPACE_SWITCHER.heading}"`);
         // Nameless: the 44 circle.
-        expect(html, path).toContain("w-[var(--header-control-size)] px-0");
+        expect(html, path).toContain(WORKSPACE_WAFFLE_TRIGGER_BARE_CLASS);
       }
     } finally {
       navigation.pathname = "/";
@@ -219,7 +217,6 @@ describe("workspace waffle header control", () => {
     expect(home).not.toContain("text-accent");
     expect(home).not.toContain("data-appearance-check");
     expect(home).not.toContain('role="option"');
-    expect(WORKSPACE_WAFFLE_GRID_CLASS).toContain("grid-cols-2");
     const panelJsx = src.slice(
       src.indexOf("data-workspace-switcher-popover"),
       src.indexOf("data-workspace-switcher-sheet"),
@@ -416,20 +413,6 @@ describe("workspace waffle placement", () => {
     expect(src).toContain("WORKSPACE_SWITCHER_HOST_CLASS");
     expect(leadSrc).toContain("<BrandLogo />");
     expect(leadSrc).not.toContain("BrandEmblem");
-    expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
-    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-1)]");
-    expect(APP_HEADER_LEADING_CLASS).toContain("min-w-0");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("max-md:shrink-0");
-    // Phone hits 4 apart; desktop controls 8 apart (Coinbase register).
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
-      /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
-    );
   });
 });
 

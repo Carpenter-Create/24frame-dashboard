@@ -12,7 +12,6 @@ import {
 import {
   HOUSE_ASK_AI_MARK_CLASS,
   HOUSE_ASK_AI_MARK_INK_CLASS,
-  HOUSE_HEADER_ROUND_GLYPH_CLASS,
   HOUSE_PHONE_CHROME_IDLE_INK_CLASS,
 } from "@/lib/house-phone-shell";
 import { PHOSPHOR_CHROME_ICON_CLASS } from "@/lib/phosphor-icon";
@@ -52,7 +51,6 @@ describe("HouseAiMark", () => {
     for (const d of HOUSE_AI_MARK_PATHS) {
       expect(html).toContain(`d="${d}"`);
     }
-    expect(primitiveSrc).toContain("PHOSPHOR_CHROME_ICON_CLASS");
     expect(primitiveSrc).not.toContain("Sparkle");
   });
 
@@ -87,7 +85,6 @@ describe("HouseAiMark", () => {
     expect(html).not.toContain("md:hidden");
     // Adam 2026-10-04, "Blue, as in the mockup": the phone sparkle is
     // accent, not the phone idle ink the bell and search keep.
-    expect(HOUSE_ASK_AI_MARK_INK_CLASS).toBe("text-accent");
     expect(html).toContain(HOUSE_ASK_AI_MARK_INK_CLASS);
     expect(html).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     expect(HOUSE_PHONE_CHROME_IDLE_INK_CLASS).toBe("text-ink-2");
@@ -119,11 +116,9 @@ describe("HouseAiMark", () => {
     const markClasses = [...header.matchAll(/<svg[^>]*class="([^"]*)"/g)].map((m) => m[1]);
     expect(markClasses).toHaveLength(1);
     for (const cls of markClasses) {
-      expect(cls.split(" ")).toContain("text-accent");
+      expect(cls.split(" ")).toContain(HOUSE_ASK_AI_MARK_INK_CLASS);
       expect(cls.split(" ")).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     }
-    expect(HOUSE_ASK_AI_MARK_CLASS).toBe(`${HOUSE_HEADER_ROUND_GLYPH_CLASS} text-accent`);
-    expect(HOUSE_ASK_AI_MARK_CLASS).toBe("size-5 shrink-0 text-accent");
     expect(header).toContain("size-5");
     expect(header).not.toContain("size-4.5");
     expect(header).not.toContain("xl:");

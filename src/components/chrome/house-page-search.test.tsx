@@ -11,7 +11,6 @@ vi.mock("next/navigation", () => ({
 
 import { HOUSE_LEAD_SEARCH_PILL_CLASS } from "@/lib/house-lead-chrome";
 import { HOUSE_SEARCH_PILL_CLASS } from "@/lib/house-shell";
-import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { GC_LICENSING_STATUS } from "@/lib/gc-deliveries";
 import { TITLES_CATALOG } from "@/lib/titles-catalog";
@@ -57,15 +56,12 @@ describe("HousePageSearch", () => {
     expect(src).toContain("MagnifyingGlass");
     expect(src).toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");
     expect(src).toContain('variant="bare"');
-    expect(src).toContain("HOUSE_LEAD_SEARCH_PILL_CLASS");
-    expect(src).toContain("HOUSE_SEARCH_PILL_CLASS");
     expect(src).toContain("<Input");
     expect(src).toContain("skipTypedIngest.current = true");
     expect(src).not.toContain("lucide-react");
     expect(src).not.toContain('from "lucide-react"');
     expect(src).not.toContain("strokeWidth");
     expect(src).not.toContain("stroke-width");
-    expect(PHOSPHOR_CHROME_IDLE_WEIGHT).toBe("bold");
   });
 
   it("slots the same primitive into Titles, Queue, Deliveries, and Messages", () => {

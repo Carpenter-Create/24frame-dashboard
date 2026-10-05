@@ -84,7 +84,5 @@ describe("DashboardLicensingStatus", () => {
     const component = readFileSync("src/components/dashboard/dashboard-licensing-status.tsx", "utf8");
     expect(component).toContain('pipeline="delivery"');
     expect(component).toContain("StatusProgressTrack");
-    expect(STATUS_PROGRESS_TRACK_CLASS).toContain("gap-1.5");
-    expect(STATUS_PROGRESS_LABEL_CLASS).toBe("t-body-sm text-ink-3");
   });
 });

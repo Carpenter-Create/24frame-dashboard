@@ -9,7 +9,7 @@ import {
   DASHBOARD_TOP_PILL_BUTTON_ON_CLASS,
   DASHBOARD_TOP_PILL_CLUSTER_CLASS,
 } from "@/lib/dashboard-craft";
-import { SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
+import { SEGMENTED_ITEM_SELECTED_ATTR, SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
 
 const src = readFileSync("src/components/activity/activity-family-chips.tsx", "utf8");
 
@@ -24,7 +24,7 @@ describe("ActivityFamilyChips", () => {
     expect(html).toContain(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS);
     expect(html).toContain(DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS);
     expect(html).toContain('data-segmented-persist="activity-family"');
-    expect(html).toContain("data-segmented-selected");
+    expect(html).toContain(SEGMENTED_ITEM_SELECTED_ATTR);
     expect(html).not.toContain("data-activity-status");
     expect(html).not.toContain(">Open<");
     expect(html).not.toContain(">Done<");
@@ -41,7 +41,7 @@ describe("ActivityFamilyChips", () => {
     );
     const education = html.slice(html.indexOf('data-activity-family-chip="education"'));
     expect(education).toContain(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS);
-    expect(education).toContain("data-segmented-selected");
+    expect(education).toContain(SEGMENTED_ITEM_SELECTED_ATTR);
     expect(html).not.toContain(">Open<");
     expect(html).not.toContain(">Done<");
   });

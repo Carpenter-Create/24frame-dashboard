@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   HOUSE_ACCESS_RAIL_WIDTH,
   HOUSE_HOME_CONTENT_WIDTH,
-  HOUSE_HOME_RAIL_COLUMN_CLASS,
 } from "@/lib/house-shell";
 import {
   HOME_CONTENT_COLUMN_PX,
@@ -78,19 +77,9 @@ describe("Home width lock", () => {
     expect(shell).toContain('style={{ marginLeft: "var(--sidebar-width)" }}');
     expect(shell).toContain("const hideProductRail = overviewHidesRail(pathname) || accountChromeNoRail;");
     expect(tokens).toMatch(new RegExp(`--sidebar-width:\\s*${HOME_DEST_RAIL_PX}px;`));
-    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
-    expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
-    expect(tokens).toMatch(/--content-inset:\s*48px;/);
-    expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
-    expect(tokens).not.toMatch(/--home-content-width:\s*1364px;/);
     expect(tokens).not.toMatch(/--home-content-width:\s*1220px;/);
     expect(HOUSE_ACCESS_RAIL_WIDTH).toBe("var(--access-rail-width)");
     expect(HOUSE_HOME_CONTENT_WIDTH).toBe("var(--home-content-width)");
-    expect(HOUSE_HOME_RAIL_COLUMN_CLASS).toBe(
-      "w-full md:ml-[var(--shell-gutter-inline-start)] md:mr-[var(--shell-gutter-inline-end)] md:w-[calc(100%-var(--shell-gutter-inline-start)-var(--shell-gutter-inline-end))]",
-    );
-    expect(HOUSE_HOME_RAIL_COLUMN_CLASS).not.toContain("--access-rail-width");
     const homeArm = shell.slice(shell.indexOf(": homePage"), shell.indexOf(": cn(\"mx-auto"));
     expect(homeArm).toContain("HOUSE_HOME_RAIL_COLUMN_CLASS");
     expect(homeArm).not.toContain("page-max-width");

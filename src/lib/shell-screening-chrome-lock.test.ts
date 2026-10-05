@@ -4,20 +4,15 @@ import { describe, expect, it } from "vitest";
 import { ACTIVITY_HREF } from "./activity";
 import { CO_PRODUCTIONS_HREF } from "./co-productions";
 import { HELP } from "./help";
-import {
-  HOUSE_PHONE_BOTTOM_NAV_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
-} from "./house-phone-shell";
+import { HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS } from "./house-phone-shell";
 import {
   HOUSE_HEADER_EXIT_COMPACT_CLASS,
   HOUSE_HEADER_EXIT_LABEL_CLASS,
   HOUSE_LEAD_CHROME_CLASS,
   HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS,
-  HOUSE_LEAD_DESKTOP_PAD_CLASS,
   HOUSE_LEAD_LOGO_CLASS,
 } from "./house-lead-chrome";
-import { HOUSE_DEST_RAIL_ACTIVE_CLASS, HOUSE_RAIL_PANEL_CLASS, HOUSE_SHELL_GUTTER_X_CLASS } from "./house-shell";
+import { HOUSE_RAIL_PANEL_CLASS, HOUSE_SHELL_GUTTER_X_CLASS } from "./house-shell";
 import { overviewLeadActiveIndex } from "./overview";
 import { SOCIAL_CREATE_FAN_ANCHOR_CLASS } from "./social-create-fan";
 import { SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS, SOCIAL_EXPLORE_EXIT_CLASS } from "./social-chrome";
@@ -98,22 +93,9 @@ describe("shell screening chrome lock v1 (Adam 2026-10-04, \"Yes, everywhere\")"
   it("records the code it locked as superseded by the register — tokens and classes moved", () => {
     expect(lock).toContain("**Superseded in part 2026-10-05** by [`shell-coinbase-register-lock-v1.md`]");
     expect(register).toContain("[`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) §1 (the 52 header");
-    expect(tokens).toMatch(/--header-height:\s*80px;/);
-    expect(tokens).not.toMatch(/--header-height:\s*52px;/);
-    expect(tokens).toMatch(/--header-desktop-control-size:\s*44px;/);
-    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
-    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*80px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*60px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*44px;/);
     expect(tokens).not.toContain("Joshua bar 2026-09-22 raises");
     // Lanes → the pill slider's ink thumb; no inset underline.
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toContain("bg-ink");
     expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).not.toContain("shadow-[inset_0_-2px_0_var(--text)]");
-    expect(HOUSE_RAIL_PANEL_CLASS).toContain("border-r border-hairline");
-    // Current row → the accent wash (no muted row, no 600).
-    expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
-    // Dock current → the accent filled glyph (no ink dot).
-    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS).toBe("text-accent");
     // Explore: the muted bar over the dark stage stays.
     expect(SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS).toBe("hidden md:contents [&_[data-app-header]]:bg-bg");
     // The bar and the side menu share the page canvas (one surface in dark).
@@ -180,12 +162,10 @@ describe("shell screening chrome lock v1 (Adam 2026-10-04, \"Yes, everywhere\")"
   });
 
   it("phone dock: the pill floats 16 off the bottom and the five slots are equal", () => {
-    // The 16 float and the equal slots are pinned in code below.
+    // The equal slots are pinned in code below; the 16 float in
+    // house-phone-shell.test.ts and the dock clearance in tokens.test.ts.
     expect(lock).toContain("| Float |");
     expect(lock).toContain("**Five equal slots**");
-    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("pb-[max(16px,env(safe-area-inset-bottom))]");
-    // The float stays 16; the register's 56 pill moves the clearance to 3.5rem.
-    expect(tokens).toContain("--house-phone-dock-clearance: calc(3.5rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));");
     // A pad on the links alone floors their flex base at the pad, so
     // Create's anchor (no pad) came out 8 narrower. Every slot must share
     // the same flex sizing and the same (no) inline pad.
@@ -204,7 +184,6 @@ describe("shell screening chrome lock v1 (Adam 2026-10-04, \"Yes, everywhere\")"
     expect(lock).toContain("Emblem (the existing mark) in a **44** tall link");
     expect(lock).toContain("**G4.** Phone bar 60: emblem (a 44 tall link)");
     expect(HOUSE_LEAD_LOGO_CLASS).toContain("h-[var(--header-control-size)]");
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*44px;/);
   });
 
   it("records the board departures it keeps, and the code keeps them", () => {
@@ -221,12 +200,8 @@ describe("shell screening chrome lock v1 (Adam 2026-10-04, \"Yes, everywhere\")"
     // the brand mark).
     expect(departures).toContain("2. **Header pad.**");
     expect(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS).toBe(HOUSE_SHELL_GUTTER_X_CLASS);
-    expect(HOUSE_LEAD_DESKTOP_PAD_CLASS).toBe("md:pl-[var(--space-6)] md:pr-[var(--shell-gutter-inline-end)]");
-    expect(tokens).toMatch(/--shell-gutter-inline-start:\s*32px;/);
-    expect(tokens).toMatch(/--shell-gutter-inline-end:\s*32px;/);
     // 3 — phone lead pad 16.
     expect(departures).toContain("3. **Phone lead pad.** 16");
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain("max-md:pl-[var(--chrome-gutter)]");
     // 4 — dark muted stays the house ramp; the live and board values are
     // pinned in the dark tokens below.
     expect(departures).toContain("4. **Dark muted.**");

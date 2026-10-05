@@ -33,7 +33,6 @@ const threadSrc = readFileSync(join(here, "../components/messages/ask-frame-ai-t
 describe("mobile chrome clock lock", () => {
   it("shares lead inset, 44 hit, and 16 glyph for the 24Frame AI clock", () => {
     expect(tokens).toMatch(/--space-6:\s*1\.5rem/);
-    expect(tokens).toMatch(/--content-inset:\s*48px;/);
     expect(MOBILE_CHROME_LEAD_PAD_PX).toBe(24);
     expect(MOBILE_CHROME_MESSAGES_FRAME_PAD_PX).toBe(48);
     expect(MOBILE_CHROME_ICON_HIT_PX).toBe(44);
