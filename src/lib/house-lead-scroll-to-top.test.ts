@@ -33,7 +33,6 @@ import {
   HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR,
   houseLeadScrollToTopIsTap,
 } from "./house-lead-scroll-to-top";
-import { HOUSE_LEAD_SCROLL_CLASS, HOUSE_LEAD_SHELL_CLASS } from "./house-lead-chrome";
 
 const shellSrc = readFileSync(
   "src/components/chrome/house-phone-app-shell.tsx",
@@ -54,12 +53,6 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
     // Bridge does not flip the shell scroll ancestor — main stays the
     // scrolling element that Home / Aggregation / Social / Education
     // read. If G9 changes, this bridge stops being the right fix.
-    expect(HOUSE_LEAD_SHELL_CLASS).toBe(
-      "flex h-dvh flex-col overflow-hidden overscroll-none",
-    );
-    expect(HOUSE_LEAD_SCROLL_CLASS).toBe(
-      "min-h-0 flex-1 overflow-y-auto overscroll-contain",
-    );
     expect(appShellSrc.match(/data-house-lead-scroll/g)?.length).toBe(1);
     expect(HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR).toBe("[data-house-lead-scroll]");
     expect(HOUSE_LEAD_SCROLL_TO_TOP.selector).toBe("[data-house-lead-scroll]");

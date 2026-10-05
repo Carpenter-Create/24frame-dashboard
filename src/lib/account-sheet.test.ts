@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { USER_MENU, USER_MENU_ACTIONS, USER_MENU_PHONE_ACTIONS } from "@/lib/user-menu";
-import { APP_SHEET_HOST_CLASS, APP_SHEET_RISE_CLASS } from "@/lib/house-sheet";
+import { APP_SHEET_CHROME_CLASS, APP_SHEET_HOST_CLASS, APP_SHEET_RISE_CLASS } from "@/lib/house-sheet";
 import { ASSISTANT_NAME } from "@/lib/product";
 import * as accountSheet from "./account-sheet";
 import {
@@ -133,6 +133,9 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_SHEET_HOST_CLASS.split(" ")).not.toContain("items-end");
     expect(ACCOUNT_SHEET_HOST_CLASS).not.toContain("md:flex-row");
     expect(ACCOUNT_SHEET_HOST_CLASS).not.toContain("md:items-end");
+    expect(ACCOUNT_SHEET_SURFACE_CLASS).toBe(
+      `${APP_SHEET_CHROME_CLASS} account-sheet-surface relative z-10 h-auto overflow-hidden`,
+    );
     expect(ACCOUNT_SHEET_SURFACE_CLASS).toContain("w-full");
     expect(ACCOUNT_SHEET_SURFACE_CLASS).toContain(APP_SHEET_RISE_CLASS);
     expect(ACCOUNT_SHEET_SURFACE_CLASS).toContain("h-auto");
@@ -195,6 +198,9 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_MENU_DROPDOWN_HOST_CLASS).not.toContain("h-dvh");
     expect(ACCOUNT_MENU_DROPDOWN_DISMISS_CLASS).toBe("absolute inset-0");
     expect(ACCOUNT_MENU_DROPDOWN_DISMISS_CLASS).not.toContain("bg-ink");
+    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toBe(
+      "absolute z-10 flex h-auto w-[280px] flex-col overflow-hidden rounded-[12px] border border-hairline bg-surface shadow-none",
+    );
     expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toContain("h-auto");
     expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toContain("w-[280px]");
     expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).not.toContain("w-[264px]");

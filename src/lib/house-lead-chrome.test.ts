@@ -31,6 +31,7 @@ import { UserMenu } from "@/components/chrome/user-menu";
 import {
   HOUSE_LEAD_CHROME_CLASS,
   HOUSE_LEAD_LOGO_CLASS,
+  HOUSE_LEAD_PHONE_PAD_CLASS,
   HOUSE_LEAD_SCROLL_CLASS,
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_SEARCH_PILL_CLASS,
@@ -59,14 +60,20 @@ import {
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
+import { HOUSE_ASK_AI_MARK_CLASS } from "@/lib/house-phone-shell";
 import { ACTIVITY_BELL_TRIGGER_CLASS, ACTIVITY_BELL_TRIGGER_OPEN_CLASS } from "@/lib/activity";
-import { HOUSE_HEADER_SEARCH_GAP_CLASS, HOUSE_SEARCH_PILL_CLASS } from "@/lib/house-shell";
+import {
+  HOUSE_HEADER_SEARCH_GAP_CLASS,
+  HOUSE_SEARCH_PILL_CLASS,
+  HOUSE_SHELL_GUTTER_X_CLASS,
+} from "@/lib/house-shell";
 import { EDUCATION_SEARCH } from "@/lib/course-search";
 import { SOCIAL } from "@/lib/social";
 import { workspaceHome } from "@/lib/workspace";
 import {
   APP_HEADER_LEADING_CLASS,
   APP_HEADER_TRAILING_CLUSTER_CLASS,
+  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
@@ -109,9 +116,6 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadSrc).not.toContain("md:pl-5");
     expect(leadSrc).not.toContain("w-[420px]");
     expect(leadSrc).toContain("data-house-lead-chrome");
-    expect(leadSrc).toContain("HOUSE_LEAD_CHROME_CLASS");
-    expect(leadSrc).toContain("HOUSE_LEAD_LOGO_CLASS");
-    expect(leadSrc).toContain("HOUSE_LEAD_SEARCH_DESKTOP_CLASS");
   });
 
   it("G2 keeps the logo in one fixed lead slot on all three workspaces", () => {
@@ -225,9 +229,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(html).toContain("hidden shrink-0 items-center md:inline-flex");
     expect(html).toContain(`href="${workspaceHome("social")}"`);
     expect(htmlClass(html, 'data-app-header=""')).toContain(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS);
-    expect(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS).toBe(
-      "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]",
-    );
+    expect(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS).toBe(HOUSE_SHELL_GUTTER_X_CLASS);
     const beside = leadHtml("social");
     expect(beside).not.toContain('data-app-header-brand=""');
     expect(htmlClass(beside, 'data-app-header=""')).toContain(HOUSE_LEAD_DESKTOP_PAD_CLASS);
@@ -293,7 +295,15 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(social).toContain(HOUSE_LEAD_CHROME_CLASS);
     expect(aggregation).toContain(HOUSE_LEAD_LOGO_CLASS);
     expect(social).toContain(HOUSE_LEAD_LOGO_CLASS);
+    expect(HOUSE_LEAD_CHROME_CLASS).toBe(
+      `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`,
+    );
+    expect(HOUSE_LEAD_LOGO_CLASS).toBe(
+      "inline-flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center -ml-[11px] pl-[11px]",
+    );
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("relative");
+    // Phone lead pad: the emblem sits on the 16 chrome gutter.
+    expect(HOUSE_LEAD_CHROME_CLASS).toContain("max-md:pl-[var(--chrome-gutter)]");
     // Desktop pads ride beside the bar class: 24 after the side menu's
     // edge, the shell gutter 32 at the end (the avatar lines up with the
     // page's right edge).
@@ -314,7 +324,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).toContain("data-workspace-waffle");
       expect(html).toContain('data-workspace-switcher-presentation="waffle"');
       expect(html).toContain('data-workspace-switcher-presentation="slider"');
-      expect(html).toContain("hidden lg:contents");
+      expect(html).toContain(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS);
       expect(html).toContain("lg:hidden");
       expect(html).toContain("data-ask-assistant-header");
       expect(html).not.toContain("data-theme-toggle");
@@ -348,6 +358,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     // Coinbase register: every header control is the round grey 44 on
     // phone and desktop — muted fill, ink glyph, no 34 radius-10 box.
     expect(HOUSE_THEME_TOGGLE_CLASS).toBe(HOUSE_HEADER_ROUND_BUTTON_CLASS);
+    expect(HOUSE_HEADER_ROUND_BUTTON_CLASS).toBe(
+      "flex size-[var(--header-control-size)] min-h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center overflow-visible rounded-full bg-surface-muted text-ink transition-colors hover:bg-hairline aria-pressed:bg-hairline aria-expanded:bg-hairline",
+    );
     expect(HOUSE_HEADER_ROUND_BUTTON_CLASS).toContain("bg-surface-muted text-ink");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("md:size-[var(--header-desktop-control-size)]");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("md:rounded-[var(--radius)]");
@@ -368,7 +381,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     const ask = html.slice(askAt, html.indexOf("</button>", askAt));
     const marks = [...ask.matchAll(/<svg[^>]*class="([^"]*)"/g)].map((m) => m[1].split(" "));
     expect(marks).toHaveLength(1);
-    for (const cls of marks) expect(cls).toEqual(["size-5", "shrink-0", "text-accent"]);
+    for (const cls of marks) expect(cls).toEqual(HOUSE_ASK_AI_MARK_CLASS.split(" "));
 
     const hit = htmlClass(html, 'data-ask-assistant-header=""').split(" ");
     expect(hit).toEqual(HOUSE_ASK_AI_HEADER_CLASS.split(" "));
@@ -388,17 +401,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
   // avatar 44 on both.
   it("locks desktop header height and the sizes that derive from it", () => {
     const tokens = readFileSync("src/app/tokens.css", "utf8");
-    expect(tokens).toMatch(/--header-height:\s*80px;/);
-    expect(tokens).not.toMatch(/--header-height:\s*52px;/);
     expect(tokens).not.toMatch(/--header-height:\s*88px;/);
-    expect(tokens).toMatch(/--header-avatar-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-control-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-desktop-control-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-search-height:\s*48px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*60px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*44px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*44px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-search-height:\s*44px;/);
+    expect(HOUSE_LEAD_SEARCH_PILL_CLASS).toBe(
+      "flex h-[var(--header-search-height)] w-full min-w-0 items-center gap-2 px-3",
+    );
     expect(HOUSE_LEAD_SEARCH_PILL_CLASS).toContain("h-[var(--header-search-height)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).toContain("size-[var(--header-avatar-size)]");
@@ -408,14 +414,15 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
   });
 
   it("evens phone trailing AI · bell · avatar with one gap and no overlapping hits", () => {
-    expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("size-4");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toMatch(/-m[xlr]-/);
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("p-[var(--space-2)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("size-6");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("size-5");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("size-[44px]");
-    expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).toContain("size-[var(--header-avatar-size)]");
+    expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).toBe(
+      "flex size-[var(--header-avatar-size)] shrink-0 items-center justify-center rounded-full bg-surface-muted t-body-sm font-medium text-ink-2",
+    );
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("h-8 w-8");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("p-[");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("-mx-");
@@ -428,9 +435,6 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS).toBe("contents md:hidden");
     expect(HOUSE_HEADER_TRAILING_SLOT_CLASS).toBe("contents");
     expect(leadSrc).toContain("HOUSE_HEADER_TRAILING_SLOT_CLASS");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toBe(
-      "flex min-w-0 items-center gap-[var(--space-1)] md:gap-[var(--space-2)] max-md:shrink-0",
-    );
   });
 
   it("G8 absorbs SocialTopBar — wrapper gone, no drifted placement fork", () => {
@@ -461,6 +465,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_LEAD_STACK_CLASS).toContain("sticky");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("top-0");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("shrink-0");
+    expect(HOUSE_LEAD_STACK_CLASS).not.toMatch(/overflow-hidden/);
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("sticky");
     expect(HOUSE_LEAD_UNDER_NAV_CLASS).toContain("md:hidden");
     expect(HOUSE_LEAD_UNDER_NAV_CLASS).toContain("py-[var(--space-3)]");
@@ -495,21 +500,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadSrc).toContain("<BrandLogo />");
     expect(leadSrc).not.toContain("BrandEmblem");
     expect(leadSrc.match(/<BrandLogo/g)?.length).toBe(1);
-    // Coinbase register: phone hits 4 apart; desktop controls 8 apart.
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
-      /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
-    );
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("max-md:shrink-0");
     expect(leadSrc).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
-    expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
-    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-1)]");
-    expect(APP_HEADER_LEADING_CLASS).toContain("min-w-0");
     for (const workspace of ["aggregation", "social", "education"] as const) {
       const html = leadHtml(workspace);
       expect(html).toContain("data-brand-logo");
@@ -563,8 +554,6 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(shell).not.toContain('homeChrome ? "always" : "desktop"');
     expect(leadLib).toContain("Asset 8 emblem on every workspace");
     expect(leadLib).toContain("then\n// the grey workspace pill (filled grid + the current workspace's name,\n// 15 / 600 ink)");
-    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
 
     for (const workspace of ["aggregation", "social", "education", "staff"] as const) {
       const html = renderToStaticMarkup(

@@ -32,7 +32,6 @@ import { UserMenu } from "@/components/chrome/user-menu";
 import {
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_SEARCH_PILL_CLASS,
-  HOUSE_LEAD_STACK_CLASS,
   HOUSE_LEAD_UNDER_NAV_CLASS,
 } from "@/lib/house-lead-chrome";
 import { HOUSE_SEARCH_PILL_CLASS } from "@/lib/house-shell";
@@ -102,8 +101,6 @@ describe("mobile search IA — Education under-nav + Social icon sheet", () => {
     );
     expect(leading).not.toContain("data-education-header-search-host=\"phone\"");
     expect(htmlClass(html, 'data-app-header-leading=""')).toBe(APP_HEADER_LEADING_CLASS);
-    expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
-    expect(HOUSE_LEAD_STACK_CLASS).not.toMatch(/overflow-hidden/);
     expect(leadSrc).not.toContain("phoneSearch");
     expect(shellSrc).toContain("underNav=");
     expect(shellSrc).not.toContain("phoneSearch=");

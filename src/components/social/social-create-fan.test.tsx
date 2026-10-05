@@ -30,7 +30,6 @@ vi.mock("next/link", async () => {
 import { SocialCreateFan } from "./social-create-fan";
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_CREATE_MEDIA_ACCEPT } from "@/lib/social-create-media";
-import { HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT } from "@/lib/house-phone-shell";
 
 describe("SocialCreateFan", () => {
   it("fans Media · Write · Go live from the dock plus and does not open a sheet", () => {
@@ -84,7 +83,6 @@ describe("SocialCreateFan", () => {
     expect(media).toContain("bottom-[calc(100%+var(--space-1))]");
     expect(media).not.toContain("space-3");
     expect(write).toContain("bottom-[calc(100%+var(--space-3))]");
-    expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe("regular");
     expect(html).not.toContain("data-social-create-sheet");
     expect(html).not.toContain('role="dialog"');
     expect(html).not.toContain("bg-accent");

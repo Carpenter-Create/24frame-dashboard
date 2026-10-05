@@ -8,7 +8,6 @@ import {
   HOUSE_DEST_RAIL_DIVIDER_CLASS,
   HOUSE_DEST_RAIL_DIVIDER_COLLAPSED_CLASS,
   HOUSE_DEST_RAIL_EYEBROW_CLASS,
-  HOUSE_DEST_RAIL_GLYPH_CLASS,
   HOUSE_DEST_RAIL_GLYPH_SLOT_CLASS,
   HOUSE_DEST_RAIL_IDLE_CLASS,
   HOUSE_DEST_RAIL_LABEL_CLASS,
@@ -19,10 +18,7 @@ import {
   HOUSE_DEST_RAIL_SECTION_EYEBROW_CLASS,
   HOUSE_DEST_RAIL_UNREAD_DOT_CLASS,
   HOUSE_DEST_RAIL_UNREAD_DOT_COLLAPSED_CLASS,
-  HOUSE_RAIL_ACTIVE_CLASS,
-  HOUSE_RAIL_IDLE_CLASS,
   HOUSE_RAIL_ITEM_CLASS,
-  HOUSE_RAIL_TITLE_CLASS,
   HOUSE_SHELL_QUIET_INK_CLASS,
   houseDestRailGlyphWeight,
 } from "@/lib/house-shell";
@@ -75,7 +71,6 @@ describe("SideNav Access rail", () => {
       "flex flex-col items-center gap-[var(--space-2)] pb-[var(--space-4)] pt-[var(--space-2)]",
     );
     expect(HOUSE_DEST_RAIL_GLYPH_SLOT_CLASS).toBe("flex w-6 shrink-0 justify-center");
-    expect(HOUSE_DEST_RAIL_GLYPH_CLASS).toBe("size-6 shrink-0");
     expect(houseDestRailGlyphWeight(false)).toBe("regular");
     expect(houseDestRailGlyphWeight(true)).toBe("fill");
     // Labels wrap (the row grows) rather than clip.
@@ -128,11 +123,7 @@ describe("SideNav Access rail", () => {
     // No accent fill on any row; the current row is the wash.
     expect(HOUSE_DEST_RAIL_ROW_CLASS).not.toMatch(/(?:^|[\s"])bg-accent(?:[\s"]|$)/);
     expect(HOUSE_DEST_RAIL_IDLE_CLASS).not.toContain("accent");
-    expect(HOUSE_RAIL_ITEM_CLASS).toContain("inline-flex");
-    expect(HOUSE_RAIL_ITEM_CLASS).toContain("w-full");
-    expect(HOUSE_RAIL_ITEM_CLASS).toContain("text-left");
     expect(HOUSE_RAIL_ITEM_CLASS).not.toMatch(/(?:^|[\s"])bg-accent(?:[\s"]|$)/);
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
   });
 
   // The current row is the accent wash with the label in accent-ink;
@@ -142,16 +133,9 @@ describe("SideNav Access rail", () => {
     expect(navSrc).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
     expect(navSrc).toContain("houseRailActiveIndex");
     expect(navSrc).not.toContain("HOUSE_RAIL_ACTIVE_CLASS");
-    expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
     expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).not.toMatch(/font-/);
     expect(HOUSE_DEST_RAIL_ACTIVE_CLASS).not.toContain("bg-surface-muted");
     expect(HOUSE_DEST_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
-    // Settings and the Education course rail keep the same wash rows.
-    expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).not.toMatch(/font-(?:normal|medium|semibold|bold)/);
-    expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
-    expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");
     expect(navSrc).not.toContain("font-normal text-ink-2");
     expect(navSrc).not.toContain('active ? "bg-surface text-ink"');
     expect(navSrc).not.toContain("BrandWordmark");
@@ -162,7 +146,6 @@ describe("SideNav Access rail", () => {
     expect(messages?.label).toBe("Messages");
     expect(socialMessagesNavLabel("Messages", 0)).toBe("Messages");
     expect(socialMessagesNavLabel("Messages", 2)).toBe("Messages, 2 unread");
-    expect(HOUSE_DEST_RAIL_UNREAD_DOT_CLASS).toBe("ml-auto size-2 shrink-0 rounded-full bg-accent");
     expect(HOUSE_DEST_RAIL_UNREAD_DOT_COLLAPSED_CLASS).toContain("size-2 rounded-full bg-accent");
     expect(`${HOUSE_DEST_RAIL_UNREAD_DOT_CLASS} ${HOUSE_DEST_RAIL_UNREAD_DOT_COLLAPSED_CLASS}`).not.toMatch(/red|danger|#/);
     expect(navSrc).toContain("data-side-nav-unread");
@@ -185,14 +168,12 @@ describe("SideNav Access rail", () => {
     expect(HOUSE_DEST_RAIL_EYEBROW_CLASS).toBe(
       `text-[length:var(--text-xs)] font-medium uppercase leading-none tracking-[0.06em] ${HOUSE_SHELL_QUIET_INK_CLASS}`,
     );
-    expect(HOUSE_SHELL_QUIET_INK_CLASS).toBe("text-ink-3 dark:text-ink-2");
     // Staff rows: a full hairline and the eyebrow face at the rows' text
     // inset; a 24 rule when collapsed.
     expect(HOUSE_DEST_RAIL_DIVIDER_CLASS).toBe("my-2 h-px w-full shrink-0 bg-hairline");
     expect(HOUSE_DEST_RAIL_DIVIDER_COLLAPSED_CLASS).toBe("my-2 h-px w-6 shrink-0 bg-hairline");
     expect(HOUSE_DEST_RAIL_SECTION_EYEBROW_CLASS).toBe(`px-[var(--space-4)] pb-1.5 pt-1 ${HOUSE_DEST_RAIL_EYEBROW_CLASS}`);
     // Settings keeps the house rail title.
-    expect(HOUSE_RAIL_TITLE_CLASS).toBe("px-2 pb-1 t-label text-ink-3");
     expect(navSrc).not.toContain("HOUSE_RAIL_TITLE_CLASS");
   });
 });

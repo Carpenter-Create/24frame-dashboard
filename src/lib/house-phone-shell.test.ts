@@ -74,13 +74,13 @@ import {
 } from "@/lib/house-phone-shell";
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import {
-  HOUSE_HEADER_TRAILING_AVATAR_CLASS,
   HOUSE_HEADER_TRAILING_HIT_CLASS,
-  HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS,
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
+import { HOUSE_SHELL_QUIET_INK_CLASS } from "@/lib/house-shell";
 import { PHOSPHOR_CHROME_ICON_CLASS } from "@/lib/phosphor-icon";
 import { SOCIAL_ROUTES } from "@/lib/social";
+import { APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS } from "@/lib/workspace-switcher";
 
 const leadSrc = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
 const shellSrc = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
@@ -128,7 +128,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(aggregation).toContain('data-workspace-switcher-presentation="slider"');
     expect(aggregation).not.toContain("data-app-header-workspace-pill");
     expect(aggregation).toContain("data-app-header-workspace-desktop");
-    expect(aggregation).toContain("hidden lg:contents");
+    expect(aggregation).toContain(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS);
 
     const top = renderToStaticMarkup(
       createElement(HouseLeadChrome, {
@@ -230,8 +230,15 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       SquaresFour,
     );
     expect(HOUSE_PHONE_BOTTOM_NAV.label).toBe("Destinations");
+    // One pb-[max(...)]: house-phone-dock reads the float from this class.
+    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toBe(
+      "fixed inset-x-0 bottom-0 z-40 flex justify-center px-[var(--space-4)] pb-[max(16px,env(safe-area-inset-bottom))] transition-transform duration-200 ease-out md:hidden",
+    );
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("md:hidden");
+    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("z-40");
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("env(safe-area-inset-bottom)");
+    // The pill floats 16 off the bottom (the board); safe area replaces it.
+    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("pb-[max(16px,env(safe-area-inset-bottom))]");
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("rounded-full");
     // Coinbase register: the pill is 56 with no hairline; the soft float stays.
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-14");
@@ -287,7 +294,6 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(HOUSE_PHONE_CHROME_ICON_CLASS).toBe("size-6 shrink-0");
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS).toBe(HOUSE_PHONE_CHROME_ICON_CLASS);
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS).not.toBe(PHOSPHOR_CHROME_ICON_CLASS);
-    expect(PHOSPHOR_CHROME_ICON_CLASS).toBe("size-4 shrink-0");
     expect(HOUSE_PHONE_CHROME_ICON_WEIGHT).toBe("regular");
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe(HOUSE_PHONE_CHROME_ICON_WEIGHT);
     // The current dest is the filled glyph (the board), not Bold.
@@ -362,11 +368,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(accountSheetSrc).toContain("faceClassName={HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS}");
     expect(accountSheetSrc).toContain("HOUSE_HEADER_DESKTOP_AVATAR_CLASS");
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
-    expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("md:size-[var(--header-desktop-control-size)]");
-    expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("size-4");
-    expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).toContain("size-[var(--header-avatar-size)]");
-    expect(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS).toBe("contents md:hidden");
 
     const lead = renderLead("social");
     const trailing = lead.slice(
@@ -388,7 +390,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(bell.slice(0, bell.indexOf("</button>"))).not.toContain(HOUSE_ASK_AI_MARK_INK_CLASS);
     // Idle dock glyphs stay the quiet ink; header buttons carry ink on
     // the muted circle.
-    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe("text-ink-3 dark:text-ink-2");
+    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe(HOUSE_SHELL_QUIET_INK_CLASS);
     expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).not.toBe(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain("bg-surface-muted text-ink");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("text-ink-3");
@@ -401,7 +403,6 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
   // ring) stays Social-only: a 44 accent circle, never the current mark.
   it("marks the current glyph filled and accent in every dock — no dot, no chip; Social rings an active Create", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS).toBe("text-accent");
-    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe("text-ink-3 dark:text-ink-2");
     expect(phoneShellSrc).not.toContain("HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS");
     expect(bottomNavSrc).not.toContain("data-house-phone-bottom-nav-mark");
     // Every target fills the pill's 56 row (≥ 44).
@@ -421,9 +422,6 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(phoneShellSrc).not.toContain("bg-surface-muted");
     expect(bottomNavSrc).not.toContain("housePhoneDockActiveStyle");
     expect(bottomNavSrc).not.toContain("data-house-phone-bottom-nav-chip");
-    // The pill is 56; the clearance follows it.
-    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-14");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("var(--house-phone-dock-clearance)");
 
     const dockItems = [
       ...housePhoneDockDestinations({ isGcStaff: true, workspace: "aggregation" }),
@@ -559,7 +557,6 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(bottomNavSrc).toContain("useHousePhoneBottomNavHidden(pathname)");
     expect(phoneAppShellSrc).toContain("HousePhoneBottomNav");
     expect(HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS).toBe("pointer-events-none translate-y-full");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("var(--house-phone-dock-clearance)");
 
     const html = renderToStaticMarkup(
       createElement(HousePhoneBottomNav, { workspace: "social" }),
@@ -756,7 +753,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(home).not.toContain("data-house-phone-dest-chips");
     expect(home).toContain('data-workspace-switcher-presentation="waffle"');
     expect(home).toContain('data-workspace-switcher-presentation="slider"');
-    expect(home).toContain("hidden lg:contents");
+    expect(home).toContain(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS);
     expect(home).toContain("md:hidden");
 
     navigation.pathname = "/social";

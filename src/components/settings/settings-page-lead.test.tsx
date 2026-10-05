@@ -87,7 +87,6 @@ describe("SettingsPageLead", () => {
     expect(src).not.toContain("CaretLeft");
     expect(src).not.toContain("SettingsHeaderBack");
     expect(pageHeaderSrc).toContain("ArrowLeft");
-    expect(pageHeaderSrc).toContain("TEXT_ACTION_CLASS");
     expect(pageHeaderSrc).toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");
     expect(pageHeaderSrc).toContain("PAGE_LEAD_STACK_CLASS");
     expect(pageHeaderSrc).not.toContain("flex flex-col gap-1");

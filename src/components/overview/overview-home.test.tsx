@@ -36,10 +36,7 @@ import {
 import {
   HOUSE_PERIOD_PRESETS_PHONE_CLASS,
 } from "@/lib/house-period-presets";
-import {
-  HOUSE_SEGMENTED_ITEM_BASE_CLASS,
-  HOUSE_SEGMENTED_TRACK_CLASS,
-} from "@/lib/house-shell";
+import { HOUSE_SEGMENTED_ITEM_BASE_CLASS } from "@/lib/house-shell";
 import {
   SEGMENTED_TRACK_PERSIST,
   clearSegmentedThumbCache,
@@ -339,10 +336,6 @@ describe("OverviewHome", () => {
     expect(periodChunk).toContain("data-segmented-thumb");
     expect(periodChunk).toContain("data-segmented-item");
     expect(periodChunk).not.toContain("flex-wrap");
-    expect(HOUSE_SEGMENTED_TRACK_CLASS).toContain("flex");
-    expect(HOUSE_SEGMENTED_TRACK_CLASS).toContain("rounded-full");
-    expect(HOUSE_SEGMENTED_TRACK_CLASS).not.toContain("flex-wrap");
-    expect(HOUSE_PERIOD_PRESETS_PHONE_CLASS).toBe("md:hidden");
     expect(homeSrc).toContain("HousePeriodPresets");
     expect(homeSrc).not.toContain("flex-wrap");
     expect(homeSrc).not.toContain("overflow-x-auto");

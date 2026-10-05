@@ -4,11 +4,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  APP_SHEET_CHROME_CLASS,
   APP_SHEET_HAIRLINE_CLASS,
   APP_SHEET_HEAD_CLASS,
   APP_SHEET_HOST_CLASS,
   APP_SHEET_MOTION_DURATION_MS,
   APP_SHEET_MOTION_EASING,
+  APP_SHEET_PAD_CLASS,
   APP_SHEET_RISE_CLASS,
   APP_SHEET_SCRIM_CLASS,
   APP_SHEET_SCRIM_FADE_CLASS,
@@ -52,6 +54,7 @@ describe("house sheet lock", () => {
   });
 
   it("keeps Text action on 15 Sporty Blue", () => {
+    expect(TEXT_ACTION_CLASS).toBe("t-body-sm text-accent");
     expect(TEXT_ACTION_CLASS).toContain("t-body-sm");
     expect(TEXT_ACTION_CLASS).not.toContain("font-normal");
     expect(TEXT_ACTION_CLASS).toContain("text-accent");
@@ -59,6 +62,9 @@ describe("house sheet lock", () => {
   });
 
   it("keeps Identity on a 56 circle with no pill well", () => {
+    expect(IDENTITY_AVATAR_CLASS).toBe(
+      "flex size-14 shrink-0 items-center justify-center rounded-full bg-surface-muted t-body text-ink-2",
+    );
     expect(IDENTITY_AVATAR_CLASS).toContain("size-14");
     expect(IDENTITY_AVATAR_CLASS).toContain("rounded-full");
     expect(IDENTITY_AVATAR_CLASS).toContain("bg-surface-muted");
@@ -86,11 +92,15 @@ describe("house sheet lock", () => {
   });
 
   it("locks the inset grouped card — rounded muted shell, padded row, leading hairline", () => {
+    expect(SHEET_GROUP_INSET_SHELL_CLASS).toBe(
+      "overflow-hidden rounded-[var(--radius-lg)] border border-hairline bg-surface-muted",
+    );
     expect(SHEET_GROUP_INSET_SHELL_CLASS).toContain("rounded-[var(--radius-lg)]");
     expect(SHEET_GROUP_INSET_SHELL_CLASS).toContain("bg-surface-muted");
     expect(SHEET_GROUP_INSET_SHELL_CLASS).toContain("border-hairline");
     expect(SHEET_GROUP_INSET_SHELL_CLASS).toContain("overflow-hidden");
     expect(SHEET_GROUP_INSET_SHELL_CLASS).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+    expect(SHEET_GROUP_INSET_CLASS).toBe(`flex w-full flex-col ${SHEET_GROUP_INSET_SHELL_CLASS}`);
     expect(SHEET_GROUP_INSET_CLASS).toContain(SHEET_GROUP_INSET_SHELL_CLASS);
     expect(SHEET_GROUP_INSET_CLASS).toContain("flex-col");
     expect(SHEET_GROUP_INSET_CLASS).not.toContain("gap-");
@@ -110,6 +120,13 @@ describe("house sheet lock", () => {
     expect(APP_SHEET_HOST_CLASS).toContain("h-dvh");
     expect(APP_SHEET_HOST_CLASS).toContain("w-full");
     expect(APP_SHEET_HOST_CLASS.split(" ")).not.toContain("items-end");
+    expect(APP_SHEET_PAD_CLASS).toBe(
+      "p-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))]",
+    );
+    expect(APP_SHEET_CHROME_CLASS).toBe(
+      `flex w-full max-h-[90vh] flex-col rounded-t-[16px] bg-surface ${APP_SHEET_PAD_CLASS} shadow-none ${APP_SHEET_RISE_CLASS}`,
+    );
+    expect(APP_SHEET_SURFACE_CLASS).toBe(`${APP_SHEET_CHROME_CLASS} gap-[var(--space-6)]`);
     expect(APP_SHEET_SURFACE_CLASS).toContain("w-full");
     expect(APP_SHEET_SURFACE_CLASS).toContain("rounded-t-[16px]");
     expect(APP_SHEET_SURFACE_CLASS).toContain("p-[var(--space-4)]");

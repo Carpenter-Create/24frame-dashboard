@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import {
   HOUSE_PHONE_BOTTOM_NAV_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
 } from "@/lib/house-phone-shell";
 import {
   HOUSE_PHONE_DOCK_CHROME_BOTTOM_CLASS,
@@ -29,14 +28,10 @@ const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 const socialChrome = readFileSync("src/lib/social-chrome.ts", "utf8");
 const explore = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
 
-/** Pill h-14 (the Coinbase-register 56; was h-12) + dock float + house
- *  16. Safe-area replaces the 16px float (the board's bottom 16). */
-const HOUSE_PHONE_DOCK_CLEARANCE_FORMULA =
-  "--house-phone-dock-clearance: calc(3.5rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));";
-
+// The clearance token's value (pill h-14 + the 16 float + house 16) is
+// pinned once in src/app/tokens.test.ts.
 describe("phone dock clearance", () => {
   it("keeps one length: pill + float + house 16, and emits static utilities", () => {
-    expect(tokens).toContain(HOUSE_PHONE_DOCK_CLEARANCE_FORMULA);
     expect(HOUSE_PHONE_DOCK_CLEARANCE).toBe("var(--house-phone-dock-clearance)");
     expect(dockSrc).toContain('"max-md:pb-[var(--house-phone-dock-clearance)]"');
     expect(dockSrc).toContain('"max-md:bottom-[var(--house-phone-dock-clearance)]"');
@@ -53,21 +48,15 @@ describe("phone dock clearance", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("fixed");
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("inset-x-0");
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("bottom-0");
-    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("z-40");
-    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("md:hidden");
     // The pill floats 16 off the bottom, as on the board (was 12), and
     // the clearance carries the same float so the 16 gap above it holds.
-    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain(
-      "pb-[max(16px,env(safe-area-inset-bottom))]",
-    );
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).not.toContain("max(12px");
+    // The 16 float is pinned in house-phone-shell.test.ts; the clearance
+    // token (the 56 pill and its value) in tokens.test.ts.
     const float = HOUSE_PHONE_BOTTOM_NAV_CLASS.match(/pb-\[max\((\d+px),env\(safe-area-inset-bottom\)\)\]/)?.[1];
-    expect(float).toBe("16px");
-    // The clearance carries the 56 pill (3.5rem) and the same float.
-    expect(tokens).toContain(`calc(3.5rem + max(${float}, env(safe-area-inset-bottom)) + var(--space-4))`);
+    // The clearance carries the same float as the dock.
+    expect(tokens).toContain(`+ max(${float}, env(safe-area-inset-bottom)) + var(--space-4));`);
     expect(tokens).not.toContain("calc(3rem + max(");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-14");
-    expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("rounded-full");
   });
 
   it("lifts Explore caption and rail above the dock and leaves the video full-bleed", () => {

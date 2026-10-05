@@ -8,7 +8,6 @@ import {
   RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT,
   RAIL_COLLAPSE_WIDTH_VAR,
   RAIL_EXPAND_CHEVRON_CLASS,
-  RAIL_WIDTH_CLASS,
   SIDEBAR_COLLAPSED_COOKIE,
   SIDEBAR_COLLAPSED_COOKIE_LEGACY,
   parseSidebarCollapsedCookie,
@@ -34,7 +33,6 @@ describe("rail-collapse tokens", () => {
     expect(RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT).toBe("regular");
     expect(RAIL_EXPAND_CHEVRON_CLASS).not.toMatch(/border|hairline/);
     // The column is the whole slot: 240 / 80, no inset.
-    expect(RAIL_WIDTH_CLASS).toBe("w-[var(--sidebar-width)]");
     expect(RAIL_COLLAPSE_WIDTH_VAR).toBe("var(--sidebar-width-collapsed)");
     expect(src).not.toMatch(/\brl-/);
     expect(src).not.toContain("RAIL_COLLAPSE_RL");

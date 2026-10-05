@@ -290,8 +290,10 @@ describe("Activity bell cap", () => {
     expect(ACTIVITY_BELL_SHEET_SURFACE_CLASS).toBe(APP_SHEET_SURFACE_CLASS);
     expect(ACTIVITY_BELL_SHEET_SURFACE_CLASS).toContain("w-full");
     expect(ACTIVITY_BELL_SHEET_SURFACE_CLASS).toContain(APP_SHEET_RISE_CLASS);
-    expect(ACCOUNT_SHEET_SURFACE_CLASS).toContain("w-full");
     expect(ACCOUNT_SHEET_SURFACE_CLASS).toContain(APP_SHEET_RISE_CLASS);
+    expect(ACTIVITY_BELL_VIEW_ALL_CLASS).toBe(
+      `block border-t border-hairline px-[var(--space-4)] py-[var(--space-3)] ${TEXT_ACTION_CLASS}`,
+    );
     expect(ACTIVITY_BELL_VIEW_ALL_CLASS).toContain(TEXT_ACTION_CLASS);
     expect(ACTIVITY_BELL_VIEW_ALL_CLASS).toContain("text-accent");
     expect(ACTIVITY_BELL_VIEW_ALL_CLASS).not.toMatch(/\btext-ink\b/);

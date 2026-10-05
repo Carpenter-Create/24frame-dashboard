@@ -29,28 +29,19 @@ import { HouseLeadSearch } from "@/components/chrome/house-lead-search";
 import { UserMenu } from "@/components/chrome/user-menu";
 import { AccountSheet, AccountMenuDropdown } from "@/components/chrome/account-sheet";
 import {
-  HOUSE_HEADER_TRAILING_AVATAR_CLASS,
   HOUSE_HEADER_TRAILING_HIT_CLASS,
-  HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS,
   HOUSE_LEAD_CHROME_CLASS,
-  HOUSE_LEAD_PHONE_PAD_CLASS,
-  HOUSE_LEAD_STACK_CLASS,
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
 import { HOUSE_PHONE_TRAILING_GUTTER_CLASS } from "@/lib/house-shell";
 import { ASSISTANT_NAME } from "@/lib/product";
 import { USER_MENU, USER_MENU_ACTIONS, USER_MENU_PHONE_ACTIONS } from "@/lib/user-menu";
-import {
-  APP_HEADER_LEADING_CLASS,
-  APP_HEADER_TRAILING_CLUSTER_CLASS,
-} from "@/lib/workspace-switcher";
 import { ACCOUNT_SHEET_ITEMS, ACCOUNT_SHEET_PHONE_ITEMS } from "@/lib/account-sheet";
 
 const leadSrc = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
 const leadLib = readFileSync("src/lib/house-lead-chrome.ts", "utf8");
 const switcherSrc = readFileSync("src/lib/workspace-switcher.ts", "utf8");
 const sheetSrc = readFileSync("src/components/chrome/account-sheet.tsx", "utf8");
-const tokens = readFileSync("src/app/tokens.css", "utf8");
 
 function htmlClass(html: string, attr: string): string {
   const start = html.indexOf(attr);
@@ -165,37 +156,17 @@ describe("phone header grammar A — trim trailing", () => {
   // trail (the board's 0 12 0 16); the 44 avatar photo sits 12 from the
   // viewport — not flush.
   it("houses phone right air so the avatar is not flush", () => {
-    expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-3)]");
-    expect(HOUSE_LEAD_PHONE_PAD_CLASS).toBe(
-      "max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--space-3)]",
-    );
     expect(HOUSE_LEAD_CHROME_CLASS).toContain(HOUSE_PHONE_TRAILING_GUTTER_CLASS);
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain("max-md:pl-[var(--chrome-gutter)]");
-    expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--chrome-gutter)]");
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("px-[var(--space-6)]");
     expect(leadLib).toContain("HOUSE_PHONE_TRAILING_GUTTER_CLASS");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("max-md:shrink-0");
   });
 
   it("keeps phone trailing AI · bell · avatar on one gap without collapsing hits", () => {
-    // Coinbase register: phone hits 4 apart (the board); desktop 8.
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
-      /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
-    );
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toMatch(/-m[xlr]-/);
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("p-[var(--space-2)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("size-4");
-    expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).toContain("size-[var(--header-avatar-size)]");
-    expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("h-8 w-8");
-    expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("-mx-");
-    expect(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS).toBe("contents md:hidden");
     // Phone: a 44 hit around the 30 face; desktop: the 28 avatar.
     expect(sheetSrc).toContain("HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS");
     expect(sheetSrc).toContain("HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS");
@@ -206,9 +177,6 @@ describe("phone header grammar A — trim trailing", () => {
   });
 
   it("does not reintroduce lead-row overflow-hidden from #412", () => {
-    expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
-    expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
-    expect(HOUSE_LEAD_STACK_CLASS).not.toMatch(/overflow-hidden/);
     expect(HOUSE_LEAD_CHROME_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
 
     const html = renderToStaticMarkup(

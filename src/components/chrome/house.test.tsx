@@ -192,6 +192,5 @@ describe("house primitives", () => {
     expect(paired.match(/data-sheet-group-rule/g)).toHaveLength(1);
     expect(alone).not.toContain("data-sheet-group-rule");
     expect(alone).toContain('data-sheet-group-id="help"');
-    expect(houseSrc).toContain("SHEET_GROUP_INSET_CLASS");
   });
 });

@@ -132,6 +132,7 @@ describe("status progress tokens", () => {
   });
 
   it("keeps the track thin (2–3px), not a chunky bar", () => {
+    expect(STATUS_PROGRESS_TRACK_CLASS).toBe("flex h-[3px] w-full gap-1.5 overflow-hidden rounded-full");
     expect(STATUS_PROGRESS_TRACK_CLASS).toContain("h-[3px]");
     expect(STATUS_PROGRESS_TRACK_CLASS).not.toMatch(/\bh-3\b|\bh-3\.5\b|\bh-4\b/);
     expect(STATUS_PROGRESS_TRACK_CLASS).toContain("gap-1.5");

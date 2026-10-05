@@ -56,7 +56,6 @@ describe("menu family hard gate", () => {
     expect(menuHostClass("desktop", "panel")).toBe(MENU_HOST_DESKTOP_PANEL_CLASS);
     expect(menuHostClass("phone", "slot")).toBe(MENU_HOST_PHONE_SLOT_CLASS);
     expect(MENU_HOST_PHONE_SLOT_CLASS).toBe(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS);
-    expect(MENU_HOST_PHONE_SLOT_CLASS).toBe("contents md:hidden");
     expect(menuHostClass("desktop", "slot")).toBe("hidden md:contents");
   });
 

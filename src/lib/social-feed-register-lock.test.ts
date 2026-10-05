@@ -10,7 +10,6 @@ import {
 import {
   HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
   HOUSE_PILL_SLIDER_THUMB_CLASS,
-  HOUSE_PILL_SLIDER_THUMB_DURATION_MS,
   HOUSE_PILL_SLIDER_TRACK_CLASS,
   HOUSE_SEGMENTED_TRACK_CLASS,
 } from "./house-shell";
@@ -75,9 +74,7 @@ import {
 import { SOCIAL_FEED_REEL_STEP_PX, SOCIAL_FEED_REEL_TILE } from "./social-feed-reels";
 import { SOCIAL_HOME_STACK_LOCK, SOCIAL_HOME_STACK_ORDER } from "./social-home";
 import {
-  WORKSPACE_SWITCHER_SEGMENT_ON_CLASS,
   WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
-  WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS,
   WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS,
 } from "./workspace-switcher";
 
@@ -210,17 +207,13 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(HOUSE_PILL_SLIDER_TRACK_CLASS).toContain("rounded-full bg-surface-muted");
     expect(HOUSE_PILL_SLIDER_TRACK_CLASS).not.toMatch(/(?:^|\s)p[xy]?-/);
     expect(HOUSE_PILL_SLIDER_THUMB_CLASS).toContain("inset-y-0");
-    expect(HOUSE_PILL_SLIDER_THUMB_CLASS).toContain("bg-ink");
     expect(HOUSE_PILL_SLIDER_THUMB_CLASS).toContain("duration-[220ms] ease-out");
-    expect(HOUSE_PILL_SLIDER_THUMB_DURATION_MS).toBe(220);
     expect(SOCIAL_FEED_SCOPE_THUMB_DURATION_MS).toBe(220);
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS).toBe(220);
     // 44 segments, 17 / 600, pad 20 on a page switch; page colour on the thumb.
     expect(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS).toContain("h-11");
     expect(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS).toContain("text-[length:var(--text-base)] font-semibold");
     expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toBe(`${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5 text-bg`);
     expect(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS).toBe(`${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5 text-ink`);
-    expect(WORKSPACE_SWITCHER_SEGMENT_ON_CLASS).toBe("text-bg");
     // Left-aligned, its own row; aria-current on the lit lane; same URLs.
     expect(SOCIAL_FEED_SCOPE_CLASS).toBe("flex shrink-0");
     expect(slider).toContain('aria-current={current ? "page" : undefined}');

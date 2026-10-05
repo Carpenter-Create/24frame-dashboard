@@ -19,7 +19,7 @@ import {
   HOUSE_SEGMENTED_TRACK_SCROLL_CLASS,
 } from "@/lib/house-shell";
 import { NEWS_PAGE, NEWS_SOURCE_FILTER_SOURCES } from "@/lib/news";
-import { SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
+import { SEGMENTED_ITEM_SELECTED_ATTR, SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
 
 const src = readFileSync("src/components/news/news-sources-filter.tsx", "utf8");
 
@@ -37,7 +37,7 @@ describe("NewsSourceChips", () => {
     expect(html).toContain(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS);
     expect(html).toContain(DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS);
     expect(html).toContain('data-segmented-persist="news-source"');
-    expect(html).toContain("data-segmented-selected");
+    expect(html).toContain(SEGMENTED_ITEM_SELECTED_ATTR);
     expect(html).toContain(NEWS_PAGE.sourcesAll);
     expect(html).not.toContain("type=\"checkbox\"");
     expect(html).not.toContain("gap-[var(--space-2)]");
@@ -92,7 +92,6 @@ describe("NewsSourceChips", () => {
     expect(HOUSE_SEGMENTED_TRACK_SCROLL_CLASS).toContain(HOUSE_SEGMENTED_TRACK_CLASS);
     expect(HOUSE_SEGMENTED_TRACK_SCROLL_CLASS).toContain("w-max");
     expect(HOUSE_SEGMENTED_TRACK_SCROLL_CLASS).toContain("min-w-full");
-    expect(HOUSE_SEGMENTED_TRACK_CLASS).not.toContain("w-max");
     expect(DASHBOARD_NEWS_SOURCE_CHIPS_CLASS).toContain("overflow-x-auto");
     expect(DASHBOARD_NEWS_SOURCE_CHIPS_CLASS).not.toContain("w-max");
     expect(html).toContain(DASHBOARD_NEWS_SOURCE_CHIPS_CLASS);

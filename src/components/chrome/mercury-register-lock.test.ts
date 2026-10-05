@@ -2,19 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
-  PHOSPHOR_CHROME_ACTIVE_WEIGHT,
-  PHOSPHOR_CHROME_IDLE_WEIGHT,
-  PHOSPHOR_CHROME_ICON_CLASS,
-} from "@/lib/phosphor-icon";
-import {
   SETTINGS_HUB_NAV,
   SETTINGS_PAGE_LEAD_BACK_CLASS,
   SETTINGS_RAIL_CHEVRON_CLASS,
 } from "@/lib/settings";
-import { HOUSE_RAIL_ITEM_CLASS } from "@/lib/house-shell";
 import { ACCOUNT_SHEET_ITEMS } from "@/lib/account-sheet";
 import { SHEET_GROUP_CHEVRON_CLASS } from "@/lib/house-sheet";
-import { RAIL_COLLAPSE_CHEVRON_ICON_CLASS } from "@/lib/rail-collapse";
 import { USER_MENU_ACTIONS } from "@/lib/user-menu";
 
 const settingsPages = [
@@ -73,14 +66,10 @@ describe("Adam Mercury register lock", () => {
     }
     expect(SHEET_GROUP_CHEVRON_CLASS).toBe("size-4 shrink-0 text-ink-3");
     expect(SETTINGS_RAIL_CHEVRON_CLASS).toBe("size-4 shrink-0");
-    expect(HOUSE_RAIL_ITEM_CLASS).toContain("t-body");
-    expect(HOUSE_RAIL_ITEM_CLASS).not.toContain("t-body-sm");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).toBe("md:hidden");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("absolute");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("text-ink");
     expect(SETTINGS_PAGE_LEAD_BACK_CLASS).not.toContain("t-body");
-    // H register: the collapse glyph is 20 in the quiet 44 round button.
-    expect(RAIL_COLLAPSE_CHEVRON_ICON_CLASS).toBe("size-5");
     expect(src("src/components/chrome/account-sheet.tsx")).toContain(
       "className={SHEET_GROUP_CHEVRON_CLASS}",
     );
@@ -122,9 +111,6 @@ describe("Adam Mercury register lock", () => {
   });
 
   it("does not escalate Mercury past current — 16 Bold idle, no Social bleed", () => {
-    expect(PHOSPHOR_CHROME_IDLE_WEIGHT).toBe("bold");
-    expect(PHOSPHOR_CHROME_ACTIVE_WEIGHT).toBe("fill");
-    expect(PHOSPHOR_CHROME_ICON_CLASS).toBe("size-4 shrink-0");
 
     const account = src("src/components/chrome/account-sheet.tsx");
     const settingsRail = src("src/components/chrome/settings-rail.tsx");

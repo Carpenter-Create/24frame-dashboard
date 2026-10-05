@@ -6,11 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
   HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS,
-  HOUSE_PILL_SLIDER_THUMB_CLASS,
   HOUSE_SEGMENTED_ITEM_BASE_CLASS,
-  HOUSE_SEGMENTED_ITEM_ON_CLASS,
-  HOUSE_SEGMENTED_THUMB_CLASS,
 } from "@/lib/house-shell";
+import { SEGMENTED_ITEM_SELECTED_ATTR } from "@/lib/segmented-track";
 import { SegmentedTrack, stampSegmentedSelected, type SegmentedTrackProps } from "./segmented-track";
 
 const src = readFileSync("src/components/ui/segmented-track.tsx", "utf8");
@@ -51,7 +49,6 @@ describe("SegmentedTrack server paint (H register pill slider)", () => {
     expect(html).toMatch(/<a href="#b" data-segmented-item=""[^>]*data-segmented-selected=""/);
     expect(HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS).toBe("in-data-segmented-pending:data-segmented-selected:bg-ink");
     expect(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS).toContain(HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS);
-    expect(HOUSE_PILL_SLIDER_THUMB_CLASS).toContain("bg-ink");
     // The first placement clears it.
     expect(src).toContain("setPending(false)");
     expect(src).toContain('data-segmented-pending={pending ? "" : undefined}');
@@ -75,10 +72,6 @@ describe("SegmentedTrack slide SoT", () => {
     expect(src).toContain("houseSegmentedThumbHidden");
     expect(src).toContain("setThumbStyle({ opacity: 0 })");
     expect(src).not.toContain("transition-opacity");
-    expect(HOUSE_SEGMENTED_THUMB_CLASS).toContain("transition-[left,width]");
-    expect(HOUSE_SEGMENTED_THUMB_CLASS).toContain("duration-[320ms]");
-    expect(HOUSE_SEGMENTED_THUMB_CLASS).not.toContain("duration-200");
-    expect(HOUSE_SEGMENTED_THUMB_CLASS).not.toContain("transition-opacity");
     expect(lib).toContain("SEGMENTED_TRACK_PERSIST");
     expect(lib).toContain("workspace-pills");
     expect(lib).toContain("requestAnimationFrame");
@@ -98,11 +91,7 @@ describe("SegmentedTrack slide SoT", () => {
     expect(lib).toContain("segmentedItemHoldsVisualIntent");
     expect(lib).toContain("fromRouteIndex");
     expect(lib).not.toContain("pendingIndex ?? routeIndex");
-    expect(HOUSE_SEGMENTED_ITEM_ON_CLASS).toBe("text-white");
-    expect(HOUSE_SEGMENTED_ITEM_ON_CLASS).not.toMatch(/transition/);
-    expect(HOUSE_SEGMENTED_ITEM_BASE_CLASS).not.toMatch(/transition/);
     expect(HOUSE_SEGMENTED_ITEM_BASE_CLASS).not.toContain("duration-[320ms]");
-    expect(HOUSE_SEGMENTED_THUMB_CLASS).toContain("duration-[320ms]");
 
     for (const path of CONSUMERS) {
       const body = readFileSync(path, "utf8");
@@ -168,12 +157,12 @@ describe("SegmentedTrack slide SoT", () => {
       ),
     );
     expect(html).toContain("data-segmented-item");
-    expect(html).toContain("data-segmented-selected");
+    expect(html).toContain(SEGMENTED_ITEM_SELECTED_ATTR);
     expect(html.indexOf('data-segmented-item=""')).toBeLessThan(
-      html.indexOf("data-segmented-selected"),
+      html.indexOf(SEGMENTED_ITEM_SELECTED_ATTR),
     );
-    expect(html.indexOf(">All<")).toBeLessThan(html.indexOf("data-segmented-selected"));
-    expect(html.indexOf("data-segmented-selected")).toBeLessThan(
+    expect(html.indexOf(">All<")).toBeLessThan(html.indexOf(SEGMENTED_ITEM_SELECTED_ATTR));
+    expect(html.indexOf(SEGMENTED_ITEM_SELECTED_ATTR)).toBeLessThan(
       html.indexOf(">Education<"),
     );
   });
