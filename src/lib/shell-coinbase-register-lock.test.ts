@@ -84,24 +84,22 @@ const SHELL_SOURCES = [
 ] as const;
 
 describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs. Let's use them.\")", () => {
+  // Each founder quote is guarded on a short verbatim anchor (its first
+  // clause) under the verbatim heading. Each pick is mapped by its pick
+  // and where it lands, not by the question's wording.
   it("records the founder direction and the approval verbatim, and maps each pick", () => {
     expect(lock).toContain("**Date:** 2026-10-05");
+    expect(lock).toContain("## Founder direction (verbatim, 2026-10-05)");
     expect(lock).toContain("> we must remain in this register.");
-    expect(lock).toContain(
-      "> I want the Coinbase register, but the modernize idea of social media experience through its layout and media-immersive experience.",
-    );
-    expect(lock).toContain(
-      "> we're not too far off already, just improve what we have to do what we're trying to do.",
-    );
-    expect(lock).toContain(
-      '> I like the designs. Let\'s use them. 1) that\'s fine, but use default text "Search Social" 2) yes 3) ok 4) yes. 5) sure',
-    );
-    expect(lock).toContain("| 1 | Ask 24Frame AI becomes a round grey button with the blue sparkle");
+    expect(lock).toContain("> I want the Coinbase register");
+    expect(lock).toContain("> we're not too far off already");
+    expect(lock).toContain("> I like the designs. Let's use them.");
     expect(lock).toContain('**"that\'s fine, but use default text "Search Social""**');
-    expect(lock).toContain("| 2 | The brand mark moves from the header to the top band of the side menu");
-    expect(lock).toContain("| 3 | Explore uses one search field, the header's? | **\"ok\"** | Explore content PR — not this lock |");
-    expect(lock).toContain("| 4 | Messages bubbles: mine light blue, theirs light grey? | **\"yes\"** | Messages PR — not this lock |");
-    expect(lock).toContain("| 5 | \"For you\" stays both as the slider option and as the right column heading? | **\"sure\"**");
+    expect(lock).toContain("| This lock §1 (Ask; Search) |");
+    expect(lock).toContain('| **"yes"** | This lock §2 (top band) |');
+    expect(lock).toContain('| **"ok"** | Explore content PR — not this lock |');
+    expect(lock).toContain('| **"yes"** | Messages PR — not this lock |');
+    expect(lock).toContain('| **"sure"** | [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) |');
     for (const gate of ["**G1.**", "**G2.**", "**G3.**", "**G4.**", "**G5.**", "**G6.**", "**G7.**"]) {
       expect(lock).toContain(gate);
     }

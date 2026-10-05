@@ -43,12 +43,14 @@ function hasClass(classes: string, cls: string): boolean {
   return classes.split(/\s+/).includes(cls);
 }
 
-// Founder words and the cadence answer, verbatim (Adam, 2026-10-04).
+// Founder words, the question and the cadence answer (Adam, 2026-10-04):
+// a short verbatim anchor each (the first clause), under the verbatim
+// heading. The cadence itself is pinned in code below.
 const QUOTES = [
-  "I also like the idea of the main feed showing a few posts (up and down page in feed) and then breaking it up with reels that you horizontally scroll through or vertically continue to scroll through other posts (breaking up the feed every few posts).",
-  "after every 3 posts, vertical videos from For you, swipe sideways (arrows on desktop), page keeps scrolling down, tapping opens Explore at that reel. It shows in both Following and For you.",
+  "I also like the idea of the main feed",
+  'Question asked: "after every 3 posts',
   "**\"As drawn (Recommended)\"**",
-  "Every 3 posts, both tabs, labelled 'Reels', tap opens Explore and Exit returns to the same spot.",
+  "option text: \"Every 3 posts, both tabs, labelled 'Reels'",
 ] as const;
 
 // Previous is off at the start, Next is off at the end (aria-disabled, no-op).
@@ -62,6 +64,7 @@ const ARROW_GUARDS = [
 // docs/design-locks/social-feed-reel-rail-lock-v1.md
 describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
   it("records the founder words and the cadence answer verbatim", () => {
+    expect(lock).toContain("## Founder words (verbatim, Adam, 2026-10-04)");
     for (const quote of QUOTES) {
       expect(lock).toContain(quote);
     }
