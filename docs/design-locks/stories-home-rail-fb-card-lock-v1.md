@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-23 (CT)  
 **Status:** **LOCKED** (Adam seed via CoS — Facebook Stories home rail grammar; 24Frame Coinbase-calm register · **not** FB pixel/brand clone) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS routes Dev  
+**Superseded on the Feed (Adam 2026-10-04, G · Feed):** Feed stories are D's 56×100 tiles with the first name under them, an ink unseen ring and an ink "Your story" badge (no accent, no create plate). The `/social/stories` surface is unchanged. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
+**Restored on the Feed (founder 2026-10-05, H · Feed):** the Feed shows this lock's cards again — 112×200 / 108×192, gap 8, the accent ring on unseen, the name on the picture, Create story with the accent plus on the seam — with no card border, a muted (not white) create plate, and a name that wraps rather than truncates. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md).  
 **Scope:** Social Home (and Social surfaces that reuse the **home tall** stories rail) — rail layout + **card preview** craft only. Not create-story studio (see `create-story-photo-video-fb-layout-lock-v1.5.md`). Not playback viewer chrome.  
 **House register:** Geist · Sporty Blue `#1769FF` · Coinbase-calm · spacing **8 / 16 / 24 / 48** · **no drop shadows** · ink `#14171A` · muted `#F4F4F6` · hairline `#ECEDF0` · surface `#FFFFFF`  
 **Cites:** Adam Facebook Stories home rail screenshot (CoS thread) · current tall rail sizes in `social-chrome` (normalize to this lock) · media URL dependency (Dev / CF trusted keys)

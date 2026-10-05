@@ -17,6 +17,9 @@ export const BRAND_EMBLEM_SRC = "/brand/24frame-emblem.svg";
 export const BRAND_PHONE_EMBLEM_CLASS = "h-5 w-auto md:hidden";
 /** Wordmark from `md` up. Hidden on phone. */
 export const BRAND_DESKTOP_WORDMARK_CLASS = "hidden h-5 w-auto md:h-6";
+/** The same emblem at every width: the collapsed (80) side menu's top
+ *  band, where the 93-wide wordmark does not fit. */
+export const BRAND_RAIL_EMBLEM_CLASS = "h-5 w-auto";
 export const BRAND_ICON_SRC = "/brand/24frame-favicon.png";
 export const BRAND_ICON_TYPE = "image/png";
 export const BRAND_ICON_SIZE = "1080x1080";

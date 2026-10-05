@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
 
 import { AppearanceCheck } from "./appearance-check";
+import { SegmentedTrack } from "@/components/ui/segmented-track";
+import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import {
   overviewLeadActiveIndex,
@@ -40,8 +42,10 @@ import {
   WORKSPACE_SWITCHER,
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
-  WORKSPACE_SWITCHER_LANES_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
+  WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
+  WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS,
+  WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS,
   WORKSPACE_SWITCHER_SHEET_HOST_CLASS,
   WORKSPACE_SWITCHER_SHEET_SCRIM_CLASS,
   WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS,
@@ -57,9 +61,11 @@ import {
   WORKSPACE_WAFFLE_TILE_CLASS,
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
   WORKSPACE_WAFFLE_TILE_LABEL_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_BARE_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT,
+  WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
   prefetchWorkspaceWaffleIntent,
@@ -69,8 +75,8 @@ import {
   workspaceSwitcherChromeClearanceBottoms,
   workspaceSwitcherMenuStyle,
   workspaceSwitcherNextSegmentIndex,
-  workspaceSwitcherLaneClass,
   workspaceSwitcherPersistLane,
+  workspaceSwitcherSegmentClass,
   workspaceSwitcherSegmentTabIndex,
   workspaceSwitcherTriggerLabel,
   workspaceSwitcherTriggerName,
@@ -313,11 +319,13 @@ function WorkspaceWaffleTiles({
   );
 }
 
-// Desktop lanes (screening chrome): plain words, the current one ink
-// with an underline and aria-current="page". The underline follows the
-// optimistic activePath, so it moves on click. Keyboard as before: one
-// Tab stop (the lit lane, or Home when none is lit), arrows move.
-function WorkspaceLanes({
+// Desktop slider (H register): the house SegmentedTrack with an
+// ink thumb. The thumb and the label ink follow the optimistic
+// activePath (and the track's own click intent), so they move on click.
+// Keyboard as before: one Tab stop (the lit segment, or Home when none
+// is lit), arrows move focus; Enter or Space hops. aria-current="page"
+// on the lit segment. Home writes no cookie (selectWorkspaceLane).
+function WorkspaceSlider({
   current,
   options,
   isGcStaff = false,
@@ -332,7 +340,7 @@ function WorkspaceLanes({
   const { activePath, markPending } = useHouseNavPending();
   const segmentRefs = useRef<Array<HTMLButtonElement | null>>([]);
   // Home · Aggregation · Social · Education · Staff (entitled). Home is
-  // a real lane: lit on /home and /home/news, hop to /home.
+  // a real segment: lit on /home and /home/news, hop to /home.
   const pills = workspaceSliderSegments(options);
   const routeWorkspace = resolveWorkspaceMode(activePath, current);
   const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
@@ -349,49 +357,57 @@ function WorkspaceLanes({
   }
 
   return (
-    <div
+    <SegmentedTrack
+      activeIndex={routeIndex}
+      persistKey={SEGMENTED_TRACK_PERSIST.workspace}
+      trackClass={WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS}
+      thumbClass={WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS}
+      durationMs={WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS}
       data-workspace-switcher=""
-      data-workspace-switcher-presentation="lanes"
-      data-workspace-switcher-lanes=""
+      data-workspace-switcher-presentation="slider"
+      data-workspace-switcher-slider=""
       role="tablist"
       aria-label={WORKSPACE_SWITCHER.label}
-      className={WORKSPACE_SWITCHER_LANES_CLASS}
     >
-      {pills.map((pill, index) => {
-        const selected = index === routeIndex;
-        return (
-          <button
-            key={pill.id}
-            ref={(node) => {
-              segmentRefs.current[index] = node;
-            }}
-            type="button"
-            role="tab"
-            data-workspace-switcher-segment={pill.id}
-            aria-selected={selected}
-            aria-current={selected ? "page" : undefined}
-            tabIndex={workspaceSwitcherSegmentTabIndex(index, routeIndex, pills.length)}
-            className={workspaceSwitcherLaneClass(selected)}
-            onClick={(event) => {
-              selectWorkspaceTile(
-                current,
-                pill,
-                options,
-                router,
-                shellPath,
-                isGcStaff,
-                markPending,
-                event,
-                house?.navigateOwned,
-              );
-            }}
-            onKeyDown={(event) => onSegmentKeyDown(event, index)}
-          >
-            {pill.label}
-          </button>
-        );
-      })}
-    </div>
+      {({ selectedIndex }) =>
+        pills.map((pill, index) => {
+          const lit = index === routeIndex;
+          const on = segmentedItemOn(index, selectedIndex);
+          return (
+            <button
+              key={pill.id}
+              ref={(node) => {
+                segmentRefs.current[index] = node;
+              }}
+              type="button"
+              role="tab"
+              data-segmented-item=""
+              data-workspace-switcher-segment={pill.id}
+              aria-selected={lit}
+              aria-current={lit ? "page" : undefined}
+              tabIndex={workspaceSwitcherSegmentTabIndex(index, routeIndex, pills.length)}
+              className={workspaceSwitcherSegmentClass(on)}
+              onClick={(event) => {
+                selectWorkspaceTile(
+                  current,
+                  pill,
+                  options,
+                  router,
+                  shellPath,
+                  isGcStaff,
+                  markPending,
+                  event,
+                  house?.navigateOwned,
+                );
+              }}
+              onKeyDown={(event) => onSegmentKeyDown(event, index)}
+            >
+              {pill.label}
+            </button>
+          );
+        })
+      }
+    </SegmentedTrack>
   );
 }
 
@@ -406,7 +422,7 @@ export function WorkspaceSwitcher({
   isGcStaff?: boolean;
   options?: readonly WorkspaceMenuOption[];
   defaultOpen?: boolean;
-  presentation?: "waffle" | "lanes";
+  presentation?: "waffle" | "slider";
 }) {
   const staffGate = isGcStaff || options.some((option) => option.mode === "staff");
   const current = clampWorkspaceMode(requestedCurrent, staffGate);
@@ -484,12 +500,12 @@ export function WorkspaceSwitcher({
 
   if (options.length === 0) return null;
 
-  if (presentation === "lanes") {
-    return <WorkspaceLanes current={current} options={options} isGcStaff={staffGate} />;
+  if (presentation === "slider") {
+    return <WorkspaceSlider current={current} options={options} isGcStaff={staffGate} />;
   }
 
-  // Phone grid button names where you are (screening chrome): the lane
-  // the desktop underline lights, or the grid alone where none is lit.
+  // The grey workspace pill names where you are: the segment the
+  // desktop slider lights, or the grid alone where none is lit.
   const triggerName = workspaceSwitcherTriggerName(chromePath, current, options);
 
   const warmIntent = (hrefs: readonly string[]) => {
@@ -571,7 +587,11 @@ export function WorkspaceSwitcher({
           warmIntent(intentHrefs);
         }}
         onClick={() => setOpen((next) => !next)}
-        className={cn(WORKSPACE_WAFFLE_TRIGGER_CLASS, open && WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS)}
+        className={cn(
+          WORKSPACE_WAFFLE_TRIGGER_CLASS,
+          !triggerName && WORKSPACE_WAFFLE_TRIGGER_BARE_CLASS,
+          open && WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
+        )}
       >
         <DotsNine
           aria-hidden
@@ -580,7 +600,11 @@ export function WorkspaceSwitcher({
           weight={WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT}
         />
         {triggerName ? (
-          <span aria-hidden="true" data-workspace-waffle-name="">
+          <span
+            aria-hidden="true"
+            data-workspace-waffle-name=""
+            className={WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS}
+          >
             {triggerName}
           </span>
         ) : null}

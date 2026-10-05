@@ -1,23 +1,23 @@
 // Rail-collapse chevron tokens and sidebar-collapsed cookie.
 // House names only. Data attr values stay on RAIL_COLLAPSE_*.
 
-import { HOUSE_SHELL_QUIET_INK_CLASS } from "@/lib/house-shell";
-
 export const RAIL_COLLAPSE_CHEVRON = "chevron";
 
-// Screening chrome (docs/design-locks/shell-screening-chrome-lock-v1.md):
-// expanded, the collapse control is a 28 radius-6 box beside the
-// workspace eyebrow; collapsed, the expand control is a 40×32 radius-10
-// box at the top of the 64 column. Quiet ink, muted wash on hover.
+// H register (the shell register lock v1 in docs/design-locks):
+// the collapse control sits at the BOTTOM of the side menu — a quiet 44
+// round transparent button with a 20 « in ink-2, 24 in and 24 up;
+// collapsed, the same button (») centred at the bottom of the 80
+// column. Muted wash on hover. It is one button in both states, in the
+// same slot, so keyboard focus stays on it across the toggle.
+// Supersedes the screening chrome's 28 / 40×32 boxes in the top row.
 export const RAIL_COLLAPSE_CHEVRON_CLASS =
-  `flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] ${HOUSE_SHELL_QUIET_INK_CLASS} transition-colors hover:bg-surface-muted hover:text-ink`;
+  "flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink";
 
-export const RAIL_EXPAND_CHEVRON_CLASS =
-  `flex h-8 w-10 shrink-0 items-center justify-center rounded-[var(--radius)] ${HOUSE_SHELL_QUIET_INK_CLASS} transition-colors hover:bg-surface-muted hover:text-ink`;
+export const RAIL_EXPAND_CHEVRON_CLASS = RAIL_COLLAPSE_CHEVRON_CLASS;
 
-export const RAIL_COLLAPSE_CHEVRON_ICON_CLASS = "h-4 w-4";
+export const RAIL_COLLAPSE_CHEVRON_ICON_CLASS = "size-5";
 
-export const RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT = "bold" as const;
+export const RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT = "regular" as const;
 
 /** Shared side-menu width. Every workspace rail and Settings use this.
  *  Collapsed overrides `--sidebar-width` to the collapsed var. The

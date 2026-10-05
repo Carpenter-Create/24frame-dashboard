@@ -8,19 +8,19 @@ import { NavGlyph } from "./nav-glyph";
 const src = readFileSync("src/components/chrome/nav-glyph.tsx", "utf8");
 
 describe("NavGlyph", () => {
-  // Screening chrome: 18 glyph, Phosphor Regular idle / Bold current
-  // (the board's stroke 1.7 / 2) — never Fill.
-  it("renders the side-menu Phosphor glyph Bold when current and Regular when idle, at 18", () => {
+  // H register (Adam 2026-10-05): 24 glyph, Phosphor Regular idle / Fill
+  // current (the board's filled icon) — never Bold.
+  it("renders the side-menu Phosphor glyph filled when current and Regular when idle, at 24", () => {
     const active = renderToStaticMarkup(<NavGlyph item={NAV[0]} active />);
     const idle = renderToStaticMarkup(<NavGlyph item={NAV[0]} active={false} />);
     const Glyph = NAV[0].icon;
-    const bold = renderToStaticMarkup(<Glyph weight="bold" className="size-4.5 shrink-0" />);
-    const regular = renderToStaticMarkup(<Glyph weight="regular" className="size-4.5 shrink-0" />);
-    const fill = renderToStaticMarkup(<Glyph weight="fill" className="size-4.5 shrink-0" />);
-    expect(active).toBe(bold);
+    const bold = renderToStaticMarkup(<Glyph weight="bold" className="size-6 shrink-0" />);
+    const regular = renderToStaticMarkup(<Glyph weight="regular" className="size-6 shrink-0" />);
+    const fill = renderToStaticMarkup(<Glyph weight="fill" className="size-6 shrink-0" />);
+    expect(active).toBe(fill);
     expect(idle).toBe(regular);
-    expect(active).not.toBe(fill);
-    expect(active).toContain("size-4.5 shrink-0");
+    expect(active).not.toBe(bold);
+    expect(active).toContain("size-6 shrink-0");
     expect(active).toContain('fill="currentColor"');
     expect(idle).toContain('fill="currentColor"');
     expect(active).not.toContain("lucide-");

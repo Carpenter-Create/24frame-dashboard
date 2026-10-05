@@ -3,6 +3,7 @@
 **Date:** 2026-09-28 (CT)  
 **Amend:** 2026-09-28 (CT) — Adam **LOCKED** density amend (Cursor **DM-1–4**) · Own→READY amend  
 **Status:** **LOCKED** · Design Own→READY · Design does **not** open a PR · CoS seeds / re-seeds `docs/design-locks/` · **Dev DRAFT only after #699 is on main** + this READY (do **not** bag into waffle / #699 tip)  
+**Superseded in part (Adam 2026-10-04, G · Feed):** **M4 / G3** — Following and For you are E's text tabs on their own row above the topics (2px ink underline, `aria-current`), no longer lane chips in the Topics rail; the topic row is D plain words, not filled pills. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md). M3 and M7 stay.  
 **Scope:** Desktop trailing utility density · Social Home lane chips in Topics rail (dual-axis) · feed post-action gap unify  
 **Entity:** Global Content / 24Frame only  
 **House:** Coinbase register · Geist · Sporty Blue `#1769FF` · spacing **8 / 16 / 24 / 48** · hairline · no drop shadows · Launch-great · quiet redundant-chrome  

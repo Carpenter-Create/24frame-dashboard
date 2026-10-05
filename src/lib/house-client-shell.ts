@@ -49,7 +49,9 @@ export function houseScreenQueryNames(pathname: string): readonly string[] {
     return [SOCIAL_FOLLOWING_WALL_CURSOR_PARAM];
   }
   if (path === SOCIAL_ROUTES.explore) {
-    return ["q", "tag", "person", "discover"];
+    // `v` opens For You at one reel (feed Reels rail). Its own screen, so
+    // a new `v` is a Next navigation that loads that reel.
+    return ["q", "tag", "person", "discover", "v"];
   }
   if (path === SOCIAL_ROUTES.search) {
     return ["q"];

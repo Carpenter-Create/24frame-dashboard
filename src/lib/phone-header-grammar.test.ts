@@ -161,19 +161,17 @@ describe("phone header grammar A — trim trailing", () => {
     );
   });
 
-  // Screening chrome: 16 lead (the emblem on the chrome gutter) and 8
-  // trail; the 44 account hit holds the 30 avatar, so its edge sits 15
-  // from the viewport — not flush.
+  // Coinbase register: 16 lead (the emblem on the chrome gutter) and 12
+  // trail (the board's 0 12 0 16); the 44 avatar photo sits 12 from the
+  // viewport — not flush.
   it("houses phone right air so the avatar is not flush", () => {
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-2)]");
+    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-3)]");
     expect(HOUSE_LEAD_PHONE_PAD_CLASS).toBe(
-      "max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--space-2)]",
+      "max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--space-3)]",
     );
     expect(HOUSE_LEAD_CHROME_CLASS).toContain(HOUSE_PHONE_TRAILING_GUTTER_CLASS);
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("max-md:pl-[var(--chrome-gutter)]");
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:pl-[var(--shell-gutter-inline-start)]");
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:pr-[var(--shell-gutter-inline-end)]");
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--chrome-gutter)]");
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("px-[var(--space-6)]");
     expect(leadLib).toContain("HOUSE_PHONE_TRAILING_GUTTER_CLASS");
@@ -181,12 +179,11 @@ describe("phone header grammar A — trim trailing", () => {
   });
 
   it("keeps phone trailing AI · bell · avatar on one gap without collapsing hits", () => {
-    // Screening chrome: phone hits abut; desktop controls 8 apart.
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    // Coinbase register: phone hits 4 apart (the board); desktop 8.
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );

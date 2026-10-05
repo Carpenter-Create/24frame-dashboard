@@ -389,4 +389,82 @@ describe("Social Explore", () => {
     expect(page).toContain("key={exploreForYouHref(query)}");
     expect(exploreForYouHref({ tag: "night" })).not.toBe(exploreForYouHref({}));
   });
+
+  // Feed Reels: a tile opens /social/explore?v=<post uuid>. That post loads
+  // through the same RLS-bound video-post read (eq id), goes first, and the
+  // For You page continues without it.
+  // docs/design-locks/social-feed-reel-rail-lock-v1.md
+  describe("?v= deep link", () => {
+    const FIRST = "55555555-5555-4555-8555-555555555555";
+    const PINNED = "66666666-6666-4666-8666-666666666666";
+    const video = (id: string, body: string, objectId: string) => ({
+      id,
+      body,
+      author_id: AUTHOR,
+      like_count: 0,
+      comment_count: 0,
+      media: [muxMedia(objectId)],
+    });
+    const page = [video(FIRST, "First clip", CLIP), video(PINNED, "Pinned clip", STILL)];
+
+    function stubPinned(pinned: unknown) {
+      const postsChain = postsQuery(page);
+      postsChain.maybeSingle = vi.fn(async () => ({ data: pinned, error: null }));
+      const profiles = emptyQuery();
+      profiles.in = vi.fn(async () => ({
+        data: [{ id: AUTHOR, handle: "ada", display_name: "Ada Lovelace", status: "active" }],
+        error: null,
+      }));
+      vi.mocked(createClient).mockResolvedValue({
+        from: vi.fn((table: string) => {
+          if (table === "posts") return postsChain;
+          if (table === "profiles") return profiles;
+          return emptyQuery();
+        }),
+      } as never);
+      return postsChain;
+    }
+
+    function itemOrder(html: string): string[] {
+      return [...html.matchAll(/data-social-explore-item="([^"]+)"/g)].map((match) => match[1]!);
+    }
+
+    it("pins the reel first and dedupes it from the For You page", async () => {
+      const postsChain = stubPinned(page[1]);
+      const html = await renderServerMarkup(
+        await SocialExplorePage({ searchParams: Promise.resolve({ v: PINNED }) }),
+      );
+      expect(postsChain.eq).toHaveBeenCalledWith("id", PINNED);
+      expect(postsChain.contains).toHaveBeenCalledWith(
+        "media",
+        JSON.stringify([{ kind: "video", provider: "mux" }]),
+      );
+      expect(itemOrder(html)).toEqual([PINNED, FIRST]);
+      expect(html.indexOf("Pinned clip")).toBeLessThan(html.indexOf("First clip"));
+    });
+
+    it("ignores a missing, removed, or non-video reel", async () => {
+      stubPinned(null);
+      const missing = await renderServerMarkup(
+        await SocialExplorePage({ searchParams: Promise.resolve({ v: PINNED }) }),
+      );
+      expect(itemOrder(missing)).toEqual([FIRST, PINNED]);
+
+      const photo = { ...page[1], id: "77777777-7777-4777-8777-777777777777", media: [] };
+      stubPinned(photo);
+      const still = await renderServerMarkup(
+        await SocialExplorePage({ searchParams: Promise.resolve({ v: photo.id }) }),
+      );
+      expect(itemOrder(still)).toEqual([FIRST, PINNED]);
+    });
+
+    it("never reads by id for a non-UUID ?v= or a filtered stream", async () => {
+      for (const sp of [{ v: "not-a-uuid" }, { v: "1 or 1=1" }, { v: PINNED, q: "night" }]) {
+        const postsChain = stubPinned(page[1]);
+        const html = await renderServerMarkup(await SocialExplorePage({ searchParams: Promise.resolve(sp) }));
+        expect(postsChain.eq).not.toHaveBeenCalledWith("id", expect.anything());
+        expect(html).toContain("data-social-explore-stream");
+      }
+    });
+  });
 });

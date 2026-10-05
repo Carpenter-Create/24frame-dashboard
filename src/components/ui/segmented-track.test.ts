@@ -4,11 +4,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
+  HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_CLASS,
   HOUSE_SEGMENTED_ITEM_BASE_CLASS,
   HOUSE_SEGMENTED_ITEM_ON_CLASS,
   HOUSE_SEGMENTED_THUMB_CLASS,
 } from "@/lib/house-shell";
-import { stampSegmentedSelected } from "./segmented-track";
+import { SegmentedTrack, stampSegmentedSelected, type SegmentedTrackProps } from "./segmented-track";
 
 const src = readFileSync("src/components/ui/segmented-track.tsx", "utf8");
 const lib = readFileSync("src/lib/segmented-track.ts", "utf8");
@@ -21,9 +24,39 @@ const CONSUMERS = [
   "src/components/reports/reports-ranked.tsx",
   "src/components/reports/reports-controls.tsx",
   "src/components/news/news-sources-filter.tsx",
+  // The Feed's Following / For you is the primary pill slider (H register,
+  // founder 2026-10-05): this SegmentedTrack with the shared ink thumb.
+  "src/components/social/social-home-lane-tabs.tsx",
 ] as const;
 
 const CHOICE_MENUS = CONSUMERS;
+
+describe("SegmentedTrack server paint (H register pill slider)", () => {
+  // The thumb is measured on the client; until then the track is marked
+  // pending and the lit segment paints the thumb's ink itself, so a
+  // page-colour label ("Social", "Following") never reads white on grey.
+  it("marks the track pending before the thumb is placed, and the lit pill segment carries the ink", () => {
+    // The track's children is a render function, so it rides in the props.
+    const props: SegmentedTrackProps = {
+      activeIndex: 1,
+      persistKey: "test-scope",
+      children: () => [
+        createElement("a", { key: "a", href: "#a", "data-segmented-item": "", className: HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS }, "Following"),
+        createElement("a", { key: "b", href: "#b", "data-segmented-item": "", className: HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS }, "For you"),
+      ],
+    };
+    const html = renderToStaticMarkup(createElement(SegmentedTrack, props));
+    expect(html).toMatch(/^<div[^>]*data-segmented-pending=""/);
+    expect(html).toContain('style="opacity:0"');
+    expect(html).toMatch(/<a href="#b" data-segmented-item=""[^>]*data-segmented-selected=""/);
+    expect(HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS).toBe("in-data-segmented-pending:data-segmented-selected:bg-ink");
+    expect(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS).toContain(HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS);
+    expect(HOUSE_PILL_SLIDER_THUMB_CLASS).toContain("bg-ink");
+    // The first placement clears it.
+    expect(src).toContain("setPending(false)");
+    expect(src).toContain('data-segmented-pending={pending ? "" : undefined}');
+  });
+});
 
 describe("SegmentedTrack slide SoT", () => {
   it("slides left/width, restores a cached box across remount, and commits the click before the route", () => {
@@ -105,10 +138,14 @@ describe("SegmentedTrack slide SoT", () => {
     expect(waffle).toContain("workspaceWaffleTiles");
     expect(waffle).toContain("workspaceSliderSegments");
     expect(waffle).toContain('data-workspace-waffle=""');
-    // Screening chrome: the lanes are plain words, not a SegmentedTrack.
-    expect(waffle).not.toContain("SegmentedTrack");
+    // H register: the desktop workspace switcher is the primary pill
+    // slider — this SegmentedTrack, with an ink thumb (one component per
+    // pattern; supersedes the screening chrome's plain lanes).
+    expect(waffle).toContain("<SegmentedTrack");
+    expect(waffle).toContain("thumbClass={WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS}");
     expect(waffle).toContain('role="tablist"');
-    expect(waffle).toContain("data-workspace-switcher-lanes");
+    expect(waffle).toContain("data-workspace-switcher-slider");
+    expect(waffle).not.toContain("data-workspace-switcher-lanes");
     expect(waffle).not.toContain("HOUSE_FILTER_PILL_CLUSTER_CLASS");
   });
 

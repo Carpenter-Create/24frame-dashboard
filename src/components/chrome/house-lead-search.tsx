@@ -24,8 +24,7 @@ import {
   HOUSE_LEAD_SEARCH_TOGGLE_PANEL_CLASS,
 } from "@/lib/house-lead-chrome";
 import {
-  HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
-  HOUSE_HEADER_TRAILING_PHONE_CLASS,
+  HOUSE_HEADER_ROUND_GLYPH_CLASS,
   HOUSE_PHONE_CHROME_ICON_WEIGHT,
 } from "@/lib/house-phone-shell";
 import { HOUSE_SEARCH_PILL_CLASS } from "@/lib/house-shell";
@@ -53,9 +52,12 @@ import { ingestSpeechLearning } from "@/lib/speech-learning";
 // has no search page, so its desktop icon (md to xl) opens the same
 // quiet field in a small panel under the icon. Phone Education
 // keeps the under-nav row.
-// Header field (screening chrome, Adam 2026-10-04): from xl the desktop
-// header shows the same form as a 232×34 muted box (13px, 16 glyph,
-// radius 10). Same input, action, and voice mic — only the face.
+// Header field (H register, Adam 2026-10-05): from xl the
+// desktop header shows the same form as the wide grey pill (44 tall,
+// 240–360, 17 / 420, 20 glyph). Its placeholder on Social is "Search
+// Social" (founder decision 1); Education keeps its own wording. Below
+// xl, and on phone, the search is the round grey 44 icon. Same input,
+// action, and voice mic — only the face.
 
 export type HouseLeadSearchTone = "live" | "quiet";
 export type HouseLeadSearchPresentation = "field" | "icon" | "header";
@@ -81,7 +83,7 @@ export function HouseLeadSearch({
 }) {
   const live = tone === "live";
   const resolvedPlaceholder =
-    placeholder ?? (live ? SOCIAL.search.searchPlaceholder : EDUCATION_SEARCH.placeholder);
+    placeholder ?? (live ? SOCIAL.search.headerPlaceholder : EDUCATION_SEARCH.placeholder);
   const resolvedLabel = label ?? (live ? SOCIAL.explore.searchSocial : EDUCATION_SEARCH.label);
   const resolvedAction = action ?? (live ? SOCIAL_ROUTES.search : undefined);
   const resolvedInputId = inputId ?? (live ? "social-header-q" : "education-header-q");
@@ -107,13 +109,8 @@ export function HouseLeadSearch({
         className={HOUSE_LEAD_SEARCH_ICON_CLASS}
       >
         <MagnifyingGlass
-          className={HOUSE_HEADER_TRAILING_PHONE_CLASS}
+          className={HOUSE_HEADER_ROUND_GLYPH_CLASS}
           weight={HOUSE_PHONE_CHROME_ICON_WEIGHT}
-          aria-hidden
-        />
-        <MagnifyingGlass
-          className={HOUSE_HEADER_TRAILING_DESKTOP_CLASS}
-          weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
           aria-hidden
         />
       </HouseLink>
@@ -208,8 +205,8 @@ function QuietHouseLeadSearchToggle({
         onClick={() => setOpen((next) => !next)}
       >
         <MagnifyingGlass
-          className={HOUSE_HEADER_TRAILING_DESKTOP_CLASS}
-          weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
+          className={HOUSE_HEADER_ROUND_GLYPH_CLASS}
+          weight={HOUSE_PHONE_CHROME_ICON_WEIGHT}
           aria-hidden
         />
       </button>

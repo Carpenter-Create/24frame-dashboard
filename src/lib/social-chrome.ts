@@ -14,15 +14,16 @@
 // house-shell. Feed / stories / create measured IA stays here.
 
 import {
-  HOUSE_CHIP_RAIL_CLASS,
-  HOUSE_CHIP_RAIL_ROW_CLASS,
-  HOUSE_CHIP_RAIL_STACK_CLASS,
-} from "@/lib/house-chip-rail";
-import {
   HOUSE_FILTER_OFF_CLASS,
   HOUSE_FILTER_ON_CLASS,
   HOUSE_MODULE_CLASS,
   HOUSE_PILL_SELECTED_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_DURATION_MS,
+  HOUSE_PILL_SLIDER_TRACK_CLASS,
   HOUSE_RAIL_PANEL_CLASS,
   HOUSE_SCROLL_ROW_CLASS,
   HOUSE_SECTION_AIR_CLASS,
@@ -127,18 +128,6 @@ const socialShellCenterClass =
 
 export const SOCIAL_HOME_CENTER_CLASS = socialShellCenterClass;
 
-// Home spine only. Phone SoT. Density lock v1.1: 8 between Topics,
-// composer, Stories, and the feed (supersedes v1's 16). Profile,
-// Explore, and Messages keep the shared gap-2 center.
-export const SOCIAL_HOME_SPINE_CLASS = "gap-[var(--space-2)]";
-
-// Topics sit between the header hairline and the composer top rule.
-// Desktop top air is the shared header inset (8), matching the spine
-// gap, so this host does not pull on desktop. Phone frame top stays
-// 16; the phone-only pull restores equal 8 air. Pill hit stays 32.
-export const SOCIAL_HOME_TOPICS_CLASS =
-  "min-w-0 py-0 max-md:-mt-[var(--space-2)]";
-
 // Profile desktop row matches Home: this column plus SocialForYouRail
 // at lg+. Explore and Messages use that same row. The center stays
 // the shared 720. The pair stays tight. Phone stays the full phone canvas.
@@ -216,42 +205,14 @@ export const SOCIAL_STORY_FACE_CLASS =
 export const SOCIAL_STORY_MEDIA_CLASS =
   "relative size-full overflow-hidden rounded-[9px] bg-surface-muted";
 
-// Home tall FB-style cards. Phone SoT 136×240; desktop follows at 144×256.
-// Density lock v1.1 — do not shrink back to v1 120×208, and do not
-// shrink sparse rails (≤2 cards) or invent empty placeholders.
-export const SOCIAL_HOME_STORY_CARD_CLASS =
-  `relative h-[240px] w-[136px] shrink-0 overflow-hidden ${SOCIAL_SURFACE_RADIUS_CLASS} border border-hairline bg-surface md:h-[256px] md:w-[144px]`;
-
-// Rail pad H 0, top 0, bottom 8. Gap 8. Same on phone and desktop.
-export const SOCIAL_HOME_STORIES_TRACK_CLASS = "flex w-max gap-2 px-0 pt-0 pb-2";
-
-// Create plate stays 72 phone / 80 md. The larger card grows the upper
-// media face. Seam = card height − plate (168 phone / 176 md).
-export const SOCIAL_HOME_STORY_CREATE_FACE_CLASS =
-  "absolute inset-x-0 top-0 h-[168px] overflow-hidden bg-surface-muted md:h-[176px]";
-
-// Accent circle + white plus glyph. Not a white-fill well (Plus fill
-// knockout reads as white disc / blue +). border-surface is the seam
-// ring only — not the well fill. Phone + desktop share this class.
-// Centered on the photo/plate seam (168 phone / 176 md). 36 phone / 40 md.
-export const SOCIAL_HOME_STORY_PLUS_CLASS =
-  "absolute left-1/2 top-[150px] z-10 flex size-9 -translate-x-1/2 items-center justify-center rounded-full border-[3px] border-surface bg-accent text-accent-contrast md:top-[156px] md:size-10";
-
 // Adam 2026-09-20 — Create Story is Social chrome, not an eyebrow.
 // t-label uppercase + 0.12em track stacked CREATE / STORY as a
 // leftover specialty face. Same token as Topics / Share something /
 // Create sheet tiles. One SoT for phone + desktop — no device fork.
+// The Feed's story tiles (G) moved to SOCIAL_HOME_STORY_* below; this
+// stays for the /social/stories surface.
 export const SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS =
   "t-body-sm font-medium text-ink";
-
-export const SOCIAL_HOME_STORY_CREATE_LABEL_CLASS =
-  `absolute inset-x-0 bottom-0 flex h-[72px] items-center justify-center bg-surface px-2 text-center ${SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS} md:h-20`;
-
-export const SOCIAL_HOME_STORY_FACE_RING_CLASS =
-  "absolute left-2 top-2 z-10 flex size-8 items-center justify-center overflow-hidden rounded-full border-2 bg-surface p-[2px] md:size-9";
-
-export const SOCIAL_HOME_STORY_FACE_CLASS =
-  "flex size-full items-center justify-center overflow-hidden rounded-full bg-surface t-label font-semibold text-ink";
 
 export const SOCIAL_STORIES_CARD_CLASS =
   `flex h-[168px] w-[112px] shrink-0 items-center justify-center ${SOCIAL_SURFACE_RADIUS_CLASS} p-[3px]`;
@@ -326,36 +287,52 @@ export const SOCIAL_STORY_ACTION_IDLE_CLASS = "text-band-ink/70";
 
 export const SOCIAL_STORY_HEART_LIKED_CLASS = "text-[#1769FF]";
 
-// Home composer share stage. Phone SoT; desktop uses this same row.
-// FB-row lock v1.6. White band, pad Y 8, pad H 16. Content is 40,
-// so the band is 56 before the rules. Hairline is top and bottom
-// only: no side stroke, radius 0. The rules are the host borders.
-// No sibling divider above the band.
-// Field stays v1.2: transparent, no border, no shadow, no outline.
-// Radius 20 is hit geometry only. Gap avatar→field 8.
-// Photo then Camera stay v1.1: glyph 16, hit 32, gap 0, 8px after the
-// field, ink-2. No labels. No Live/Feeling strip.
+// Feed composer (H register §5.3; founder 2026-10-05, "I like the
+// designs. Let's use them."). One 44 row, no bar: the 44 avatar, 12, a
+// grey "Share something" pill (flex, --surface-muted, radius full, 44,
+// 17 / 420 ink-2, pad 16) that opens the write sheet with the avatar,
+// then 8 (phone 4) and a round grey 44 Photo, 8 (4), a round grey 44
+// Camera (20 ink glyphs). Supersedes the G composer bar (52, radius 16,
+// one muted bar). Prompt copy, the write sheet, and the pickers are
+// unchanged. Stack air: 24 under the stories.
+// docs/design-locks/social-feed-register-lock-v1.md
 export const SOCIAL_COMPOSER_CLASS =
-  "flex w-full items-center rounded-none border-x-0 border-y border-hairline bg-surface px-[var(--space-4)] py-[var(--space-2)] text-left";
+  "mt-6 flex w-full items-center gap-1 md:gap-2";
 
 export const SOCIAL_COMPOSER_ROW_CLASS =
-  "flex min-w-0 flex-1 items-center gap-[var(--space-2)]";
+  "group flex min-w-0 flex-1 items-center gap-3 text-left";
 
-// 8px after the field. Hits sit flush.
-export const SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS =
-  "ml-[var(--space-2)] flex shrink-0 items-center gap-0";
+export const SOCIAL_COMPOSER_AVATAR_CLASS = "size-11";
 
+// Below 360 the composer's avatar steps out (as the phone bar's workspace
+// name does; the bar keeps the member's photo), so "Share something"
+// stays one line in its 44 pill at 320 and both pickers stay.
+export const SOCIAL_COMPOSER_AVATAR_NARROW_CLASS = "max-[359px]:hidden";
+
+export const SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS = "flex shrink-0 items-center gap-1 md:gap-2";
+
+// Round grey 44 (H register §3.3), the header's control face.
 export const SOCIAL_COMPOSER_AFFORDANCE_CLASS =
-  "inline-flex size-8 shrink-0 items-center justify-center bg-transparent text-ink-2";
+  "inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-ink transition-colors hover:bg-hairline";
 
+export const SOCIAL_COMPOSER_AFFORDANCE_GLYPH = 20;
+export const SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS = "text-ink";
+
+// The grey prompt pill. Hover steps the fill to the hairline grey, as the
+// round grey controls do.
 export const SOCIAL_COMPOSER_FIELD_CLASS =
-  "flex h-10 min-w-0 flex-1 items-center rounded-[20px] border-0 bg-transparent px-[var(--space-4)] t-body text-ink-2 outline-none";
+  "flex h-11 min-w-0 flex-1 items-center rounded-full border-0 bg-surface-muted px-4 text-[length:var(--text-base)] text-ink-2 outline-none transition-colors group-hover:bg-hairline";
 
 export const SOCIAL_COMPOSER_MEDIA_CLASS =
   "relative flex size-9 shrink-0 cursor-pointer items-center justify-center text-ink-2";
 
 export const SOCIAL_FOLLOW_COMPACT_CLASS =
   "inline-flex items-center rounded-[8px] bg-accent px-[var(--space-3)] py-[var(--space-2)] t-body-sm font-semibold text-accent-contrast";
+
+// Feed For you rail (H register §3.3 small secondary): a grey 36 pill,
+// 15 / 600 ink, pad 16. No hairline, no accent fill.
+export const SOCIAL_FOLLOW_QUIET_CLASS =
+  "inline-flex h-9 shrink-0 items-center rounded-full bg-surface-muted px-4 text-[length:var(--text-sm)] font-semibold text-ink transition-colors hover:bg-hairline";
 
 export const SOCIAL_FOLLOW_COMPACT_IDLE_CLASS =
   "inline-flex items-center rounded-[8px] border border-hairline bg-surface px-[var(--space-3)] py-[var(--space-2)] t-body-sm font-semibold text-ink";
@@ -365,83 +342,18 @@ export const SOCIAL_FOR_YOU_CARD_CLASS =
 
 // Phone only. The social frame pads 16. These utilities cancel that
 // gutter so a row meets the viewport. They are max-md, so desktop
-// column inset stays. Stories rail uses this. The feed card does not.
-// Do not put them on the composer, Topics, or SOCIAL_FEED_ROW_CLASS.
+// column inset stays. Stories rail and a post's media (H · Posts) use
+// this. Do not put them on the composer or the post's text rows.
 export const SOCIAL_MOBILE_BLEED_CLASS =
   "max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))]";
 
-// Restores the 16 a viewport bleed removed. The feed card does not
-// use it. The frame gutter is the white side canvas.
+// Restores the 16 a viewport bleed removed. The frame gutter is the
+// white side canvas.
 export const SOCIAL_MOBILE_BLEED_PAD_CLASS = "max-md:px-[var(--chrome-gutter)]";
 
-// Option A. Each post is a muted surface card on the white page.
-// HOUSE_MODULE_CLASS is the card (radius-lg, surface-muted, no drop shadow).
-// The #715 2px rules are off this row: they double-stacked with the
-// card edge. No second rule. No shadow. Phone and desktop share it.
-// No md fork for color or radius.
-// The card does not bleed to the phone viewport. The frame gutter is
-// the white side canvas. Do not put SOCIAL_MOBILE_BLEED_CLASS here.
-// overflow-hidden clips media to the card radius.
-// pb space-6 stays under the time, inside the card. It is not the
-// separator. The separator is this card plus the gutter gap.
-// Was space-4. The step up is the house 24, not a new scale.
-// docs/design-locks/social-home-post-separation-lock-v1.md
-// docs/design-locks/social-feed-under-post-time-lock-v1.md
-export const SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS = "pb-[var(--space-6)]";
-
-// Media → actions. The 24px glyph sits 8px down inside the 40 hit.
-// mt-0 leaves that pad as the picture-to-glyph air (~8px).
-// The #725 -mt space-1 pull (~4px, and the top of the hit overlapping
-// the picture) is out. A positive margin is the old paragraph air.
-// The hit stays 40×40 and no longer overlaps the picture.
-// Text-only keeps SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS (8).
-// docs/design-locks/social-home-post-separation-lock-v1.md
-export const SOCIAL_FEED_MEDIA_ACTIONS_GAP_CLASS = "mt-0";
-
-// Icon row, then the likes / caption / time block. space-1 (4px)
-// so the text is not glued to the glyphs. The 8px pad under the
-// glyph stays inside the 40 hit. The #725 -mb space-1 pull is out:
-// it drew the copy up into that pad. Feed card only — the immersive
-// dock does not use this class.
-export const SOCIAL_FEED_ACTIONS_META_CLASS =
-  "flex flex-col gap-[var(--space-1)]";
-
-// Likes, caption, comment trail, under-post time. 1.5 line-space:
-// space-1 between the line boxes, leading-normal (1.5) on the copy.
-// Not the #725 gap-0 collision, and not the space-2 / space-4
-// paragraph gaps. Missing likes or caption drop out. Time stays
-// its own line.
-export const SOCIAL_FEED_META_ROW_GAP_CLASS =
-  "flex flex-col gap-[var(--space-1)]";
-
-// t-body-sm is line-height 1.6. leading-tight (1.25) was the #725
-// single line-space and the lines read as one block. leading-normal
-// is 1.5. Time stays SOCIAL_POST_TIME_CLASS (leading-none).
-export const SOCIAL_FEED_META_COPY_CLASS = "leading-normal";
-
-// Text-only keeps the prior 8 between the author row and actions.
-// Text-only grammar itself stays frozen.
-export const SOCIAL_FEED_AUTHOR_FOLLOW_GAP_CLASS = "mt-[var(--space-2)]";
-
-// Block, not column flex. Callers put this on an inner row. The gutter's
-// flex item is the shell (`block min-w-0 shrink-0` on the article), not
-// this padded box. Mobile Safari drops padding-bottom on that column-flex
-// item, so the caption sits on the next author. The inner row's border box,
-// including this padding, sets the shell's height. A negative margin-bottom
-// on the last child eats this padding the same way.
-// shrink-0 on the shell is the gutter's main axis (vertical): the list
-// scrolls instead of compressing the air.
-// The card is HOUSE_MODULE_CLASS. overflow-hidden clips a full-width
-// image to radius-lg. No viewport bleed. No border-y-2.
-export const SOCIAL_FEED_ROW_CLASS =
-  `block shrink-0 overflow-hidden ${HOUSE_MODULE_CLASS} ${SOCIAL_FEED_NEXT_AUTHOR_AIR_CLASS}`;
-
-// Feed media fills the card width. px-0. It does not cancel the frame gutter:
-// the card edge is the media edge, and the row clips the corners.
-// mt space-4 is the author → media air (was space-2). Flex gap is gone
-// so this margin is the only author-to-media space.
-export const SOCIAL_POST_MEDIA_CLASS =
-  "mt-[var(--space-4)] flex w-full flex-col gap-2 px-0";
+// The post face (author row, media, actions, likes, caption, comment
+// trail, time; the muted Option A card) is the H block below
+// ("H · Posts"). docs/design-locks/social-feed-register-lock-v1.md §7
 
 // Messages inbox list. No full-width hairline — vertical pad is the
 // rhythm. The frame gutter keeps the face inset, so this row does not
@@ -465,35 +377,14 @@ export const SOCIAL_DM_INBOX_UNREAD_DOT_CLASS = "size-2 shrink-0 rounded-full bg
 export const SOCIAL_FRAME_AI_FACE_CLASS =
   "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted text-accent";
 
-// Named 16 inset family (--space-4). The feed row does not stack this
-// on the phone bleed pad or the desktop frame pad — one 16 only.
-// Author and meta use it. Media stays px-0 on SOCIAL_POST_MEDIA_CLASS.
-export const SOCIAL_FEED_CHROME_CLASS = "px-[var(--space-4)]";
-
-// Card edge → author. Horizontal 16 and top 16. The top was flush.
-export const SOCIAL_FEED_AUTHOR_EDGE_CLASS = `${SOCIAL_FEED_CHROME_CLASS} pt-[var(--space-4)]`;
-
-// Card edge → actions, likes, caption, and time. Same horizontal 16.
-// The media→actions margin is the air above this block.
-export const SOCIAL_FEED_META_EDGE_CLASS = SOCIAL_FEED_CHROME_CLASS;
-
-// Like · Comment · Share. One triplet on phone and desktop.
-// Hit 40, glyph 24 centered, gap 8 between hit edges.
-// Phosphor Heart ink sits about 1px above the bubble in both
-// weights, so both states share one translateY(1px). No other nudge.
-// Feed card and immersive row share SOCIAL_POST_ACTIONS_GAP_CLASS.
+// Like · Comment · Share on a dark stage (the immersive dock, the
+// Explore rail, the create preview): bare hits, glyph 24, gap 8 between
+// hit edges. The feed post face is the H block's round grey actions
+// (H · Posts). Phosphor Heart ink sits about 1px above the bubble in
+// both weights, so both states share one translateY(1px).
 // docs/design-locks/social-home-post-actions-align-lock-v1.md
 // docs/design-locks/social-home-density-craft-sequel-lock-v1.md
 export const SOCIAL_POST_ACTIONS_GAP_CLASS = "gap-2";
-
-export const SOCIAL_POST_ACTIONS_CLASS =
-  `flex flex-row items-center ${SOCIAL_POST_ACTIONS_GAP_CLASS}`;
-
-// Glyph is 24 centered in the 40 hit, so the optical edge sits 8
-// inside the hit. Pull the row back by that 8 so the glyph meets the
-// same 16 text edge as likes and caption.
-// docs/design-locks/social-home-craft-wave-1-lock-v1.md
-export const SOCIAL_POST_ACTIONS_OPTICAL_CLASS = "-ml-[var(--space-2)]";
 
 export const SOCIAL_POST_ACTION_HIT_CLASS =
   "inline-flex size-10 shrink-0 items-center justify-center text-ink-2 active:opacity-70";
@@ -505,43 +396,10 @@ export const SOCIAL_POST_ACTION_HEART_NUDGE_CLASS = "translate-y-px";
 // docs/design-locks/social-home-post-actions-align-lock-v1.md
 export const SOCIAL_POST_ACTION_LIKED_CLASS = "text-[#1769FF]";
 
-// Phone only. Under the Home Stories rail, same hairline as the feed.
-// The host is already bled, so the rule meets the viewport.
-// Desktop stays without it.
-// docs/design-locks/social-home-stories-feed-hairline-lock-v1.md
-export const SOCIAL_STORIES_FEED_RULE_CLASS =
-  "max-md:border-b max-md:border-solid max-md:border-hairline";
-
-// Adam lock 2026-09-25. Feed posts with 2 or more media items use one
-// swipe stage. The stage is the card width. The row's overflow-hidden
-// clips it to the card radius. It does not meet the phone viewport.
-// N=1 keeps socialMediaFrameClass. No collage grid.
-export const SOCIAL_FEED_CAROUSEL_BLEED_CLASS = "relative px-0";
-
-export const SOCIAL_FEED_CAROUSEL_TRACK_CLASS =
-  "no-scrollbar flex w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain";
-
-export const SOCIAL_FEED_CAROUSEL_SLIDE_CLASS =
-  "social-feed-carousel-slide relative w-full min-w-full shrink-0 snap-start overflow-hidden bg-surface-muted";
-
-export const SOCIAL_FEED_CAROUSEL_COUNT_CLASS =
-  "absolute right-[var(--space-3)] top-[var(--space-3)] z-10 rounded-full bg-ink/70 px-[var(--space-2)] py-[var(--space-1)] t-body-sm text-accent-contrast";
-
-export const SOCIAL_FEED_CAROUSEL_DOTS_CLASS =
-  "absolute bottom-[var(--space-3)] left-1/2 z-10 flex -translate-x-1/2 items-center justify-center gap-[var(--space-2)] rounded-full bg-ink/50 px-[var(--space-2)]";
-
-export const SOCIAL_FEED_CAROUSEL_DOT_HIT_CLASS =
-  "flex size-6 shrink-0 items-center justify-center";
-
-export const SOCIAL_FEED_CAROUSEL_DOT_CLASS = "size-2 rounded-full bg-accent-contrast/50";
-
-export const SOCIAL_FEED_CAROUSEL_DOT_ACTIVE_CLASS = "size-2 rounded-full bg-accent-contrast";
-
 // Feed photo scale + tap immersive v1.
 // docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md
-// Width stays the full-bleed media class. Height cap lives on
-// socialMediaFrameClass and the carousel slide rule. Immersive
-// actions cite the align lock: hit 40, glyph 24, gap 8.
+// Immersive actions cite the align lock: hit 40, glyph 24, gap 8. The
+// feed's still cap is superseded by the H photo frame (true shape).
 export const SOCIAL_POST_ACTION_GLYPH = 24;
 
 export const SOCIAL_POST_ACTIONS_ROW_CLASS =
@@ -589,14 +447,17 @@ export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-w
 export const SOCIAL_EXPLORE_DESKTOP_HEADER_HOST_CLASS =
   "hidden md:contents [&_[data-app-header]]:bg-bg";
 
-// Desktop header chip. Hidden below md so phone Explore has no Exit.
-// Screening chrome (Adam 2026-10-04,
-// docs/design-locks/shell-screening-chrome-lock-v1.md): a 34 muted
-// chip, radius 10, pad 9 / 12, 14 X then "Exit" at 13 / 500 ink, 6
-// apart, 8 after the lanes (plus the row's 8). Supersedes the filled
-// ink pill.
+// Desktop header control. Hidden below md so phone Explore has no Exit.
+// H register (Adam 2026-10-05,
+// the shell register lock v1 in docs/design-locks §3.3 Secondary):
+// a grey pill 44, radius full, pad 16 / 20, a 20 X, 8, then "Exit" at
+// 17 / 600 ink, 16 after the switcher (the leading row's gap).
+// Supersedes the screening chrome's muted 34 chip.
 export const SOCIAL_EXPLORE_EXIT_CLASS =
-  "hidden h-[var(--header-desktop-control-size)] min-h-[var(--header-desktop-control-size)] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius)] bg-surface-muted pl-[9px] pr-3 text-[length:var(--text-xs)] font-medium text-ink transition-colors hover:text-ink-2 md:ml-[var(--space-2)] md:inline-flex";
+  "hidden h-[var(--header-desktop-control-size)] min-h-[var(--header-desktop-control-size)] shrink-0 items-center gap-[var(--space-2)] whitespace-nowrap rounded-full bg-surface-muted pl-[var(--space-4)] pr-5 text-[length:var(--text-base)] font-semibold text-ink transition-colors hover:bg-hairline md:inline-flex";
+
+/** The Exit X: 20, the round-button glyph size. */
+export const SOCIAL_EXPLORE_EXIT_ICON_SIZE = 20;
 
 export const SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS =
   "max-md:fixed max-md:inset-0 overflow-hidden bg-[#0A0A0B] md:absolute md:inset-0";
@@ -632,23 +493,9 @@ export const SOCIAL_EXPLORE_FOR_YOU_SEARCH_CLASS =
 export const SOCIAL_EXPLORE_FOR_YOU_DISCOVER_CLASS =
   "absolute inset-x-[var(--space-4)] top-[calc(max(var(--space-4),env(safe-area-inset-top))+3rem)] z-30 flex max-h-[50%] flex-col gap-[var(--space-2)] overflow-y-auto";
 
-// Under-post separator. House tertiary text-ink-3, the muted token.
-// Not primary ink. Not text-ink-2.
-// Never t-label (uppercase + 0.12em track turns `10h` into `10 H`).
-// Own line: wrap instead of truncating. No breakpoint fork.
-// block + leading-none: the permalink <a> must not grow a body 1.6
-// strut under the glyphs. That strut is what opened the next-author gap.
-// docs/design-locks/social-feed-under-post-time-lock-v1.md
-export const SOCIAL_POST_TIME_CLASS =
-  "block self-start max-w-full break-words text-[length:var(--text-xs)] font-normal leading-none tracking-normal text-ink-3";
-
-// Option A. The gutter is the white page between surface cards.
-// HOUSE_SECTION_AIR_CLASS is the only gap. No larger gap. No muted
-// fill in the gap. No divide-y — a divide would sit beside the card
-// edge. Home, Profile Activity, and author history share this list.
-// docs/design-locks/social-home-post-separation-lock-v1.md
-// docs/design-locks/social-home-craft-wave-1-lock-v1.md
-export const SOCIAL_FEED_GUTTER_CLASS = `flex flex-col ${HOUSE_SECTION_AIR_CLASS}`;
+// The under-post time line and the Option A gutter moved into the H
+// block (H · Posts): the time sits in the credit row, the wall is 24 /
+// 48. docs/design-locks/social-feed-register-lock-v1.md §7
 
 // Comment thread — house app-sheet rise. Same host/scrim as Create.
 // Composer stays at the bottom. Do not fork a second sheet grammar.
@@ -967,25 +814,433 @@ export const SOCIAL_PROFILE_ROLES_CLASS =
 export const SOCIAL_PROFILE_ROLE_PILL_CLASS =
   "inline-flex min-h-8 max-w-full items-center rounded-full bg-surface-muted px-3 py-1 break-words text-[length:var(--text-xs)] font-medium leading-snug text-ink md:min-h-9 md:px-3.5";
 
-// Home Topics uses the house chip rail host. Not SegmentedTrack: lenses
-// stay discrete chips (All first). Selected uses HOUSE_PILL_SELECTED_CLASS
-// (accent fill + white). Density lock v1.1: chip hit is SOCIAL_CHIP_HIT_CLASS
-// (32 / h-8), not the fat HOUSE_CHIP_RAIL_CHIP_CLASS. Type stays t-body-sm.
-// One horizontal row. Phone scrolls — never truncate. HOUSE_CHIP_RAIL_ROWS
-// stays 2 for every other chip-rail consumer.
-export const SOCIAL_TOPIC_RAIL_ROWS = 1;
-export const SOCIAL_TOPIC_RAIL_CLASS = HOUSE_CHIP_RAIL_CLASS;
-export const SOCIAL_TOPIC_RAIL_STACK_CLASS = HOUSE_CHIP_RAIL_STACK_CLASS;
-export const SOCIAL_TOPIC_CHIP_ROW_CLASS = HOUSE_CHIP_RAIL_ROW_CLASS;
-export const SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS =
-  `relative z-10 cursor-pointer select-none ${SOCIAL_CHIP_HIT_CLASS}`;
-export const SOCIAL_TOPIC_RAIL_CHIP_CLASS =
-  `${SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS} ${HOUSE_FILTER_OFF_CLASS}`;
-export const SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS =
-  `${SOCIAL_TOPIC_RAIL_CHIP_MEASURE_CLASS} ${HOUSE_PILL_SELECTED_CLASS}`;
+// ---------------------------------------------------------------------
+// H · Feed (founder 2026-10-05, approving the H boards: "I like the
+// designs. Let's use them."). The look is the H register (the primary
+// pill slider, secondary chips, round grey controls, soft grey cards);
+// the layout and media stay G's (stories, composer, the Reels row every 3
+// posts). Tokens only; the board's hexes map to existing tokens.
+// docs/design-locks/social-feed-register-lock-v1.md
+// ---------------------------------------------------------------------
 
-export function socialTopicRailChipClass(selected: boolean): string {
-  return selected ? SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS : SOCIAL_TOPIC_RAIL_CHIP_CLASS;
+// Grid: feed column 600, gap 48, For you rail 296 (pair 944). /social
+// only. The rail shows from xl: beside the 240 side menu and the shell
+// gutters the pair fits from 1248, so below xl the rail is display:none
+// and the column keeps its 600 cap from md. The pair keeps the Social
+// row's end alignment (its trailing edge on the shell gutter, the
+// avatar's line). Desktop: 16 under the shared header inset (8), so the
+// slider and the rail's heading sit 24 under the header, as drawn.
+export const SOCIAL_FEED_MEASURE = { center: 600, gutter: 48, right: 296 } as const;
+export const SOCIAL_FEED_PAIR_WIDTH =
+  SOCIAL_FEED_MEASURE.center + SOCIAL_FEED_MEASURE.gutter + SOCIAL_FEED_MEASURE.right;
+export const SOCIAL_FEED_LAYOUT_CLASS =
+  "flex w-full items-start gap-12 md:pt-4 xl:ml-auto xl:max-w-[944px]";
+export const SOCIAL_FEED_CENTER_CLASS =
+  "flex min-w-0 w-full flex-1 flex-col md:max-w-[600px]";
+export const SOCIAL_FEED_ASIDE_CLASS = "hidden w-[296px] shrink-0 flex-col xl:flex";
+
+// The board's quiet ink is the house ink-3 in light and the house ink-2
+// in dark: the house dark ink-3 is 3.9:1 on the dark page and fails AA
+// for 13–20px labels, so quiet feed labels take ink-2 in dark. Existing
+// tokens only; no new colour.
+export const SOCIAL_FEED_QUIET_INK_CLASS = "text-ink-3 dark:text-ink-2";
+
+// Feed headings ("Reels", "For you"): 20 / 480 / -0.02em, line 1.4, ink,
+// normal case. Supersedes G's 13px uppercase eyebrow.
+export const SOCIAL_FEED_HEADING_CLASS =
+  "m-0 text-[length:var(--text-lg)] leading-[1.4] [font-weight:var(--type-title-weight)] tracking-[-0.02em] text-ink";
+
+// Following / For you: the primary pill slider (H §3.1), the house
+// SegmentedTrack with the shared pill-slider track, ink thumb (220 ms
+// ease-out) and 17 / 600 labels; segments pad 20 on a page switch. It
+// hugs its labels (about 221 wide) and leads the Feed, left-aligned, on
+// phone and desktop (the frame's 16 on phone; 24 under the header on
+// desktop). Supersedes G's text tabs with an ink underline.
+export const SOCIAL_FEED_SCOPE_CLASS = "flex shrink-0";
+export const SOCIAL_FEED_SCOPE_TRACK_CLASS = `${HOUSE_PILL_SLIDER_TRACK_CLASS} w-max`;
+export const SOCIAL_FEED_SCOPE_THUMB_CLASS = HOUSE_PILL_SLIDER_THUMB_CLASS;
+export const SOCIAL_FEED_SCOPE_THUMB_DURATION_MS = HOUSE_PILL_SLIDER_THUMB_DURATION_MS;
+const SOCIAL_FEED_SCOPE_SEGMENT_BASE_CLASS = `${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5`;
+export const SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS =
+  `${SOCIAL_FEED_SCOPE_SEGMENT_BASE_CLASS} ${HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS}`;
+export const SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS =
+  `${SOCIAL_FEED_SCOPE_SEGMENT_BASE_CLASS} ${HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS}`;
+export function socialFeedScopeSegmentClass(on: boolean): string {
+  return on ? SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS : SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS;
+}
+
+// Topics: secondary chips (H §3.2). All first, then the 15 topics A to
+// Z. Idle: no fill, 15 / 500 ink. Current: the accent wash with
+// accent-ink 15 / 600 and aria-current. Desktop chips are 40 tall, pad
+// 16, gap 4. Phone: a 44 hit holding a 36 pill (pad 14); the row meets
+// the viewport and pads 16. Labels never truncate; the row scrolls
+// sideways. A 96 page-colour fade over the trailing edge holds a round
+// grey "More topics" (desktop 40, phone 44 at 16 in) that scrolls the
+// row on; both leave at the end of the row. Supersedes G's plain words
+// over an ink underline. Stack: 24 under the composer, 16 above the wall.
+// Keyboard: the track's inline-end scroll padding equals the fade width
+// (96), so a focused chip scrolls clear of the fade and More topics (the
+// row's keyboard focus handler reads this padding: Chromium alone leaves
+// a chip that sits whole inside the track under the fade). The track
+// pads 5 top and bottom and takes it back in margin: the focus ring
+// (2 + 3 offset) draws whole inside the scrollport and the row keeps its
+// 44 / 40 height.
+export const SOCIAL_HOME_TOPIC_ROW_CLASS =
+  "relative mt-6 min-w-0 max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))]";
+export const SOCIAL_HOME_TOPIC_TRACK_CLASS =
+  "no-scrollbar -my-[5px] flex gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap py-[5px] scroll-pe-24 max-md:px-4";
+// The hit: 44 on phone, 40 on desktop (where the hit is the pill).
+const SOCIAL_HOME_TOPIC_BASE_CLASS =
+  "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full md:h-10";
+export const SOCIAL_HOME_TOPIC_CLASS = `${SOCIAL_HOME_TOPIC_BASE_CLASS} text-ink`;
+export const SOCIAL_HOME_TOPIC_CURRENT_CLASS = `${SOCIAL_HOME_TOPIC_BASE_CLASS} text-accent-ink`;
+export function socialHomeTopicClass(current: boolean): string {
+  return current ? SOCIAL_HOME_TOPIC_CURRENT_CLASS : SOCIAL_HOME_TOPIC_CLASS;
+}
+// The chip face: a 36 pill on phone (inside the 44 hit), 40 on desktop.
+const SOCIAL_HOME_TOPIC_CHIP_BASE_CLASS =
+  "inline-flex h-9 items-center rounded-full px-3.5 text-[length:var(--text-sm)] leading-none md:h-10 md:px-4";
+export const SOCIAL_HOME_TOPIC_CHIP_CLASS = `${SOCIAL_HOME_TOPIC_CHIP_BASE_CLASS} font-medium`;
+export const SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS =
+  `${SOCIAL_HOME_TOPIC_CHIP_BASE_CLASS} bg-accent-wash font-semibold`;
+export function socialHomeTopicChipClass(current: boolean): string {
+  return current ? SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS : SOCIAL_HOME_TOPIC_CHIP_CLASS;
+}
+export const SOCIAL_HOME_TOPIC_FADE_CLASS =
+  "pointer-events-none absolute inset-y-0 right-0 flex w-24 items-center justify-end bg-[linear-gradient(90deg,transparent,var(--bg)_55%)] max-md:pr-4";
+export const SOCIAL_HOME_TOPIC_MORE_CLASS =
+  "pointer-events-auto grid size-11 place-items-center rounded-full bg-surface-muted text-ink transition-colors hover:bg-hairline md:size-10";
+
+// Stories: the locked story cards (H §5.2; the stories card lock's
+// geometry). 112×200 desktop / 108×192 phone (about 9:16), radius 16, gap 8,
+// no border. The cover fills the card; top-left 8 the author's 36 (phone
+// 32) avatar in a 2px ring with a 2px inner pad (accent unseen, hairline
+// seen); the name ("Elena R.") on the picture in a 48 band scrim (the
+// band at 72%), 13 / 500 band-ink, inset 8, wrapping, never cut. Create
+// story first: the member's photo in the upper 120, the muted plate
+// under it with "Create story" 15 / 500 ink near the bottom, and a 40
+// (phone 36) accent circle with the plus, ringed 3 in muted, on the
+// seam. Phone: the rail meets the viewport and pads 16. Supersedes G's
+// 56×100 tiles with names under them. The track pads 5 top and bottom
+// (taken back in margin) so a card's focus ring draws whole; 24 under
+// the slider.
+export const SOCIAL_HOME_STORIES_RAIL_CLASS =
+  "no-scrollbar mt-[19px] -mb-[5px] flex gap-2 overflow-x-auto overscroll-x-contain py-[5px] max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))] max-md:px-4";
+export const SOCIAL_HOME_STORY_CARD_CLASS =
+  "relative block h-[192px] w-[108px] shrink-0 overflow-hidden rounded-[var(--radius-lg)] bg-surface-muted md:h-[200px] md:w-[112px]";
+export const SOCIAL_HOME_STORY_MEDIA_CLASS = "absolute inset-0 bg-surface-muted";
+const SOCIAL_HOME_STORY_FACE_RING_BASE_CLASS =
+  "absolute left-2 top-2 z-10 flex size-8 items-center justify-center rounded-full border-2 p-[2px] md:size-9";
+export const SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS = `${SOCIAL_HOME_STORY_FACE_RING_BASE_CLASS} border-accent`;
+export const SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS = `${SOCIAL_HOME_STORY_FACE_RING_BASE_CLASS} border-hairline`;
+export function socialHomeStoryFaceRingClass(unseen: boolean): string {
+  return unseen ? SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS : SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS;
+}
+export const SOCIAL_HOME_STORY_FACE_CLASS = "size-full";
+export const SOCIAL_HOME_STORY_NAME_CLASS =
+  "absolute inset-x-0 bottom-0 z-10 flex min-h-12 items-end bg-linear-to-t from-band/72 to-band/0 px-2 pb-2 text-left text-[length:var(--text-xs)] font-medium leading-tight text-band-ink break-words [overflow-wrap:anywhere]";
+export const SOCIAL_HOME_STORY_CREATE_FACE_CLASS =
+  "absolute inset-x-0 top-0 h-[120px] overflow-hidden bg-surface-muted";
+export const SOCIAL_HOME_STORY_PLUS_CLASS =
+  "absolute left-1/2 top-[99px] z-10 grid size-[42px] -translate-x-1/2 place-items-center rounded-full border-[3px] border-surface-muted bg-accent text-accent-contrast md:top-[97px] md:size-[46px]";
+export const SOCIAL_HOME_STORY_CREATE_LABEL_CLASS =
+  "absolute inset-x-0 bottom-3 px-2 text-center text-[length:var(--text-sm)] font-medium leading-5 text-ink break-words";
+
+// Reels row (H §5.4). After every 3 posts in the post wall (lib plan,
+// unchanged). Head 44: "Reels" as a 20 / 480 heading; on desktop two
+// round grey 44 arrows, 8 apart (Previous at 40% at the start). Tiles
+// 9:16, desktop 180×320 / phone 160×284, radius 16, gap 8, 16 under the
+// head (phone 12); the arrows page by two tiles (376). Desktop: clipped
+// at the 600 column (3 tiles and a peek). Phone: meets the viewport,
+// pads 16, scroll-snap, no arrows; vertical pans pass through to the
+// page. Air: 48 above and below on desktop (the wall gutter itself, H ·
+// Posts), 28 on phone (4 here plus the 24 gutter). Stills only.
+// Supersedes G's 30 head with a 13px eyebrow, the hairline 30 arrows,
+// radius 10 and gap 12.
+export const SOCIAL_FEED_REELS_CLASS =
+  "my-1 flex min-w-0 flex-col max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))] md:my-0";
+export const SOCIAL_FEED_REELS_HEAD_CLASS =
+  "flex h-11 items-center justify-between max-md:px-4";
+export const SOCIAL_FEED_REELS_ARROWS_CLASS = "hidden gap-2 md:flex";
+const SOCIAL_FEED_REELS_ARROW_BASE_CLASS =
+  "grid size-11 place-items-center rounded-full bg-surface-muted text-ink";
+export const SOCIAL_FEED_REELS_ARROW_CLASS =
+  `${SOCIAL_FEED_REELS_ARROW_BASE_CLASS} transition-colors hover:bg-hairline`;
+export const SOCIAL_FEED_REELS_ARROW_OFF_CLASS =
+  `${SOCIAL_FEED_REELS_ARROW_BASE_CLASS} cursor-default opacity-40`;
+export function socialFeedReelsArrowClass(disabled: boolean): string {
+  return disabled ? SOCIAL_FEED_REELS_ARROW_OFF_CLASS : SOCIAL_FEED_REELS_ARROW_CLASS;
+}
+// The track pads 5 top and bottom so a tile's focus ring (2 + 3 offset)
+// draws whole inside the scrollport; mt 7 / 11 + 5 keeps the tiles 12 /
+// 16 under the head and -mb 5 keeps the row's height.
+export const SOCIAL_FEED_REELS_TRACK_CLASS =
+  "no-scrollbar m-0 mt-[7px] -mb-[5px] flex list-none gap-2 overflow-x-auto overscroll-x-contain px-0 py-[5px] [touch-action:pan-x_pan-y] max-md:snap-x max-md:snap-mandatory max-md:scroll-pl-4 max-md:px-4 md:mt-[11px]";
+export const SOCIAL_FEED_REELS_ITEM_CLASS = "shrink-0 snap-start";
+export const SOCIAL_FEED_REEL_TILE_CLASS =
+  "relative block h-[284px] w-40 overflow-hidden rounded-[var(--radius-lg)] bg-band md:h-80 md:w-[180px]";
+// Edge vignette on the still (the board's inset 60px darkening), drawn as
+// a radial gradient: no shadow utility in Social chrome.
+export const SOCIAL_FEED_REEL_VIGNETTE_CLASS =
+  "pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(0_0_0/0)_45%,rgb(0_0_0/0.45)_100%)]";
+export const SOCIAL_FEED_REEL_SCRIM_CLASS =
+  "absolute inset-x-0 bottom-0 block bg-linear-to-t from-band/94 via-band/78 via-50% to-band/0 px-2.5 pb-2.5 pt-10 md:px-3 md:pb-3 md:pt-12";
+export const SOCIAL_FEED_REEL_AUTHOR_CLASS = "flex min-w-0 items-center gap-2";
+export const SOCIAL_FEED_REEL_FACE_CLASS = "size-6 shrink-0 ring-[1.5px] ring-band-ink/70";
+export const SOCIAL_FEED_REEL_NAME_CLASS =
+  "min-w-0 break-words [overflow-wrap:anywhere] text-[length:var(--text-xs)] font-semibold leading-tight text-band-ink";
+export const SOCIAL_FEED_REEL_CAPTION_CLASS =
+  "mt-1.5 block break-words [overflow-wrap:anywhere] text-[length:var(--text-xs)] leading-[1.35] text-band-ink";
+
+// The wall block under the topics: 16 air. Notices (truncated stories /
+// followees) sit at its head, 12 apart.
+export const SOCIAL_FEED_WALL_CLASS = "mt-4 flex min-w-0 flex-col gap-3";
+
+// For you rail (H §5.5; founder decision 5, "sure": "For you" stays the
+// rail's heading as well as the slider option). The heading (20 / 480,
+// 44 tall, level with the slider), 16, the latest course as one soft
+// grey card (CourseCard "feature": --surface-muted, radius 24, pad 16, a
+// 16:9 cover at radius 16, "Latest course · Education" 13 / 500 ink-2,
+// the title 17 / 600), 24, "Suggested people" 17 / 600, 12, then 56
+// rows (40 avatar, gap 12, radius 24 hover fill) with the grey 36 Follow.
+// No hairlines, no border. Supersedes G's borderless eyebrow aside.
+export const SOCIAL_FEED_ASIDE_HEADING_CLASS = `${SOCIAL_FEED_HEADING_CLASS} flex h-11 items-center`;
+export const SOCIAL_FEED_ASIDE_COURSE_CLASS = "mt-4 flex min-w-0 flex-col";
+export const SOCIAL_FEED_ASIDE_SECTION_CLASS = "mt-6 flex flex-col";
+export const SOCIAL_FEED_ASIDE_SUBHEAD_CLASS =
+  "m-0 text-[length:var(--text-base)] leading-6 font-semibold text-ink";
+export const SOCIAL_FEED_ASIDE_ROWS_CLASS = "-mx-3 mt-3 flex flex-col";
+export const SOCIAL_FEED_ASIDE_ROW_CLASS =
+  "flex min-h-14 items-center justify-between gap-3 rounded-[var(--radius-xl)] px-3";
+export const SOCIAL_FEED_ASIDE_PERSON_CLASS = "gap-3";
+export const SOCIAL_FEED_ASIDE_AVATAR_CLASS = "size-10";
+
+// ---------------------------------------------------------------------
+// H · Posts (H §5.1; founder 2026-10-05). Everywhere SocialPostCard
+// renders (Feed, Profile activity, a member's posts, the permalink).
+// The media is the card: a photo fills the column at its true shape
+// (1.91:1 to 4:5) at radius 24 with no card or frame; a video plays on
+// the near-black screen (radius 24) under a band with the topic left and
+// "Video" right. The register lands around the media: the credit row
+// (the 40 avatar, the name 17 / 600, the time 15 ink-3), the round grey
+// actions with their counts beside, the quiet ⋯, the 17 / 420 ink-2
+// caption under (never clamped). A text-only post is the soft grey card
+// (radius 24, pad 24, phone 16) with its body at 20 / 480 ink.
+// Phone: the media meets the viewport (radius 0); the actions take their
+// own row under the caption, aligned to the name. No role line: the
+// founder chose "Members choose one; no line until they do" — the
+// main-role picker ships later; the name block keeps its slot.
+// Supersedes the Option A muted post card, the in-card author row over
+// the media, the bare 40 hits, the likes line, the comment trail and the
+// under-post time line.
+// docs/design-locks/social-feed-register-lock-v1.md §7
+// ---------------------------------------------------------------------
+
+/** How the post face draws: a photo (or a swipe of media), a video, or text only. */
+export type SocialPostKind = "photo" | "video" | "text";
+
+/** Where a round action sits: on the page, or on the text post's grey card. */
+export type SocialPostSurface = "page" | "card";
+
+/** No media: text. One video: video. One still, or two or more items: photo (the frame). */
+export function socialPostKind(media: readonly { kind: "image" | "video" }[]): SocialPostKind {
+  if (media.length === 0) return "text";
+  return media.length === 1 && media[0]?.kind === "video" ? "video" : "photo";
+}
+
+// Post wall: 24 between posts on phone, 48 on desktop (the Reels row
+// takes the same gutter and adds none of its own on desktop). One list
+// for the Feed, Profile activity, a member's posts and the permalink.
+export const SOCIAL_FEED_GUTTER_CLASS = `flex flex-col ${HOUSE_SECTION_AIR_CLASS} md:gap-[var(--space-12)]`;
+
+// A media post is no card: a plain block in the column.
+export const SOCIAL_POST_CLASS = "block min-w-0 shrink-0";
+
+// A text-only post: the soft grey card (H §3.4). Muted, radius 24, pad
+// 24 (phone 16), no border, no shadow. Dark: the card is --surface (the
+// board's dark muted) so its rounds, on --surface-muted (the board's
+// dark onMuted), sit lighter than the card as they do in light (the
+// build's dark --surface-muted is one step lighter than the board's,
+// H §8.7, so the light mapping would invert them).
+export const SOCIAL_POST_TEXT_CARD_CLASS =
+  "block min-w-0 shrink-0 rounded-[var(--radius-xl)] bg-surface-muted p-4 md:p-6 dark:bg-surface";
+
+export function socialPostClass(kind: SocialPostKind): string {
+  return kind === "text" ? SOCIAL_POST_TEXT_CARD_CLASS : SOCIAL_POST_CLASS;
+}
+
+// The media block: phone meets the viewport (the frame gutter cancelled,
+// radius 0); from md it is the column at radius 24, clipped.
+export const SOCIAL_POST_MEDIA_CLASS =
+  `relative block overflow-hidden ${SOCIAL_MOBILE_BLEED_CLASS} md:w-full md:rounded-[var(--radius-xl)]`;
+
+// Adam lock 2026-09-25. Feed posts with 2 or more media items use one
+// swipe stage. No collage grid. H register (Adam 2026-10-05): the stage
+// is the post's media block (SOCIAL_POST_MEDIA_CLASS: phone meets the
+// viewport, desktop radius 24) at the first still's true shape; the
+// counter is the "1 / 3" chip top-right (SOCIAL_POST_COUNT_CHIP_CLASS),
+// the topic chip top-left. The dots sit on the band at 72% so they read
+// on any picture in both themes.
+// docs/design-locks/social-feed-register-lock-v1.md §7
+export const SOCIAL_FEED_CAROUSEL_BLEED_CLASS = `${SOCIAL_POST_MEDIA_CLASS} bg-surface-muted`;
+
+export const SOCIAL_FEED_CAROUSEL_TRACK_CLASS =
+  "no-scrollbar flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain";
+
+export const SOCIAL_FEED_CAROUSEL_SLIDE_CLASS =
+  "social-feed-carousel-slide relative w-full min-w-full shrink-0 snap-start overflow-hidden bg-surface-muted";
+
+// The dots: drawn from md. The H board draws none on phone; the "1 / 3"
+// chip reads the place and a finger swipes, so no 24 dot is drawn as a
+// phone target. Below md they stay buttons in the accessibility tree,
+// visually hidden (sr-only) until one has keyboard focus, then the row
+// shows on the band: a keyboard, switch or screen-reader user still
+// changes slides (the slides off screen are aria-hidden). A desktop
+// pointer has no swipe, so the dots always show there.
+export const SOCIAL_FEED_CAROUSEL_DOTS_CLASS =
+  "absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-band/72 px-2 max-md:not-focus-within:sr-only";
+
+export const SOCIAL_FEED_CAROUSEL_DOT_HIT_CLASS =
+  "flex size-6 shrink-0 items-center justify-center";
+
+export const SOCIAL_FEED_CAROUSEL_DOT_CLASS = "size-2 rounded-full bg-band-ink/50";
+
+export const SOCIAL_FEED_CAROUSEL_DOT_ACTIVE_CLASS = "size-2 rounded-full bg-band-ink";
+
+// A photo's frame: the still at its true shape (the aspect is a style
+// from socialPostPhotoAspect); the grey shows only while it loads.
+export const SOCIAL_POST_PHOTO_FRAME_CLASS = "relative w-full bg-surface-muted";
+// The wall skeleton's media: the frame at its default 4:5 (an image with
+// no stored shape), square inside the clipped block.
+export const SOCIAL_POST_PHOTO_SKELETON_CLASS = `${SOCIAL_POST_PHOTO_FRAME_CLASS} aspect-[4/5] rounded-none`;
+
+// The video's screen: near-black (--screen), the frame centred on it
+// (letterbox / pillarbox), the band on top.
+export const SOCIAL_POST_SCREEN_CLASS = "flex flex-col bg-screen";
+
+// The screen band: 44, topic left and "Video" right, 13 / 500 band-ink
+// at 72% (about 9.6:1 on the screen), inset 16. Wraps, never cut.
+export const SOCIAL_POST_SCREEN_HEAD_CLASS =
+  "flex min-h-11 items-center justify-between gap-4 px-4 py-1 text-[length:var(--text-xs)] font-medium leading-4 text-band-ink/72";
+export const SOCIAL_POST_SCREEN_TOPIC_CLASS = "min-w-0 break-words";
+
+// Chips on the photo: 28 tall, pad 10, radius full, the band at 72%,
+// 13 / 500 band-ink, inset 16. The topic top-left, the counter ("1 / 3")
+// top-right. Labels only: taps pass through to the photo.
+const SOCIAL_POST_MEDIA_CHIP_BASE_CLASS =
+  "pointer-events-none absolute top-4 z-[11] flex h-7 items-center rounded-full bg-band/72 px-2.5 text-[length:var(--text-xs)] font-medium leading-none text-band-ink";
+export const SOCIAL_POST_TOPIC_CHIP_CLASS = `${SOCIAL_POST_MEDIA_CHIP_BASE_CLASS} left-4`;
+export const SOCIAL_POST_COUNT_CHIP_CLASS = `${SOCIAL_POST_MEDIA_CHIP_BASE_CLASS} right-4 tabular-nums`;
+
+// The credit avatar: a 40 circle the photo fills (no grey behind a
+// photo). With no photo, the initials (15 / 600 ink-2) on muted; on the
+// grey text card, on the card's onMuted (the page white; dark
+// --surface-muted, see the card) so the circle still reads.
+export const SOCIAL_AVATAR_POST_CLASS =
+  "relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-[length:var(--text-sm)] font-semibold text-ink-2";
+export function socialPostAvatarEmptyClass(surface: SocialPostSurface): string {
+  return surface === "card" ? "bg-surface dark:bg-surface-muted" : "bg-surface-muted";
+}
+
+// Under the media: the credit row 12 down on phone, 16 on desktop. In
+// the text card it starts at the card's pad. One wrapping row whose
+// items reorder by breakpoint: phone is who · ⋯ / caption / actions;
+// desktop is who · actions · ⋯ / caption.
+export function socialPostFootClass(kind: SocialPostKind): string {
+  return kind === "text"
+    ? "flex flex-wrap items-center gap-x-2"
+    : "mt-3 flex flex-wrap items-center gap-x-2 md:mt-4";
+}
+
+// Who: the author (avatar and name, one 44 link), the time, the group.
+export const SOCIAL_POST_WHO_CLASS =
+  "order-1 flex min-h-11 min-w-0 flex-1 flex-wrap items-center gap-x-2";
+export const SOCIAL_POST_AUTHOR_CLASS = "flex min-h-11 min-w-0 items-center gap-3";
+// The name block: one line today. The role eyebrow's slot sits above
+// the name (13 / 500 uppercase 0.06em) once members choose a main role.
+export const SOCIAL_POST_NAME_STACK_CLASS = "flex min-w-0 flex-col";
+export const SOCIAL_POST_NAME_CLASS =
+  "min-w-0 break-words text-[length:var(--text-base)] font-semibold leading-6 text-ink";
+// A group follows the time as "· Group": a 44-tall hit that wraps.
+export const SOCIAL_POST_GROUP_CLASS =
+  "inline-flex min-h-11 min-w-0 items-center break-words text-[length:var(--text-sm)] leading-6 text-ink-2";
+
+// The time: 15, ink-3 on the page (ink-2 in dark, as the Feed's quiet
+// ink), ink-2 on the grey card (ink-3 fails on muted). The permalink is
+// a 44 hit that starts at the text, so the name keeps its 8.
+export const SOCIAL_POST_TIME_CLASS =
+  `inline-flex min-h-11 min-w-11 items-center text-[length:var(--text-sm)] leading-6 tracking-normal tabular-nums ${SOCIAL_FEED_QUIET_INK_CLASS}`;
+export const SOCIAL_POST_TIME_CARD_CLASS =
+  "inline-flex min-h-11 min-w-11 items-center text-[length:var(--text-sm)] leading-6 tracking-normal tabular-nums text-ink-2";
+
+export function socialPostTimeClass(surface: SocialPostSurface): string {
+  return surface === "card" ? SOCIAL_POST_TIME_CARD_CLASS : SOCIAL_POST_TIME_CLASS;
+}
+
+// Actions: Like, Comment, Share as round grey buttons (40 desktop, 44
+// phone), 8 apart, counts beside. Desktop: right of the credit. Phone:
+// their own row under the caption, aligned to the name (52 = the 40
+// avatar + 12) on a media post, to the body on a text post.
+export function socialPostActionsClass(kind: SocialPostKind): string {
+  return kind === "text"
+    ? "order-4 mt-3 flex basis-full items-center gap-2 md:order-2 md:mt-0 md:ml-auto md:basis-auto"
+    : "order-4 mt-3 flex basis-full items-center gap-2 pl-[52px] md:order-2 md:mt-0 md:ml-auto md:basis-auto md:pl-0";
+}
+
+// The round grey action (H §3.3 round grey): muted on the page; on the
+// grey card, the board's "onMuted", lighter than the card in both
+// themes: the page white (--surface) in light, --surface-muted on the
+// dark card (--surface). Glyph 20 ink.
+const SOCIAL_POST_ROUND_FACE_CLASS =
+  "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink transition-colors md:size-10";
+const SOCIAL_POST_ROUND_ON_CARD_FILL_CLASS = "bg-surface dark:bg-surface-muted";
+export const SOCIAL_POST_ROUND_CLASS =
+  `${SOCIAL_POST_ROUND_FACE_CLASS} bg-surface-muted hover:bg-hairline active:opacity-70`;
+export const SOCIAL_POST_ROUND_CARD_CLASS =
+  `${SOCIAL_POST_ROUND_FACE_CLASS} ${SOCIAL_POST_ROUND_ON_CARD_FILL_CLASS} hover:bg-hairline active:opacity-70`;
+// The same face inside a wider button (Comment: the round and its count).
+export const SOCIAL_POST_ROUND_IN_GROUP_CLASS =
+  `${SOCIAL_POST_ROUND_FACE_CLASS} bg-surface-muted group-hover:bg-hairline`;
+export const SOCIAL_POST_ROUND_IN_GROUP_CARD_CLASS =
+  `${SOCIAL_POST_ROUND_FACE_CLASS} ${SOCIAL_POST_ROUND_ON_CARD_FILL_CLASS} group-hover:bg-hairline`;
+
+export function socialPostRoundClass(surface: SocialPostSurface, inGroup = false): string {
+  if (inGroup) return surface === "card" ? SOCIAL_POST_ROUND_IN_GROUP_CARD_CLASS : SOCIAL_POST_ROUND_IN_GROUP_CLASS;
+  return surface === "card" ? SOCIAL_POST_ROUND_CARD_CLASS : SOCIAL_POST_ROUND_CLASS;
+}
+
+// Liked: the filled heart in the accent (a glyph on grey, 3:1+ both themes).
+export const SOCIAL_POST_ROUND_LIKED_CLASS = "text-accent";
+
+/** Round action glyph: 20 (H §3.3). The stage rails keep 24. */
+export const SOCIAL_POST_ROUND_GLYPH = 20;
+
+// The count beside a round: 15 / 500 ink-2, tabular, in a 44 (desktop
+// 40) box so the phone hit stays whole. Likes: its own button (it opens
+// who liked); comments: inside the Comment button.
+export const SOCIAL_POST_COUNT_CLASS =
+  "inline-flex h-11 min-w-11 items-center justify-center px-1 text-[length:var(--text-sm)] font-medium tabular-nums text-ink-2 md:h-10 md:min-w-10";
+export const SOCIAL_POST_COMMENT_CLASS = "group inline-flex shrink-0 items-center rounded-full";
+export const SOCIAL_POST_LIKE_CLASS = "relative inline-flex shrink-0 items-center";
+
+// The quiet ⋯ (owner menu): a 44 (desktop 40) clear hit, glyph 20
+// ink-2. Phone: the credit row's end, its glyph pulled to the 16 edge.
+export const SOCIAL_POST_MORE_CLASS =
+  "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-hairline md:size-10";
+export const SOCIAL_POST_MORE_SLOT_CLASS = "order-2 -mr-3 flex md:order-3 md:mr-0";
+
+// The caption: under the credit row, aligned to the name (52), 17 / 420
+// ink-2 line 1.5 on desktop, 15 / 1.45 on phone. Wraps; never clamped.
+export const SOCIAL_POST_CAPTION_CLASS =
+  "order-3 mt-2 basis-full whitespace-pre-wrap break-words pl-[52px] text-[length:var(--text-sm)] leading-[1.45] text-ink-2 md:order-4 md:text-[length:var(--text-base)] md:leading-normal";
+
+// A text-only post's body: 20 / 480 ink, -0.02em, line 1.4, the card's
+// full width, 12 under the credit row.
+export const SOCIAL_POST_TEXT_BODY_CLASS =
+  "order-3 mt-3 basis-full whitespace-pre-wrap break-words text-[length:var(--text-lg)] leading-[1.4] [font-weight:var(--type-title-weight)] tracking-[-0.02em] text-ink md:order-4";
+
+export function socialPostBodyClass(kind: SocialPostKind): string {
+  return kind === "text" ? SOCIAL_POST_TEXT_BODY_CLASS : SOCIAL_POST_CAPTION_CLASS;
 }
 
 export const SOCIAL_FIRST_WIN_CLASS =

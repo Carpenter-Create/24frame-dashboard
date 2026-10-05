@@ -4,17 +4,19 @@ import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "@/lib/social";
 // Home following wall + Skool-style onboarding. Photo reuses the
 // account face at /settings/profile. Do not add a second upload.
 
-// Adam 2026-09-22 lock_topics_composer_stories_wall.
-// Supersedes 2026-09-20 lock_airy_topics_under_cut_phone_composer
-// (Stories above Topics, phone composer cut). That phone cut is revoked.
-// One Home column on both devices: Topics → composer → Stories → wall.
-// The share-stage composer (avatar + "Share something" + icon-only
-// Photo · Camera) is one row on phone and desktop. Create dock stays.
-// Phone + fans Media · Write · Go live. Desktop rail keeps the Create dialog.
-// Same JSX, no second layout, no gray liner, no
-// Live / Feeling strip on Home.
-export const SOCIAL_HOME_STACK_LOCK = "lock_topics_composer_stories_wall" as const;
-export const SOCIAL_HOME_STACK_ORDER = ["topics", "composer", "stories", "wall"] as const;
+// Founder 2026-10-05 H · Feed ("I like the designs. Let's use them."):
+// lock_slider_stories_composer_topics_wall, as the H board draws it.
+// Supersedes the G stack (2026-10-04) lock_tabs_topics_stories_composer_wall
+// and, before it, 2026-09-22 lock_topics_composer_stories_wall. One Feed
+// column on both devices: the Following / For you slider → story cards →
+// composer → topic chips → wall (with a Reels row after every 3 posts);
+// the topics sit over the wall they filter. The composer (avatar +
+// "Share something" + icon-only Photo · Camera) stays one row. Create
+// dock stays. Phone + fans Media · Write · Go live. Desktop rail keeps
+// the Create dialog. Same JSX, no second layout, no Live / Feeling strip.
+// docs/design-locks/social-feed-register-lock-v1.md
+export const SOCIAL_HOME_STACK_LOCK = "lock_slider_stories_composer_topics_wall" as const;
+export const SOCIAL_HOME_STACK_ORDER = ["slider", "stories", "composer", "topics", "wall"] as const;
 
 export const SOCIAL_CHECKLIST_IDS = [
   "photo",

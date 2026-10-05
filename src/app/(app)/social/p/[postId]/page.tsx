@@ -5,6 +5,7 @@ import { SocialPostCard } from "@/components/social/social-post-card";
 import { PAGE_LEAD_STACK_CLASS } from "@/components/ui/page-header";
 import { socialAvatarHref, socialMediaProxies } from "@/lib/social-edge";
 import { SOCIAL, socialPersonLabel } from "@/lib/social";
+import { normalizeSocialCategory } from "@/lib/social-categories";
 import { SOCIAL_FEED_GUTTER_CLASS, SOCIAL_PAGE_CLASS } from "@/lib/social-chrome";
 import {
   loadGroupsByIds,
@@ -75,6 +76,7 @@ export default async function SocialPostPage({
             groupName: group?.name ?? null,
             canLike: !!profile,
             owned: post.author_id === ctx.user.id,
+            topic: normalizeSocialCategory(post.category),
             media,
           }}
         />

@@ -39,10 +39,15 @@ export function useSocialCreateMediaPick(options?: {
     router.push(socialCreateMediaHref());
   }
 
+  // The visible button or tile opens this through openPicker(), so the
+  // input is no tab stop and is hidden from assistive tech: no 1px focus
+  // ring, no second "Photo" / "Camera" announcement.
   const input = (
     <input
       ref={inputRef}
       type="file"
+      tabIndex={-1}
+      aria-hidden="true"
       accept={accept}
       multiple={multiple}
       capture={options?.capture}

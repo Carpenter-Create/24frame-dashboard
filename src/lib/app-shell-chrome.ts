@@ -8,6 +8,8 @@ import type { ActivityItem } from "@/lib/activity";
 import { APP_GATE_REDIRECT, appAccessBlocked } from "@/lib/app-access";
 import { resolveMessagesSurface, type MessagesSurface } from "@/lib/ask-frame-ai";
 import { loadActivityBellItems } from "@/lib/my-lists";
+import { overviewSocialUnreadTotal } from "@/lib/overview";
+import { loadDmInbox } from "@/lib/social-dms";
 import { getActiveOrgTier } from "@/lib/org-tier";
 import { readSidebarCollapsed } from "@/lib/rail-collapse";
 import { createClient } from "@/lib/supabase/server";
@@ -27,6 +29,9 @@ export type AppShellChrome = {
   activeOrgId: string | null;
   unread: Promise<number>;
   activityItems: Promise<ActivityItem[]>;
+  /** Social DM unread total (the inbox's rooms): the Messages dot in
+   *  the side menu and the phone dock. Not awaited; 0 on failure. */
+  dmUnread: Promise<number>;
   isGcStaff: boolean;
   defaultCollapsed: boolean;
   messagesSurface: MessagesSurface;
@@ -63,6 +68,11 @@ export const loadAppShellChrome = cache(async (): Promise<AppShellChrome> => {
         .then((supabase) => loadActivityBellItems(supabase))
         .then((rows) => rows as ActivityItem[]),
     ).catch(() => []),
+    dmUnread: Promise.resolve(
+      createClient()
+        .then((supabase) => loadDmInbox(supabase))
+        .then((page) => overviewSocialUnreadTotal(page.rows)),
+    ).catch(() => 0),
     isGcStaff: ctx.isGcStaff,
     defaultCollapsed: readSidebarCollapsed((name) => jar.get(name)?.value),
     messagesSurface: resolveMessagesSurface({
@@ -79,6 +89,10 @@ export const loadAppShellChrome = cache(async (): Promise<AppShellChrome> => {
 
 export function appShellUnread(chrome: Promise<AppShellChrome>): Promise<number> {
   return chrome.then((data) => data.unread);
+}
+
+export function appShellDmUnread(chrome: Promise<AppShellChrome>): Promise<number> {
+  return chrome.then((data) => data.dmUnread).catch(() => 0);
 }
 
 export function appShellActivityItems(

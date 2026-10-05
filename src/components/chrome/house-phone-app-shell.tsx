@@ -26,6 +26,7 @@ export function HousePhoneAppShell({
   homeOwned = false,
   accountChrome = false,
   coProductions = false,
+  messagesUnread = 0,
   className,
   style,
   children,
@@ -37,6 +38,8 @@ export function HousePhoneAppShell({
   homeOwned?: boolean;
   accountChrome?: boolean;
   coProductions?: boolean;
+  /** Social DM unread total — the dock's Messages dot. */
+  messagesUnread?: number;
 }) {
   return (
     <div
@@ -54,6 +57,7 @@ export function HousePhoneAppShell({
         homeOwned={homeOwned}
         accountChrome={accountChrome}
         coProductions={coProductions}
+        messagesUnread={messagesUnread}
       />
     </div>
   );
@@ -66,6 +70,7 @@ function PhoneDockSlot({
   homeOwned,
   accountChrome,
   coProductions,
+  messagesUnread,
 }: {
   chrome?: Promise<AppShellChrome>;
   workspace: WorkspaceMode;
@@ -73,6 +78,7 @@ function PhoneDockSlot({
   homeOwned: boolean;
   accountChrome: boolean;
   coProductions: boolean;
+  messagesUnread: number;
 }) {
   const dock = (
     <HousePhoneBottomNav
@@ -81,6 +87,7 @@ function PhoneDockSlot({
       homeOwned={homeOwned}
       accountChrome={accountChrome}
       coProductions={coProductions}
+      messagesUnread={messagesUnread}
     />
   );
   if (!chrome) return dock;
@@ -92,6 +99,7 @@ function PhoneDockSlot({
         homeOwned={homeOwned}
         accountChrome={accountChrome}
         coProductions={coProductions}
+        messagesUnread={messagesUnread}
       />
     </Suspense>
   );
@@ -103,12 +111,14 @@ function PhoneDockFromChrome({
   homeOwned,
   accountChrome,
   coProductions,
+  messagesUnread,
 }: {
   chrome: Promise<AppShellChrome>;
   workspace: WorkspaceMode;
   homeOwned: boolean;
   accountChrome: boolean;
   coProductions: boolean;
+  messagesUnread: number;
 }) {
   const data = use(chrome);
   return (
@@ -118,6 +128,7 @@ function PhoneDockFromChrome({
       homeOwned={homeOwned}
       accountChrome={accountChrome}
       coProductions={coProductions}
+      messagesUnread={messagesUnread}
     />
   );
 }

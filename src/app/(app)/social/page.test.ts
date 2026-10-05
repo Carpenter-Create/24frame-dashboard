@@ -27,6 +27,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signedAvatarUrls, signedSocialMediaByPostId } from "@/lib/social-edge";
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
+import { SOCIAL_CATEGORY_ALL } from "@/lib/social-categories";
 import {
   SOCIAL_FOLLOWEES_LIMIT,
   SOCIAL_FOLLOWING_WALL_LIMIT,
@@ -90,8 +91,11 @@ function ctx({ hasOrg = false }: { hasOrg?: boolean } = {}) {
   };
 }
 
-function chain(result: unknown) {
+// `contains` is the Explore video-post read (the Reels rail source). It
+// switches this chain to `explore` rows so the wall and the rail differ.
+function chain(result: unknown, explore: unknown = []) {
   const c: Record<string, unknown> = {};
+  let rows = result;
   const self = () => c;
   c.select = vi.fn(self);
   c.eq = vi.fn(self);
@@ -101,13 +105,17 @@ function chain(result: unknown) {
   c.or = vi.fn(self);
   c.ilike = vi.fn(self);
   c.order = vi.fn(self);
-  c.range = vi.fn(async () => ({ data: result, error: null }));
+  c.contains = vi.fn(() => {
+    rows = explore;
+    return c;
+  });
+  c.range = vi.fn(async () => ({ data: rows, error: null }));
   c.maybeSingle = vi.fn(async () => ({
-    data: Array.isArray(result) ? (result[0] ?? null) : result,
+    data: Array.isArray(rows) ? (rows[0] ?? null) : rows,
     error: null,
   }));
   c.then = (resolve: (value: unknown) => unknown) =>
-    Promise.resolve({ data: result, error: null }).then(resolve);
+    Promise.resolve({ data: rows, error: null }).then(resolve);
   return c;
 }
 
@@ -125,7 +133,11 @@ function stubClient({
   follows = [],
   stories = [],
   courses = [],
+  explore = [],
+  profiles = [],
 }: {
+  explore?: unknown[];
+  profiles?: { id: string; handle: string; display_name: string; status: string }[];
   profile?: { id: string; handle: string; display_name: string; status: string; bio?: string | null } | null;
   courses?: {
     id: string;
@@ -162,8 +174,8 @@ function stubClient({
   }[];
 } = {}) {
   const from = vi.fn((table: string) => {
-    if (table === "profiles") return chain(profile ? [profile] : []);
-    if (table === "posts") return chain(posts);
+    if (table === "profiles") return chain(profile ? [profile, ...profiles] : profiles);
+    if (table === "posts") return chain(posts, explore);
     if (table === "groups") return chain([]);
     if (table === "likes") return chain([]);
     if (table === "follows") return chain(follows);
@@ -203,12 +215,16 @@ describe("Social home", () => {
     expect(html).toContain(SOCIAL.home.subtitle);
     expect(html).not.toContain("Posts from people you follow");
     expect(html).toContain("data-social-home-composer");
-    expect(html).toContain('data-social-home-stack="lock_topics_composer_stories_wall"');
-    const stackClass = html.match(/data-social-home-stack="lock_topics_composer_stories_wall"[^>]*class="([^"]+)"/)?.[1]
-      ?? html.match(/class="([^"]+)"[^>]*data-social-home-stack="lock_topics_composer_stories_wall"/)?.[1];
-    expect(stackClass).toContain("gap-[var(--space-2)]");
-    expect(stackClass).not.toContain("gap-[var(--space-4)]");
-    expect(stackClass).toContain("lg:max-w-[720px]");
+    // H · Feed (founder 2026-10-05; replaces G's tabs → topic words → story
+    // tiles → composer bar → wall in the 620 column): slider → story cards
+    // → composer → topic chips → wall, in the 600 column.
+    expect(html).toContain('data-social-home-stack="lock_slider_stories_composer_topics_wall"');
+    expect(html).not.toContain("lock_topics_composer_stories_wall");
+    expect(html).not.toContain("lock_tabs_topics_stories_composer_wall");
+    const stackClass = html.match(/data-social-home-stack="lock_slider_stories_composer_topics_wall"[^>]*class="([^"]+)"/)?.[1];
+    expect(stackClass).toContain("md:max-w-[600px]");
+    expect(stackClass).not.toContain("lg:max-w-[720px]");
+    expect(stackClass).not.toContain("gap-[var(--space-2)]");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).not.toContain("/social/create?kind=text");
     expect(html).toContain("data-social-composer-write");
@@ -216,25 +232,41 @@ describe("Social home", () => {
     expect(html).toContain(SOCIAL.create.title);
     expect(html).not.toContain("data-social-composer-action");
     expect(html).not.toContain("data-social-home-topics-composer-divider");
-    expect(html.indexOf("data-social-home-topics")).toBeLessThan(html.indexOf("data-social-home-composer"));
-    expect(html).toContain("border-y");
-    expect(html).toContain("border-x-0");
-    expect(html).toContain("py-[var(--space-2)]");
-    expect(html.indexOf("data-social-home-composer")).toBeLessThan(html.indexOf("data-social-stories"));
-    expect(html.indexOf("data-social-home-topics")).toBeLessThan(html.indexOf("data-social-stories"));
+    // The composer is one 44 row with the grey pill (no 52 muted bar).
+    const composer = html.match(/data-social-home-composer="" class="([^"]+)"/)?.[1] ?? "";
+    expect(composer).not.toContain("h-[52px]");
+    expect(composer).not.toContain("bg-surface-muted");
+    expect(composer).not.toContain("border-y");
+    expect(html).toMatch(/data-social-composer-prompt="" class="[^"]*rounded-full[^"]*bg-surface-muted/);
+    const order = ["data-social-home-lanes", "data-social-stories", "data-social-home-composer", "data-social-home-topics", "data-social-home-wall"];
+    for (let i = 1; i < order.length; i += 1) {
+      expect(html.indexOf(order[i - 1]!)).toBeGreaterThan(-1);
+      expect(html.indexOf(order[i - 1]!)).toBeLessThan(html.indexOf(order[i]!));
+    }
+    expect(html).toContain('<nav aria-label="Feed scope" data-social-home-lanes=""');
+    // The slider: the shared SegmentedTrack with the remount persist key.
+    expect(html).toContain('data-segmented-persist="social-feed-scope"');
     expect(html.indexOf('data-social-home-lane="following"')).toBeLessThan(
       html.indexOf('data-social-home-lane="for-you"'),
     );
     expect(html.indexOf('data-social-home-lane="for-you"')).toBeLessThan(
       html.indexOf('data-social-home-topic="All"'),
     );
+    expect(html).toMatch(/data-social-home-lane="following"[^>]*data-segmented-selected=""/);
+    expect(html).toMatch(/data-social-home-lane="following"[^>]*aria-current="page"/);
+    expect(html).not.toMatch(/data-social-home-lane="for-you"[^>]*aria-current/);
     expect(html).not.toMatch(/>Topics</);
     expect(html).toContain("Share something");
     expect(html).not.toContain("Write something");
     expect(html).not.toContain("What's on your mind");
     expect(html).not.toContain("Topics for you");
     expect(html).not.toContain("data-social-for-you-topics");
-    expect(html).toContain("data-social-stories-tall");
+    expect(html).not.toContain("data-social-stories-tall");
+    expect(html).toContain('role="group" aria-label="Stories"');
+    expect(html).toContain("h-[192px] w-[108px]");
+    expect(html).not.toContain("h-[100px] w-14");
+    expect(html).toContain(`aria-label="${SOCIAL.stories.yourStoryCreate}"`);
+    expect(html).toContain(`>${SOCIAL.stories.create}<`);
     expect(html).not.toContain("data-social-home-tabs");
     expect(html).toContain('data-social-home-lane="following"');
     expect(html).toContain('data-social-home-lane="for-you"');
@@ -244,10 +276,23 @@ describe("Social home", () => {
     expect(html).toContain("data-social-stories");
     expect(html).toContain("data-social-following-empty");
     expect(html).toContain("data-social-for-you");
-    expect(html).toContain("lg:max-w-[720px]");
-    expect(html).toContain("lg:max-w-[1052px]");
-    expect(html).toContain("gap-[32px]");
-    expect(html).toContain("w-[300px]");
+    // H grid (replaces G's 620 / 40 / 244): 600 column, 48 gap, the 296
+    // For you rail from xl.
+    expect(html).toContain("md:max-w-[600px]");
+    expect(html).toContain("xl:max-w-[944px]");
+    expect(html).toContain("gap-12");
+    expect(html).toContain("w-[296px]");
+    expect(html).not.toContain("lg:max-w-[620px]");
+    expect(html).not.toContain("w-[244px]");
+    expect(html).toContain('data-social-for-you-layout="aside"');
+    expect(html).not.toContain("lg:max-w-[1052px]");
+    expect(html).not.toContain("w-[300px]");
+    // Nothing to suggest here: the rail stays empty, with no heading and
+    // no accessible name of its own.
+    const aside = html.slice(html.indexOf('data-social-for-you-layout="aside"'));
+    expect(aside).not.toContain(`>${SOCIAL.forYou.title}<`);
+    expect(aside).not.toContain("data-social-for-you-heading");
+    expect(aside.slice(0, aside.indexOf(">"))).not.toContain("aria-label");
     expect(html).not.toContain("lg:max-w-[600px]");
     expect(html).not.toContain("lg:max-w-[932px]");
     expect(html).not.toContain("data-social-latest-course");
@@ -281,7 +326,11 @@ describe("Social home", () => {
     expect(html).not.toContain("Social-native");
     expect(html).not.toContain("Loved the reel");
     expect(html).not.toContain('"/messages"');
-    expect(html).toContain("data-social-empty-lenses");
+    // The topic row already marks "All": the empty wall repeats no filled pill.
+    expect(html).not.toContain("data-social-empty-lenses");
+    expect(html.split(`>${SOCIAL_CATEGORY_ALL}<`).length - 1).toBe(1);
+    const emptyWall = html.slice(html.indexOf("data-social-following-empty"));
+    expect(emptyWall).not.toContain(`>${SOCIAL_CATEGORY_ALL}<`);
     expect(html).not.toContain("data-social-lenses");
     expect(html).not.toContain("Education");
     expect(html).not.toContain("data-social-need-profile");
@@ -299,6 +348,9 @@ describe("Social home", () => {
     const music = await renderHome({ topic: "music" });
     expect(music).toMatch(/data-social-home-topic="Music"[^>]*data-social-home-topic-active=""/);
     expect(music).not.toMatch(/data-social-home-topic="All"[^>]*data-social-home-topic-active=""/);
+    // An empty Music wall shows no stale filled "All" under the Music word.
+    expect(music).toContain("data-social-following-empty");
+    expect(music.slice(music.indexOf("data-social-following-empty"))).not.toContain(`>${SOCIAL_CATEGORY_ALL}<`);
 
     const unknown = await renderHome({ topic: "cousins" });
     expect(unknown).toMatch(/data-social-home-topic="All"[^>]*data-social-home-topic-active=""/);
@@ -464,6 +516,12 @@ describe("Social home", () => {
     const html = await renderHome();
     expect(html).toContain("data-social-latest-course");
     expect(html).toContain(SOCIAL.forYou.latestCourse);
+    // H · Feed (founder decision 5, "sure"): the rail's "For you" heading
+    // over the course as one soft grey card labelled with its workspace.
+    expect(html).toContain(`<h2 data-social-for-you-heading=""`);
+    expect(html).toMatch(/data-social-for-you-heading="" class="[^"]*">For you<\/h2>/);
+    expect(html).toContain(SOCIAL.forYou.latestCourseEyebrow);
+    expect(html).toContain('data-course-card-density="feature"');
     expect(html).toContain("Rights desk");
     expect(html).toContain("/education/rights-desk");
     expect(html).toContain('data-course-card="rights-desk"');
@@ -504,6 +562,94 @@ describe("Social home", () => {
     expect(html).not.toContain("Riley Okonkwo");
     expect(html).not.toContain("#MicroDramaPilot");
     expect(html).not.toContain("data-social-feed");
+  });
+});
+
+// Feed Reels rail (Adam 2026-10-04): after every 3 wall posts, from the
+// For you Explore list, stills only, each tile opens Explore at that reel.
+// docs/design-locks/social-feed-reel-rail-lock-v1.md
+describe("Social home Reels rail", () => {
+  const AUTHOR_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const reel = (n: number, frame = { width: 1080, height: 1920 }) => ({
+    id: `9999999${n}-9999-4999-8999-999999999999`,
+    body: `Reel ${n} caption`,
+    author_id: AUTHOR_B,
+    category: null,
+    like_count: 0,
+    comment_count: 0,
+    media: [
+      {
+        kind: "video",
+        key: `posts/${AUTHOR_B}/8888888${n}-8888-4888-8888-888888888888.mp4`,
+        contentType: "video/mp4",
+        provider: "mux",
+        playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+        playbackPolicy: "signed",
+        ...frame,
+      },
+    ],
+  });
+  const wallPost = (n: number) => ({
+    id: `p${n}`,
+    body: `post ${n}`,
+    author_id: "u1",
+    group_id: null,
+    like_count: 0,
+    created_at: `2026-09-12T14:0${n}:00.000Z`,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(signedAvatarUrls).mockReturnValue(new Map());
+    vi.mocked(signedSocialMediaByPostId).mockReturnValue(new Map());
+    vi.mocked(ensureOwnSocialProfile).mockResolvedValue(ensured);
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+  });
+
+  it("puts a rail of For you reels after the third post, linking each to Explore", async () => {
+    const { from } = stubClient({
+      profile: ensured,
+      posts: [1, 2, 3, 4].map(wallPost),
+      explore: [reel(1), reel(2), reel(3, { width: 1920, height: 1080 })],
+      profiles: [{ id: AUTHOR_B, handle: "priya", display_name: "Priya Nair", status: "active" }],
+    });
+    const html = await renderHome();
+    expect(from).toHaveBeenCalledWith("posts");
+    const rail = html.indexOf('data-social-feed-reels="0"');
+    expect(rail).toBeGreaterThan(html.indexOf('data-social-post="p3"'));
+    expect(rail).toBeLessThan(html.indexOf('data-social-post="p4"'));
+    expect(html).toContain('<section aria-label="Reels" data-social-feed-reels="0"');
+    expect(html).toContain(`href="/social/explore?v=${reel(1).id}"`);
+    expect(html).toContain(`href="/social/explore?v=${reel(2).id}"`);
+    // The landscape clip is not a reel.
+    expect(html).not.toContain(`/social/explore?v=${reel(3).id}`);
+    expect(html).toContain('aria-label="Priya Nair, Reel 1 caption. Opens in Explore"');
+    expect(html).toContain(SOCIAL.reels.previous);
+    expect(html).toContain(SOCIAL.reels.next);
+    // Stills only, held until the rail nears the viewport: no player, no mint.
+    const railHtml = html.slice(rail, html.indexOf('data-social-post="p4"'));
+    expect(railHtml).not.toContain("data-social-mux-player");
+    expect(railHtml).not.toContain("<video");
+    expect(railHtml).toContain('data-social-feed-reel-still="held"');
+    expect(railHtml).not.toContain("image.mux.com");
+    expect(railHtml).not.toContain("accent");
+  });
+
+  it("skips the rail under two reels, under three posts, and in For you", async () => {
+    stubClient({ profile: ensured, posts: [1, 2, 3].map(wallPost), explore: [reel(1)] });
+    expect(await renderHome()).not.toContain("data-social-feed-reels");
+
+    stubClient({ profile: ensured, posts: [1, 2].map(wallPost), explore: [reel(1), reel(2)] });
+    expect(await renderHome()).not.toContain("data-social-feed-reels");
+
+    const { from } = stubClient({ profile: ensured, posts: [1, 2, 3].map(wallPost), explore: [reel(1), reel(2)] });
+    const forYou = await renderHome({ lane: "for-you" });
+    expect(forYou).not.toContain("data-social-feed-reels");
+    // For you renders suggested people, not the post wall: the Explore read is skipped.
+    const postChains = from.mock.results
+      .filter((_, i) => from.mock.calls[i]?.[0] === "posts")
+      .map((result) => result.value as { contains: ReturnType<typeof vi.fn> });
+    expect(postChains.every((c) => c.contains.mock.calls.length === 0)).toBe(true);
   });
 });
 

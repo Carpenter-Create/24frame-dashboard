@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   HOUSE_LEAD_CHROME_CLASS,
+  HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS,
+  HOUSE_LEAD_DESKTOP_PAD_CLASS,
   HOUSE_LEAD_PHONE_PAD_CLASS,
 } from "@/lib/house-lead-chrome";
 import {
@@ -10,6 +12,7 @@ import {
   HOUSE_CANVAS_X_CLASS,
   HOUSE_HOME_RAIL_COLUMN_CLASS,
   HOUSE_PHONE_TRAILING_GUTTER_CLASS,
+  HOUSE_RAIL_BRAND_BAND_CLASS,
   HOUSE_RAIL_COLUMN_CLASS,
   HOUSE_SHELL_GUTTER_X_CLASS,
 } from "@/lib/house-shell";
@@ -41,9 +44,15 @@ describe("desktop shell horizontal gutters — lock v2", () => {
     );
   });
 
+  // Coinbase register: the brand mark's ink stays at 32 (in the side
+  // menu's band, or in the bar where a page has no side menu, which then
+  // takes the 32 / 32 pair); the avatar's ink stays 32 from the right.
+  // Beside a side menu the bar's lead pad is the board's 24.
   it("G4 wires one shell class on house lead chrome", () => {
     expect(lead).toContain("HOUSE_SHELL_GUTTER_X_CLASS");
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain(HOUSE_SHELL_GUTTER_X_CLASS);
+    expect(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS).toBe(HOUSE_SHELL_GUTTER_X_CLASS);
+    expect(HOUSE_LEAD_DESKTOP_PAD_CLASS).toBe("md:pl-[var(--space-6)] md:pr-[var(--shell-gutter-inline-end)]");
+    expect(HOUSE_RAIL_BRAND_BAND_CLASS).toContain("pl-[var(--shell-gutter-inline-start)]");
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--chrome-gutter)]");
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--content-inset)]");
     expect(shell).toContain("<HouseLeadChrome");
@@ -84,14 +93,14 @@ describe("desktop shell horizontal gutters — lock v2", () => {
     );
   });
 
-  // Screening chrome: phone bar 16 lead / 8 trail (the account hit pads
-  // the avatar); desktop keeps the 32 / 32 shell pair.
+  // Coinbase register: phone bar 16 lead / 12 trail (the board); desktop
+  // keeps the 32 end gutter.
   it("G8 keeps phone on its own pads and drops desktop shell px-16", () => {
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
     expect(tokens).toMatch(/--content-inset:\s*48px;/);
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-2)]");
+    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-3)]");
     expect(HOUSE_LEAD_PHONE_PAD_CLASS).toBe(
-      "max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--space-2)]",
+      "max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--space-3)]",
     );
     expect(HOUSE_LEAD_CHROME_CLASS).toContain(HOUSE_LEAD_PHONE_PAD_CLASS);
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--chrome-gutter)]");

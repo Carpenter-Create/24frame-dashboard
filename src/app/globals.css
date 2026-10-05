@@ -33,6 +33,7 @@
   --color-accent-ink: var(--accent-ink);
   --color-band: var(--band);
   --color-band-ink: var(--band-ink);
+  --color-screen: var(--screen);
   --color-course-plate-1: var(--course-plate-1);
   --color-course-plate-2: var(--course-plate-2);
   --color-course-plate-3: var(--course-plate-3);
@@ -506,12 +507,15 @@ html:has([data-social-feed-immersive]) [data-house-phone-bottom-nav] {
   padding: 12px !important;
 }
 
-/* Adam lock 2026-09-25. Feed carousel slide cap. Same Media Immersion
-   box for every slide so the stage does not jump while swiping.
-   Cover crop lives on the media. Width bleed is a chrome class. */
+/* Adam lock 2026-09-25. Feed carousel slide: the same Media Immersion
+   box for every slide so the stage does not jump while swiping. H
+   register (Adam 2026-10-05, docs/design-locks/social-feed-register-lock-v1.md
+   §7): the box is the post's photo frame at its true shape (the first
+   still's aspect, held between 1.91:1 and 4:5, set on the carousel), so
+   each slide fills it. Supersedes the min(70vh, 560px) cap. Cover crop
+   lives on the media. Width bleed is a chrome class. */
 .social-feed-carousel-slide {
-  height: min(70vh, 560px);
-  max-height: min(70vh, 560px);
+  height: 100%;
 }
 
 /* Stories posted confirm. The studio host lives in the page scroller;

@@ -11,6 +11,8 @@ import {
   exploreForYouVideoItems,
   exploreHashtagToken,
   parseExploreForYouSearch,
+  parseExploreForYouVideoParam,
+  pinExploreForYouHit,
 } from "./social-explore-for-you";
 
 const AUTHOR = "11111111-1111-4111-8111-111111111111";
@@ -136,5 +138,29 @@ describe("Explore For You video stream", () => {
         personName: null,
       }),
     ).toBeNull();
+  });
+
+  // Feed Reels tiles open Explore at a reel: /social/explore?v=<post uuid>.
+  // docs/design-locks/social-feed-reel-rail-lock-v1.md
+  it("parses ?v= as a post UUID and ignores anything else", () => {
+    expect(parseExploreForYouSearch({}).v).toBe("");
+    expect(parseExploreForYouSearch({ v: CLIP }).v).toBe(CLIP);
+    expect(parseExploreForYouSearch({ v: ` ${CLIP.toUpperCase()} ` }).v).toBe(CLIP);
+    expect(parseExploreForYouSearch({ v: [CLIP_B, CLIP] }).v).toBe(CLIP_B);
+    for (const bad of ["", "v1", `${CLIP}x`, "1' or 1=1", CLIP.replace(/-/g, ""), `${CLIP}/x`]) {
+      expect(parseExploreForYouVideoParam(bad)).toBe("");
+    }
+    // ?v= opens For You; it is not its own stream mode.
+    expect(exploreForYouStreamMode(parseExploreForYouSearch({ v: CLIP }))).toBe("for-you");
+    expect(exploreForYouHref({ v: CLIP })).toBe(`/social/explore?v=${CLIP}`);
+    expect(exploreForYouHref({ v: CLIP })).not.toBe(exploreForYouHref({}));
+  });
+
+  it("pins the ?v= reel first and drops its later copy; no reel changes nothing", () => {
+    const hits = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    expect(pinExploreForYouHit(hits, { id: "b" }).map((hit) => hit.id)).toEqual(["b", "a", "c"]);
+    expect(pinExploreForYouHit(hits, { id: "z" }).map((hit) => hit.id)).toEqual(["z", "a", "b", "c"]);
+    expect(pinExploreForYouHit(hits, null).map((hit) => hit.id)).toEqual(["a", "b", "c"]);
+    expect(pinExploreForYouHit([], { id: "b" }).map((hit) => hit.id)).toEqual(["b"]);
   });
 });

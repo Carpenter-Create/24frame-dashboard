@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-28 (CT)
 **Status:** **LOCKED** · Adam CLEAR via CoS 2026-09-28 caption-below
+**Superseded in part (founder 2026-10-05, H · Posts):** the order is media → credit row (avatar, name, time; the round actions on desktop) → caption (phone: the actions under the caption). The likes line and the comment trail are counts beside the round Like and Comment. The caption stays below the media. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7.  
 **Repo:** `docs/design-locks/social-feed-text-media-caption-below-lock-v1.md`
 **Supersedes:** [`social-feed-text-media-caption-above-lock-v1.md`](social-feed-text-media-caption-above-lock-v1.md) (#685 caption-above-media)
 **Media face:** stays [`social-feed-photo-scale-immersive-lock-v1.md`](social-feed-photo-scale-immersive-lock-v1.md). Do not reopen.

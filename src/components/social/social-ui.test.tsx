@@ -43,10 +43,16 @@ import { HOUSE_PHONE_WRAP_CLASS, housePhoneForbidsTruncate } from "@/lib/house-p
 import { IDENTITY_AVATAR_CLASS } from "@/lib/house-sheet";
 import { SOCIAL, socialFeedRelativeTime, socialPostHref } from "@/lib/social";
 import {
+  SOCIAL_AVATAR_POST_CLASS,
+  SOCIAL_POST_CAPTION_CLASS,
+  SOCIAL_POST_CLASS,
+  SOCIAL_POST_MEDIA_CLASS,
+  SOCIAL_POST_TEXT_BODY_CLASS,
+  SOCIAL_POST_TEXT_CARD_CLASS,
+  SOCIAL_POST_TIME_CARD_CLASS,
   SOCIAL_POST_TIME_CLASS,
   SOCIAL_EMPTY_PANEL_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
-  SOCIAL_FEED_ROW_CLASS,
   SOCIAL_PROFILE_GRID_CLASS,
   SOCIAL_PROFILE_ACTION_PILL_CLASS,
   SOCIAL_PROFILE_ACTION_PILL_SECONDARY_CLASS,
@@ -176,14 +182,23 @@ describe("SocialPostCard faces", () => {
     expect(html).toContain('src="https://s3.example/signed-avatar"');
     expect(html).toContain("Ada Lovelace");
     expect(html).toContain('href="/social/u/ada"');
-    expect(html).toContain(HOUSE_MODULE_CLASS);
-    expect(html).toContain(SOCIAL_FEED_ROW_CLASS);
+    // H · Posts: a text-only post is the soft grey card (radius 24, pad
+    // 24 / 16), not the Option A radius-16 module.
+    expect(html).toContain(SOCIAL_POST_TEXT_CARD_CLASS);
+    expect(html).not.toContain(HOUSE_MODULE_CLASS);
     expect(html).not.toContain("data-social-post-mobile");
     expect(html).not.toContain("hidden md:flex");
     expect(html).not.toContain("md:hidden");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)bg-surface(?:\s|$)/);
+    expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("rounded-[var(--radius-xl)] bg-surface-muted p-4 md:p-6");
+    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toMatch(/border|shadow-(?!none)/);
+    // The 40 credit avatar is a circle the photo fills: no grey behind a photo.
+    const face = html.slice(html.indexOf("data-social-avatar"), html.indexOf("<img"));
+    for (const cls of ["size-10", "shrink-0", "rounded-full", "overflow-hidden"]) {
+      expect(face, cls).toMatch(new RegExp(`[" ]${cls}[" ]`));
+    }
+    expect(SOCIAL_AVATAR_POST_CLASS).toContain("size-10");
+    expect(SOCIAL_AVATAR_POST_CLASS).toContain("rounded-full");
+    expect(face).not.toContain("bg-surface");
     expect(html).not.toContain("/social/u/@");
     expect(html).not.toContain("AL");
     expect(html).not.toContain("data-social-avatar-ring");
@@ -213,6 +228,34 @@ describe("SocialPostCard faces", () => {
     );
     expect(html).toContain("AL");
     expect(html).not.toContain("<img");
+    // No photo: the initials sit on a fill. On the grey text card that
+    // fill is the card's onMuted so the circle still reads: the page
+    // white in light, --surface-muted on the dark (--surface) card.
+    const face = html.slice(html.indexOf("data-social-avatar"), html.indexOf("AL"));
+    expect(face).toContain("size-10");
+    expect(face).toMatch(/(?:^|\s)bg-surface(?:\s|")/);
+    expect(face).toMatch(/(?:^|\s)dark:bg-surface-muted(?:\s|")/);
+    const onPage = renderToStaticMarkup(
+      <SocialPostCard
+        post={{
+          id: "p1m",
+          body: "hello",
+          likeCount: 0,
+          liked: false,
+          createdAt: "2026-09-12T14:00:00.000Z",
+          authorId: "u1",
+          authorHandle: "ada",
+          authorName: "Ada Lovelace",
+          authorPhotoUrl: null,
+          groupSlug: null,
+          groupName: null,
+          canLike: false,
+          media: [{ kind: "image", url: "https://cf.example/signed-image" }],
+        }}
+      />,
+    );
+    const pageFace = onPage.slice(onPage.indexOf("data-social-avatar"), onPage.indexOf(">AL<"));
+    expect(pageFace).toContain("bg-surface-muted");
   });
 
   it("reuses signed account faces and does not add a second upload", () => {
@@ -614,17 +657,18 @@ describe("Social profile public face", () => {
     expect(history).toContain("data-social-author-history");
     expect(history).toContain("data-social-author-posts");
     expect(history).toContain(SOCIAL_FEED_GUTTER_CLASS);
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS}`);
+    // H · Posts: the wall is 24 apart on phone, 48 on desktop.
+    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS} md:gap-[var(--space-12)]`);
     expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-y");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("bg-surface-muted");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("py-");
-    expect(history).toContain(SOCIAL_FEED_ROW_CLASS);
+    // A text-only post in the author history is the H soft grey card.
+    expect(history).toContain(SOCIAL_POST_TEXT_CARD_CLASS);
     expect(history).not.toContain("divide-y divide-hairline");
     expect(history).not.toContain("border border-hairline bg-surface");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
+    expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toContain("border");
     expect(postSrc).not.toContain('className="flex flex-col bg-surface md:hidden"');
     expect(postSrc).not.toContain("data-social-post-mobile");
     expect(history).toContain('data-social-post="p1"');
@@ -680,7 +724,11 @@ describe("Social profile public face", () => {
     expect(html).not.toContain("aspect-[4/5]");
     expect(html).toContain('data-social-post="clip"');
     expect(html).toContain("Mux smoke");
-    expect(html).not.toContain(SOCIAL.home.videoKind);
+    // H · Posts: a video plays on the screen under a band that names it
+    // ("Video" right); a photo carries no kind word.
+    expect(html).toContain('data-social-post-kind="video"');
+    expect(html).toContain("data-social-post-screen-head");
+    expect(SOCIAL.post.videoLabel).toBe("Video");
     expect(html).not.toContain(SOCIAL.home.photoKind);
     expect(html).toContain('data-social-post="note"');
     expect(html).toContain("First caption post test");
@@ -724,7 +772,7 @@ describe("Social profile public face", () => {
 });
 
 describe("SocialPostCard media", () => {
-  it("keeps feed media on the 4:5 / 16:9 frame SoT, never aspect-square", () => {
+  it("keeps feed media at its true shape (photo 1.91:1 … 4:5, video by its edges), never aspect-square", () => {
     const still = renderToStaticMarkup(
       <SocialPostCard
         post={{
@@ -744,7 +792,9 @@ describe("SocialPostCard media", () => {
         }}
       />,
     );
-    expect(still).toContain("aspect-[4/5]");
+    // H · Posts: an image with no stored shape draws at the 4:5 default
+    // until it loads; the frame carries the aspect as a style.
+    expect(still).toContain("aspect-ratio:0.8");
     expect(still).toContain("object-cover");
     expect(still).toContain('loading="eager"');
     expect(still).not.toContain('loading="lazy"');
@@ -836,26 +886,31 @@ describe("SocialPostCard media", () => {
     const postMedia = mediaSrc.slice(mediaSrc.indexOf("export function SocialPostMedia"));
     expect(postCard).not.toContain("aspect-square");
     expect(postMedia).not.toContain("aspect-square");
-    expect(postMedia).toContain("socialMediaFrameClass");
+    expect(postMedia).toContain("socialPostPhotoAspect");
+    expect(postMedia).not.toContain("socialMediaFrameClass");
     expect(postMedia).toContain("socialFeedVideoFrame");
     expect(postMedia).toContain("data-social-feed-media-open");
     expect(postMedia).toContain("SOCIAL.post.viewPhoto");
     expect(postMedia).toContain("SOCIAL.post.viewVideo");
-    expect(postCard).toContain(
-      "<SocialPostMedia items={post.media} onOpen={setImmersiveIndex} muxBandId={muxBandId} />",
-    );
-    expect(still).toContain("min(70vh,560px)");
+    expect(postCard).toContain("onOpen={setImmersiveIndex}");
+    expect(postCard).toContain("muxBandId={muxBandId}");
+    // The photo has no 560 cap: it fills the column at its shape. Video
+    // keeps its cap and narrows on the screen.
+    expect(still).not.toContain("min(70vh,560px)");
     expect(still).toContain('aria-label="View photo"');
-    expect(still).toContain("overflow-hidden");
-    expect(still).toContain(HOUSE_MODULE_CLASS);
-    expect(still).not.toContain("max-md:-mx-");
+    expect(still).toContain(SOCIAL_POST_MEDIA_CLASS);
+    expect(SOCIAL_POST_MEDIA_CLASS).toContain("overflow-hidden");
+    expect(SOCIAL_POST_MEDIA_CLASS).toContain("md:rounded-[var(--radius-xl)]");
+    // Phone: the media meets the viewport (radius 0); no card around it.
+    expect(SOCIAL_POST_MEDIA_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
+    expect(still).not.toContain(HOUSE_MODULE_CLASS);
     expect(clip).toContain('aria-label="View video"');
     expect(clip).not.toContain("min(70vh,560px)");
     expect(portrait).toContain("min(70vh, 560px)");
     expect(landscape).toContain("min(70vh, 560px)");
   });
 
-  it("places caption under media, actions, and likes when both exist", () => {
+  it("places the credit row (name, time, actions) under the media and the caption under that", () => {
     const html = renderToStaticMarkup(
       <SocialPostCard
         post={{
@@ -876,36 +931,33 @@ describe("SocialPostCard media", () => {
       />,
     );
     expect(html.indexOf("Ada Lovelace")).toBeGreaterThan(-1);
-    expect(html.indexOf("Ada Lovelace")).toBeLessThan(html.indexOf("data-social-post-media"));
-    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-actions"));
+    // H · Posts: media first (the media is the card), then the credit.
+    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("Ada Lovelace"));
+    expect(html.indexOf("Ada Lovelace")).toBeLessThan(html.indexOf("data-social-post-time"));
+    expect(html.indexOf("data-social-post-time")).toBeLessThan(html.indexOf("data-social-post-actions"));
+    // No likes yet: no count beside the heart, no "0".
     expect(html).not.toContain("data-social-like-count");
     expect(html).not.toContain(`0 ${SOCIAL.post.likes}`);
     expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf("data-social-post-caption"));
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("hello"));
-    expect(html).toContain("mt-[var(--space-4)]");
-    expect(html).toContain("mt-0");
-    expect(html).toContain("gap-[var(--space-1)]");
-    expect(html).toContain("leading-normal");
-    expect(html).not.toContain("-mt-[var(--space-1)]");
-    expect(html).not.toContain("-mb-[var(--space-1)]");
-    expect(html).not.toContain("gap-0");
-    expect(html).not.toContain("leading-tight");
-    expect(html).not.toContain("gap-[var(--space-2)]");
-    expect(html).not.toContain("gap-[var(--space-4)]");
-    expect(html).toContain("pt-[var(--space-4)]");
-    expect(html).toContain("px-[var(--space-4)]");
-    expect(html).toContain("pb-[var(--space-6)]");
-    expect(html).not.toContain("mt-[10px]");
-    expect(html).not.toContain("gap-[6px]");
-    expect(html).not.toContain("pb-[var(--space-2)]");
-    expect(html).not.toContain("pb-[var(--space-4)]");
-    expect(html).toContain("-ml-[var(--space-2)]");
-    expect(html).toContain("gap-2");
+    // The caption: 17 / 420 ink-2 (15 / 1.45 on phone), aligned to the name, never clamped.
+    expect(html).toContain(SOCIAL_POST_CAPTION_CLASS);
+    expect(SOCIAL_POST_CAPTION_CLASS).toContain("pl-[52px]");
+    expect(SOCIAL_POST_CAPTION_CLASS).toContain("text-ink-2");
+    expect(SOCIAL_POST_CAPTION_CLASS).toContain("md:text-[length:var(--text-base)]");
+    expect(SOCIAL_POST_CAPTION_CLASS).not.toMatch(/line-clamp|truncate/);
+    // No caption handle prefix: the name sits just above it.
+    const caption = html.slice(html.indexOf("data-social-post-caption"));
+    expect(caption.slice(0, caption.indexOf("</p>"))).not.toContain("font-semibold");
+    // Plain words, not a link: the permalink is the time's 44 hit.
+    expect(html.slice(html.lastIndexOf("<", html.indexOf("data-social-post-caption")))).toMatch(/^<p /);
+    // The Option A card is gone: no module, no in-card pads, no optical pull.
+    expect(html).not.toContain(HOUSE_MODULE_CLASS);
+    expect(html).not.toContain("pb-[var(--space-6)]");
+    expect(html).not.toContain("-ml-[var(--space-2)]");
     expect(html).not.toContain("divide-hairline");
-    expect(html).toContain(HOUSE_MODULE_CLASS);
     expect(html).not.toContain("border-y-2");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
+    expect(html).toContain(SOCIAL_POST_CLASS);
   });
 
   it("reads one like as singular and keeps a plural count", () => {
@@ -929,8 +981,11 @@ describe("SocialPostCard media", () => {
       />,
     );
     expect(one).toContain("data-social-like-count");
-    expect(one).toContain("1 like");
+    // The count beside the heart is the bare number; its name says the words.
+    expect(one).toContain('aria-label="1 like"');
     expect(one).not.toContain("1 likes");
+    const oneCount = one.slice(one.indexOf("data-social-like-count"));
+    expect(oneCount.slice(oneCount.indexOf(">") + 1, oneCount.indexOf("</button>"))).toBe("1");
     const many = renderToStaticMarkup(
       <SocialPostCard
         post={{
@@ -951,7 +1006,12 @@ describe("SocialPostCard media", () => {
       />,
     );
     expect(many).toContain(`4 ${SOCIAL.post.likes}`);
-    expect(many).toContain("mt-[var(--space-2)]");
+    // Text-only: the round heart on the grey card is the page white
+    // (dark: --surface-muted, lighter than the dark --surface card).
+    expect(many).toContain(SOCIAL_POST_TEXT_CARD_CLASS);
+    const heart = many.slice(many.indexOf("data-social-like="), many.indexOf("data-social-like-count"));
+    expect(heart).toMatch(/(?:^|\s)bg-surface(?:\s|")/);
+    expect(heart).toMatch(/(?:^|\s)dark:bg-surface-muted(?:\s|")/);
     expect(many).not.toContain("mt-[10px]");
   });
 
@@ -1103,14 +1163,16 @@ describe("SocialPostCard media", () => {
     expect(multi.match(/data-social-post-carousel-slide/g)?.length).toBe(3);
     expect(multi.match(/data-social-post-carousel-dot="/g)?.length).toBe(3);
     expect(multi).toContain('data-social-post-carousel-dot="active"');
+    // The counter: "1 / 3" on the photo (a chip), "1 of 3" for the live region.
     expect(multi).toContain("1 of 3");
+    expect(multi).toContain('<span aria-hidden="true">1 / 3</span>');
     expect(multi).toContain("Show media 1 of 3");
     expect(multi).toContain('data-social-mux-player="playback123456"');
     expect(multi).not.toContain("proxy.mp4");
     expect(multi).not.toContain("<video");
     expect(multi).not.toContain("grid-cols");
     expect(multi).not.toContain("collage");
-    expect(multi.indexOf("Ada Lovelace")).toBeLessThan(multi.indexOf("data-social-post-carousel"));
+    expect(multi.indexOf("data-social-post-carousel")).toBeLessThan(multi.indexOf("Ada Lovelace"));
     expect(multi.indexOf("data-social-post-carousel")).toBeLessThan(multi.indexOf("data-social-post-actions"));
     expect(multi.indexOf("data-social-post-actions")).toBeLessThan(multi.indexOf(`4 ${SOCIAL.post.likes}`));
     expect(multi.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(multi.indexOf("data-social-post-caption"));
@@ -1148,7 +1210,11 @@ describe("SocialPostCard media", () => {
   });
 });
 
-describe("SocialPostCard 24Frame blend", () => {
+// H · Posts (founder 2026-10-05): the post face everywhere SocialPostCard
+// renders. Replaces the Option A blend (author over the media in a muted
+// card; actions → likes → caption → comment trail → under-post time).
+// docs/design-locks/social-feed-register-lock-v1.md §7
+describe("SocialPostCard H register", () => {
   const createdAt = "2026-09-12T14:00:00.000Z";
 
   function cardPost(overrides: Partial<Parameters<typeof SocialPostCard>[0]["post"]> = {}) {
@@ -1171,7 +1237,7 @@ describe("SocialPostCard 24Frame blend", () => {
     };
   }
 
-  it("places caption under media, actions, and likes when the post has both text and media", () => {
+  it("draws media → credit row (name, time, round actions with counts) → caption on a photo post", () => {
     const html = renderToStaticMarkup(
       <SocialPostCard
         post={cardPost({
@@ -1179,31 +1245,25 @@ describe("SocialPostCard 24Frame blend", () => {
         })}
       />,
     );
-    expect(html).toContain(SOCIAL_FEED_ROW_CLASS);
-    expect(html).toContain("overflow-hidden");
-    expect(html).toContain("rounded-[var(--radius-lg)]");
-    expect(html).not.toContain("max-md:-mx-[var(--chrome-gutter)]");
-    expect(html).toContain("px-[var(--space-4)]");
-    expect(html).toContain("pt-[var(--space-4)]");
+    expect(html).toContain('data-social-post-kind="photo"');
+    expect(html).toContain(SOCIAL_POST_CLASS);
+    expect(html).not.toContain(HOUSE_MODULE_CLASS);
     const mediaOpen = html.slice(
       html.indexOf("data-social-post-media"),
       html.indexOf(">", html.indexOf("data-social-post-media")) + 1,
     );
-    expect(mediaOpen).toContain("w-full");
-    expect(mediaOpen).toContain("px-0");
-    expect(mediaOpen).not.toContain("max-md:-mx-[var(--chrome-gutter)]");
-    expect(mediaOpen).not.toContain("px-[var(--space-4)]");
-    const media = html.slice(html.indexOf("data-social-post-media"), html.indexOf("data-social-post-actions"));
-    expect(media).not.toContain("md:rounded-[8px]");
-    expect(media).not.toContain("rounded-");
+    // Phone meets the viewport; desktop radius 24; no frame, no card.
+    expect(mediaOpen).toContain("max-md:-mx-[var(--chrome-gutter)]");
+    expect(mediaOpen).toContain("md:rounded-[var(--radius-xl)]");
+    expect(mediaOpen).not.toContain("border");
     expect(html).toContain('data-social-post-time=""');
     expect(html).toContain(socialFeedRelativeTime(createdAt));
     expect(html).toContain(SOCIAL_POST_TIME_CLASS);
     expect(html).not.toMatch(/data-social-post-time=""[^>]*\bt-label\b/);
+    // The time is in the credit row, after the media, never above it.
     expect(html.slice(0, html.indexOf("data-social-post-media"))).not.toContain("data-social-post-time");
     expect(html).toContain(`href="${socialPostHref("p1")}"`);
     expect(html).toContain(`data-social-post-href="${socialPostHref("p1")}"`);
-    expect(html).toContain("data-social-like-count");
     expect(html).toContain('data-social-post-actions=""');
     expect(html).toContain('data-social-icon="heart"');
     expect(html).toContain('data-social-icon="chat-circle"');
@@ -1212,24 +1272,26 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(html).toContain('data-social-comment-open=""');
     expect(html).not.toContain("data-social-post-share-sheet");
     expect(html).not.toContain("data-social-comment-thread");
-    expect(html).toContain(`4 ${SOCIAL.post.likes}`);
+    // Counts beside the rounds: Like "4" (named "4 likes"), Comment "2"
+    // inside "Comment, 2 comments".
+    expect(html).toContain("data-social-like-count");
+    expect(html).toContain(`aria-label="4 ${SOCIAL.post.likes}"`);
+    expect(html).toContain('aria-label="Comment, 2 comments"');
+    expect(html).toContain('data-social-comment-count=""');
     expect(html).toContain('data-social-post-caption=""');
-    expect(html).toContain("ada");
     expect(html).toContain("hello");
-    expect(html).toContain(`2 ${SOCIAL.post.comments}`);
-    expect(html).toContain("data-social-comment-trail");
-    expect(html).toContain("self-start text-left");
+    // No comment trail, no likes line, no under-post time line.
+    expect(html).not.toContain("data-social-comment-trail");
+    expect(html).not.toContain(`2 ${SOCIAL.post.comments}<`);
+    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("Ada Lovelace"));
     expect(html.indexOf("Ada Lovelace")).toBeLessThan(html.indexOf("data-social-post-time"));
-    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-time"));
-    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-actions"));
-    expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf(`4 ${SOCIAL.post.likes}`));
-    expect(html.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("data-social-post-caption"));
-    expect(html.indexOf("data-social-post-caption")).toBeLessThan(html.indexOf("data-social-comment-trail"));
-    expect(html.indexOf("data-social-comment-trail")).toBeLessThan(html.indexOf("data-social-post-time"));
+    expect(html.indexOf("data-social-post-time")).toBeLessThan(html.indexOf("data-social-post-actions"));
+    expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf("data-social-post-caption"));
     expect(html).not.toContain("data-social-post-mobile");
     expect(html).not.toContain("hidden md:flex");
     expect(html).not.toContain("md:hidden");
     expect(html).not.toContain("text-[10px]");
+    // No role eyebrow yet ("Members choose one; no line until they do").
     expect(html).not.toContain("uppercase");
     expect(html).not.toContain(SOCIAL.home.videoKind);
     expect(html).not.toContain(SOCIAL.home.photoKind);
@@ -1237,7 +1299,7 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(html).not.toContain("truncate");
   });
 
-  it("keeps media-only posts as author, media, actions, likes", () => {
+  it("keeps a media-only post as media → credit row with no caption", () => {
     const html = renderToStaticMarkup(
       <SocialPostCard
         post={cardPost({
@@ -1249,21 +1311,33 @@ describe("SocialPostCard 24Frame blend", () => {
     );
     expect(html).not.toContain("data-social-post-caption");
     expect(html.slice(0, html.indexOf("data-social-post-media"))).not.toContain("data-social-post-time");
-    expect(html.indexOf("Ada Lovelace")).toBeLessThan(html.indexOf("data-social-post-media"));
+    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("Ada Lovelace"));
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-actions"));
-    expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf(`4 ${SOCIAL.post.likes}`));
-    expect(html.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("data-social-post-time"));
+    expect(html.indexOf("data-social-post-time")).toBeLessThan(html.indexOf(`4 ${SOCIAL.post.likes}`));
+    // No comments: the round alone, named "Comment", no count.
+    expect(html).toContain('aria-label="Comment"');
+    expect(html).not.toContain("data-social-comment-count");
   });
 
-  it("keeps the same stack for text-only posts and hides the trail when N is 0", () => {
+  it("draws a text-only post as the soft grey card with its body at 20 / 480 ink", () => {
     const html = renderToStaticMarkup(
       <SocialPostCard post={cardPost({ commentCount: 0, media: [] })} />,
     );
     expect(html).not.toContain("data-social-post-media");
-    expect(html.slice(0, html.indexOf("data-social-post-actions"))).not.toContain("data-social-post-time");
-    expect(html.indexOf("data-social-post-caption")).toBeLessThan(html.indexOf("data-social-post-time"));
-    expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf(`4 ${SOCIAL.post.likes}`));
-    expect(html.indexOf(`4 ${SOCIAL.post.likes}`)).toBeLessThan(html.indexOf("data-social-post-caption"));
+    expect(html).toContain('data-social-post-kind="text"');
+    expect(html).toContain(SOCIAL_POST_TEXT_CARD_CLASS);
+    expect(html).toContain(SOCIAL_POST_TEXT_BODY_CLASS);
+    expect(SOCIAL_POST_TEXT_BODY_CLASS).toContain("text-[length:var(--text-lg)]");
+    expect(SOCIAL_POST_TEXT_BODY_CLASS).toContain("[font-weight:var(--type-title-weight)]");
+    expect(SOCIAL_POST_TEXT_BODY_CLASS).toContain("leading-[1.4]");
+    expect(SOCIAL_POST_TEXT_BODY_CLASS).toContain("text-ink");
+    expect(SOCIAL_POST_TEXT_BODY_CLASS).not.toMatch(/line-clamp|truncate/);
+    // On the grey card: round actions on the onMuted (the page white;
+    // dark --surface-muted), time in ink-2.
+    expect(html).toContain(SOCIAL_POST_TIME_CARD_CLASS);
+    expect(SOCIAL_POST_TIME_CARD_CLASS).toContain("text-ink-2");
+    expect(html.slice(0, html.indexOf("data-social-post-actions"))).toContain("data-social-post-time");
+    expect(html.indexOf("data-social-post-actions")).toBeLessThan(html.indexOf("data-social-post-caption"));
     expect(html).toContain('data-social-icon="chat-circle"');
     expect(html.match(/data-social-comment-open/g)?.length).toBe(1);
     expect(html).not.toContain("data-social-comment-trail");
@@ -1273,118 +1347,75 @@ describe("SocialPostCard 24Frame blend", () => {
     expect(html).not.toContain(SOCIAL.create.text);
   });
 
-  it("shows a left muted N comments trail only when N > 0", () => {
+  it("puts the comment count beside the round, never as a trail under the caption", () => {
     const quiet = renderToStaticMarkup(<SocialPostCard post={cardPost({ commentCount: 0 })} />);
     expect(quiet.match(/data-social-comment-open/g)?.length).toBe(1);
     expect(quiet).not.toContain("data-social-comment-trail");
-    expect(quiet).not.toContain("View comments");
+    expect(quiet).not.toContain("data-social-comment-count");
     expect(quiet).not.toContain(`0 ${SOCIAL.post.comments}`);
 
     const active = renderToStaticMarkup(<SocialPostCard post={cardPost({ commentCount: 3 })} />);
-    expect(active).toContain("data-social-comment-trail");
-    expect(active).toContain("self-start text-left t-body-sm text-ink-2");
-    expect(active).toContain(`3 ${SOCIAL.post.comments}`);
-    expect(active.match(/data-social-comment-open/g)?.length).toBe(2);
-    expect(active.indexOf("data-social-post-caption")).toBeLessThan(
-      active.indexOf("data-social-comment-trail"),
-    );
-    expect(active.indexOf("data-social-comment-trail")).toBeLessThan(
-      active.indexOf("data-social-post-time"),
-    );
+    expect(active).not.toContain("data-social-comment-trail");
+    expect(active.match(/data-social-comment-open/g)?.length).toBe(1);
+    expect(active).toContain('aria-label="Comment, 3 comments"');
+    const count = active.slice(active.indexOf("data-social-comment-count"));
+    expect(count.slice(count.indexOf(">") + 1, count.indexOf("</span>"))).toBe("3");
+    expect(active.indexOf("data-social-comment-count")).toBeLessThan(active.indexOf("data-social-post-caption"));
     expect(active).not.toContain("View comments");
     expect(active).not.toContain("text-center");
+    const one = renderToStaticMarkup(<SocialPostCard post={cardPost({ commentCount: 1 })} />);
+    expect(one).toContain('aria-label="Comment, 1 comment"');
   });
 
-  it("keeps under-post time on its own line and separates posts with a surface card", () => {
+  it("keeps the time in the credit row: 15, quiet ink, a 44 permalink hit, no separator line", () => {
     const label = socialFeedRelativeTime(createdAt);
     expect(label).toMatch(/^\d+d$/);
     expect(label).not.toMatch(/ago|Yesterday|:/);
-    const html = renderToStaticMarkup(<SocialPostCard post={cardPost()} />);
-    const timeOpen = html.slice(
-      html.indexOf("data-social-post-time"),
-      html.indexOf(">", html.indexOf("data-social-post-time")) + 1,
+    const html = renderToStaticMarkup(
+      <SocialPostCard post={cardPost({ media: [{ kind: "image", url: "https://cf.example/i" }] })} />,
     );
-    expect(timeOpen).toContain("text-ink-3");
-    expect(timeOpen).not.toContain("text-ink-2");
-    expect(timeOpen).not.toMatch(/(?:^|\s)text-ink(?:\s|$)/);
-    expect(timeOpen).not.toContain("truncate");
+    const timeLink = html.slice(html.lastIndexOf("<a", html.indexOf("data-social-post-time")), html.indexOf("data-social-post-time"));
+    expect(timeLink).toContain(SOCIAL_POST_TIME_CLASS);
+    expect(SOCIAL_POST_TIME_CLASS).toContain("text-[length:var(--text-sm)]");
+    expect(SOCIAL_POST_TIME_CLASS).toContain("text-ink-3 dark:text-ink-2");
+    expect(SOCIAL_POST_TIME_CLASS).toContain("min-h-11 min-w-11");
+    expect(SOCIAL_POST_TIME_CLASS).toContain("tabular-nums");
+    expect(SOCIAL_POST_TIME_CLASS).not.toContain("t-label");
     expect(housePhoneForbidsTruncate(SOCIAL_POST_TIME_CLASS)).toBe(true);
-    expect(SOCIAL_POST_TIME_CLASS).toContain("break-words");
-    expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/md:|max-md:/);
     expect(html).not.toContain("divide-y");
     expect(html).not.toContain("divide-hairline");
     expect(html).not.toContain("border-y-2");
-    expect(html).toContain(HOUSE_MODULE_CLASS);
     expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
+    expect(SOCIAL_FEED_GUTTER_CLASS).toContain("md:gap-[var(--space-12)]");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
-    expect(SOCIAL_POST_TIME_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
-    expect(SOCIAL_POST_TIME_CLASS).toContain("leading-none");
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("pb-[var(--space-6)]");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("pb-[var(--space-4)]");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/md:pb-|max-md:pb-/);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain(HOUSE_MODULE_CLASS);
-    expect(SOCIAL_FEED_ROW_CLASS).toContain("shadow-none");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toContain("border-y-2");
-    expect(SOCIAL_FEED_ROW_CLASS).not.toMatch(/(?:^|\s)border-b(?:\s|$)/);
-    const lock = readFileSync("docs/design-locks/social-feed-under-post-time-lock-v1.md", "utf8");
-    const separation = readFileSync(
-      "docs/design-locks/social-home-post-separation-lock-v1.md",
-      "utf8",
-    );
-    expect(lock).toContain("social-home-craft-wave-1-lock-v1.md");
-    expect(lock).toContain("social-home-post-separation-lock-v1.md");
-    expect(lock).toContain("text-ink-3");
-    expect(lock).toContain("stacking is **out**");
-    expect(separation).toContain("pb-[var(--space-6)]");
-    expect(separation).toContain("socialFeedVideoFrame");
-    expect(separation).toContain("SOCIAL_FEED_AUTHOR_EDGE_CLASS");
-    expect(separation).toContain("HOUSE_MODULE_CLASS");
-    expect(separation).toContain("HOUSE_SECTION_AIR_CLASS");
-    expect(separation).toContain("border-y-2 border-hairline");
-    expect(separation).toContain("removed");
-    expect(separation).toContain("double-stacked");
     const quiet = renderToStaticMarkup(
       <SocialPostCard post={cardPost()} permalink={false} />,
     );
     expect(quiet).toContain("data-social-post-time");
-    expect(quiet.slice(0, quiet.indexOf("data-social-post-actions"))).not.toContain(
-      "data-social-post-time",
-    );
-    expect(quiet.indexOf("data-social-post-caption")).toBeLessThan(
-      quiet.indexOf("data-social-post-time"),
-    );
+    expect(quiet.indexOf("data-social-post-time")).toBeLessThan(quiet.indexOf("data-social-post-caption"));
     expect(quiet).not.toContain(`href="${socialPostHref("p1")}"`);
   });
 
-  it("does not fork desktop meta-row chrome in source", () => {
+  it("composes one face in source: no breakpoint fork, the round actions, the post kind", () => {
     const postCard = postSrc.slice(postSrc.indexOf("export function SocialPostCard"));
-    expect(postCard).toContain("SOCIAL_FEED_ROW_CLASS");
+    expect(postCard).toContain("socialPostClass(kind)");
+    expect(postCard).toContain("socialPostKind(post.media)");
     expect(postCard).toContain("data-social-post-time");
-    expect(postCard).toContain("SOCIAL_POST_TIME_CLASS");
+    expect(postCard).toContain("socialPostTimeClass(surface)");
     expect(postCard).toContain("socialFeedRelativeTime");
     expect(postCard).not.toContain("socialRelativeTime");
-    expect(postCard).not.toContain("data-social-post-time=\"\" className=\"t-label");
-    const authorRow = postCard.slice(
-      postCard.indexOf('className="flex min-w-0 items-center gap-2.5"'),
-      postCard.indexOf("{media ?"),
-    );
-    expect(authorRow).not.toContain("data-social-post-time");
-    expect(authorRow).not.toContain("{time}");
-    const row = postCard.slice(postCard.indexOf("className={SOCIAL_FEED_ROW_CLASS}"));
-    expect(row.indexOf("<SocialCommentTrigger post={thread} />")).toBeLessThan(row.indexOf("{time}"));
     expect(postCard).toContain("socialPostHref");
     expect(postCard).toContain("SocialLikeButton");
     expect(postCard).toContain("SocialLikeCount");
     expect(postCard).toContain("SocialCommentTrigger");
     expect(postCard).toContain("SocialPostShareButton");
-    expect(postCard).toContain("SOCIAL_POST_ACTIONS_CLASS");
-    expect(postCard).toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
+    expect(postCard).toContain("<SocialCommentTrigger post={thread} round={surface} />");
+    expect(postCard).toContain("<SocialPostShareButton postId={post.id} round={surface} />");
+    expect(postCard).toContain("socialPostActionsClass(kind)");
+    expect(postCard).not.toContain("SOCIAL_FEED_ROW_CLASS");
+    expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
     expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
-    expect(postCard).not.toContain("gap-3.5");
-    expect(postCard).not.toContain("gap-4");
-    expect(postCard.split("<SocialCommentTrigger").length - 1).toBe(2);
-    expect(postCard).toContain("<SocialCommentTrigger post={thread} icon />");
-    expect(postCard).toContain("<SocialCommentTrigger post={thread} />");
+    expect(postCard.split("<SocialCommentTrigger").length - 1).toBe(1);
     expect(postCard).not.toContain("viewComments");
     expect(postCard).not.toContain("View comments");
     expect(postCard).not.toContain("hidden md:flex");

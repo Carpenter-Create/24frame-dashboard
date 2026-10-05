@@ -69,9 +69,10 @@ import {
   SOCIAL_PROFILE_ROLE_PILL_CLASS,
   SOCIAL_TOPIC_CHIP_MEASURE_CLASS,
   SOCIAL_TOPIC_CHIP_SELECT_ON_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_CLASS,
-  SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS,
-  socialTopicRailChipClass,
+  SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS,
+  SOCIAL_HOME_TOPIC_CLASS,
+  SOCIAL_HOME_TOPIC_CURRENT_CLASS,
+  socialHomeTopicClass,
 } from "@/lib/social-chrome";
 
 vi.mock("next/navigation", () => ({
@@ -126,6 +127,7 @@ const HOUSE_SHELL_COMMENT_PATHS = [
   "src/app/globals.css",
   "src/components/chrome/app-shell.tsx",
   "src/components/chrome/side-nav.tsx",
+  "src/components/chrome/rail-brand.tsx",
   "src/components/chrome/house-lead-search.tsx",
   "src/lib/house-lead-chrome.ts",
   "src/components/chrome/house-lead-chrome.tsx",
@@ -149,9 +151,10 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(tokens).toMatch(/--radius-lg:\s*16px;/);
     expect(tokens).toMatch(/--content-inset:\s*48px;/);
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    // Screening chrome (Adam 2026-10-04): the side menu slot is 200.
-    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
-    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*64px;/);
+    // H register (Adam 2026-10-05): the side menu slot is 240, 80 collapsed.
+    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
+    expect(tokens).toMatch(/--sidebar-width-collapsed:\s*80px;/);
+    expect(tokens).not.toMatch(/--sidebar-width:\s*200px;/);
     expect(tokens).not.toMatch(/--sidebar-width:\s*256px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
@@ -182,16 +185,19 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(HOUSE_SHELL_GUTTER_X_CLASS).toBe(
       "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]",
     );
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-2)]");
+    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-3)]");
     expect(HOUSE_CANVAS_X_CLASS).toBe("px-[var(--chrome-gutter)]");
     expect(HOUSE_ACCESS_RAIL_WIDTH).toBe("var(--access-rail-width)");
     expect(HOUSE_HOME_CONTENT_WIDTH).toBe("var(--home-content-width)");
     expect(HOUSE_HOME_RAIL_COLUMN_CLASS).toBe(
       "w-full md:ml-[var(--shell-gutter-inline-start)] md:mr-[var(--shell-gutter-inline-end)] md:w-[calc(100%-var(--shell-gutter-inline-start)-var(--shell-gutter-inline-end))]",
     );
+    // H register: the side menu is full height (top 0); the header
+    // starts at its edge and never crosses it.
     expect(HOUSE_RAIL_COLUMN_CLASS).toBe(
-      "fixed bottom-0 left-0 top-[var(--header-height)] z-30 hidden flex-col md:flex",
+      "fixed bottom-0 left-0 top-0 z-30 hidden flex-col md:flex",
     );
+    expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("top-[var(--header-height)]");
     expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("left-[var(--chrome-gutter)]");
     expect(HOUSE_SEARCH_PILL_CLASS).toBe("rounded-full border-0 bg-surface-muted");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
@@ -329,15 +335,21 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(socialChrome).toContain("HOUSE_FILTER_ON_CLASS");
     expect(socialChrome).toContain("HOUSE_PILL_SELECTED_CLASS");
     expect(SOCIAL_TOPIC_CHIP_SELECT_ON_CLASS).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain("h-8");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain("t-body-sm");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).toContain("h-8");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_CLASS).not.toContain("py-[var(--space-2)]");
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS).not.toContain("bg-ink");
-    expect(socialTopicRailChipClass(true)).toBe(SOCIAL_TOPIC_RAIL_CHIP_SELECTED_CLASS);
-    expect(socialTopicRailChipClass(false)).toBe(SOCIAL_TOPIC_RAIL_CHIP_CLASS);
+    // H · Feed (founder 2026-10-05; replaces G's plain words over an ink
+    // underline): the Feed topic row is secondary chips. The current chip
+    // is the accent wash with accent-ink type — never the accent fill
+    // (HOUSE_PILL_SELECTED_CLASS) and never --accent type on the wash.
+    // docs/design-locks/social-feed-register-lock-v1.md
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-accent-ink");
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toMatch(/(?:^|\s)(?:bg-accent|text-accent)(?:\s|$)/);
+    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("bg-accent-wash");
+    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).not.toContain(HOUSE_PILL_SELECTED_CLASS);
+    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("text-ink");
+    expect(SOCIAL_HOME_TOPIC_CLASS).not.toMatch(/accent|bg-/);
+    expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain("py-[var(--space-2)]");
+    expect(socialHomeTopicClass(true)).toBe(SOCIAL_HOME_TOPIC_CURRENT_CLASS);
+    expect(socialHomeTopicClass(false)).toBe(SOCIAL_HOME_TOPIC_CLASS);
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain("h-8");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).not.toContain(HOUSE_PILL_ITEM_CLASS);
@@ -426,7 +438,9 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8")).toContain(
       "<BrandLogo />",
     );
-    expect(sideNav).toContain("BrandLogo");
+    // The desktop mark moved to the side menu's top band: the real
+    // BrandLogo (founder 2026-10-05, decision 2).
+    expect(readFileSync("src/components/chrome/rail-brand.tsx", "utf8")).toContain("<BrandLogo />");
     for (const path of HOUSE_SHELL_COMMENT_PATHS) {
       const src = readFileSync(path, "utf8");
       // Lock citation "Coinbase-pop A" / "A2" / "A3" (Adam 2026-09-19)
@@ -470,9 +484,11 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(HOUSE_RAIL_ITEM_CLASS).not.toContain("t-body-sm");
     expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
 
-    // The workspace side menu has its own eyebrow (screening chrome);
-    // Settings keeps the house rail title.
-    expect(sideNav).toContain("className={HOUSE_DEST_RAIL_EYEBROW_CLASS}");
+    // The workspace side menu has no workspace eyebrow (H register; the
+    // header slider names the workspace) — only the Staff section
+    // eyebrow; Settings keeps the house rail title.
+    expect(sideNav).not.toContain("className={HOUSE_DEST_RAIL_EYEBROW_CLASS}");
+    expect(sideNav).toContain("className={HOUSE_DEST_RAIL_SECTION_EYEBROW_CLASS}");
     expect(sideNav).not.toContain("HOUSE_RAIL_TITLE_CLASS");
     expect(sideNav).not.toContain('"px-2 pb-1 t-label text-ink-3"');
   });

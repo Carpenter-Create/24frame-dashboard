@@ -92,9 +92,10 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     );
     expect(leading).toContain("{leadingNav}");
     expect(leading).not.toContain("data-app-header-workspace-pill");
-    // Screening chrome: the desktop lanes and the phone grid button both
-    // lead, after the brand.
-    expect(leading).toContain('presentation="lanes"');
+    // Coinbase register: the grey workspace pill (phone and md to lg)
+    // and the lg+ slider both lead, after the phone emblem.
+    expect(leading).toContain('presentation="slider"');
+    expect(leading).not.toContain('presentation="lanes"');
     expect(leading).toContain('presentation="waffle"');
     expect(leading).not.toContain("{accountMenu}");
     expect(leading).not.toContain("{trailingNav}");
@@ -107,24 +108,24 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
 
   it("leaves the trailing avatar alone — no Aggregation+avatar phone cluster", () => {
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("shrink-0");
-    // Screening chrome: phone hits abut; desktop controls 8 apart.
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    // Coinbase register: phone hits 4 apart; desktop controls 8 apart.
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
-    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden md:contents"');
-    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 md:hidden"');
+    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden lg:contents"');
+    expect(switcherSrc).toContain('APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 lg:hidden"');
     expect(leadSrc).toContain("data-app-header-trailing");
     expect(leadSrc).toContain("APP_HEADER_TRAILING_CLUSTER_CLASS");
     const trailing = leadSrc.slice(
       leadSrc.indexOf("data-app-header-trailing"),
       leadSrc.indexOf("</header>"),
     );
-    // Screening chrome: no switcher trails — the grid button leads.
+    // No switcher trails — the pill and the slider lead.
+    expect(trailing).not.toContain('presentation="slider"');
     expect(trailing).not.toContain('presentation="lanes"');
     expect(trailing).not.toContain('presentation="waffle"');
     expect(trailing).not.toContain("data-app-header-workspace-desktop");

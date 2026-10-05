@@ -79,6 +79,7 @@ workspace (Home, Aggregation, Social, Education, Staff). Home has its
 own rail; Social's own Home tab is Feed. Light default, dark available.
 Lock: [`docs/design-locks/shell-unified-chrome-lock-v1.md`](../design-locks/shell-unified-chrome-lock-v1.md).
 Screening-room face (text lanes, tile-less side menu, named phone switch, ink dock dot): [`docs/design-locks/shell-screening-chrome-lock-v1.md`](../design-locks/shell-screening-chrome-lock-v1.md).
+Coinbase register (pill slider, round grey controls, brand mark in the full-height side menu, filled accent current, 56 dock): [`docs/design-locks/shell-coinbase-register-lock-v1.md`](../design-locks/shell-coinbase-register-lock-v1.md).
 
 ---
 
@@ -152,6 +153,8 @@ revert the app, then drop the rest. Visitors are never signed the original.
 Design lock:
 [`docs/design-locks/social-profile-header-linkedin-lock-v1.md`](../design-locks/social-profile-header-linkedin-lock-v1.md).
 Profile layout is A · Stage (founder pick): a 16:7 hero card, the cover framed once with the phone area outlined, no SQL change; lock [`docs/design-locks/social-profile-stage-lock-v1.md`](../design-locks/social-profile-stage-lock-v1.md).
+Social Feed is G (founder picks): Following / For you text tabs, topic words, story tiles, a composer bar, and a Reels rail after every 3 posts that opens Explore at `?v=`, no SQL change; locks [`docs/design-locks/social-home-lane-tabs-lock-v1.md`](../design-locks/social-home-lane-tabs-lock-v1.md) and [`docs/design-locks/social-feed-reel-rail-lock-v1.md`](../design-locks/social-feed-reel-rail-lock-v1.md).
+Social Feed in the Coinbase register (H, founder approval): the Following / For you pill slider, topic chips, story cards with the name on the picture, a grey composer row, the Reels row in the register face, a "For you" rail over a soft grey course card, and the post face everywhere a post renders (the media is the card at its true shape, a video on the near-black screen, round grey actions with counts beside, a soft grey card for text posts, no role line yet); lock [`docs/design-locks/social-feed-register-lock-v1.md`](../design-locks/social-feed-register-lock-v1.md).
 
 ---
 

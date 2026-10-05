@@ -23,19 +23,17 @@ const src = readFileSync("src/lib/rail-collapse.ts", "utf8");
 describe("rail-collapse tokens", () => {
   it("keeps house chevron names and measured values", () => {
     expect(RAIL_COLLAPSE_CHEVRON).toBe("chevron");
-    // Screening chrome: 28 radius-6 collapse beside the eyebrow; 40×32
-    // radius-10 expand atop the 64 column; quiet ink.
+    // Coinbase register: one quiet 44 round transparent button at the
+    // bottom of the side menu, a 20 « / » in ink-2, in both states.
     expect(RAIL_COLLAPSE_CHEVRON_CLASS).toBe(
-      "flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-ink-3 dark:text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink",
+      "flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink",
     );
-    expect(RAIL_EXPAND_CHEVRON_CLASS).toBe(
-      "flex h-8 w-10 shrink-0 items-center justify-center rounded-[var(--radius)] text-ink-3 dark:text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink",
-    );
-    expect(RAIL_COLLAPSE_CHEVRON_CLASS).not.toContain("rounded-full");
-    expect(RAIL_COLLAPSE_CHEVRON_ICON_CLASS).toBe("h-4 w-4");
-    expect(RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT).toBe("bold");
+    expect(RAIL_EXPAND_CHEVRON_CLASS).toBe(RAIL_COLLAPSE_CHEVRON_CLASS);
+    expect(RAIL_COLLAPSE_CHEVRON_CLASS).not.toMatch(/(?:^|\s)bg-(?!surface-muted)/);
+    expect(RAIL_COLLAPSE_CHEVRON_ICON_CLASS).toBe("size-5");
+    expect(RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT).toBe("regular");
     expect(RAIL_EXPAND_CHEVRON_CLASS).not.toMatch(/border|hairline/);
-    // The column is the whole slot: 200 / 64, no inset.
+    // The column is the whole slot: 240 / 80, no inset.
     expect(RAIL_WIDTH_CLASS).toBe("w-[var(--sidebar-width)]");
     expect(RAIL_COLLAPSE_WIDTH_VAR).toBe("var(--sidebar-width-collapsed)");
     expect(src).not.toMatch(/\brl-/);

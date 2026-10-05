@@ -1,19 +1,22 @@
 // Header workspace switch. Lives in lib/, not JSX.
-// docs/design-locks/shell-screening-chrome-lock-v1.md (Adam 2026-10-04)
+// the shell register lock v1 in docs/design-locks (Adam 2026-10-05)
 // docs/design-locks/shell-unified-chrome-lock-v1.md (inventory, keyboard)
 // docs/design-locks/shell-workspace-waffle-layer-lock-v1.md
-// One Layer 1 inventory. Two faces by host (md = 768).
-// Desktop md+: text lanes in the header LEADING slot, after the brand
-// mark and a 1×18 hairline: Home · Aggregation · Social · Education ·
-// Staff (when isGcStaff, last). Home is a real segment — /home, no
-// workspace cookie, lit on /home and /home/news. Lanes are plain
-// words, 13px: idle 500 quiet ink; current 600 ink with a 2px ink
-// underline on the header's bottom edge and aria-current="page". No
-// track, no thumb, no grey pill (supersedes the raised-thumb track).
-// Phone/tablet max-md: the grid button right after the emblem, naming
-// the current workspace (13 / 500, ink); it opens the sheet. No
-// slider on the phone. Waffle tiles use the lanes' order:
-// Aggregation · Social · Education · Staff (when isGcStaff).
+// One Layer 1 inventory. Two faces by width (lg = 1024).
+// Desktop lg+: the primary pill slider in the header LEADING slot:
+// Home · Aggregation · Social · Education · Staff (when isGcStaff,
+// last). Home is a real segment — /home, no workspace cookie, lit on
+// /home and /home/news. The slider is the house SegmentedTrack: a muted
+// track with no inset, an ink thumb that slides 220ms ease-out to the
+// chosen segment, labels 17 / 600 (ink idle, the page colour on the
+// thumb), segments 44 tall with 16 side pads, aria-current="page" on
+// the lit one. Supersedes the screening chrome's text lanes.
+// Phone and md to lg: the grey workspace pill right after the emblem
+// (or first in the bar from md), a filled grid and the current
+// workspace's name (15 / 600, ink); it opens the sheet (phone) or the
+// popover (md to lg). Below 360 the pill is the grid alone. Waffle
+// tiles use the slider's order: Aggregation · Social · Education ·
+// Staff (when isGcStaff).
 // Hide lanes the caller omits. No dead tiles. Social Layer 2
 // dests stay out of the tiles and the slider (Feed / Explore /
 // Create / Messages / Profile). Account / Settings / Help stay on
@@ -24,11 +27,10 @@
 // /home gets a tiny muted check.
 // Not a waffle tile and not a Social dock tab. WORKSPACES + the
 // 2×2 sit below. Dock dests stay in-workspace only.
-// Leading air is --space-2 (8): emblem → grid button on phone (the
-// screening board's 6 + 2). Not --space-1. Do not put overflow-hidden
-// on the leading row (#412).
+// Leading air is --space-2 (8): emblem → pill on phone. Not
+// --space-1. Do not put overflow-hidden on the leading row (#412).
 // Phone trailing: [search if needed] [24Frame AI] [bell] [account].
-// No header sun/moon. Phone hits abut (no gap); desktop
+// No header sun/moon. Phone hits 4 apart; desktop
 // md:gap-[var(--space-2)] (8). Phone AI/bell/search hug
 // --header-control-size. Do not cancel that hug with -mx.
 // #452 stacked AI on the bell. Theme is the avatar drill to
@@ -36,8 +38,6 @@
 // Ask 24Frame AI sits immediately left of the
 // bell and opens the Mercury overlay. Ask AI is header + Home
 // module only (#465). Do not reintroduce a dest hamburger.
-// Desktop md+ hosts the lanes (hidden md:contents) in the leading
-// slot. The labeled workspace pill stays retired.
 // Do not restore tone="pill". No rail / header-lead #321 duplicate.
 // Do not invent Move / search.
 // Do not return the Social Messages icon to the top bar.
@@ -53,7 +53,7 @@
 // /staff/queue.
 // Education quiet search stays Education-only: phone in a
 // full-width row under HouseLeadChrome, desktop in the shared
-// mid-lead slot (same Facebook-compact geometry as Social).
+// trailing slot (the same grey pill as Social).
 // Persist with workspaceSwitcherPersistLane → persistWorkspaceCookie.
 // Do not invent a second cookie. Unselected waffle tiles are
 // Link + prefetch. That full prefetch belongs to the anchor; closing
@@ -69,7 +69,14 @@ import {
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_UNDER_NAV_CLASS,
 } from "@/lib/house-lead-chrome";
-import { HOUSE_SHELL_QUIET_INK_CLASS } from "@/lib/house-shell";
+import {
+  HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_DURATION_MS,
+  HOUSE_PILL_SLIDER_TRACK_CLASS,
+} from "@/lib/house-shell";
 import {
   APP_SHEET_HOST_CLASS,
   APP_SHEET_SCRIM_CLASS,
@@ -179,48 +186,57 @@ export const WORKSPACE_SWITCHER_HEADER_CLASS =
 /** Sporty Blue check on the current Layer 1 tile. */
 export const WORKSPACE_SWITCHER_OPTION_CHECK_CLASS = "text-accent";
 
-// Phone trailing hits abut (44 each; the 20 glyphs keep 24 of air).
-// Desktop trailing controls are --space-2 (8) apart (screening chrome;
-// supersedes density-craft-sequel's 16). Phone dock glyphs are not this gap.
+// Phone trailing hits are 4 apart (the board's 4); desktop trailing
+// controls are --space-2 (8) apart. Desktop the cluster may shrink (the
+// search pill gives first, down to 240); the leading slider never does.
 export const APP_HEADER_TRAILING_CLUSTER_CLASS =
-  "flex min-w-0 items-center gap-0 md:gap-[var(--space-2)] max-md:shrink-0";
+  "flex min-w-0 items-center gap-[var(--space-1)] md:gap-[var(--space-2)] max-md:shrink-0";
 
 export const APP_HEADER_EDUCATION_SEARCH_PHONE_CLASS = HOUSE_LEAD_UNDER_NAV_CLASS;
 
 export const APP_HEADER_EDUCATION_SEARCH_DESKTOP_CLASS = HOUSE_LEAD_SEARCH_DESKTOP_CLASS;
 
-// Leading row: --space-2 (8) on both faces — phone emblem → grid
-// button (the board's 6 + 2), desktop mark · hairline · lanes · Exit.
-// md+ it stretches to the bar's height so the current lane's underline
-// sits on the header's bottom edge.
+// Leading row: phone 8 (emblem → pill), desktop 16 (brand mark →
+// switcher → Exit). Phone it is the bar's flex-1; md+ it is its own
+// width and never shrinks, so the trailing cluster gives way instead.
 export const APP_HEADER_LEADING_CLASS =
-  "mr-auto flex min-w-0 flex-1 items-center gap-[var(--space-2)] overflow-visible md:self-stretch";
+  "mr-auto flex min-w-0 flex-1 items-center gap-[var(--space-2)] overflow-visible md:flex-none md:shrink-0 md:gap-[var(--space-4)]";
 
 export const WORKSPACE_SWITCHER_HOST_CLASS = "relative min-w-0 overflow-visible";
 
-// Desktop md+ lanes. Parent display:none below md; contents so the
-// lanes are a leading-slot flex item from md up, after the divider.
-export const APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden md:contents";
+// Desktop lg+ slider. Parent display:none below lg; contents so the
+// slider is a leading-slot flex item from lg up.
+export const APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden lg:contents";
 
-// The grid button is the phone/tablet face, in the leading row right
-// after the emblem. Hidden from md up.
-export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 md:hidden";
+// The grey workspace pill is the phone and md–lg face, in the leading
+// row (after the emblem on phone). Hidden from lg up.
+export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 lg:hidden";
 
-// Desktop workspace lanes (screening chrome, Adam 2026-10-04, "Yes,
-// everywhere"). The row stretches to the bar's height so the current
-// lane's 2px ink underline (an inset shadow, so it adds no height)
-// lands on the header's bottom edge. Full words, never truncated or
-// clipped: 10 side pad, shrink-0. Idle 500 quiet ink; current 600 ink.
-// Dark: the ink and the underline flip with --text.
-export const WORKSPACE_SWITCHER_LANES_CLASS = "flex shrink-0 self-stretch";
+// Primary pill slider (H register §3.1; founder 2026-10-05).
+// The house SegmentedTrack: muted track, radius full, NO inset (the
+// thumb is the full track height). The thumb is ink (the board's
+// thumb) and slides 220ms ease-out (the register lock's listed motion).
+// Labels 17 / 600, 44 tall, 16 side pads, never truncated; ink idle,
+// the page colour on the thumb (the board's onThumb). The label ink
+// snaps with the thumb's index (no colour transition), as every house
+// SegmentedTrack. Dark: the thumb and labels flip with --text / --bg.
+// One pattern: the house primary pill slider (HOUSE_PILL_SLIDER_*),
+// shared with the Feed's Following / For you.
+export const WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS = HOUSE_PILL_SLIDER_TRACK_CLASS;
 
-export const WORKSPACE_SWITCHER_LANE_CLASS =
-  "relative inline-flex shrink-0 cursor-pointer select-none items-center whitespace-nowrap px-[10px] text-[length:var(--text-xs)] transition-colors";
+export const WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS = HOUSE_PILL_SLIDER_THUMB_DURATION_MS;
 
-export const WORKSPACE_SWITCHER_LANE_ON_CLASS =
-  "font-semibold text-ink shadow-[inset_0_-2px_0_var(--text)]";
+export const WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS = HOUSE_PILL_SLIDER_THUMB_CLASS;
 
-export const WORKSPACE_SWITCHER_LANE_OFF_CLASS = `font-medium ${HOUSE_SHELL_QUIET_INK_CLASS} hover:text-ink`;
+// The lit segment paints the thumb's ink until the thumb is placed
+// (HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS), so "Social" reads on the
+// server paint.
+export const WORKSPACE_SWITCHER_SEGMENT_CLASS =
+  `relative z-10 inline-flex h-[var(--header-control-size)] shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full px-[var(--space-4)] text-[length:var(--text-base)] font-semibold ${HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS}`;
+
+export const WORKSPACE_SWITCHER_SEGMENT_ON_CLASS = HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS;
+
+export const WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS = HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS;
 
 export function workspaceSwitcherOptions(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
@@ -277,18 +293,27 @@ export const WORKSPACE_WAFFLE_HOME_ICON_CLASS = "size-4 shrink-0";
 /** Muted mark on the header exit. Not the accent tile check. */
 export const WORKSPACE_WAFFLE_HOME_CHECK_CLASS = "size-3 shrink-0 text-ink-3";
 
-/** Phone grid button: 44 tall, 8 side pad, radius 10, the 16 grid glyph
- *  and the current workspace's name (13 / 500, ink), 6 apart. Hugs its
- *  content — never a fixed width, never truncated. Open wash is muted,
- *  not accent fill. */
+/** Grey workspace pill (phone and md to lg): 44 tall, radius full,
+ *  muted, pad 12 / 16, an 18 filled grid, 8, then the current
+ *  workspace's name at 15 / 600 ink. Hugs its content — never a fixed
+ *  width, never truncated. Below 360 the name steps out (still the
+ *  accessible name) and the pill is a 44 circle; where no lane is lit
+ *  (Settings, Activity, Help, Co-Productions) it is the 44 circle too.
+ *  Open steps the fill to the hairline grey. */
 export const WORKSPACE_WAFFLE_TRIGGER_CLASS =
-  "relative flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius)] px-[var(--space-2)] text-[length:var(--text-xs)] font-medium text-ink transition-colors hover:bg-surface-muted";
+  "relative flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center justify-center gap-[var(--space-2)] whitespace-nowrap rounded-full bg-surface-muted pl-[var(--space-3)] pr-[var(--space-4)] text-[length:var(--text-sm)] font-semibold text-ink transition-colors hover:bg-hairline max-[359px]:w-[var(--header-control-size)] max-[359px]:px-0";
 
-export const WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS = "bg-surface-muted";
+export const WORKSPACE_WAFFLE_TRIGGER_BARE_CLASS = "w-[var(--header-control-size)] px-0";
 
-export const WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS = "size-4 shrink-0";
+export const WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS = "bg-hairline";
+
+export const WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS = "size-[18px] shrink-0";
 
 export const WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT = "fill" as const;
+
+/** The visible name on the pill; it steps out below 360 so the bar fits
+ *  at 320 (the accessible name keeps it). */
+export const WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS = "max-[359px]:hidden";
 
 // Same tiles, no sheet pad. --space-4 keeps the side inset once
 // the shared rows stop adding their own.
@@ -309,18 +334,16 @@ export const WORKSPACE_WAFFLE_TILE_LABEL_CLASS = "whitespace-normal";
 
 export const WORKSPACE_WAFFLE_ICON_CLASS = "size-6 shrink-0";
 
-export function workspaceSwitcherLaneClass(selected: boolean): string {
-  return selected
-    ? `${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_ON_CLASS}`
-    : `${WORKSPACE_SWITCHER_LANE_CLASS} ${WORKSPACE_SWITCHER_LANE_OFF_CLASS}`;
+export function workspaceSwitcherSegmentClass(on: boolean): string {
+  return `${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${on ? WORKSPACE_SWITCHER_SEGMENT_ON_CLASS : WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS}`;
 }
 
 /**
- * The phone grid button's visible name: the lane the desktop lanes
- * light on this path (Home on /home and /home/news, otherwise the
- * workspace), or null where no lane is lit (Settings, Activity, Help,
- * Co-Productions) — the button is then the grid alone. One source of
- * truth with the desktop underline (overviewLeadActiveIndex).
+ * The workspace pill's visible name: the segment the desktop slider
+ * lights on this path (Home on /home and /home/news, otherwise the
+ * workspace), or null where none is lit (Settings, Activity, Help,
+ * Co-Productions) — the pill is then the grid alone. One source of
+ * truth with the slider's thumb (overviewLeadActiveIndex).
  */
 export function workspaceSwitcherTriggerName(
   pathname: string,
@@ -341,7 +364,7 @@ export function workspaceSwitcherTriggerLabel(name: string | null): string {
  * Roving tab stop: exactly one segment is tabbable. The lit segment
  * owns it; on a route that lights none (Settings, Activity, Help,
  * Co-Productions) the first segment (Home) does, so a keyboard user
- * can still reach the desktop switcher (the waffle is md:hidden).
+ * can still reach the desktop slider (the pill is lg:hidden).
  */
 export function workspaceSwitcherSegmentTabIndex(
   index: number,
