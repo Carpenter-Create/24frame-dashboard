@@ -15,6 +15,9 @@ import {
 } from "@/lib/course-search";
 import { HOUSE_VOICE_FOCUS_HOST_CLASS } from "@/lib/form-control";
 import {
+  HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS,
+  HOUSE_LEAD_SEARCH_HEADER_GLYPH_CLASS,
+  HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS,
   HOUSE_LEAD_SEARCH_ICON_CLASS,
   HOUSE_LEAD_SEARCH_PILL_CLASS,
   HOUSE_LEAD_SEARCH_TOGGLE_HOST_CLASS,
@@ -50,9 +53,12 @@ import { ingestSpeechLearning } from "@/lib/speech-learning";
 // has no search page, so its desktop icon (md to xl) opens the same
 // quiet field in a small panel under the icon. Phone Education
 // keeps the under-nav row.
+// Header field (screening chrome, Adam 2026-10-04): from xl the desktop
+// header shows the same form as a 232×34 muted box (13px, 16 glyph,
+// radius 10). Same input, action, and voice mic — only the face.
 
 export type HouseLeadSearchTone = "live" | "quiet";
-export type HouseLeadSearchPresentation = "field" | "icon";
+export type HouseLeadSearchPresentation = "field" | "icon" | "header";
 
 export function HouseLeadSearch({
   tone,
@@ -114,6 +120,8 @@ export function HouseLeadSearch({
     );
   }
 
+  const header = presentation === "header";
+
   if (!live) {
     return (
       <QuietHouseLeadSearchField
@@ -123,6 +131,7 @@ export function HouseLeadSearch({
         inputId={resolvedInputId}
         autoFocus={autoFocus}
         className={className}
+        header={header}
       />
     );
   }
@@ -136,6 +145,7 @@ export function HouseLeadSearch({
       inputId={resolvedInputId}
       autoFocus={autoFocus}
       className={className}
+      header={header}
     />
   );
 }
@@ -229,6 +239,7 @@ function QuietHouseLeadSearchField({
   inputId,
   autoFocus,
   className,
+  header = false,
 }: {
   action?: string;
   placeholder: string;
@@ -236,6 +247,7 @@ function QuietHouseLeadSearchField({
   inputId: string;
   autoFocus?: boolean;
   className?: string;
+  header?: boolean;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -251,6 +263,7 @@ function QuietHouseLeadSearchField({
       defaultValue={q}
       autoFocus={autoFocus}
       className={className}
+      header={header}
     />
   );
 }
@@ -264,6 +277,7 @@ function HouseLeadSearchField({
   defaultValue,
   autoFocus,
   className,
+  header = false,
 }: {
   tone: HouseLeadSearchTone;
   action: string;
@@ -273,6 +287,8 @@ function HouseLeadSearchField({
   defaultValue?: string;
   autoFocus?: boolean;
   className?: string;
+  /** Desktop header face (xl+): 232×34 muted box. */
+  header?: boolean;
 }) {
   const workspace = tone === "live" ? "social" : "education";
   const [value, setValue] = useState(defaultValue ?? "");
@@ -285,11 +301,13 @@ function HouseLeadSearchField({
       data-house-voice-host=""
       data-social-header-search={tone === "live" ? "" : undefined}
       data-education-header-search={tone === "quiet" ? "" : undefined}
+      data-house-lead-search-face={header ? "header" : undefined}
       action={action}
       method="get"
       className={cn(
-        HOUSE_LEAD_SEARCH_PILL_CLASS,
-        HOUSE_SEARCH_PILL_CLASS,
+        header
+          ? HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS
+          : cn(HOUSE_LEAD_SEARCH_PILL_CLASS, HOUSE_SEARCH_PILL_CLASS),
         HOUSE_VOICE_FOCUS_HOST_CLASS,
         className,
       )}
@@ -303,8 +321,8 @@ function HouseLeadSearchField({
       }}
     >
       <MagnifyingGlass
-        className="size-4 shrink-0 text-ink-3"
-        weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
+        className={header ? HOUSE_LEAD_SEARCH_HEADER_GLYPH_CLASS : "size-4 shrink-0 text-ink-3"}
+        weight={header ? HOUSE_PHONE_CHROME_ICON_WEIGHT : PHOSPHOR_CHROME_IDLE_WEIGHT}
         aria-hidden
       />
       {tone === "live" ? (
@@ -321,7 +339,7 @@ function HouseLeadSearchField({
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        className="h-full min-w-0 flex-1 placeholder:text-ink-3"
+        className={header ? HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS : "h-full min-w-0 flex-1 placeholder:text-ink-3"}
       />
       <HouseVoiceMic
         surface="search"

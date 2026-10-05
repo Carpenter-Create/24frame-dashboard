@@ -17,15 +17,16 @@ import {
   HOUSE_PHONE_BOTTOM_NAV,
   HOUSE_PHONE_BOTTOM_NAV_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS,
   housePhoneDestActive,
@@ -47,10 +48,12 @@ import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 // G9 page scroll lives on main (`[data-house-lead-scroll]`), not window.
 // Shared across every workspace that mounts this bar.
 // IA A: dests inside the current workspace only. No workspace item.
-// Every dock: active dest is accent ink plus a small accent mark under
-// the glyph, no chip (Adam 2026-10-04, "Match everywhere"). Social
-// alone has Create, the accent circle inside the pill
-// (shell-unified-chrome-lock-v1).
+// Icons only, with accessible names. Every dock: the current dest is an
+// ink Bold glyph with a 4px ink dot under it, no chip and no accent
+// (screening chrome, Adam 2026-10-04,
+// docs/design-locks/shell-screening-chrome-lock-v1.md). Each target
+// fills the 46 pill row. Social alone has Create, the accent circle
+// inside the pill — the dock's only accent; it never shows the dot.
 
 function useHousePhoneBottomNavHidden(pathname: string) {
   const [nav, setNav] = useState({ path: pathname, hidden: false });
@@ -139,20 +142,22 @@ export function HousePhoneBottomNav({
             const glyph = (
               <Glyph
                 className={HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS}
-                weight={HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT}
+                weight={active ? HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT : HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT}
               />
             );
+            // The dot hangs off the 46 target (the item is relative), so
+            // the glyph stays centred in every slot.
             const face = !active ? (
               glyph
             ) : (
-              <span className={HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS}>
+              <>
                 {glyph}
                 <span
                   aria-hidden
                   data-house-phone-bottom-nav-mark=""
                   className={HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS}
                 />
-              </span>
+              </>
             );
             const destClass = cn(
               HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
@@ -185,7 +190,10 @@ export function HousePhoneBottomNav({
                           active && HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
                         )}
                       >
-                        {glyph}
+                        <Glyph
+                          className={HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS}
+                          weight={HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT}
+                        />
                       </span>
                     </button>
                   }

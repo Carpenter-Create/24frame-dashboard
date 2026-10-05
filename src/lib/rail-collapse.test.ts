@@ -4,10 +4,10 @@ import { readFileSync } from "node:fs";
 import {
   RAIL_COLLAPSE_CHEVRON,
   RAIL_COLLAPSE_CHEVRON_CLASS,
-  RAIL_COLLAPSE_EXPAND_ROW_CLASS,
   RAIL_COLLAPSE_CHEVRON_ICON_CLASS,
   RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT,
   RAIL_COLLAPSE_WIDTH_VAR,
+  RAIL_EXPAND_CHEVRON_CLASS,
   RAIL_WIDTH_CLASS,
   SIDEBAR_COLLAPSED_COOKIE,
   SIDEBAR_COLLAPSED_COOKIE_LEGACY,
@@ -23,14 +23,20 @@ const src = readFileSync("src/lib/rail-collapse.ts", "utf8");
 describe("rail-collapse tokens", () => {
   it("keeps house chevron names and measured values", () => {
     expect(RAIL_COLLAPSE_CHEVRON).toBe("chevron");
-    expect(RAIL_COLLAPSE_CHEVRON_CLASS).toContain("h-7 w-7");
-    expect(RAIL_COLLAPSE_CHEVRON_CLASS).toContain("rounded-full");
-    expect(RAIL_COLLAPSE_CHEVRON_CLASS).toContain("text-ink-3");
+    // Screening chrome: 28 radius-6 collapse beside the eyebrow; 40×32
+    // radius-10 expand atop the 64 column; quiet ink.
+    expect(RAIL_COLLAPSE_CHEVRON_CLASS).toBe(
+      "flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-ink-3 dark:text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink",
+    );
+    expect(RAIL_EXPAND_CHEVRON_CLASS).toBe(
+      "flex h-8 w-10 shrink-0 items-center justify-center rounded-[var(--radius)] text-ink-3 dark:text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink",
+    );
+    expect(RAIL_COLLAPSE_CHEVRON_CLASS).not.toContain("rounded-full");
     expect(RAIL_COLLAPSE_CHEVRON_ICON_CLASS).toBe("h-4 w-4");
     expect(RAIL_COLLAPSE_CHEVRON_ICON_WEIGHT).toBe("bold");
-    expect(RAIL_COLLAPSE_EXPAND_ROW_CLASS).toBe("flex h-8 items-center justify-center");
-    expect(RAIL_COLLAPSE_EXPAND_ROW_CLASS).not.toMatch(/border|hairline/);
-    expect(RAIL_WIDTH_CLASS).toBe("w-[calc(var(--sidebar-width)-var(--chrome-gutter))]");
+    expect(RAIL_EXPAND_CHEVRON_CLASS).not.toMatch(/border|hairline/);
+    // The column is the whole slot: 200 / 64, no inset.
+    expect(RAIL_WIDTH_CLASS).toBe("w-[var(--sidebar-width)]");
     expect(RAIL_COLLAPSE_WIDTH_VAR).toBe("var(--sidebar-width-collapsed)");
     expect(src).not.toMatch(/\brl-/);
     expect(src).not.toContain("RAIL_COLLAPSE_RL");

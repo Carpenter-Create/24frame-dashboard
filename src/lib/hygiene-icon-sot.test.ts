@@ -18,7 +18,10 @@ describe("one icon SoT (P2-2 rematch)", () => {
 
     const glyph = readFileSync("src/components/chrome/nav-glyph.tsx", "utf8");
     expect(glyph).not.toContain("lucide");
-    expect(glyph).toContain("PhosphorChromeIcon");
+    // Side-menu glyphs are the nav item's own Phosphor icon at the
+    // rail weights (screening chrome: Regular idle / Bold current).
+    expect(glyph).toContain("const Glyph = item.icon;");
+    expect(glyph).toContain("houseDestRailGlyphWeight");
   });
 
   it("RSC glyph renders import Phosphor SSR, not the context entry", () => {

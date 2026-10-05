@@ -65,8 +65,7 @@ function chromeHtml() {
 
 describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under top", () => {
   it("keeps the emblem alone on the lead — no workspace pill, no hamburger", () => {
-    expect(APP_HEADER_LEADING_CLASS).toContain("gap-[var(--space-3)]");
-    expect(APP_HEADER_LEADING_CLASS).toContain("md:gap-[var(--space-2)]");
+    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
@@ -93,9 +92,10 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     );
     expect(leading).toContain("{leadingNav}");
     expect(leading).not.toContain("data-app-header-workspace-pill");
-    // Desktop row leads after the brand; the phone waffle stays trailing.
-    expect(leading).toContain('presentation="pills"');
-    expect(leading).not.toContain('presentation="waffle"');
+    // Screening chrome: the desktop lanes and the phone grid button both
+    // lead, after the brand.
+    expect(leading).toContain('presentation="lanes"');
+    expect(leading).toContain('presentation="waffle"');
     expect(leading).not.toContain("{accountMenu}");
     expect(leading).not.toContain("{trailingNav}");
     expect(shellSrc).not.toContain("afterLead=");
@@ -107,11 +107,10 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
 
   it("leaves the trailing avatar alone — no Aggregation+avatar phone cluster", () => {
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("shrink-0");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(
-      /(?:^|\s)gap-\[var\(--space-3\)\](?:\s|$)/,
-    );
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-2)]");
+    // Screening chrome: phone hits abut; desktop controls 8 apart.
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
@@ -125,8 +124,9 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
       leadSrc.indexOf("data-app-header-trailing"),
       leadSrc.indexOf("</header>"),
     );
-    expect(trailing).not.toContain('presentation="pills"');
-    expect(trailing).toContain('presentation="waffle"');
+    // Screening chrome: no switcher trails — the grid button leads.
+    expect(trailing).not.toContain('presentation="lanes"');
+    expect(trailing).not.toContain('presentation="waffle"');
     expect(trailing).not.toContain("data-app-header-workspace-desktop");
     expect(leadSrc).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
     expect(trailing).not.toContain('tone="pill"');
@@ -137,18 +137,10 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
     expect(trailing).toContain('data-app-header-trailing-nav="" className="md:hidden"');
     // Desktop search (Social and Education only) sits first in the trailing cluster.
     expect(trailing).toContain('data-education-header-search-host={education ? "desktop" : undefined}');
-    expect(trailing.indexOf("{trailingNav}")).toBeLessThan(
-      trailing.indexOf('presentation="waffle"'),
-    );
     expect(trailing.indexOf("{search}")).toBeLessThan(
       trailing.indexOf("<AskAssistantHeaderLink"),
     );
-    expect(trailing.indexOf("<ActivityBell")).toBeLessThan(
-      trailing.indexOf('presentation="waffle"'),
-    );
-    expect(trailing.indexOf('presentation="waffle"')).toBeLessThan(
-      trailing.indexOf("{accountMenu}"),
-    );
+    expect(trailing.indexOf("<ActivityBell")).toBeLessThan(trailing.indexOf("{accountMenu}"));
     expect(shellSrc).toContain("accountMenu=");
     expect(shellSrc).toContain("AccountMenuSlot");
     expect(trailing).not.toContain("data-dashboard-period");

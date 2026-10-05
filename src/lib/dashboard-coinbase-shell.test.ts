@@ -67,10 +67,12 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(globals).not.toMatch(/\[data-dashboard[^\]]*\]\s*\{/);
   });
 
-  it("paints the active dest rail as a muted row with an accent tile; Settings keeps the tint pill", () => {
-    expect(sideNav).toContain("HOUSE_RAIL_ITEM_CLASS");
+  // Screening chrome (Adam 2026-10-04): no icon tiles; the current row is
+  // a muted fill with ink 600. Settings keeps the tint pill.
+  it("paints the active dest rail as a muted row — no tiles; Settings keeps the tint pill", () => {
+    expect(sideNav).toContain("HOUSE_DEST_RAIL_ROW_CLASS");
     expect(sideNav).toContain("HOUSE_DEST_RAIL_ACTIVE_CLASS");
-    expect(sideNav).toContain("HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS");
+    expect(sideNav).not.toContain("HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS");
     expect(sideNav).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
     expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
     expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
@@ -90,7 +92,7 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(search).not.toContain("bg-surface pl-8");
     expect(shell).not.toContain("SearchField");
     expect(lead).not.toContain('presentation="sheet" tone="pill"');
-    expect(lead).toContain('presentation="pills"');
+    expect(lead).toContain('presentation="lanes"');
     expect(lead).toContain('presentation="waffle"');
     expect(lead).not.toContain('tone="pill"');
     expect(DASHBOARD_TITLE_DESKTOP_CLASS).toContain("t-title");

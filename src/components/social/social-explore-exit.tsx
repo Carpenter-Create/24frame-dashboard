@@ -46,7 +46,7 @@ export function SocialExploreExit() {
       onClick={onClick}
     >
       <span aria-hidden="true" className="inline-flex">
-        <SocialIcon name="x" size={16} />
+        <SocialIcon name="x" size={14} />
       </span>
       <span className={HOUSE_HEADER_EXIT_LABEL_CLASS}>{SOCIAL.explore.exit}</span>
     </Link>

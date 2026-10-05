@@ -15,8 +15,6 @@ import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
 
 import { AppearanceCheck } from "./appearance-check";
-import { SegmentedTrack } from "@/components/ui/segmented-track";
-import { SEGMENTED_TRACK_PERSIST, segmentedItemOn } from "@/lib/segmented-track";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import {
   overviewLeadActiveIndex,
@@ -37,19 +35,13 @@ import {
   availableWorkspaceOptions,
   type WorkspaceMenuOption,
 } from "@/lib/workspace-menu";
-import {
-  HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
-  HOUSE_HEADER_TRAILING_PHONE_CLASS,
-  HOUSE_PHONE_CHROME_ICON_WEIGHT,
-} from "@/lib/house-phone-shell";
 import { cn } from "@/lib/cn";
 import {
   WORKSPACE_SWITCHER,
   WORKSPACE_SWITCHER_HEADER_CLASS,
   WORKSPACE_SWITCHER_HOST_CLASS,
+  WORKSPACE_SWITCHER_LANES_CLASS,
   WORKSPACE_SWITCHER_OPTION_CHECK_CLASS,
-  WORKSPACE_SWITCHER_SEGMENTS_CLASS,
-  WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS,
   WORKSPACE_SWITCHER_SHEET_HOST_CLASS,
   WORKSPACE_SWITCHER_SHEET_SCRIM_CLASS,
   WORKSPACE_SWITCHER_SHEET_SURFACE_CLASS,
@@ -66,6 +58,8 @@ import {
   WORKSPACE_WAFFLE_TILE_CURRENT_CLASS,
   WORKSPACE_WAFFLE_TILE_LABEL_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS,
+  WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT,
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   phoneWorkspaceSwitcherPrefetchHrefs,
   prefetchWorkspaceWaffleIntent,
@@ -75,9 +69,11 @@ import {
   workspaceSwitcherChromeClearanceBottoms,
   workspaceSwitcherMenuStyle,
   workspaceSwitcherNextSegmentIndex,
+  workspaceSwitcherLaneClass,
   workspaceSwitcherPersistLane,
-  workspaceSwitcherSegmentClass,
   workspaceSwitcherSegmentTabIndex,
+  workspaceSwitcherTriggerLabel,
+  workspaceSwitcherTriggerName,
   workspaceSliderSegments,
   workspaceWaffleTiles,
 } from "@/lib/workspace-switcher";
@@ -317,7 +313,11 @@ function WorkspaceWaffleTiles({
   );
 }
 
-function WorkspaceSlider({
+// Desktop lanes (screening chrome): plain words, the current one ink
+// with an underline and aria-current="page". The underline follows the
+// optimistic activePath, so it moves on click. Keyboard as before: one
+// Tab stop (the lit lane, or Home when none is lit), arrows move.
+function WorkspaceLanes({
   current,
   options,
   isGcStaff = false,
@@ -332,7 +332,7 @@ function WorkspaceSlider({
   const { activePath, markPending } = useHouseNavPending();
   const segmentRefs = useRef<Array<HTMLButtonElement | null>>([]);
   // Home · Aggregation · Social · Education · Staff (entitled). Home is
-  // a real segment: thumb on /home and /home/news, hop to /home.
+  // a real lane: lit on /home and /home/news, hop to /home.
   const pills = workspaceSliderSegments(options);
   const routeWorkspace = resolveWorkspaceMode(activePath, current);
   const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
@@ -349,54 +349,49 @@ function WorkspaceSlider({
   }
 
   return (
-    <SegmentedTrack
-      activeIndex={routeIndex}
-      persistKey={SEGMENTED_TRACK_PERSIST.workspace}
-      trackClass={WORKSPACE_SWITCHER_SEGMENTS_CLASS}
-      thumbClass={WORKSPACE_SWITCHER_SEGMENTS_THUMB_CLASS}
+    <div
       data-workspace-switcher=""
-      data-workspace-switcher-presentation="pills"
-      data-workspace-switcher-pills=""
+      data-workspace-switcher-presentation="lanes"
+      data-workspace-switcher-lanes=""
       role="tablist"
       aria-label={WORKSPACE_SWITCHER.label}
+      className={WORKSPACE_SWITCHER_LANES_CLASS}
     >
-      {({ selectedIndex }) =>
-        pills.map((pill, index) => {
-          const selected = segmentedItemOn(index, selectedIndex);
-          return (
-            <button
-              key={pill.id}
-              ref={(node) => {
-                segmentRefs.current[index] = node;
-              }}
-              type="button"
-              role="tab"
-              data-segmented-item=""
-              data-workspace-switcher-segment={pill.id}
-              aria-selected={selected}
-              tabIndex={workspaceSwitcherSegmentTabIndex(index, selectedIndex, pills.length)}
-              className={workspaceSwitcherSegmentClass(selected)}
-              onClick={(event) => {
-                selectWorkspaceTile(
-                  current,
-                  pill,
-                  options,
-                  router,
-                  shellPath,
-                  isGcStaff,
-                  markPending,
-                  event,
-                  house?.navigateOwned,
-                );
-              }}
-              onKeyDown={(event) => onSegmentKeyDown(event, index)}
-            >
-              {pill.label}
-            </button>
-          );
-        })
-      }
-    </SegmentedTrack>
+      {pills.map((pill, index) => {
+        const selected = index === routeIndex;
+        return (
+          <button
+            key={pill.id}
+            ref={(node) => {
+              segmentRefs.current[index] = node;
+            }}
+            type="button"
+            role="tab"
+            data-workspace-switcher-segment={pill.id}
+            aria-selected={selected}
+            aria-current={selected ? "page" : undefined}
+            tabIndex={workspaceSwitcherSegmentTabIndex(index, routeIndex, pills.length)}
+            className={workspaceSwitcherLaneClass(selected)}
+            onClick={(event) => {
+              selectWorkspaceTile(
+                current,
+                pill,
+                options,
+                router,
+                shellPath,
+                isGcStaff,
+                markPending,
+                event,
+                house?.navigateOwned,
+              );
+            }}
+            onKeyDown={(event) => onSegmentKeyDown(event, index)}
+          >
+            {pill.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -411,7 +406,7 @@ export function WorkspaceSwitcher({
   isGcStaff?: boolean;
   options?: readonly WorkspaceMenuOption[];
   defaultOpen?: boolean;
-  presentation?: "waffle" | "pills";
+  presentation?: "waffle" | "lanes";
 }) {
   const staffGate = isGcStaff || options.some((option) => option.mode === "staff");
   const current = clampWorkspaceMode(requestedCurrent, staffGate);
@@ -489,9 +484,13 @@ export function WorkspaceSwitcher({
 
   if (options.length === 0) return null;
 
-  if (presentation === "pills") {
-    return <WorkspaceSlider current={current} options={options} isGcStaff={staffGate} />;
+  if (presentation === "lanes") {
+    return <WorkspaceLanes current={current} options={options} isGcStaff={staffGate} />;
   }
+
+  // Phone grid button names where you are (screening chrome): the lane
+  // the desktop underline lights, or the grid alone where none is lit.
+  const triggerName = workspaceSwitcherTriggerName(chromePath, current, options);
 
   const warmIntent = (hrefs: readonly string[]) => {
     warmWorkspaceWaffleIntent(router.prefetch, hrefs);
@@ -560,7 +559,7 @@ export function WorkspaceSwitcher({
         type="button"
         data-workspace-switcher-trigger=""
         data-workspace-waffle=""
-        aria-label={WORKSPACE_SWITCHER.heading}
+        aria-label={workspaceSwitcherTriggerLabel(triggerName)}
         aria-expanded={open}
         aria-haspopup="dialog"
         onPointerEnter={() => {
@@ -575,15 +574,16 @@ export function WorkspaceSwitcher({
         className={cn(WORKSPACE_WAFFLE_TRIGGER_CLASS, open && WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS)}
       >
         <DotsNine
+          aria-hidden
           data-workspace-waffle-icon="phone"
-          className={HOUSE_HEADER_TRAILING_PHONE_CLASS}
-          weight={HOUSE_PHONE_CHROME_ICON_WEIGHT}
+          className={WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS}
+          weight={WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT}
         />
-        <DotsNine
-          data-workspace-waffle-icon="desktop"
-          className={HOUSE_HEADER_TRAILING_DESKTOP_CLASS}
-          weight={PHOSPHOR_CHROME_IDLE_WEIGHT}
-        />
+        {triggerName ? (
+          <span aria-hidden="true" data-workspace-waffle-name="">
+            {triggerName}
+          </span>
+        ) : null}
       </button>
       {open
         ? typeof document !== "undefined"

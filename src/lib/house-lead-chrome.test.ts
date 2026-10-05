@@ -34,6 +34,12 @@ import {
   HOUSE_LEAD_SCROLL_CLASS,
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_SEARCH_PILL_CLASS,
+  HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS,
+  HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS,
+  HOUSE_LEAD_DIVIDER_CLASS,
+  HOUSE_HEADER_DESKTOP_AVATAR_CLASS,
+  HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS,
+  HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS,
   HOUSE_LEAD_SEARCH_WIDTH_PX,
   HOUSE_LEAD_SHELL_CLASS,
   HOUSE_LEAD_SLOT_CLASS,
@@ -81,9 +87,9 @@ function leadHtml(workspace: "aggregation" | "social" | "education") {
       workspace,
       search:
         workspace === "social"
-          ? createElement(HouseLeadSearch, { tone: "live" })
+          ? createElement(HouseLeadSearch, { tone: "live", presentation: "header" })
           : workspace === "education"
-            ? createElement(HouseLeadSearch, { tone: "quiet" })
+            ? createElement(HouseLeadSearch, { tone: "quiet", presentation: "header" })
             : undefined,
       accountMenu: createElement("div", { "data-user-menu-host": "" }),
     }),
@@ -130,11 +136,20 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
   });
 
   it("G3 mounts Social live search first in the trailing cluster at Facebook-compact width", () => {
-    expect(HOUSE_LEAD_SEARCH_WIDTH_PX).toBe(240);
-    // The 240 pill shows from xl; below xl the icon form keeps the row unclipped.
-    expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe("hidden w-[240px] shrink-0 xl:flex");
+    // Screening chrome: the 232×34 muted field shows from xl; below xl the
+    // icon form keeps the lanes unclipped.
+    expect(HOUSE_LEAD_SEARCH_WIDTH_PX).toBe(232);
+    expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe("hidden w-[232px] shrink-0 xl:flex");
+    expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toBe(
+      "flex h-[var(--header-desktop-control-size)] w-full min-w-0 items-center gap-2 rounded-[var(--radius)] border-0 bg-surface-muted px-3 text-ink-2",
+    );
+    expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toContain("text-[length:var(--text-xs)]");
+    expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toContain("placeholder:text-ink-2");
     expect(leadLib).toContain("Facebook-compact");
     expect(leadSearch).toContain("HOUSE_LEAD_SEARCH_PILL_CLASS");
+    expect(leadSearch).toContain("HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS");
+    expect(shell).toContain('<HouseLeadSearch tone="live" presentation="header" />');
+    expect(shell).toContain('<HouseLeadSearch tone="quiet" presentation="header" />');
     expect(leadSearch).toContain("data-social-header-search");
     expect(leadSearch).not.toContain("w-[420px]");
 
@@ -142,8 +157,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(social).toContain("data-house-lead-search");
     expect(social).toContain("data-social-header-search");
     expect(social).toContain(HOUSE_LEAD_SEARCH_DESKTOP_CLASS);
-    expect(social).toContain(HOUSE_LEAD_SEARCH_PILL_CLASS);
-    expect(social).toContain(HOUSE_SEARCH_PILL_CLASS);
+    expect(social).toContain(`class="${HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS}`);
+    expect(social).toContain('data-house-lead-search-face="header"');
+    expect(social).not.toContain(HOUSE_SEARCH_PILL_CLASS);
     expect(social).toContain(SOCIAL.explore.searchSocial);
     expect(social).toContain('action="/social/search"');
     expect(social).toContain('value="people"');
@@ -156,11 +172,18 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     );
   });
 
-  it("G10 orders desktop as brand · switcher | search · Ask · bell · avatar, and labels Ask from xl", () => {
+  it("G10 orders desktop as brand · hairline · lanes | search · Ask · bell · avatar, and labels Ask from xl", () => {
     for (const workspace of ["aggregation", "social", "education"] as const) {
       const html = leadHtml(workspace);
       const brand = html.indexOf("data-brand-emblem");
-      const row = html.indexOf("data-workspace-switcher-pills");
+      const divider = html.indexOf("data-app-header-divider");
+      const row = html.indexOf("data-workspace-switcher-lanes");
+      expect(divider, workspace).toBeGreaterThan(brand);
+      expect(divider, workspace).toBeLessThan(row);
+      expect(html, workspace).toContain(`class="${HOUSE_LEAD_DIVIDER_CLASS}"`);
+      expect(HOUSE_LEAD_DIVIDER_CLASS).toBe(
+        "hidden h-4.5 w-px shrink-0 bg-hairline md:mr-[var(--space-1)] md:block",
+      );
       const trailing = html.indexOf("data-app-header-trailing");
       expect(brand, workspace).toBeGreaterThan(-1);
       expect(brand, workspace).toBeLessThan(row);
@@ -175,10 +198,15 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(label, workspace).toContain(`class="${HOUSE_ASK_AI_HEADER_LABEL_CLASS}">${ASK_FRAME_AI.headline}<`);
     }
     expect(leadHtml("aggregation")).not.toContain("data-house-lead-search");
-    expect(HOUSE_ASK_AI_HEADER_LABEL_CLASS).toBe("hidden whitespace-nowrap t-body-sm text-ink xl:inline");
+    // Screening chrome: the xl pill is 34 tall, pad 10 / 12, gap 6; the
+    // label is 13 / 500 ink.
+    expect(HOUSE_ASK_AI_HEADER_LABEL_CLASS).toBe(
+      "hidden whitespace-nowrap text-[length:var(--text-xs)] font-medium text-ink xl:inline",
+    );
     expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:w-auto");
     expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:border-hairline");
-    // Below xl it is still the 44 circle; phone never shows the label.
+    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:gap-1.5 xl:border xl:border-hairline xl:pl-[10px] xl:pr-3");
+    // Below xl it is still the icon box (34 desktop, 44 phone); phone never shows the label.
     expect(HOUSE_ASK_AI_HEADER_CLASS).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
     expect(HOUSE_ASK_AI_HEADER_CLASS).not.toMatch(/(?:^|\s)(?:md:)?(?:w-auto|border)(?:\s|$)/);
   });
@@ -213,7 +241,8 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(education).toContain("data-house-lead-search");
     expect(education).toContain("data-education-header-search");
     expect(education).toContain(HOUSE_LEAD_SEARCH_DESKTOP_CLASS);
-    expect(education).toContain(HOUSE_LEAD_SEARCH_PILL_CLASS);
+    // Same 232×34 header face as Social (screening chrome).
+    expect(education).toContain(`class="${HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS}`);
     expect(education).toContain(EDUCATION_SEARCH.placeholder);
     expect(education).toContain(HOUSE_HEADER_SEARCH_GAP_CLASS);
     expect(social).toContain(HOUSE_LEAD_SEARCH_DESKTOP_CLASS);
@@ -248,14 +277,14 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadSrc).toContain("search ?");
   });
 
-  it("G7 keeps trailing workspace switcher + Ask + bell + avatar on all three", () => {
+  it("G7 keeps the grid button on the lead and Ask + bell + avatar trailing on all three", () => {
     for (const workspace of ["aggregation", "social", "education"] as const) {
       const html = leadHtml(workspace);
       expect(html).toContain("data-app-header-trailing");
       expect(html).toContain(APP_HEADER_TRAILING_CLUSTER_CLASS);
       expect(html).toContain("data-workspace-waffle");
       expect(html).toContain('data-workspace-switcher-presentation="waffle"');
-      expect(html).toContain('data-workspace-switcher-presentation="pills"');
+      expect(html).toContain('data-workspace-switcher-presentation="lanes"');
       expect(html).toContain("hidden md:contents");
       expect(html).toContain("md:hidden");
       expect(html).toContain("data-ask-assistant-header");
@@ -265,10 +294,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html.indexOf("data-ask-assistant-header")).toBeLessThan(
         html.indexOf("data-activity-bell"),
       );
-      expect(html.indexOf("data-activity-bell")).toBeLessThan(
-        html.indexOf("data-workspace-waffle"),
-      );
       expect(html.indexOf("data-workspace-waffle")).toBeLessThan(
+        html.indexOf("data-app-header-trailing"),
+      );
+      expect(html.indexOf("data-activity-bell")).toBeLessThan(
         html.indexOf("data-user-menu-host"),
       );
       expect(html).not.toContain("lucide-");
@@ -287,6 +316,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain("min-w-[var(--header-control-size)]");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("size-[44px]");
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain("rounded-full");
+    // Desktop controls are 34 radius-10 boxes (screening chrome).
+    expect(HOUSE_THEME_TOGGLE_CLASS).toContain("md:size-[var(--header-desktop-control-size)]");
+    expect(HOUSE_THEME_TOGGLE_CLASS).toContain("md:rounded-[var(--radius)]");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("purple");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("violet");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("border-hairline");
@@ -322,14 +354,18 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadLib).not.toContain("Pressed ink marks open");
   });
 
+  // Screening chrome (Adam 2026-10-04): 52 desktop (supersedes the 88
+  // "Joshua bar"), 60 phone; desktop controls 34; phone avatar 30.
   it("locks desktop header height and the sizes that derive from it", () => {
     const tokens = readFileSync("src/app/tokens.css", "utf8");
-    expect(tokens).toMatch(/--header-height:\s*88px;/);
+    expect(tokens).toMatch(/--header-height:\s*52px;/);
+    expect(tokens).not.toMatch(/--header-height:\s*88px;/);
     expect(tokens).toMatch(/--header-avatar-size:\s*28px;/);
     expect(tokens).toMatch(/--header-control-size:\s*44px;/);
+    expect(tokens).toMatch(/--header-desktop-control-size:\s*34px;/);
     expect(tokens).toMatch(/--header-search-height:\s*48px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*64px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*28px;/);
+    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*60px;/);
+    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*30px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*44px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-search-height:\s*44px;/);
     expect(HOUSE_LEAD_SEARCH_PILL_CLASS).toContain("h-[var(--header-search-height)]");
@@ -353,11 +389,15 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("p-[");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("-mx-");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("ml-");
+    // Desktop: the avatar sits 4 further out; phone: a 44 hit holds the 30 face.
+    expect(HOUSE_HEADER_DESKTOP_AVATAR_CLASS).toBe(`${HOUSE_HEADER_TRAILING_AVATAR_CLASS} ml-[var(--space-1)]`);
+    expect(HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS).toContain("size-[var(--header-control-size)]");
+    expect(HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS).toBe(`${HOUSE_HEADER_TRAILING_AVATAR_CLASS} overflow-hidden`);
     expect(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS).toBe("contents md:hidden");
     expect(HOUSE_HEADER_TRAILING_SLOT_CLASS).toBe("contents");
     expect(leadSrc).toContain("HOUSE_HEADER_TRAILING_SLOT_CLASS");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toBe(
-      "flex min-w-0 items-center gap-[var(--space-3)] md:gap-[var(--space-4)] max-md:shrink-0",
+      "flex min-w-0 items-center gap-0 md:gap-[var(--space-2)] max-md:shrink-0",
     );
   });
 
@@ -422,11 +462,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadSrc).toContain("<BrandLogo />");
     expect(leadSrc).not.toContain("BrandEmblem");
     expect(leadSrc.match(/<BrandLogo/g)?.length).toBe(1);
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(
-      /(?:^|\s)gap-\[var\(--space-3\)\](?:\s|$)/,
-    );
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-2)]");
+    // Screening chrome: phone hits abut; desktop controls 8 apart.
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
@@ -436,7 +475,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadSrc).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).toContain("overflow-visible");
-    expect(APP_HEADER_LEADING_CLASS).toContain("gap-[var(--space-3)]");
+    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_LEADING_CLASS).toContain("min-w-0");
     for (const workspace of ["aggregation", "social", "education"] as const) {
@@ -491,8 +530,8 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(shell).toContain('logoVisible="always"');
     expect(shell).not.toContain('homeChrome ? "always" : "desktop"');
     expect(leadLib).toContain("Asset 8 emblem on every workspace");
-    expect(leadLib).toContain("Emblem owns the phone left next to the workspace trigger");
-    expect(APP_HEADER_LEADING_CLASS).toContain("gap-[var(--space-3)]");
+    expect(leadLib).toContain("then\n// the grid \"switch workspace\" button, which names the current\n// workspace");
+    expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
 
     for (const workspace of ["aggregation", "social", "education", "staff"] as const) {

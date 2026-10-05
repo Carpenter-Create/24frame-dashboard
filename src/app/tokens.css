@@ -117,23 +117,28 @@
   /* --- Dashboard shell proportions ---
      Ported from watershedportal's shell (proportions kept, vocabulary dropped —
      see docs/known-divergences.md D2). GC had no equivalents, so these fill the gap.
-     Desktop header: top-nav row. Joshua bar 2026-09-22 raises the
-     80 lock to 88 so avatar, control hit, and search share one taller
-     SoT. Phone rises 56 to 64 with the 24px trail so the bar is not
-     empty air around a larger glyph. */
-  --header-height: 88px;
-  /* Wave 1: avatar ~28 (1.15× the 24 glyph box). Hit stays 44.
-     docs/design-locks/social-home-craft-wave-1-lock-v1.md */
+     Desktop header: the screening-room bar, 52 (Adam 2026-10-04,
+     docs/design-locks/shell-screening-chrome-lock-v1.md). Supersedes
+     the 88 "Joshua bar 2026-09-22". Phone is 60 (below). */
+  --header-height: 52px;
+  /* Avatar 28 on desktop, 30 on phone (inside the 44 phone hit). */
   --header-avatar-size: 28px;
+  /* Phone header hits stay 44. Other 44 hits (Messages compose) read
+     this token too. Desktop header controls, the Explore Exit compact
+     box included, are 34 (--header-desktop-control-size, below). */
   --header-control-size: 44px;
+  /* Desktop header controls: Search, Ask, bell, Exit (and its md–lg
+     X-only box) are 34 (screening-chrome lock). Desktop only; phone
+     keeps 44. */
+  --header-desktop-control-size: 34px;
   --header-search-height: 48px;
-  /* Dest-rail slot. One measure for Aggregation, Social, Education,
-     Staff, and Settings. Adam 2026-09-22: 256, inside the 240–280
-     band. Painted panel is this minus --chrome-gutter (240). Social
-     does not own a second width. Home uses this slot too (Adam
-     2026-10-04); only Co-Productions hides the rail. */
-  --sidebar-width: 256px;
-  --sidebar-width-collapsed: 60px;
+  /* Dest-rail slot. One measure for Home, Aggregation, Social,
+     Education, Staff, and Settings. Screening chrome (Adam
+     2026-10-04): a 200 column with a hairline on its right, no card;
+     64 collapsed. Supersedes 256 / 60. Social does not own a second
+     width. Only Co-Productions hides the rail. */
+  --sidebar-width: 200px;
+  --sidebar-width-collapsed: 64px;
   /* Alias of --sidebar-width. Not a second slot. Home does not use
      this as a canvas inset. Phone zeros the slot below. */
   --access-rail-width: var(--sidebar-width);
@@ -147,10 +152,11 @@
   --chrome-gutter: 16px;
   /* Phone floating dock. One length for Explore chrome and the lead
      scroll pad. Pill is h-12 (3rem). Float matches the dock padding:
-     max(12px, safe-area) — the safe area replaces the 12px, it is not
-     added again. House 16 (--space-4) is the gap above the pill so
-     name and caption clear the bar. Video may still bleed under it. */
-  --house-phone-dock-clearance: calc(3rem + max(12px, env(safe-area-inset-bottom)) + var(--space-4));
+     max(16px, safe-area) — the board's bottom 16 (screening chrome;
+     was 12). The safe area replaces the 16px, it is not added again.
+     House 16 (--space-4) is the gap above the pill so name and caption
+     clear the bar. Video may still bleed under it. */
+  --house-phone-dock-clearance: calc(3rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));
   /* Desktop shell horizontal gutters. Viewport → logo ink 32.
      Viewport → avatar ink 32. Same number both sides. Full-bleed
      columns that share the shell use the same pair. Not 44. Not 48. */
@@ -166,14 +172,15 @@
 }
 
 /* Phone chrome: persistent rail is gone. Width tokens collapse so header +
-   main go full-canvas. Desktop rail stays --sidebar-width / 60 at md and up. */
+   main go full-canvas. Desktop rail stays --sidebar-width (200) /
+   --sidebar-width-collapsed (64) at md and up. */
 @media (max-width: 767px) {
   :root {
     --sidebar-width: 0px;
     --sidebar-width-collapsed: 0px;
     --access-rail-width: 0px;
-    --header-height: 64px;
-    --header-avatar-size: 28px;
+    --header-height: 60px;
+    --header-avatar-size: 30px;
     --header-control-size: 44px;
     --header-search-height: 44px;
   }

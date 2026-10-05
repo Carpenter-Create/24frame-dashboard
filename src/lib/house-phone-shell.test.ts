@@ -57,7 +57,9 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT,
+  HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_DEST_CHIPS,
@@ -66,6 +68,7 @@ import {
   housePhoneDestActiveIndex,
   housePhoneDestinations,
   housePhoneDockDestinations,
+  housePhoneDestGlyph,
   housePhonePrefetchDestHrefs,
   housePhoneShowsBottomDests,
   housePhoneWorkspaceSelected,
@@ -104,11 +107,11 @@ function renderLead(workspace: "aggregation" | "social" | "education") {
 }
 
 describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
-  it("shows the waffle in the header and no workspace name pill", () => {
+  it("shows the grid button in the header and no workspace name pill", () => {
     expect(leadSrc).toContain("<WorkspaceSwitcher");
     expect(leadSrc).not.toContain("data-app-header-workspace-pill");
     expect(leadSrc).not.toContain('tone="pill"');
-    expect(leadSrc).toContain('presentation="pills"');
+    expect(leadSrc).toContain('presentation="lanes"');
     expect(leadSrc).toContain('presentation="waffle"');
     expect(leadSrc).toContain("data-app-header-workspace-desktop");
     expect(leadSrc).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
@@ -123,7 +126,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     );
     expect(aggregation).toContain("data-workspace-waffle");
     expect(aggregation).toContain('data-workspace-switcher-presentation="waffle"');
-    expect(aggregation).toContain('data-workspace-switcher-presentation="pills"');
+    expect(aggregation).toContain('data-workspace-switcher-presentation="lanes"');
     expect(aggregation).not.toContain("data-app-header-workspace-pill");
     expect(aggregation).toContain("data-app-header-workspace-desktop");
     expect(aggregation).toContain("hidden md:contents");
@@ -139,7 +142,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(top).not.toContain("data-app-header-workspace-pill");
   });
 
-  it("keeps the emblem on the left and kills the hamburger on every workspace", () => {
+  // Screening chrome (Adam 2026-10-04): the grid button sits right
+  // after the emblem and names the workspace; trailing is search
+  // (Social) · Ask · bell · account.
+  it("keeps the emblem on the left, then the named grid button, and kills the hamburger on every workspace", () => {
     expect(shellSrc).not.toContain("trailingNav=");
     expect(shellSrc).not.toContain("MobileNav");
     expect(shellSrc).not.toContain("destChips=");
@@ -160,7 +166,8 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       );
       expect(lead).toContain("data-brand-emblem");
       expect(lead).not.toContain("data-app-header-workspace-pill");
-      expect(lead).not.toContain("data-workspace-waffle");
+      expect(lead).toContain("data-workspace-waffle");
+      expect(lead.indexOf("data-brand-emblem")).toBeLessThan(lead.indexOf("data-workspace-waffle"));
       expect(lead).not.toContain("data-mobile-nav-trigger");
       expect(lead).not.toContain("data-house-phone-dest-chips");
       expect(html).not.toContain("data-mobile-nav-trigger");
@@ -173,15 +180,15 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       expect(html).toContain("data-activity-bell");
       expect(html).toContain("data-account-sheet-trigger");
       expect(html.indexOf("data-brand-emblem")).toBeLessThan(
+        html.indexOf("data-workspace-waffle"),
+      );
+      expect(html.indexOf("data-workspace-waffle")).toBeLessThan(
         html.indexOf("data-ask-assistant-header"),
       );
       expect(html.indexOf("data-ask-assistant-header")).toBeLessThan(
         html.indexOf("data-activity-bell"),
       );
       expect(html.indexOf("data-activity-bell")).toBeLessThan(
-        html.indexOf("data-workspace-waffle"),
-      );
-      expect(html.indexOf("data-workspace-waffle")).toBeLessThan(
         html.indexOf("data-account-sheet-trigger"),
       );
     }
@@ -273,30 +280,35 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(housePhoneWorkspaceSelected("social", "/settings", "social")).toBe(false);
   });
 
-  it("matches dock glyphs to the phone header trailing size — separate literals", () => {
+  // Screening chrome: the dock glyph stays 24; the phone header
+  // trailing glyph is 20 (the board) — two separate literals.
+  it("keeps dock glyphs at 24 and phone header glyphs at 20 — separate literals", () => {
     expect(HOUSE_PHONE_CHROME_ICON_CLASS).toBe("size-6 shrink-0");
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS).toBe(HOUSE_PHONE_CHROME_ICON_CLASS);
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS).not.toBe(PHOSPHOR_CHROME_ICON_CLASS);
     expect(PHOSPHOR_CHROME_ICON_CLASS).toBe("size-4 shrink-0");
     expect(HOUSE_PHONE_CHROME_ICON_WEIGHT).toBe("regular");
     expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe(HOUSE_PHONE_CHROME_ICON_WEIGHT);
-    expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).toBe("size-6 shrink-0");
-    expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).toBe(HOUSE_PHONE_CHROME_ICON_CLASS);
+    expect(HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT).toBe("bold");
+    expect(HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS).toBe("size-5 shrink-0");
+    expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).toBe("size-5 shrink-0");
+    expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).not.toBe(HOUSE_PHONE_CHROME_ICON_CLASS);
     expect(phoneShellSrc).toMatch(
       /export const HOUSE_PHONE_CHROME_ICON_CLASS = "size-6 shrink-0";/,
     );
     expect(phoneShellSrc).toMatch(
-      /export const HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS = "size-6 shrink-0";/,
+      /export const HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS = "size-5 shrink-0";/,
     );
     expect(phoneShellSrc).not.toContain(
       "HOUSE_PHONE_CHROME_ICON_CLASS = HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS",
     );
     expect(HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS).not.toBe(PHOSPHOR_CHROME_ICON_CLASS);
-    expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe("size-6 shrink-0");
+    expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe("size-5 shrink-0");
     expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toBe(
-      "size-6 shrink-0 md:hidden text-ink-2",
+      "size-5 shrink-0 md:hidden text-ink-2",
     );
-    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-6 shrink-0 hidden md:block");
+    // Desktop header glyphs are 18 in the 34 controls.
+    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-4.5 shrink-0 hidden md:block");
     expect(bottomNavSrc).toContain("HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS");
     expect(bottomNavSrc).not.toContain("HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS");
     expect(bottomNavSrc).not.toContain("size-5");
@@ -306,13 +318,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(phoneShellSrc).not.toContain('"size-4 shrink-0"');
     expect(phoneShellSrc.match(/"size-\d shrink-0"/g) ?? []).toEqual([
       '"size-6 shrink-0"',
-      '"size-6 shrink-0"',
-      '"size-6 shrink-0"',
+      '"size-5 shrink-0"',
+      '"size-5 shrink-0"',
+      '"size-5 shrink-0"',
     ]);
-    expect(phoneShellSrc).toMatch(
-      /export const HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS = "size-6 shrink-0";/,
-    );
-    expect(phoneShellSrc).not.toContain("bold");
     expect(phoneShellSrc).not.toContain('"fill"');
     expect(bottomNavSrc).toContain("aria-label={item.label}");
     expect(bottomNavSrc).not.toContain("{item.label}</span>");
@@ -327,7 +336,6 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(html).not.toContain("size-7");
     expect(html).not.toContain("size-5");
     expect(html).not.toContain("size-4");
-    expect(html).not.toContain('weight="bold"');
     expect(html).not.toContain('weight="fill"');
     for (const label of ["Dashboard", "Titles", "Recent activity", "Reports"]) {
       expect(html).toContain(`aria-label="${label}"`);
@@ -336,8 +344,8 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(html).toContain('aria-label="Aggregation"');
   });
 
-  it("uses the 24px header-trailing SoT for phone AI + bell + search", () => {
-    // Ask keeps the 24px trailing box but carries its own accent ink
+  it("uses the 20px header-trailing SoT for phone AI + bell + search", () => {
+    // Ask keeps the phone trailing box but carries its own accent ink
     // (Adam 2026-10-04, "Blue, as in the mockup"). Bell and search stay
     // on the phone idle ink.
     expect(askHeaderSrc).toContain("HOUSE_ASK_AI_MARK_PHONE_CLASS");
@@ -348,16 +356,20 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       `${HOUSE_HEADER_TRAILING_ICON_CLASS} md:hidden ${HOUSE_ASK_AI_MARK_INK_CLASS}`,
     );
     expect(HOUSE_ASK_AI_MARK_PHONE_CLASS).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
+    // 18 in the 34 icon box below xl, 16 in the labeled pill from xl.
     expect(HOUSE_ASK_AI_MARK_DESKTOP_CLASS).toBe(
-      `${HOUSE_HEADER_TRAILING_DESKTOP_CLASS} ${HOUSE_ASK_AI_MARK_INK_CLASS}`,
+      `${HOUSE_HEADER_TRAILING_DESKTOP_CLASS} xl:size-4 ${HOUSE_ASK_AI_MARK_INK_CLASS}`,
     );
     expect(bellSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
     expect(searchSheetSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_ICON_CLASS");
     expect(searchSheetSrc).not.toContain("HOUSE_PHONE_CHROME_ICON_CLASS");
     expect(searchSheetSrc).toContain("HOUSE_PHONE_CHROME_IDLE_INK_CLASS");
-    expect(accountSheetSrc).toContain("HOUSE_HEADER_TRAILING_AVATAR_CLASS");
+    expect(accountSheetSrc).toContain("HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS");
+    expect(accountSheetSrc).toContain("faceClassName={HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS}");
+    expect(accountSheetSrc).toContain("HOUSE_HEADER_DESKTOP_AVATAR_CLASS");
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");
+    expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("md:size-[var(--header-desktop-control-size)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).not.toContain("size-4");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).toContain("size-[var(--header-avatar-size)]");
     expect(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS).toBe("contents md:hidden");
@@ -369,36 +381,46 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     );
     expect(trailing).toContain("data-ask-assistant-header");
     expect(trailing).toContain("data-activity-bell");
-    expect(trailing).toContain("size-6");
-    expect(trailing).not.toContain("size-5");
+    expect(trailing).toContain("size-5");
+    expect(trailing).toContain("size-4.5");
+    expect(trailing).not.toContain("size-6");
     expect(trailing).not.toContain("size-7");
-    expect(trailing).not.toContain("size-4");
     const askAt = trailing.indexOf("data-ask-assistant-header");
     const ask = trailing.slice(askAt, trailing.indexOf("</button>", askAt));
     expect(ask).toContain(`class="${HOUSE_ASK_AI_MARK_PHONE_CLASS}"`);
     expect(ask).toContain(`class="${HOUSE_ASK_AI_MARK_DESKTOP_CLASS}"`);
-    expect(ask).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
+    // The sparkles carry accent; only the inert button ink may be ink-2.
+    const askGlyphs = ask.slice(ask.indexOf(">") + 1);
+    expect(askGlyphs).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     const bell = trailing.slice(trailing.indexOf("data-activity-bell"));
     expect(bell).toContain(`class="${HOUSE_HEADER_TRAILING_PHONE_CLASS}"`);
     expect(bell.slice(0, bell.indexOf("</button>"))).not.toContain(HOUSE_ASK_AI_MARK_INK_CLASS);
     expect(HOUSE_HEADER_TRAILING_PHONE_CLASS).toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
-    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
-    expect(HOUSE_THEME_TOGGLE_CLASS).toContain("text-ink-3");
-    expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("text-ink-2");
+    // Screening chrome: idle dock glyphs move to the quiet ink; the
+    // desktop bell is ink-2 (the board).
+    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe("text-ink-3 dark:text-ink-2");
+    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).not.toBe(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
+    expect(HOUSE_THEME_TOGGLE_CLASS).toContain("text-ink-2");
+    expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("text-ink-3");
   });
 
-  // Adam 2026-10-04, "Match everywhere": every dock (Home, Aggregation,
-  // Social, Education, Staff) uses the Social active state — accent ink
-  // plus a mark under the active glyph, no chip — so the state is not
-  // colour alone (accent vs ink-2 is ~2:1 light, ~1:1 dark — WCAG
-  // 1.4.1). Create (and its ring) stays Social-only.
-  it("marks the active glyph with the accent dot in every dock — no chip; Social rings an active Create", () => {
-    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS).toBe("text-accent");
-    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe("text-ink-2");
-    expect(HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS).toBe("relative flex");
+  // Screening chrome (Adam 2026-10-04, supersedes the accent mark of
+  // "Match everywhere"): every dock (Home, Aggregation, Social,
+  // Education, Staff) marks the current dest with an ink Bold glyph and
+  // a 4px ink dot, no chip, no accent. The dot is the non-colour cue.
+  // Create (and its ring) stays Social-only and is the dock's only accent.
+  it("marks the current glyph with an ink dot in every dock — no chip, no accent; Social rings an active Create", () => {
+    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS).toBe("text-ink");
+    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS).toBe("text-ink-3 dark:text-ink-2");
     expect(HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS).toBe(
-      "pointer-events-none absolute -bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-accent",
+      "pointer-events-none absolute bottom-[3px] left-1/2 size-1 -translate-x-1/2 rounded-full bg-ink",
     );
+    // Every target fills the pill's 46 row (≥ 44).
+    expect(HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS).toBe("flex h-full w-full items-center");
+    expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS).toBe(
+      "relative flex h-full min-w-0 flex-1 items-center justify-center",
+    );
+    expect(phoneShellSrc).not.toContain("HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS");
     expect(HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS).toBe(
       "flex size-10 items-center justify-center rounded-full bg-accent text-accent-contrast",
     );
@@ -415,6 +437,12 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS).toContain("h-12");
     expect(HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS).toContain("var(--house-phone-dock-clearance)");
 
+    const dockItems = [
+      ...housePhoneDockDestinations({ isGcStaff: true, workspace: "aggregation" }),
+      ...housePhoneDockDestinations({ isGcStaff: true, workspace: "aggregation", homeOwned: true }),
+      ...housePhoneDockDestinations({ isGcStaff: true, workspace: "education" }),
+      ...housePhoneDockDestinations({ isGcStaff: true, workspace: "staff" }),
+    ];
     function expectMarkedDock(html: string, activeDest: string, idleDest: string) {
       expect(html).not.toContain("data-house-phone-bottom-nav-chip");
       expect(html).not.toContain("bg-surface-muted");
@@ -424,14 +452,25 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       const destAt = (label: string) => html.indexOf(`data-house-phone-dest="${label}"`);
       const on = html.slice(html.lastIndexOf("<a ", destAt(activeDest)), html.indexOf("</a>", destAt(activeDest)));
       expect(on).toContain('aria-current="page"');
-      expect(on).toMatch(/class="[^"]*\btext-accent\b/);
-      expect(on).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_MARK_HOST_CLASS}"`);
+      expect(on).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS} ${HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS}"`);
       expect(on).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS}"`);
+      expect(on).not.toContain("accent");
       expect(on).toContain("size-6");
+      // The current glyph renders Bold (the board's stroke 2); idle Regular.
+      const item = [...dockItems].find((row) => row.label === activeDest);
+      expect(item, activeDest).toBeDefined();
+      const Glyph = housePhoneDestGlyph(item!);
+      expect(on).toContain(
+        renderToStaticMarkup(createElement(Glyph, { className: HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS, weight: "bold" })),
+      );
+      expect(on).not.toContain(
+        renderToStaticMarkup(createElement(Glyph, { className: HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS, weight: "regular" })),
+      );
+      // Current glyph Bold, idle glyph Regular (Phosphor paths differ by weight).
       const off = html.slice(html.lastIndexOf("<a ", destAt(idleDest)), html.indexOf("</a>", destAt(idleDest)));
       expect(off).not.toContain('aria-current="page"');
       expect(off).not.toContain("data-house-phone-bottom-nav-mark");
-      expect(off).toMatch(/class="[^"]*\btext-ink-2\b/);
+      expect(off).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS} ${HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS}"`);
       // Create is Social-only.
       expect(html).not.toContain("data-house-phone-bottom-nav-create");
       expect(html).not.toContain("data-house-phone-dest-create");
@@ -482,7 +521,11 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     const createTag = social.slice(social.lastIndexOf("<button", createAt), social.indexOf("</button>", createAt));
     expect(createTag).toContain('data-house-phone-bottom-nav-create=""');
     expect(createTag).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS}"`);
+    expect(createTag).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS}"`);
+    expect(createTag).not.toContain("data-house-phone-bottom-nav-mark");
     expect(createTag).not.toContain("ring-2");
+    // Create is the dock's only accent.
+    expect(social.match(/bg-accent/g)?.length).toBe(1);
     // The trigger itself takes no ON/OFF ink — accent on accent would erase the glyph.
     const triggerClass = createTag.match(/<button[^>]*class="([^"]*)"/)?.[1] ?? "";
     expect(triggerClass).toBe(HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS);
@@ -705,7 +748,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(home).not.toContain("data-social-tab-bar");
     expect(home).not.toContain("data-house-phone-dest-chips");
     expect(home).toContain('data-workspace-switcher-presentation="waffle"');
-    expect(home).toContain('data-workspace-switcher-presentation="pills"');
+    expect(home).toContain('data-workspace-switcher-presentation="lanes"');
     expect(home).toContain("hidden md:contents");
     expect(home).toContain("md:hidden");
 

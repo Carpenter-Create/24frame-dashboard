@@ -80,8 +80,10 @@ describe("HouseAiMark", () => {
     expect(html).toContain('fill="none"');
     expect(html).toContain('stroke="currentColor"');
     expect(html).toContain(`stroke-width="${HOUSE_AI_MARK_REGULAR_STROKE_WIDTH}"`);
-    // Phone header trailing renders at 24px, split from the dock's 28px.
-    expect(html).toContain("size-6");
+    // Phone header trailing renders at 20px (screening chrome), split from
+    // the dock's 24px.
+    expect(html).toContain("size-5");
+    expect(html).not.toContain("size-6");
     expect(html).not.toContain("size-7");
     expect(html).not.toContain("size-4");
     expect(html).toContain("md:hidden");
@@ -124,13 +126,14 @@ describe("HouseAiMark", () => {
       expect(cls.split(" ")).toContain("text-accent");
       expect(cls.split(" ")).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     }
-    expect(HOUSE_ASK_AI_MARK_PHONE_CLASS).toBe("size-6 shrink-0 md:hidden text-accent");
-    expect(HOUSE_ASK_AI_MARK_DESKTOP_CLASS).toBe(`${HOUSE_HEADER_TRAILING_DESKTOP_CLASS} text-accent`);
-    // Header trailing glyphs share the 24px box. Dock stays off this control.
-    expect(header).toContain("size-6");
-    expect(header).not.toContain("size-5");
+    expect(HOUSE_ASK_AI_MARK_PHONE_CLASS).toBe("size-5 shrink-0 md:hidden text-accent");
+    // Desktop: 18 in the 34 icon box, 16 in the xl pill (screening chrome).
+    expect(HOUSE_ASK_AI_MARK_DESKTOP_CLASS).toBe(`${HOUSE_HEADER_TRAILING_DESKTOP_CLASS} xl:size-4 text-accent`);
+    expect(header).toContain("size-5");
+    expect(header).toContain("size-4.5");
+    expect(header).toContain("xl:size-4");
+    expect(header).not.toContain("size-6");
     expect(header).not.toContain("size-7");
-    expect(header).not.toContain("size-4");
     expect(header).not.toContain("md:size-5");
     expect(header).toContain('data-house-ai-mark-register="stroke"');
     expect(header).toContain('data-house-ai-mark-register="fill"');

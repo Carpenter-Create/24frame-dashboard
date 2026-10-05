@@ -6,6 +6,7 @@
 **Repo:** `docs/design-locks/social-explore-for-you-immersive-lock-v2.md`  
 **Box:** `/workspace/24frame-agg-ux/social-explore-for-you-immersive-lock-v2.md`  
 **Supersedes:** `social-explore-discovery-lock-v1.md` (IG grid) · **#693 DRAFT wrong shape** — do not invent on grid; ship from this v2  
+**Superseded in part 2026-10-04** by [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) (Adam, "Yes, everywhere"): the desktop header row is the brand mark, a hairline, and the workspace lanes as plain words with an ink underline — no sliding row, no track, no thumb (§A Social shell, §A2 Column). The Exit is a muted **34** chip (radius 10, 14 X, "Exit" 13 / 500 ink), not a filled 44 chip; from `md` to `lg` its X-only form is a 34 box (§A2 Exit). The stage, the portrait player, phone Explore, and every other rule here stay.  
 **Standing:** Immersive Social · **Media Immersion Doctrine** (Adam, house-wide) — media immersion only, never a thin or cheap card on a website page · soft / flat / pasted / framed card = **FAIL before glance** · launch-great · rich-calm v1.4 · quiet redundant-chrome · spacing **8 / 16 / 24 / 48** · **no** drop shadows · Geist · Sporty Blue `#1769FF` · mobile never-truncate  
 **Scope:** `/social` **Explore** only  
 **Cites:** `social-video-mux-only-lock-v1.md` · `social-home-post-actions-align-lock-v1.md` (40/24/gap-8) · `stories-viewer-mute-control-lock-v1.md` (mute **behavior**) · `social-post-share-sheet-ig-lock-v1.md` · photo-scale immersive stage tokens (dark stage / scrim) for chrome grammar only — **not** Home feed post face navigation
@@ -29,7 +30,7 @@
 | Video | Mux-only play surface · autoplay when active · pause when off-screen · cite Mux-only |
 | First visual | **First frame** of the clip (Adam) · public Mux thumbnail `time=0` · signed thumbnail time is the JWT claim `time` `0` · not Mux's default mid-clip still |
 | Media kinds | **Video only** in For You / discovery streams · **photos OUT** of vertical Explore feed |
-| Social shell | **Phone:** Social header **OUT** · stage is viewport-fixed · tab dock may overlay the bottom of the media. **Desktop `md+`:** house header (logo + Layer 1 sliding workspace row) sits **above** the media. Stage fills that column. The player is §A2. Labeled **Exit** is a header chip, not a bare text link. It leaves Explore (prior in-app route, or Social home). Header search stays. Waffle stays hidden. **Both:** **surface dest-rail card OUT** · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
+| Social shell | **Phone:** Social header **OUT** · stage is viewport-fixed · tab dock may overlay the bottom of the media. **Desktop `md+`:** house header (logo + Layer 1 sliding workspace row; **superseded 2026-10-04:** brand mark, a hairline, and the workspace lanes — [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) §1) sits **above** the media. Stage fills that column. The player is §A2. Labeled **Exit** is a header chip, not a bare text link. It leaves Explore (prior in-app route, or Social home). Header search stays. Waffle stays hidden. **Both:** **surface dest-rail card OUT** · chrome overlays only (actions / caption / discover) · **0** white page well · **0** Home-feed post chrome |
 | Fail | Soft grid of thumbs · FB mosaic · dumping user onto Home post unit · photo tiles in For You |
 
 **FAIL:** IG Explore grid as primary (#693 / v1) · photos in vertical Explore.  
@@ -43,13 +44,13 @@
 
 | Token | Lock (one SoT) |
 |-------|----------------|
-| Column | The stage still sits **below** the house header. Header stays: logo, Layer 1 slider (Home · Aggregation · Social · Education per [`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md)), Exit. Not a fullscreen trap. Do not hide the header on desktop |
+| Column | The stage still sits **below** the house header. Header stays: logo, Layer 1 slider (Home · Aggregation · Social · Education per [`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md)), Exit (**superseded 2026-10-04:** brand mark, a hairline, the workspace lanes, then the muted 34 Exit — [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) §1). Not a fullscreen trap. Do not hide the header on desktop |
 | Player | Centered **9:16** box in that column. Height fits the column. Width is `9/16` of that height, capped by the column width. Black gutters left and right are the stage **`#0A0A0B`**. No new color token |
 | Vertical | The whole portrait picture is visible. **`object-fit: contain`** inside the player. Cover-cropping a vertical into the wide column is **FAIL** |
 | Landscape | Stays landscape **inside** the player. Black bars above and below, same stage color. Do not stretch. Do not crop the landscape into the portrait frame |
 | Caption | Sits on the portrait box. Phone caption geometry stays |
 | Rail | Trailing rail stays. Phone dock clearance stays |
-| Exit | Label **Exit** (`SOCIAL.explore.exit`). A filled header chip (44 hit), with an X, not a bare text link beside search. Href is Social home (`/social`). A same-origin referrer whose path is not Explore uses history. No open redirect. Header search stays. **Amended 2026-10-04** ([`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md) §1, header width): from `md` to `lg` the chip shows only its X (accessible name stays Exit) and the header search icon steps out; from `lg` both return |
+| Exit | Label **Exit** (`SOCIAL.explore.exit`). A filled header chip (44 hit) (**superseded 2026-10-04:** a muted 34 chip, radius 10, 14 X, "Exit" 13 / 500 ink; the `md` to `lg` X-only form is a 34 box — [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) §1), with an X, not a bare text link beside search. Href is Social home (`/social`). A same-origin referrer whose path is not Explore uses history. No open redirect. Header search stays. **Amended 2026-10-04** ([`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md) §1, header width): from `md` to `lg` the chip shows only its X (accessible name stays Exit) and the header search icon steps out; from `lg` both return |
 | Phone | Do not apply this box, this contain fit, or Exit below `md` |
 
 ---

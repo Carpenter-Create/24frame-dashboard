@@ -36,6 +36,8 @@ Three density ships (M5 reorder **OUT**):
 
 ## M3 — Coinbase shell · desktop trailing cluster (DM-1)
 
+**Superseded 2026-10-04** by [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) (Adam, "Yes, everywhere"): desktop trailing controls are 34 boxes **8** apart (`space-2`), glyphs **18**; the avatar sits 4 further out. M4 and M7 stay.
+
 | Token | Lock |
 |-------|------|
 | Surface | **Desktop** header trailing utility cluster only |

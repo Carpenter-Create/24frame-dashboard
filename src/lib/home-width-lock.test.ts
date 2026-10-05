@@ -22,14 +22,15 @@ const tokens = readFileSync("src/app/tokens.css", "utf8");
 const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 
 describe("Home width lock", () => {
-  it("stamps the 1440 frame: rail 256 + 32 + 1120 + 32 on Home, 1376 rail-free (Co-Productions)", () => {
-    expect(HOME_DEST_RAIL_PX).toBe(256);
-    expect(HOME_RAIL_CONTENT_COLUMN_PX).toBe(1120);
+  // Screening chrome (Adam 2026-10-04): the side-menu slot is 200.
+  it("stamps the 1440 frame: rail 200 + 32 + 1176 + 32 on Home, 1376 rail-free (Co-Productions)", () => {
+    expect(HOME_DEST_RAIL_PX).toBe(200);
+    expect(HOME_RAIL_CONTENT_COLUMN_PX).toBe(1176);
     expect(
       HOME_DEST_RAIL_PX + HOME_LEFT_INSET_PX + HOME_RAIL_CONTENT_COLUMN_PX + HOME_RIGHT_INSET_PX,
     ).toBe(HOME_FIGMA_FRAME_PX);
-    expect(stamp).toContain("| Dest rail | On. `--sidebar-width` (256); 60 collapsed. |");
-    expect(stamp).toContain("1120px with the rail (1440 − 256 − 32 − 32)");
+    expect(stamp).toContain("| Dest rail | On. `--sidebar-width` (200); 64 collapsed. |");
+    expect(stamp).toContain("1176px with the rail (1440 − 200 − 32 − 32)");
     expect(stamp).toContain("| Rail-free frame | 1376px (1440 − 32 − 32). Co-Productions only. |");
     // Stale before 2026-10-04: Home no longer skips the rail slot.
     expect(stamp).not.toContain("| Visible dest rail | Off |");
@@ -69,7 +70,7 @@ describe("Home width lock", () => {
     expect(shell).toContain('style={{ marginLeft: "var(--sidebar-width)" }}');
     expect(shell).toContain("const hideProductRail = overviewHidesRail(pathname) || accountChromeNoRail;");
     expect(tokens).toMatch(new RegExp(`--sidebar-width:\\s*${HOME_DEST_RAIL_PX}px;`));
-    expect(tokens).toMatch(/--sidebar-width:\s*256px;/);
+    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--content-inset:\s*48px;/);
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);

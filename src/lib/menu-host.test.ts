@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { HOUSE_RAIL_FLOAT_CLASS } from "@/lib/house-shell";
+import { HOUSE_RAIL_COLUMN_CLASS } from "@/lib/house-shell";
 import {
   HOUSE_PAGE_SELECT_OPTION_LABEL_CLASS,
   HOUSE_PAGE_SELECT_TRIGGER_LABEL_CLASS,
@@ -164,8 +164,8 @@ describe("menu family hard gate", () => {
     expect(dock).not.toContain("<SheetGroup");
     expect(dock).not.toContain("data-mobile-nav-sheet");
     expect(lead).toContain("No hamburger");
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("hidden");
-    expect(HOUSE_RAIL_FLOAT_CLASS).toContain("md:flex");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("hidden");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("md:flex");
     expect(MENU_FAMILIES.D.mounted).toBe(false);
   });
 });

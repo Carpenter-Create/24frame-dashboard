@@ -277,9 +277,12 @@ describe("SocialExploreForYouStream", () => {
     const exitTag = exitHtml.slice(exitHtml.lastIndexOf("<", exitOpen), exitHtml.indexOf(">", exitOpen) + 1);
     expect(exitTag.startsWith("<a ")).toBe(true);
     expect(exitTag).toContain('href="/social"');
-    expect(exitTag).toContain("rounded-full");
-    expect(exitTag).toContain("bg-ink");
-    expect(exitTag).toContain("min-h-[var(--header-control-size)]");
+    // Screening chrome: a 34 muted chip, radius 10, ink label.
+    expect(exitTag).toContain("rounded-[var(--radius)]");
+    expect(exitTag).toContain("bg-surface-muted");
+    expect(exitTag).toContain("text-ink");
+    expect(exitTag).not.toContain("bg-ink");
+    expect(exitTag).toContain("min-h-[var(--header-desktop-control-size)]");
     expect(exitTag).toContain("md:inline-flex");
     expect(exitTag).toContain("hidden");
     expect(exitHtml).toContain(">Exit<");

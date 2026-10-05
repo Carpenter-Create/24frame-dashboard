@@ -13,9 +13,10 @@ import { stampSegmentedSelected } from "./segmented-track";
 const src = readFileSync("src/components/ui/segmented-track.tsx", "utf8");
 const lib = readFileSync("src/lib/segmented-track.ts", "utf8");
 
+// The workspace switcher left this list with the screening chrome (Adam
+// 2026-10-04, "Yes, everywhere"): plain text lanes, no track or thumb.
 const CONSUMERS = [
   "src/components/chrome/house-period-presets.tsx",
-  "src/components/chrome/workspace-switcher.tsx",
   "src/components/activity/activity-family-chips.tsx",
   "src/components/reports/reports-ranked.tsx",
   "src/components/reports/reports-controls.tsx",
@@ -104,8 +105,10 @@ describe("SegmentedTrack slide SoT", () => {
     expect(waffle).toContain("workspaceWaffleTiles");
     expect(waffle).toContain("workspaceSliderSegments");
     expect(waffle).toContain('data-workspace-waffle=""');
-    expect(waffle).toContain("SegmentedTrack");
-    expect(waffle).toContain("SEGMENTED_TRACK_PERSIST.workspace");
+    // Screening chrome: the lanes are plain words, not a SegmentedTrack.
+    expect(waffle).not.toContain("SegmentedTrack");
+    expect(waffle).toContain('role="tablist"');
+    expect(waffle).toContain("data-workspace-switcher-lanes");
     expect(waffle).not.toContain("HOUSE_FILTER_PILL_CLUSTER_CLASS");
   });
 
