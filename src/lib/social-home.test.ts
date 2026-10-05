@@ -19,19 +19,20 @@ import {
 } from "./social-stories";
 
 describe("Social Home stack lock", () => {
-  // G · Feed (Adam 2026-10-04): tabs → topic words → story tiles → composer
-  // bar → wall. Supersedes lock_topics_composer_stories_wall.
-  // docs/design-locks/social-home-lane-tabs-lock-v1.md
-  it("locks tabs → topics → stories → composer → wall on phone and desktop", () => {
-    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_tabs_topics_stories_composer_wall");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["tabs", "topics", "stories", "composer", "wall"]);
+  // H · Feed (founder 2026-10-05; replaces G's tabs → topic words → story
+  // tiles → composer bar → wall and its 52 muted bar): the pill slider →
+  // story cards → composer row → topic chips → wall, as the H board draws it.
+  // docs/design-locks/social-feed-register-lock-v1.md
+  it("locks slider → stories → composer → topics → wall on phone and desktop", () => {
+    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_slider_stories_composer_topics_wall");
+    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["slider", "stories", "composer", "topics", "wall"]);
     expect(SOCIAL_COMPOSER_CLASS).toContain("flex ");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("hidden");
     expect(SOCIAL_COMPOSER_CLASS).toContain("items-center");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("flex-col");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("h-[52px]");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-[var(--radius-lg)]");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("bg-surface-muted");
+    // One 44 row, no bar: no height, fill, radius or rule of its own.
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-[52px]");
+    expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)(?:bg-|rounded)/);
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("border-y");
     expect(SOCIAL_COMPOSER_CLASS).not.toContain("rounded-none");
     expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)border(?:\s|$)/);

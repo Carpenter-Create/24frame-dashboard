@@ -4,6 +4,7 @@ import { AppShell } from "@/components/chrome/app-shell";
 import { HousePathProvider } from "@/components/chrome/house-client-shell";
 import {
   appShellActivityItems,
+  appShellDmUnread,
   appShellUnread,
   enforceAppAccess,
   loadAppShellChrome,
@@ -33,6 +34,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AppShell
           chrome={chrome}
           messagesUnread={appShellUnread(chrome)}
+          dmUnread={appShellDmUnread(chrome)}
           activityItems={appShellActivityItems(chrome)}
         >
           {children}

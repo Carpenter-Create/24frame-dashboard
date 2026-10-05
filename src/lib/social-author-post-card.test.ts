@@ -39,6 +39,7 @@ describe("socialAuthorPostCard server boundary", () => {
         like_count: 3,
         comment_count: 1,
         created_at: "2026-09-28T00:00:00.000Z",
+        category: "cinematography",
       },
       authorHandle: "ada",
       authorName: "Ada",
@@ -65,6 +66,9 @@ describe("socialAuthorPostCard server boundary", () => {
       canLike: true,
       media: [{ kind: "image", url: "https://example/m.jpg" }],
       owned: true,
+      // H · Posts: the post's topic (the stored category, slug or label)
+      // rides the card for the chip on the media.
+      topic: "Cinematography",
     });
 
     const unowned = socialAuthorPostCard({
@@ -86,6 +90,8 @@ describe("socialAuthorPostCard server boundary", () => {
     expect(unowned.commentCount).toBeUndefined();
     expect(unowned.groupSlug).toBeNull();
     expect(unowned.groupName).toBeNull();
+    // No category, or one outside the topic slate: no topic chip.
+    expect(unowned.topic).toBeNull();
   });
 
   it("keeps socialAuthorPostCard on the lib module", () => {

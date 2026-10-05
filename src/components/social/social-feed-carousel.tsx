@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type SyntheticEvent } from "react";
 
-import { SOCIAL_POST_IMAGE_SIZES } from "@/lib/social-media-display";
+import { SOCIAL_POST_IMAGE_SIZES, socialPostPhotoAspect } from "@/lib/social-media-display";
 import {
+  socialFeedCarouselChip,
   socialFeedCarouselIndex,
   socialFeedCarouselLabel,
   socialFeedCarouselShowLabel,
@@ -13,13 +14,14 @@ import { socialFollowingMuxCarouselSlideRole } from "@/lib/social-following-mux-
 import { SOCIAL } from "@/lib/social";
 import {
   SOCIAL_FEED_CAROUSEL_BLEED_CLASS,
-  SOCIAL_FEED_CAROUSEL_COUNT_CLASS,
   SOCIAL_FEED_CAROUSEL_DOT_ACTIVE_CLASS,
   SOCIAL_FEED_CAROUSEL_DOT_CLASS,
   SOCIAL_FEED_CAROUSEL_DOT_HIT_CLASS,
   SOCIAL_FEED_CAROUSEL_DOTS_CLASS,
   SOCIAL_FEED_CAROUSEL_SLIDE_CLASS,
   SOCIAL_FEED_CAROUSEL_TRACK_CLASS,
+  SOCIAL_POST_COUNT_CHIP_CLASS,
+  SOCIAL_POST_TOPIC_CHIP_CLASS,
 } from "@/lib/social-chrome";
 import type { SocialPostMediaItem } from "@/lib/social-author-post-card";
 import { SocialMediaImage } from "./social-media-image";
@@ -35,13 +37,19 @@ import { SocialMuxPlayer } from "./social-mux-player";
 // playable face. Stories do not render this.
 // Following band: the visible Mux slide mounts. The next Mux slide warms.
 // docs/design-locks/social-home-following-mux-active-gate-lock-v1.md
+// H · Posts (Adam 2026-10-05): the stage is the post's media block at
+// the first still's true shape (1.91:1 … 4:5), radius 24 on desktop;
+// the topic chip top-left and the "1 / 3" chip top-right (the live
+// region still reads "1 of 3"). docs/design-locks/social-feed-register-lock-v1.md §7
 
 function CarouselSlideFace({
   item,
   band,
+  onLoad,
 }: {
   item: SocialPostMediaItem;
   band: "mount" | "warm" | "closed" | "unbanded";
+  onLoad?: (event: SyntheticEvent<HTMLImageElement>) => void;
 }) {
   if (item.kind === "video") {
     if (!socialFeedCarouselVideoUsesMux(item) || !item.playbackId) {
@@ -59,21 +67,31 @@ function CarouselSlideFace({
       />
     );
   }
-  return <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} loading="eager" />;
+  return <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} loading="eager" onLoad={onLoad} />;
 }
 
 export function SocialFeedCarousel({
   items,
   onOpen,
   muxBandId,
+  topic = null,
 }: {
   items: readonly SocialPostMediaItem[];
   onOpen?: (index: number) => void;
   muxBandId?: string;
+  topic?: string | null;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  // The frame takes the first item's true shape: stored, then probed.
+  const [probed, setProbed] = useState<number | null>(null);
+  const first = items[0];
+  const aspect = socialPostPhotoAspect(probed ? { aspect: probed } : first ?? { kind: "image" });
+  function onFirstLoad(event: SyntheticEvent<HTMLImageElement>) {
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    if (naturalWidth > 0 && naturalHeight > 0) setProbed(naturalWidth / naturalHeight);
+  }
   const role = useSocialFollowingMuxRole(muxBandId);
   useSocialFollowingMuxObserve(muxBandId, rootRef);
   const total = items.length;
@@ -112,6 +130,7 @@ export function SocialFeedCarousel({
       aria-roledescription="carousel"
       aria-label={SOCIAL.post.carousel}
       className={SOCIAL_FEED_CAROUSEL_BLEED_CLASS}
+      style={{ aspectRatio: String(aspect) }}
     >
       <div
         ref={trackRef}
@@ -138,7 +157,11 @@ export function SocialFeedCarousel({
               className={SOCIAL_FEED_CAROUSEL_SLIDE_CLASS}
               aria-hidden={slide === index ? undefined : true}
             >
-              <CarouselSlideFace item={item} band={slideRole} />
+              <CarouselSlideFace
+                item={item}
+                band={slideRole}
+                onLoad={slide === 0 ? onFirstLoad : undefined}
+              />
               {onOpen ? (
                 <button
                   type="button"
@@ -152,8 +175,14 @@ export function SocialFeedCarousel({
           );
         })}
       </div>
-      <p data-social-post-carousel-count="" aria-live="polite" className={SOCIAL_FEED_CAROUSEL_COUNT_CLASS}>
-        {label}
+      {topic ? (
+        <span data-social-post-topic="" className={SOCIAL_POST_TOPIC_CHIP_CLASS}>
+          {topic}
+        </span>
+      ) : null}
+      <p data-social-post-carousel-count="" aria-live="polite" className={SOCIAL_POST_COUNT_CHIP_CLASS}>
+        <span aria-hidden="true">{socialFeedCarouselChip(index, total)}</span>
+        <span className="sr-only">{label}</span>
       </p>
       <div data-social-post-carousel-dots="" className={SOCIAL_FEED_CAROUSEL_DOTS_CLASS}>
         {items.map((item, slide) => {

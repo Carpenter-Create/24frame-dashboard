@@ -156,6 +156,7 @@ function post(
     groupName: null,
     canLike: false,
     owned: false,
+    topic: null,
     media: media ?? [
       {
         kind: "video",

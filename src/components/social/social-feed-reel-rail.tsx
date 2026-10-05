@@ -9,7 +9,7 @@ import { SocialStoryMuxThumb } from "@/components/social/social-story-mux-thumb"
 import { HOUSE_CLIENT_SHELL } from "@/lib/house-client-shell";
 import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
 import {
-  SOCIAL_FEED_EYEBROW_CLASS,
+  SOCIAL_FEED_HEADING_CLASS,
   SOCIAL_FEED_REEL_AUTHOR_CLASS,
   SOCIAL_FEED_REEL_CAPTION_CLASS,
   SOCIAL_FEED_REEL_FACE_CLASS,
@@ -35,14 +35,16 @@ import { SOCIAL } from "@/lib/social";
 
 import { useSocialRowEdges } from "./use-social-row-edges";
 
-// Feed Reels rail (Adam pick 2026-10-04). A row of 9:16 stills from the
-// For you Explore list. Sideways on its own; the page keeps scrolling
-// down. Desktop arrows page by two tiles; phone swipes with snap. Each
-// tile is a link to Explore opened at that reel. Stills only: no player
-// mounts here (one-player gate). Thumbnails wait until the rail is near
-// the viewport. The tap notes where it left, so Exit can take Back and
-// this rail can return to the same sideways spot.
-// docs/design-locks/social-feed-reel-rail-lock-v1.md
+// Feed Reels row (Adam pick 2026-10-04; the H register's face,
+// 2026-10-05). A row of 9:16 stills from the For you Explore list, under
+// a "Reels" heading. Sideways on its own; the page keeps scrolling down.
+// Desktop's round grey arrows page by two tiles; phone swipes with snap.
+// Each tile is a link to Explore opened at that reel. Stills only: no
+// player mounts here (one-player gate). Thumbnails wait until the rail is
+// near the viewport. The tap notes where it left, so Exit can take Back
+// and this rail can return to the same sideways spot.
+// docs/design-locks/social-feed-reel-rail-lock-v1.md (data, cadence)
+// docs/design-locks/social-feed-register-lock-v1.md (face)
 
 function useRailNear(): { ref: RefObject<HTMLElement | null>; near: boolean } {
   const ref = useRef<HTMLElement | null>(null);
@@ -101,7 +103,7 @@ export function SocialFeedReelRail({
       className={SOCIAL_FEED_REELS_CLASS}
     >
       <div className={SOCIAL_FEED_REELS_HEAD_CLASS}>
-        <h2 className={SOCIAL_FEED_EYEBROW_CLASS}>{SOCIAL.reels.title}</h2>
+        <h2 className={SOCIAL_FEED_HEADING_CLASS}>{SOCIAL.reels.title}</h2>
         <div data-social-feed-reels-arrows="" className={SOCIAL_FEED_REELS_ARROWS_CLASS}>
           <button
             type="button"
@@ -113,7 +115,7 @@ export function SocialFeedReelRail({
               if (!atStart) page(-1);
             }}
           >
-            <SocialIcon name="caret-left" size={14} />
+            <SocialIcon name="caret-left" size={20} />
           </button>
           <button
             type="button"
@@ -125,7 +127,7 @@ export function SocialFeedReelRail({
               if (!atEnd) page(1);
             }}
           >
-            <SocialIcon name="caret-right" size={14} />
+            <SocialIcon name="caret-right" size={20} />
           </button>
         </div>
       </div>

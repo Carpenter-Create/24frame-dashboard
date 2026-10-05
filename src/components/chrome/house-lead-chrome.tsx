@@ -9,7 +9,8 @@ import type { ActivityItem } from "@/lib/activity";
 import {
   HOUSE_HEADER_TRAILING_SLOT_CLASS,
   HOUSE_LEAD_CHROME_CLASS,
-  HOUSE_LEAD_DIVIDER_CLASS,
+  HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS,
+  HOUSE_LEAD_DESKTOP_PAD_CLASS,
   HOUSE_LEAD_LOGO_CLASS,
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_SLOT_CLASS,
@@ -27,7 +28,7 @@ import {
   APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
 } from "@/lib/workspace-switcher";
 
-function HouseLeadMark({
+export function HouseLeadMark({
   href,
   className,
   prefetch,
@@ -57,6 +58,7 @@ export function HouseLeadChrome({
   isGcStaff = false,
   settingsPage = false,
   logoVisible = "always",
+  brandInHeader = false,
   leadingNav,
   trailingNav,
   search,
@@ -72,6 +74,9 @@ export function HouseLeadChrome({
   isGcStaff?: boolean;
   settingsPage?: boolean;
   logoVisible?: "always" | "desktop";
+  /** md+: the brand mark heads the bar. Only where the page has no side
+   *  menu (the side menu's top band holds the mark everywhere else). */
+  brandInHeader?: boolean;
   leadingNav?: React.ReactNode;
   trailingNav?: React.ReactNode;
   search?: React.ReactNode;
@@ -98,7 +103,11 @@ export function HouseLeadChrome({
         data-house-lead-chrome=""
         data-house-full-width-top=""
         data-social-top-bar={social ? "" : undefined}
-        className={HOUSE_LEAD_CHROME_CLASS}
+        data-app-header-brand={brandInHeader ? "" : undefined}
+        className={cn(
+          HOUSE_LEAD_CHROME_CLASS,
+          brandInHeader ? HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS : HOUSE_LEAD_DESKTOP_PAD_CLASS,
+        )}
         style={{ minHeight: "var(--header-height)" }}
       >
         <div data-app-header-leading="" className={APP_HEADER_LEADING_CLASS}>
@@ -109,6 +118,7 @@ export function HouseLeadChrome({
             data-social-header-lead={social ? "" : undefined}
             className={cn(
               logoVisible === "always" ? "flex" : "hidden md:flex",
+              !brandInHeader && "md:hidden",
               HOUSE_LEAD_SLOT_CLASS,
             )}
           >
@@ -118,14 +128,16 @@ export function HouseLeadChrome({
               home
               className={cn(HOUSE_LEAD_LOGO_CLASS, "md:hidden")}
             />
-            <HouseLeadMark
-              href={workspaceHome(workspace)}
-              prefetch={social ? true : undefined}
-              className="hidden shrink-0 items-center md:inline-flex"
-            />
+            {brandInHeader ? (
+              <HouseLeadMark
+                href={workspaceHome(workspace)}
+                prefetch={social ? true : undefined}
+                className="hidden shrink-0 items-center md:inline-flex"
+              />
+            ) : null}
           </div>
-          {/* Phone: the grid button, naming the current workspace,
-              right after the emblem. Hidden from md. */}
+          {/* Phone and md to lg: the grey workspace pill (filled grid +
+              the workspace's name). Hidden from lg. */}
           <div
             data-app-header-workspace-waffle=""
             className={APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS}
@@ -137,16 +149,14 @@ export function HouseLeadChrome({
               isGcStaff={isGcStaff}
             />
           </div>
-          {/* Desktop md+: brand mark, a 1×18 hairline, then the lanes
-              Home · Aggregation · Social · Education · Staff. Same row
-              on every workspace. */}
-          <span aria-hidden="true" data-app-header-divider="" className={HOUSE_LEAD_DIVIDER_CLASS} />
+          {/* lg+: the pill slider Home · Aggregation · Social ·
+              Education · Staff. Same row on every workspace. */}
           <div
             data-app-header-workspace-desktop=""
             className={APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS}
           >
             <WorkspaceSwitcher
-              presentation="lanes"
+              presentation="slider"
               current={workspace}
               options={workspaceOptions}
               isGcStaff={isGcStaff}

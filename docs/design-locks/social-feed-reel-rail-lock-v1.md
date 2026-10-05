@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-04 (CT)  
 **Status:** **APPROVED** (founder pick, Adam, 2026-10-04, in chat — recorded from the founder-authorized task brief) · Design Own→READY  
+**Amended in part (founder 2026-10-05, H · Feed):** the row's face is the register's — a 44 head with "Reels" as a 20 / 480 heading, round grey 44 arrows, tiles at radius 16 with a gap of 8 (desktop page 376). Cadence, source, rail size, skip rule, stills only, no invented duration and Explore at a reel stay. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md).  
 **Scope:** A "Reels" row of vertical-video stills inside the Feed's post wall, and Explore opening at one reel (`/social/explore?v=<post uuid>`). Not the post card face, not the shell. The Feed head (tabs, topics, stories, composer, aside) is [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
 **Entity:** Global Content / 24Frame only  
 **Board:** **G · Combined · Feed** (`CombinedFeed.dc.html`) §5, desktop rail after post 3 and phone "Scrolled to Reels". Board colours map to tokens: tile fill and scrim `--band`, text on media `--band-ink`, line `--border`, page `--bg`, quiet label `text-ink-3 dark:text-ink-2`.  

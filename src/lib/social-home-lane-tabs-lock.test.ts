@@ -8,10 +8,10 @@ import {
   SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_FEED_MEASURE,
   SOCIAL_FEED_QUIET_INK_CLASS,
-  SOCIAL_HOME_LANE_TAB_CURRENT_CLASS,
-  SOCIAL_HOME_LANE_TABS_CLASS,
-  SOCIAL_HOME_STORY_ITEM_CLASS,
-  SOCIAL_HOME_STORY_TILE_CLASS,
+  SOCIAL_FEED_SCOPE_CLASS,
+  SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS,
+  SOCIAL_HOME_STORY_CARD_CLASS,
+  SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS,
   SOCIAL_HOME_TOPIC_CLASS,
   SOCIAL_HOME_TOPIC_CURRENT_CLASS,
   SOCIAL_HOME_TOPIC_FADE_CLASS,
@@ -21,6 +21,7 @@ import { SOCIAL_HOME_STACK_LOCK, SOCIAL_HOME_STACK_ORDER } from "./social-home";
 import { SOCIAL } from "./social";
 
 const lock = readFileSync("docs/design-locks/social-home-lane-tabs-lock-v1.md", "utf8");
+const register = readFileSync("docs/design-locks/social-feed-register-lock-v1.md", "utf8");
 const readme = readFileSync("docs/design-locks/README.md", "utf8");
 const current = readFileSync("docs/status/CURRENT.md", "utf8");
 const forYou = readFileSync("src/components/social/social-for-you.tsx", "utf8");
@@ -110,10 +111,13 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
       expect(row).not.toBe("");
       expect(row).toMatch(/lane-tabs lock|G · Feed locks/);
     }
-    // The inset lock's G2 named the topic row's phone pull; the tabs carry it now.
+    // The inset lock's G2 named the topic row's phone pull; G moved it to
+    // the tabs. Superseded 2026-10-05 (H · Feed): the slider takes no
+    // pull, and the inset lock says so in its head.
     const inset = readFileSync("docs/design-locks/shell-desktop-header-content-inset-lock-v1.md", "utf8");
     expect(inset.split("\n").slice(0, 12).join("\n")).toContain("`max-md:-mt-3`");
-    expect(SOCIAL_HOME_LANE_TABS_CLASS).toContain("max-md:-mt-3");
+    expect(inset.split("\n").slice(0, 12).join("\n")).toContain("`max-md:-mt-3` is gone");
+    expect(SOCIAL_FEED_SCOPE_CLASS).not.toContain("-mt-");
     // The index no longer tells readers the old stack still stands.
     const spineV1 = readme.split("\n").find((row) => row.startsWith("- [`social-home-spine-density-lock-v1.md`]")) ?? "";
     expect(spineV1).not.toBe("");
@@ -121,52 +125,68 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
     expect(spineV1).toContain("superseded by the lane-tabs lock");
   });
 
-  it("matches the lock's stack, tabs, topics, tiles, composer, and grid in code", () => {
+  // Superseded in part 2026-10-05 by the Feed register lock (H · Feed):
+  // the code now carries the register's values, and this lock records
+  // that in its head. Each pin below moved to the superseding value (the
+  // register lock and its test pin the rest); the G values stay as
+  // history in the doc.
+  it("records the stack, tabs, topics, tiles, composer and grid it locked as superseded by the register", () => {
+    expect(lock).toContain("**Superseded in part (founder 2026-10-05, H · Feed):**");
+    expect(register).toContain("[`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md) — the E text tabs");
+    // Stack → slider, stories, composer, topics, wall.
     expect(lock).toContain("`lock_tabs_topics_stories_composer_wall`");
-    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_tabs_topics_stories_composer_wall");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["tabs", "topics", "stories", "composer", "wall"]);
+    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_slider_stories_composer_topics_wall");
+    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["slider", "stories", "composer", "topics", "wall"]);
+    // The host and its name stay.
     expect(lock).toContain('`nav aria-label="Feed scope"`');
     expect(SOCIAL.home.lanesLabel).toBe("Feed scope");
-    expect(lock).toContain("Row 44, gap 24");
-    expect(SOCIAL_HOME_LANE_TABS_CLASS).toContain("h-11");
-    expect(SOCIAL_HOME_LANE_TABS_CLASS).toContain("gap-6");
+    // Text tabs (20 / 480, ink underline) → the pill slider (17 / 600 on
+    // the ink thumb).
     expect(lock).toContain("20 / 480 / -0.02em");
-    expect(SOCIAL_HOME_LANE_TAB_CURRENT_CLASS).toContain("text-[length:var(--text-lg)]");
-    expect(SOCIAL_HOME_LANE_TAB_CURRENT_CLASS).toContain("[font-weight:var(--type-title-weight)]");
+    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toContain("text-[length:var(--text-base)]");
+    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toContain("font-semibold");
+    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).not.toContain("border-b-2");
     expect(lock).toContain("`text-ink-3 dark:text-ink-2`");
     expect(SOCIAL_FEED_QUIET_INK_CLASS).toBe("text-ink-3 dark:text-ink-2");
+    // Topic words (no pill, no fill, no accent) → chips; the current one
+    // is the accent wash.
     expect(lock).toContain("**No pill, no fill, no accent**");
-    for (const cls of [SOCIAL_HOME_TOPIC_CLASS, SOCIAL_HOME_TOPIC_CURRENT_CLASS]) {
-      expect(cls).not.toMatch(/accent|rounded-full|bg-/);
-    }
+    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("rounded-full");
+    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-accent-ink");
+    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("bg-accent-wash");
+    // Fade 120 / 76 → 96 on both.
     expect(lock).toContain("(phone 120, desktop 76)");
-    expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("w-30");
-    expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("md:w-[76px]");
+    expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("w-24");
+    expect(SOCIAL_HOME_TOPIC_FADE_CLASS).not.toContain("md:w-[76px]");
     expect(SOCIAL.home.moreTopics).toBe("More topics");
+    // 56×100 tiles in a 70 item → the 112×200 story cards.
     expect(lock).toContain("56×100, radius 10, in a 70 item");
-    expect(SOCIAL_HOME_STORY_TILE_CLASS).toContain("h-[100px] w-14");
-    expect(SOCIAL_HOME_STORY_ITEM_CLASS).toContain("w-[70px]");
+    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("md:h-[200px] md:w-[112px]");
+    expect(SOCIAL_HOME_STORY_CARD_CLASS).not.toContain("h-[100px] w-14");
+    // The 52 composer bar → a 44 row with a grey pill.
     expect(lock).toContain("52 tall, radius 16, `--surface-muted`, no rule");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("h-[52px]");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("rounded-[var(--radius-lg)]");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-[52px]");
+    expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-surface-muted");
+    // 620 / 40 / 244 → 600 / 48 / 296.
     expect(lock).toContain("Feed column **620**, gap **40**, aside **244**");
-    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 620, gutter: 40, right: 244 });
-    expect(SOCIAL_FEED_CENTER_CLASS).toContain("lg:max-w-[620px]");
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("gap-[40px]");
-    expect(SOCIAL_FEED_ASIDE_CLASS).toContain("w-[244px]");
+    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 600, gutter: 48, right: 296 });
+    expect(SOCIAL_FEED_CENTER_CLASS).toContain("md:max-w-[600px]");
+    expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("gap-12");
+    expect(SOCIAL_FEED_ASIDE_CLASS).toContain("w-[296px]");
   });
 
   it("scrolls a keyboard-focused topic clear of the fade and draws its ring whole", () => {
     // Focus scrolls a partly hidden word to the scrollport edge less the
     // track's scroll padding. Padding = fade width, so the word lands
     // left of the fade and More topics, never under them.
+    // The rule stands; the H chips' fade is 96 on both (Feed register lock).
     expect(lock).toContain("inline-end scroll padding equals the fade width (phone 120, desktop 76)");
-    const phoneFade = SOCIAL_HOME_TOPIC_FADE_CLASS.split(/\s+/).find((cls) => cls.startsWith("w-"))?.slice(2);
-    const deskFade = SOCIAL_HOME_TOPIC_FADE_CLASS.split(/\s+/).find((cls) => cls.startsWith("md:w-"))?.slice(5);
-    expect(phoneFade).toBe("30");
-    expect(deskFade).toBe("[76px]");
-    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `scroll-pe-${phoneFade}`)).toBe(true);
-    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `md:scroll-pe-${deskFade}`)).toBe(true);
+    expect(register).toContain("The track's inline-end scroll padding equals the fade width (**96**)");
+    const fade = SOCIAL_HOME_TOPIC_FADE_CLASS.split(/\s+/).find((cls) => cls.startsWith("w-"))?.slice(2);
+    expect(fade).toBe("24");
+    expect(SOCIAL_HOME_TOPIC_FADE_CLASS.split(/\s+/).some((cls) => cls.startsWith("md:w-"))).toBe(false);
+    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `scroll-pe-${fade}`)).toBe(true);
+    expect(SOCIAL_HOME_TOPIC_TRACK_CLASS).not.toMatch(/md:scroll-pe-/);
     // Scroll padding only acts on the scroll container: the track is it.
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "overflow-x-auto")).toBe(true);
     // overflow-x:auto clips overflow-y too. The track pads the ring's
@@ -178,13 +198,17 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
     expect(SOCIAL_HOME_TOPIC_TRACK_CLASS).not.toMatch(/(?:^|\s)md:-?(?:py|my|pt|pb|mt|mb)-/);
   });
 
-  it("drops the aside's For you eyebrow and its bordered card on the Feed", () => {
+  // Superseded 2026-10-05 (H · Feed; founder decision 5, "sure"): the
+  // rail carries the "For you" heading again and the latest course as one
+  // soft grey card; still no bordered rail card and no hairline.
+  it("records the borderless aside as superseded: the For you heading returns, no bordered card", () => {
     expect(lock).toContain('No "For you" eyebrow');
     const aside = forYou.slice(forYou.indexOf("function SocialFeedForYouAside"));
-    expect(aside).not.toContain("SOCIAL.forYou.title");
+    expect(aside).toContain("SOCIAL.forYou.title");
     expect(aside).not.toContain("SOCIAL_FOR_YOU_RAIL_CLASS");
     expect(aside).toContain("SOCIAL.forYou.latestCourse");
     expect(aside.indexOf("data-social-latest-course")).toBeLessThan(aside.indexOf("SocialSuggestedPeople"));
+    expect(aside).not.toContain("data-social-for-you-rule");
     expect(SOCIAL_FEED_ASIDE_CLASS).not.toMatch(/border|rounded|bg-/);
   });
 });

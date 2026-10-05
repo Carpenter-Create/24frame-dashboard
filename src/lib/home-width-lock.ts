@@ -13,9 +13,9 @@ export const HOME_LEFT_INSET_PX = 32;
 export const HOME_RIGHT_INSET_PX = 32;
 export const HOME_CONTENT_COLUMN_PX =
   HOME_FIGMA_FRAME_PX - HOME_LEFT_INSET_PX - HOME_RIGHT_INSET_PX;
-/** Dest-rail slot Home sits behind. Matches `--sidebar-width` (200,
- *  screening chrome; was 256). */
-export const HOME_DEST_RAIL_PX = 200;
+/** Dest-rail slot Home sits behind. Matches `--sidebar-width` (240,
+ *  H register; was 200). */
+export const HOME_DEST_RAIL_PX = 240;
 export const HOME_RAIL_CONTENT_COLUMN_PX = HOME_CONTENT_COLUMN_PX - HOME_DEST_RAIL_PX;
 
 export const HOME_WIDTH_LOCK = {

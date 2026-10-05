@@ -6,9 +6,16 @@ import dynamic from "next/dynamic";
 import { SocialIcon } from "@/components/social/social-icon";
 import { useSocialCommentCount } from "@/components/social/use-social-optimistic";
 import { cn } from "@/lib/cn";
-import { SOCIAL_FEED_META_COPY_CLASS, SOCIAL_POST_ACTION_HIT_CLASS } from "@/lib/social-chrome";
+import {
+  SOCIAL_POST_ACTION_HIT_CLASS,
+  SOCIAL_POST_COMMENT_CLASS,
+  SOCIAL_POST_COUNT_CLASS,
+  SOCIAL_POST_ROUND_GLYPH,
+  socialPostRoundClass,
+  type SocialPostSurface,
+} from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
-import { SOCIAL } from "@/lib/social";
+import { SOCIAL, socialCommentActionLabel, socialPostActionCount } from "@/lib/social";
 
 const SocialCommentThread = dynamic(() =>
   import("./social-comment-thread").then((mod) => mod.SocialCommentThread),
@@ -21,41 +28,54 @@ type ThreadPost = {
   canComment: boolean;
 };
 
+// Opens the comment thread. Two faces: the bare stage glyph (the
+// immersive dock and the Explore rail, `icon`), and the feed post's
+// round grey Comment with its count beside it (`round`, H · Posts:
+// "Comment, 2 comments"). The H face replaces the "N comments" trail
+// under the caption. docs/design-locks/social-feed-register-lock-v1.md §7
 export function SocialCommentTrigger({
   post,
   icon = false,
   tone = "canvas",
+  round,
 }: {
   post: ThreadPost;
   icon?: boolean;
   tone?: "canvas" | "stage";
+  round?: SocialPostSurface;
 }) {
   const [open, setOpen] = useState(false);
   const count = useSocialCommentCount(post.id, post.commentCount ?? 0);
-  // Adam lock 2026-09-20: trail is left muted "N comments" only when N > 0.
-  // Icon always opens the thread. N === 0 has no trail text.
-  const showTrail = !icon && count > 0;
+  const shown = round ? socialPostActionCount(count) : null;
 
   return (
     <>
-      {icon || showTrail ? (
+      {round ? (
         <button
           type="button"
           data-social-comment-open=""
-          {...(showTrail ? { "data-social-comment-trail": "" } : {})}
-          aria-label={SOCIAL.post.commentsTitle}
-          className={
-            icon
-              ? cn(SOCIAL_POST_ACTION_HIT_CLASS, tone === "stage" && "text-band-ink")
-              : `self-start text-left t-body-sm text-ink-2 ${SOCIAL_FEED_META_COPY_CLASS}`
-          }
+          aria-label={socialCommentActionLabel(count)}
+          className={SOCIAL_POST_COMMENT_CLASS}
           onClick={() => setOpen(true)}
         >
-          {icon ? (
-            <SocialIcon name="chat-circle" size={SOCIAL_ICON_SIZE_POST_ACTION} />
-          ) : (
-            `${count} ${SOCIAL.post.comments}`
-          )}
+          <span className={socialPostRoundClass(round, true)}>
+            <SocialIcon name="chat-circle" size={SOCIAL_POST_ROUND_GLYPH} />
+          </span>
+          {shown ? (
+            <span data-social-comment-count="" className={SOCIAL_POST_COUNT_CLASS}>
+              {shown}
+            </span>
+          ) : null}
+        </button>
+      ) : icon ? (
+        <button
+          type="button"
+          data-social-comment-open=""
+          aria-label={SOCIAL.post.commentsTitle}
+          className={cn(SOCIAL_POST_ACTION_HIT_CLASS, tone === "stage" && "text-band-ink")}
+          onClick={() => setOpen(true)}
+        >
+          <SocialIcon name="chat-circle" size={SOCIAL_ICON_SIZE_POST_ACTION} />
         </button>
       ) : null}
       {open ? (

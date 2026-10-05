@@ -35,11 +35,15 @@ describe("social chip hit", () => {
     expect(SOCIAL_CHIP_HIT_CLASS).not.toContain("text-[11px]");
     expect(SOCIAL_CHIP_HIT_CLASS).not.toMatch(/\bmd:/);
 
-    // G · Feed (Adam 2026-10-04): the Feed topic row is D plain words, not
-    // chips. docs/design-locks/social-home-lane-tabs-lock-v1.md
+    // H · Feed (founder 2026-10-05; replaces G's plain words): the Feed
+    // topic row is the register's secondary chips — their own 40 (desktop)
+    // / 36-in-44 (phone) measure, not this h-8 hit.
+    // docs/design-locks/social-feed-register-lock-v1.md
     expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain(SOCIAL_CHIP_HIT_CLASS);
-    expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain("rounded-full");
+    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("rounded-full");
+    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("md:h-10");
+    expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain("h-8");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_SELECT_IDLE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);

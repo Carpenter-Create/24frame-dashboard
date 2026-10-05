@@ -24,6 +24,7 @@ import { SOCIAL } from "./social";
 import { SOCIAL_FOLLOWING_WALL_CURSOR_PARAM } from "./social-home-bounds";
 
 const lock = readFileSync("docs/design-locks/social-feed-reel-rail-lock-v1.md", "utf8");
+const register = readFileSync("docs/design-locks/social-feed-register-lock-v1.md", "utf8");
 const readme = readFileSync("docs/design-locks/README.md", "utf8");
 const current = readFileSync("docs/status/CURRENT.md", "utf8");
 const rail = readFileSync("src/components/social/social-feed-reel-rail.tsx", "utf8");
@@ -77,15 +78,22 @@ describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
     expect(SOCIAL_FEED_REEL_MIN).toBe(2);
     expect(lock).toContain("Tiles **180×320** (9:16), gap 12");
     expect(lock).toContain("Tiles **160×284**");
-    expect(SOCIAL_FEED_REEL_TILE.desktop).toEqual({ width: 180, height: 320, gap: 12 });
+    // Face amended 2026-10-05 (H · Feed, the Feed register lock): the
+    // desktop gap is 8 (was 12) and the tiles take radius 16 (was 10), so
+    // two tiles page 376 (was 384). Sizes stay.
+    expect(lock).toContain("**Amended in part (founder 2026-10-05, H · Feed):**");
+    expect(register).toContain("the radius-10 tiles, the desktop gap 12 and the 384 page");
+    expect(SOCIAL_FEED_REEL_TILE.desktop).toEqual({ width: 180, height: 320, gap: 8 });
     expect(SOCIAL_FEED_REEL_TILE.phone).toEqual({ width: 160, height: 284, gap: 8 });
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("md:w-[180px]");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("md:h-80");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("w-40");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("h-[284px]");
-    expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("rounded-[var(--radius)]");
+    expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("rounded-[var(--radius-lg)]");
+    expect(SOCIAL_FEED_REEL_TILE_CLASS).not.toContain("rounded-[var(--radius)]");
     expect(lock).toContain("**two tiles (384px)**");
-    expect(SOCIAL_FEED_REEL_STEP_PX).toBe(384);
+    expect(register).toContain("**376** (2 × (180 + 8))");
+    expect(SOCIAL_FEED_REEL_STEP_PX).toBe(376);
     expect(lock).toContain("within 600px of the viewport");
     expect(SOCIAL_FEED_REEL_NEAR_ROOT_MARGIN).toBe("600px 0px 600px 0px");
     expect(lock).toContain("over 100 characters");
@@ -94,16 +102,19 @@ describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
 
   it("keeps phone full-bleed snap and desktop arrows as locked", () => {
     expect(SOCIAL_FEED_REELS_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
-    // Label row: phone 16 (the eyebrow line, no arrows), desktop 30 (arrows).
+    // Label row: was phone 16 (the eyebrow line) and desktop 30 (arrows);
+    // H · Feed: one 44 head row for the 20 / 480 heading and the 44 arrows.
     expect(lock).toContain("on a 16 label row");
-    expect(SOCIAL_FEED_REELS_HEAD_CLASS).toMatch(/(^| )h-4( |$)/);
-    expect(SOCIAL_FEED_REELS_HEAD_CLASS).toContain("md:h-[30px]");
+    expect(SOCIAL_FEED_REELS_HEAD_CLASS).toMatch(/(^| )h-11( |$)/);
+    expect(SOCIAL_FEED_REELS_HEAD_CLASS).not.toContain("md:h-[30px]");
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("max-md:snap-x");
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("max-md:snap-mandatory");
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("max-md:scroll-pl-4");
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("[touch-action:pan-x_pan-y]");
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("overscroll-x-contain");
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("md:gap-3");
+    // Gap 8 on both (H · Feed; was md:gap-3).
+    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("gap-2");
+    expect(SOCIAL_FEED_REELS_TRACK_CLASS).not.toContain("md:gap-3");
     expect(SOCIAL_FEED_REELS_ARROW_OFF_CLASS).toContain("opacity-40");
     for (const guard of ARROW_GUARDS) {
       expect(rail).toContain(guard);
@@ -126,12 +137,17 @@ describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
     expect(reach).toBe(5);
     expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, `py-[${reach}px]`)).toBe(true);
     expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, `-mb-[${reach}px]`)).toBe(true);
-    // Tiles still start 12 under the head: top margin + top pad.
+    // Tiles start 12 under the head on phone and 16 on desktop (H · Feed;
+    // was 12 on both): top margin + top pad.
     expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, `mt-[${12 - reach}px]`)).toBe(true);
+    expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, `md:mt-[${16 - reach}px]`)).toBe(true);
     for (const cls of ["p-0", "mt-3", "py-0"]) {
       expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, cls)).toBe(false);
     }
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).not.toMatch(/(?:^|\s)(?:md|max-md):-?(?:p|py|pt|pb|my|mt|mb)-/);
+    // The only breakpoint spacing is that desktop top margin.
+    expect(
+      SOCIAL_FEED_REELS_TRACK_CLASS.split(/\s+/).filter((cls) => /^(?:md|max-md):-?(?:p|py|pt|pb|my|mt|mb)-/.test(cls)),
+    ).toEqual([`md:mt-[${16 - reach}px]`]);
   });
 
   // The brief never decided what an older wall page does with reels. The

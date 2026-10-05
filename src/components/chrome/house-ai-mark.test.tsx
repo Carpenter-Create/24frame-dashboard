@@ -10,11 +10,9 @@ import {
   HOUSE_AI_MARK_VIEWBOX_SIZE,
 } from "@/lib/house-ai-mark";
 import {
-  HOUSE_ASK_AI_MARK_DESKTOP_CLASS,
+  HOUSE_ASK_AI_MARK_CLASS,
   HOUSE_ASK_AI_MARK_INK_CLASS,
-  HOUSE_ASK_AI_MARK_PHONE_CLASS,
-  HOUSE_HEADER_TRAILING_DESKTOP_CLASS,
-  HOUSE_HEADER_TRAILING_PHONE_CLASS,
+  HOUSE_HEADER_ROUND_GLYPH_CLASS,
   HOUSE_PHONE_CHROME_IDLE_INK_CLASS,
 } from "@/lib/house-phone-shell";
 import { PHOSPHOR_CHROME_ICON_CLASS } from "@/lib/phosphor-icon";
@@ -74,19 +72,19 @@ describe("HouseAiMark", () => {
       (24 * HOUSE_AI_MARK_VIEWBOX_SIZE) / 256,
     );
     const html = renderToStaticMarkup(
-      <HouseAiMark className={HOUSE_ASK_AI_MARK_PHONE_CLASS} register="stroke" />,
+      <HouseAiMark className={HOUSE_ASK_AI_MARK_CLASS} register="stroke" />,
     );
     expect(html).toContain('data-house-ai-mark-register="stroke"');
     expect(html).toContain('fill="none"');
     expect(html).toContain('stroke="currentColor"');
     expect(html).toContain(`stroke-width="${HOUSE_AI_MARK_REGULAR_STROKE_WIDTH}"`);
-    // Phone header trailing renders at 20px (screening chrome), split from
-    // the dock's 24px.
+    // The header round-button glyph is 20 on phone and desktop (H
+    // register), split from the dock's 24px.
     expect(html).toContain("size-5");
     expect(html).not.toContain("size-6");
     expect(html).not.toContain("size-7");
     expect(html).not.toContain("size-4");
-    expect(html).toContain("md:hidden");
+    expect(html).not.toContain("md:hidden");
     // Adam 2026-10-04, "Blue, as in the mockup": the phone sparkle is
     // accent, not the phone idle ink the bell and search keep.
     expect(HOUSE_ASK_AI_MARK_INK_CLASS).toBe("text-accent");
@@ -102,8 +100,10 @@ describe("HouseAiMark", () => {
 
   it("is the only 24Frame AI chrome glyph — header and overlay, not the rail", () => {
     expect(headerSrc).toContain("<HouseAiMark");
+    // H register: one stroke sparkle on phone and desktop (the board's
+    // outline sparkle); the fill register stays for the overlay.
     expect(headerSrc).toContain('register="stroke"');
-    expect(headerSrc).toContain('register="fill"');
+    expect(headerSrc).not.toContain('register="fill"');
     expect(headerSrc).not.toContain("Sparkle");
     expect(navSrc).toContain('family: "house-ai"');
     expect(navSrc).not.toContain('href: "?ai=1"');
@@ -114,32 +114,31 @@ describe("HouseAiMark", () => {
     const header = renderToStaticMarkup(<AskAssistantHeaderLink />);
     expect(header).toContain("data-ask-assistant-header");
     expect(header).toContain("data-house-ai-mark");
-    expect(header).toContain(`class="${HOUSE_ASK_AI_MARK_PHONE_CLASS}"`);
-    expect(header).toContain(`class="${HOUSE_ASK_AI_MARK_DESKTOP_CLASS}"`);
-    // Both sparkles are accent — phone stroke and the desktop fill that
-    // serves the icon circle and the xl labeled pill. Neither rides the
-    // phone idle ink the bell keeps.
-    expect(header).not.toContain(`class="${HOUSE_HEADER_TRAILING_PHONE_CLASS}"`);
+    expect(header).toContain(`class="${HOUSE_ASK_AI_MARK_CLASS}"`);
+    // One accent sparkle — never the idle ink the bell keeps.
     const markClasses = [...header.matchAll(/<svg[^>]*class="([^"]*)"/g)].map((m) => m[1]);
-    expect(markClasses).toHaveLength(2);
+    expect(markClasses).toHaveLength(1);
     for (const cls of markClasses) {
       expect(cls.split(" ")).toContain("text-accent");
       expect(cls.split(" ")).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     }
-    expect(HOUSE_ASK_AI_MARK_PHONE_CLASS).toBe("size-5 shrink-0 md:hidden text-accent");
-    // Desktop: 18 in the 34 icon box, 16 in the xl pill (screening chrome).
-    expect(HOUSE_ASK_AI_MARK_DESKTOP_CLASS).toBe(`${HOUSE_HEADER_TRAILING_DESKTOP_CLASS} xl:size-4 text-accent`);
+    expect(HOUSE_ASK_AI_MARK_CLASS).toBe(`${HOUSE_HEADER_ROUND_GLYPH_CLASS} text-accent`);
+    expect(HOUSE_ASK_AI_MARK_CLASS).toBe("size-5 shrink-0 text-accent");
     expect(header).toContain("size-5");
-    expect(header).toContain("size-4.5");
-    expect(header).toContain("xl:size-4");
+    expect(header).not.toContain("size-4.5");
+    expect(header).not.toContain("xl:");
     expect(header).not.toContain("size-6");
     expect(header).not.toContain("size-7");
-    expect(header).not.toContain("md:size-5");
     expect(header).toContain('data-house-ai-mark-register="stroke"');
-    expect(header).toContain('data-house-ai-mark-register="fill"');
+    expect(header).not.toContain('data-house-ai-mark-register="fill"');
+    // No visible label (founder 2026-10-05, decision 1): the name is the
+    // aria-label and the tooltip.
+    expect(header).not.toContain("data-ask-assistant-header-label");
+    expect(header).toContain('aria-label="Ask 24Frame AI"');
+    expect(header).toContain('title="Ask 24Frame AI"');
     expect(header).not.toContain("lucide-");
-    expect(headerSrc).toContain("HOUSE_ASK_AI_MARK_PHONE_CLASS");
-    expect(headerSrc).toContain("HOUSE_ASK_AI_MARK_DESKTOP_CLASS");
-    expect(headerSrc).not.toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
+    expect(headerSrc).toContain("HOUSE_ASK_AI_MARK_CLASS");
+    expect(headerSrc).not.toContain("HOUSE_ASK_AI_MARK_PHONE_CLASS");
+    expect(headerSrc).not.toContain("HOUSE_ASK_AI_MARK_DESKTOP_CLASS");
   });
 });

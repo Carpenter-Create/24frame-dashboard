@@ -3,6 +3,7 @@
 **Date:** 2026-09-24 (CT)  
 **Status:** **LOCKED** (Adam bar — **not good enough** · launch-great ASAP · #681 phone glance · CoS Own→READY) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS routes Dev  
 **Superseded in part (Adam 2026-10-04, G · Feed):** on the Feed, the 136×240 story cards, the 32 Topics chip and the single 8 spine gap give way to D's 56×100 story tiles, plain topic words and per-block air; the stack is tabs → topics → stories → composer → wall. See [`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md).  
+**Superseded in part (founder 2026-10-05, H · Feed):** on the Feed, the story cards are the stories card lock's 112×200 / 108×192 (not 136×240 / 144×256, not G's tiles), the topics are 40 / 36 secondary chips with the accent wash on the current one, and the stack is slider → stories → composer → topics → wall with 24 · 24 · 24 · 16 air. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md).  
 **Repo citation:** `docs/design-locks/social-home-spine-density-lock-v1.1.md`  
 **Box draft:** `/workspace/24frame-agg-ux/social-home-spine-density-lock-v1.1.md`  
 **Adam glance (fold):** `/workspace/24frame-agg-ux/social-home-681-adam-glance.png`  

@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-28 (CT)  
 **Status:** **LOCKED** (Adam CLEAR 2026-09-28 · Claude FAIL rematch) · Design Own→READY · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS CLEARs Dev  
+**Amended (founder 2026-10-05, H · Posts):** the feed post rhythm (the 16 inset inside a muted card, the optical -8 pull on the actions, the likes / caption / time stack) is replaced by the H post face: media, the credit row 16 under it (phone 12), the caption 8 under that. The header trailing grammar was already amended by the shell lock. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7.  
 **Scope:** Social **Home feed post rhythm** · content margin · header trailing icon grammar · listed free nits  
 **Entity:** Global Content / 24Frame only  
 **Positioning:** **Coinbase shell × IG feed rhythm × FB hint** (FB hint **deferred** — not this wave)  

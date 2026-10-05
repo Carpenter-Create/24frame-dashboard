@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { APP_SHEET_HOST_CLASS, APP_SHEET_SCRIM_CLASS } from "@/lib/house-sheet";
 import { displayHandle, SOCIAL } from "@/lib/social";
-import { SOCIAL_POST_TIME_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_POST_COUNT_CLASS, SOCIAL_POST_TIME_CLASS } from "@/lib/social-chrome";
 import { SocialLikesSheet } from "./social-likes-sheet";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,10 +49,16 @@ describe("SocialLikesSheet", () => {
     expect(count).toContain("setOpen(true)");
     expect(count).toContain("aria-haspopup=\"dialog\"");
     expect(count).not.toContain("<p className=\"t-body-sm font-semibold text-ink\">");
+    // H · Posts: the count is the bare number beside the round heart
+    // ("4", named "4 likes"); it still opens who liked.
+    expect(count).toContain("socialPostActionCount(view.likeCount)");
+    expect(count).toContain("aria-label={label}");
+    expect(count).toContain("className={SOCIAL_POST_COUNT_CLASS}");
+    expect(SOCIAL_POST_COUNT_CLASS).toContain("text-[length:var(--text-sm)] font-medium tabular-nums text-ink-2");
+    // The credit-row time: 15, quiet ink (ink-3; ink-2 in dark), never a t-label.
     expect(SOCIAL_POST_TIME_CLASS).not.toContain("t-label");
     expect(SOCIAL_POST_TIME_CLASS).toContain("tracking-normal");
-    expect(SOCIAL_POST_TIME_CLASS).toContain("text-ink-3");
-    expect(SOCIAL_POST_TIME_CLASS).not.toContain("text-ink-2");
+    expect(SOCIAL_POST_TIME_CLASS).toContain("text-ink-3 dark:text-ink-2");
     expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/(?:^|\s)text-ink(?:\s|$)/);
   });
 });

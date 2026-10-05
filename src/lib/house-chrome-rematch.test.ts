@@ -87,10 +87,12 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead).toContain("data-house-full-width-top");
     expect(shell).toContain("<HouseLeadChrome");
     expect(shell).toContain("HOUSE_RAIL_PANEL_CLASS");
-    // Screening chrome: the side menu is a column flush under the header.
+    // H register: the side menu is a full-height column; the header
+    // starts at its edge.
     expect(shell).toContain("HOUSE_RAIL_COLUMN_CLASS");
     expect(HOUSE_RAIL_COLUMN_CLASS).toContain("left-0");
-    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("top-[var(--header-height)]");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("top-0");
+    expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("top-[var(--header-height)]");
     expect(HOUSE_RAIL_COLUMN_CLASS).toContain("bottom-0");
     expect(shell).not.toContain("border-r border-hairline");
     expect(shell).not.toMatch(/style=\{\{ height: "var\(--header-height\)", marginLeft: "var\(--sidebar-width\)" \}\}/);
@@ -172,9 +174,9 @@ describe("house chrome rematch miss list v1.1", () => {
     );
     expect(social).toContain("data-social-header-lead");
     expect(social.indexOf("data-brand-emblem")).toBeLessThan(
-      social.indexOf("data-workspace-switcher-lanes"),
+      social.indexOf("data-workspace-switcher-slider"),
     );
-    expect(social.indexOf("data-workspace-switcher-lanes")).toBeLessThan(
+    expect(social.indexOf("data-workspace-switcher-slider")).toBeLessThan(
       social.indexOf("data-app-header-trailing"),
     );
     expect(social.indexOf("data-app-header-trailing")).toBeLessThan(
@@ -200,10 +202,10 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead).toContain("data-house-under-nav");
     expect(lead.indexOf("</header>")).toBeLessThan(lead.indexOf("data-house-under-nav"));
     expect(lead).toContain('data-education-header-search-host={education ? "phone" : undefined}');
-    // Screening chrome: both faces lead — the grid button (phone) and
-    // the lanes (desktop); the trailing cluster holds no switcher.
+    // H register: both faces lead — the grey pill (phone, md to lg) and
+    // the slider (lg+); the trailing cluster holds no switcher.
     expect(leading).toContain("<WorkspaceSwitcher");
-    expect(leading).toContain('presentation="lanes"');
+    expect(leading).toContain('presentation="slider"');
     expect(leading).toContain('presentation="waffle"');
     expect(trailing).not.toContain("<WorkspaceSwitcher");
     expect(trailing).toContain("{accountMenu}");
@@ -236,7 +238,7 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
     expect(shell).toContain("<HouseLeadChrome");
     expect(existsSync("src/components/social/social-top-bar.tsx")).toBe(false);
-    expect(lead).toContain('presentation="lanes"');
+    expect(lead).toContain('presentation="slider"');
     expect(lead).toContain('presentation="waffle"');
     expect(lead).not.toContain('tone="pill"');
     expect(lead).not.toContain("APP_HEADER_WORKSPACE_PILL_HOST_CLASS");
@@ -253,7 +255,9 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(switcher).not.toContain("HOUSE_THEME_TOGGLE_CLASS");
     expect(switcher).not.toContain("rounded-[var(--radius-sm)]");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
-    expect(collapse).toContain("HOUSE_SHELL_QUIET_INK_CLASS");
+    // H register: the quiet collapse glyph is ink-2 (the board).
+    expect(collapse).toContain("text-ink-2");
+    expect(collapse).not.toContain("HOUSE_SHELL_QUIET_INK_CLASS");
     expect(socialChrome).toContain("HOUSE_RAIL_PANEL_CLASS");
     expect(leadSearch).toContain("HOUSE_SEARCH_PILL_CLASS");
     expect(readFileSync("src/components/social/social-search-sheet.tsx", "utf8")).toContain(
@@ -261,7 +265,10 @@ describe("house chrome rematch miss list v1.1", () => {
     );
     expect(lead).not.toContain("ThemeToggle");
     expect(readFileSync("src/lib/house-lead-chrome.ts", "utf8")).toContain("HOUSE_THEME_TOGGLE_CLASS");
-    expect(readFileSync("src/lib/house-lead-chrome.ts", "utf8")).toContain("HOUSE_ICON_BUTTON_CLASS");
+    // H register: header controls are the one round grey 44
+    // (HOUSE_HEADER_ROUND_BUTTON_CLASS, rounded-full), not the bare icon hit.
+    expect(readFileSync("src/lib/house-lead-chrome.ts", "utf8")).toContain("HOUSE_HEADER_ROUND_BUTTON_CLASS");
+    expect(readFileSync("src/lib/house-lead-chrome.ts", "utf8")).not.toContain("HOUSE_ICON_BUTTON_CLASS");
   });
 
   it("uses one register on Aggregation, Social, and Education", () => {
@@ -274,8 +281,10 @@ describe("house chrome rematch miss list v1.1", () => {
     expect(switcher).toContain("WORKSPACE_WAFFLE_TRIGGER_CLASS");
     expect(switcher).not.toContain("HOUSE_CONTROL_PILL_CLASS");
     expect(mobileChrome).toContain("HOUSE_ICON_BUTTON_CLASS");
-    expect(collapse).toContain("rounded-[var(--radius-sm)]");
-    expect(collapse).toContain("rounded-[var(--radius)]");
+    // H register: the collapse control is a round 44 like every chrome
+    // circle (not the screening chrome's radius-6 / radius-10 boxes).
+    expect(collapse).toContain("rounded-full");
+    expect(collapse).not.toContain("rounded-[var(--radius-sm)]");
     expect(socialChrome).toContain("HOUSE_MODULE_CLASS");
   });
 
@@ -331,8 +340,10 @@ describe("house chrome rematch miss list v1.1", () => {
       shell.indexOf("data-social-rail="),
       shell.indexOf("data-app-social-frame="),
     );
-    // The collapse control rides into the side menu's top row.
-    expect(socialAside).toContain("collapseControl={<RailCollapse collapsed={collapsed} onToggle={toggle} />}");
+    // H register: the collapse control sits at the side menu's foot,
+    // after the rows (not in a top row).
+    expect(socialAside).toContain("data-app-rail-foot");
+    expect(socialAside).not.toContain("collapseControl=");
     expect(socialAside.indexOf("<SideNavSlot")).toBeLessThan(socialAside.indexOf("<RailCollapse"));
     expect(socialAside).toContain("collapsed={collapsed}");
     expect(socialAside).toContain('workspace={socialChrome ? "social" : workspace}');
@@ -354,7 +365,7 @@ describe("house chrome rematch miss list v1.1", () => {
   it("locks lead ↔ rail chrome gutter (G6)", () => {
     const leadLib = readFileSync("src/lib/house-lead-chrome.ts", "utf8");
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(tokens).toMatch(/--sidebar-width:\s*200px;/);
+    expect(tokens).toMatch(/--sidebar-width:\s*240px;/);
     expect(tokens).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
     expect(tokens).toMatch(/--home-content-width:\s*1376px;/);
     expect(tokens).toMatch(/--shell-gutter-inline-start:\s*32px;/);
@@ -363,10 +374,10 @@ describe("house chrome rematch miss list v1.1", () => {
       "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]",
     );
     expect(HOUSE_CANVAS_X_CLASS).toBe("px-[var(--chrome-gutter)]");
-    // Screening chrome: the column is flush (no gutter inset) and runs
-    // from under the header to the viewport bottom.
+    // H register: the column is flush (no gutter inset) and runs the
+    // viewport's full height; its 80 top band matches the header.
     expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("var(--chrome-gutter)");
-    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("top-[var(--header-height)]");
+    expect(HOUSE_RAIL_COLUMN_CLASS).toContain("top-0");
     expect(HOUSE_RAIL_COLUMN_CLASS).toContain("bottom-0");
     expect(leadLib).toContain("HOUSE_SHELL_GUTTER_X_CLASS");
     expect(leadLib).not.toContain("md:px-[var(--chrome-gutter)]");

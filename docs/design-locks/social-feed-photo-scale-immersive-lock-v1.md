@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-25 (CT)  
 **Status:** **LOCKED** · Design Own→READY cite-only · Adam call 2026-09-25 · Design no PR · CoS routes Dev  
+**Amended (founder 2026-10-05, H · Posts):** the feed still's min(70vh, 560) cap and its 4:5 / 16:9 buckets are retired on the post: the photo fills the column at its true shape, held between 1.91:1 and 4:5, radius 24 (edge to edge on phone). Tap-to-immersive and the immersive itself stay as locked here. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7.  
 **Repo:** `docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md`  
 **Box:** `/workspace/24frame-agg-ux/social-feed-photo-scale-immersive-lock-v1.md`  
 **FAIL:** `/workspace/24frame-agg-ux/social-feed-photo-massive-caption-hard-adam-fail-2026-09-25.png` (feed photo massive · caption hard to find) · `/workspace/24frame-agg-ux/social-feed-photo-below-fold-adam-fail-2026-09-25.png` (actions/caption below fold)  

@@ -26,15 +26,19 @@ import { applyOptimisticFollow } from "@/lib/social-query";
 import {
   SOCIAL_ACTION_CLASS,
   SOCIAL_ACTION_SECONDARY_CLASS,
-  SOCIAL_FEED_META_COPY_CLASS,
   SOCIAL_FOLLOW_COMPACT_CLASS,
   SOCIAL_FOLLOW_COMPACT_IDLE_CLASS,
   SOCIAL_FOLLOW_QUIET_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTION_LIKED_CLASS,
+  SOCIAL_POST_COUNT_CLASS,
+  SOCIAL_POST_ROUND_GLYPH,
+  SOCIAL_POST_ROUND_LIKED_CLASS,
   SOCIAL_PROFILE_ACTION_PILL_CLASS,
   SOCIAL_PROFILE_ACTION_PILL_SECONDARY_CLASS,
+  socialPostRoundClass,
+  type SocialPostSurface,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import {
@@ -42,7 +46,7 @@ import {
   followButtonLabel,
   followedConfirmCopy,
 } from "@/lib/social-follow";
-import { SOCIAL, socialLikeCountCopy } from "@/lib/social";
+import { SOCIAL, socialLikeCountCopy, socialPostActionCount } from "@/lib/social";
 import { cn } from "@/lib/cn";
 import { SocialIcon } from "./social-icon";
 import { SocialLikesSheet } from "./social-likes-sheet";
@@ -285,6 +289,7 @@ export function SocialLikeButton({
   disabled,
   icon = false,
   tone = "canvas",
+  round,
 }: {
   postId: string;
   liked: boolean;
@@ -293,6 +298,8 @@ export function SocialLikeButton({
   disabled?: boolean;
   icon?: boolean;
   tone?: "canvas" | "stage";
+  /** The feed post face (H · Posts): the round grey heart, on the page or the grey card. */
+  round?: SocialPostSurface;
 }) {
   const view = useSocialLike(postId, { liked, likeCount });
   const [error, setError] = useState("");
@@ -321,15 +328,18 @@ export function SocialLikeButton({
     });
   }
 
+  const glyph = icon || !!round;
   return (
-    <span className={icon ? "relative inline-flex shrink-0" : "inline"}>
+    <span className={glyph ? "relative inline-flex shrink-0" : "inline"}>
       <button
         type="button"
         disabled={disabled}
         data-social-like=""
         aria-label={view.liked ? SOCIAL.post.unlike : SOCIAL.post.like}
         className={
-          icon
+          round
+            ? cn(socialPostRoundClass(round), view.liked && SOCIAL_POST_ROUND_LIKED_CLASS)
+            : icon
             ? cn(
                 SOCIAL_POST_ACTION_HIT_CLASS,
                 tone === "stage"
@@ -342,11 +352,11 @@ export function SocialLikeButton({
         }
         onClick={onToggle}
       >
-        {icon ? (
+        {glyph ? (
           <SocialIcon
             name="heart"
             active={view.liked}
-            size={SOCIAL_ICON_SIZE_POST_ACTION}
+            size={round ? SOCIAL_POST_ROUND_GLYPH : SOCIAL_ICON_SIZE_POST_ACTION}
             className={SOCIAL_POST_ACTION_HEART_NUDGE_CLASS}
           />
         ) : (
@@ -354,7 +364,7 @@ export function SocialLikeButton({
         )}
       </button>
       {error ? (
-        <span className={icon ? "absolute top-full left-0 z-10" : undefined}>
+        <span className={glyph ? "absolute top-full left-0 z-10" : undefined}>
           <FormError error={error} />
         </span>
       ) : null}
@@ -373,8 +383,11 @@ export function SocialLikeCount({
 }) {
   const view = useSocialLike(postId, { liked, likeCount });
   const [open, setOpen] = useState(false);
+  // H · Posts: the bare count beside the round heart ("4"); its name
+  // says the words ("4 likes") and it opens who liked. None at zero.
+  const count = socialPostActionCount(view.likeCount);
   const label = socialLikeCountCopy(view.likeCount);
-  if (!label) return null;
+  if (!count || !label) return null;
   return (
     <>
       <button
@@ -382,11 +395,11 @@ export function SocialLikeCount({
         data-social-like-count=""
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={SOCIAL.post.likesTitle}
-        className={`self-start text-left t-body-sm font-semibold text-ink ${SOCIAL_FEED_META_COPY_CLASS}`}
+        aria-label={label}
+        className={SOCIAL_POST_COUNT_CLASS}
         onClick={() => setOpen(true)}
       >
-        {label}
+        {count}
       </button>
       <SocialLikesSheet postId={postId} open={open} onClose={() => setOpen(false)} />
     </>

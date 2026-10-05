@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DotsThree, PencilSimple, Trash } from "@phosphor-icons/react";
 
@@ -17,7 +16,7 @@ import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { POST_BODY_MAX, SOCIAL } from "@/lib/social";
-import { SOCIAL_FEED_META_COPY_CLASS, SOCIAL_POST_ACTION_HIT_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_POST_MORE_CLASS } from "@/lib/social-chrome";
 import { THREAD_POPOVER_DELETE_ICON_CLASS, THREAD_POPOVER_ICON_CLASS } from "@/lib/house-sheet";
 import { persistSocialPostCaption, persistSocialPostDelete } from "@/lib/social-optimistic";
 import {
@@ -29,9 +28,10 @@ import {
   subscribeSocialPostOwn,
 } from "@/lib/social-post-own";
 
-// Owner overflow on the author row. Thread ··· surface — not a fourth
-// hit on Like · Comment · Share.
-// docs/design-locks/social-home-post-actions-align-lock-v1.md
+// Owner overflow: the quiet ⋯ at the credit row's end (H · Posts; a 44
+// clear hit, desktop 40, glyph 20 ink-2). Thread ··· surface — not a
+// fourth round beside Like · Comment · Share.
+// docs/design-locks/social-feed-register-lock-v1.md §7
 // src/lib/menu-surface.ts
 
 export function SocialPostPresence({
@@ -53,41 +53,27 @@ export function SocialPostPresence({
 export function SocialPostCaptionPlace({
   postId,
   serverBody,
-  href,
-  permalink,
-  handle,
+  className,
 }: {
   postId: string;
   serverBody: string | null;
-  href: string;
-  permalink: boolean;
-  handle: string;
+  /** The caption (17 / 420 ink-2) or a text post's body (20 / 480 ink). */
+  className: string;
 }) {
   const body = useSyncExternalStore(
     subscribeSocialPostOwn,
     () => socialPostLiveBody(postId, serverBody),
     () => serverBody,
   );
-  // Text-only and text+media share this slot: under likes, above comments.
-  // docs/design-locks/social-feed-text-media-caption-below-lock-v1.md
+  // H · Posts: under the credit row, the words alone (the name sits just
+  // above, so no handle prefix). Wraps; never clamped. Plain text, as the
+  // board draws it: the permalink is the time's 44 hit, so the words are
+  // no sub-44 phone target. The live body follows an owner's edit.
+  // docs/design-locks/social-feed-register-lock-v1.md §7
   if (!body) return null;
-  const caption = (
-    <>
-      <span className="font-semibold">{handle} </span>
-      {body}
-    </>
-  );
-  const className = `t-body-sm text-ink whitespace-pre-wrap break-words ${SOCIAL_FEED_META_COPY_CLASS}`;
-  if (permalink) {
-    return (
-      <Link href={href} data-social-post-caption="" className={className}>
-        {caption}
-      </Link>
-    );
-  }
   return (
     <p data-social-post-caption="" className={className}>
-      {caption}
+      {body}
     </p>
   );
 }
@@ -179,9 +165,9 @@ export function SocialPostOwnerMenu({
             type="button"
             data-social-post-owner=""
             aria-label={SOCIAL.post.overflow}
-            className={`${SOCIAL_POST_ACTION_HIT_CLASS} ml-auto`}
+            className={SOCIAL_POST_MORE_CLASS}
           >
-            <DotsThree className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
+            <DotsThree className="size-5" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
           </button>
         </DropdownMenuTrigger>
         <ThreadPopoverContent align="end">

@@ -15,29 +15,35 @@ Home frame (a size container), not the viewport: two columns (main +
 
 Amended 2026-10-04 (Adam, "Yes, everywhere";
 `docs/design-locks/shell-screening-chrome-lock-v1.md`): the rail slot
-is 200 (64 collapsed) and the header 52, so with the rail open the
-Home frame reaches 960 at a 1224 viewport (was 1280): one column from
-768 to 1223. Collapsed, two columns from 1088 (was 1084).
+was 200 (64 collapsed) and the header 52. Superseded below.
+
+Amended 2026-10-05 (Adam, "I like the designs. Let's use them.";
+`docs/design-locks/shell-coinbase-register-lock-v1.md`): the side menu
+is a full-height 240 column (80 collapsed) and the header (80) starts
+at its right edge. With the rail open the Home frame reaches 960 at a
+1264 viewport (was 1224): one column from 768 to 1263. Collapsed, two
+columns from 1104 (was 1088). The Home container thresholds are
+unchanged.
 
 At the 1440 frame:
 
 | Surface | Measure |
 | --- | --- |
-| Header | Full-bleed 1440 / full viewport. Desktop shell gutters 32 / 32. |
-| Dest rail | On. `--sidebar-width` (200); 64 collapsed. |
+| Header | From the side menu's edge to the viewport's right edge (the side menu is full height). Lead pad 24, end pad 32. |
+| Dest rail | On. `--sidebar-width` (240); 80 collapsed. |
 | Left inset | 32px (`--shell-gutter-inline-start`), after the rail. |
 | Right inset | 32px (`--shell-gutter-inline-end`). |
-| Home content column | 1176px with the rail (1440 − 200 − 32 − 32). 1312px collapsed (1440 − 64 − 32 − 32). |
+| Home content column | 1136px with the rail (1440 − 240 − 32 − 32). 1296px collapsed (1440 − 80 − 32 − 32). |
 | Rail-free frame | 1376px (1440 − 32 − 32). Co-Productions only. |
 | Phone | Unchanged (existing max-md pad) |
 
 Do not center Home on the old page cap. Home uses the dest-rail slot
-(`--sidebar-width`, 200) like every workspace.
+(`--sidebar-width`, 240) like every workspace.
 
 Implementation: Home content uses `--shell-gutter-inline-start` left
 and `--shell-gutter-inline-end` right, inside main. Only
-Co-Productions sets `--sidebar-width` to `0px` (no rail). Lead chrome
-is full-bleed either way. `--access-rail-width` aliases that slot and
+Co-Productions sets `--sidebar-width` to `0px` (no rail); its header is
+then full-bleed and carries the brand mark. `--access-rail-width` aliases that slot and
 is not the Home canvas inset. `--content-inset` (48) and
 `--chrome-gutter` (16) stay for reading measure, phone, and dest-rail
 geometry.

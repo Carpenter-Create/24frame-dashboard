@@ -37,13 +37,14 @@ describe("feed Reels plan (Adam 2026-10-04: every 3 posts, both tabs)", () => {
     expect(SOCIAL_FEED_REEL_EVERY).toBe(3);
     expect(SOCIAL_FEED_REEL_RAIL_SIZE).toBe(6);
     expect(SOCIAL_FEED_REEL_MIN).toBe(2);
-    expect(SOCIAL_FEED_REEL_TILE.desktop).toEqual({ width: 180, height: 320, gap: 12 });
+    // H · Feed (founder 2026-10-05; was gap 12, step 384, a 620 column):
+    // gap 8 on both, so two tiles page 2 × (180 + 8) = 376.
+    expect(SOCIAL_FEED_REEL_TILE.desktop).toEqual({ width: 180, height: 320, gap: 8 });
     expect(SOCIAL_FEED_REEL_TILE.phone).toEqual({ width: 160, height: 284, gap: 8 });
-    // Arrows move two tiles: 2 × (180 + 12).
-    expect(SOCIAL_FEED_REEL_STEP_PX).toBe(384);
-    // 3 tiles + 2 gaps + a gap + a 44 peek = the 620 feed column.
+    expect(SOCIAL_FEED_REEL_STEP_PX).toBe(376);
+    // 3 tiles + 3 gaps + a 36 peek = the 600 feed column.
     const { width, gap } = SOCIAL_FEED_REEL_TILE.desktop;
-    expect(3 * width + 3 * gap + 44).toBe(620);
+    expect(3 * width + 3 * gap + 36).toBe(600);
   });
 
   it("puts a rail after every third post and continues without repeats", () => {

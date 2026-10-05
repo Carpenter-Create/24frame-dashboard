@@ -19,7 +19,8 @@ export const SOCIAL_PROFILE_TILE_IMAGE_SIZES = "(max-width: 768px) 33vw, 297px";
 export const SOCIAL_STORY_CARD_IMAGE_SIZES = "(max-width: 768px) 108px, 112px";
 export const SOCIAL_OVERVIEW_FACE_IMAGE_SIZES = "32px";
 
-export function socialAvatarImageSizes(size: "sm" | "md" | "lg" | "profile"): string {
+export function socialAvatarImageSizes(size: "sm" | "md" | "lg" | "profile" | "post"): string {
+  if (size === "post") return "40px";
   if (size === "sm") return "36px";
   if (size === "lg") return "96px";
   // Profile header avatar: clamp caps 112 (phone) and 152 (desktop card).
@@ -81,7 +82,8 @@ function socialMediaAspectRatio(input: SocialMediaFrameInput): number | null {
 }
 
 /**
- * Still buckets only. Portrait → 4:5. Landscape → 16:9.
+ * Still buckets only. Portrait → 4:5. Landscape → 16:9. The feed photo
+ * frame falls back to these until it knows the still's true shape.
  * In-feed video does not use this. A video frame is socialFeedVideoFrame.
  */
 export function socialMediaOrientation(
@@ -97,26 +99,37 @@ export function socialMediaOrientation(
 }
 
 /**
- * Still frame SoT. Mux video does not use this class.
- * Height is min(70vh, 560px, aspect height). Width stays the container.
- * Portrait stills crop inside the cap. Landscape stills follow aspect until the cap.
- * docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md
- * Complete class strings — Tailwind does not see interpolations.
+ * Feed photo frame (H register §5.1, Adam 2026-10-05): the photo fills
+ * the column at its true shape, held between 1.91:1 (widest) and 4:5
+ * (tallest); beyond either limit it crops to the limit (object-cover).
+ * No height cap: supersedes the min(70vh, 560px) still cap of
+ * docs/design-locks/social-feed-photo-scale-immersive-lock-v1.md.
+ * docs/design-locks/social-feed-register-lock-v1.md §7
  */
-export function socialMediaFrameClass(
-  orientation: SocialMediaOrientation | SocialMediaFrameInput,
-): string {
-  return socialMediaOrientation(orientation) === "portrait"
-    ? "aspect-[4/5] h-[min(70vh,560px,calc(100cqw*5/4))] w-full max-h-[min(70vh,560px)] object-cover object-center"
-    : "aspect-video h-[min(70vh,560px,calc(100cqw*9/16))] w-full max-h-[min(70vh,560px)] object-cover object-center";
+export const SOCIAL_POST_PHOTO_ASPECT_MIN = 4 / 5;
+export const SOCIAL_POST_PHOTO_ASPECT_MAX = 1.91;
+
+/**
+ * The photo frame's width / height. Known edges (stored width and height,
+ * an aspect, or a probed natural size) give the true shape, clamped to
+ * the range. With none, the orientation bucket stands in (portrait 4:5,
+ * landscape 16:9; an image with no hint is portrait) until the still
+ * loads and its natural size is probed.
+ */
+export function socialPostPhotoAspect(input: SocialMediaFrameInput): number {
+  const ratio = socialMediaAspectRatio(input);
+  if (ratio == null) {
+    return socialMediaOrientation(input) === "portrait" ? SOCIAL_POST_PHOTO_ASPECT_MIN : 16 / 9;
+  }
+  return Math.min(SOCIAL_POST_PHOTO_ASPECT_MAX, Math.max(SOCIAL_POST_PHOTO_ASPECT_MIN, ratio));
 }
 
-/** Same cap as the still face. The video box narrows instead of cropping. */
+/** Same cap as before for video. The video box narrows instead of cropping. */
 export const SOCIAL_FEED_VIDEO_MAX_H = "min(70vh, 560px)";
 
-/** No ratio yet. Not a 16:9 slot. */
+/** No ratio yet. Not a 16:9 slot. On the screen (H register): screen black. */
 export const SOCIAL_FEED_VIDEO_PENDING_CLASS =
-  "relative w-full shrink-0 overflow-hidden bg-surface-muted";
+  "relative w-full shrink-0 overflow-hidden bg-screen";
 
 export type SocialFeedVideoOrientation = "portrait" | "landscape" | "square";
 
@@ -154,7 +167,9 @@ export function socialFeedVideoFrame(input: {
     // shrink-0: the frame is a column-flex item. Absolute media has no
     // min-content size, and a column flex item will otherwise collapse
     // the main size to 0 even when aspect-ratio is set.
-    className: "relative mx-auto block max-w-full shrink-0 self-center overflow-hidden bg-surface-muted",
+    // bg-screen: the frame sits on the post's screen (H register), so a
+    // poster still loading reads as the screen, not a grey slab.
+    className: "relative mx-auto block max-w-full shrink-0 self-center overflow-hidden bg-screen",
     style: {
       aspectRatio: `${width} / ${height}`,
       width: `min(100%, calc(${SOCIAL_FEED_VIDEO_MAX_H} * ${width} / ${height}))`,

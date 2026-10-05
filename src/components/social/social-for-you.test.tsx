@@ -5,11 +5,20 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 
-import type { CourseRow } from "@/lib/courses";
 import {
+  COURSE_FEATURE_CARD_CLASS,
+  COURSE_FEATURE_COVER_CLASS,
+  COURSE_FEATURE_META_CLASS,
+  COURSE_FEATURE_TITLE_CLASS,
+  type CourseRow,
+} from "@/lib/courses";
+import {
+  SOCIAL_FEED_ASIDE_AVATAR_CLASS,
   SOCIAL_FEED_ASIDE_CLASS,
-  SOCIAL_FEED_ASIDE_RULE_CLASS,
-  SOCIAL_FEED_EYEBROW_CLASS,
+  SOCIAL_FEED_ASIDE_HEADING_CLASS,
+  SOCIAL_FEED_ASIDE_ROW_CLASS,
+  SOCIAL_FEED_ASIDE_SUBHEAD_CLASS,
+  SOCIAL_FEED_HEADING_CLASS,
   SOCIAL_FOLLOW_COMPACT_CLASS,
   SOCIAL_FOLLOW_QUIET_CLASS,
   SOCIAL_FOR_YOU_CARD_CLASS,
@@ -86,10 +95,11 @@ describe("SocialForYouRail person identity", () => {
     expect(html).toContain("data-social-latest-course");
   });
 
-  // G · Feed aside (D): borderless, no "For you" eyebrow (the tab says it),
-  // Latest course first, a hairline, Suggested people with hairline Follow.
-  // docs/design-locks/social-home-lane-tabs-lock-v1.md
-  it("renders the Feed aside borderless: course, hairline, people, quiet Follow, no accent", () => {
+  // H · Feed rail (founder 2026-10-05; decision 5, "sure": "For you"
+  // stays the slider option and this rail's heading). Replaces the G
+  // borderless aside (eyebrows, a hairline, a hairline Follow, no heading).
+  // docs/design-locks/social-feed-register-lock-v1.md
+  it("renders the Feed rail: the For you heading, a soft grey course card, people rows, grey Follow", () => {
     const html = renderToStaticMarkup(
       <SocialForYouRail
         layout="aside"
@@ -99,23 +109,63 @@ describe("SocialForYouRail person identity", () => {
         latestCourseCoverUrl={null}
       />,
     );
-    expect(html).toContain(`data-social-for-you-layout="aside" class="${SOCIAL_FEED_ASIDE_CLASS}"`);
+    expect(html).toContain(
+      `data-social-for-you-layout="aside" aria-label="${SOCIAL.forYou.title}" class="${SOCIAL_FEED_ASIDE_CLASS}"`,
+    );
     expect(html).not.toContain(SOCIAL_FOR_YOU_RAIL_CLASS);
     expect(html).not.toContain(SOCIAL_FOR_YOU_CARD_CLASS);
-    expect(html).not.toContain(`>${SOCIAL.forYou.title}<`);
-    expect(html).toContain(`<p class="${SOCIAL_FEED_EYEBROW_CLASS}">${SOCIAL.forYou.latestCourse}</p>`);
-    expect(html).toContain(`<p class="${SOCIAL_FEED_EYEBROW_CLASS}">${SOCIAL.forYou.people}</p>`);
+    // The heading: "For you", 20 / 480, 44 tall (level with the slider).
+    expect(html).toContain(
+      `<h2 data-social-for-you-heading="" class="${SOCIAL_FEED_ASIDE_HEADING_CLASS}">${SOCIAL.forYou.title}</h2>`,
+    );
+    expect(SOCIAL.forYou.title).toBe("For you");
+    expect(SOCIAL_FEED_ASIDE_HEADING_CLASS).toContain(SOCIAL_FEED_HEADING_CLASS);
+    expect(SOCIAL_FEED_ASIDE_HEADING_CLASS).toContain("h-11");
+    expect(SOCIAL_FEED_HEADING_CLASS).toContain("text-[length:var(--text-lg)]");
+    expect(SOCIAL_FEED_HEADING_CLASS).toContain("[font-weight:var(--type-title-weight)]");
+    // The course: one soft grey card that is one link — cover, label, title.
+    expect(html).toContain('data-course-card-density="feature"');
+    expect(html).toContain(`class="${COURSE_FEATURE_CARD_CLASS}"`);
+    expect(COURSE_FEATURE_CARD_CLASS).toContain("rounded-[var(--radius-xl)] bg-surface-muted p-4");
+    expect(COURSE_FEATURE_CARD_CLASS).not.toMatch(/border|shadow/);
+    expect(COURSE_FEATURE_COVER_CLASS).toBe("rounded-[var(--radius-lg)] border-0");
+    expect(html).toContain(
+      `<span data-course-card-meta="" class="${COURSE_FEATURE_META_CLASS}">${SOCIAL.forYou.latestCourseEyebrow}</span>`,
+    );
+    expect(SOCIAL.forYou.latestCourseEyebrow).toBe("Latest course · Education");
+    expect(html).toContain(`<span class="${COURSE_FEATURE_TITLE_CLASS}">${COURSE.title}</span>`);
+    expect(html.match(/<a /g)?.length).toBe(2); // the course card, the person row
+    // No signed cover: the glance plate, without the in-plate title.
+    expect(html).toContain('data-course-cover-tone="plate"');
+    expect(html).not.toContain("data-course-cover-title");
+    // People: a 17 / 600 heading, 56 rows, a 40 avatar, the grey 36 Follow.
+    expect(html).toContain(`<h3 class="${SOCIAL_FEED_ASIDE_SUBHEAD_CLASS}">${SOCIAL.forYou.people}</h3>`);
+    expect(html).toContain(`class="${SOCIAL_FEED_ASIDE_ROW_CLASS}"`);
+    expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("min-h-14");
+    expect(SOCIAL_FEED_ASIDE_AVATAR_CLASS).toBe("size-10");
+    expect(html).toContain(SOCIAL_FEED_ASIDE_AVATAR_CLASS);
     const course = html.indexOf("data-social-latest-course");
-    const rule = html.indexOf(`class="${SOCIAL_FEED_ASIDE_RULE_CLASS}"`);
     const people = html.indexOf("data-social-for-you-people");
-    expect(course).toBeGreaterThan(-1);
-    expect(course).toBeLessThan(rule);
-    expect(rule).toBeLessThan(people);
+    expect(course).toBeGreaterThan(html.indexOf("data-social-for-you-heading"));
+    expect(course).toBeLessThan(people);
+    expect(html).not.toContain("data-social-for-you-rule");
     expect(html).toContain(`class="${SOCIAL_FOLLOW_QUIET_CLASS}"`);
     expect(html).not.toContain(SOCIAL_FOLLOW_COMPACT_CLASS);
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("h-[30px]");
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("border-hairline");
-    expect(html).not.toContain("bg-accent");
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("h-9");
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("rounded-full bg-surface-muted");
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("text-[length:var(--text-sm)] font-semibold text-ink");
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).not.toMatch(/border|accent/);
+    // No accent fill (the glance plate's accent-contrast band is not one).
+    expect(html).not.toMatch(/bg-accent(?![-\w])/);
+  });
+
+  it("shows no heading on an empty Feed rail", () => {
+    const html = renderToStaticMarkup(
+      <SocialForYouRail layout="aside" people={[]} faces={new Map()} latestCourse={null} />,
+    );
+    expect(html).toContain('data-social-for-you-layout="aside"');
+    expect(html).not.toContain("data-social-for-you-heading");
+    expect(html).not.toContain(`>${SOCIAL.forYou.title}<`);
   });
 
   it("keeps the framed rail (Profile, Messages, Create) unchanged", () => {

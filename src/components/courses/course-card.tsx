@@ -2,6 +2,11 @@ import Link from "next/link";
 
 import { CourseCover } from "@/components/courses/course-cover";
 import {
+  COURSE_FEATURE_CARD_CLASS,
+  COURSE_FEATURE_COVER_CLASS,
+  COURSE_FEATURE_META_CLASS,
+  COURSE_FEATURE_TEXT_CLASS,
+  COURSE_FEATURE_TITLE_CLASS,
   COURSE_GLANCE_PROGRESS_CAPTION_CLASS,
   COURSE_GLANCE_PROGRESS_FILL_CLASS,
   COURSE_GLANCE_PROGRESS_TRACK_CLASS,
@@ -18,6 +23,8 @@ import { educationCourseHref } from "@/lib/education";
 // Discover: 16:9 cover + title + quiet lesson meta.
 // Home glance: signed photo + below-cover title + progress.
 // Plate/orb + in-plate title only when no signed cover.
+// Feature (Social Feed For you rail): one soft grey card — cover, the
+// label, then the title. Plate without the in-plate title.
 // One primitive — density, not a twin. No Social engagement chrome.
 
 export function CourseCard({
@@ -36,7 +43,8 @@ export function CourseCard({
   coverLoading?: "eager" | "lazy";
 }) {
   const home = density === "home";
-  const tone = home ? courseHomeCoverTone(coverUrl) : "photo";
+  const feature = density === "feature";
+  const tone = home || feature ? courseHomeCoverTone(coverUrl) : "photo";
   const plate = tone === "plate";
   const percent = courseGlanceProgressPercent(progressPercent);
   const progressLabel = courseGlanceProgressLabel(percent);
@@ -45,7 +53,13 @@ export function CourseCard({
     <li data-course-card={course.slug} data-course-card-density={density}>
       <Link
         href={educationCourseHref(course.slug)}
-        className={home ? "flex flex-col gap-[var(--space-2)]" : "flex flex-col gap-[var(--space-3)]"}
+        className={
+          feature
+            ? COURSE_FEATURE_CARD_CLASS
+            : home
+              ? "flex flex-col gap-[var(--space-2)]"
+              : "flex flex-col gap-[var(--space-3)]"
+        }
       >
         <CourseCover
           title={course.title}
@@ -53,14 +67,24 @@ export function CourseCard({
           tone={tone}
           loading={coverLoading}
           plateClass={plate ? courseGlancePlateClass(course.id) : undefined}
+          className={feature ? COURSE_FEATURE_COVER_CLASS : undefined}
         >
-          {plate ? (
+          {plate && !feature ? (
             <span data-course-cover-title="" className={COURSE_GLANCE_TITLE_CLASS}>
               {course.title}
             </span>
           ) : null}
         </CourseCover>
-        {home ? (
+        {feature ? (
+          <span className={COURSE_FEATURE_TEXT_CLASS}>
+            {metaLabel ? (
+              <span data-course-card-meta="" className={COURSE_FEATURE_META_CLASS}>
+                {metaLabel}
+              </span>
+            ) : null}
+            <span className={COURSE_FEATURE_TITLE_CLASS}>{course.title}</span>
+          </span>
+        ) : home ? (
           <div data-course-progress="" className="flex flex-col gap-[var(--space-2)]">
             {!plate ? (
               <span className="t-body font-medium text-ink">{course.title}</span>

@@ -11,7 +11,7 @@ import {
   HOUSE_HEADER_EXIT_LABEL_CLASS,
 } from "@/lib/house-lead-chrome";
 import { SOCIAL, SOCIAL_ROUTES, exploreExitUsesPriorRoute } from "@/lib/social";
-import { SOCIAL_EXPLORE_EXIT_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_EXPLORE_EXIT_CLASS, SOCIAL_EXPLORE_EXIT_ICON_SIZE } from "@/lib/social-chrome";
 import { socialFeedReelOpenedExplore } from "@/lib/social-feed-reels";
 
 // Desktop Explore Exit. The href is Social home. A same-origin
@@ -46,7 +46,7 @@ export function SocialExploreExit() {
       onClick={onClick}
     >
       <span aria-hidden="true" className="inline-flex">
-        <SocialIcon name="x" size={14} />
+        <SocialIcon name="x" size={SOCIAL_EXPLORE_EXIT_ICON_SIZE} />
       </span>
       <span className={HOUSE_HEADER_EXIT_LABEL_CLASS}>{SOCIAL.explore.exit}</span>
     </Link>

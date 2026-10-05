@@ -8,7 +8,7 @@ vi.mock("next/image", () => ({
 }));
 
 import {
-  SOCIAL_FEED_EYEBROW_CLASS,
+  SOCIAL_FEED_HEADING_CLASS,
   SOCIAL_FEED_REEL_CAPTION_CLASS,
   SOCIAL_FEED_REEL_FACE_CLASS,
   SOCIAL_FEED_REEL_NAME_CLASS,
@@ -53,10 +53,16 @@ function tiles(n: number, body = "Blocking the rooftop"): SocialFeedReelTile[] {
 
 // docs/design-locks/social-feed-reel-rail-lock-v1.md
 describe("SocialFeedReelRail", () => {
-  it("renders the Reels section: eyebrow, desktop arrows, a list of tile links", () => {
+  // H · Feed (founder 2026-10-05; replaces the 13px uppercase eyebrow):
+  // "Reels" is a 20 / 480 heading in normal case; the arrows are round grey 44s.
+  it("renders the Reels section: a 20 / 480 heading, desktop arrows, a list of tile links", () => {
     const html = renderToStaticMarkup(<SocialFeedReelRail rail={0} tiles={tiles(4)} />);
     expect(html).toContain('<section aria-label="Reels" data-social-feed-reels="0"');
-    expect(html).toContain(`<h2 class="${SOCIAL_FEED_EYEBROW_CLASS}">${SOCIAL.reels.title}</h2>`);
+    expect(html).toContain(`<h2 class="${SOCIAL_FEED_HEADING_CLASS}">${SOCIAL.reels.title}</h2>`);
+    expect(SOCIAL_FEED_HEADING_CLASS).not.toMatch(/uppercase|tracking-\[0\.06em\]/);
+    const arrows = html.slice(html.indexOf("data-social-feed-reels-arrows"), html.indexOf("data-social-feed-reels-track"));
+    expect(arrows.match(/<svg[^>]*width="20"/g)?.length).toBe(2);
+    expect(arrows).not.toContain('width="14"');
     expect(html).toContain(`class="${SOCIAL_FEED_REELS_ARROWS_CLASS}"`);
     expect(SOCIAL_FEED_REELS_ARROWS_CLASS).toContain("hidden");
     expect(SOCIAL_FEED_REELS_ARROWS_CLASS).toContain("md:flex");

@@ -9,7 +9,10 @@ import {
   socialFeedFrameOnScreen,
   socialFeedVideoFrame,
   socialFeedVideoPosterSrc,
-  socialMediaFrameClass,
+  SOCIAL_FEED_VIDEO_PENDING_CLASS,
+  SOCIAL_POST_PHOTO_ASPECT_MAX,
+  SOCIAL_POST_PHOTO_ASPECT_MIN,
+  socialPostPhotoAspect,
   socialStoryMediaFrameClass,
   socialMediaOrientation,
 } from "./social-media-display";
@@ -42,7 +45,11 @@ describe("social media display", () => {
     expect(isSessionGatedSocialSrc("/api/account/photo")).toBe(false);
   });
 
-  it("frames portrait 4:5 and landscape 16:9 from orientation, ratio, or kind default", () => {
+  // H · Posts (founder 2026-10-05): a feed photo keeps its true shape,
+  // held between 1.91:1 and 4:5; the 4:5 / 16:9 buckets stand in only
+  // until the shape is known. Replaces the capped 4:5 / 16:9 frame class.
+  // docs/design-locks/social-feed-register-lock-v1.md §7
+  it("frames a feed photo at its true shape (1.91:1 … 4:5), the orientation bucket standing in until known", () => {
     expect(socialMediaOrientation("portrait")).toBe("portrait");
     expect(socialMediaOrientation("landscape")).toBe("landscape");
     expect(socialMediaOrientation({ orientation: "portrait" })).toBe("portrait");
@@ -52,19 +59,21 @@ describe("social media display", () => {
     expect(socialMediaOrientation({ aspect: 16 / 9 })).toBe("landscape");
     expect(socialMediaOrientation({ kind: "image" })).toBe("portrait");
     expect(socialMediaOrientation({ kind: "video" })).toBe("landscape");
-    expect(socialMediaFrameClass("portrait")).toBe(
-      "aspect-[4/5] h-[min(70vh,560px,calc(100cqw*5/4))] w-full max-h-[min(70vh,560px)] object-cover object-center",
-    );
-    expect(socialMediaFrameClass("landscape")).toBe(
-      "aspect-video h-[min(70vh,560px,calc(100cqw*9/16))] w-full max-h-[min(70vh,560px)] object-cover object-center",
-    );
-    expect(socialMediaFrameClass("portrait")).toContain("min(70vh,560px)");
-    expect(socialMediaFrameClass("landscape")).toContain("min(70vh,560px)");
-    expect(socialMediaFrameClass("portrait")).not.toContain("min(100vh");
-    expect(socialMediaFrameClass({ kind: "image" })).toContain("aspect-[4/5]");
-    expect(socialMediaFrameClass({ kind: "video" })).toContain("aspect-video");
-    expect(socialMediaFrameClass({ kind: "video" })).not.toContain("aspect-square");
-    expect(socialMediaFrameClass({ kind: "image" })).not.toContain("aspect-square");
+    expect(SOCIAL_POST_PHOTO_ASPECT_MIN).toBe(4 / 5);
+    expect(SOCIAL_POST_PHOTO_ASPECT_MAX).toBe(1.91);
+    // True shape inside the range.
+    expect(socialPostPhotoAspect({ width: 1200, height: 800 })).toBe(1.5);
+    expect(socialPostPhotoAspect({ width: 1080, height: 1350 })).toBe(0.8);
+    expect(socialPostPhotoAspect({ aspect: 16 / 9 })).toBe(16 / 9);
+    // Beyond the range: held at the limit (the still crops, object-cover).
+    expect(socialPostPhotoAspect({ width: 1080, height: 1920 })).toBe(4 / 5);
+    expect(socialPostPhotoAspect({ width: 3000, height: 1000 })).toBe(1.91);
+    // Unknown: the bucket — an image with no hint is portrait 4:5; a
+    // landscape hint is 16:9. Never square.
+    expect(socialPostPhotoAspect({ kind: "image" })).toBe(4 / 5);
+    expect(socialPostPhotoAspect({ orientation: "landscape" })).toBe(16 / 9);
+    expect(socialPostPhotoAspect({ kind: "image", width: 0, height: 0 })).toBe(4 / 5);
+    expect(socialPostPhotoAspect({ kind: "image" })).not.toBe(1);
     expect(socialStoryMediaFrameClass()).toBe("aspect-[9/16] w-full object-cover");
     expect(socialStoryMediaFrameClass()).not.toContain("aspect-video");
     expect(socialStoryMediaFrameClass()).not.toContain("aspect-[4/5]");
@@ -81,6 +90,11 @@ describe("social media display", () => {
     expect(portrait?.className).not.toContain("aspect-[4/5]");
     expect(portrait?.className).not.toContain("md:");
     expect(portrait?.className).not.toContain("object-fill");
+    // H · Posts: the frame sits on the near-black screen; a still that has
+    // not loaded reads as the screen, not a grey slab.
+    expect(portrait?.className).toContain("bg-screen");
+    expect(portrait?.className).not.toContain("bg-surface-muted");
+    expect(SOCIAL_FEED_VIDEO_PENDING_CLASS).toContain("bg-screen");
 
     const landscape = socialFeedVideoFrame({ width: 1920, height: 1080 });
     expect(landscape?.orientation).toBe("landscape");

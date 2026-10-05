@@ -36,11 +36,15 @@ import {
   HOUSE_LEAD_SEARCH_PILL_CLASS,
   HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS,
   HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS,
-  HOUSE_LEAD_DIVIDER_CLASS,
+  HOUSE_LEAD_SEARCH_HEADER_GLYPH_CLASS,
+  HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS,
+  HOUSE_LEAD_DESKTOP_PAD_CLASS,
   HOUSE_HEADER_DESKTOP_AVATAR_CLASS,
   HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS,
   HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS,
-  HOUSE_LEAD_SEARCH_WIDTH_PX,
+  HOUSE_HEADER_ROUND_BUTTON_CLASS,
+  HOUSE_LEAD_SEARCH_MAX_WIDTH_PX,
+  HOUSE_LEAD_SEARCH_MIN_WIDTH_PX,
   HOUSE_LEAD_SHELL_CLASS,
   HOUSE_LEAD_SLOT_CLASS,
   HOUSE_LEAD_STACK_CLASS,
@@ -50,7 +54,6 @@ import {
   HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS,
   HOUSE_HEADER_TRAILING_SLOT_CLASS,
   HOUSE_ASK_AI_HEADER_CLASS,
-  HOUSE_ASK_AI_HEADER_LABEL_CLASS,
   HOUSE_LEAD_SEARCH_ICON_CLASS,
   HOUSE_LEAD_SEARCH_TOGGLE_HOST_CLASS,
   HOUSE_THEME_TOGGLE_CLASS,
@@ -81,10 +84,11 @@ function htmlClass(html: string, attr: string): string {
   return tag.match(/class="([^"]*)"/)?.[1] ?? "";
 }
 
-function leadHtml(workspace: "aggregation" | "social" | "education") {
+function leadHtml(workspace: "aggregation" | "social" | "education", brandInHeader = false) {
   return renderToStaticMarkup(
     createElement(HouseLeadChrome, {
       workspace,
+      brandInHeader,
       search:
         workspace === "social"
           ? createElement(HouseLeadSearch, { tone: "live", presentation: "header" })
@@ -135,16 +139,20 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     );
   });
 
-  it("G3 mounts Social live search first in the trailing cluster at Facebook-compact width", () => {
-    // Screening chrome: the 232×34 muted field shows from xl; below xl the
-    // icon form keeps the lanes unclipped.
-    expect(HOUSE_LEAD_SEARCH_WIDTH_PX).toBe(232);
-    expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe("hidden w-[232px] shrink-0 xl:flex");
-    expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toBe(
-      "flex h-[var(--header-desktop-control-size)] w-full min-w-0 items-center gap-2 rounded-[var(--radius)] border-0 bg-surface-muted px-3 text-ink-2",
+  it("G3 mounts Social live search first in the trailing cluster as the wide grey pill", () => {
+    // Coinbase register: the 44 grey pill flexes 240–360 from xl (flex
+    // 0 1 360px); below xl the round grey icon keeps the slider unclipped.
+    expect(HOUSE_LEAD_SEARCH_MIN_WIDTH_PX).toBe(240);
+    expect(HOUSE_LEAD_SEARCH_MAX_WIDTH_PX).toBe(360);
+    expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe(
+      "hidden min-w-[240px] max-w-[360px] flex-[0_1_360px] xl:flex",
     );
-    expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toContain("text-[length:var(--text-xs)]");
+    expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toBe(
+      "flex h-[var(--header-control-size)] w-full min-w-0 items-center gap-[var(--space-3)] rounded-full border-0 bg-surface-muted px-[var(--space-4)] text-ink-2",
+    );
+    expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toContain("text-[length:var(--text-base)]");
     expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toContain("placeholder:text-ink-2");
+    expect(HOUSE_LEAD_SEARCH_HEADER_GLYPH_CLASS).toBe("size-5 shrink-0 text-ink-2");
     expect(leadLib).toContain("Facebook-compact");
     expect(leadSearch).toContain("HOUSE_LEAD_SEARCH_PILL_CLASS");
     expect(leadSearch).toContain("HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS");
@@ -159,8 +167,14 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(social).toContain(HOUSE_LEAD_SEARCH_DESKTOP_CLASS);
     expect(social).toContain(`class="${HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS}`);
     expect(social).toContain('data-house-lead-search-face="header"');
-    expect(social).not.toContain(HOUSE_SEARCH_PILL_CLASS);
+    // The header face, not the 48 field pill.
+    expect(social).not.toContain(HOUSE_LEAD_SEARCH_PILL_CLASS);
+    expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toContain(HOUSE_SEARCH_PILL_CLASS);
     expect(social).toContain(SOCIAL.explore.searchSocial);
+    // Founder 2026-10-05, decision 1: the Social pill reads "Search Social".
+    expect(social).toContain('placeholder="Search Social"');
+    expect(SOCIAL.search.headerPlaceholder).toBe("Search Social");
+    expect(social).not.toContain('placeholder="Search people"');
     expect(social).toContain('action="/social/search"');
     expect(social).toContain('value="people"');
     expect(social).not.toContain("w-[420px]");
@@ -172,21 +186,16 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     );
   });
 
-  it("G10 orders desktop as brand · hairline · lanes | search · Ask · bell · avatar, and labels Ask from xl", () => {
+  it("G10 orders desktop as slider | search · Ask · bell · avatar — no hairline, no brand in the bar beside a side menu, no Ask label", () => {
     for (const workspace of ["aggregation", "social", "education"] as const) {
       const html = leadHtml(workspace);
-      const brand = html.indexOf("data-brand-emblem");
-      const divider = html.indexOf("data-app-header-divider");
-      const row = html.indexOf("data-workspace-switcher-lanes");
-      expect(divider, workspace).toBeGreaterThan(brand);
-      expect(divider, workspace).toBeLessThan(row);
-      expect(html, workspace).toContain(`class="${HOUSE_LEAD_DIVIDER_CLASS}"`);
-      expect(HOUSE_LEAD_DIVIDER_CLASS).toBe(
-        "hidden h-4.5 w-px shrink-0 bg-hairline md:mr-[var(--space-1)] md:block",
-      );
+      expect(html, workspace).not.toContain("data-app-header-divider");
+      // The desktop brand mark lives in the side menu's top band; the bar
+      // keeps only the phone emblem (md:hidden).
+      expect(html, workspace).not.toContain("hidden shrink-0 items-center md:inline-flex");
+      const row = html.indexOf("data-workspace-switcher-slider");
       const trailing = html.indexOf("data-app-header-trailing");
-      expect(brand, workspace).toBeGreaterThan(-1);
-      expect(brand, workspace).toBeLessThan(row);
+      expect(row, workspace).toBeGreaterThan(-1);
       expect(row, workspace).toBeLessThan(trailing);
       expect(html.indexOf('data-workspace-switcher-segment="home"'), workspace).toBeLessThan(
         html.indexOf('data-workspace-switcher-segment="aggregation"'),
@@ -194,21 +203,37 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html.indexOf("data-ask-assistant-header"), workspace).toBeLessThan(
         html.indexOf("data-activity-bell"),
       );
-      const label = html.slice(html.indexOf("data-ask-assistant-header-label"));
-      expect(label, workspace).toContain(`class="${HOUSE_ASK_AI_HEADER_LABEL_CLASS}">${ASK_FRAME_AI.headline}<`);
+      // Ask: no visible label at any width; the name is the aria-label
+      // and the tooltip (founder decision 1).
+      expect(html, workspace).not.toContain("data-ask-assistant-header-label");
+      const askAt = html.indexOf('data-ask-assistant-header=""');
+      const askTag = html.slice(html.lastIndexOf("<button", askAt), html.indexOf(">", askAt));
+      expect(askTag, workspace).toContain(`aria-label="${ASK_FRAME_AI.headline}"`);
+      expect(askTag, workspace).toContain(`title="${ASK_FRAME_AI.headline}"`);
     }
+    expect(ASK_FRAME_AI.headline).toBe("Ask 24Frame AI");
     expect(leadHtml("aggregation")).not.toContain("data-house-lead-search");
-    // Screening chrome: the xl pill is 34 tall, pad 10 / 12, gap 6; the
-    // label is 13 / 500 ink.
-    expect(HOUSE_ASK_AI_HEADER_LABEL_CLASS).toBe(
-      "hidden whitespace-nowrap text-[length:var(--text-xs)] font-medium text-ink xl:inline",
+    // Ask is the round grey 44 — no xl pill, no border.
+    expect(HOUSE_ASK_AI_HEADER_CLASS).toBe(HOUSE_HEADER_ROUND_BUTTON_CLASS);
+    expect(HOUSE_ASK_AI_HEADER_CLASS).not.toMatch(/xl:|border/);
+    expect(leadLib).not.toContain("HOUSE_ASK_AI_HEADER_LABEL_CLASS");
+  });
+
+  it("heads the bar with the brand mark only where the page has no side menu, its ink at 32", () => {
+    const html = leadHtml("social", true);
+    expect(html).toContain('data-app-header-brand=""');
+    expect(html).toContain("hidden shrink-0 items-center md:inline-flex");
+    expect(html).toContain(`href="${workspaceHome("social")}"`);
+    expect(htmlClass(html, 'data-app-header=""')).toContain(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS);
+    expect(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS).toBe(
+      "md:pl-[var(--shell-gutter-inline-start)] md:pr-[var(--shell-gutter-inline-end)]",
     );
-    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:w-auto");
-    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:border-hairline");
-    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("xl:gap-1.5 xl:border xl:border-hairline xl:pl-[10px] xl:pr-3");
-    // Below xl it is still the icon box (34 desktop, 44 phone); phone never shows the label.
-    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain(HOUSE_HEADER_TRAILING_HIT_CLASS);
-    expect(HOUSE_ASK_AI_HEADER_CLASS).not.toMatch(/(?:^|\s)(?:md:)?(?:w-auto|border)(?:\s|$)/);
+    const beside = leadHtml("social");
+    expect(beside).not.toContain('data-app-header-brand=""');
+    expect(htmlClass(beside, 'data-app-header=""')).toContain(HOUSE_LEAD_DESKTOP_PAD_CLASS);
+    expect(HOUSE_LEAD_DESKTOP_PAD_CLASS).toBe("md:pl-[var(--space-6)] md:pr-[var(--shell-gutter-inline-end)]");
+    // AppShell: the bar carries the mark exactly when the side menu is off.
+    expect(shell).toContain("brandInHeader={hideDestRail}");
   });
 
   it("G11 collapses Social and Education search to an icon below xl — Social links to Search, Education opens the field", () => {
@@ -269,8 +294,12 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(aggregation).toContain(HOUSE_LEAD_LOGO_CLASS);
     expect(social).toContain(HOUSE_LEAD_LOGO_CLASS);
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("relative");
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:pl-[var(--shell-gutter-inline-start)]");
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:pr-[var(--shell-gutter-inline-end)]");
+    // Desktop pads ride beside the bar class: 24 after the side menu's
+    // edge, the shell gutter 32 at the end (the avatar lines up with the
+    // page's right edge).
+    expect(HOUSE_LEAD_DESKTOP_PAD_CLASS).toContain("md:pl-[var(--space-6)]");
+    expect(HOUSE_LEAD_DESKTOP_PAD_CLASS).toContain("md:pr-[var(--shell-gutter-inline-end)]");
+    expect(htmlClass(aggregation, 'data-app-header=""')).toBe(htmlClass(social, 'data-app-header=""'));
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--chrome-gutter)]");
     expect(leadSrc).not.toContain("md:pl-5");
     expect(leadSrc).not.toContain("justify-between");
@@ -284,9 +313,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).toContain(APP_HEADER_TRAILING_CLUSTER_CLASS);
       expect(html).toContain("data-workspace-waffle");
       expect(html).toContain('data-workspace-switcher-presentation="waffle"');
-      expect(html).toContain('data-workspace-switcher-presentation="lanes"');
-      expect(html).toContain("hidden md:contents");
-      expect(html).toContain("md:hidden");
+      expect(html).toContain('data-workspace-switcher-presentation="slider"');
+      expect(html).toContain("hidden lg:contents");
+      expect(html).toContain("lg:hidden");
       expect(html).toContain("data-ask-assistant-header");
       expect(html).not.toContain("data-theme-toggle");
       expect(html).toContain("data-activity-bell");
@@ -316,56 +345,58 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain("min-w-[var(--header-control-size)]");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("size-[44px]");
     expect(HOUSE_THEME_TOGGLE_CLASS).toContain("rounded-full");
-    // Desktop controls are 34 radius-10 boxes (screening chrome).
-    expect(HOUSE_THEME_TOGGLE_CLASS).toContain("md:size-[var(--header-desktop-control-size)]");
-    expect(HOUSE_THEME_TOGGLE_CLASS).toContain("md:rounded-[var(--radius)]");
+    // Coinbase register: every header control is the round grey 44 on
+    // phone and desktop — muted fill, ink glyph, no 34 radius-10 box.
+    expect(HOUSE_THEME_TOGGLE_CLASS).toBe(HOUSE_HEADER_ROUND_BUTTON_CLASS);
+    expect(HOUSE_HEADER_ROUND_BUTTON_CLASS).toContain("bg-surface-muted text-ink");
+    expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("md:size-[var(--header-desktop-control-size)]");
+    expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("md:rounded-[var(--radius)]");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("purple");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("violet");
     expect(HOUSE_THEME_TOGGLE_CLASS).not.toContain("border-hairline");
     expect(HOUSE_ASK_AI_HEADER_CLASS).toContain(HOUSE_THEME_TOGGLE_CLASS);
-    // Open is marked by the bell's wash, not pressed ink (the sparkle owns its accent).
-    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("aria-pressed:bg-surface-muted");
+    // Open steps the grey fill one stop (the sparkle owns its accent).
+    expect(HOUSE_ASK_AI_HEADER_CLASS).toContain("aria-pressed:bg-hairline");
   });
 
-  it("marks Ask hover and open with the bell's and waffle's wash, since no child takes the hit's ink", () => {
-    // Every visible child of the Ask hit sets its own ink: both sparkles are
-    // text-accent (Adam 2026-10-04, "Blue, as in the mockup") and the xl label
-    // is text-ink. Hover or pressed ink on the hit repaints nothing, so hover
-    // and open (aria-pressed) need a non-ink cue on the hit itself.
+  it("marks Ask hover and open with the hairline grey the bell and pill use, since no child takes the hit's ink", () => {
+    // The Ask hit's only child is the accent sparkle (Adam 2026-10-04,
+    // "Blue, as in the mockup"), so hover or pressed ink on the hit would
+    // repaint nothing; hover and open (aria-pressed) step the grey fill.
     const html = leadHtml("aggregation");
     const askAt = html.indexOf('data-ask-assistant-header=""');
     const ask = html.slice(askAt, html.indexOf("</button>", askAt));
     const marks = [...ask.matchAll(/<svg[^>]*class="([^"]*)"/g)].map((m) => m[1].split(" "));
-    expect(marks).toHaveLength(2);
-    for (const cls of marks) expect(cls).toContain("text-accent");
-    expect(htmlClass(ask, "data-ask-assistant-header-label").split(" ")).toContain("text-ink");
+    expect(marks).toHaveLength(1);
+    for (const cls of marks) expect(cls).toEqual(["size-5", "shrink-0", "text-accent"]);
 
     const hit = htmlClass(html, 'data-ask-assistant-header=""').split(" ");
     expect(hit).toEqual(HOUSE_ASK_AI_HEADER_CLASS.split(" "));
-    expect(hit).toContain("hover:bg-surface-muted");
+    expect(hit).toContain("bg-surface-muted");
+    expect(hit).toContain("hover:bg-hairline");
     expect(hit).toContain(`aria-pressed:${ACTIVITY_BELL_TRIGGER_OPEN_CLASS}`);
-    // The same wash the trailing toggles that own a panel already use — not a new treatment.
-    expect(ACTIVITY_BELL_TRIGGER_CLASS.split(" ")).toContain("hover:bg-surface-muted");
-    expect(WORKSPACE_WAFFLE_TRIGGER_CLASS.split(" ")).toContain("hover:bg-surface-muted");
+    // The same step the trailing toggles that own a panel already use.
+    expect(ACTIVITY_BELL_TRIGGER_CLASS.split(" ")).toContain("hover:bg-hairline");
+    expect(WORKSPACE_WAFFLE_TRIGGER_CLASS.split(" ")).toContain("hover:bg-hairline");
     expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).toBe(ACTIVITY_BELL_TRIGGER_OPEN_CLASS);
-    // Idle stays bare, and no dead pressed ink is left on the hit.
-    expect(hit).not.toContain(ACTIVITY_BELL_TRIGGER_OPEN_CLASS);
     expect(hit.some((c) => c.startsWith("aria-pressed:text-"))).toBe(false);
     expect(leadLib).not.toContain("Pressed ink marks open");
   });
 
-  // Screening chrome (Adam 2026-10-04): 52 desktop (supersedes the 88
-  // "Joshua bar"), 60 phone; desktop controls 34; phone avatar 30.
+  // Coinbase register (Adam 2026-10-05): 80 desktop (supersedes the
+  // screening chrome's 52), 60 phone; every header control 44; the
+  // avatar 44 on both.
   it("locks desktop header height and the sizes that derive from it", () => {
     const tokens = readFileSync("src/app/tokens.css", "utf8");
-    expect(tokens).toMatch(/--header-height:\s*52px;/);
+    expect(tokens).toMatch(/--header-height:\s*80px;/);
+    expect(tokens).not.toMatch(/--header-height:\s*52px;/);
     expect(tokens).not.toMatch(/--header-height:\s*88px;/);
-    expect(tokens).toMatch(/--header-avatar-size:\s*28px;/);
+    expect(tokens).toMatch(/--header-avatar-size:\s*44px;/);
     expect(tokens).toMatch(/--header-control-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-desktop-control-size:\s*34px;/);
+    expect(tokens).toMatch(/--header-desktop-control-size:\s*44px;/);
     expect(tokens).toMatch(/--header-search-height:\s*48px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-height:\s*60px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*30px;/);
+    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*44px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*44px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-search-height:\s*44px;/);
     expect(HOUSE_LEAD_SEARCH_PILL_CLASS).toContain("h-[var(--header-search-height)]");
@@ -389,15 +420,16 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("p-[");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("-mx-");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("ml-");
-    // Desktop: the avatar sits 4 further out; phone: a 44 hit holds the 30 face.
-    expect(HOUSE_HEADER_DESKTOP_AVATAR_CLASS).toBe(`${HOUSE_HEADER_TRAILING_AVATAR_CLASS} ml-[var(--space-1)]`);
+    // Desktop: the 44 photo, 8 out like every control (no extra 4);
+    // phone: the 44 hit holds the 44 face.
+    expect(HOUSE_HEADER_DESKTOP_AVATAR_CLASS).toBe(HOUSE_HEADER_TRAILING_AVATAR_CLASS);
     expect(HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS).toContain("size-[var(--header-control-size)]");
     expect(HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS).toBe(`${HOUSE_HEADER_TRAILING_AVATAR_CLASS} overflow-hidden`);
     expect(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS).toBe("contents md:hidden");
     expect(HOUSE_HEADER_TRAILING_SLOT_CLASS).toBe("contents");
     expect(leadSrc).toContain("HOUSE_HEADER_TRAILING_SLOT_CLASS");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toBe(
-      "flex min-w-0 items-center gap-0 md:gap-[var(--space-2)] max-md:shrink-0",
+      "flex min-w-0 items-center gap-[var(--space-1)] md:gap-[var(--space-2)] max-md:shrink-0",
     );
   });
 
@@ -424,7 +456,8 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
   });
 
   it("G9 pins the shared lead to the viewport — page scroll lives on main", () => {
-    expect(HOUSE_LEAD_STACK_CLASS).toBe("sticky top-0 z-40 shrink-0");
+    // md+ the stack starts at the full-height side menu's edge.
+    expect(HOUSE_LEAD_STACK_CLASS).toBe("sticky top-0 z-40 shrink-0 md:ml-[var(--sidebar-width)]");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("sticky");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("top-0");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("shrink-0");
@@ -462,12 +495,11 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadSrc).toContain("<BrandLogo />");
     expect(leadSrc).not.toContain("BrandEmblem");
     expect(leadSrc.match(/<BrandLogo/g)?.length).toBe(1);
-    // Screening chrome: phone hits abut; desktop controls 8 apart.
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    // Coinbase register: phone hits 4 apart; desktop controls 8 apart.
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-1\)\](?:\s|$)/);
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
       /(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/,
     );
@@ -504,7 +536,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       htmlClass(html, 'data-app-header=""'),
       htmlClass(html, 'data-app-header-leading=""'),
     ];
-    expect(ancestors[0]).toBe(HOUSE_LEAD_CHROME_CLASS);
+    expect(ancestors[0]).toBe(`${HOUSE_LEAD_CHROME_CLASS} ${HOUSE_LEAD_DESKTOP_PAD_CLASS}`);
     expect(ancestors[1]).toBe(APP_HEADER_LEADING_CLASS);
     for (const className of ancestors) {
       expect(className).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
@@ -530,7 +562,7 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(shell).toContain('logoVisible="always"');
     expect(shell).not.toContain('homeChrome ? "always" : "desktop"');
     expect(leadLib).toContain("Asset 8 emblem on every workspace");
-    expect(leadLib).toContain("then\n// the grid \"switch workspace\" button, which names the current\n// workspace");
+    expect(leadLib).toContain("then\n// the grey workspace pill (filled grid + the current workspace's name,\n// 15 / 600 ink)");
     expect(APP_HEADER_LEADING_CLASS).toMatch(/(?:^|\s)gap-\[var\(--space-2\)\](?:\s|$)/);
     expect(APP_HEADER_LEADING_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
 
@@ -555,8 +587,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(phoneMark).toContain('href="/home"');
       expect(phoneMark).toContain("md:hidden");
       expect(phoneMark).not.toContain("md:inline-flex");
-      expect(html).toContain(`href="${workspaceHome(workspace)}"`);
-      expect(html).toContain("hidden shrink-0 items-center md:inline-flex");
+      // Beside a side menu the desktop mark is in the menu's band, not here.
+      expect(html).not.toContain("hidden shrink-0 items-center md:inline-flex");
+      expect(leadClass).toContain("md:hidden");
       const leading = html.slice(
         html.indexOf("data-app-header-leading"),
         html.indexOf("data-app-header-trailing"),

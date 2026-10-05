@@ -389,6 +389,14 @@ export function socialStoryHref(id: string): string {
   return `${SOCIAL_ROUTES.stories}/${encodeURIComponent(id)}`;
 }
 
+/** A story card's name on the picture: the first name and the last
+ *  name's initial ("Elena R."); one word stays whole. */
+export function socialStoryCardName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2 && parts[1]?.[0]) return `${parts[0]} ${parts[1][0]}.`;
+  return parts[0] || name;
+}
+
 export function socialProfilePublicHost(handle: string): string {
   const display = handleDisplay(handle);
   return display ? `24frame.co/@${display}` : "24frame.co/@";
@@ -426,6 +434,11 @@ export type SocialHomeLane = (typeof SOCIAL_HOME_LANES)[number];
 export function parseSocialHomeLane(raw: string | string[] | undefined | null): SocialHomeLane {
   const value = Array.isArray(raw) ? raw[0] : raw;
   return value === "for-you" ? "for-you" : "following";
+}
+
+/** The Feed slider's lit segment: Following 0, For you 1. */
+export function socialHomeLaneIndex(lane: SocialHomeLane): number {
+  return SOCIAL_HOME_LANES.indexOf(lane);
 }
 
 export const SOCIAL_PROFILE_TAB_PARAM = "tab";
@@ -563,6 +576,13 @@ export function socialFeedRelativeTime(iso: string, now = Date.now()): string {
   return `${Math.floor(delta / day)}d`;
 }
 
+/** The Messages dest's accessible name when DMs are unread (the side
+ *  menu's dot and the dock's dot are the visible cue; never a count
+ *  badge). "Messages, 2 unread". */
+export function socialMessagesNavLabel(label: string, unread: number): string {
+  return unread > 0 ? `${label}, ${unread} unread` : label;
+}
+
 export const SOCIAL = {
   workspace: SOCIAL_WORKSPACE,
   home: {
@@ -645,6 +665,10 @@ export const SOCIAL = {
     subtitle: `Find people in ${PRODUCT_NAME}.`,
     people: "People",
     searchPlaceholder: "Search people",
+    // The header search pill on Social (founder 2026-10-05, decision 1:
+    // "use default text \"Search Social\""). The Search page keeps its
+    // own field's "Search people".
+    headerPlaceholder: "Search Social",
     empty: "No people to suggest yet.",
     noResults: "No matching people.",
     truncated: `Showing the first ${SOCIAL_EXPLORE_PEOPLE_LIMIT} matching people. More exist — this list is not complete.`,
@@ -751,8 +775,10 @@ export const SOCIAL = {
     submit: "Share",
     you: "You",
     yourStory: "Your story",
-    // Feed story tiles (G board): the create tile's accessible name.
+    // Feed story cards (H board): the create card's accessible name, and
+    // each author card's ("Elena Ruiz story"; the picture shows "Elena R.").
     yourStoryCreate: "Your story, create a story",
+    cardLabel: (name: string) => `${name} story`,
     createCta: "Create a story",
     reply: "Reply quietly…",
   },
@@ -793,6 +819,8 @@ export const SOCIAL = {
     people: "Suggested people",
     // Adam 2026-09-22: Home chip rail has no section label.
     latestCourse: "Latest course",
+    // The Feed rail's course card label (H board): where the course lives.
+    latestCourseEyebrow: "Latest course · Education",
   },
   profile: {
     title: "Profile",
@@ -989,9 +1017,15 @@ export const SOCIAL = {
     likesTruncated: `Showing the latest ${LIST_PAGE} likes.`,
     carousel: "Post media",
     carouselCount: (current: number, total: number) => `${current} of ${total}`,
+    // The counter chip on the photo (H register §5.1): "1 / 3" is what
+    // the eye reads; the live region still says "1 of 3".
+    carouselChip: (current: number, total: number) => `${current} / ${total}`,
     carouselShow: (current: number, total: number) => `Show media ${current} of ${total}`,
+    // The right end of a video's screen band (H register §5.1).
+    videoLabel: "Video",
     comments: "comments",
     comment: "Comment",
+    commentOne: "comment",
     commentsTitle: "Comments",
     viewPhoto: "View photo",
     viewVideo: "View video",
@@ -1497,6 +1531,23 @@ export function socialLikeCountCopy(count: number): string | null {
   if (!Number.isFinite(count) || count <= 0) return null;
   if (count === 1) return `1 ${SOCIAL.post.likeOne}`;
   return `${count} ${SOCIAL.post.likes}`;
+}
+
+/**
+ * The count beside a round post action (H register §5.1): the bare
+ * number, tabular, 15 / 500 ink-2. None when zero — no "0" beside a
+ * round. The accessible name carries the words ("4 likes").
+ */
+export function socialPostActionCount(count: number): string | null {
+  const n = Number.isFinite(count) ? Math.trunc(count) : 0;
+  return n > 0 ? String(n) : null;
+}
+
+/** "Comment" with no comments; "Comment, 2 comments" (H board) with some. */
+export function socialCommentActionLabel(count: number): string {
+  const n = Number.isFinite(count) ? Math.trunc(count) : 0;
+  if (n <= 0) return SOCIAL.post.comment;
+  return `${SOCIAL.post.comment}, ${n} ${n === 1 ? SOCIAL.post.commentOne : SOCIAL.post.comments}`;
 }
 
 export function likeInsertRow(userId: string, postId: string) {

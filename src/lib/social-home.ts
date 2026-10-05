@@ -4,17 +4,19 @@ import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "@/lib/social";
 // Home following wall + Skool-style onboarding. Photo reuses the
 // account face at /settings/profile. Do not add a second upload.
 
-// Adam 2026-10-04 G · Feed (D · Screening room with E's tabs):
-// lock_tabs_topics_stories_composer_wall. Supersedes 2026-09-22
-// lock_topics_composer_stories_wall. One Feed column on both devices:
-// Following / For you tabs → topic words → story tiles → composer bar →
-// wall (with a Reels rail after every 3 posts). The composer (avatar +
+// Founder 2026-10-05 H · Feed ("I like the designs. Let's use them."):
+// lock_slider_stories_composer_topics_wall, as the H board draws it.
+// Supersedes the G stack (2026-10-04) lock_tabs_topics_stories_composer_wall
+// and, before it, 2026-09-22 lock_topics_composer_stories_wall. One Feed
+// column on both devices: the Following / For you slider → story cards →
+// composer → topic chips → wall (with a Reels row after every 3 posts);
+// the topics sit over the wall they filter. The composer (avatar +
 // "Share something" + icon-only Photo · Camera) stays one row. Create
 // dock stays. Phone + fans Media · Write · Go live. Desktop rail keeps
 // the Create dialog. Same JSX, no second layout, no Live / Feeling strip.
-// docs/design-locks/social-home-lane-tabs-lock-v1.md
-export const SOCIAL_HOME_STACK_LOCK = "lock_tabs_topics_stories_composer_wall" as const;
-export const SOCIAL_HOME_STACK_ORDER = ["tabs", "topics", "stories", "composer", "wall"] as const;
+// docs/design-locks/social-feed-register-lock-v1.md
+export const SOCIAL_HOME_STACK_LOCK = "lock_slider_stories_composer_topics_wall" as const;
+export const SOCIAL_HOME_STACK_ORDER = ["slider", "stories", "composer", "topics", "wall"] as const;
 
 export const SOCIAL_CHECKLIST_IDS = [
   "photo",

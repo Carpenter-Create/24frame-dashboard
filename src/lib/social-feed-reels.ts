@@ -25,12 +25,13 @@ export const SOCIAL_FEED_REEL_RAIL_SIZE = 6;
 /** Fewer vertical videos than this left for a rail: the rail is skipped. */
 export const SOCIAL_FEED_REEL_MIN = 2;
 
-/** Desktop arrows move the rail by this many tiles (2 × (180 + 12) = 384). */
+/** Desktop arrows move the rail by this many tiles (2 × (180 + 8) = 376). */
 export const SOCIAL_FEED_REEL_STEP_TILES = 2;
 
-/** 9:16 tiles. Desktop 180×320, gap 12. Phone 160×284, gap 8. */
+/** 9:16 tiles. Desktop 180×320, phone 160×284; gap 8 on both (H register;
+ *  the G rail's desktop gap was 12). */
 export const SOCIAL_FEED_REEL_TILE = {
-  desktop: { width: 180, height: 320, gap: 12 },
+  desktop: { width: 180, height: 320, gap: 8 },
   phone: { width: 160, height: 284, gap: 8 },
 } as const;
 

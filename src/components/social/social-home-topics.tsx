@@ -9,8 +9,8 @@ import {
   SOCIAL_HOME_TOPIC_MORE_CLASS,
   SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
+  socialHomeTopicChipClass,
   socialHomeTopicClass,
-  socialHomeTopicMarkClass,
 } from "@/lib/social-chrome";
 import {
   SOCIAL_CATEGORY_ALL,
@@ -34,12 +34,14 @@ function socialFocusIsKeyboard(node: Element): boolean {
   }
 }
 
-// D topic words (Adam pick 2026-10-04): All, then the 15 topics A to Z.
-// Plain words; the current one is ink over a 2px ink underline, no fill
-// and no accent. The row scrolls sideways; every label shows whole. A
-// fade over the trailing edge carries "More topics" (scrolls the row on);
-// both leave at the end. Lane state is the tabs above (same hook).
-// docs/design-locks/social-home-lane-tabs-lock-v1.md
+// Topics as secondary chips (H register §3.2; founder 2026-10-05, "I
+// like the designs. Let's use them."): All, then the 15 topics A to Z.
+// Idle chips are plain ink words; the current chip is the accent wash
+// with accent-ink type. The row scrolls sideways; every label shows
+// whole. A fade over the trailing edge carries the round grey "More
+// topics" (scrolls the row on); both leave at the end. Lane state is the
+// slider above (same hook).
+// docs/design-locks/social-feed-register-lock-v1.md
 export function SocialHomeTopics({
   active = SOCIAL_CATEGORY_ALL,
   lane = "following",
@@ -56,10 +58,10 @@ export function SocialHomeTopics({
     node.scrollBy({ left: Math.max(1, Math.round(node.clientWidth * 0.6)), behavior: "smooth" });
   }
 
-  // Keyboard focus only: a word the browser leaves under the fade and
+  // Keyboard focus only: a chip the browser leaves under the fade and
   // More topics scrolls clear of the track's own scroll padding (the CSS
   // holds the fade width). A mouse press never moves the row under the
-  // pointer, so the click still lands on the word pressed.
+  // pointer, so the click still lands on the chip pressed.
   function reveal(event: FocusEvent<HTMLDivElement>) {
     const node = rowRef.current;
     const item: Element = event.target;
@@ -102,7 +104,7 @@ export function SocialHomeTopics({
               aria-current={current ? "true" : undefined}
               className={socialHomeTopicClass(current)}
             >
-              <span className={socialHomeTopicMarkClass(current)}>{label}</span>
+              <span className={socialHomeTopicChipClass(current)}>{label}</span>
             </HouseLink>
           );
         })}
@@ -116,7 +118,7 @@ export function SocialHomeTopics({
             className={SOCIAL_HOME_TOPIC_MORE_CLASS}
             onClick={more}
           >
-            <SocialIcon name="caret-right" size={16} className="md:size-3.5" />
+            <SocialIcon name="caret-right" size={20} />
           </button>
         </div>
       )}

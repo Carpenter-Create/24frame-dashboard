@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-24 (CT) · **Amend:** FAIL tip nudge dropped · Adam closer → gap **16→8** (keep 40/24/equal/baseline) · **Idle ink:** house `text-ink-2` (light `#3D4450`). Box path checked 2026-09-25; `24frame-agg-ux` lock file was not in the tree. This amend records that Design READY. Do not hard-code `#5E646E` on this row.  
 **Status:** **LOCKED** · Design no PR · path stays `docs/design-locks/social-home-post-actions-align-lock-v1.md`  
+**Amended (founder 2026-10-05, H · Posts):** on the feed post only, Like · Comment · Share are round grey 40 (phone 44) with 20 ink glyphs and their counts beside them, 8 apart. The immersive dock, the Explore rail and the create preview keep this lock's bare 40 hits with 24 glyphs. See [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7.  
 **Box:** `/workspace/24frame-agg-ux/social-home-post-actions-align-lock-v1.md`  
 **Miss shots:** `post-actions-uneven-fail.png` · `post-actions-still-uneven-fail.png`  
 **Cite:** Immersive Social · launch-great · spacing **8 / 16 / 24 / 48**

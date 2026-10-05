@@ -168,7 +168,6 @@ async function SocialHomeCenter({
         <p>{SOCIAL.home.subtitle}</p>
       </div>
       <SocialHomeLaneTabs lane={lane} topic={topic} />
-      <SocialHomeTopics active={topic} lane={lane} />
       <SocialHomeColdSlot seedLane={lane} seedTopic={topic}>
         <SocialStoriesRail
           cards={rail}
@@ -186,6 +185,9 @@ async function SocialHomeCenter({
             authorPhotoUrl={photoUrl}
           />
         ) : null}
+        {/* Topics sit over the wall they filter (H board: slider →
+            stories → composer → topics → wall). */}
+        <SocialHomeTopics active={topic} lane={lane} />
         <div data-social-home-wall="" className={SOCIAL_FEED_WALL_CLASS}>
           {storiesPage.truncated ? (
             <InlineNotice tone="info" data-social-stories-truncated="">

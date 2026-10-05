@@ -2,6 +2,7 @@ import {
   Rows,
   Compass,
   Plus,
+  PlusSquare,
   ChatCircle,
   User,
   SquaresFour,
@@ -118,6 +119,15 @@ export const SOCIAL_DESKTOP_NAV: PhosphorNavItem[] = SOCIAL_NAV;
 export function isSocialCreateDest(item: Pick<NavItem, "href">): boolean {
   return item.href === SOCIAL_ROUTES.create;
 }
+
+export function isSocialMessagesDest(item: Pick<NavItem, "href">): boolean {
+  return item.href === SOCIAL_ROUTES.dms;
+}
+
+/** Side menu Create (H register): an ordinary row with the
+ *  plus-in-a-rounded-square glyph, like the board. The phone dock keeps
+ *  SOCIAL_NAV's plain Plus inside its accent circle. */
+export const SOCIAL_RAIL_CREATE_ICON: PhosphorIcon = PlusSquare;
 
 // Member Education rail. Browse is /education.
 // Staff CMS is /education/manage (operator-gated) via EDUCATION_MANAGE_NAV —

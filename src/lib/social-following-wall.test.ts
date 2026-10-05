@@ -15,6 +15,7 @@ describe("social following wall view", () => {
         comment_count: 1,
         created_at: "2026-09-21T12:00:00.000Z",
         media: [],
+        category: "Music",
       },
     ];
     const view = socialFollowingWallView({
@@ -50,6 +51,8 @@ describe("social following wall view", () => {
         groupName: "Writers",
         canLike: true,
         owned: false,
+        // H · Posts: the topic chip on the media reads the post's category.
+        topic: "Music",
         media: [{ kind: "image", url: "/api/social/media?key=posts%2Fu2%2Fa.jpg", contentType: "image/jpeg" }],
       },
     ]);

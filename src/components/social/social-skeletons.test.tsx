@@ -13,20 +13,29 @@ import {
   SOCIAL_PROFILE_STAT_VALUE_CLASS,
   SOCIAL_PROFILE_STATS_CLASS,
   SOCIAL_PROFILE_STATS_GRID_CLASS,
+  SOCIAL_COMPOSER_AFFORDANCE_CLASS,
   SOCIAL_COMPOSER_CLASS,
+  SOCIAL_COMPOSER_FIELD_CLASS,
   SOCIAL_FEED_ASIDE_CLASS,
+  SOCIAL_FEED_ASIDE_COURSE_CLASS,
+  SOCIAL_FEED_ASIDE_HEADING_CLASS,
+  SOCIAL_FEED_ASIDE_ROW_CLASS,
+  SOCIAL_FEED_ASIDE_SECTION_CLASS,
   SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
+  SOCIAL_FEED_SCOPE_CLASS,
+  SOCIAL_FEED_SCOPE_TRACK_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,
-  SOCIAL_HOME_LANE_TABS_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
-  SOCIAL_HOME_STORY_ITEM_CLASS,
-  SOCIAL_HOME_STORY_TILE_CLASS,
+  SOCIAL_HOME_STORY_CARD_CLASS,
+  SOCIAL_HOME_TOPIC_CHIP_CLASS,
   SOCIAL_HOME_TOPIC_CLASS,
   SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
 } from "@/lib/social-chrome";
+import { COURSE_FEATURE_CARD_CLASS } from "@/lib/courses";
+import { HOUSE_PILL_SLIDER_TRACK_CLASS } from "@/lib/house-shell";
 import {
   SocialCreateSkeleton,
   SocialDmsSkeleton,
@@ -77,15 +86,16 @@ describe("Social loading skeletons", () => {
     const follows = renderToStaticMarkup(<SocialFollowsSkeleton />);
 
     expect(home).toContain("data-social-home-skeleton");
-    // G · Feed (Adam 2026-10-04): the skeleton follows the live stack —
-    // tabs → topic words → story tiles → composer bar → wall — on the same
-    // row classes, so nothing moves when the center mounts.
-    expect(home).toContain('data-social-home-stack="lock_tabs_topics_stories_composer_wall"');
+    // H · Feed (founder 2026-10-05; replaces the G stack pins): the
+    // skeleton follows the live stack — slider → story cards → composer →
+    // topic chips → wall — on the same row classes, so nothing moves when
+    // the center mounts.
+    expect(home).toContain('data-social-home-stack="lock_slider_stories_composer_topics_wall"');
     const order = [
       "data-social-home-lanes-skeleton",
-      "data-social-home-topics-skeleton",
       "data-social-stories-skeleton",
       "data-social-home-composer-skeleton",
+      "data-social-home-topics-skeleton",
       "data-social-feed-skeleton",
     ];
     for (let i = 1; i < order.length; i += 1) {
@@ -94,29 +104,43 @@ describe("Social loading skeletons", () => {
     }
     expect(home).toContain(`class="${SOCIAL_FEED_LAYOUT_CLASS}"`);
     expect(home).toContain(`class="${SOCIAL_FEED_CENTER_CLASS}"`);
-    expect(home).toContain(`class="${SOCIAL_HOME_LANE_TABS_CLASS}"`);
+    expect(home).toContain(`data-social-home-lanes-skeleton="" class="${SOCIAL_FEED_SCOPE_CLASS}"`);
+    // The slider's 44 track, as one pill (its w-max yields to the 221).
+    expect(SOCIAL_FEED_SCOPE_TRACK_CLASS).toBe(`${HOUSE_PILL_SLIDER_TRACK_CLASS} w-max`);
+    expect(home).toContain(`animate-pulse ${HOUSE_PILL_SLIDER_TRACK_CLASS} h-11 w-[221px]`);
     expect(home).toContain(`class="${SOCIAL_HOME_TOPIC_ROW_CLASS}"`);
     expect(home).toContain(`class="${SOCIAL_COMPOSER_CLASS}"`);
+    expect(home).toContain(SOCIAL_COMPOSER_FIELD_CLASS);
+    expect(home.split(SOCIAL_COMPOSER_AFFORDANCE_CLASS).length - 1).toBe(2);
     expect(home).toContain(`class="${SOCIAL_FEED_WALL_CLASS}"`);
     expect(home).toContain(`data-social-stories-skeleton="" class="${SOCIAL_HOME_STORIES_RAIL_CLASS}"`);
     expect(home).toContain(`class="${SOCIAL_HOME_TOPIC_TRACK_CLASS}"`);
-    expect(home.split(`class="${SOCIAL_HOME_STORY_ITEM_CLASS}"`).length - 1).toBe(5);
-    expect(home).toContain(SOCIAL_HOME_STORY_TILE_CLASS);
+    // Five story cards at the live card box (no 70 items, no name line).
+    expect(home.split(SOCIAL_HOME_STORY_CARD_CLASS).length - 1).toBe(5);
+    expect(home).not.toContain("w-[70px]");
+    expect(home).not.toContain("h-[100px] w-14");
     expect(home).not.toContain("data-social-home-topics-composer-divider");
     expect(home).not.toContain("divide-y divide-hairline");
     expect(home).not.toContain("h-[240px]");
     const topicsSkeleton = home.slice(
       home.indexOf("data-social-home-topics-skeleton"),
-      home.indexOf("data-social-stories-skeleton"),
+      home.indexOf("data-social-feed-skeleton"),
     );
     expect(topicsSkeleton.split(`class="${SOCIAL_HOME_TOPIC_CLASS}"`).length - 1).toBe(8);
+    expect(topicsSkeleton.split(`class="${SOCIAL_HOME_TOPIC_CHIP_CLASS}"`).length - 1).toBe(8);
     expect(topicsSkeleton).not.toContain("flex-wrap");
-    // Topic words, not pills.
-    expect(topicsSkeleton).not.toContain("rounded-full");
     expect(home).toContain("data-social-stories-skeleton");
-    // The Feed aside skeleton is the borderless 244 aside.
+    // The Feed rail skeleton is the same 296 column: the heading row, the
+    // course card box, the section and two 56 rows; no hairline.
     expect(home).toContain('data-social-for-you-skeleton="" data-social-for-you-layout="aside"');
     expect(home).toContain(`class="${SOCIAL_FEED_ASIDE_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_FEED_ASIDE_HEADING_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_FEED_ASIDE_COURSE_CLASS}"`);
+    expect(home).toContain(`class="${COURSE_FEATURE_CARD_CLASS}"`);
+    expect(home).toContain(`class="${SOCIAL_FEED_ASIDE_SECTION_CLASS}"`);
+    expect(home.split(`class="${SOCIAL_FEED_ASIDE_ROW_CLASS}"`).length - 1).toBe(2);
+    // No hairline rule between the course and the people (G drew one).
+    expect(home).not.toContain("h-px shrink-0 bg-hairline");
     expect(home).not.toContain(SOCIAL_FOR_YOU_RAIL_CLASS);
     expect(home).not.toContain("data-social-recent-chats-skeleton");
     expect(profile).toContain("data-social-profile-skeleton");

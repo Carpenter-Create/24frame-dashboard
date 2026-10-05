@@ -2,9 +2,15 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type SyntheticEvent } from "react";
 
-import { cn } from "@/lib/cn";
 import { type SocialPostMediaItem } from "@/lib/social-author-post-card";
-import { SOCIAL_POST_MEDIA_CLASS } from "@/lib/social-chrome";
+import {
+  SOCIAL_POST_MEDIA_CLASS,
+  SOCIAL_POST_PHOTO_FRAME_CLASS,
+  SOCIAL_POST_SCREEN_CLASS,
+  SOCIAL_POST_SCREEN_HEAD_CLASS,
+  SOCIAL_POST_SCREEN_TOPIC_CLASS,
+  SOCIAL_POST_TOPIC_CHIP_CLASS,
+} from "@/lib/social-chrome";
 import { socialFeedUsesCarousel } from "@/lib/social-feed-carousel";
 import {
   SOCIAL_FEED_VIDEO_PENDING_CLASS,
@@ -12,7 +18,7 @@ import {
   socialFeedFrameOnScreen,
   socialFeedVideoFrame,
   socialFeedVideoPosterSrc,
-  socialMediaFrameClass,
+  socialPostPhotoAspect,
   type SocialFeedVideoFrame,
 } from "@/lib/social-media-display";
 import {
@@ -31,30 +37,37 @@ import {
 } from "./social-following-mux-band";
 import { SocialMediaImage } from "./social-media-image";
 
+// H · Posts (H §5.1): the media is the card. A photo fills the column at
+// its true shape (1.91:1 to 4:5) at radius 24, no frame, the topic chip
+// on it; a video plays on the near-black screen under a band (topic
+// left, "Video" right); two or more items swipe in one frame with the
+// "1 / 3" chip. Phone meets the viewport at radius 0. Tap opens the
+// immersive; the Following Mux band gates one player.
+// docs/design-locks/social-feed-register-lock-v1.md §7
 export function SocialPostMedia({
   items,
   onOpen,
-  frameClass,
   muxBandId,
+  topic = null,
 }: {
   items: readonly SocialPostMediaItem[];
   onOpen: (index: number) => void;
-  frameClass?: string;
   muxBandId?: string;
+  topic?: string | null;
 }) {
   if (items.length === 0) return null;
   if (socialFeedUsesCarousel(items.length)) {
-    return <SocialFeedCarousel items={items} onOpen={onOpen} muxBandId={muxBandId} />;
+    return <SocialFeedCarousel items={items} onOpen={onOpen} muxBandId={muxBandId} topic={topic} />;
   }
   return (
-    <div data-social-post-media="" className={cn("@container", SOCIAL_POST_MEDIA_CLASS)}>
+    <div data-social-post-media="" className={SOCIAL_POST_MEDIA_CLASS}>
       {items.map((item, index) => (
         <SocialPostMediaFrame
           key={item.playbackId ?? item.url}
           item={item}
           label={item.kind === "video" ? SOCIAL.post.viewVideo : SOCIAL.post.viewPhoto}
-          frameClass={frameClass}
           muxBandId={muxBandId}
+          topic={topic}
           onOpen={() => onOpen(index)}
         />
       ))}
@@ -65,14 +78,14 @@ export function SocialPostMedia({
 function SocialPostMediaFrame({
   item,
   label,
-  frameClass,
   muxBandId,
+  topic,
   onOpen,
 }: {
   item: SocialPostMediaItem;
   label: string;
-  frameClass?: string;
   muxBandId?: string;
+  topic: string | null;
   onOpen: () => void;
 }) {
   const open = (
@@ -86,16 +99,48 @@ function SocialPostMediaFrame({
   );
   if (item.kind === "video") {
     return (
-      <SocialFeedVideoFrame item={item} muxBandId={muxBandId} open={open} />
+      <div data-social-post-screen="" className={SOCIAL_POST_SCREEN_CLASS}>
+        <div data-social-post-screen-head="" className={SOCIAL_POST_SCREEN_HEAD_CLASS}>
+          <span className={SOCIAL_POST_SCREEN_TOPIC_CLASS}>{topic}</span>
+          <span>{SOCIAL.post.videoLabel}</span>
+        </div>
+        <SocialFeedVideoFrame item={item} muxBandId={muxBandId} open={open} />
+      </div>
     );
   }
-  const frame = cn(
-    frameClass ?? socialMediaFrameClass(item),
-    "relative w-full overflow-hidden bg-surface-muted",
-  );
+  return <SocialPostPhotoFrame item={item} topic={topic} open={open} />;
+}
+
+function SocialPostPhotoFrame({
+  item,
+  topic,
+  open,
+}: {
+  item: SocialPostMediaItem;
+  topic: string | null;
+  open: ReactNode;
+}) {
+  // The stored shape draws first; the still's natural size, once it
+  // loads, is the true shape (held to 1.91:1 … 4:5 in the lib).
+  const [probed, setProbed] = useState<number | null>(null);
+  const aspect = socialPostPhotoAspect(probed ? { aspect: probed } : item);
+  function onLoad(event: SyntheticEvent<HTMLImageElement>) {
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    if (naturalWidth > 0 && naturalHeight > 0) setProbed(naturalWidth / naturalHeight);
+  }
   return (
-    <div data-social-post-image="" data-social-feed-media-frame="" className={frame}>
-      <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} loading="eager" />
+    <div
+      data-social-post-image=""
+      data-social-feed-media-frame=""
+      className={SOCIAL_POST_PHOTO_FRAME_CLASS}
+      style={{ aspectRatio: String(aspect) }}
+    >
+      <SocialMediaImage src={item.url} sizes={SOCIAL_POST_IMAGE_SIZES} loading="eager" onLoad={onLoad} />
+      {topic ? (
+        <span data-social-post-topic="" className={SOCIAL_POST_TOPIC_CHIP_CLASS}>
+          {topic}
+        </span>
+      ) : null}
       {open}
     </div>
   );

@@ -12,6 +12,7 @@ import {
   SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS,
   SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS,
   SOCIAL_COMPOSER_AVATAR_CLASS,
+  SOCIAL_COMPOSER_AVATAR_NARROW_CLASS,
   SOCIAL_COMPOSER_CLASS,
   SOCIAL_COMPOSER_FIELD_CLASS,
   SOCIAL_COMPOSER_ROW_CLASS,
@@ -19,10 +20,12 @@ import {
 import { SOCIAL_CREATE_CAMERA_ACCEPT } from "@/lib/social-create-media";
 import { SOCIAL, socialComposerPrompt } from "@/lib/social";
 
-// Feed composer bar (G · D, Adam pick 2026-10-04): one muted bar, radius
-// 16, 52 tall, on phone and desktop. Supersedes the FB-row v1.6 band.
-// Photo and Camera stay icon-only: 44 hits on phone, 36 on desktop.
+// Feed composer (H register §5.3; founder 2026-10-05, "I like the
+// designs. Let's use them."): one 44 row on phone and desktop — the 44
+// avatar, the grey "Share something" pill, then round grey 44 Photo and
+// Camera. Supersedes the G composer bar (52, radius 16).
 // Prompt and avatar open write compose in the house sheet. No Create sheet hop.
+// docs/design-locks/social-feed-register-lock-v1.md
 // docs/design-locks/share-something-write-compose-sheet-lock-v1.md
 // Photo reuses the Create media library pick. Camera reuses that pick
 // with capture=environment. Icon only — no Photo/Camera labels.
@@ -93,7 +96,7 @@ export function SocialHomeComposer({
           name={authorName}
           photoUrl={authorPhotoUrl}
           size="sm"
-          className={SOCIAL_COMPOSER_AVATAR_CLASS}
+          className={`${SOCIAL_COMPOSER_AVATAR_CLASS} ${SOCIAL_COMPOSER_AVATAR_NARROW_CLASS}`}
         />
         <span data-social-composer-prompt="" className={`${SOCIAL_COMPOSER_FIELD_CLASS} shadow-none`}>
           {socialComposerPrompt(authorName)}
