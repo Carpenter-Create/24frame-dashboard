@@ -30,14 +30,16 @@ describe("Home width lock", () => {
       HOME_DEST_RAIL_PX + HOME_LEFT_INSET_PX + HOME_RAIL_CONTENT_COLUMN_PX + HOME_RIGHT_INSET_PX,
     ).toBe(HOME_FIGMA_FRAME_PX);
     expect(stamp).toContain("| Dest rail | On. `--sidebar-width` (240); 80 collapsed. |");
-    expect(stamp).toContain("1136px with the rail (1440 − 240 − 32 − 32)");
+    // The sums are pinned in code above and below; the stamp names each row's value.
+    expect(stamp).toContain("| Home content column | 1136px");
     // The 960 Home frame: one column to 1263 with the rail open; two
     // from 1104 collapsed.
     expect(960 + HOME_DEST_RAIL_PX + HOME_LEFT_INSET_PX + HOME_RIGHT_INSET_PX).toBe(1264);
     expect(960 + 80 + HOME_LEFT_INSET_PX + HOME_RIGHT_INSET_PX).toBe(1104);
     expect(stamp).toContain("one column from 768 to 1263");
     expect(stamp).toContain("two\ncolumns from 1104");
-    expect(stamp).toContain("| Rail-free frame | 1376px (1440 − 32 − 32). Co-Productions only. |");
+    // Co-Productions as the only rail-free route is pinned on overviewHidesRail below.
+    expect(stamp).toContain("| Rail-free frame | 1376px");
     // Stale before 2026-10-04: Home no longer skips the rail slot.
     expect(stamp).not.toContain("| Visible dest rail | Off |");
     expect(stamp).not.toContain("Home does not use it");

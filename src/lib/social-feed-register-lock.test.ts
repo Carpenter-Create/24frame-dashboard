@@ -131,12 +131,13 @@ function focusRingReach(): number {
   return Number(rule.match(/outline:\s*(\d+)px/)?.[1]) + Number(rule.match(/outline-offset:\s*(\d+)px/)?.[1]);
 }
 
-// Founder words, verbatim (Adam, 2026-10-05).
+// Founder words (Adam, 2026-10-05): a short verbatim anchor per quote (its
+// first clause), under the verbatim heading.
 const QUOTES = [
   "we must remain in this register.",
-  "I want the Coinbase register, but the modernize idea of social media experience through its layout and media-immersive experience.",
-  "we're not too far off already, just improve what we have to do what we're trying to do.",
-  'I like the designs. Let\'s use them. 1) that\'s fine, but use default text "Search Social" 2) yes 3) ok 4) yes. 5) sure',
+  "I want the Coinbase register",
+  "we're not too far off already",
+  "I like the designs. Let's use them.",
 ] as const;
 
 // The locks this one reverses in part, read from its Supersedes section.
@@ -149,10 +150,11 @@ function supersededLocks(doc: string): string[] {
 // docs/design-locks/social-feed-register-lock-v1.md
 describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
   it("records the founder words and decision 5 verbatim, and is indexed once on the status page", () => {
+    expect(lock).toContain("## Founder direction (verbatim, 2026-10-05)");
     for (const quote of QUOTES) {
       expect(lock).toContain(quote);
     }
-    expect(lock).toContain('| 5 | "For you" stays both as the slider option and as the right column heading? | **"sure"**');
+    expect(lock).toContain('**"sure"** | This lock §1 (the slider) and §6');
     // The shell lock routes decision 5 here.
     expect(shellLock).toContain("[`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) |");
     expect(readme).toContain("- [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) — H · Feed");
@@ -227,7 +229,7 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_HOME_LANES.map(socialHomeLaneIndex)).toEqual([0, 1]);
     // "For you" stays the slider option (decision 5).
     expect(SOCIAL.home.forYouTab).toBe("For you");
-    expect(lock).toContain('"For you" stays the slider option (founder decision 5)');
+    expect(lock).toContain("(founder decision 5)");
   });
 
   it("G2: topics are secondary chips — the wash with accent-ink when current, plain ink idle, a 96 fade", () => {

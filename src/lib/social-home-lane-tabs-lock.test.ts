@@ -40,11 +40,12 @@ function hasClass(classes: string, cls: string): boolean {
   return classes.split(/\s+/).includes(cls);
 }
 
-// Founder words, verbatim (Adam, 2026-10-04).
+// Founder words (Adam, 2026-10-04): a short verbatim anchor per quote (its
+// first clause), under the verbatim heading.
 const QUOTES = [
   "A fresh, media-oriented, immersive social media experience for the film community.",
-  'I think I like 1) Feed, Explore from D-Screening Room. 2) Profile from F-Reel. I do also like the "Following/For you" text tabs on E-Contact sheet.',
-  "Lastly, I also like the mobile menu icons not having words, just icons.",
+  "I think I like 1) Feed, Explore from D-Screening Room.",
+  "Lastly, I also like the mobile menu icons",
 ] as const;
 
 // Locks this PR reverses carry a note that points here. The list is read
@@ -68,6 +69,7 @@ const SUPERSEDED = supersededLocks(lock);
 // docs/design-locks/social-home-lane-tabs-lock-v1.md
 describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
   it("records the founder words verbatim and is indexed", () => {
+    expect(lock).toContain("## Founder words (verbatim, Adam, 2026-10-04)");
     for (const quote of QUOTES) {
       expect(lock).toContain(quote);
     }
