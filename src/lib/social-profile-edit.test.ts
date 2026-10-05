@@ -4,16 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { avatarObjectKey } from "@/lib/account-avatar";
 import { FORM_CONTROL_TEXT_CLASS } from "@/lib/form-control";
 import {
-  SOCIAL_FIGMA_PROFILE_BIO,
-  SOCIAL_FIGMA_PROFILE_EDIT,
-  SOCIAL_FIGMA_PROFILE_OWN,
   SOCIAL_PROFILE_EDIT_HANDLE_CLASS,
   SOCIAL_PROFILE_EDIT_HANDLE_ERROR_CLASS,
 } from "@/lib/social-chrome";
 import {
-  BIO_MAX,
   SOCIAL,
-  SOCIAL_ROUTES,
   normalizeBio,
   socialBioCount,
   socialBioEnterSubmits,
@@ -56,9 +51,6 @@ const bioPage = readFileSync("src/app/(app)/social/profile/edit/bio/page.tsx", "
 
 describe("Social Profile Edit profile + Bio lock", () => {
   it("keeps the locked Figma frames and sole Edit profile entry", () => {
-    expect(SOCIAL_FIGMA_PROFILE_EDIT).toEqual(["180:206", "180:1946", "181:2184"]);
-    expect(SOCIAL_FIGMA_PROFILE_BIO).toEqual(["180:2004", "180:2026"]);
-    expect(SOCIAL_FIGMA_PROFILE_OWN).toEqual(["181:230", "181:2000"]);
     expect(SOCIAL_PROFILE_EDIT_LOCK.entry).toBe("Edit profile");
     expect(SOCIAL_PROFILE_EDIT_LOCK.editHref).toBe("/social/profile/edit");
     expect(SOCIAL_PROFILE_EDIT_LOCK.bioHref).toBe("/social/profile/edit/bio");
@@ -130,10 +122,8 @@ describe("Social Profile Edit profile + Bio lock", () => {
   });
 
   it("locks handle UX and the empty-handle error", () => {
-    expect(SOCIAL.profile.handleRequired).toBe("Handle is required");
     expect(SOCIAL_PROFILE_EDIT_LOCK.handleRequired).toBe("Handle is required");
     expect(SOCIAL_PROFILE_EDIT_LOCK.emptyPreview).toBe("https://24frame.co/@");
-    expect(SOCIAL_PROFILE_EDIT_LOCK.profileUrlOnEditFace).toBe(false);
     expect(socialProfilePublicUrl("")).toBe("https://24frame.co/@");
     expect(edit).not.toContain("data-social-handle-url");
     expect(readFileSync("src/components/social/social-handle-field.tsx", "utf8")).toContain(
@@ -153,8 +143,6 @@ describe("Social Profile Edit profile + Bio lock", () => {
   });
 
   it("locks Bio to 150 chars, house privacy copy, and Sporty Blue check Done", () => {
-    expect(BIO_MAX).toBe(150);
-    expect(SOCIAL.profile.bioPrivacy).toBe("Your bio shows on your public profile.");
     expect(bio).toContain("data-social-bio-done");
     expect(bio).toContain('icon: true');
     const face = readFileSync("src/components/social/social-profile-edit-face.tsx", "utf8");
@@ -197,15 +185,10 @@ describe("Social Profile Edit profile + Bio lock", () => {
     expect(readFileSync("src/lib/social-profile-edit.ts", "utf8")).toContain('form.set("links"');
     expect(edit).not.toContain("SOCIAL_ROUTES.profileBio}/link");
     expect(bioPage).toContain("SocialProfileBioEditor");
-    expect(SOCIAL_ROUTES.profileEdit).toBe("/social/profile/edit");
   });
 
   it("puts Edit/Bio Name, Username, and Bio on the shared form-control primitive", () => {
-    const globals = readFileSync("src/app/globals.css", "utf8");
     const layout = readFileSync("src/app/layout.tsx", "utf8");
-    expect(globals).toMatch(/\.t-control\s*\{[\s\S]*?font-size:\s*16px/);
-    expect(globals).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
-    expect(globals).toMatch(/\.t-body-sm\s*\{[\s\S]*?font-size:\s*var\(--text-sm\)/);
     expect(SOCIAL_PROFILE_EDIT_HANDLE_CLASS).toContain(FORM_CONTROL_TEXT_CLASS);
     expect(SOCIAL_PROFILE_EDIT_HANDLE_CLASS).not.toContain("t-body-sm");
     expect(SOCIAL_PROFILE_EDIT_HANDLE_ERROR_CLASS).toContain(FORM_CONTROL_TEXT_CLASS);

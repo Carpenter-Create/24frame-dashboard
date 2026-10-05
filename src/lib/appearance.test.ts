@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { USER_MENU } from "./user-menu";
-import { THEME_STORAGE_KEY } from "./theme";
 import {
   APPEARANCE,
   APPEARANCE_FLYOUT_OPTIONS,
@@ -68,7 +67,6 @@ describe("appearance copy", () => {
     expect(APPEARANCE.auto).toBe("Auto");
     expect(APPEARANCE_OPTIONS.map((option) => option.label)).toEqual(["Light", "Dark", "Auto"]);
     expect(APPEARANCE_FLYOUT_OPTIONS.map((option) => option.label)).toContain("Auto");
-    expect(APPEARANCE_FLYOUT_OPTIONS.map((option) => option.kind)).toEqual(["auto", "dark", "light"]);
   });
 
   it("shares gc-theme with the avatar Theme page — no second store", () => {
@@ -84,7 +82,6 @@ describe("appearance copy", () => {
       join(here, "../components/settings/pref-drill-group.tsx"),
       "utf8",
     );
-    expect(THEME_STORAGE_KEY).toBe("gc-theme");
     expect(themeSrc).toContain("THEME_STORAGE_KEY");
     expect(themeSrc).toContain("applyDocumentThemePreference");
     expect(prefsSrc).toContain("applyDocumentThemePreference");

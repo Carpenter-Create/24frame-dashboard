@@ -13,6 +13,11 @@ function hex(block: string, name: string): Rgb {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+// The first hex a block declares for a token: what other tests' fill parses read.
+function firstHex(block: string, name: string): string | undefined {
+  return block.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6});`))?.[1];
+}
+
 const linear = (c: number) => {
   const v = c / 255;
   return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
@@ -71,6 +76,8 @@ describe("house accent — one token, mode flip", () => {
 
   it("keeps Sporty Blue on light :root", () => {
     expect(light).toMatch(/--accent:\s*#1769ff;/);
+    // Negative accent guards elsewhere read the first declaration in the file.
+    expect(tokens.match(/--accent:\s*(#[0-9a-fA-F]{6});/)?.[1]).toBe("#1769ff");
     expect(light).toMatch(/--accent-contrast:\s*#ffffff;/);
     expect(light).toContain("color-mix(in srgb, var(--accent) 10%, var(--surface))");
     expect(light).not.toMatch(/#70b5f9/i);
@@ -84,7 +91,11 @@ describe("house accent — one token, mode flip", () => {
     expect(dark).toMatch(/--accent-contrast:\s*#0A0B0D;/);
     expect(dark).toMatch(/--bg:\s*#0f0f0f;/);
     expect(dark).not.toMatch(/--bg:\s*#050835;/);
-    expect(dark).toMatch(/--surface:\s*#1e2126;/);
+    // First declaration in the block: social-post-register reads it for the
+    // grey card's fill. Dark muted stays the house ramp
+    // (shell-screening-chrome-lock-v1, Departure 4).
+    expect(firstHex(dark, "surface")).toBe("#1e2126");
+    expect(firstHex(dark, "surface-muted")).toBe("#25292f");
     expect(dark).not.toMatch(/--accent:\s*#1769ff;/);
     expect(dark).not.toMatch(/--accent:\s*#3ea6ff;/i);
     expect(dark).not.toMatch(/--accent-wash:/);
@@ -206,5 +217,58 @@ describe("shell tokens — one value pin each", () => {
     expect(phone).toMatch(/--header-avatar-size:\s*44px;/);
     expect(phone).toMatch(/--header-control-size:\s*44px;/);
     expect(phone).toMatch(/--header-search-height:\s*44px;/);
+  });
+});
+
+// Accent, type and surface tokens: the one value pin per token (--accent and
+// the dark surfaces are pinned above). Other tests read or name these tokens;
+// they do not re-type the values. Negative accent guards elsewhere read
+// --accent from tokens.css, so they follow the pending GC accent checkpoint.
+describe("accent, type and surface tokens — one value pin each", () => {
+  const light = extractBlock(tokens, ":root");
+
+  it("pins the light canvas, surfaces, ink, card radius, and the accent wash", () => {
+    expect(light).toMatch(/--bg:\s*#ffffff;/);
+    // First declaration in the block: social-post-register reads it for the
+    // grey card's fill.
+    expect(firstHex(light, "surface")).toBe("#ffffff");
+    expect(firstHex(light, "surface-muted")).toBe("#f4f4f6");
+    expect(light).toMatch(/--text:\s*#0A0B0D;/);
+    expect(light).toMatch(/--text-tertiary:\s*#6B7280;/);
+    expect(light).toMatch(
+      /--accent-wash:\s*color-mix\(in srgb, var\(--accent\) 10%, var\(--surface\)\);/,
+    );
+    expect(light).toMatch(/--radius-lg:\s*16px;/);
+    expect(tokens).not.toMatch(/--radius-lg:\s*14px;/);
+    expect(globals).toMatch(/\.card-surface\s*\{[^}]*border-radius:\s*var\(--radius-lg\)/);
+    expect(globals).toMatch(/\.card-surface\s*\{[^}]*box-shadow:\s*none/);
+  });
+
+  it("pins the rem type ladder and the role sizes", () => {
+    expect(light).toMatch(/--text-xs:\s*0\.8125rem;/);
+    expect(light).toMatch(/--text-sm:\s*0\.9375rem;/);
+    expect(light).toMatch(/--text-base:\s*1\.0625rem;/);
+    expect(light).toMatch(/--text-lg:\s*1\.25rem;/);
+    expect(light).toMatch(/--text-title:\s*1\.75rem;/);
+    expect(light).toMatch(/--text-hero:\s*3\.5rem;/);
+    expect(globals).toMatch(/\.t-title\s*\{[^}]*font-size:\s*var\(--text-title\)/);
+    expect(globals).toMatch(/\.t-heading\s*\{[^}]*font-size:\s*var\(--text-lg\)/);
+    expect(globals).toMatch(/\.t-body\s*\{[^}]*font-size:\s*var\(--text-base\)/);
+    expect(globals).toMatch(/\.t-body-sm\s*\{[^}]*font-size:\s*var\(--text-sm\)/);
+    expect(globals).toMatch(/\.t-control\s*\{[^}]*font-size:\s*16px/);
+  });
+});
+
+// Spacing steps other tests name (8/16/24/32/48): the one value pin per step.
+// Other tests assert the classes that use var(--space-N); they do not re-type the values.
+describe("spacing tokens — one value pin each", () => {
+  const light = extractBlock(tokens, ":root");
+
+  it("pins the 4px-base spacing steps", () => {
+    expect(light).toMatch(/--space-2:\s*0\.5rem;/);
+    expect(light).toMatch(/--space-4:\s*1rem;/);
+    expect(light).toMatch(/--space-6:\s*1\.5rem;/);
+    expect(light).toMatch(/--space-8:\s*2rem;/);
+    expect(light).toMatch(/--space-12:\s*3rem;/);
   });
 });

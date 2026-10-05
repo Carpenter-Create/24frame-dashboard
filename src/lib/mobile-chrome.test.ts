@@ -21,7 +21,6 @@ import {
 } from "./mobile-chrome";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const tokens = readFileSync(join(here, "../app/tokens.css"), "utf8");
 const shellSrc = readFileSync(join(here, "../components/chrome/app-shell.tsx"), "utf8");
 const overlaySrc = readFileSync(join(here, "../components/chrome/ask-ai-overlay.tsx"), "utf8");
 const leadLibSrc = readFileSync(join(here, "house-lead-chrome.ts"), "utf8");
@@ -32,7 +31,6 @@ const threadSrc = readFileSync(join(here, "../components/messages/ask-frame-ai-t
 
 describe("mobile chrome clock lock", () => {
   it("shares lead inset, 44 hit, and 16 glyph for the 24Frame AI clock", () => {
-    expect(tokens).toMatch(/--space-6:\s*1\.5rem/);
     expect(MOBILE_CHROME_LEAD_PAD_PX).toBe(24);
     expect(MOBILE_CHROME_MESSAGES_FRAME_PAD_PX).toBe(48);
     expect(MOBILE_CHROME_ICON_HIT_PX).toBe(44);

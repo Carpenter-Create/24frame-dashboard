@@ -173,7 +173,6 @@ describe("titles catalog scope", () => {
     expect(catalog).toContain("TitlesCatalogStaffCols");
     expect(catalog).toContain("data-titles-catalog-submitter");
     expect(catalog).toContain("data-titles-catalog-submitted");
-    expect(GC_NAV.find((item) => item.href === "/staff/queue")?.label).toBe("Queue");
   });
 
   it("keeps house-shell language in titles comments — no reference-brand word", () => {

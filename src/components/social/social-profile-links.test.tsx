@@ -35,7 +35,6 @@ describe("SocialProfileLinkRow", () => {
     expect(html).toContain("data-social-profile-links");
     expect(html).toContain(SOCIAL_PROFILE_LINKS_CLASS);
     expect(html).toContain(SOCIAL_PROFILE_LINK_CLASS);
-    expect(SOCIAL_PROFILE_LINKS_CLASS).toContain("flex-wrap");
     expect(SOCIAL_PROFILE_LINKS_CLASS).not.toContain("truncate");
     expect(SOCIAL_PROFILE_LINKS_CLASS).not.toContain("flex-nowrap");
     expect(html).toContain('data-social-profile-link="instagram"');
@@ -121,7 +120,6 @@ describe("SocialProfileLinkRow", () => {
     expect(html).not.toContain("data-social-profile-links-sheet");
     expect(src).not.toContain("socialProfileLinksFace");
     expect(src).not.toContain("data-social-profile-links-more");
-    expect(SOCIAL_PROFILE_LINKS_CLASS).toContain("flex-wrap");
   });
 
   it("uses a globe and the host name as text for an unknown link", () => {
@@ -180,7 +178,6 @@ describe("SocialProfileLinkRow", () => {
 
     expect(src).toContain("createPortal");
     expect(src).toContain("Escape");
-    expect(src).toContain("SOCIAL_PROFILE_LINKS_CLASS");
     expect(src).toContain("socialProfileLinkGlyph");
     expect(src).toContain("InstagramLogo");
     expect(src).toContain("GlobeSimple");

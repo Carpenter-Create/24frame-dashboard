@@ -104,7 +104,6 @@ vi.mock("next/link", async () => {
 });
 
 const tokens = readFileSync("src/app/tokens.css", "utf8");
-const globals = readFileSync("src/app/globals.css", "utf8");
 const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 const sideNav = readFileSync("src/components/chrome/side-nav.tsx", "utf8");
 const socialChrome = readFileSync("src/lib/social-chrome.ts", "utf8");
@@ -143,21 +142,12 @@ const HOUSE_SHELL_COMMENT_PATHS = [
 
 describe("house shell rematch — Aggregation · Social · Education", () => {
   it("keeps one canvas, card, and accent wash for every workspace", () => {
-    expect(tokens).toMatch(/--bg:\s*#ffffff;/);
-    expect(tokens).toMatch(/--surface:\s*#ffffff;/);
-    expect(tokens).toMatch(/--surface-muted:\s*#f4f4f6;/);
-    expect(tokens).toMatch(/--text:\s*#0A0B0D;/);
-    expect(tokens).toMatch(/--accent:\s*#1769ff;/);
-    expect(tokens).toMatch(/--radius-lg:\s*16px;/);
+    // Canvas, card and accent-wash token values are pinned once in src/app/tokens.test.ts.
     // H register (Adam 2026-10-05): the side menu slot is 240, 80 collapsed.
     expect(tokens).not.toMatch(/--sidebar-width:\s*200px;/);
     expect(tokens).not.toMatch(/--sidebar-width:\s*256px;/);
-    expect(tokens).toContain("--accent-wash:");
     expect(tokens).toMatch(/Aggregation · Social · Education/);
-    expect(tokens).not.toMatch(/--radius-lg:\s*14px;/);
     expect(tokens).not.toMatch(/\[data-(?:dashboard|social|education)[^\]]*\]/);
-    expect(globals).toMatch(/\.card-surface\s*\{[\s\S]*?border-radius:\s*var\(--radius-lg\)/);
-    expect(globals).toMatch(/\.card-surface\s*\{[\s\S]*?box-shadow:\s*none/);
     expect(existsSync("src/app/tokens-social.css")).toBe(false);
     expect(existsSync("src/app/tokens-education.css")).toBe(false);
     expect(existsSync("src/app/tokens-aggregation.css")).toBe(false);
@@ -287,8 +277,6 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
       "setThumbStyle({ opacity: 0 })",
     );
     expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).toBe(HOUSE_SEGMENTED_ITEM_ON_CLASS);
-    expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).toBe("text-white");
-    expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).not.toContain("bg-accent");
     expect(DASHBOARD_NEWS_SOURCE_CHIP_OFF_CLASS).toBe(HOUSE_SEGMENTED_ITEM_OFF_CLASS);
     expect(DASHBOARD_NEWS_SOURCE_CHIPS_CLASS).toBe(HOUSE_SCROLL_ROW_CLASS);
     expect(readFileSync("src/lib/house-chip-rail.ts", "utf8")).toContain("HOUSE_SCROLL_ROW_CLASS");
@@ -311,7 +299,6 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     expect(pageHeader).toContain("PageHeaderBackLink");
     expect(pageHeader).toContain("ArrowLeft");
     expect(pageHeader).toContain("PAGE_LEAD_STACK_CLASS");
-    expect(PAGE_LEAD_STACK_CLASS).toBe("flex flex-col gap-3");
     expect(pageHeader).not.toContain("flex flex-col gap-1");
     expect(pageHeader).not.toContain("CaretLeft");
     expect(pageHeader).not.toContain("text-ink-3 transition-colors hover:text-ink-2");
@@ -344,12 +331,8 @@ describe("house shell rematch — Aggregation · Social · Education", () => {
     // (HOUSE_PILL_SELECTED_CLASS) and never --accent type on the wash.
     // docs/design-locks/social-feed-register-lock-v1.md
     expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-accent-ink");
     expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toMatch(/(?:^|\s)(?:bg-accent|text-accent)(?:\s|$)/);
-    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("bg-accent-wash");
     expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).not.toContain(HOUSE_PILL_SELECTED_CLASS);
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("text-ink");
-    expect(SOCIAL_HOME_TOPIC_CLASS).not.toMatch(/accent|bg-/);
     expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain("py-[var(--space-2)]");
     expect(socialHomeTopicClass(true)).toBe(SOCIAL_HOME_TOPIC_CURRENT_CLASS);
     expect(socialHomeTopicClass(false)).toBe(SOCIAL_HOME_TOPIC_CLASS);

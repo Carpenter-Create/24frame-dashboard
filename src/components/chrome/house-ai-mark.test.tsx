@@ -132,7 +132,6 @@ describe("HouseAiMark", () => {
     expect(header).toContain('aria-label="Ask 24Frame AI"');
     expect(header).toContain('title="Ask 24Frame AI"');
     expect(header).not.toContain("lucide-");
-    expect(headerSrc).toContain("HOUSE_ASK_AI_MARK_CLASS");
     expect(headerSrc).not.toContain("HOUSE_ASK_AI_MARK_PHONE_CLASS");
     expect(headerSrc).not.toContain("HOUSE_ASK_AI_MARK_DESKTOP_CLASS");
   });

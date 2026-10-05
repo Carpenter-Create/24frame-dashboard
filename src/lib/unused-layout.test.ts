@@ -43,7 +43,6 @@ describe("unused layout and doctrine constants (P1-8–11)", () => {
 
   it("points Company and Settings aliases at the live hub", () => {
     expect(COMPANY_PROFILE.href).toBe(SETTINGS.organizationHref);
-    expect(COMPANY_PROFILE.href).toBe("/settings/organization");
     const settingsSrc = readFileSync("src/lib/settings.ts", "utf8");
     expect(settingsSrc).not.toContain("SETTINGS_LOCAL_NAV");
     expect(settingsSrc).not.toContain("settingsSectionHref");

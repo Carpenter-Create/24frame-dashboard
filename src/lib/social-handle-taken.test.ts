@@ -13,7 +13,6 @@ describe("handleTakenError", () => {
     expect(
       handleTakenError({ ownerId: "u1", collisionId: "u2" }),
     ).toBe(SOCIAL.profile.handleTaken);
-    expect(SOCIAL.profile.handleTaken).toBe("That handle is already taken.");
   });
 
   it("allows an unused handle", () => {

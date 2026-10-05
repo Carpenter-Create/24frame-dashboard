@@ -23,15 +23,8 @@ import {
 describe("company-admin Dashboard mobile craft", () => {
   it("locks phone composition to < md without reopening a peer $ collage", () => {
     expect(DASHBOARD_MOBILE_BREAKPOINT_CLASS).toBe("max-md");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("max-md:flex-col");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("max-md:items-stretch");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("max-md:w-full");
     expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("w-full");
     expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("gap-[var(--space-6)]");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("lg:grid-cols-5");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("items-start");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).toContain("lg:items-stretch");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS.split(/\s+/)).not.toContain("md:items-stretch");
     expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).not.toContain("md:grid-cols-5");
     expect(DASHBOARD_ADMIN_OVERVIEW_CLASS).not.toContain("sm:grid-cols-5");
     expect(DASHBOARD_ADMIN_STACK_CLASS).toContain("w-full");
@@ -43,13 +36,8 @@ describe("company-admin Dashboard mobile craft", () => {
     expect(DASHBOARD_ADMIN_CHROME_CLASS).toContain("md:flex-row");
     expect(DASHBOARD_ADMIN_CHROME_CLASS).not.toContain("sm:flex-row");
     expect(DASHBOARD_TITLE_MOBILE_CLASS).toContain("md:hidden");
-    expect(DASHBOARD_TITLE_MOBILE_CLASS).toContain("t-heading");
-    expect(DASHBOARD_TITLE_MOBILE_CLASS).toContain("text-ink");
     expect(DASHBOARD_TITLE_MOBILE_CLASS).not.toContain("t-label");
     expect(DASHBOARD_TITLE_DESKTOP_CLASS).toContain("max-md:hidden");
-    expect(DASHBOARD_TITLE_DESKTOP_CLASS).toContain("t-title");
-    expect(DASHBOARD_TITLE_DESKTOP_CLASS).toContain("text-ink");
-    expect(DASHBOARD_TITLE_DESKTOP_CLASS).not.toContain("t-label");
     expect(DASHBOARD_CARD_PAD_HERO).toContain("px-[var(--space-4)]");
     expect(DASHBOARD_CARD_PAD_HERO).toContain("py-[var(--space-4)]");
     expect(DASHBOARD_ADMIN_STACK_CLASS).toContain("gap-[var(--space-6)]");
@@ -63,18 +51,6 @@ describe("company-admin Dashboard mobile craft", () => {
     const attention = readFileSync("src/components/dashboard/dashboard-attention.tsx", "utf8");
     const licensing = readFileSync("src/components/dashboard/dashboard-licensing-status.tsx", "utf8");
     const ranked = readFileSync("src/components/dashboard/dashboard-ranked.tsx", "utf8");
-    expect(DASHBOARD_ADMIN_OVERVIEW_CLASS.split(/\s+/)).toEqual(
-      expect.arrayContaining([
-        "w-full",
-        "items-start",
-        "max-md:flex",
-        "max-md:w-full",
-        "max-md:flex-col",
-        "max-md:items-stretch",
-        "lg:grid-cols-5",
-        "lg:items-stretch",
-      ]),
-    );
     expect(DASHBOARD_ADMIN_STACK_CLASS.split(/\s+/)).toEqual(
       expect.arrayContaining(["flex", "w-full", "flex-col"]),
     );

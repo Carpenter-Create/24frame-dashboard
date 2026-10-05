@@ -52,7 +52,6 @@ function noTopic(now: Date = NOW) {
 describe("socialTopicResultSchema", () => {
   it("allows exactly the 15 locked topics plus none", () => {
     const allowed = [...SOCIAL_CATEGORY_TOPICS, "none"];
-    expect(SOCIAL_CATEGORY_TOPICS).toHaveLength(15);
     expect([...socialTopicResultSchema.shape.topic.options].sort()).toEqual([...allowed].sort());
     for (const topic of allowed) {
       expect(socialTopicResultSchema.safeParse({ topic, confidence: 0.9 }).success, topic).toBe(true);

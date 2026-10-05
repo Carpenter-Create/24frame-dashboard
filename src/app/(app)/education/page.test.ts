@@ -109,7 +109,6 @@ describe("Social courses list", () => {
     expect(from).toHaveBeenCalledWith("courses");
     expect(from).not.toHaveBeenCalledWith("titles");
     expect(html).toContain("data-social-courses");
-    expect(SOCIAL.courses.title).toBe("Education");
     expect(html).toContain(SOCIAL.courses.title);
     expect(html).toContain("24Frame");
     expect(html).not.toContain("Courses");

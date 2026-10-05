@@ -38,8 +38,7 @@ describe("memoryNewsStore", () => {
     await store.upsertItems(batch, NOW);
     await store.upsertItems([item(99, "2026-06-01T12:00:00.000Z")], NOW);
     const home = await store.queryFeed({ limit: NEWS_HOME_CAP, now: NOW });
-    expect(NEWS_HOME_CAP).toBe(15);
-    expect(home).toHaveLength(15);
+    expect(home).toHaveLength(NEWS_HOME_CAP);
     expect(home.every((row) => row.published_at >= "2026-06-20T18:00:00.000Z")).toBe(true);
 
     const windowed = await store.queryFeed({ limit: 50, now: NOW });

@@ -38,7 +38,7 @@ vi.mock("next/dynamic", () => ({
   },
 }));
 
-import { HOUSE_MODULE_CLASS, HOUSE_SECTION_AIR_CLASS } from "@/lib/house-shell";
+import { HOUSE_MODULE_CLASS } from "@/lib/house-shell";
 import { HOUSE_PHONE_WRAP_CLASS, housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
 import { IDENTITY_AVATAR_CLASS } from "@/lib/house-sheet";
 import { SOCIAL, socialFeedRelativeTime, socialPostHref } from "@/lib/social";
@@ -87,6 +87,7 @@ import { SocialPersonRow } from "./social-person-row";
 import { SocialAuthorHistory, SocialPostCard } from "./social-post-card";
 import { SocialPostMedia } from "./social-post-media";
 import { SocialProfileIdentity } from "./social-profile-identity";
+import { SOCIAL_FEED_VIDEO_MAX_H } from "@/lib/social-media-display";
 
 dynamicRegistry.resolve = (source) =>
   source.includes("social-post-media") ? (SocialPostMedia as never) : null;
@@ -190,7 +191,6 @@ describe("SocialPostCard faces", () => {
     expect(html).not.toContain("hidden md:flex");
     expect(html).not.toContain("md:hidden");
     expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("rounded-[var(--radius-xl)] bg-surface-muted p-4 md:p-6");
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toMatch(/border|shadow-(?!none)/);
     // The 40 credit avatar is a circle the photo fills: no grey behind a photo.
     const face = html.slice(html.indexOf("data-social-avatar"), html.indexOf("<img"));
     for (const cls of ["size-10", "shrink-0", "rounded-full", "overflow-hidden"]) {
@@ -310,8 +310,6 @@ describe("Social profile public face", () => {
     expect(identity).toContain("@ada");
     expect(identity).toContain(SOCIAL_PROFILE_HANDLE_CLASS);
     expect(identity).toContain(SOCIAL_PROFILE_NAME_STACK_CLASS);
-    expect(SOCIAL_PROFILE_HANDLE_CLASS).toContain("text-band-ink/84");
-    expect(SOCIAL_PROFILE_HANDLE_CLASS).not.toContain("truncate");
     expect(identity.indexOf("data-social-profile-head")).toBeLessThan(identity.indexOf("data-social-profile-name"));
     expect(identity.indexOf("data-social-profile-name")).toBeLessThan(identity.indexOf("data-social-profile-face"));
     const identityHead = identity.slice(
@@ -334,10 +332,7 @@ describe("Social profile public face", () => {
     expect(identitySrc).not.toContain("SocialProfileBanner");
     expect(identitySrc).not.toContain("socialProfileRendersCoverBand");
     expect(identitySrc).toContain("SOCIAL_PROFILE_STAGE_CLASS");
-    expect(identitySrc).toContain("SOCIAL_PROFILE_HERO_CLASS");
-    expect(identitySrc).toContain("SOCIAL_PROFILE_HEAD_CLASS");
     expect(identitySrc).toContain("SOCIAL_PROFILE_FACE_CLASS");
-    expect(identitySrc).toContain("SOCIAL_PROFILE_ACTIONS_CLASS");
     expect(identitySrc).not.toContain("SOCIAL_PROFILE_META_CLASS");
     // Source order = phone order: hero, then intro, actions, stats, mutuals, roles, links.
     const identityMarkup = identitySrc.slice(identitySrc.indexOf('data-social-profile-identity=""'));
@@ -538,7 +533,6 @@ describe("Social profile public face", () => {
     expect(withStats).toContain(SOCIAL_PROFILE_ACTIONS_CLASS);
     expect(SOCIAL_PROFILE_NAME_CLASS).toContain("break-words");
     expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("truncate");
-    expect(SOCIAL_PROFILE_NAME_CLASS).not.toContain("font-semibold");
     expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("@container/profile flex");
     expect(SOCIAL_PROFILE_IDENTITY_CLASS).not.toContain("gap-");
     expect(withStats).not.toContain("truncate");
@@ -657,16 +651,10 @@ describe("Social profile public face", () => {
     expect(history).toContain("data-social-author-posts");
     expect(history).toContain(SOCIAL_FEED_GUTTER_CLASS);
     // H · Posts: the wall is 24 apart on phone, 48 on desktop.
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS} md:gap-[var(--space-12)]`);
-    expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-y");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("py-");
     // A text-only post in the author history is the H soft grey card.
     expect(history).toContain(SOCIAL_POST_TEXT_CARD_CLASS);
     expect(history).not.toContain("divide-y divide-hairline");
     expect(history).not.toContain("border border-hairline bg-surface");
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("bg-surface-muted");
     expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toContain("border");
     expect(postSrc).not.toContain('className="flex flex-col bg-surface md:hidden"');
     expect(postSrc).not.toContain("data-social-post-mobile");
@@ -727,7 +715,6 @@ describe("Social profile public face", () => {
     // ("Video" right); a photo carries no kind word.
     expect(html).toContain('data-social-post-kind="video"');
     expect(html).toContain("data-social-post-screen-head");
-    expect(SOCIAL.post.videoLabel).toBe("Video");
     expect(html).not.toContain(SOCIAL.home.photoKind);
     expect(html).toContain('data-social-post="note"');
     expect(html).toContain("First caption post test");
@@ -899,14 +886,13 @@ describe("SocialPostCard media", () => {
     expect(still).toContain('aria-label="View photo"');
     expect(still).toContain(SOCIAL_POST_MEDIA_CLASS);
     expect(SOCIAL_POST_MEDIA_CLASS).toContain("overflow-hidden");
-    expect(SOCIAL_POST_MEDIA_CLASS).toContain("md:rounded-[var(--radius-xl)]");
     // Phone: the media meets the viewport (radius 0); no card around it.
     expect(SOCIAL_POST_MEDIA_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
     expect(still).not.toContain(HOUSE_MODULE_CLASS);
     expect(clip).toContain('aria-label="View video"');
     expect(clip).not.toContain("min(70vh,560px)");
-    expect(portrait).toContain("min(70vh, 560px)");
-    expect(landscape).toContain("min(70vh, 560px)");
+    expect(portrait).toContain(SOCIAL_FEED_VIDEO_MAX_H);
+    expect(landscape).toContain(SOCIAL_FEED_VIDEO_MAX_H);
   });
 
   it("places the credit row (name, time, actions) under the media and the caption under that", () => {
@@ -941,7 +927,6 @@ describe("SocialPostCard media", () => {
     expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("hello"));
     // The caption: 17 / 420 ink-2 (15 / 1.45 on phone), aligned to the name, never clamped.
     expect(html).toContain(SOCIAL_POST_CAPTION_CLASS);
-    expect(SOCIAL_POST_CAPTION_CLASS).toContain("pl-[52px]");
     expect(SOCIAL_POST_CAPTION_CLASS).toContain("text-ink-2");
     expect(SOCIAL_POST_CAPTION_CLASS).toContain("md:text-[length:var(--text-base)]");
     expect(SOCIAL_POST_CAPTION_CLASS).not.toMatch(/line-clamp|truncate/);
@@ -1375,18 +1360,12 @@ describe("SocialPostCard H register", () => {
     );
     const timeLink = html.slice(html.lastIndexOf("<a", html.indexOf("data-social-post-time")), html.indexOf("data-social-post-time"));
     expect(timeLink).toContain(SOCIAL_POST_TIME_CLASS);
-    expect(SOCIAL_POST_TIME_CLASS).toContain("text-[length:var(--text-sm)]");
-    expect(SOCIAL_POST_TIME_CLASS).toContain("text-ink-3 dark:text-ink-2");
     expect(SOCIAL_POST_TIME_CLASS).toContain("min-h-11 min-w-11");
     expect(SOCIAL_POST_TIME_CLASS).toContain("tabular-nums");
-    expect(SOCIAL_POST_TIME_CLASS).not.toContain("t-label");
     expect(housePhoneForbidsTruncate(SOCIAL_POST_TIME_CLASS)).toBe(true);
     expect(html).not.toContain("divide-y");
     expect(html).not.toContain("divide-hairline");
     expect(html).not.toContain("border-y-2");
-    expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
-    expect(SOCIAL_FEED_GUTTER_CLASS).toContain("md:gap-[var(--space-12)]");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
     const quiet = renderToStaticMarkup(
       <SocialPostCard post={cardPost()} permalink={false} />,
     );
@@ -1399,7 +1378,6 @@ describe("SocialPostCard H register", () => {
     const postCard = postSrc.slice(postSrc.indexOf("export function SocialPostCard"));
     expect(postCard).toContain("socialPostClass(kind)");
     expect(postCard).toContain("socialPostKind(post.media)");
-    expect(postCard).toContain("data-social-post-time");
     expect(postCard).toContain("socialPostTimeClass(surface)");
     expect(postCard).toContain("socialFeedRelativeTime");
     expect(postCard).not.toContain("socialRelativeTime");
@@ -1472,7 +1450,6 @@ describe("Profile Stage lock — hero", () => {
     expect(html).not.toContain("<img");
     expect(html).not.toContain("bg-accent-wash");
     expect(html).not.toContain("aspect-[4/1]");
-    expect(SOCIAL_PROFILE_HERO_CLASS).toContain("bg-band");
     expectNameOnHero(html);
   });
 
@@ -1532,7 +1509,6 @@ describe("Profile Stage lock — hero", () => {
 
   it("lays the face out by the mockup: two columns from md once the column is 35rem, one column otherwise", () => {
     const step = "md:@min-[35rem]/profile:";
-    expect(SOCIAL_PROFILE_IDENTITY_CLASS).toContain("@container/profile");
     const face = SOCIAL_PROFILE_FACE_CLASS.split(" ");
     expect(face).toEqual(expect.arrayContaining(["flex", "flex-col", `${step}grid`, `${step}grid-cols-[minmax(0,1fr)_auto]`]));
     // Actions: the right column in the two-column step; on phone every action stretches.

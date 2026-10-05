@@ -67,7 +67,7 @@ describe("SocialProfileTopicsField", () => {
       <SocialProfileTopicsField value={atCap} onChange={() => undefined} />,
     );
     expect(capped).toContain(SOCIAL.profile.topicsLimit);
-    expect(capped).toContain("You can select up to 8 topics");
+    expect(capped).toContain(SOCIAL.profile.topicsLimit);
     expect(capped).toContain("8 / 8");
     expect(capped).not.toContain(SOCIAL.profile.topicsHint);
     expect(capped).toContain("disabled");

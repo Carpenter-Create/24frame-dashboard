@@ -110,7 +110,7 @@ describe("SocialProfileRolesField", () => {
     );
     expect(html).toContain(SOCIAL.profile.rolesLimit);
     expect(html).toContain("5 / 5");
-    expect(html).toContain("You can select up to 5 professions");
+    expect(html).toContain(SOCIAL.profile.rolesLimit);
     expect(html).not.toContain(SOCIAL.profile.rolesHint);
     expect(html).toContain('data-social-profile-role-chip="investor"');
     expect(html).toContain("disabled");

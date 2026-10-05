@@ -49,10 +49,10 @@ describe("DM compose immersive IA", () => {
     const html = renderToStaticMarkup(
       createElement(SocialDmComposePicker, { mode: "direct", people }),
     );
-    expect(html).toContain("New message");
+    expect(html).toContain(SOCIAL.dms.newMessage);
     expect(html).toContain("To:");
-    expect(html).toContain("Group chat");
-    expect(html).toContain("Message up to 16 people");
+    expect(html).toContain(SOCIAL.dms.groupChat);
+    expect(html).toContain(SOCIAL.dms.groupChatHint);
     expect(html).toContain('href="/social/dms/new/group"');
     expect(html).toContain("Suggested");
     expect(html).toContain("Ada Lovelace");
@@ -71,8 +71,8 @@ describe("DM compose immersive IA", () => {
     const html = renderToStaticMarkup(
       createElement(SocialDmComposePicker, { mode: "group", people }),
     );
-    expect(html).toContain("New group chat");
-    expect(html).toContain("Group name (optional)");
+    expect(html).toContain(SOCIAL.dms.newGroupChat);
+    expect(html).toContain(SOCIAL.dms.groupName);
     expect(html).toContain("1/16 selected");
     expect(html).toContain('data-social-dm-check="off"');
     expect(html).toContain("Ada Lovelace");

@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { PRODUCT_NAME, SOCIAL_WORKSPACE } from "@/lib/product";
 import {
   conversationRoomLabel,
@@ -106,6 +105,9 @@ describe("social copy lock", () => {
     expect(SOCIAL.home.composerPromptNamed).toBe("Share something");
     expect(SOCIAL.home.composerPhoto).toBe("Photo");
     expect(SOCIAL.home.composerCamera).toBe("Camera");
+    expect(SOCIAL.home.forYouTab).toBe("For you");
+    expect(SOCIAL.home.lanesLabel).toBe("Feed scope");
+    expect(SOCIAL.home.moreTopics).toBe("More topics");
     expect(SOCIAL.forYou).not.toHaveProperty("topics");
     expect(SOCIAL.forYou.latestCourse).toBe("Latest course");
     expect(SOCIAL.profile.firstName).toBe("First name");
@@ -332,6 +334,7 @@ describe("social copy lock", () => {
     expect(SOCIAL.dms.roomFull).toContain("16");
     expect(SOCIAL.dms.addBatch).toContain("16");
     expect(SOCIAL.dms.chat).toBe("Chat");
+    expect(SOCIAL.dms.newMessage).toBe("New message");
     expect(SOCIAL.dms.to).toBe("To:");
     expect(SOCIAL.dms.search).toBe("Search");
     expect(SOCIAL.dms.groupChat).toBe("Group chat");
@@ -362,7 +365,6 @@ describe("social copy lock", () => {
       expect(blob).not.toContain(banned);
     }
     expect(blob).not.toContain("Globee");
-    expect(ASK_FRAME_AI.headline).toBe("Ask 24Frame AI");
   });
 });
 
@@ -595,10 +597,6 @@ describe("profile opt-in", () => {
     expect(socialComposerPrompt(null)).toBe("Share something");
     expect(socialComposerPrompt("")).toBe("Share something");
     expect(SOCIAL.home.composerPromptNamed).toBe(SOCIAL.home.composerPrompt);
-    expect(SOCIAL.home.composerPrompt).toBe("Share something");
-    expect(SOCIAL.home.composerPromptNamed).toBe("Share something");
-    expect(SOCIAL.forYou).not.toHaveProperty("topics");
-    expect(SOCIAL.forYou.latestCourse).toBe("Latest course");
     expect(SOCIAL.profile.activityTab).toBe("Activity");
     expect(SOCIAL.profile.activityPosts).toBe("Posts");
     expect(SOCIAL.profile.highlightsTab).toBe("Highlights");
@@ -886,10 +884,10 @@ describe("feed post craft lock 2026-09-21", () => {
     expect(SOCIAL.post.likesTitle).toBe("Likes");
     expect(SOCIAL.post.likesEmpty).toBe("No likes yet.");
     expect(SOCIAL.post.likeOne).toBe("like");
+    expect(SOCIAL.post.videoLabel).toBe("Video");
     expect(socialLikeCountCopy(0)).toBeNull();
     expect(socialLikeCountCopy(1)).toBe("1 like");
     expect(socialLikeCountCopy(2)).toBe("2 likes");
-    expect(SOCIAL_ROUTES.post).toBe("/social/p");
   });
 });
 

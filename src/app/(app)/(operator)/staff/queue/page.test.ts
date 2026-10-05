@@ -11,6 +11,7 @@ import { LIST_PAGE } from "@/lib/list-bounds";
 import { QUEUE_ACTIVE_STATUSES, QUEUE_PAGE } from "@/lib/queue";
 import { TITLES_CATALOG, catalogSearchMissCopy } from "@/lib/titles-catalog";
 import GcQueuePage from "./page";
+import { TITLE_STATUS_TRACK_STEPS } from "@/lib/status-progress";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), prefetch: vi.fn(), replace: vi.fn() }),
@@ -149,7 +150,6 @@ describe("GcQueuePage", () => {
     stubClient();
     const html = renderToStaticMarkup(await GcQueuePage());
 
-    expect(QUEUE_PAGE.empty).toBe("Nothing waiting.");
     expect(html).toContain(QUEUE_PAGE.empty);
     expect(html).toContain("titles-catalog-empty");
     expect(html).toContain("bg-surface");
@@ -213,8 +213,8 @@ describe("GcQueuePage", () => {
     expect(html).toContain("data-titles-catalog-submitted");
     expect(html).toContain("data-titles-catalog-org");
     expect(html).toContain("data-titles-catalog-status");
-    expect(html).toContain("In review");
-    expect(html).toContain("In delivery");
+    expect(html).toContain(TITLE_STATUS_TRACK_STEPS[2]);
+    expect(html).toContain(TITLE_STATUS_TRACK_STEPS[3]);
     expect(html).toContain("data-titles-catalog-findings");
     expect(html).toContain("⚑ 2");
     expect(html).not.toContain("Approved · ready to deliver");

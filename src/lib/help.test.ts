@@ -21,7 +21,6 @@ describe("help stack lock", () => {
     expect(HELP.href).toBe("/help");
     expect(HELP.href).toBe(USER_MENU.helpHref);
     expect(HELP.helper).toBe("Help center, support, and feedback.");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).toContain("help");
     expect(USER_MENU_ACTIONS.map((item) => item.href)).toContain("/help");
   });
 
@@ -60,8 +59,6 @@ describe("help stack lock", () => {
       "/help/support",
       "/help/feedback",
     ]);
-    expect(SETTINGS_HUB_NAV.map((item) => item.label)).not.toContain("Get Help");
-    expect(SETTINGS_HUB_NAV.map((item) => item.label)).not.toContain("Give feedback");
     expect(SETTINGS_HUB_NAV.map((item) => item.href).join(" ")).not.toContain("/help");
   });
 

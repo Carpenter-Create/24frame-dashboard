@@ -35,9 +35,7 @@ import {
 import {
   SETTINGS_CONTENT_MEASURE_CLASS,
   SETTINGS_GROUP_CLASS,
-  SETTINGS_GROUP_LABEL_CLASS,
   SETTINGS_GROUP_LIST_CLASS,
-  SETTINGS_GROUP_STACK_CLASS,
   SETTINGS_PREF_TITLE_CLASS,
 } from "./settings";
 
@@ -124,6 +122,9 @@ describe("notification prefs SoT", () => {
     expect(NOTIFICATION_PREF_WRAP_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
     expect(NOTIFICATION_PREF_WRAP_CLASS).not.toContain(HOUSE_MODULE_CLASS);
     expect(NOTIFICATION_PREF_WRAP_CLASS).not.toContain(HOUSE_CARD_PAD);
+    expect(NOTIFICATION_PREF_WRAP_CLASS).toBe(
+      "w-full md:max-w-[48rem] flex flex-col gap-[var(--space-6)]",
+    );
     expect(NOTIFICATION_PREF_MATRIX_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS}`);
     expect(NOTIFICATION_PREF_MATRIX_CLASS).not.toContain("divide-y");
     expect(NOTIFICATION_PREF_HEAD_CLASS).toContain("grid-cols-[minmax(0,1fr)_auto_auto]");
@@ -137,8 +138,6 @@ describe("notification prefs SoT", () => {
     expect(NOTIFICATION_PREF_CHANNEL_HEAD_CLASS).not.toContain("t-label");
     expect(SETTINGS_GROUP_CLASS).toContain(HOUSE_MODULE_CLASS);
     expect(SETTINGS_GROUP_LIST_CLASS).toContain("divide-y divide-hairline");
-    expect(SETTINGS_GROUP_STACK_CLASS).toContain("gap-[var(--space-2)]");
-    expect(SETTINGS_GROUP_LABEL_CLASS).toBe("t-label text-ink-3");
     expect(NOTIFICATION_PREF_SWITCH_TRACK_CLASS).toContain("h-5");
     expect(NOTIFICATION_PREF_SWITCH_TRACK_CLASS).toContain("w-9");
     expect(NOTIFICATION_PREF_SWITCH_TRACK_CLASS).not.toContain("h-6");

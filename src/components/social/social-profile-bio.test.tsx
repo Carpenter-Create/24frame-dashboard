@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { SOCIAL, socialBioCounterLabel } from "@/lib/social";
 import { SocialProfileBioEditor } from "./social-profile-bio";
+
+// --accent read from tokens.css, so this guard follows the pending GC accent checkpoint.
+const ACCENT = readFileSync("src/app/tokens.css", "utf8").match(/--accent:\s*(#[0-9a-fA-F]{6});/)?.[1];
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
@@ -30,7 +34,8 @@ describe("SocialProfileBioEditor", () => {
     expect(html).toContain(`href="${"/social/profile/edit"}"`);
     expect(html).not.toContain("<form");
     expect(html).not.toContain("Education");
-    expect(html).not.toContain("#1769ff");
+    expect(ACCENT).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(html.toLowerCase()).not.toContain(String(ACCENT).toLowerCase());
     expect(html).toContain("t-control");
     expect(html).not.toMatch(/data-social-bio-textarea=""[^>]*t-body-sm/);
   });

@@ -49,7 +49,6 @@ describe("PrefDrillGroup", () => {
     expect(html).toContain(SETTINGS_DRILL_ROW_CLASS);
     expect(html).not.toContain(SETTINGS_DRILL_COPY_CLASS);
     expect(html).toContain(`<ul class="${SETTINGS_GROUP_LIST_CLASS}">`);
-    expect(SETTINGS_GROUP_LIST_CLASS).not.toContain("gap-");
     expect(html).not.toContain("truncate");
     const copyAt = html.indexOf('data-settings-drill-value-copy=""');
     const chevronAt = html.indexOf('data-settings-drill-chevron=""');
@@ -60,8 +59,5 @@ describe("PrefDrillGroup", () => {
     );
     expect(html).toContain(`href="${SETTINGS.locationHref}"`);
     expect(html).toContain(`href="${SETTINGS.themeHref}"`);
-    expect(SETTINGS.themeHref).toBe("/settings/preferences/theme");
-    expect(SETTINGS.locationHref).toBe("/settings/preferences/location");
-    expect(SETTINGS.notificationsHref).toBe("/settings/preferences/notifications");
   });
 });

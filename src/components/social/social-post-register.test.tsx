@@ -113,7 +113,6 @@ describe("H · Posts (founder 2026-10-05)", () => {
     expect(SOCIAL_POST_CLASS).not.toMatch(/bg-|rounded|border|shadow/);
     // The media block: radius 24 from md; phone meets the viewport at radius 0.
     expect(openTag(html, "data-social-post-media")).toContain(SOCIAL_POST_MEDIA_CLASS);
-    expect(hasClass(SOCIAL_POST_MEDIA_CLASS, "md:rounded-[var(--radius-xl)]")).toBe(true);
     expect(hasClass(SOCIAL_POST_MEDIA_CLASS, "max-md:-mx-[var(--chrome-gutter)]")).toBe(true);
     expect(SOCIAL_POST_MEDIA_CLASS).not.toMatch(/(?:^|\s)rounded-|border|shadow-(?!none)/);
     // True shape: 1200×800 is 3:2; out-of-range shapes hold at the limits.
@@ -188,7 +187,6 @@ describe("H · Posts (founder 2026-10-05)", () => {
     const head = html.slice(html.indexOf("data-social-post-screen-head"), html.indexOf("data-social-feed-media-frame"));
     expect(head).toContain(SOCIAL_POST_SCREEN_HEAD_CLASS);
     expect(head.indexOf("Cinematography")).toBeLessThan(head.indexOf(`>${SOCIAL.post.videoLabel}<`));
-    expect(SOCIAL.post.videoLabel).toBe("Video");
     for (const cls of ["min-h-11", "justify-between", "px-4", "text-band-ink/72", "font-medium"]) {
       expect(hasClass(SOCIAL_POST_SCREEN_HEAD_CLASS, cls), cls).toBe(true);
     }
@@ -223,8 +221,6 @@ describe("H · Posts (founder 2026-10-05)", () => {
     const author = openTag(html, 'href="/social/u/elena"');
     expect(author).toContain("min-h-11");
     expect(html).toContain(SOCIAL_POST_TIME_CLASS);
-    expect(SOCIAL_POST_TIME_CLASS).toContain("text-[length:var(--text-sm)]");
-    expect(SOCIAL_POST_TIME_CLASS).toContain("text-ink-3 dark:text-ink-2");
     // No role eyebrow until members choose one.
     const name = html.slice(html.indexOf("data-social-post-name"), html.indexOf("Elena Ruiz"));
     expect(name).not.toContain("uppercase");
@@ -250,7 +246,6 @@ describe("H · Posts (founder 2026-10-05)", () => {
     expect(openTag(actions, "data-social-like-count")).toContain('aria-haspopup="dialog"');
     expect(openTag(actions, "data-social-like-count")).toContain(SOCIAL_POST_COUNT_CLASS);
     expect(actions).toContain('aria-label="Comment, 2 comments"');
-    expect(SOCIAL_POST_COUNT_CLASS).toContain("text-[length:var(--text-sm)] font-medium tabular-nums text-ink-2");
     const quiet = render(post({ likeCount: 0, commentCount: 0 }));
     expect(quiet).not.toContain("data-social-like-count");
     expect(quiet).not.toContain("data-social-comment-count");
@@ -327,12 +322,15 @@ describe("H · Posts (founder 2026-10-05)", () => {
         expect(luminance(fill(cls, theme)), `${theme}: ${name} lighter than the card`).toBeGreaterThan(luminance(card));
       }
     }
-    // The board's values, in existing tokens: light card #f4f4f6 under
-    // #ffffff rounds; dark card #1e2126 under #25292f rounds.
-    expect(fill(SOCIAL_POST_TEXT_CARD_CLASS, "light")).toBe("#f4f4f6");
-    expect(fill(SOCIAL_POST_ROUND_CARD_CLASS, "light")).toBe("#ffffff");
-    expect(fill(SOCIAL_POST_TEXT_CARD_CLASS, "dark")).toBe("#1e2126");
-    expect(fill(SOCIAL_POST_ROUND_CARD_CLASS, "dark")).toBe("#25292f");
+    // The board's values, in existing tokens: light card muted under surface
+    // rounds; dark card surface under muted rounds. The hex values are pinned
+    // once in src/app/tokens.test.ts.
+    const tokenHex = (theme: "light" | "dark", token: string) =>
+      block[theme].match(new RegExp(`--${token}:\\s*(#[0-9a-fA-F]{6});`))?.[1]?.toLowerCase();
+    expect(fill(SOCIAL_POST_TEXT_CARD_CLASS, "light")).toBe(tokenHex("light", "surface-muted"));
+    expect(fill(SOCIAL_POST_ROUND_CARD_CLASS, "light")).toBe(tokenHex("light", "surface"));
+    expect(fill(SOCIAL_POST_TEXT_CARD_CLASS, "dark")).toBe(tokenHex("dark", "surface"));
+    expect(fill(SOCIAL_POST_ROUND_CARD_CLASS, "dark")).toBe(tokenHex("dark", "surface-muted"));
     // Off the card nothing remaps: page rounds are muted in both themes.
     expect(SOCIAL_POST_ROUND_CLASS).not.toContain("dark:");
     expect(socialPostAvatarEmptyClass("page")).toBe("bg-surface-muted");
@@ -345,7 +343,6 @@ describe("H · Posts (founder 2026-10-05)", () => {
   });
 
   it("G14: the wall is 24 / 48 and the wall skeleton uses the live post classes", () => {
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe("flex flex-col gap-[var(--space-6)] md:gap-[var(--space-12)]");
     const skeleton = renderToStaticMarkup(<SocialPostWallSkeleton />);
     expect(skeleton).toContain(`class="${SOCIAL_FEED_GUTTER_CLASS}"`);
     expect(skeleton.match(/data-social-post-skeleton/g)?.length).toBe(3);

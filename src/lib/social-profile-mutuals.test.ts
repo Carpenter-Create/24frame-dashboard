@@ -16,8 +16,6 @@ describe("social profile mutuals", () => {
     expect(socialFollowedByLine(["Ada", "Bob"], 3)).toBe(
       `${SOCIAL.profile.followedBy} Ada, Bob ${SOCIAL.profile.followedByMore.replace("{n}", "3")}`,
     );
-    expect(SOCIAL.profile.followedBy).toBe("Followed by");
-    expect(SOCIAL.profile.followedByMore).toBe("+{n} more");
     expect(SOCIAL_MUTUALS_NAME_CAP).toBe(2);
     expect(SOCIAL_MUTUALS_FACE_CAP).toBe(2);
     expect(emptySocialProfileMutuals()).toEqual({ people: [], extra: 0 });

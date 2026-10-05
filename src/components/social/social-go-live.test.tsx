@@ -1,8 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
-import { SOCIAL_GO_LIVE_MAX_MS } from "@/lib/social-go-live";
+import { SOCIAL } from "@/lib/social";
 
 const src = readFileSync("src/components/social/social-go-live.tsx", "utf8");
 const page = readFileSync("src/app/(app)/social/live/page.tsx", "utf8");
@@ -37,14 +36,12 @@ describe("Social Go live recorder", () => {
     expect(src).not.toContain("LiveStream");
     expect(src).not.toContain("IVS");
     expect(src).not.toContain("WebRTC");
-    expect(SOCIAL_GO_LIVE_MAX_MS).toBe(600_000);
     expect(src).not.toContain("liveHint");
     expect(src).not.toContain("Record up to 10 minutes");
     expect("liveHint" in SOCIAL.create).toBe(false);
     expect(src).toContain("SOCIAL.create.goLive");
     expect(src).toContain("SOCIAL.stories.flipCamera");
     expect(src).toContain("data-social-go-live-record");
-    expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
     expect(src).toContain("data-social-go-live-close");
     expect(src).toContain("takeSocialGoLiveExitHref()");
     expect(src).toContain("router.replace(takeSocialGoLiveExitHref())");

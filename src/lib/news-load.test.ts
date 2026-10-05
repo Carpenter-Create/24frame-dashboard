@@ -36,8 +36,7 @@ describe("loadNewsItems", () => {
       item(99, "2026-06-01T12:00:00.000Z"),
     ]);
     const home = await loadHomeNews(NOW, store);
-    expect(NEWS_HOME_CAP).toBe(15);
-    expect(home).toHaveLength(15);
+    expect(home).toHaveLength(NEWS_HOME_CAP);
     expect(home.every((row) => row.published_at >= "2026-06-20T18:00:00.000Z")).toBe(true);
     expect(home.some((row) => row.url.endsWith("/h99"))).toBe(false);
     expect(JSON.stringify(home)).not.toMatch(/summary/i);

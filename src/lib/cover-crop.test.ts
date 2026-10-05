@@ -89,7 +89,6 @@ describe("rectangular cover crop math", () => {
 
 describe("cover crop constants (Stage lock: frame once at 16:7)", () => {
   it("outputs a 2400×1050 crop", () => {
-    expect(COVER_CROP_OUTPUT_WIDTH).toBe(2400);
     expect(COVER_CROP_OUTPUT_HEIGHT).toBe(1050);
     expect(COVER_CROP_OUTPUT_WIDTH).toBe(SOCIAL_PROFILE_COVER_STAGE.outputWidth);
     expect(COVER_CROP_OUTPUT_HEIGHT).toBe(SOCIAL_PROFILE_COVER_STAGE.outputHeight);

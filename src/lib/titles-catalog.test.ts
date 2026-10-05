@@ -117,6 +117,7 @@ describe("Add Title copy", () => {
     expect(TITLES_CATALOG.addTitle).toBe("Add Title");
     expect(TITLES_CATALOG.title).toBe("Titles");
     expect(TITLES_CATALOG.searchPlaceholder).toBe("Search titles...");
+    expect(TITLES_CATALOG.statusFilterLabel).toBe("Filter by status");
   });
 
   it("locks the phone + to the house 44 Sporty Blue hit", () => {
@@ -210,7 +211,6 @@ describe("catalog search SoT", () => {
     expect(catalogSearchQuery(["Winter", "ignored"])).toBe("Winter");
     expect(catalogSearchQuery(undefined)).toBe("");
     expect(catalogSearchQuery("x".repeat(120))).toHaveLength(100);
-    expect(TITLES_CATALOG.searchPlaceholder).toBe("Search titles...");
     expect(TITLES_CATALOG.searchMiss("Harbor")).toBe("No titles match “Harbor”.");
     expect(TITLES_CATALOG.searchMissHint).toBe("Try a different search.");
     expect(catalogSearchMissCopy("  Harbor  ")).toBe("No titles match “Harbor”. Try a different search.");

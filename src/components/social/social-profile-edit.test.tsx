@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+
+// --accent read from tokens.css, so this guard follows the pending GC accent checkpoint.
+const ACCENT = readFileSync("src/app/tokens.css", "utf8").match(/--accent:\s*(#[0-9a-fA-F]{6});/)?.[1];
 
 vi.mock("next/image", () => ({
   default: ({
@@ -123,7 +127,8 @@ describe("SocialProfileEditForm", () => {
     expect(html).toContain('data-social-icon="caret-left"');
     expect(html).not.toContain("Education");
     expect(html).not.toContain("Reels");
-    expect(html).not.toContain("#1769ff");
+    expect(ACCENT).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(html.toLowerCase()).not.toContain(String(ACCENT).toLowerCase());
     expect(html).not.toContain("/social/@");
 
     const cased = renderToStaticMarkup(

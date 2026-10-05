@@ -11,7 +11,6 @@ import {
   socialRolePersonScore,
   socialTopicPersonScore,
 } from "./social-role-affinity";
-import { SOCIAL_PROFILE_TOPICS } from "./social-profile-topics";
 import { SOCIAL_PROFILE_ROLES } from "./social-profile-roles";
 
 describe("ROLE_INTEREST_AFFINITY", () => {
@@ -39,7 +38,6 @@ describe("ROLE_INTEREST_AFFINITY", () => {
     expect(selected[2]).toBe("Post-production");
     expect(selected).toHaveLength(SOCIAL_CATEGORY_TOPICS.length);
     expect(socialInterestTopics({})).toEqual([...SOCIAL_CATEGORY_TOPICS]);
-    expect(SOCIAL_PROFILE_TOPICS).not.toContain("Actor");
   });
 
   it("scores shared roles above neighbors and ranks suggested people without dropping anyone", () => {

@@ -69,7 +69,6 @@ describe("CourseConsume layout", () => {
   it("keeps list-to-watch on the playlist row and does not invent progress", () => {
     const src = readFileSync("src/components/courses/course-consume.tsx", "utf8");
     expect(src).toContain("onClick={() => setSelectedId(lesson.id)}");
-    expect(src).toContain("data-course-lesson-active");
     expect(src).toContain("lg:flex-row");
     expect(src).not.toContain("lesson_progress");
     expect(src).not.toContain("Resume");

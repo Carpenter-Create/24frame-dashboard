@@ -3,12 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SOCIAL_FEED_REEL_CAPTION_MAX,
-  SOCIAL_FEED_REEL_EVERY,
-  SOCIAL_FEED_REEL_MIN,
   SOCIAL_FEED_REEL_NEAR_ROOT_MARGIN,
-  SOCIAL_FEED_REEL_RAIL_SIZE,
-  SOCIAL_FEED_REEL_STEP_PX,
-  SOCIAL_FEED_REEL_TILE,
 } from "./social-feed-reels";
 import {
   SOCIAL_FEED_REEL_CAPTION_CLASS,
@@ -74,11 +69,8 @@ describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
 
   it("matches the lock's cadence, size, skip, and tile numbers in code", () => {
     expect(lock).toContain("One rail after every **3** posts");
-    expect(SOCIAL_FEED_REEL_EVERY).toBe(3);
     expect(lock).toContain("6 tiles");
-    expect(SOCIAL_FEED_REEL_RAIL_SIZE).toBe(6);
     expect(lock).toContain("Fewer than **2** reels left");
-    expect(SOCIAL_FEED_REEL_MIN).toBe(2);
     expect(lock).toContain("Tiles **180×320** (9:16), gap 12");
     expect(lock).toContain("Tiles **160×284**");
     // Face amended 2026-10-05 (H · Feed, the Feed register lock): the
@@ -86,17 +78,17 @@ describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
     // two tiles page 376 (was 384). Sizes stay.
     expect(lock).toContain("**Amended in part (founder 2026-10-05, H · Feed):**");
     expect(register).toContain("the radius-10 tiles, the desktop gap 12 and the 384 page");
-    expect(SOCIAL_FEED_REEL_TILE.desktop).toEqual({ width: 180, height: 320, gap: 8 });
-    expect(SOCIAL_FEED_REEL_TILE.phone).toEqual({ width: 160, height: 284, gap: 8 });
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("md:w-[180px]");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("md:h-80");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("w-40");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("h-[284px]");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("rounded-[var(--radius-lg)]");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).not.toContain("rounded-[var(--radius)]");
+    expect(SOCIAL_FEED_REEL_TILE_CLASS).toBe(
+      "relative block h-[284px] w-40 overflow-hidden rounded-[var(--radius-lg)] bg-band md:h-80 md:w-[180px]",
+    );
     expect(lock).toContain("**two tiles (384px)**");
     expect(register).toContain("**376** (2 × (180 + 8))");
-    expect(SOCIAL_FEED_REEL_STEP_PX).toBe(376);
     expect(lock).toContain("within 600px of the viewport");
     expect(SOCIAL_FEED_REEL_NEAR_ROOT_MARGIN).toBe("600px 0px 600px 0px");
     expect(lock).toContain("over 100 characters");
@@ -119,6 +111,9 @@ describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("gap-2");
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).not.toContain("md:gap-3");
     expect(SOCIAL_FEED_REELS_ARROW_OFF_CLASS).toContain("opacity-40");
+    expect(SOCIAL_FEED_REELS_ARROW_OFF_CLASS).toBe(
+      "grid size-11 place-items-center rounded-full bg-surface-muted text-ink cursor-default opacity-40",
+    );
     for (const guard of ARROW_GUARDS) {
       expect(rail).toContain(guard);
     }

@@ -7,7 +7,6 @@ import {
   SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS,
   SOCIAL_FEED_IMMERSIVE_MUTE_CLASS,
   SOCIAL_FEED_IMMERSIVE_STAGE_CLASS,
-  SOCIAL_POST_ACTION_GLYPH,
   SOCIAL_POST_ACTIONS_ROW_CLASS,
   SOCIAL_STORY_HEART_LIKED_CLASS,
 } from "@/lib/social-chrome";
@@ -66,7 +65,6 @@ describe("SocialFeedImmersive", () => {
     expect(html.indexOf("data-social-comment-open")).toBeLessThan(html.indexOf("data-social-post-share"));
     expect(html).not.toContain("data-social-comment-thread");
     expect(html).toContain(SOCIAL_STORY_HEART_LIKED_CLASS);
-    expect(SOCIAL_POST_ACTION_GLYPH).toBe(24);
     expect(immersiveSrc).not.toContain("md:grid-cols");
     expect(immersiveSrc).not.toContain("data-social-feed-immersive-rail");
     expect(immersiveSrc).not.toContain("navigator.share");

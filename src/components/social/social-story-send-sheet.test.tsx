@@ -10,6 +10,7 @@ vi.mock("next/image", () => ({
 import { SOCIAL } from "@/lib/social";
 import { SocialStorySendSheet } from "./social-story-send-sheet";
 import { SocialStorySentToast } from "./social-story-sent-toast";
+import { ASSISTANT_NAME } from "@/lib/product";
 
 const person = {
   id: "u2",
@@ -65,7 +66,7 @@ describe("SocialStorySendSheet", () => {
     expect(html).not.toContain("?ai=1");
     expect(html).toContain("data-social-frame-ai");
     expect(html).toContain("data-house-ai-mark");
-    expect(html).toContain("24Frame AI");
+    expect(html).toContain(ASSISTANT_NAME);
     expect(src).not.toContain("router");
     expect(html).toContain("truncate");
     expect(html).toContain('data-social-story-send-footer="closed"');

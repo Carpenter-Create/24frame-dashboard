@@ -71,7 +71,6 @@ describe("warmStoryRailPlaybackTokens", () => {
   });
 
   it("keeps the rail cap and warms only the active card and the next", () => {
-    expect(SOCIAL_STORIES_RAIL_LIMIT).toBe(80);
     expect(SOCIAL_STORY_RAIL_MUX_WARM_AHEAD).toBe(2);
     expect(SOCIAL_STORY_RAIL_MUX_WARM_AHEAD).toBeLessThan(SOCIAL_STORIES_RAIL_LIMIT);
   });

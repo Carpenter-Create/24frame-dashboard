@@ -58,7 +58,6 @@ describe("SocialHandleField", () => {
     expect(actions).toContain("socialHandleInputError");
     expect(actions).toContain("lookupHandleCollision");
     expect(actions).toContain("profileInsertRow");
-    expect(field).toContain("SOCIAL_HANDLE_FIELD_LABEL_CLASS");
     expect(field).toContain("handleFieldValue");
     expect(field).toContain("stripHandleDecorators");
     expect(field).toContain("onPaste");

@@ -192,7 +192,13 @@ describe("DM thread message format", () => {
     expect(dmThreadStackClass(true)).toContain("gap-2");
     expect(DM_THREAD_COMPOSER_FIELD_CLASS).toContain("h-10");
     expect(DM_THREAD_COMPOSER_FIELD_CLASS).toContain("rounded-[20px]");
+    expect(DM_THREAD_COMPOSER_FIELD_CLASS).toBe(
+      "flex h-10 min-w-0 flex-1 items-center rounded-[20px] border border-hairline bg-surface-muted px-3",
+    );
     expect(DM_THREAD_COMPOSER_SEND_CLASS).not.toContain("w-full");
+    expect(DM_THREAD_COMPOSER_SEND_CLASS).toBe(
+      "flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-contrast",
+    );
   });
 
   it("keeps the send-craft line for mine and names theirs", () => {
@@ -235,8 +241,9 @@ describe("DM thread message format", () => {
     expect(DM_THREAD_COMPOSER_CLASS).toContain("env(safe-area-inset-bottom)");
     expect(DM_THREAD_COMPOSER_CLASS).not.toContain("sticky");
     expect(DM_THREAD_COMPOSER_CLASS).not.toContain("bottom-[calc(6.5rem");
-    expect(DM_THREAD_COMPOSER_FIELD_CLASS).toContain("h-10");
-    expect(DM_THREAD_COMPOSER_SEND_CLASS).not.toContain("w-full");
+    expect(DM_THREAD_COMPOSER_CLASS).toBe(
+      "shrink-0 border-t border-hairline bg-surface px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]",
+    );
     expect(DM_THREAD_COMPOSER_CAMERA_GLYPH).toBe(24);
     expect(DM_THREAD_COMPOSER_CAMERA_CLASS).toContain("size-10");
     expect(DM_THREAD_COMPOSER_CAMERA_CLASS).toContain("text-ink");
@@ -289,7 +296,6 @@ describe("DM thread message format", () => {
     expect(DM_THREAD_HEADER_LABEL_CLASS).toContain("truncate");
     expect(DM_THREAD_HEADER_LABEL_CLASS).toContain("t-body-sm");
     expect(DM_THREAD_HEADER_LABEL_CLASS).toContain("font-medium");
-    expect(DM_THREAD_COMPOSER_CLASS).not.toContain("sticky");
 
     const self = dmThreadHeaderModel({
       peers: dmThreadHeaderPeers({

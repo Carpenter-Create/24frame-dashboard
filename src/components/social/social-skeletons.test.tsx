@@ -24,7 +24,6 @@ import {
   SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_FEED_SCOPE_CLASS,
-  SOCIAL_FEED_SCOPE_TRACK_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
@@ -106,7 +105,6 @@ describe("Social loading skeletons", () => {
     expect(home).toContain(`class="${SOCIAL_FEED_CENTER_CLASS}"`);
     expect(home).toContain(`data-social-home-lanes-skeleton="" class="${SOCIAL_FEED_SCOPE_CLASS}"`);
     // The slider's 44 track, as one pill (its w-max yields to the 221).
-    expect(SOCIAL_FEED_SCOPE_TRACK_CLASS).toBe(`${HOUSE_PILL_SLIDER_TRACK_CLASS} w-max`);
     expect(home).toContain(`animate-pulse ${HOUSE_PILL_SLIDER_TRACK_CLASS} h-11 w-[221px]`);
     expect(home).toContain(`class="${SOCIAL_HOME_TOPIC_ROW_CLASS}"`);
     expect(home).toContain(`class="${SOCIAL_COMPOSER_CLASS}"`);

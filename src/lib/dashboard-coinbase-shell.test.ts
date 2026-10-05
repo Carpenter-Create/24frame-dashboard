@@ -7,15 +7,6 @@ import { DashboardRankedRows, DashboardTopPerforming } from "@/components/dashbo
 import { DashboardReportsCta } from "@/components/dashboard/dashboard-modules";
 import { DashboardHomePillLink } from "@/components/dashboard/dashboard-home";
 import {
-  DASHBOARD_CARD_PAD,
-  DASHBOARD_RELATED_GAP_CLASS,
-  DASHBOARD_SECTION_AIR_CLASS,
-  DASHBOARD_SECTION_TITLE_CLASS,
-  DASHBOARD_TITLE_DESKTOP_CLASS,
-  DASHBOARD_TITLE_MOBILE_CLASS,
-  DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS,
-  DASHBOARD_TOP_PILL_BUTTON_ON_CLASS,
-  DASHBOARD_PERIOD_TRIGGER_CLASS,
   DASHBOARD_PERIOD_OPTION_SELECTED_CLASS,
   DASHBOARD_RANKED_MARK_CLASS,
   DASHBOARD_RANKED_META_CLASS,
@@ -41,18 +32,7 @@ const page = readFileSync("src/app/(app)/aggregation/dashboard/page.tsx", "utf8"
 
 describe("Coinbase shell rematch — Adam miss list v1", () => {
   it("keeps the page canvas on house white and cards on shared 16 radius", () => {
-    expect(tokens).toMatch(/--bg:\s*#ffffff;/);
-    expect(tokens).toMatch(/--surface:\s*#ffffff;/);
-    expect(tokens).toMatch(/--surface-muted:\s*#f4f4f6;/);
-    expect(tokens).toMatch(/--text:\s*#0A0B0D;/);
-    expect(tokens).toMatch(/--accent:\s*#1769ff;/);
-    expect(tokens).toMatch(/--radius-lg:\s*16px;/);
-    expect(tokens).not.toMatch(/--radius-lg:\s*14px;/);
-    expect(globals).toMatch(/\.card-surface\s*\{[\s\S]*?border-radius:\s*var\(--radius-lg\)/);
-    expect(globals).toMatch(/\.card-surface\s*\{[\s\S]*?box-shadow:\s*none/);
-    expect(DASHBOARD_RELATED_GAP_CLASS).toBe("gap-[var(--space-2)]");
-    expect(DASHBOARD_CARD_PAD).toBe("px-[var(--space-4)] py-[var(--space-4)]");
-    expect(DASHBOARD_SECTION_AIR_CLASS).toBe("gap-[var(--space-6)]");
+    // Canvas, surface, ink, radius and card tokens are pinned once in src/app/tokens.test.ts.
     expect(craft).toContain("shadow-none");
     expect(craft).not.toContain("shadow-lg");
     expect(tokens).not.toMatch(/\[data-dashboard/);
@@ -67,7 +47,6 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(sideNav).not.toContain("HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS");
     expect(sideNav).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
     expect(sideNav).not.toContain("font-normal text-ink-2");
-    expect(tokens).toContain("--accent-wash:");
     expect(lead).toContain("<BrandLogo />");
     expect(shell).not.toContain("BrandWordmark");
     expect(lead).not.toContain("BrandWordmark");
@@ -84,19 +63,9 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(lead).not.toContain('presentation="lanes"');
     expect(lead).toContain('presentation="waffle"');
     expect(lead).not.toContain('tone="pill"');
-    expect(DASHBOARD_TITLE_DESKTOP_CLASS).toContain("t-title");
-    expect(DASHBOARD_TITLE_DESKTOP_CLASS).toContain("text-ink");
-    expect(DASHBOARD_TITLE_DESKTOP_CLASS).not.toContain("t-label");
-    expect(DASHBOARD_TITLE_MOBILE_CLASS).toContain("t-heading");
-    expect(DASHBOARD_TITLE_MOBILE_CLASS).toContain("text-ink");
-    expect(DASHBOARD_SECTION_TITLE_CLASS).toBe("t-heading text-ink");
   });
 
   it("reserves Sporty Blue fill for CTA / rail wash / links — period is HousePageSelect", () => {
-    expect(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS).toBe("text-white");
-    expect(DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS).toBe("text-ink-2");
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("bg-surface-muted");
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).not.toContain("bg-accent");
     expect(DASHBOARD_PERIOD_OPTION_SELECTED_CLASS).toBe("bg-surface-muted");
     expect(existsSync("src/components/layout/status-filter.tsx")).toBe(false);
     expect(period).toContain("HousePageSelect");

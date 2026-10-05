@@ -11,7 +11,7 @@ import {
   HOUSE_PHONE_DOCK_CHROME_PB_CLASS,
   HOUSE_PHONE_DOCK_CLEARANCE,
 } from "@/lib/house-phone-dock";
-import { HOUSE_MODULE_CLASS, HOUSE_SECTION_AIR_CLASS } from "@/lib/house-shell";
+import { HOUSE_MODULE_CLASS } from "@/lib/house-shell";
 import { isSocialExplorePath } from "@/lib/social";
 import {
   SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS,
@@ -91,7 +91,6 @@ describe("phone dock clearance", () => {
     expect(shell).toContain("cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad");
     expect(shell).toContain('data-house-lead-scroll=""');
     // H · Posts: the wall is 24 / 48; no post carries dock chrome.
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS} md:gap-[var(--space-12)]`);
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("house-phone-dock-clearance");
     for (const post of [SOCIAL_POST_CLASS, SOCIAL_POST_TEXT_CARD_CLASS]) {
       expect(post).not.toContain(HOUSE_MODULE_CLASS);

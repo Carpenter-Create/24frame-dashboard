@@ -21,6 +21,7 @@ describe("house phone stack gospel 2026-09-19", () => {
     expect(HOUSE_PHONE_STACK_CLASS).toContain("flex-col");
     expect(HOUSE_PHONE_STACK_CLASS).toContain("w-full");
     expect(HOUSE_PHONE_STACK_CLASS).toContain("items-stretch");
+    expect(HOUSE_PHONE_CONTAIN_CLASS).toBe("min-w-0 max-w-full overflow-x-clip");
     expect(HOUSE_PHONE_CONTAIN_CLASS).toContain("min-w-0");
     expect(HOUSE_PHONE_CONTAIN_CLASS).toContain("max-w-full");
     expect(HOUSE_PHONE_CONTAIN_CLASS).toContain("overflow-x-clip");

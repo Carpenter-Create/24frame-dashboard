@@ -144,7 +144,6 @@ describe("workspace waffle header control", () => {
     // The desktop switcher is the house SegmentedTrack (one component
     // per pattern), not a second slider.
     expect(src).toContain("<SegmentedTrack");
-    expect(src).toContain('data-workspace-switcher-presentation="slider"');
     expect(src).not.toContain('data-workspace-switcher-presentation="lanes"');
     expect(src).not.toContain('tone="pill"');
   });
@@ -195,7 +194,6 @@ describe("workspace waffle header control", () => {
       src.indexOf("function WorkspaceWaffleTiles"),
     );
     expect(exitFn).toContain("<ArrowLeft");
-    expect(exitFn).toContain("WORKSPACE_WAFFLE_HOME_ICON_CLASS");
     expect(exitFn).toContain("event.preventDefault()");
     expect(exitFn).toContain("router.push(dest)");
     expect(exitFn).toContain("house?.navigateOwned(dest, event)");

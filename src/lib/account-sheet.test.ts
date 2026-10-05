@@ -93,7 +93,6 @@ describe("account sheet lock", () => {
   it("wires Theme to /settings/preferences/theme — the Preferences nest", () => {
     const hrefs = ACCOUNT_SHEET_ITEMS.flatMap((item) => ("href" in item ? [item.href] : []));
     expect(hrefs).toEqual([USER_MENU.settingsHref, USER_MENU.themeHref, USER_MENU.helpHref]);
-    expect(USER_MENU).not.toHaveProperty("appearanceHref");
     expect(hrefs).not.toContain("/account/appearance");
     expect(hrefs).toContain("/settings/preferences/theme");
     expect(hrefs).not.toContain("/settings/theme");
@@ -103,7 +102,6 @@ describe("account sheet lock", () => {
       USER_MENU.themeHref,
       USER_MENU.helpHref,
     ]);
-    expect(USER_MENU).not.toHaveProperty("askAssistantHref");
     expect(hrefs).not.toContain("/account/company");
     expect(hrefs.join(" ")).not.toMatch(/notifications|phone|job/i);
     expect(hrefs).not.toContain("/settings/profile");
@@ -164,7 +162,6 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_SHEET_SCROLL_CLASS).toContain("overflow-y-auto");
     expect(ACCOUNT_SHEET_SCROLL_CLASS).toContain("overscroll-contain");
     expect(ACCOUNT_SHEET_LEFTOVER).toBe(24);
-    expect(ACCOUNT_SHEET_LEFTOVER).toBe(24);
     expect(ACCOUNT_SHEET_LEFTOVER_CLASS).toContain("h-[var(--space-6)]");
     expect(ACCOUNT_SHEET_LEFTOVER_CLASS).not.toContain("h-[var(--space-12)]");
     expect(ACCOUNT_SHEET_LEFTOVER_CLASS).toContain("shrink-0");
@@ -182,6 +179,7 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_SHEET_LOGOUT_CLASS).not.toContain("bg-surface-muted");
     expect(ACCOUNT_SHEET_LOGOUT_CLASS).not.toContain("border-");
     expect(ACCOUNT_SHEET_LOGOUT_CLASS).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+    expect(ACCOUNT_SHEET_PIN_CLASS).toBe("flex w-full shrink-0 flex-col gap-[var(--space-4)]");
     expect(ACCOUNT_SHEET_PIN_CLASS).toContain("gap-[var(--space-4)]");
     expect(ACCOUNT_SHEET_PIN_CLASS).not.toContain("gap-[var(--space-6)]");
     expect(ACCOUNT_SHEET_PIN_CLASS).not.toContain("gap-[var(--space-12)]");
@@ -247,7 +245,6 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_MENU_DROPDOWN_EMAIL_CLASS).toContain("text-ink-2");
     expect(ACCOUNT_MENU_DROPDOWN_MANAGE_CLASS).toContain("text-accent");
     expect(USER_MENU.manageAccount).toBe("Manage account");
-    expect(USER_MENU.profileHref).toBe("/settings/profile");
     expect(ACCOUNT_MENU_DROPDOWN_ROW_CLASS).toContain("min-h-11");
     expect(ACCOUNT_MENU_DROPDOWN_ROW_CLASS).toContain("px-[var(--space-4)]");
     expect(ACCOUNT_MENU_DROPDOWN_ROW_CLASS).toContain("gap-[var(--space-3)]");
@@ -307,7 +304,6 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_SHEET_VERSION_CLASS).toContain("text-ink-3");
     expect(accountSheet).not.toHaveProperty("ACCOUNT_SHEET_LEGAL_CLASS");
     expect(ACCOUNT_SHEET_ABSENT).toContain("Legal");
-    expect(ACCOUNT_SHEET_ABSENT).not.toContain("Appearance");
   });
 });
 

@@ -34,7 +34,6 @@ describe("NavGlyph", () => {
   });
 
   it("renders the house AI mark for the overlay family — not a rail dest", () => {
-    expect(NAV.every((item) => item.family === "phosphor")).toBe(true);
     const ask: HouseAiNavItem = { label: "Ask 24Frame AI", href: "?ai=1", family: "house-ai" };
     const html = renderToStaticMarkup(<NavGlyph item={ask} active={false} />);
     expect(html).toContain("data-house-ai-mark");

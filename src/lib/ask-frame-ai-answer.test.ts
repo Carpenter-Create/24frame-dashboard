@@ -178,9 +178,6 @@ describe("buildAskFrameAiAnswer", () => {
       bound: UNPAGINATED_MAX,
     });
     expect(result).toBeNull();
-    expect(ASK_FRAME_AI.capability).toBe(
-      "I can answer catalog attention, blockers, and what to submit next.",
-    );
   });
 
   it("never emits another org's title even when my_findings includes it", () => {

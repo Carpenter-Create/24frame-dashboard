@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
-import { SETTINGS } from "@/lib/settings";
 import SettingsThemeRedirectPage from "./page";
 
 vi.mock("next/navigation", () => ({
@@ -23,7 +22,6 @@ describe("flat /settings/theme redirect", () => {
     expect(pageSrc).toContain("SETTINGS.themeHref");
     expect(pageSrc).not.toContain("AppearanceThemePicker");
     expect(pageSrc).not.toContain("SettingsEditPane");
-    expect(SETTINGS.themeHref).toBe("/settings/preferences/theme");
     expect(() => SettingsThemeRedirectPage()).toThrow(
       "REDIRECT:/settings/preferences/theme",
     );

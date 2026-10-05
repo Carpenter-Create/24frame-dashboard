@@ -7,7 +7,6 @@ import {
   SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_SCROLL_CLASS,
-  SOCIAL_POST_ACTION_GLYPH,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTION_LIKED_CLASS,
 } from "@/lib/social-chrome";
@@ -115,10 +114,8 @@ describe("SocialExploreForYouStream", () => {
     expect(SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS).toContain("flex-col");
     expect(SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS).toContain("gap-[var(--space-2)]");
     expect(SOCIAL_POST_ACTION_HIT_CLASS).toContain("inline-flex");
-    expect(SOCIAL_POST_ACTION_HIT_CLASS).toContain("size-10");
     expect(html).toContain("inline-flex size-10");
     expect(html).toContain('width="24"');
-    expect(SOCIAL_POST_ACTION_GLYPH).toBe(24);
     expect(html).toContain("data-social-like");
     expect(html).toContain(SOCIAL_POST_ACTION_LIKED_CLASS);
     expect(SOCIAL_POST_ACTION_LIKED_CLASS).toBe("text-[#1769FF]");

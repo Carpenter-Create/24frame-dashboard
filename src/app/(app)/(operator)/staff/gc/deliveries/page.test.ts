@@ -90,27 +90,24 @@ describe("staff /gc/deliveries empty copy", () => {
     expect(html).toContain(GC_LICENSING_STATUS.title);
     expect(html).not.toContain("Licensing status across all clients");
     expect(html).not.toContain("Status is set by hand");
-    expect(GC_DELIVERIES_EMPTY.title).toBe("No licensing status yet.");
-    expect(html).toContain("No licensing status yet.");
+    expect(html).toContain(GC_DELIVERIES_EMPTY.title);
     expect(html).toContain("data-gc-licensing-status");
   });
 
   it("renders View titles as Sporty Blue text, not a filled button", async () => {
     const html = await renderEmptyDeliveries();
-    const marker = html.indexOf("View titles");
+    const marker = html.indexOf(GC_DELIVERIES_EMPTY.actionLabel);
     const addStart = html.lastIndexOf("<a", marker);
     const addEnd = html.indexOf("</a>", marker);
     const link = html.slice(addStart, addEnd);
 
-    expect(GC_DELIVERIES_EMPTY.actionLabel).toBe("View titles");
-    expect(GC_DELIVERIES_EMPTY.actionHref).toBe("/aggregation/titles");
     expect(html).toContain('href="/aggregation/titles"');
-    expect(html).toContain("View titles");
+    expect(html).toContain(GC_DELIVERIES_EMPTY.actionLabel);
     expect(pageSrc).toContain(viewTitlesClass);
     expect(link).toContain("t-body-sm");
     expect(link).toContain("text-accent");
     expect(link).toContain("hover:underline");
-    expect(link).toContain("View titles");
+    expect(link).toContain(GC_DELIVERIES_EMPTY.actionLabel);
     expect(link).not.toContain("bg-accent");
     expect(link).not.toContain("text-accent-contrast");
     expect(link).not.toContain("rounded-[12px]");
