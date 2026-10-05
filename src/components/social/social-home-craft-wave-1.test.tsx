@@ -185,12 +185,16 @@ describe("Social Home craft Wave 1", () => {
     expect(socialLikeCountCopy(3)).toBe("3 likes");
   });
 
-  it("locks header trailing glyphs at 24, the avatar at 28, and the tap at 44", () => {
-    expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe("size-6 shrink-0");
-    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-6 shrink-0 hidden md:block");
+  // Screening chrome (Adam 2026-10-04) supersedes wave 1's box sizes:
+  // phone header glyphs 20, desktop 18 in 34 controls, the dock 24; the
+  // avatar 28 desktop / 30 phone; phone taps stay 44.
+  it("locks header trailing glyphs at 20 phone / 18 desktop, the avatar at 28 / 30, and the phone tap at 44", () => {
+    expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe("size-5 shrink-0");
+    expect(HOUSE_HEADER_TRAILING_DESKTOP_CLASS).toBe("size-4.5 shrink-0 hidden md:block");
     expect(HOUSE_PHONE_CHROME_ICON_CLASS).toBe("size-6 shrink-0");
     expect(tokens).toMatch(/--header-avatar-size:\s*28px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*28px;/);
+    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*30px;/);
+    expect(tokens).toMatch(/--header-desktop-control-size:\s*34px;/);
     expect(tokens).toMatch(/--header-control-size:\s*44px;/);
     expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*44px;/);
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");
@@ -199,8 +203,9 @@ describe("Social Home craft Wave 1", () => {
     const bellWeight = bell.slice(bell.indexOf("<Bell"), bell.indexOf("/>", bell.indexOf("<Bell")));
     expect(bellWeight).toContain("HOUSE_PHONE_CHROME_ICON_WEIGHT");
     expect(bellWeight).toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");
-    expect(waffle).toContain("weight={HOUSE_PHONE_CHROME_ICON_WEIGHT}");
-    expect(waffle).toContain("weight={PHOSPHOR_CHROME_IDLE_WEIGHT}");
+    // The grid button is one 16 filled grid beside the workspace name.
+    expect(waffle).toContain("weight={WORKSPACE_WAFFLE_TRIGGER_ICON_WEIGHT}");
+    expect(waffle).toContain("className={WORKSPACE_WAFFLE_TRIGGER_ICON_CLASS}");
     expect(SOCIAL_FEED_PLAY_DISC_CLASS).toBe("social-feed-play-disc");
   });
 });

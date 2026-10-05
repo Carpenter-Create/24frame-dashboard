@@ -547,7 +547,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).toContain("size-8");
     expect(chrome).toContain("h-16");
     expect(shell).toContain("SOCIAL_RAIL_PANEL_CLASS");
-    expect(shell).toContain("HOUSE_RAIL_FLOAT_CLASS");
+    expect(shell).toContain("HOUSE_RAIL_COLUMN_CLASS");
     expect(chrome).not.toContain("Inter");
     expect(chrome).not.toContain("#d1e0fa");
     expect(chrome).not.toContain("shadow-");
@@ -1077,7 +1077,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     const shellEnd = Number(
       readFileSync("src/app/tokens.css", "utf8").match(/--shell-gutter-inline-end:\s*(\d+)px;/)?.[1],
     );
-    expect(railSlot).toBe(256);
+    expect(railSlot).toBe(200);
     expect(shellEnd).toBe(32);
     const leadPad = SOCIAL_DESKTOP_MEASURE.padR;
     const canvas = 1440 - railSlot - leadPad - shellEnd;

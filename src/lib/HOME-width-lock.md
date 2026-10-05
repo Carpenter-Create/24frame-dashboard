@@ -13,20 +13,26 @@ Home frame (a size container), not the viewport: two columns (main +
 22rem News) from a 960px frame, Education covers 2-up from 592 and
 3-up from 960.
 
+Amended 2026-10-04 (Adam, "Yes, everywhere";
+`docs/design-locks/shell-screening-chrome-lock-v1.md`): the rail slot
+is 200 (64 collapsed) and the header 52, so with the rail open the
+Home frame reaches 960 at a 1224 viewport (was 1280): one column from
+768 to 1223. Collapsed, two columns from 1088 (was 1084).
+
 At the 1440 frame:
 
 | Surface | Measure |
 | --- | --- |
 | Header | Full-bleed 1440 / full viewport. Desktop shell gutters 32 / 32. |
-| Dest rail | On. `--sidebar-width` (256); 60 collapsed. |
+| Dest rail | On. `--sidebar-width` (200); 64 collapsed. |
 | Left inset | 32px (`--shell-gutter-inline-start`), after the rail. |
 | Right inset | 32px (`--shell-gutter-inline-end`). |
-| Home content column | 1120px with the rail (1440 − 256 − 32 − 32). 1316px collapsed. |
+| Home content column | 1176px with the rail (1440 − 200 − 32 − 32). 1312px collapsed (1440 − 64 − 32 − 32). |
 | Rail-free frame | 1376px (1440 − 32 − 32). Co-Productions only. |
 | Phone | Unchanged (existing max-md pad) |
 
 Do not center Home on the old page cap. Home uses the dest-rail slot
-(`--sidebar-width`, 256) like every workspace.
+(`--sidebar-width`, 200) like every workspace.
 
 Implementation: Home content uses `--shell-gutter-inline-start` left
 and `--shell-gutter-inline-end` right, inside main. Only

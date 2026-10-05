@@ -75,7 +75,11 @@ import {
   destinationClickClosesSheet,
 } from "@/lib/account-sheet";
 import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
-import { HOUSE_HEADER_TRAILING_AVATAR_CLASS } from "@/lib/house-lead-chrome";
+import {
+  HOUSE_HEADER_DESKTOP_AVATAR_CLASS,
+  HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS,
+  HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS,
+} from "@/lib/house-lead-chrome";
 import { menuHostClass } from "@/lib/menu-host";
 import { APP_SHEET_SCRIM_CLASS, SHEET_GROUP_CHEVRON_CLASS } from "@/lib/house-sheet";
 import { settingsLandHref } from "@/lib/settings";
@@ -99,6 +103,7 @@ function AccountMenuTrigger({
   open,
   onOpen,
   className,
+  faceClassName,
   triggerAttr,
   controlsId,
   host,
@@ -109,6 +114,8 @@ function AccountMenuTrigger({
   open: boolean;
   onOpen: () => void;
   className: string;
+  /** Set when the hit is larger than the face (phone: 44 hit, 30 face). */
+  faceClassName?: string;
   triggerAttr: "data-account-sheet-trigger" | "data-user-menu-trigger";
   controlsId: string;
   host: "phone" | "desktop";
@@ -117,6 +124,7 @@ function AccountMenuTrigger({
   const initial = userMenuAvatarInitial(email);
   const face = accountPhotoSrc(photoUrl);
   const attrs = { [triggerAttr]: "" } as Record<string, string>;
+  const photo = <IdentityPhoto avatarInitial={initial} photoUrl={photoUrl} />;
 
   return (
     <button
@@ -129,9 +137,15 @@ function AccountMenuTrigger({
       aria-expanded={open}
       aria-controls={controlsId}
       onClick={onOpen}
-      className={face ? `${className} overflow-hidden` : className}
+      className={face && !faceClassName ? `${className} overflow-hidden` : className}
     >
-      <IdentityPhoto avatarInitial={initial} photoUrl={photoUrl} />
+      {faceClassName ? (
+        <span data-account-trigger-face="" className={faceClassName}>
+          {photo}
+        </span>
+      ) : (
+        photo
+      )}
     </button>
   );
 }
@@ -611,7 +625,8 @@ export function MobileAccountMenu({
         triggerAttr="data-account-sheet-trigger"
         controlsId="account-sheet"
         host="phone"
-        className={`${HOUSE_HEADER_TRAILING_AVATAR_CLASS} ${menuHostClass("phone")}`}
+        className={`${HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS} ${menuHostClass("phone")}`}
+        faceClassName={HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS}
       />
       {sheet && typeof document !== "undefined" ? createPortal(sheet, document.body) : sheet}
     </>
@@ -664,7 +679,7 @@ export function DesktopAccountMenu({
         triggerAttr="data-user-menu-trigger"
         controlsId="account-menu-dropdown"
         host="desktop"
-        className={`${HOUSE_HEADER_TRAILING_AVATAR_CLASS} transition-colors hover:text-ink`}
+        className={`${HOUSE_HEADER_DESKTOP_AVATAR_CLASS} transition-colors hover:text-ink`}
       />
       {dropdown && typeof document !== "undefined"
         ? createPortal(dropdown, document.body)

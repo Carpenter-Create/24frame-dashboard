@@ -274,14 +274,15 @@ describe("MessagesAppHeader", () => {
     expect((src.match(/<DotsThree/g) ?? []).length).toBe(1);
     expect(shell).not.toContain("MessagesThreadOverflow");
     expect(lead).not.toContain('presentation="sheet" tone="pill"');
-    expect(lead).toContain('presentation="pills"');
+    expect(lead).toContain('presentation="lanes"');
     expect(lead).toContain('presentation="waffle"');
-    expect(leadLib).toContain("justify-end gap-4");
+    expect(leadLib).toContain("justify-end gap-0 md:gap-[var(--space-4)]");
     expect(leadLib).toContain("HOUSE_LEAD_PHONE_PAD_CLASS");
     expect(leadLib).toContain("HOUSE_PHONE_TRAILING_GUTTER_CLASS");
     expect(leadLib).toContain("HOUSE_SHELL_GUTTER_X_CLASS");
-    // One rail inner pad on every workspace (shell-unified-chrome-lock-v1).
-    expect(shell).toContain('cn("flex-1 overflow-y-auto", settingsPage ? SETTINGS_RAIL_PAD_CLASS : "pt-1")');
+    // One side-menu column on every workspace; the menu pads itself and
+    // Settings keeps its own pad (screening chrome).
+    expect(shell).toContain('cn("flex-1 overflow-y-auto", settingsPage ? SETTINGS_RAIL_PAD_CLASS : undefined)');
     expect(shell).not.toContain('"gap-3 p-4"');
     expect(landing).not.toContain("MessagesThreadOverflow");
     expect(landing).not.toContain("data-ask-frame-ai-title-cluster");
@@ -353,7 +354,7 @@ describe("MessagesAppHeader", () => {
     expect(lead).toContain("HOUSE_LEAD_CHROME_CLASS");
     expect(lead).toContain("APP_HEADER_LEADING_CLASS");
     expect(lead).not.toContain('presentation="sheet" tone="pill"');
-    expect(lead).toContain('presentation="pills"');
+    expect(lead).toContain('presentation="lanes"');
     expect(lead).toContain('presentation="waffle"');
     expect(shell.indexOf("<MessagesAppHeader")).toBeLessThan(shell.indexOf("<UserMenu"));
     expect(tokens).toMatch(/--space-4:\s*1rem;/);

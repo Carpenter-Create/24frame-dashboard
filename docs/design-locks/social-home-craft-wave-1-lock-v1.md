@@ -60,6 +60,8 @@ Wave 1 rematch = **IG-class post rhythm** inside Coinbase shell: tighter media�
 
 **Amend 2026-10-04** ([`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md), Adam): from `xl` the desktop Ask control shows its **Ask 24Frame AI** label in a hairline pill; below `xl` and on phone it stays the 24 glyph in the 44 tap.
 
+**Superseded 2026-10-04** ([`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md), Adam, "Yes, everywhere"): box sizes. Desktop header glyphs are **18** in **34** controls; phone header glyphs are **20** in **44** taps; the phone avatar is **30** in a 44 hit (desktop 28). The phone grid button is a 16 filled grid plus the workspace name, not a bell-matched glyph. Same stroke family and 44 phone taps stay.
+
 **Note vs density M3:** Wave 1 locks trailing **24pt box** + waffle=bell weight + avatar ~28. Prefer this Wave 1 SoT for Social/header trailing craft rematch; no arbitrary ~18px.
 
 **PASS:** Even 24 boxes · waffle matches bell · avatar ~28 · 44 taps.  

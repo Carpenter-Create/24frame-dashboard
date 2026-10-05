@@ -22,11 +22,12 @@ describe("theme preference sync", () => {
     expect(src).not.toContain("Moon");
     expect(leadSrc).not.toContain("ThemeToggle");
     expect(leadSrc).not.toContain("data-theme-toggle");
-    expect(leadSrc.indexOf('presentation="pills"')).toBeLessThan(
+    expect(leadSrc.indexOf('presentation="lanes"')).toBeLessThan(
       leadSrc.indexOf("<AskAssistantHeaderLink />"),
     );
-    expect(leadSrc.indexOf("<AskAssistantHeaderLink />")).toBeLessThan(
-      leadSrc.indexOf('presentation="waffle"'),
+    // Screening chrome: the grid button leads (after the emblem).
+    expect(leadSrc.indexOf('presentation="waffle"')).toBeLessThan(
+      leadSrc.indexOf("<AskAssistantHeaderLink />"),
     );
     expect(leadSrc.indexOf("<AskAssistantHeaderLink />")).toBeLessThan(leadSrc.indexOf("<ActivityBell"));
     expect(leadSrc.indexOf("<ActivityBell")).toBeLessThan(leadSrc.indexOf("{accountMenu}"));

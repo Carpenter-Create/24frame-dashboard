@@ -78,6 +78,7 @@ Adam lock: one desktop header and one side-menu pattern on every
 workspace (Home, Aggregation, Social, Education, Staff). Home has its
 own rail; Social's own Home tab is Feed. Light default, dark available.
 Lock: [`docs/design-locks/shell-unified-chrome-lock-v1.md`](../design-locks/shell-unified-chrome-lock-v1.md).
+Screening-room face (text lanes, tile-less side menu, named phone switch, ink dock dot): [`docs/design-locks/shell-screening-chrome-lock-v1.md`](../design-locks/shell-screening-chrome-lock-v1.md).
 
 ---
 

@@ -160,8 +160,10 @@ describe("Home lead pills", () => {
     expect(switcher).toContain("overviewLeadSelected");
     expect(switcher).toContain("workspaceWaffleTiles");
     expect(switcher).toContain("overviewLeadActiveIndex");
-    expect(switcher).toContain("SegmentedTrack");
-    expect(switcher).toContain("persistKey={SEGMENTED_TRACK_PERSIST.workspace}");
+    // Screening chrome: plain lanes, no sliding track; the lit lane is the
+    // route index itself.
+    expect(switcher).not.toContain("SegmentedTrack");
+    expect(switcher).toContain("const selected = index === routeIndex;");
     expect(switcher).not.toContain("activeIndex >= 0 ? activeIndex : 0");
     expect(switcher).not.toContain("routeIndex >= 0 ? routeIndex : 0");
   });

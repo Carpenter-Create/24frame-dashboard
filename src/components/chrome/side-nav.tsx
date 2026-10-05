@@ -4,16 +4,28 @@ import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { SocialCreateSheet } from "@/components/social/social-create-sheet";
+import { Plus } from "@phosphor-icons/react";
 import { isSocialCreateDest, STAFF_RAIL_EYEBROW, type NavItem } from "@/lib/nav";
 import {
   HOUSE_DEST_RAIL_ACTIVE_CLASS,
+  HOUSE_DEST_RAIL_COLLAPSED_RULE_CLASS,
+  HOUSE_DEST_RAIL_CREATE_GLYPH_CLASS,
+  HOUSE_DEST_RAIL_CREATE_GLYPH_COLLAPSED_CLASS,
+  HOUSE_DEST_RAIL_CREATE_TILE_CLASS,
+  HOUSE_DEST_RAIL_CREATE_TILE_COLLAPSED_CLASS,
+  HOUSE_DEST_RAIL_DIVIDER_CLASS,
+  HOUSE_DEST_RAIL_DIVIDER_COLLAPSED_CLASS,
+  HOUSE_DEST_RAIL_EYEBROW_CLASS,
+  HOUSE_DEST_RAIL_GLYPH_SLOT_CLASS,
   HOUSE_DEST_RAIL_IDLE_CLASS,
-  HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS,
-  HOUSE_DEST_RAIL_TILE_CLASS,
-  HOUSE_DEST_RAIL_TILE_IDLE_CLASS,
-  HOUSE_RAIL_ITEM_CLASS,
-  HOUSE_RAIL_LABEL_CLASS,
-  HOUSE_RAIL_TITLE_CLASS,
+  HOUSE_DEST_RAIL_LABEL_CLASS,
+  HOUSE_DEST_RAIL_NAV_CLASS,
+  HOUSE_DEST_RAIL_NAV_COLLAPSED_CLASS,
+  HOUSE_DEST_RAIL_ROW_CLASS,
+  HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS,
+  HOUSE_DEST_RAIL_SECTION_EYEBROW_CLASS,
+  HOUSE_DEST_RAIL_TOP_ROW_CLASS,
+  HOUSE_DEST_RAIL_TOP_ROW_COLLAPSED_CLASS,
 } from "@/lib/house-shell";
 import { houseRailActiveIndex, houseRailModel } from "@/lib/house-rail";
 import { cn } from "@/lib/cn";
@@ -24,28 +36,33 @@ import {
 } from "@/components/social/use-social-nav-pending";
 import { NavGlyph } from "./nav-glyph";
 
-// Access rail (dest rail), same pattern on every workspace — Home · Aggregation ·
-// Social · Education · Staff (Adam 2026-10-04,
-// docs/design-locks/shell-unified-chrome-lock-v1.md). Workspace
-// eyebrow (hidden when collapsed), then rows of [28 icon tile +
-// label]. Uses house --text-base / t-body labels and a
-// 16px Phosphor Bold idle / Fill active glyph (75:5 / 61:2) in the
-// tile. Idle: muted tile, ink-2. Active: muted row, ink label,
-// accent tile. One active row per path
-// (houseRailActiveIndex — the dock's test). Header mark is BrandLogo
-// (24Frame), not a C. Collapsed mode is icon-only (labels hidden;
-// title tooltips). Open count lives on the header bell.
+// Side menu — the Access rail (dest rail), same pattern on every
+// workspace — Home · Aggregation · Social · Education · Staff. Screening chrome (Adam
+// 2026-10-04, "Yes, everywhere";
+// docs/design-locks/shell-screening-chrome-lock-v1.md). Top row: the
+// workspace eyebrow and the collapse control. Rows: [22 glyph slot +
+// 13px label], no icon tiles. Idle ink-2 / 500; current muted row,
+// ink / 600, Bold glyph. Social's Create is the only accent: a small
+// accent tile with a plus. One current row per path
+// (houseRailActiveIndex — the dock's test). Collapsed: the expand
+// control, a 24 hairline, then 40 icon links (labels hidden; title
+// tooltips). Glyphs are the Figma 75:5 rail family (house Phosphor).
+// Header mark is BrandLogo (24Frame), not a C. Open count lives on the
+// header bell.
 export function SideNav({
   isGcStaff = false,
   collapsed = false,
   workspace: requestedWorkspace = "aggregation",
   homeOwned = false,
+  collapseControl,
 }: {
   isGcStaff?: boolean;
   collapsed?: boolean;
   workspace?: WorkspaceMode;
   /** /home and /home/news: Home's own dests (Home · Industry news). */
   homeOwned?: boolean;
+  /** RailCollapse, placed in the top row (expanded) or atop the column (collapsed). */
+  collapseControl?: React.ReactNode;
 }) {
   const workspace = clampWorkspaceMode(requestedWorkspace, isGcStaff);
   const social = workspace === "social";
@@ -63,27 +80,43 @@ export function SideNav({
 
   const row = (item: NavItem, index: number, badge: React.ReactNode = null) => {
     const active = index === activeIndex;
+    const create = social && isSocialCreateDest(item);
     const rowClass = cn(
-      HOUSE_RAIL_ITEM_CLASS,
-      collapsed ? "justify-center px-0 py-1" : "gap-3 py-1 pl-2 pr-3",
+      collapsed ? HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS : HOUSE_DEST_RAIL_ROW_CLASS,
       active ? HOUSE_DEST_RAIL_ACTIVE_CLASS : HOUSE_DEST_RAIL_IDLE_CLASS,
     );
-    const glyph = (
+    const glyph = create ? (
+      <span
+        data-side-nav-icon=""
+        data-side-nav-create-tile=""
+        data-side-nav-icon-active={active ? "" : undefined}
+        className={collapsed ? HOUSE_DEST_RAIL_CREATE_TILE_COLLAPSED_CLASS : HOUSE_DEST_RAIL_CREATE_TILE_CLASS}
+      >
+        <Plus
+          aria-hidden
+          weight="bold"
+          className={collapsed ? HOUSE_DEST_RAIL_CREATE_GLYPH_COLLAPSED_CLASS : HOUSE_DEST_RAIL_CREATE_GLYPH_CLASS}
+        />
+      </span>
+    ) : collapsed ? (
+      <span data-side-nav-icon="" data-side-nav-icon-active={active ? "" : undefined} className="contents">
+        <NavGlyph item={item} active={active} />
+      </span>
+    ) : (
       <span
         data-side-nav-icon=""
         data-side-nav-icon-active={active ? "" : undefined}
-        className={cn(
-          HOUSE_DEST_RAIL_TILE_CLASS,
-          active ? HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS : HOUSE_DEST_RAIL_TILE_IDLE_CLASS,
-        )}
+        className={HOUSE_DEST_RAIL_GLYPH_SLOT_CLASS}
       >
         <NavGlyph item={item} active={active} />
       </span>
     );
     const label = !collapsed ? (
-      <span className={HOUSE_RAIL_LABEL_CLASS}>{item.label}</span>
+      <span data-side-nav-label="" className={HOUSE_DEST_RAIL_LABEL_CLASS}>
+        {item.label}
+      </span>
     ) : null;
-    if (social && isSocialCreateDest(item)) {
+    if (create) {
       return (
         <SocialCreateSheet
           key={item.href}
@@ -137,21 +170,40 @@ export function SideNav({
 
   return (
     <nav
-      className={cn("flex flex-col gap-1", collapsed ? "px-1" : "px-2")}
+      className={collapsed ? HOUSE_DEST_RAIL_NAV_COLLAPSED_CLASS : HOUSE_DEST_RAIL_NAV_CLASS}
       data-side-nav=""
+      data-side-nav-collapsed={collapsed ? "" : undefined}
       aria-label={eyebrow}
     >
-      {!collapsed ? (
-        <span data-side-nav-eyebrow="" className={HOUSE_RAIL_TITLE_CLASS}>
-          {eyebrow}
-        </span>
+      {/* One top row in both states: the same div, with the collapse
+          control in the same slot, so React reuses its button across
+          the toggle and keyboard focus stays on it. Collapsed drops
+          only the eyebrow; the 24×1 rule follows the row. */}
+      <div
+        data-side-nav-top=""
+        className={collapsed ? HOUSE_DEST_RAIL_TOP_ROW_COLLAPSED_CLASS : HOUSE_DEST_RAIL_TOP_ROW_CLASS}
+      >
+        {collapsed ? null : (
+          <span data-side-nav-eyebrow="" className={HOUSE_DEST_RAIL_EYEBROW_CLASS}>
+            {eyebrow}
+          </span>
+        )}
+        {collapseControl}
+      </div>
+      {collapsed ? (
+        <span aria-hidden="true" data-side-nav-rule="" className={HOUSE_DEST_RAIL_COLLAPSED_RULE_CLASS} />
       ) : null}
       {items.map((item, index) => row(item, index))}
       {staffItems.length > 0 ? (
         <>
-          <div className="mx-1 my-2 border-t border-hairline" />
+          <div
+            aria-hidden="true"
+            className={collapsed ? HOUSE_DEST_RAIL_DIVIDER_COLLAPSED_CLASS : HOUSE_DEST_RAIL_DIVIDER_CLASS}
+          />
           {!collapsed ? (
-            <span className={HOUSE_RAIL_TITLE_CLASS}>{STAFF_RAIL_EYEBROW}</span>
+            <span data-side-nav-section-eyebrow="" className={HOUSE_DEST_RAIL_SECTION_EYEBROW_CLASS}>
+              {STAFF_RAIL_EYEBROW}
+            </span>
           ) : null}
           {staffItems.map((item, index) => row(item, items.length + index))}
         </>

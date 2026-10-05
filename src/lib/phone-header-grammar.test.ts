@@ -76,9 +76,10 @@ describe("phone header grammar A — trim trailing", () => {
     expect(leadSrc).not.toContain("data-theme-toggle");
     expect(leadSrc.indexOf("<AskAssistantHeaderLink")).toBeLessThan(leadSrc.indexOf("<ActivityBell"));
     expect(leadSrc.indexOf("<ActivityBell")).toBeLessThan(leadSrc.indexOf("{accountMenu}"));
-    expect(leadSrc).toMatch(
-      /<AskAssistantHeaderLink \/>[\s\S]*<ActivityBell[\s\S]*<WorkspaceSwitcher/,
-    );
+    // Screening chrome: the grid button leads; nothing switches workspace
+    // after the bell.
+    expect(leadSrc).toMatch(/<WorkspaceSwitcher[\s\S]*<AskAssistantHeaderLink \/>[\s\S]*<ActivityBell/);
+    expect(leadSrc).not.toMatch(/<ActivityBell[\s\S]*<WorkspaceSwitcher/);
 
     const aggregation = renderToStaticMarkup(
       createElement(HouseLeadChrome, {
@@ -160,14 +161,17 @@ describe("phone header grammar A — trim trailing", () => {
     );
   });
 
-  it("houses phone right air on --chrome-gutter so the avatar is not flush", () => {
+  // Screening chrome: 16 lead (the emblem on the chrome gutter) and 8
+  // trail; the 44 account hit holds the 30 avatar, so its edge sits 15
+  // from the viewport — not flush.
+  it("houses phone right air so the avatar is not flush", () => {
     expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
-    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--chrome-gutter)]");
+    expect(HOUSE_PHONE_TRAILING_GUTTER_CLASS).toBe("max-md:pr-[var(--space-2)]");
     expect(HOUSE_LEAD_PHONE_PAD_CLASS).toBe(
-      "max-md:pl-[var(--space-6)] max-md:pr-[var(--chrome-gutter)]",
+      "max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--space-2)]",
     );
     expect(HOUSE_LEAD_CHROME_CLASS).toContain(HOUSE_PHONE_TRAILING_GUTTER_CLASS);
-    expect(HOUSE_LEAD_CHROME_CLASS).toContain("max-md:pl-[var(--space-6)]");
+    expect(HOUSE_LEAD_CHROME_CLASS).toContain("max-md:pl-[var(--chrome-gutter)]");
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:pl-[var(--shell-gutter-inline-start)]");
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:pr-[var(--shell-gutter-inline-end)]");
     expect(HOUSE_LEAD_CHROME_CLASS).not.toContain("md:px-[var(--chrome-gutter)]");
@@ -177,11 +181,10 @@ describe("phone header grammar A — trim trailing", () => {
   });
 
   it("keeps phone trailing AI · bell · avatar on one gap without collapsing hits", () => {
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(
-      /(?:^|\s)gap-\[var\(--space-3\)\](?:\s|$)/,
-    );
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-4)]");
-    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-2)]");
+    // Screening chrome: phone hits abut; desktop controls 8 apart.
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toMatch(/(?:^|\s)gap-0(?:\s|$)/);
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).toContain("md:gap-[var(--space-2)]");
+    expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-4)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("md:gap-[var(--space-3)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toContain("gap-[var(--space-1)]");
     expect(APP_HEADER_TRAILING_CLUSTER_CLASS).not.toMatch(
@@ -196,7 +199,10 @@ describe("phone header grammar A — trim trailing", () => {
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("h-8 w-8");
     expect(HOUSE_HEADER_TRAILING_AVATAR_CLASS).not.toContain("-mx-");
     expect(HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS).toBe("contents md:hidden");
-    expect(sheetSrc).toContain("HOUSE_HEADER_TRAILING_AVATAR_CLASS");
+    // Phone: a 44 hit around the 30 face; desktop: the 28 avatar.
+    expect(sheetSrc).toContain("HOUSE_HEADER_PHONE_ACCOUNT_HIT_CLASS");
+    expect(sheetSrc).toContain("HOUSE_HEADER_PHONE_ACCOUNT_FACE_CLASS");
+    expect(sheetSrc).toContain("HOUSE_HEADER_DESKTOP_AVATAR_CLASS");
     expect(readFileSync("src/components/activity/activity-bell.tsx", "utf8")).toContain(
       "HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS",
     );
