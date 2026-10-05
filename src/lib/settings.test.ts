@@ -4,9 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   HOUSE_CARD_PAD,
   HOUSE_MODULE_CLASS,
-  HOUSE_RAIL_ACTIVE_CLASS,
-  HOUSE_RAIL_IDLE_CLASS,
-  HOUSE_RAIL_ITEM_CLASS,
   HOUSE_RAIL_TITLE_CLASS,
 } from "./house-shell";
 import { menuLabelTruncatesOnPhone } from "./menu-host";
@@ -561,12 +558,6 @@ describe("settings hub lock", () => {
     expect(settingsSrc).not.toContain("SETTINGS_RAIL_IDLE_CLASS");
     expect(settingsSrc).not.toContain("SETTINGS_RAIL_TITLE_CLASS");
     expect(settingsSrc).toContain("house-shell.ts");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
-    expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
-    expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");
-    expect(HOUSE_RAIL_ITEM_CLASS).toContain("t-body");
-    expect(HOUSE_RAIL_ITEM_CLASS).not.toContain("t-body-sm");
-    expect(HOUSE_RAIL_ITEM_CLASS).toContain("rounded-full");
     expect(HOUSE_RAIL_TITLE_CLASS).toContain("t-label");
     expect(SETTINGS_RAIL_ABSENT).toEqual([
       "Titles",

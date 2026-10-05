@@ -206,7 +206,6 @@ describe("Social Profile Edit profile + Bio lock", () => {
     expect(globals).toMatch(/\.t-control\s*\{[\s\S]*?font-size:\s*16px/);
     expect(globals).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
     expect(globals).toMatch(/\.t-body-sm\s*\{[\s\S]*?font-size:\s*var\(--text-sm\)/);
-    expect(FORM_CONTROL_TEXT_CLASS).toBe("t-control");
     expect(SOCIAL_PROFILE_EDIT_HANDLE_CLASS).toContain(FORM_CONTROL_TEXT_CLASS);
     expect(SOCIAL_PROFILE_EDIT_HANDLE_CLASS).not.toContain("t-body-sm");
     expect(SOCIAL_PROFILE_EDIT_HANDLE_ERROR_CLASS).toContain(FORM_CONTROL_TEXT_CLASS);

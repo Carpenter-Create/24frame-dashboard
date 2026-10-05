@@ -260,7 +260,6 @@ describe("SocialPostCard faces", () => {
 
   it("reuses signed account faces and does not add a second upload", () => {
     expect(postSrc).toContain('from "./social-avatar"');
-    expect(avatarSrc).toContain("IDENTITY_AVATAR_CLASS");
     expect(avatarSrc).toContain("photoUrl");
     expect(postSrc).toContain("photoUrl");
     expect(postSrc).not.toContain("signedAvatarUrl");

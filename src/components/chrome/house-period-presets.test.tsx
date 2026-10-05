@@ -17,6 +17,7 @@ import {
 } from "@/lib/house-shell";
 import { REPORTS_PAGE, REPORTS_PERIOD_PRESETS } from "@/lib/reports";
 import {
+  SEGMENTED_ITEM_SELECTED_ATTR,
   SEGMENTED_TRACK_PERSIST,
   clearSegmentedThumbCache,
   resolveSegmentedVisualIndex,
@@ -86,7 +87,7 @@ describe("HousePeriodPresets", () => {
     );
     expect(ytd?.[0]).toContain(HOUSE_SEGMENTED_ITEM_ON_CLASS);
     expect(ytd?.[0]).toContain('aria-pressed="true"');
-    expect(ytd?.[0]).toContain("data-segmented-selected");
+    expect(ytd?.[0]).toContain(SEGMENTED_ITEM_SELECTED_ATTR);
     expect(all?.[0]).toContain(HOUSE_SEGMENTED_ITEM_OFF_CLASS);
     expect(all?.[0]).toContain('aria-pressed="false"');
     expect(SEGMENTED_TRACK_PERSIST.period).toBe("house-period-presets");

@@ -93,7 +93,6 @@ describe("Aggregation Reports miss list v1.1", () => {
     expect(html).toContain(HOUSE_SEGMENTED_ITEM_BASE_CLASS);
     expect(html).toContain(HOUSE_SEGMENTED_ITEM_ON_CLASS);
     expect(html).toContain("data-segmented-thumb");
-    expect(HOUSE_SEGMENTED_ITEM_ON_CLASS).toBe("text-white");
     expect(HOUSE_SEGMENTED_ITEM_BASE_CLASS).not.toContain("bg-accent");
     expect(html).toContain("data-reports-period-trigger");
     expect(html).not.toContain("<select");

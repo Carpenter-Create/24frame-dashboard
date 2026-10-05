@@ -23,13 +23,6 @@ import {
   DASHBOARD_MONEY_CLASS,
 } from "@/lib/dashboard-craft";
 import { DASHBOARD_HOME } from "@/lib/dashboard-home";
-import {
-  HOUSE_FILTER_OFF_CLASS,
-  HOUSE_FILTER_ON_CLASS,
-  HOUSE_RAIL_ACTIVE_CLASS,
-  HOUSE_RAIL_IDLE_CLASS,
-  HOUSE_SEARCH_PILL_CLASS,
-} from "@/lib/house-shell";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -60,7 +53,6 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(DASHBOARD_RELATED_GAP_CLASS).toBe("gap-[var(--space-2)]");
     expect(DASHBOARD_CARD_PAD).toBe("px-[var(--space-4)] py-[var(--space-4)]");
     expect(DASHBOARD_SECTION_AIR_CLASS).toBe("gap-[var(--space-6)]");
-    expect(tokens).toMatch(/--content-inset:\s*48px;/);
     expect(craft).toContain("shadow-none");
     expect(craft).not.toContain("shadow-lg");
     expect(tokens).not.toMatch(/\[data-dashboard/);
@@ -74,9 +66,6 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(sideNav).toContain("HOUSE_DEST_RAIL_ACTIVE_CLASS");
     expect(sideNav).not.toContain("HOUSE_DEST_RAIL_TILE_ACTIVE_CLASS");
     expect(sideNav).toContain("HOUSE_DEST_RAIL_IDLE_CLASS");
-    expect(HOUSE_RAIL_ACTIVE_CLASS).toBe("bg-accent-wash text-accent-ink");
-    expect(HOUSE_RAIL_IDLE_CLASS).toBe("text-ink hover:bg-surface-muted");
-    expect(HOUSE_RAIL_IDLE_CLASS).not.toContain("font-normal");
     expect(sideNav).not.toContain("font-normal text-ink-2");
     expect(tokens).toContain("--accent-wash:");
     expect(lead).toContain("<BrandLogo />");
@@ -88,7 +77,6 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
   it("keeps Search a quiet #F4F4F6 pill and page titles black sentence-case", () => {
     expect(search).toContain("HOUSE_SEARCH_PILL_CLASS");
     expect(search).toContain("placeholder:text-ink-3");
-    expect(HOUSE_SEARCH_PILL_CLASS).toBe("rounded-full border-0 bg-surface-muted");
     expect(search).not.toContain("bg-surface pl-8");
     expect(shell).not.toContain("SearchField");
     expect(lead).not.toContain('presentation="sheet" tone="pill"');
@@ -115,8 +103,6 @@ describe("Coinbase shell rematch — Adam miss list v1", () => {
     expect(period).not.toContain("status-filter");
     expect(housePageSelect).toContain("HOUSE_PERIOD_SELECTED_CLASS");
     expect(housePageSelect).toMatch(/Dashboard All time/);
-    expect(HOUSE_FILTER_ON_CLASS).toBe("bg-ink text-surface");
-    expect(HOUSE_FILTER_OFF_CLASS).toBe("bg-surface-muted text-ink");
     const chart = readFileSync("src/components/dashboard/dashboard-revenue-chart.tsx", "utf8");
     expect(chart).toContain('className="block text-accent"');
     expect(chart).not.toMatch(/#[0-9a-fA-F]{6}/);

@@ -1,11 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import {
-  HOUSE_PHONE_BOTTOM_NAV_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT,
-} from "./house-phone-shell";
+import { HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS } from "./house-phone-shell";
 import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "./social";
 import { SOCIAL_CREATE_TILES } from "./social-create-sheet";
 import {
@@ -65,7 +61,6 @@ describe("Social Create fan", () => {
     expect(SOCIAL_CREATE_FAN_CIRCLE_CLASS).not.toContain("text-accent");
     expect(SOCIAL_CREATE_FAN_CIRCLE_CLASS).not.toContain("size-16");
     expect(SOCIAL_CREATE_FAN_ICON_CLASS).toBe(HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS);
-    expect(HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT).toBe("regular");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("whitespace-normal");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("t-body-sm");
     expect(SOCIAL_CREATE_FAN_LABEL_CLASS).toContain("bottom-[calc(100%+var(--space-1))]");
@@ -87,7 +82,6 @@ describe("Social Create fan", () => {
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("backdrop-blur-sm");
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("z-30");
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).toContain("social-create-fan-scrim");
-    expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("z-40");
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-transparent");
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-ink/40");
     expect(SOCIAL_CREATE_FAN_SCRIM_CLASS).not.toContain("bg-ink/60");

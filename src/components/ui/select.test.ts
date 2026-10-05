@@ -9,7 +9,6 @@ import {
   HOUSE_FORM_SELECT_PANEL_CLASS,
   HOUSE_FORM_SELECT_TRIGGER_CLASS,
 } from "@/lib/house-form-select";
-import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { Select } from "./select";
 
 describe("Select", () => {
@@ -56,6 +55,5 @@ describe("Select", () => {
     expect(src).toContain("AppearanceCheck");
     expect(src).not.toContain("<select");
     expect(src).not.toContain("createPortal");
-    expect(PHOSPHOR_CHROME_IDLE_WEIGHT).toBe("bold");
   });
 });

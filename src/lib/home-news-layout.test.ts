@@ -25,11 +25,6 @@ import {
   DASHBOARD_RELATED_GAP_CLASS,
   DASHBOARD_SECTION_AIR_CLASS,
 } from "@/lib/dashboard-craft";
-import {
-  HOME_CONTENT_COLUMN_PX,
-  HOME_LEFT_INSET_PX,
-  HOME_RIGHT_INSET_PX,
-} from "@/lib/home-width-lock";
 import { HOUSE_HOME_RAIL_COLUMN_CLASS } from "@/lib/house-shell";
 import { HomeOverviewSkeleton } from "@/components/overview/overview-home";
 import {
@@ -74,13 +69,8 @@ function emptyHome(): string {
 
 describe("Home News layout + register lock", () => {
   it("keeps two-column desktop News and a phone stack after Aggregation", () => {
-    expect(HOME_LEFT_INSET_PX).toBe(32);
-    expect(HOME_RIGHT_INSET_PX).toBe(32);
-    expect(HOME_CONTENT_COLUMN_PX).toBe(1376);
     expect(HOUSE_HOME_RAIL_COLUMN_CLASS).toContain("--shell-gutter-inline-start");
     expect(HOUSE_HOME_RAIL_COLUMN_CLASS).toContain("--shell-gutter-inline-end");
-    expect(HOUSE_HOME_RAIL_COLUMN_CLASS).not.toContain("--content-inset");
-    expect(HOUSE_HOME_RAIL_COLUMN_CLASS).not.toContain("--access-rail-width");
     // Adam 2026-10-04: Home shows the Home rail; Co-Productions stays rail-free.
     expect(overviewHidesRail("/home")).toBe(false);
     expect(overviewHidesRail("/home/news")).toBe(false);

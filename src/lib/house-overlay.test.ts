@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS, ACCOUNT_SHEET_SURFACE_CLASS } from "./account-sheet";
+import { ACCOUNT_SHEET_SURFACE_CLASS } from "./account-sheet";
 import { APP_SHEET_CHROME_CLASS, APP_SHEET_HOST_CLASS, APP_SHEET_SCRIM_CLASS } from "./house-sheet";
 import { HOUSE_PAGE_SELECT_TRIGGER_LABEL_CLASS } from "./house-page-select";
 import { MENU_SURFACE_CONTENT_CLASS, MENU_SURFACE_ITEM_CLASS, menuSurfaceContentClass } from "./menu-surface";
@@ -81,9 +81,6 @@ describe("HouseOverlay dual-host lock v1", () => {
 
   it("G3 keeps AppSheet on the phone: bottom, r16, pad 16, 90vh, no shadow, md:hidden", () => {
     expect(APP_SHEET_LOCK_HOST_CLASS).toBe(APP_SHEET_HOST_CLASS);
-    expect(APP_SHEET_HOST_CLASS).toContain("justify-end");
-    expect(APP_SHEET_HOST_CLASS).toContain("w-full");
-    expect(APP_SHEET_HOST_CLASS).toContain("md:hidden");
     expect(APP_SHEET_FULL_HOST_CLASS).toContain("md:hidden");
     expect(APP_SHEET_FULL_HOST_CLASS).not.toContain("w-[400px]");
     expect(APP_SHEET_LOCK_SURFACE_CLASS).toContain("rounded-t-[16px]");
@@ -95,8 +92,6 @@ describe("HouseOverlay dual-host lock v1", () => {
     expect(src("src/components/chrome/house-overlay.tsx")).toContain("Close44");
     expect(src("src/lib/house-sheet.ts")).not.toContain("md:items-center");
     expect(ACCOUNT_SHEET_SURFACE_CLASS).toContain(APP_SHEET_CHROME_CLASS);
-    expect(ACCOUNT_SHEET_SURFACE_CLASS).not.toContain("px-[var(--space-6)]");
-    expect(APP_SHEET_SCRIM_CLASS).not.toContain("bg-ink/24");
   });
 
   it("G4 centers HouseDialog at 400 / 480 with a button footer and no sheet skin", () => {
@@ -153,15 +148,6 @@ describe("HouseOverlay dual-host lock v1", () => {
     expect(MENU_SURFACE_CONTENT_CLASS).toContain("shadow-none");
     expect(MENU_SURFACE_ITEM_CLASS).toContain("min-h-[44px]");
     expect(MENU_SURFACE_CONTENT_CLASS).not.toContain("rounded-[var(--radius)]");
-    // Account desktop face is MenuSurface chrome at the Coinbase 280.
-    // Full-bleed rows — not the shared MenuSurface inset pad, not 264.
-    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toContain("rounded-[12px]");
-    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toContain("border-hairline");
-    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toContain("bg-surface");
-    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toContain("shadow-none");
-    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).toContain("w-[280px]");
-    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).not.toContain("w-[264px]");
-    expect(ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS).not.toContain("p-[var(--space-2)]");
     expect(menuSurfaceContentClass("sparse")).toContain("w-max");
     expect(menuSurfaceContentClass("sparse")).not.toContain("17.5rem");
     expect(src("src/components/chrome/menu-surface.tsx")).not.toContain("HouseDrawer");

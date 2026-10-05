@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 import { HouseActionArrow, HOUSE_ACTION_ARROW_CLASS } from "./house-action-arrow";
 import { DashboardViewAll } from "@/components/dashboard/dashboard-view-alts";
-import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
 import { PHOSPHOR_CHROME_ICON_CLASS } from "@/lib/phosphor-icon";
 
 describe("HouseActionArrow", () => {
@@ -13,7 +12,6 @@ describe("HouseActionArrow", () => {
     const html = renderToStaticMarkup(createElement(HouseActionArrow));
     expect(HOUSE_ACTION_ARROW_CLASS).toBe(`${PHOSPHOR_CHROME_ICON_CLASS} text-accent`);
     expect(HOUSE_ACTION_ARROW_CLASS).toContain("text-accent");
-    expect(TEXT_ACTION_CLASS).toContain("text-accent");
     expect(html).toContain("data-house-action-arrow");
     expect(html).toContain("text-accent");
     expect(html).toContain("size-4");

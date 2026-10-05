@@ -2,11 +2,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { HOUSE_MODULE_CLASS, HOUSE_SECTION_AIR_CLASS } from "@/lib/house-shell";
-import {
-  HOUSE_HEADER_ROUND_GLYPH_CLASS,
-  HOUSE_HEADER_TRAILING_ICON_CLASS,
-  HOUSE_PHONE_CHROME_ICON_CLASS,
-} from "@/lib/house-phone-shell";
 import { HOUSE_HEADER_TRAILING_HIT_CLASS } from "@/lib/house-lead-chrome";
 import {
   SOCIAL_FEED_GUTTER_CLASS,
@@ -23,7 +18,6 @@ import {
 } from "@/lib/social-chrome";
 import { socialLikeCountCopy } from "@/lib/social";
 
-const tokens = readFileSync("src/app/tokens.css", "utf8");
 const bell = readFileSync("src/components/activity/activity-bell.tsx", "utf8");
 const waffle = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
 const stories = readFileSync("src/components/social/social-stories-rail.tsx", "utf8");
@@ -126,7 +120,6 @@ describe("Social Home craft Wave 1", () => {
   });
 
   it("phone: the media meets the viewport; the text rows keep the frame's 16 and the actions align to the name", () => {
-    expect(tokens).toMatch(/--chrome-gutter:\s*16px;/);
     expect(SOCIAL_MOBILE_BLEED_PAD_CLASS).toBe("max-md:px-[var(--chrome-gutter)]");
     // The media block cancels the frame's 16 on phone (radius 0 there).
     expect(SOCIAL_POST_MEDIA_CLASS).toContain(SOCIAL_MOBILE_BLEED_CLASS);
@@ -155,15 +148,6 @@ describe("Social Home craft Wave 1", () => {
   // sizes: header glyphs 20 on phone and desktop in 44 round controls,
   // the dock 24; the avatar 44 on both; taps 44.
   it("locks header glyphs at 20 in 44 round controls, the avatar at 44, and the tap at 44", () => {
-    expect(HOUSE_HEADER_TRAILING_ICON_CLASS).toBe("size-5 shrink-0");
-    expect(HOUSE_HEADER_ROUND_GLYPH_CLASS).toBe("size-5 shrink-0");
-    expect(HOUSE_PHONE_CHROME_ICON_CLASS).toBe("size-6 shrink-0");
-    expect(tokens).toMatch(/--header-avatar-size:\s*44px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-avatar-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-desktop-control-size:\s*44px;/);
-    expect(tokens).toMatch(/--header-control-size:\s*44px;/);
-    expect(tokens).toMatch(/max-width:\s*767px[\s\S]*--header-control-size:\s*44px;/);
-    expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("size-[var(--header-control-size)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("min-h-[var(--header-control-size)]");
     expect(HOUSE_HEADER_TRAILING_HIT_CLASS).toContain("min-w-[var(--header-control-size)]");
     const bellWeight = bell.slice(bell.indexOf("<Bell"), bell.indexOf("/>", bell.indexOf("<Bell")));

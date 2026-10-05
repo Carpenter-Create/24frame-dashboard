@@ -26,7 +26,6 @@ import {
 } from "@/lib/activity";
 import { HOUSE_THEME_TOGGLE_CLASS } from "@/lib/house-lead-chrome";
 import { NOTIFICATION_PREFS } from "@/lib/notification-prefs";
-import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 
 const OPEN = {
   id: "1",
@@ -139,7 +138,6 @@ describe("ActivityInbox", () => {
     expect(html).toContain(`href="${ACTIVITY_HREF}?family=social"`);
     expect(html).not.toContain("status=done");
     expect(ACTIVITY_PREFS_HREF).toBe("/settings/preferences/notifications");
-    expect(PHOSPHOR_CHROME_IDLE_WEIGHT).toBe("bold");
   });
 
   it("uses the crafted caught-up empty, not a skinny open card", () => {

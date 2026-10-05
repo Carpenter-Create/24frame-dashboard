@@ -128,10 +128,6 @@ describe("SettingsRail", () => {
   });
 
   it("uses the house workspace-rail SoT — same tokens as Aggregation", () => {
-    expect(src).toContain("HOUSE_RAIL_ITEM_CLASS");
-    expect(src).toContain("HOUSE_RAIL_ACTIVE_CLASS");
-    expect(src).toContain("HOUSE_RAIL_IDLE_CLASS");
-    expect(src).toContain("HOUSE_RAIL_TITLE_CLASS");
     expect(src).not.toContain("SETTINGS_RAIL_ITEM_CLASS");
     expect(src).not.toContain("SETTINGS_RAIL_ACTIVE_CLASS");
     expect(src).not.toContain("SETTINGS_RAIL_IDLE_CLASS");

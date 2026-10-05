@@ -182,7 +182,6 @@ describe("segmented track optimistic selection", () => {
   });
 
   it("does not treat a hold item click as a pending route", () => {
-    expect(SEGMENTED_ITEM_HOLD_ATTR).toBe("data-segmented-hold");
     expect(
       segmentedItemHoldsVisualIntent({
         hasAttribute: (name) => name === SEGMENTED_ITEM_HOLD_ATTR,

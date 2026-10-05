@@ -158,3 +158,53 @@ describe("accent ink on the wash (founder pick \"Deeper blue text\", Adam 2026-1
     expect(offenders).toEqual([]);
   });
 });
+
+// Shell, width, gutter and dock tokens: the one value pin per token. Other
+// tests read or name these tokens; they do not re-type the values.
+// docs/design-locks/shell-coinbase-register-lock-v1.md (header 80 / 60,
+// side menu 240 / 80, controls 44),
+// docs/design-locks/shell-desktop-horizontal-gutter-lock-v2.md (32 / 32),
+// src/lib/HOME-width-lock.md (1376).
+describe("shell tokens — one value pin each", () => {
+  const light = extractBlock(tokens, ":root");
+  const phone = extractBlock(tokens, "@media (max-width: 767px)");
+
+  it("pins the desktop header, side menu, and width tokens", () => {
+    expect(light).toMatch(/--header-height:\s*80px;/);
+    expect(tokens).not.toMatch(/--header-height:\s*52px;/);
+    // 44 is the touch-target floor for every header control and the avatar.
+    expect(light).toMatch(/--header-avatar-size:\s*44px;/);
+    expect(light).toMatch(/--header-control-size:\s*44px;/);
+    expect(light).toMatch(/--header-desktop-control-size:\s*44px;/);
+    expect(light).toMatch(/--header-search-height:\s*48px;/);
+    expect(light).toMatch(/--sidebar-width:\s*240px;/);
+    // social-home-lock reads the first declaration in the file.
+    expect(tokens.match(/--sidebar-width:\s*(\d+)px;/)?.[1]).toBe("240");
+    expect(light).toMatch(/--sidebar-width-collapsed:\s*80px;/);
+    expect(light).toMatch(/--access-rail-width:\s*var\(--sidebar-width\);/);
+    expect(light).toMatch(/--home-content-width:\s*1376px;/);
+    expect(tokens).not.toMatch(/--home-content-width:\s*1364px;/);
+  });
+
+  it("pins the gutters, the page inset, and the phone dock clearance", () => {
+    expect(light).toMatch(/--chrome-gutter:\s*16px;/);
+    expect(light).toMatch(/--shell-gutter-inline-start:\s*32px;/);
+    expect(light).toMatch(/--shell-gutter-inline-end:\s*32px;/);
+    // social-home-lock reads the first declaration in the file.
+    expect(tokens.match(/--shell-gutter-inline-end:\s*(\d+)px;/)?.[1]).toBe("32");
+    expect(light).toMatch(/--content-inset:\s*48px;/);
+    expect(light).toContain(
+      "--house-phone-dock-clearance: calc(3.5rem + max(16px, env(safe-area-inset-bottom)) + var(--space-4));",
+    );
+  });
+
+  it("pins the phone overrides: no rail slot, a 60 bar, 44 controls", () => {
+    expect(phone).toMatch(/--sidebar-width:\s*0px;/);
+    expect(phone).toMatch(/--sidebar-width-collapsed:\s*0px;/);
+    expect(phone).toMatch(/--access-rail-width:\s*0px;/);
+    expect(phone).toMatch(/--header-height:\s*60px;/);
+    expect(phone).toMatch(/--header-avatar-size:\s*44px;/);
+    expect(phone).toMatch(/--header-control-size:\s*44px;/);
+    expect(phone).toMatch(/--header-search-height:\s*44px;/);
+  });
+});

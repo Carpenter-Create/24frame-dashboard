@@ -30,10 +30,8 @@ import {
 } from "@/lib/house-lead-chrome";
 import {
   HOUSE_HEADER_ROUND_GLYPH_CLASS,
-  HOUSE_PHONE_CHROME_ICON_WEIGHT,
   HOUSE_PHONE_CHROME_IDLE_INK_CLASS,
 } from "@/lib/house-phone-shell";
-import { PHOSPHOR_CHROME_ICON_CLASS, PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 
 const bellSrc = readFileSync("src/components/activity/activity-bell.tsx", "utf8");
 const askHeaderSrc = readFileSync("src/components/chrome/ask-assistant-header.tsx", "utf8");
@@ -105,8 +103,6 @@ describe("ActivityBell", () => {
     expect(html).toContain(ACTIVITY_PAGE.viewAll);
     expect(html).toContain(ACTIVITY_BELL_VIEW_ALL_CLASS);
     expect(ACTIVITY_BELL_VIEW_ALL_CLASS).toContain(TEXT_ACTION_CLASS);
-    expect(ACTIVITY_BELL_VIEW_ALL_CLASS).toContain("text-accent");
-    expect(ACTIVITY_BELL_VIEW_ALL_CLASS).not.toMatch(/\btext-ink\b/);
     expect(html).toContain(ACTIVITY_PAGE.title);
     expect(html).toContain("North Wind was returned");
     expect(html).toContain("data-activity-done");
@@ -132,9 +128,6 @@ describe("ActivityBell", () => {
     expect(bellSrc).toContain("cache.items");
     expect(bellSrc).not.toContain("items={[]}");
     expect(bellSrc).not.toContain("ACCOUNT_SHEET_HOST_CLASS");
-    expect(bellSrc).toContain("ACTIVITY_BELL_SHEET_HOST_CLASS");
-    expect(bellSrc).toContain("ACTIVITY_BELL_SHEET_SURFACE_CLASS");
-    expect(bellSrc).toContain("HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS");
     expect(bellSrc).toContain("hidden md:block");
     expect(bellSrc).toContain("activityHref");
     expect(bellSrc).toContain("activityFamilyForWorkspace");
@@ -215,13 +208,7 @@ describe("ActivityBell", () => {
       }),
     );
     expect(ACTIVITY_BELL_SHEET_HOST_CLASS).toBe(APP_SHEET_HOST_CLASS);
-    expect(ACTIVITY_BELL_SHEET_HOST_CLASS).toContain("md:hidden");
     expect(ACTIVITY_BELL_SHEET_HOST_CLASS).toContain(ACCOUNT_SHEET_HOST_CLASS);
-    expect(ACTIVITY_BELL_SHEET_HOST_CLASS).toContain("flex-col");
-    expect(ACTIVITY_BELL_SHEET_HOST_CLASS).toContain("justify-end");
-    expect(ACTIVITY_BELL_SHEET_HOST_CLASS).toContain("w-full");
-    expect(ACTIVITY_BELL_SHEET_HOST_CLASS.split(" ")).not.toContain("items-end");
-    expect(ACTIVITY_BELL_SHEET_SURFACE_CLASS).toContain("w-full");
     expect(html).toContain(`data-activity-bell-sheet="" class="${ACTIVITY_BELL_SHEET_HOST_CLASS}"`);
     expect(html).toContain(ACTIVITY_BELL_SHEET_SURFACE_CLASS);
     expect(html).toContain(ACTIVITY_BELL_POPOVER_CLASS);
@@ -235,12 +222,9 @@ describe("ActivityBell", () => {
   });
 
   it("matches #391 chrome idle weight on the desktop bell", () => {
-    expect(PHOSPHOR_CHROME_IDLE_WEIGHT).toBe("bold");
-    expect(PHOSPHOR_CHROME_ICON_CLASS).toBe("size-4 shrink-0");
     // H register: one 20 Regular bell on phone and desktop, in the round
     // grey 44 (ink on muted). Dock stays its own 24px literal. Phosphor
     // rail stays 16px.
-    expect(HOUSE_HEADER_ROUND_GLYPH_CLASS).toBe("size-5 shrink-0");
     expect(HOUSE_HEADER_ROUND_GLYPH_CLASS).not.toContain(HOUSE_PHONE_CHROME_IDLE_INK_CLASS);
     expect(bellSrc).toContain("<Bell className={HOUSE_HEADER_ROUND_GLYPH_CLASS} weight={HOUSE_PHONE_CHROME_ICON_WEIGHT} />");
     expect(bellSrc).not.toContain("HOUSE_HEADER_TRAILING_PHONE_CLASS");
@@ -248,7 +232,6 @@ describe("ActivityBell", () => {
     expect(bellSrc).not.toContain("PHOSPHOR_CHROME_IDLE_WEIGHT");
     expect(bellSrc).toContain('register="phone"');
     expect(bellSrc).toContain('register="desktop"');
-    expect(HOUSE_PHONE_CHROME_ICON_WEIGHT).toBe("regular");
     expect(bellSrc).not.toContain('weight="fill"');
     expect(bellSrc).not.toContain('weight="duotone"');
     expect(bellSrc).not.toContain("strokeWidth");

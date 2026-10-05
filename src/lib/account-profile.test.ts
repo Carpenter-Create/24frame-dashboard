@@ -13,7 +13,6 @@ import {
   authDisplayName,
   companySaveSchema,
 } from "./account-profile";
-import { FORM_CONTROL_TEXT_CLASS } from "./form-control";
 import { USER_MENU, userMenuName } from "./user-menu";
 import { accountSheetIdentity } from "./account-sheet";
 
@@ -161,7 +160,6 @@ describe("account name persist read-after-write", () => {
 
 describe("account field 16px lock", () => {
   it("uses the shared form-control primitive — no per-surface 16px override", () => {
-    expect(FORM_CONTROL_TEXT_CLASS).toBe("t-control");
     expect(globalsSrc).toMatch(/\.t-control\s*\{[\s\S]*?font-size:\s*16px/);
     expect(globalsSrc).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
     expect(inputSrc).toContain("formControlClass");
