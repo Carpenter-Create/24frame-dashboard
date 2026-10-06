@@ -15,14 +15,14 @@ import {
   SOCIAL_AVATAR_POST_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
-  SOCIAL_POST_AUTHOR_CLASS,
-  SOCIAL_POST_CLASS,
+  SOCIAL_FEED_CARD_CLASS,
+  SOCIAL_HOME_STORIES_CARD_CLASS,
+  SOCIAL_IN_CARD_FILL_CLASS,
+  SOCIAL_POST_ACTIONS_CLASS,
+  SOCIAL_POST_HEAD_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
   SOCIAL_POST_PHOTO_SKELETON_CLASS,
   SOCIAL_POST_ROUND_CLASS,
-  SOCIAL_POST_WHO_CLASS,
-  socialPostActionsClass,
-  socialPostFootClass,
   SOCIAL_FOR_YOU_CARD_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_HOST_CLASS,
@@ -96,19 +96,21 @@ export function SocialForYouSkeleton({ layout = "rail" }: { layout?: "rail" | "a
         </div>
         <div className={SOCIAL_FEED_ASIDE_SECTION_CLASS}>
           <div className={SOCIAL_FEED_ASIDE_SUBHEAD_CLASS}>
-            <Skeleton className="h-6 w-36" />
+            <Skeleton className={cn("h-6 w-36", SOCIAL_IN_CARD_FILL_CLASS)} />
           </div>
           <div className={SOCIAL_FEED_ASIDE_ROWS_CLASS}>
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className={SOCIAL_FEED_ASIDE_ROW_CLASS}>
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <Skeleton className={cn(SOCIAL_AVATAR_SM_CLASS, SOCIAL_FEED_ASIDE_AVATAR_CLASS, "rounded-full")} />
+                  <Skeleton
+                    className={cn(SOCIAL_AVATAR_SM_CLASS, SOCIAL_FEED_ASIDE_AVATAR_CLASS, "rounded-full", SOCIAL_IN_CARD_FILL_CLASS)}
+                  />
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3.5 w-16" />
+                    <Skeleton className={cn("h-4 w-24", SOCIAL_IN_CARD_FILL_CLASS)} />
+                    <Skeleton className={cn("h-3.5 w-16", SOCIAL_IN_CARD_FILL_CLASS)} />
                   </div>
                 </div>
-                <Skeleton className="h-9 w-20 rounded-full" />
+                <Skeleton className={cn("h-9 w-20 rounded-full", SOCIAL_IN_CARD_FILL_CLASS)} />
               </div>
             ))}
           </div>
@@ -127,32 +129,31 @@ export function SocialForYouSkeleton({ layout = "rail" }: { layout?: "rail" | "a
   );
 }
 
-// Post wall (H · Posts): the live post classes in the live order — the
-// media block (phone meets the viewport, desktop radius 24) at the photo
-// frame's default 4:5, the credit row (the 40 avatar and the name), the
-// three round actions — so nothing moves when the posts mount. One
-// skeleton for the Feed and Profile activity.
-// docs/design-locks/social-feed-register-lock-v1.md §7
+// Post wall (cards lock): the live card in the live order — the header
+// (the 40 face, the name and meta bars), the media at the photo frame's
+// default 4:5, the three rounds — every bar on the in-card fill, so the
+// page does not jump from bare skeletons to cards. One skeleton for the
+// Feed and Profile activity.
+// docs/design-locks/social-feed-cards-lock-v1.md
 export function SocialPostWallSkeleton() {
   return (
     <div data-social-feed-skeleton="" className={SOCIAL_FEED_GUTTER_CLASS}>
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} data-social-post-skeleton="" className={SOCIAL_POST_CLASS}>
-          <div className={SOCIAL_POST_MEDIA_CLASS}>
-            <Skeleton className={SOCIAL_POST_PHOTO_SKELETON_CLASS} />
+        <div key={i} data-social-post-skeleton="" className={SOCIAL_FEED_CARD_CLASS}>
+          <div className={SOCIAL_POST_HEAD_CLASS}>
+            <Skeleton className={cn(SOCIAL_AVATAR_POST_CLASS, "rounded-full", SOCIAL_IN_CARD_FILL_CLASS)} />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton className={cn("h-4 w-32", SOCIAL_IN_CARD_FILL_CLASS)} />
+              <Skeleton className={cn("h-3 w-16", SOCIAL_IN_CARD_FILL_CLASS)} />
+            </div>
           </div>
-          <div className={socialPostFootClass("photo")}>
-            <div className={SOCIAL_POST_WHO_CLASS}>
-              <span className={SOCIAL_POST_AUTHOR_CLASS}>
-                <Skeleton className={cn(SOCIAL_AVATAR_POST_CLASS, "rounded-full")} />
-                <Skeleton className="h-4 w-32" />
-              </span>
-            </div>
-            <div className={socialPostActionsClass("photo")}>
-              {Array.from({ length: 3 }).map((__, j) => (
-                <Skeleton key={j} className={cn(SOCIAL_POST_ROUND_CLASS, "rounded-full")} />
-              ))}
-            </div>
+          <div className={SOCIAL_POST_MEDIA_CLASS}>
+            <Skeleton className={cn(SOCIAL_POST_PHOTO_SKELETON_CLASS, SOCIAL_IN_CARD_FILL_CLASS)} />
+          </div>
+          <div className={SOCIAL_POST_ACTIONS_CLASS}>
+            {Array.from({ length: 3 }).map((__, j) => (
+              <Skeleton key={j} className={SOCIAL_POST_ROUND_CLASS} />
+            ))}
           </div>
         </div>
       ))}
@@ -160,9 +161,9 @@ export function SocialPostWallSkeleton() {
   );
 }
 
-// Feed center (H): the same row classes in the live order — the slider,
-// story cards, composer, topic chips, wall — so nothing moves when it
-// mounts.
+// Feed center (H; cards lock): the same row classes in the live order —
+// the slider, the stories card, the composer card, topic chips, the wall
+// of cards — so nothing moves when it mounts.
 export function SocialHomeCenterSkeleton() {
   return (
     <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={SOCIAL_FEED_CENTER_CLASS}>
@@ -174,7 +175,13 @@ export function SocialHomeCenterSkeleton() {
       <div data-social-home-composer-skeleton="" className={SOCIAL_COMPOSER_CLASS}>
         <div className={SOCIAL_COMPOSER_ROW_CLASS}>
           <Skeleton
-            className={cn(SOCIAL_AVATAR_SM_CLASS, SOCIAL_COMPOSER_AVATAR_CLASS, SOCIAL_COMPOSER_AVATAR_NARROW_CLASS, "rounded-full")}
+            className={cn(
+              SOCIAL_AVATAR_SM_CLASS,
+              SOCIAL_COMPOSER_AVATAR_CLASS,
+              SOCIAL_COMPOSER_AVATAR_NARROW_CLASS,
+              "rounded-full",
+              SOCIAL_IN_CARD_FILL_CLASS,
+            )}
           />
           <Skeleton className={SOCIAL_COMPOSER_FIELD_CLASS} />
         </div>
@@ -211,10 +218,12 @@ function SocialStoriesRailSkeleton({
   if (tall) {
     // Feed story cards (H): the live 112×200 (phone 108×192) cards, gap 8.
     return (
-      <div data-social-stories-skeleton="" className={SOCIAL_HOME_STORIES_RAIL_CLASS}>
-        {Array.from({ length: count }).map((_, i) => (
-          <Skeleton key={i} className={SOCIAL_HOME_STORY_CARD_CLASS} />
-        ))}
+      <div data-social-stories-skeleton="" className={SOCIAL_HOME_STORIES_CARD_CLASS}>
+        <div className={SOCIAL_HOME_STORIES_RAIL_CLASS}>
+          {Array.from({ length: count }).map((_, i) => (
+            <Skeleton key={i} className={SOCIAL_HOME_STORY_CARD_CLASS} />
+          ))}
+        </div>
       </div>
     );
   }

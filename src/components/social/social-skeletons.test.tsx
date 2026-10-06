@@ -26,6 +26,7 @@ import {
   SOCIAL_FEED_SCOPE_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,
+  SOCIAL_HOME_STORIES_CARD_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
   SOCIAL_HOME_TOPIC_CHIP_CLASS,
@@ -111,7 +112,11 @@ describe("Social loading skeletons", () => {
     expect(home).toContain(SOCIAL_COMPOSER_FIELD_CLASS);
     expect(home.split(SOCIAL_COMPOSER_AFFORDANCE_CLASS).length - 1).toBe(2);
     expect(home).toContain(`class="${SOCIAL_FEED_WALL_CLASS}"`);
-    expect(home).toContain(`data-social-stories-skeleton="" class="${SOCIAL_HOME_STORIES_RAIL_CLASS}"`);
+    // Cards (founder 2026-10-06): the stories skeleton is the live stories
+    // card wrapping the live rail, so the card is in place before the rail.
+    expect(home).toContain(
+      `data-social-stories-skeleton="" class="${SOCIAL_HOME_STORIES_CARD_CLASS}"><div class="${SOCIAL_HOME_STORIES_RAIL_CLASS}"`,
+    );
     expect(home).toContain(`class="${SOCIAL_HOME_TOPIC_TRACK_CLASS}"`);
     // Five story cards at the live card box (no 70 items, no name line).
     expect(home.split(SOCIAL_HOME_STORY_CARD_CLASS).length - 1).toBe(5);

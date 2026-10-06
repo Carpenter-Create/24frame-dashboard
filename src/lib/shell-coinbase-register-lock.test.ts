@@ -18,8 +18,8 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS,
 } from "./house-phone-shell";
 import {
-  HOUSE_DEST_RAIL_ROW_CLASS,
   HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_BASE_CLASS,
   HOUSE_RAIL_BRAND_BAND_CLASS,
   houseDestRailGlyphWeight,
 } from "./house-shell";
@@ -28,7 +28,6 @@ import { RAIL_COLLAPSE_CHEVRON_CLASS } from "./rail-collapse";
 import { SOCIAL, socialMessagesNavLabel } from "./social";
 import { SOCIAL_EXPLORE_EXIT_CLASS } from "./social-chrome";
 import {
-  WORKSPACE_SWITCHER_SEGMENT_CLASS,
   WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
   WORKSPACE_WAFFLE_TRIGGER_CLASS,
 } from "./workspace-switcher";
@@ -135,12 +134,13 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:gap-[var(--space-6)]");
   });
 
-  it("the workspace switcher is the primary pill slider from lg: muted track, ink thumb, 220ms, 17 / 600, 44", () => {
+  it("the workspace switcher is the primary pill slider from lg: muted track, the sliding thumb, one Tab stop", () => {
     expect(switcher).toContain("<SegmentedTrack");
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toContain("absolute inset-y-0 rounded-full bg-ink");
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toContain("duration-[220ms] ease-out");
-    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("h-[var(--header-control-size)]");
-    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain("px-[var(--space-4)] text-[length:var(--text-base)] font-semibold");
+    // The house thumb's geometry and 220 ms motion. Its fill (the accent
+    // wash, not ink) and the 44 segments at 15 / 500 are the cards lock's
+    // (founder 2026-10-06, "feels like thick ink everywhere"), pinned in
+    // src/lib/social-feed-cards-lock.test.ts.
+    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS.startsWith(HOUSE_PILL_SLIDER_THUMB_BASE_CLASS)).toBe(true);
     // Keyboard and current: one Tab stop, arrows, aria-current, Home writes no cookie.
     expect(switcher).toContain("tabIndex={workspaceSwitcherSegmentTabIndex(index, routeIndex, pills.length)}");
     expect(switcher).toContain('aria-current={lit ? "page" : undefined}');
@@ -158,9 +158,9 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     expect(bell).not.toContain('"9+"');
   });
 
-  it("the side menu: 240 / 80, 56 rows at 17 / 500, current = wash + filled glyph, no tiles, collapse at the foot", () => {
-    expect(HOUSE_DEST_RAIL_ROW_CLASS).toContain("min-h-14");
-    expect(HOUSE_DEST_RAIL_ROW_CLASS).toContain("rounded-full px-[var(--space-4)] text-left text-[length:var(--text-base)] font-medium");
+  it("the side menu: 240 / 80, 56 rows, current = wash + filled glyph, no tiles, collapse at the foot", () => {
+    // The row (56, radius full, pad 16, 15 / 500 since the cards lock) is
+    // pinned in src/lib/social-feed-cards-lock.test.ts.
     expect(HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS).toContain("size-14");
     expect(houseDestRailGlyphWeight(true)).toBe("fill");
     expect(SOCIAL_RAIL_CREATE_ICON).toBe(PlusSquare);

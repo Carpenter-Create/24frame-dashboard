@@ -33,12 +33,11 @@ import {
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTION_LIKED_CLASS,
   SOCIAL_POST_COUNT_CLASS,
+  SOCIAL_POST_ROUND_CLASS,
   SOCIAL_POST_ROUND_GLYPH,
   SOCIAL_POST_ROUND_LIKED_CLASS,
   SOCIAL_PROFILE_ACTION_PILL_CLASS,
   SOCIAL_PROFILE_ACTION_PILL_SECONDARY_CLASS,
-  socialPostRoundClass,
-  type SocialPostSurface,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import {
@@ -289,7 +288,7 @@ export function SocialLikeButton({
   disabled,
   icon = false,
   tone = "canvas",
-  round,
+  round = false,
 }: {
   postId: string;
   liked: boolean;
@@ -298,8 +297,8 @@ export function SocialLikeButton({
   disabled?: boolean;
   icon?: boolean;
   tone?: "canvas" | "stage";
-  /** The feed post face (H · Posts): the round grey heart, on the page or the grey card. */
-  round?: SocialPostSurface;
+  /** The feed post card's round heart (one in-card round). */
+  round?: boolean;
 }) {
   const view = useSocialLike(postId, { liked, likeCount });
   const [error, setError] = useState("");
@@ -328,7 +327,7 @@ export function SocialLikeButton({
     });
   }
 
-  const glyph = icon || !!round;
+  const glyph = icon || round;
   return (
     <span className={glyph ? "relative inline-flex shrink-0" : "inline"}>
       <button
@@ -338,7 +337,7 @@ export function SocialLikeButton({
         aria-label={view.liked ? SOCIAL.post.unlike : SOCIAL.post.like}
         className={
           round
-            ? cn(socialPostRoundClass(round), view.liked && SOCIAL_POST_ROUND_LIKED_CLASS)
+            ? cn(SOCIAL_POST_ROUND_CLASS, view.liked && SOCIAL_POST_ROUND_LIKED_CLASS)
             : icon
             ? cn(
                 SOCIAL_POST_ACTION_HIT_CLASS,
@@ -357,6 +356,7 @@ export function SocialLikeButton({
             name="heart"
             active={view.liked}
             size={round ? SOCIAL_POST_ROUND_GLYPH : SOCIAL_ICON_SIZE_POST_ACTION}
+            weight={tone === "stage" ? "bold" : undefined}
             className={SOCIAL_POST_ACTION_HEART_NUDGE_CLASS}
           />
         ) : (

@@ -11,8 +11,7 @@ import {
   SOCIAL_POST_COMMENT_CLASS,
   SOCIAL_POST_COUNT_CLASS,
   SOCIAL_POST_ROUND_GLYPH,
-  socialPostRoundClass,
-  type SocialPostSurface,
+  SOCIAL_POST_ROUND_IN_GROUP_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import { SOCIAL, socialCommentActionLabel, socialPostActionCount } from "@/lib/social";
@@ -37,12 +36,13 @@ export function SocialCommentTrigger({
   post,
   icon = false,
   tone = "canvas",
-  round,
+  round = false,
 }: {
   post: ThreadPost;
   icon?: boolean;
   tone?: "canvas" | "stage";
-  round?: SocialPostSurface;
+  /** The feed post card's round Comment with its count beside. */
+  round?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const count = useSocialCommentCount(post.id, post.commentCount ?? 0);
@@ -58,7 +58,7 @@ export function SocialCommentTrigger({
           className={SOCIAL_POST_COMMENT_CLASS}
           onClick={() => setOpen(true)}
         >
-          <span className={socialPostRoundClass(round, true)}>
+          <span className={SOCIAL_POST_ROUND_IN_GROUP_CLASS}>
             <SocialIcon name="chat-circle" size={SOCIAL_POST_ROUND_GLYPH} />
           </span>
           {shown ? (
@@ -75,7 +75,11 @@ export function SocialCommentTrigger({
           className={cn(SOCIAL_POST_ACTION_HIT_CLASS, tone === "stage" && "text-band-ink")}
           onClick={() => setOpen(true)}
         >
-          <SocialIcon name="chat-circle" size={SOCIAL_ICON_SIZE_POST_ACTION} />
+          <SocialIcon
+            name="chat-circle"
+            size={SOCIAL_ICON_SIZE_POST_ACTION}
+            weight={tone === "stage" ? "bold" : undefined}
+          />
         </button>
       ) : null}
       {open ? (

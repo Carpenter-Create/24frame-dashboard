@@ -71,9 +71,7 @@ import {
 } from "@/lib/house-lead-chrome";
 import {
   HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS,
-  HOUSE_PILL_SLIDER_THUMB_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_BASE_CLASS,
   HOUSE_PILL_SLIDER_THUMB_DURATION_MS,
   HOUSE_PILL_SLIDER_TRACK_CLASS,
 } from "@/lib/house-shell";
@@ -214,27 +212,34 @@ export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 lg:hidden";
 
 // Primary pill slider (H register §3.1; founder 2026-10-05).
 // The house SegmentedTrack: muted track, radius full, NO inset (the
-// thumb is the full track height). The thumb is ink (the board's
-// thumb) and slides 220ms ease-out (the register lock's listed motion).
-// Labels 17 / 600, 44 tall, 16 side pads, never truncated; ink idle,
-// the page colour on the thumb (the board's onThumb). The label ink
-// snaps with the thumb's index (no colour transition), as every house
-// SegmentedTrack. Dark: the thumb and labels flip with --text / --bg.
+// thumb is the full track height); the thumb slides 220ms ease-out (the
+// register lock's listed motion). Labels 15 / 500, 44 tall, 16 side
+// pads, never truncated; ink-2 idle. The label ink snaps with the
+// thumb's index (no colour transition), as every house SegmentedTrack.
 // One pattern: the house primary pill slider (HOUSE_PILL_SLIDER_*),
 // shared with the Feed's Following / For you.
+// Cards lock (founder 2026-10-06, "feels like thick ink everywhere"):
+// the header's thumb is the accent wash with accent-ink in every
+// workspace, so a screen keeps at most one ink element (on Social, the
+// Feed's Following / For you thumb). Supersedes the ink header thumb and
+// the 17 / 600 labels of the shell register lock §1.
+// docs/design-locks/social-feed-cards-lock-v1.md
 export const WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS = HOUSE_PILL_SLIDER_TRACK_CLASS;
 
 export const WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS = HOUSE_PILL_SLIDER_THUMB_DURATION_MS;
 
-export const WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS = HOUSE_PILL_SLIDER_THUMB_CLASS;
+export const WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS = `${HOUSE_PILL_SLIDER_THUMB_BASE_CLASS} bg-accent-wash`;
 
-// The lit segment paints the thumb's ink until the thumb is placed
-// (HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS), so "Social" reads on the
-// server paint.
+// The lit segment paints the thumb's wash until the thumb is placed
+// (as HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS does with the ink), so
+// "Social" reads on the server paint.
+const WORKSPACE_SWITCHER_SEGMENT_PENDING_CLASS =
+  "in-data-segmented-pending:data-segmented-selected:bg-accent-wash";
+
 export const WORKSPACE_SWITCHER_SEGMENT_CLASS =
-  `relative z-10 inline-flex h-[var(--header-control-size)] shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full px-[var(--space-4)] text-[length:var(--text-base)] font-semibold ${HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS}`;
+  `relative z-10 inline-flex h-[var(--header-control-size)] shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full px-[var(--space-4)] text-[length:var(--text-sm)] font-medium ${WORKSPACE_SWITCHER_SEGMENT_PENDING_CLASS}`;
 
-export const WORKSPACE_SWITCHER_SEGMENT_ON_CLASS = HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS;
+export const WORKSPACE_SWITCHER_SEGMENT_ON_CLASS = "text-accent-ink";
 
 export const WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS = HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS;
 

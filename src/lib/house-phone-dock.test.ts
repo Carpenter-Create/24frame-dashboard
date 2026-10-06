@@ -17,9 +17,8 @@ import {
   SOCIAL_EXPLORE_FOR_YOU_CAPTION_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_FRAME_CLASS,
   SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS,
+  SOCIAL_FEED_CARD_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
-  SOCIAL_POST_CLASS,
-  SOCIAL_POST_TEXT_CARD_CLASS,
 } from "@/lib/social-chrome";
 
 const dockSrc = readFileSync("src/lib/house-phone-dock.ts", "utf8");
@@ -90,9 +89,9 @@ describe("phone dock clearance", () => {
     );
     expect(shell).toContain("cn(HOUSE_LEAD_SCROLL_CLASS, phoneDestPad");
     expect(shell).toContain('data-house-lead-scroll=""');
-    // H · Posts: the wall is 24 / 48; no post carries dock chrome.
+    // Cards lock: the wall of cards; no post card carries dock chrome.
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("house-phone-dock-clearance");
-    for (const post of [SOCIAL_POST_CLASS, SOCIAL_POST_TEXT_CARD_CLASS]) {
+    for (const post of [SOCIAL_FEED_CARD_CLASS]) {
       expect(post).not.toContain(HOUSE_MODULE_CLASS);
       expect(post).not.toContain("border-y-2");
       expect(post).not.toContain("house-phone-dock-clearance");

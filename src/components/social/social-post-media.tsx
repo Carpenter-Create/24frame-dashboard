@@ -6,9 +6,9 @@ import { type SocialPostMediaItem } from "@/lib/social-author-post-card";
 import {
   SOCIAL_POST_MEDIA_CLASS,
   SOCIAL_POST_PHOTO_FRAME_CLASS,
+  SOCIAL_POST_PLAY_DISC_CLASS,
+  SOCIAL_POST_PLAY_DISC_GLYPH,
   SOCIAL_POST_SCREEN_CLASS,
-  SOCIAL_POST_SCREEN_HEAD_CLASS,
-  SOCIAL_POST_SCREEN_TOPIC_CLASS,
   SOCIAL_POST_TOPIC_CHIP_CLASS,
 } from "@/lib/social-chrome";
 import { socialFeedUsesCarousel } from "@/lib/social-feed-carousel";
@@ -31,19 +31,20 @@ import { SOCIAL } from "@/lib/social";
 import { SocialFeedCarousel } from "./social-feed-carousel";
 import { SocialFeedVideo } from "./social-feed-video";
 import { SocialFeedVideoPoster } from "./social-feed-video-poster";
+import { SocialIcon } from "./social-icon";
 import {
   useSocialFollowingMuxMarkOnScreen,
   useSocialFollowingMuxOnScreen,
 } from "./social-following-mux-band";
 import { SocialMediaImage } from "./social-media-image";
 
-// H · Posts (H §5.1): the media is the card. A photo fills the column at
-// its true shape (1.91:1 to 4:5) at radius 24, no frame, the topic chip
-// on it; a video plays on the near-black screen under a band (topic
-// left, "Video" right); two or more items swipe in one frame with the
-// "1 / 3" chip. Phone meets the viewport at radius 0. Tap opens the
-// immersive; the Following Mux band gates one player.
-// docs/design-locks/social-feed-register-lock-v1.md §7
+// Cards lock (founder 2026-10-06): the media sits inside the post's card,
+// inset 8 at radius 16 (phone edge to edge). A photo at its true shape
+// (1.91:1 to 4:5) with the topic chip on it; a video the same way (4:5 to
+// 2.39:1, taller cover-cropped to 4:5) with the topic chip and a static
+// play disc, no screen and no band; two or more items swipe in one frame
+// with the "1 / 3" chip. Tap opens the immersive; the Following Mux band
+// gates one player. docs/design-locks/social-feed-cards-lock-v1.md
 export function SocialPostMedia({
   items,
   onOpen,
@@ -100,11 +101,12 @@ function SocialPostMediaFrame({
   if (item.kind === "video") {
     return (
       <div data-social-post-screen="" className={SOCIAL_POST_SCREEN_CLASS}>
-        <div data-social-post-screen-head="" className={SOCIAL_POST_SCREEN_HEAD_CLASS}>
-          <span className={SOCIAL_POST_SCREEN_TOPIC_CLASS}>{topic}</span>
-          <span>{SOCIAL.post.videoLabel}</span>
-        </div>
         <SocialFeedVideoFrame item={item} muxBandId={muxBandId} open={open} />
+        {topic ? (
+          <span data-social-post-topic="" className={SOCIAL_POST_TOPIC_CHIP_CLASS}>
+            {topic}
+          </span>
+        ) : null}
       </div>
     );
   }
@@ -224,8 +226,13 @@ function SocialFeedVideoFrame({
       {posterSrc ? (
         <SocialFeedVideoPoster src={posterSrc} frame={videoFrame} onLoad={onPosterLoad} />
       ) : null}
+      {/* The play disc says "video" (no word on the frame). Under the
+          mounted player, which draws its own disc to the same values. */}
+      <span aria-hidden data-social-post-play-disc="" className={SOCIAL_POST_PLAY_DISC_CLASS}>
+        <SocialIcon name="play" active size={SOCIAL_POST_PLAY_DISC_GLYPH} />
+      </span>
       {videoFrame || posterSrc ? (
-        <div className="absolute inset-0 z-[1]">
+        <div className="absolute inset-0 z-[2]">
           <SocialFeedVideo item={item} muxBandId={muxBandId} className="size-full object-cover" />
         </div>
       ) : (

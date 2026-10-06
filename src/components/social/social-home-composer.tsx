@@ -22,8 +22,10 @@ import { SOCIAL, socialComposerPrompt } from "@/lib/social";
 
 // Feed composer (H register §5.3; founder 2026-10-05, "I like the
 // designs. Let's use them."): one 44 row on phone and desktop — the 44
-// avatar, the grey "Share something" pill, then round grey 44 Photo and
-// Camera. Supersedes the G composer bar (52, radius 16).
+// avatar, the "Share something" pill, then round 44 Photo and Camera —
+// in its own card, the pill and rounds on the in-card fill (cards lock,
+// docs/design-locks/social-feed-cards-lock-v1.md). Supersedes the G
+// composer bar (52, radius 16).
 // Prompt and avatar open write compose in the house sheet. No Create sheet hop.
 // docs/design-locks/social-feed-register-lock-v1.md
 // docs/design-locks/share-something-write-compose-sheet-lock-v1.md

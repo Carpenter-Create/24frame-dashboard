@@ -154,8 +154,6 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toBe(
       "flex h-[var(--header-control-size)] w-full min-w-0 items-center gap-[var(--space-3)] rounded-full border-0 bg-surface-muted px-[var(--space-4)] text-ink-2",
     );
-    expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toContain("text-[length:var(--text-base)]");
-    expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toContain("placeholder:text-ink-2");
     expect(HOUSE_LEAD_SEARCH_HEADER_GLYPH_CLASS).toBe("size-5 shrink-0 text-ink-2");
     expect(leadLib).toContain("Facebook-compact");
     expect(leadSearch).toContain("HOUSE_LEAD_SEARCH_PILL_CLASS");
@@ -168,6 +166,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(social).toContain("data-social-header-search");
     expect(social).toContain(HOUSE_LEAD_SEARCH_DESKTOP_CLASS);
     expect(social).toContain(`class="${HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS}`);
+    // The input (15 / 420 since the cards lock, placeholder ink-2) is
+    // pinned in src/lib/social-feed-cards-lock.test.ts.
+    expect(social).toContain(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS);
     expect(social).toContain('data-house-lead-search-face="header"');
     // The header face, not the 48 field pill.
     expect(social).not.toContain(HOUSE_LEAD_SEARCH_PILL_CLASS);

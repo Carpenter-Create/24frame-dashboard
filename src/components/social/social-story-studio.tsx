@@ -150,7 +150,7 @@ export function SocialStoryPostedConfirm({
             aria-label={SOCIAL.stories.close}
             className={SOCIAL_STORY_STUDIO_ICON_CLASS}
           >
-            <SocialIcon name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+            <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
           </HouseLink>
           <p className={SOCIAL_STORY_POSTED_TITLE_CLASS}>{SOCIAL.stories.posted}</p>
           <span className="size-10" />
@@ -849,7 +849,7 @@ export function SocialStoryCompose({
               aria-label={SOCIAL.stories.close}
               className={SOCIAL_STORY_CREATE_CLOSE_CLASS}
             >
-              <SocialIcon name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+              <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
             </HouseLink>
             <h2 className={SOCIAL_STORY_CREATE_TITLE_CLASS}>{SOCIAL.stories.yourStory}</h2>
             <div className={SOCIAL_STORY_CREATE_IDENTITY_CLASS}>
@@ -874,7 +874,7 @@ export function SocialStoryCompose({
                   }}
                 >
                   <span className={SOCIAL_STORY_CREATE_ICON_WELL_CLASS}>
-                    <SocialIcon name="image" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
+                    <SocialIcon weight="bold" name="image" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
                   </span>
                   <span className={SOCIAL_STORY_CREATE_LABEL_CLASS}>{SOCIAL.stories.photoCard}</span>
                 </button>
@@ -888,7 +888,7 @@ export function SocialStoryCompose({
                   }}
                 >
                   <span className={SOCIAL_STORY_CREATE_ICON_WELL_CLASS}>
-                    <SocialIcon name="video-camera" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
+                    <SocialIcon weight="bold" name="video-camera" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
                   </span>
                   <span className={SOCIAL_STORY_CREATE_LABEL_CLASS}>{SOCIAL.stories.videoCard}</span>
                 </button>
@@ -917,7 +917,7 @@ export function SocialStoryCompose({
                     onClick={() => void openPhotoCamera()}
                   >
                     <span className={SOCIAL_STORY_PICKER_WELL_CLASS}>
-                      <SocialIcon name="camera" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
+                      <SocialIcon weight="bold" name="camera" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
                     </span>
                     <span className="min-w-0">
                       <span className="block t-body font-semibold text-ink whitespace-normal break-words">
@@ -935,7 +935,7 @@ export function SocialStoryCompose({
                     onClick={() => photoLibraryRef.current?.click()}
                   >
                     <span className={SOCIAL_STORY_PICKER_WELL_CLASS}>
-                      <SocialIcon name="image" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
+                      <SocialIcon weight="bold" name="image" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
                     </span>
                     <span className="min-w-0">
                       <span className="block t-body font-semibold text-ink whitespace-normal break-words">
@@ -973,7 +973,7 @@ export function SocialStoryCompose({
                     onClick={() => void openStudio()}
                   >
                     <span className={SOCIAL_STORY_PICKER_WELL_CLASS}>
-                      <SocialIcon name="video-camera" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
+                      <SocialIcon weight="bold" name="video-camera" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
                     </span>
                     <span className="min-w-0">
                       <span className="block t-body font-semibold text-ink whitespace-normal break-words">
@@ -991,7 +991,7 @@ export function SocialStoryCompose({
                     onClick={() => fileRef.current?.click()}
                   >
                     <span className={SOCIAL_STORY_PICKER_WELL_CLASS}>
-                      <SocialIcon name="upload-simple" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
+                      <SocialIcon weight="bold" name="upload-simple" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
                     </span>
                     <span className="min-w-0">
                       <span className="block t-body font-semibold text-ink whitespace-normal break-words">
@@ -1098,7 +1098,7 @@ export function SocialStoryCompose({
                   disabled={posting}
                   onClick={closeStudio}
                 >
-                  <SocialIcon name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+                  <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
                 </button>
                 <p className="t-body-sm font-semibold text-band-ink">{SOCIAL.stories.review}</p>
                 <span className="size-10" />
@@ -1113,7 +1113,7 @@ export function SocialStoryCompose({
                   className={SOCIAL_STORY_CAMERA_HIT_CLASS}
                   onClick={closeStudio}
                 >
-                  <SocialIcon name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+                  <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
                 </button>
                 <p className="text-center t-body-sm font-semibold text-band-ink">
                   {phase === "recording" ? clock : null}
@@ -1127,7 +1127,7 @@ export function SocialStoryCompose({
                     className={`${SOCIAL_STORY_CAMERA_HIT_CLASS} justify-self-end`}
                     onClick={() => void toggleTorch()}
                   >
-                    <SocialIcon name="lightning" active={torchOn} size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+                    <SocialIcon weight="bold" name="lightning" active={torchOn} size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
                   </button>
                 ) : (
                   <span className={SOCIAL_STORY_CAMERA_HIT_CLASS} aria-hidden />
@@ -1145,7 +1145,7 @@ export function SocialStoryCompose({
                 className="absolute left-1/2 top-1/2 z-10 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-band-ink/20 text-band-ink"
                 onClick={playReview}
               >
-                <SocialIcon name="play" size={SOCIAL_ICON_SIZE_STORY_PLAY} />
+                <SocialIcon weight="bold" name="play" size={SOCIAL_ICON_SIZE_STORY_PLAY} />
               </button>
             ) : null}
 
@@ -1186,7 +1186,7 @@ export function SocialStoryCompose({
                     disabled={phase === "recording"}
                     onClick={openRoll}
                   >
-                    <SocialIcon name="image" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
+                    <SocialIcon weight="bold" name="image" size={SOCIAL_ICON_SIZE_STORY_PICKER} />
                   </button>
                   {still ? (
                     <button
@@ -1221,7 +1221,7 @@ export function SocialStoryCompose({
                       disabled={phase === "recording"}
                       onClick={() => void flipCamera()}
                     >
-                      <SocialIcon name="camera-rotate" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+                      <SocialIcon weight="bold" name="camera-rotate" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
                     </button>
                   ) : (
                     <span className={SOCIAL_STORY_CAMERA_HIT_CLASS} aria-hidden />

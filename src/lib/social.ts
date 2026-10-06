@@ -1023,6 +1023,9 @@ export const SOCIAL = {
     carouselShow: (current: number, total: number) => `Show media ${current} of ${total}`,
     // The right end of a video's screen band (H register §5.1).
     videoLabel: "Video",
+    // A post whose media all failed to draw and that has no words (cards
+    // lock C5): one quiet line in the words' place, not an empty card.
+    mediaUnavailable: "Media unavailable",
     comments: "comments",
     comment: "Comment",
     commentOne: "comment",

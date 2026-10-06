@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import type { SocialEdgeMediaItem } from "@/lib/social-edge";
 import {
+  socialRowItemUnderFade,
   rememberSocialFeedReelReturn,
   resetSocialFeedReelReturnForTests,
   SOCIAL_FEED_REEL_CAPTION_MAX,
@@ -263,5 +264,23 @@ describe("Reels return note (Exit returns to the same spot)", () => {
     expect(takeSocialFeedReelScroll(1)).toBeNull();
     rememberSocialFeedReelReturn({ explore: "/social/explore?v=a", rail: 0, left: -5 });
     expect(takeSocialFeedReelScroll(0)).toBe(0);
+  });
+});
+
+describe("socialRowItemUnderFade (feed topics: a chip under the fade hides; cards lock)", () => {
+  const port = { portEnd: 600, fade: 96 };
+  it("is under the fade once the chip's end passes the clear edge (the port less the 96 fade)", () => {
+    // "Cinematog": starts in the clear area, ends under the fade.
+    expect(socialRowItemUnderFade({ itemEnd: 560, ...port })).toBe(true);
+    expect(socialRowItemUnderFade({ itemEnd: 700, ...port })).toBe(true);
+    // Ends exactly on the clear edge, or before it: clear.
+    expect(socialRowItemUnderFade({ itemEnd: 504, ...port })).toBe(false);
+    expect(socialRowItemUnderFade({ itemEnd: 300, ...port })).toBe(false);
+  });
+  it("treats under 1px past the edge as clear (subpixel rest) and a negative fade as none", () => {
+    expect(socialRowItemUnderFade({ itemEnd: 504.9, ...port })).toBe(false);
+    expect(socialRowItemUnderFade({ itemEnd: 505.1, ...port })).toBe(true);
+    expect(socialRowItemUnderFade({ itemEnd: 600, portEnd: 600, fade: -40 })).toBe(false);
+    expect(socialRowItemUnderFade({ itemEnd: 601.5, portEnd: 600, fade: -40 })).toBe(true);
   });
 });

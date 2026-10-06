@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import {
-  SOCIAL_ACTION_SECONDARY_CLASS,
   SOCIAL_EMPTY_ACTION_CLASS,
+  SOCIAL_EMPTY_ACTION_SECONDARY_CLASS,
   SOCIAL_EMPTY_PANEL_CLASS,
   SOCIAL_PROFILE_POSTS_EMPTY_CLASS,
   SOCIAL_STORIES_EMPTY_ACTION_CLASS,
@@ -47,7 +47,7 @@ export function SocialEmpty({
             </Link>
           ) : null}
           {secondary ? (
-            <Link href={secondary.href} className={SOCIAL_ACTION_SECONDARY_CLASS}>
+            <Link href={secondary.href} className={SOCIAL_EMPTY_ACTION_SECONDARY_CLASS}>
               {secondary.label}
             </Link>
           ) : null}

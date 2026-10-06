@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-05 (CT)  
 **Status:** **LOCKED** (Adam, 2026-10-05, in chat — recorded from the founder-authorized task brief) · Design Own→READY  
+**Superseded in part (founder 2026-10-06, cards lock):** every post and every Feed module sits on one soft grey card on the white canvas (Direction B, "B."). §7 "the media is the card" is reversed: the post is a card with the header on top (40 avatar, name 15 / 600, meta "2h · Group"), the words (15 / 420, desktop 17), the media inset 8 at radius 16 (phone edge to edge), the round actions at the bottom; a video has no screen, no band and no "Video" (4:5 to 2.39:1); the credit row under the media, the caption aligned to the name, the text post's 20 / 480 body and the wall 24 / 48 are out (G9, G10, G11, G13, G14; Assumptions 7 and 9). The stories, the composer, the Reels row and the rail's people are cards; stories stay at the top in both lanes; the stack air is 16 · 8/16 · 16 · 8/16; the slider labels are 15 / 500 with ink-2 idle; the topics are ink-2 idle and 500 current. See [`social-feed-cards-lock-v1.md`](social-feed-cards-lock-v1.md).  
 **Scope:** The Feed at `/social`: the Following / For you switch, the topic row, the story cards, the composer, the Reels row's face, the For you rail, the column grid, the stack order, the skeleton. The posts (H §5.1) are §7 of this lock, and their face holds everywhere `SocialPostCard` renders (the Feed, Profile activity, a member's posts, the permalink). Not the shell (header, side menu, phone bar, dock): that is [`shell-coinbase-register-lock-v1.md`](shell-coinbase-register-lock-v1.md). Not Explore content, Profile, or Messages (later PRs).  
 **Entity:** Global Content / 24Frame only  
 **Source:** The approved H board **`CoinbaseFeed.dc.html`** (desktop 1280 + phone 390 "Feed top" + phone "Scrolled to Reels") and the H spec §1 tokens, §3.1 pill slider, §3.2 secondary chip, §3.3 buttons, §3.4 card, §3.5 list row, §5.1 posts, §5.2 stories, §5.3 composer, §5.4 Reels row, §5.5 For you rail, §7, §8 (posts: the board's posts 1–3 and the 4:5 video). The board's hexes map to existing tokens in `src/app/tokens.css`; one token is new: `--screen`, the near-black a feed video plays on (§7; both themes, commented).  
@@ -37,7 +38,7 @@ Still in force: Geist; the ladder 13 / 15 / 17 / 20 / 28 / 56; body 420, title 4
 
 ## Stack (one column, phone and desktop)
 
-`lock_slider_stories_composer_topics_wall`: **slider → story cards → composer → topic chips → wall**, as the board draws it (the topics sit over the wall they filter). Same JSX on both devices. Air: **24 · 24 · 24 · 16** (`SOCIAL_HOME_STACK_LOCK`, `SOCIAL_HOME_STACK_ORDER`). The slider sits **16** under the phone top bar (the frame's 16; no pull) and **24** under the desktop header (the shared 8 inset plus the grid's 16).
+`lock_slider_stories_composer_topics_wall`: **slider → story cards → composer → topic chips → wall**, as the board draws it (the topics sit over the wall they filter). Same JSX on both devices. Air: **24 · 24 · 24 · 16** (superseded by the cards lock: 16 · 8 / 16 · 16 · 8 / 16, the stories and the composer each a card) (`SOCIAL_HOME_STACK_LOCK`, `SOCIAL_HOME_STACK_ORDER`). The slider sits **16** under the phone top bar (the frame's 16; no pull) and **24** under the desktop header (the shared 8 inset plus the grid's 16).
 
 ## 1) Following / For you — the primary pill slider (H §3.1)
 
@@ -104,6 +105,8 @@ One **44** row, no bar: the **44** avatar, **12**, the grey **"Share something"*
 
 ## 7) Posts (H §5.1) — H · Posts
 
+> **Superseded (founder 2026-10-06, cards lock):** "the media is the card" and the credit row under the media are reversed. Every post kind is one soft grey card with the header on top, the words, the media inset 8 at radius 16 and the actions at the bottom; no screen and no band on a video. The table below is the H record. See [`social-feed-cards-lock-v1.md`](social-feed-cards-lock-v1.md).
+
 **The media is the card.** A grey card around the media read cheap (a grey frame, square media corners inside a round card, smaller media), so the media carries the large radius and fills the column; the register lands around it: round grey actions, a quiet credit, and a soft grey card for text-only posts. One face everywhere `SocialPostCard` renders (the Feed in both lanes, Profile activity, a member's posts, the permalink). **Role eyebrow:** the founder chose "Members choose one; no line until they do" — the main-role picker ships later, so posts render **no** role line now and keep a clean slot for it (the name stack, above the name).
 
 | Item | Lock |
@@ -161,9 +164,9 @@ One new token, `--screen` (§7): `--band` (#1b1f23) reads as charcoal grey aroun
 4. **The story card's name wraps** rather than truncating (the card lock said truncate; the house rule is nothing truncated on phone).
 5. **The suggested-people rows keep the handle and the name** (the board draws a role line; there is no main role yet).
 6. **The skeleton's slider is one 221-wide pill**; the real track's width follows its labels.
-7. **Posts: the ⋯ stays at the credit row's end on phone for every kind** (the board moves it into a video's screen band on phone): one place for the owner's menu.
+7. *(Superseded by the cards lock: the ⋯ sits at the header's end.)* **Posts: the ⋯ stays at the credit row's end on phone for every kind** (the board moves it into a video's screen band on phone): one place for the owner's menu.
 8. **Posts: the like count is its own button** that opens who liked, beside the round heart (the board draws one "Like, 4 likes" button), so the likers list stays one tap away. The names read "Like" / "Unlike" and "4 likes".
-9. **Posts: every video gets the screen band** (topic left, "Video" right); the board draws chips over its 4:5 video instead. The video keeps its existing cap and player controls (the board's bottom control band is not drawn).
+9. *(Superseded by the cards lock: no screen and no band.)* **Posts: every video gets the screen band** (topic left, "Video" right); the board draws chips over its 4:5 video instead. The video keeps its existing cap and player controls (the board's bottom control band is not drawn).
 10. **Posts: counts hide at zero** (the board draws non-zero counts only); phone actions stay 8 apart, as the board draws them.
 11. **Posts: Profile and permalink posts show the topic too**, from the same stored category, so the face is one face everywhere.
 12. **Posts: the swipe's dots are drawn from md only** (Adam's 2026-09-25 carousel lock had dots at every width; the H board draws none). Below md they stay in the accessibility tree, visually hidden until one has keyboard focus, so a phone's keyboard, switch or screen reader can still change slides. The caption is no longer a link to the permalink; the time is.
@@ -186,20 +189,20 @@ One new token, `--screen` (§7): `--band` (#1b1f23) reads as charcoal grey aroun
 
 ## Gates
 
-**G1.** Following / For you is the house `SegmentedTrack` with the shared pill slider (muted track, no inset, ink thumb sliding 220 ms ease-out, 44 segments at 17 / 600, pad 20), in `nav aria-label="Feed scope"`, left-aligned; `aria-current="page"` on the lit lane; same hook and URLs.  
-**G2.** Topics: All first, then the 15 topics A→Z; idle 15 / 500 ink with no fill; current the accent wash with accent-ink 15 / 600 and `aria-current="true"`; 40 desktop, a 36 pill in a 44 hit on phone; a 96 fade with the round grey More topics; the scroll padding equals the fade.  
-**G3.** Stack is slider → stories → composer → topics → wall (`lock_slider_stories_composer_topics_wall`), air 24 · 24 · 24 · 16.  
+**G1.** Following / For you is the house `SegmentedTrack` with the shared pill slider (muted track, no inset, ink thumb sliding 220 ms ease-out, 44 segments at 17 / 600, pad 20), in `nav aria-label="Feed scope"`, left-aligned; `aria-current="page"` on the lit lane; same hook and URLs. *(Labels superseded by the cards lock: 15 / 500, ink-2 idle; the ink thumb stays.)*  
+**G2.** Topics: All first, then the 15 topics A→Z; idle 15 / 500 ink with no fill; current the accent wash with accent-ink 15 / 600 and `aria-current="true"`; 40 desktop, a 36 pill in a 44 hit on phone; a 96 fade with the round grey More topics; the scroll padding equals the fade. *(Weights superseded by the cards lock: ink-2 idle, 500 current; a chip under the fade hides.)*  
+**G3.** Stack is slider → stories → composer → topics → wall (`lock_slider_stories_composer_topics_wall`), air 24 · 24 · 24 · 16. *(Air superseded by the cards lock.)*  
 **G4.** Story cards 112×200 / 108×192, radius 16, gap 8, no border; the accent ring when unseen; the name on the picture; Create story with the accent plus on the seam.  
-**G5.** Composer: 44 avatar, the grey "Share something" pill, round grey 44 Photo and Camera.  
-**G6.** Reels: a 20 / 480 "Reels" heading; round grey 44 arrows (desktop); tiles 180×320 / 160×284, radius 16, gap 8; the 376 page.  
-**G7.** Grid 600 / 48 / 296; the "For you" heading; the course as one soft grey card (radius 24); 56 rows with the grey 36 Follow; no hairline.  
+**G5.** Composer: 44 avatar, the grey "Share something" pill, round grey 44 Photo and Camera. *(Superseded in part by the cards lock: the composer is a card; the pill and rounds on the in-card fill.)*  
+**G6.** Reels: a 20 / 480 "Reels" heading; round grey 44 arrows (desktop); tiles 180×320 / 160×284, radius 16, gap 8; the 376 page. *(Superseded in part by the cards lock: the row is a card; the arrows on the in-card fill.)*  
+**G7.** Grid 600 / 48 / 296; the "For you" heading; the course as one soft grey card (radius 24); 56 rows with the grey 36 Follow; no hairline. *(Superseded in part by the cards lock: the course title 15 / 600; the people a card, Follow 15 / 500 on the in-card fill.)*  
 **G8.** Skeleton rows use the live classes in the live order.  
-**G9.** Photo posts: the column at the true shape (1.91:1 … 4:5), radius 24 (phone 0, meeting the viewport), no card or frame; the topic chip and the "1 / 3" chip on the photo (28, the band at 72%); the swipe's dots drawn from md and, below md, buttons in the accessibility tree that show on keyboard focus (never `display: none`).  
-**G10.** Video posts: the screen (`--screen`, radius 24) with the 44 band (topic left, "Video" right); the existing frame, player, Mux band and tap-to-immersive unchanged.  
-**G11.** The credit row under the media (16; phone 12): the 40 circle avatar, the name 17 / 600, the time 15 quiet ink; no role line.  
+**G9.** Photo posts: the column at the true shape (1.91:1 … 4:5), radius 24 (phone 0, meeting the viewport), no card or frame; the topic chip and the "1 / 3" chip on the photo (28, the band at 72%); the swipe's dots drawn from md and, below md, buttons in the accessibility tree that show on keyboard focus (never `display: none`). *(Superseded by the cards lock: the photo sits inside the post card, inset 8 at radius 16; phone edge to edge.)*  
+**G10.** Video posts: the screen (`--screen`, radius 24) with the 44 band (topic left, "Video" right); the existing frame, player, Mux band and tap-to-immersive unchanged. *(Superseded by the cards lock: no screen, no band, no "Video".)*  
+**G11.** The credit row under the media (16; phone 12): the 40 circle avatar, the name 17 / 600, the time 15 quiet ink; no role line. *(Superseded by the cards lock: the header sits on top of the card.)*  
 **G12.** Round grey 40 (phone 44) Like · Comment · Share, glyph 20, 8 apart, counts beside (none at zero); the like count opens who liked; Comment is named with its count; the owner's quiet ⋯.  
-**G13.** The caption 17 / 420 ink-2 (phone 15 / 1.45), aligned to the name, never clamped; text-only posts the soft grey card (radius 24, pad 24 / 16) with the body at 20 / 480; its rounds and empty avatar lighter than the card in light and dark (light `--surface` on `--surface-muted`, dark `--surface-muted` on `--surface`).  
-**G14.** The wall 24 / 48; one wall skeleton with the live post classes.
+**G13.** The caption 17 / 420 ink-2 (phone 15 / 1.45), aligned to the name, never clamped; text-only posts the soft grey card (radius 24, pad 24 / 16) with the body at 20 / 480; its rounds and empty avatar lighter than the card in light and dark (light `--surface` on `--surface-muted`, dark `--surface-muted` on `--surface`). *(Superseded by the cards lock: one words style, 15 / 420, desktop 17; every post a card.)*  
+**G14.** The wall 24 / 48; one wall skeleton with the live post classes. *(Superseded by the cards lock: 8 / 16 between cards.)*
 
 **FAIL:** an underline on the Feed switch or topics · lane chips in the topic row · a bordered or shadowed card · accent text on the wash · a truncated label · an invented duration or role line · a framed photo · a likes line, a comments trail or an under-post time · a clamped caption.
 

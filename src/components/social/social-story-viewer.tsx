@@ -534,7 +534,7 @@ export function SocialStoryViewer({
           aria-label={SOCIAL.stories.close}
           className="pointer-events-auto flex size-12 items-center justify-center text-band-ink"
         >
-          <SocialIcon name="x" size={22} />
+          <SocialIcon weight="bold" name="x" size={22} />
         </Link>
       </div>
       <div className="flex h-full w-full items-center justify-center md:gap-6">
@@ -614,7 +614,7 @@ export function SocialStoryViewer({
               className={cn(SOCIAL_STORY_CARET_CLASS, "-left-3 -translate-x-1/2 border-0")}
               onClick={() => go("prev", "manual")}
             >
-              <SocialIcon name="caret-left" size={22} />
+              <SocialIcon weight="bold" name="caret-left" size={22} />
             </button>
           ) : null}
           {nextStep ? (
@@ -624,7 +624,7 @@ export function SocialStoryViewer({
               className={cn(SOCIAL_STORY_CARET_CLASS, "-right-3 translate-x-1/2 border-0")}
               onClick={() => go("next", "manual")}
             >
-              <SocialIcon name="caret-right" size={22} />
+              <SocialIcon weight="bold" name="caret-right" size={22} />
             </button>
           ) : null}
           <div className="absolute inset-x-2 top-2 z-20 flex flex-col gap-2">
@@ -678,7 +678,7 @@ export function SocialStoryViewer({
                   className="flex size-10 items-center justify-center text-band-ink"
                   onClick={() => setMuted((value) => !value)}
                 >
-                  <SocialIcon name={muted ? "speaker-slash" : "speaker-high"} size={20} />
+                  <SocialIcon weight="bold" name={muted ? "speaker-slash" : "speaker-high"} size={20} />
                 </button>
               ) : null}
               {playable ? (
@@ -690,7 +690,7 @@ export function SocialStoryViewer({
                   className="flex size-10 items-center justify-center text-band-ink"
                   onClick={() => setPaused((value) => !value)}
                 >
-                  <SocialIcon name={paused ? "play" : "pause"} size={20} />
+                  <SocialIcon weight="bold" name={paused ? "play" : "pause"} size={20} />
                 </button>
               ) : null}
               <Link
@@ -700,7 +700,7 @@ export function SocialStoryViewer({
                 onPointerDown={(event) => event.stopPropagation()}
                 className="relative z-30 flex size-11 shrink-0 touch-manipulation items-center justify-center text-band-ink md:hidden"
               >
-                <SocialIcon name="x" size={22} />
+                <SocialIcon weight="bold" name="x" size={22} />
               </Link>
             </div>
           </div>
@@ -727,7 +727,7 @@ export function SocialStoryViewer({
                   className={cn(SOCIAL_STORY_ACTION_HIT_CLASS, SOCIAL_STORY_ACTION_IDLE_CLASS)}
                   onClick={() => setActivityStoryId(item.id)}
                 >
-                  <SocialIcon name="users" size={20} />
+                  <SocialIcon weight="bold" name="users" size={20} />
                 </button>
               ) : null}
               <div className="flex items-center gap-1">
@@ -744,7 +744,7 @@ export function SocialStoryViewer({
                   )}
                   onClick={() => void onHeart()}
                 >
-                  <SocialIcon name="heart" active={heartLiked} size={20} />
+                  <SocialIcon weight="bold" name="heart" active={heartLiked} size={20} />
                 </button>
                 {storyHeartCountVisible(heart.count) ? (
                   <span
@@ -765,7 +765,7 @@ export function SocialStoryViewer({
                 className={cn(SOCIAL_STORY_ACTION_HIT_CLASS, SOCIAL_STORY_ACTION_IDLE_CLASS)}
                 onClick={() => setSendItemId(item.id)}
               >
-                <SocialIcon name="paper-plane-tilt" size={20} />
+                <SocialIcon weight="bold" name="paper-plane-tilt" size={20} />
               </button>
             </div>
           </div>

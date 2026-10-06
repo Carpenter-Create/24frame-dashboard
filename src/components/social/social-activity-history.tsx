@@ -4,6 +4,7 @@ import { SocialPostCard } from "@/components/social/social-post-card";
 import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import {
+  SOCIAL_ACTIVITY_COMMENTED_LABEL_CLASS,
   SOCIAL_ACTIVITY_COMMENT_SNIPPET_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
 } from "@/lib/social-chrome";
@@ -42,19 +43,21 @@ export function SocialActivityHistory({
         <div data-social-activity-feed="" className={SOCIAL_FEED_GUTTER_CLASS}>
           {isComments
             ? comments.map((item) => (
-                <article
+                // Cards lock: the "You commented" line sits inside the
+                // post's card under its actions, not as a strip on the
+                // page. docs/design-locks/social-feed-cards-lock-v1.md
+                <SocialPostCard
                   key={item.commentId}
-                  data-social-activity-comment={item.commentId}
-                  className="flex flex-col"
-                >
-                  <SocialPostCard post={item.post} />
-                  <div className="bg-surface px-3 pb-3">
-                    <p className="t-label text-ink-3">{SOCIAL.profile.activityCommented}</p>
-                    <p className={SOCIAL_ACTIVITY_COMMENT_SNIPPET_CLASS}>
-                      {socialCommentSnippet(item.body)}
-                    </p>
-                  </div>
-                </article>
+                  post={item.post}
+                  comments={
+                    <div data-social-activity-comment={item.commentId}>
+                      <p className={SOCIAL_ACTIVITY_COMMENTED_LABEL_CLASS}>{SOCIAL.profile.activityCommented}</p>
+                      <p className={SOCIAL_ACTIVITY_COMMENT_SNIPPET_CLASS}>
+                        {socialCommentSnippet(item.body)}
+                      </p>
+                    </div>
+                  }
+                />
               ))
             : posts.map((post) => <SocialPostCard key={post.id} post={post} />)}
         </div>

@@ -54,8 +54,10 @@ describe("SocialLikesSheet", () => {
     expect(count).toContain("socialPostActionCount(view.likeCount)");
     expect(count).toContain("aria-label={label}");
     expect(count).toContain("className={SOCIAL_POST_COUNT_CLASS}");
-    // The credit-row time: 15, quiet ink (ink-3; ink-2 in dark), never a t-label.
-    expect(SOCIAL_POST_TIME_CLASS).toContain("tracking-normal");
+    // Cards: the time is the header meta's permalink, a 44 hit on phone
+    // that sets no ink of its own (the meta's ink-2), never a t-label.
+    expect(SOCIAL_POST_TIME_CLASS).toContain("min-h-11");
     expect(SOCIAL_POST_TIME_CLASS).not.toMatch(/(?:^|\s)text-ink(?:\s|$)/);
+    expect(SOCIAL_POST_TIME_CLASS).not.toContain("t-label");
   });
 });

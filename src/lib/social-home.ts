@@ -18,6 +18,19 @@ import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "@/lib/social";
 export const SOCIAL_HOME_STACK_LOCK = "lock_slider_stories_composer_topics_wall" as const;
 export const SOCIAL_HOME_STACK_ORDER = ["slider", "stories", "composer", "topics", "wall"] as const;
 
+/**
+ * Stories stay at the top of the Feed (founder 2026-10-06, "Stories have
+ * to stay at the top of the feed"): the stories card draws in both lanes
+ * whenever it has a tile. The member's own Create story is a tile, so a
+ * rail whose one tile is Create story still draws, in place. No rule
+ * hides or moves a sparse rail; only a rail with no tile at all (no
+ * profile to create with, no live story) has nothing to draw.
+ * docs/design-locks/social-feed-cards-lock-v1.md
+ */
+export function socialHomeStoryRailHasTiles(input: { canCreate: boolean; cards: number }): boolean {
+  return input.canCreate || input.cards > 0;
+}
+
 export const SOCIAL_CHECKLIST_IDS = [
   "photo",
   "bio",

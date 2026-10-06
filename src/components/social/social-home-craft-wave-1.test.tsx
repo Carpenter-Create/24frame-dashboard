@@ -3,15 +3,16 @@ import { describe, expect, it } from "vitest";
 
 import { HOUSE_HEADER_TRAILING_HIT_CLASS } from "@/lib/house-lead-chrome";
 import {
+  SOCIAL_FEED_CARD_CLASS,
+  SOCIAL_FEED_CARD_SURFACE_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_PLAY_DISC_CLASS,
+  SOCIAL_MOBILE_BLEED_CLASS,
   SOCIAL_MOBILE_BLEED_PAD_CLASS,
-  SOCIAL_POST_CAPTION_CLASS,
-  SOCIAL_POST_CLASS,
+  SOCIAL_POST_ACTIONS_CLASS,
+  SOCIAL_POST_HEAD_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
-  SOCIAL_POST_TEXT_CARD_CLASS,
-  socialPostActionsClass,
-  socialPostFootClass,
+  SOCIAL_POST_WORDS_CLASS,
 } from "@/lib/social-chrome";
 import { socialLikeCountCopy } from "@/lib/social";
 
@@ -21,18 +22,19 @@ const stories = readFileSync("src/components/social/social-stories-rail.tsx", "u
 const lock = readFileSync("docs/design-locks/social-home-craft-wave-1-lock-v1.md", "utf8");
 
 describe("Social Home craft Wave 1", () => {
-  // H · Posts (founder 2026-10-05) supersedes Option A's muted post
-  // card (radius 16, author row on top, pb 24 under the time). The media
-  // is the card; a text-only post is the soft grey card (radius 24).
-  // docs/design-locks/social-feed-register-lock-v1.md §7
-  it("paints feed posts in the H register (the media is the card); the story cards keep no Stories seam", () => {
+  // Cards (founder 2026-10-06, Direction B) supersede H · Posts ("the
+  // media is the card"): every post is the soft grey card, header on top.
+  // The values are owned by src/lib/social-feed-cards-lock.test.ts; this
+  // file checks the composition by reference.
+  // docs/design-locks/social-feed-cards-lock-v1.md
+  it("paints every feed post as the card (header on top); the story cards keep no Stories seam", () => {
     const separation = readFileSync(
       "docs/design-locks/social-home-post-separation-lock-v1.md",
       "utf8",
     );
     expect(lock).toContain("social-home-stories-feed-hairline-lock-v1.md");
     expect(lock).toContain("social-home-post-separation-lock-v1.md");
-    // The Option A record stays, marked superseded by the H lock.
+    // The Option A record stays, marked superseded (H, then the cards lock).
     expect(separation).toContain("Option A");
     expect(separation).toContain("removed");
     expect(separation).toContain("double-stacked");
@@ -41,12 +43,17 @@ describe("Social Home craft Wave 1", () => {
     expect(head).toContain("[`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md)");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("hairline");
     expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("#ECEDF0");
-    // A media post is no card: no fill, no radius, no border on the article.
-    // A text-only post: muted, radius 24, pad 24 (16 phone), no border, no shadow.
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("p-4 md:p-6");
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toMatch(/border|shadow|divide/);
+    // Every post, text or media, is the one card: the shared surface,
+    // no edge, no shadow, no divider.
+    const card = readFileSync("src/components/social/social-post-card.tsx", "utf8");
+    const postCard = card.slice(card.indexOf("export function SocialPostCard"));
+    expect(postCard).toContain("className={SOCIAL_FEED_CARD_CLASS}");
+    expect(SOCIAL_FEED_CARD_CLASS).toContain(SOCIAL_FEED_CARD_SURFACE_CLASS);
+    expect(SOCIAL_FEED_CARD_CLASS).not.toMatch(/border|shadow|divide/);
+    // The card is no longer forked by kind (the H text card is gone).
+    expect(postCard).not.toContain("socialPostClass(kind)");
     // H · Feed (founder 2026-10-05): the story cards still sit over the
-    // composer with no rule (the H board draws none either).
+    // composer with no rule; the stories card draws none either.
     const hairline = readFileSync(
       "docs/design-locks/social-home-stories-feed-hairline-lock-v1.md",
       "utf8",
@@ -62,29 +69,28 @@ describe("Social Home craft Wave 1", () => {
     expect(homeStories).not.toContain("border-b");
   });
 
-  it("spaces the post as the board: media → 12 / 16 → credit row, caption 8 under, phone actions 12 under; wall 24 / 48", () => {
-    // Under the media: 12 on phone, 16 on desktop; inside the text card, none.
-    expect(socialPostFootClass("photo")).toContain("mt-3");
-    expect(socialPostFootClass("photo")).toContain("md:mt-4");
-    expect(socialPostFootClass("text")).not.toMatch(/(?:^|\s)mt-/);
-    // Caption 8 under the credit row; phone actions 12 under the caption.
-    expect(SOCIAL_POST_CAPTION_CLASS).toContain("mt-2");
-    expect(socialPostActionsClass("photo")).toContain("mt-3");
-    expect(socialPostActionsClass("photo")).toContain("md:mt-0");
-    // No negative pulls between the rows (the #725 collisions stay out).
-    for (const cls of [socialPostFootClass("photo"), SOCIAL_POST_CAPTION_CLASS, socialPostActionsClass("photo")]) {
-      expect(cls).not.toMatch(/(?:^|\s)-m[ytb]-/);
-    }
-    // The wall: 24 on phone, 48 on desktop; no divider.
-    // The article is the gutter's block flex item (Mobile Safari keeps
-    // its height); shrink-0 stops the list compressing it.
+  it("orders the post as the card: header → words → media → actions; the wall is the shared gutter, no divider", () => {
     const card = readFileSync("src/components/social/social-post-card.tsx", "utf8");
     const postCard = card.slice(card.indexOf("export function SocialPostCard"));
-    expect(postCard).toContain("className={socialPostClass(kind)}");
-    expect(SOCIAL_POST_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
-    expect(SOCIAL_POST_CLASS).toContain("shrink-0");
-    expect(SOCIAL_POST_CLASS).not.toContain("flex-col");
+    const at = (needle: string) => {
+      const i = postCard.indexOf(needle);
+      expect(i, needle).toBeGreaterThan(-1);
+      return i;
+    };
+    const order = [
+      at("className={SOCIAL_POST_HEAD_CLASS}"),
+      at("className={SOCIAL_POST_WORDS_CLASS}"),
+      at("<SocialPostMedia"),
+      at("className={SOCIAL_POST_ACTIONS_CLASS}"),
+    ];
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // No negative vertical pulls between the rows (the #725 collisions stay out).
+    for (const cls of [SOCIAL_POST_HEAD_CLASS, SOCIAL_POST_WORDS_CLASS, SOCIAL_POST_MEDIA_CLASS, SOCIAL_POST_ACTIONS_CLASS]) {
+      expect(cls).not.toMatch(/(?:^|\s)(?:max-md:|md:)?-m[ytb]-/);
+    }
     expect(postCard).not.toMatch(/-mb-| -my-/);
+    // The card is the gutter's column item; shrink-0 stops the list compressing it.
+    expect(SOCIAL_FEED_CARD_CLASS).toContain("shrink-0");
     const feed = readFileSync("src/components/social/social-optimistic-feed.tsx", "utf8");
     expect(feed).toContain("SOCIAL_FEED_GUTTER_CLASS");
     expect(feed).not.toContain("divide-y");
@@ -96,28 +102,31 @@ describe("Social Home craft Wave 1", () => {
     expect(skeletons.match(/<SocialPostWallSkeleton \/>/g)?.length).toBe(2);
     const wall = skeletons.slice(
       skeletons.indexOf("export function SocialPostWallSkeleton"),
-      skeletons.indexOf("// Feed center (H)"),
+      skeletons.indexOf("// Feed center (H"),
     );
-    expect(wall).toContain("SOCIAL_FEED_GUTTER_CLASS");
-    expect(wall).toContain("className={SOCIAL_POST_CLASS}");
+    expect(wall).toContain("className={SOCIAL_FEED_GUTTER_CLASS}");
+    expect(wall).toContain("className={SOCIAL_FEED_CARD_CLASS}");
+    expect(wall).toContain("className={SOCIAL_POST_HEAD_CLASS}");
     expect(wall).toContain("className={SOCIAL_POST_MEDIA_CLASS}");
-    expect(wall).toContain('socialPostFootClass("photo")');
-    expect(wall).toContain('socialPostActionsClass("photo")');
+    expect(wall).toContain("className={SOCIAL_POST_ACTIONS_CLASS}");
     expect(skeletons).not.toContain("SOCIAL_FEED_ROW_CLASS");
   });
 
-  it("phone: the media meets the viewport; the text rows keep the frame's 16 and the actions align to the name", () => {
+  it("phone: the card meets the viewport; the media fills the card's width; the text rows keep 16", () => {
     expect(SOCIAL_MOBILE_BLEED_PAD_CLASS).toBe("max-md:px-[var(--chrome-gutter)]");
-    // The media block cancels the frame's 16 on phone (radius 0 there).
-    expect(SOCIAL_POST_MEDIA_CLASS).not.toMatch(/(?:^|\s)rounded-/);
-    // The credit, caption and actions add no second inset.
-    expect(socialPostFootClass("photo")).not.toMatch(/px-|pl-|pr-/);
-    expect(SOCIAL_POST_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_PAD_CLASS);
-    // Caption and phone actions align to the name: the 40 avatar + 12.
-    expect(socialPostActionsClass("photo")).toContain("pl-[52px] ");
-    expect(socialPostActionsClass("photo")).toContain("md:pl-0");
-    expect(socialPostActionsClass("text")).not.toContain("pl-[52px]");
-    // The stage hits (immersive, Explore) keep the bare 40.
+    // The card cancels the frame's 16 on phone, square there.
+    expect(SOCIAL_FEED_CARD_SURFACE_CLASS).toContain(SOCIAL_MOBILE_BLEED_CLASS);
+    expect(SOCIAL_FEED_CARD_SURFACE_CLASS).toContain("max-md:rounded-none");
+    // The media's desktop inset drops on phone, square there too.
+    expect(SOCIAL_POST_MEDIA_CLASS).toContain("max-md:mx-0");
+    expect(SOCIAL_POST_MEDIA_CLASS).toContain("max-md:rounded-none");
+    // The header, the words and the actions keep the card's own 16 on both.
+    for (const cls of [SOCIAL_POST_HEAD_CLASS, SOCIAL_POST_WORDS_CLASS, SOCIAL_POST_ACTIONS_CLASS]) {
+      expect(cls).toMatch(/(?:^|\s)px-4(?:\s|$)/);
+      expect(cls).not.toMatch(/(?:^|\s)(?:max-md:|md:)px-/);
+    }
+    // No second bleed inside the card.
+    expect(SOCIAL_POST_MEDIA_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_CLASS);
   });
 
   it("hides a zero like count and uses the singular", () => {

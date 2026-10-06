@@ -67,12 +67,15 @@
      the greyscale ramp (not a colour). The accent stays reserved. */
   --band:          #1b1f23;
   --band-ink:      #fafafb;
-  /* The screen: the near-black frame a feed video plays in, the
+  /* The screen: the near-black frame a feed video played in, the
      letterbox and pillarbox around it, and its top band (H register
      §5.1, Adam 2026-10-05, docs/design-locks/social-feed-register-lock-v1.md).
      Greyscale, not a colour. --band (#1b1f23) reads as charcoal grey
      around a picture; the screen is the page black of the dark theme.
-     .dark takes it to true black so the frame still reads on #0f0f0f. */
+     .dark takes it to true black so the frame still reads on #0f0f0f.
+     Unused since the cards lock (no screen and no band on a feed video;
+     docs/design-locks/social-feed-cards-lock-v1.md); kept, unchanged,
+     until the founder settles Direction B. */
   --screen:        #0f0f0f;
 
   /* --- NO status colors by default (greyscale + one accent). --- */

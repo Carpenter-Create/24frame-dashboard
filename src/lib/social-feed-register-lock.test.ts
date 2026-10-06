@@ -5,10 +5,10 @@ import {
   COURSE_FEATURE_CARD_CLASS,
   COURSE_FEATURE_COVER_CLASS,
   COURSE_FEATURE_META_CLASS,
-  COURSE_FEATURE_TITLE_CLASS,
 } from "./courses";
 import {
   HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
   HOUSE_PILL_SLIDER_THUMB_CLASS,
   HOUSE_PILL_SLIDER_TRACK_CLASS,
   HOUSE_SEGMENTED_TRACK_CLASS,
@@ -30,9 +30,7 @@ import {
   SOCIAL_FEED_ASIDE_COURSE_CLASS,
   SOCIAL_FEED_ASIDE_HEADING_CLASS,
   SOCIAL_FEED_ASIDE_ROW_CLASS,
-  SOCIAL_FEED_ASIDE_ROWS_CLASS,
-  SOCIAL_FEED_ASIDE_SECTION_CLASS,
-  SOCIAL_FEED_ASIDE_SUBHEAD_CLASS,
+  SOCIAL_FEED_CARD_CLASS,
   SOCIAL_FEED_HEADING_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_FEED_REEL_TILE_CLASS,
@@ -41,7 +39,6 @@ import {
   SOCIAL_FEED_REELS_ARROWS_CLASS,
   SOCIAL_FEED_REELS_CLASS,
   SOCIAL_FEED_REELS_HEAD_CLASS,
-  SOCIAL_FEED_REELS_TRACK_CLASS,
   SOCIAL_FEED_SCOPE_CLASS,
   SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS,
   SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS,
@@ -51,21 +48,19 @@ import {
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOLLOW_QUIET_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
-  SOCIAL_HOME_STORY_CARD_CLASS,
   SOCIAL_HOME_STORY_CREATE_FACE_CLASS,
-  SOCIAL_HOME_STORY_CREATE_LABEL_CLASS,
   SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS,
   SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS,
   SOCIAL_HOME_STORY_NAME_CLASS,
   SOCIAL_HOME_STORY_PLUS_CLASS,
   SOCIAL_HOME_TOPIC_CHIP_CLASS,
   SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS,
-  SOCIAL_HOME_TOPIC_CLASS,
   SOCIAL_HOME_TOPIC_CURRENT_CLASS,
   SOCIAL_HOME_TOPIC_FADE_CLASS,
   SOCIAL_HOME_TOPIC_MORE_CLASS,
   SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
+  SOCIAL_IN_CARD_FILL_CLASS,
 } from "./social-chrome";
 import {
   WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
@@ -185,28 +180,30 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     }
   });
 
-  it("G1: Following / For you is the house pill slider — the workspace slider's track, ink thumb and motion", () => {
+  it("G1: Following / For you is the house pill slider — the workspace slider's track and motion, the ink thumb", () => {
     // One component per pattern: SegmentedTrack, with the shared classes.
     expect(slider).toContain("<SegmentedTrack");
     expect(slider).toContain('aria-label={SOCIAL.home.lanesLabel}');
     expect(slider).toContain("persistKey={SEGMENTED_TRACK_PERSIST.socialFeedScope}");
     expect(SEGMENTED_TRACK_PERSIST.socialFeedScope).toBe("social-feed-scope");
+    // The Feed keeps the ink thumb (Social's one ink element); the header's
+    // thumb became the accent wash (cards lock, which pins both values).
     expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
+    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).not.toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
     expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toBe(HOUSE_PILL_SLIDER_TRACK_CLASS);
     expect(HOUSE_PILL_SLIDER_TRACK_CLASS).toBe(HOUSE_SEGMENTED_TRACK_CLASS);
     expect(SOCIAL_FEED_SCOPE_TRACK_CLASS).toBe(`${HOUSE_PILL_SLIDER_TRACK_CLASS} w-max`);
-    // Muted track, no inset; ink thumb sliding 220 ms ease-out.
+    // Muted track, no inset; the thumb's 220 ms ease-out (its classes and
+    // the 15 / 500 labels are pinned in the cards lock test).
     expect(HOUSE_PILL_SLIDER_TRACK_CLASS).toContain("rounded-full bg-surface-muted");
     expect(HOUSE_PILL_SLIDER_TRACK_CLASS).not.toMatch(/(?:^|\s)p[xy]?-/);
-    expect(HOUSE_PILL_SLIDER_THUMB_CLASS).toContain("inset-y-0");
-    expect(HOUSE_PILL_SLIDER_THUMB_CLASS).toContain("duration-[220ms] ease-out");
     expect(SOCIAL_FEED_SCOPE_THUMB_DURATION_MS).toBe(220);
-    // 44 segments, 17 / 600, pad 20 on a page switch; page colour on the thumb.
-    expect(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS).toContain("h-11");
-    expect(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS).toContain("text-[length:var(--text-base)] font-semibold");
+    // Segments pad 20 on a page switch; the page colour on the thumb; idle
+    // takes the house idle ink (ink-2 since the cards lock).
     expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toBe(`${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5 text-bg`);
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS).toBe(`${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5 text-ink`);
+    expect(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS).toBe(
+      `${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5 ${HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS}`,
+    );
     // Left-aligned, its own row; aria-current on the lit lane; same URLs.
     expect(SOCIAL_FEED_SCOPE_CLASS).toBe("flex shrink-0");
     expect(slider).toContain('aria-current={current ? "page" : undefined}');
@@ -217,19 +214,16 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(lock).toContain("(founder decision 5)");
   });
 
-  it("G2: topics are secondary chips — the wash with accent-ink when current, plain ink idle, a 96 fade", () => {
-    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("bg-accent-wash");
-    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("font-semibold");
-    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toBe(
-      "inline-flex h-9 items-center rounded-full px-3.5 text-[length:var(--text-sm)] leading-none md:h-10 md:px-4 bg-accent-wash font-semibold",
-    );
+  it("G2: topics are secondary chips — the wash with accent-ink when current, plain idle, a 96 fade", () => {
+    // The current chip's wash and the idle and current weights are pinned
+    // in the cards lock test (ink-2 idle, 500 current).
+    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS.startsWith(SOCIAL_HOME_TOPIC_CHIP_CLASS.replace(/ font-medium$/, ""))).toBe(true);
     expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-accent-ink");
     expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toBe(
       "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full md:h-10 text-accent-ink",
     );
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("font-medium");
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).not.toContain("bg-");
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("text-ink");
     // 15px; 40 desktop; a 36 pill (pad 14) in a 44 hit on phone; gap 4.
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("text-[length:var(--text-sm)]");
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toContain("h-9");
@@ -238,12 +232,7 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_HOME_TOPIC_CHIP_CLASS).toBe(
       "inline-flex h-9 items-center rounded-full px-3.5 text-[length:var(--text-sm)] leading-none md:h-10 md:px-4 font-medium",
     );
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("h-11");
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("md:h-10");
-    expect(SOCIAL_HOME_TOPIC_CLASS).toBe(
-      "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full md:h-10 text-ink",
-    );
-    expect(SOCIAL_HOME_TOPIC_CLASS).not.toMatch(/accent|bg-/);
+    // The idle hit (44 / 40, no fill) is pinned in the cards lock test.
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "gap-1")).toBe(true);
     // Phone meets the viewport and pads 16.
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "max-md:px-4")).toBe(true);
@@ -262,7 +251,7 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     );
   });
 
-  it("G3: the stack is slider → stories → composer → topics → wall, 24 · 24 · 24 · 16 apart", () => {
+  it("G3: the stack is slider → stories → composer → topics → wall (the air is the cards lock's)", () => {
     expect(lock).toContain("`lock_slider_stories_composer_topics_wall`");
     const at = (needle: string) => page.indexOf(needle);
     expect(at("<SocialHomeLaneTabs")).toBeGreaterThan(-1);
@@ -270,14 +259,15 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(at("<SocialStoriesRail")).toBeLessThan(at("<SocialHomeComposer"));
     expect(at("<SocialHomeComposer")).toBeLessThan(at("<SocialHomeTopics"));
     expect(at("<SocialHomeTopics")).toBeLessThan(at('data-social-home-wall=""'));
-    // Air: the stories track's 19 + its 5 ring pad = 24; 24; 24; 16.
+    // Air: superseded by the cards lock (16 · 8 / 16 · 16 · 8 / 16), which
+    // pins the stories card, the composer card, the topic row and the wall.
+    // The stories track still pads the focus ring's reach and takes it back.
     const reach = focusRingReach();
-    expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, `mt-[${24 - reach}px]`)).toBe(true);
     expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, `py-[${reach}px]`)).toBe(true);
-    expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, `-mb-[${reach}px]`)).toBe(true);
-    expect(hasClass(SOCIAL_COMPOSER_CLASS, "mt-6")).toBe(true);
-    expect(hasClass(SOCIAL_HOME_TOPIC_ROW_CLASS, "mt-6")).toBe(true);
-    expect(hasClass(SOCIAL_FEED_WALL_CLASS, "mt-4")).toBe(true);
+    expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, `-my-[${reach}px]`)).toBe(true);
+    for (const cls of [SOCIAL_COMPOSER_CLASS, SOCIAL_HOME_TOPIC_ROW_CLASS, SOCIAL_FEED_WALL_CLASS]) {
+      expect(cls).not.toMatch(/(?:^|\s)mt-6(?:\s|$)/);
+    }
     // The slider: 16 under the phone bar (the frame's 16, no pull), 24
     // under the desktop header (the 8 inset plus the grid's 16).
     expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/-?mt-/);
@@ -288,9 +278,8 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     // 108×192 is 9:16; 112×200 is the card lock's desktop size (about 9:16).
     expect(108 / 192).toBe(9 / 16);
     expect(Math.abs(112 / 200 - 9 / 16)).toBeLessThan(0.005);
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).not.toMatch(/border|shadow|ring/);
-    expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, "gap-2")).toBe(true);
-    expect(hasClass(SOCIAL_HOME_STORIES_RAIL_CLASS, "max-md:px-4")).toBe(true);
+    // The card's size, its in-card fill and the rail's card are pinned in
+    // the cards lock test (the rail now sits in its own card).
     // Avatar 32 / 36, a 2px ring with a 2px pad: accent unseen, hairline seen.
     expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("left-2 top-2");
     expect(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS).toContain("size-8");
@@ -323,24 +312,20 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL.stories.cardLabel("Elena Ruiz")).toBe("Elena Ruiz story");
     expect(SOCIAL.stories.yourStoryCreate).toBe("Your story, create a story");
     expect(stories).toContain("aria-label={SOCIAL.stories.cardLabel(name)}");
-    // Create story: the photo's upper 120, the plus centred on the seam
-    // (top + half its box = 120 on both), ringed 3 in muted; the label
-    // 15 / 500 ink, 12 from the bottom.
+    // Create story: the photo's upper 120 (the plus centred on that seam
+    // and the 13 / 500 label are pinned in the cards lock test).
     expect(SOCIAL_HOME_STORY_CREATE_FACE_CLASS).toContain("h-[120px]");
     expect(SOCIAL_HOME_STORY_CREATE_FACE_CLASS).toBe(
       "absolute inset-x-0 top-0 h-[120px] overflow-hidden bg-surface-muted",
     );
-    expect(99 + 42 / 2).toBe(120);
-    expect(97 + 46 / 2).toBe(120);
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("top-[99px]");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("md:top-[97px]");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("border-[3px] border-surface-muted bg-accent text-accent-contrast");
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("bottom-3");
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("text-[length:var(--text-sm)] font-medium");
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("text-ink");
+    const seam = (cls: string, top: RegExp, size: RegExp) =>
+      Number(cls.match(top)?.[1]) + Number(cls.match(size)?.[1]) / 2;
+    expect(seam(SOCIAL_HOME_STORY_PLUS_CLASS, /(?:^|\s)top-\[(\d+)px\]/, /(?:^|\s)size-\[(\d+)px\]/)).toBe(120);
+    expect(seam(SOCIAL_HOME_STORY_PLUS_CLASS, /md:top-\[(\d+)px\]/, /md:size-\[(\d+)px\]/)).toBe(120);
+    expect(stories).toContain("SOCIAL_HOME_STORY_CREATE_LABEL_CLASS");
   });
 
-  it("G5: the composer is one 44 row — the 44 avatar, the grey pill, round grey 44 Photo and Camera", () => {
+  it("G5: the composer is one 44 row — the 44 avatar, the pill, round 44 Photo and Camera (in its card)", () => {
     expect(SOCIAL_COMPOSER_AVATAR_CLASS).toBe("size-11");
     // Below 360 the avatar steps out so "Share something" stays one line
     // in its 44 pill at 320 (both pickers stay); the skeleton matches.
@@ -349,21 +334,18 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(composer).toContain("`${SOCIAL_COMPOSER_AVATAR_CLASS} ${SOCIAL_COMPOSER_AVATAR_NARROW_CLASS}`");
     expect(skeletons).toContain("SOCIAL_COMPOSER_AVATAR_NARROW_CLASS");
     expect(hasClass(SOCIAL_COMPOSER_ROW_CLASS, "gap-3")).toBe(true);
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("text-[length:var(--text-base)] text-ink-2");
-    // Photo and Camera: the header's round grey face (fill, ink, circle).
-    for (const cls of ["size-11", "rounded-full", "bg-surface-muted", "text-ink", "hover:bg-hairline"]) {
-      expect(hasClass(SOCIAL_COMPOSER_AFFORDANCE_CLASS, cls), cls).toBe(true);
-      expect(hasClass(HOUSE_HEADER_ROUND_BUTTON_CLASS, cls), cls).toBe(cls !== "size-11");
-    }
+    // The pill, Photo and Camera take the in-card fill (cards lock, which
+    // pins their classes); the header's round grey control keeps the muted fill.
+    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain(SOCIAL_IN_CARD_FILL_CLASS);
+    expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain(SOCIAL_IN_CARD_FILL_CLASS);
+    expect(HOUSE_HEADER_ROUND_BUTTON_CLASS).not.toContain(SOCIAL_IN_CARD_FILL_CLASS);
     expect(SOCIAL_COMPOSER_AFFORDANCE_GLYPH).toBe(20);
     // 8 apart on desktop, 4 on phone.
-    for (const cls of [SOCIAL_COMPOSER_CLASS, SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS]) {
-      expect(hasClass(cls, "gap-1")).toBe(true);
-      expect(hasClass(cls, "md:gap-2")).toBe(true);
-    }
+    expect(hasClass(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS, "gap-1")).toBe(true);
+    expect(hasClass(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS, "md:gap-2")).toBe(true);
   });
 
-  it("G6: the Reels row has a 20 / 480 heading, round grey 44 arrows, radius 16 tiles 8 apart", () => {
+  it("G6: the Reels row has a 20 / 480 heading, round 44 arrows, radius 16 tiles 8 apart", () => {
     expect(SOCIAL.reels.title).toBe("Reels");
     expect(SOCIAL_FEED_HEADING_CLASS).toContain("text-[length:var(--text-lg)]");
     expect(SOCIAL_FEED_HEADING_CLASS).toContain("[font-weight:var(--type-title-weight)]");
@@ -374,21 +356,14 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     );
     expect(hasClass(SOCIAL_FEED_REELS_HEAD_CLASS, "h-11")).toBe(true);
     expect(SOCIAL_FEED_REELS_ARROWS_CLASS).toBe("hidden gap-2 md:flex");
+    // The arrows sit on the in-card fill and the row is a card (cards lock,
+    // which pins the arrows, the track and the row).
     for (const cls of [SOCIAL_FEED_REELS_ARROW_CLASS, SOCIAL_FEED_REELS_ARROW_OFF_CLASS]) {
-      expect(cls).toContain("size-11");
-      expect(cls).toContain("rounded-full bg-surface-muted text-ink");
-      expect(cls).not.toMatch(/border/);
+      expect(cls).toContain(SOCIAL_IN_CARD_FILL_CLASS);
     }
+    expect(SOCIAL_FEED_REELS_CLASS).toContain(SOCIAL_FEED_CARD_CLASS);
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("md:h-80 md:w-[180px]");
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("h-[284px] w-40");
-    expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, "gap-2")).toBe(true);
-    // 16 under the head on desktop, 12 on phone (margin + the 5 ring pad).
-    expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, "md:mt-[11px]")).toBe(true);
-    expect(hasClass(SOCIAL_FEED_REELS_TRACK_CLASS, "mt-[7px]")).toBe(true);
-    // 48 above and below on desktop: the wall's own 48 gutter (H · Posts);
-    // the row adds none there, and 4 on phone (28 with the 24 gutter).
-    expect(hasClass(SOCIAL_FEED_REELS_CLASS, "md:my-0")).toBe(true);
-    expect(hasClass(SOCIAL_FEED_REELS_CLASS, "my-1")).toBe(true);
   });
 
   it("G7: the grid is 600 / 48 / 296 and the For you rail keeps its heading over a soft grey course card", () => {
@@ -402,18 +377,14 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(forYou).toContain('density="feature"');
     expect(forYou).toContain("metaLabel={SOCIAL.forYou.latestCourseEyebrow}");
     expect(hasClass(SOCIAL_FEED_ASIDE_COURSE_CLASS, "mt-4")).toBe(true);
-    expect(COURSE_FEATURE_CARD_CLASS).toBe("flex flex-col gap-4 rounded-[var(--radius-xl)] bg-surface-muted p-4");
+    // The course card's fill and title, the people card, its subhead and
+    // rows and the Follow pill are pinned in the cards lock test.
+    expect(COURSE_FEATURE_CARD_CLASS).toContain("rounded-[var(--radius-xl)]");
     expect(COURSE_FEATURE_COVER_CLASS).toBe("rounded-[var(--radius-lg)] border-0");
     expect(COURSE_FEATURE_META_CLASS).toContain("text-[length:var(--text-xs)]");
     expect(COURSE_FEATURE_META_CLASS).toContain("font-medium text-ink-2");
-    expect(COURSE_FEATURE_TITLE_CLASS).toContain("text-[length:var(--text-base)]");
-    expect(COURSE_FEATURE_TITLE_CLASS).toContain("font-semibold text-ink");
     expect(SOCIAL.forYou.latestCourseEyebrow).toBe("Latest course · Education");
-    // People: 24, a 17 / 600 heading, 12, 56 rows, a 40 avatar, gap 12.
-    expect(hasClass(SOCIAL_FEED_ASIDE_SECTION_CLASS, "mt-6")).toBe(true);
-    expect(SOCIAL_FEED_ASIDE_SUBHEAD_CLASS).toContain("text-[length:var(--text-base)]");
-    expect(SOCIAL_FEED_ASIDE_SUBHEAD_CLASS).toContain("font-semibold");
-    expect(hasClass(SOCIAL_FEED_ASIDE_ROWS_CLASS, "mt-3")).toBe(true);
+    // People: 56 rows, a 40 avatar, gap 12.
     expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("min-h-14");
     expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("gap-3");
     expect(SOCIAL_FEED_ASIDE_ROW_CLASS).toContain("rounded-[var(--radius-xl)] px-3");
@@ -421,14 +392,8 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
       "flex min-h-14 items-center justify-between gap-3 rounded-[var(--radius-xl)] px-3",
     );
     expect(SOCIAL_FEED_ASIDE_AVATAR_CLASS).toBe("size-10");
-    // Follow: the small secondary — a grey 36 pill, 15 / 600 ink, pad 16.
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("h-9");
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("rounded-full bg-surface-muted px-4");
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("text-[length:var(--text-sm)] font-semibold text-ink");
+    // Follow: the small secondary, never an accent fill or a hairline.
     expect(SOCIAL_FOLLOW_QUIET_CLASS).not.toMatch(/border|accent/);
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toBe(
-      "inline-flex h-9 shrink-0 items-center rounded-full bg-surface-muted px-4 text-[length:var(--text-sm)] font-semibold text-ink transition-colors hover:bg-hairline",
-    );
     // No hairline in the rail.
     expect(forYou).not.toContain("SOCIAL_FEED_ASIDE_RULE_CLASS");
     expect(chrome).not.toContain("SOCIAL_FEED_ASIDE_RULE_CLASS");

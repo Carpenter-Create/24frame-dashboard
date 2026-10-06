@@ -16,12 +16,15 @@ import {
   SOCIAL_FEED_ASIDE_CLASS,
   SOCIAL_FEED_ASIDE_HEADING_CLASS,
   SOCIAL_FEED_ASIDE_ROW_CLASS,
+  SOCIAL_FEED_ASIDE_SECTION_CLASS,
   SOCIAL_FEED_ASIDE_SUBHEAD_CLASS,
   SOCIAL_FEED_HEADING_CLASS,
   SOCIAL_FOLLOW_COMPACT_CLASS,
   SOCIAL_FOLLOW_QUIET_CLASS,
   SOCIAL_FOR_YOU_CARD_CLASS,
+  SOCIAL_FOR_YOU_LANE_CARD_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,
+  SOCIAL_IN_CARD_FILL_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL } from "@/lib/social";
 import { SocialForYouRail } from "./social-for-you";
@@ -121,7 +124,7 @@ describe("SocialForYouRail person identity", () => {
     // The course: one soft grey card that is one link — cover, label, title.
     expect(html).toContain('data-course-card-density="feature"');
     expect(html).toContain(`class="${COURSE_FEATURE_CARD_CLASS}"`);
-    expect(COURSE_FEATURE_CARD_CLASS).toContain("rounded-[var(--radius-xl)] bg-surface-muted p-4");
+    // The course card is a Social card (cards lock pins its classes).
     expect(COURSE_FEATURE_CARD_CLASS).not.toMatch(/border|shadow/);
     expect(html).toContain(
       `<span data-course-card-meta="" class="${COURSE_FEATURE_META_CLASS}">${SOCIAL.forYou.latestCourseEyebrow}</span>`,
@@ -142,7 +145,9 @@ describe("SocialForYouRail person identity", () => {
     expect(html).not.toContain("data-social-for-you-rule");
     expect(html).toContain(`class="${SOCIAL_FOLLOW_QUIET_CLASS}"`);
     expect(html).not.toContain(SOCIAL_FOLLOW_COMPACT_CLASS);
-    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain("rounded-full bg-surface-muted");
+    // Follow sits on the in-card fill inside the people card (cards lock).
+    expect(SOCIAL_FOLLOW_QUIET_CLASS).toContain(SOCIAL_IN_CARD_FILL_CLASS);
+    expect(html).toContain(`class="${SOCIAL_FEED_ASIDE_SECTION_CLASS}"`);
     // No accent fill (the glance plate's accent-contrast band is not one).
     expect(html).not.toMatch(/bg-accent(?![-\w])/);
   });
@@ -164,5 +169,17 @@ describe("SocialForYouRail person identity", () => {
     expect(html).toContain(SOCIAL.forYou.title);
     expect(html).toContain(SOCIAL_FOLLOW_COMPACT_CLASS);
     expect(html).not.toContain(SOCIAL_FOLLOW_QUIET_CLASS);
+    // Inside the hairline panel the people stay the house module.
+    expect(html).toContain(`data-social-for-you-people="" class="${SOCIAL_FOR_YOU_CARD_CLASS}"`);
+  });
+
+  it("draws the Feed's For you lane people as a Feed card (cards lock)", () => {
+    const html = renderToStaticMarkup(
+      <SocialForYouRail people={[{ id: "u3", handle: "maya", display_name: "Maya Chen" }]} faces={new Map()} layout="lane" />,
+    );
+    expect(html).toContain('data-social-for-you-layout="lane"');
+    expect(html).toContain(`data-social-for-you-people="" class="${SOCIAL_FOR_YOU_LANE_CARD_CLASS}"`);
+    expect(html).not.toContain(SOCIAL_FOR_YOU_RAIL_CLASS);
+    expect(html).toContain("@maya");
   });
 });

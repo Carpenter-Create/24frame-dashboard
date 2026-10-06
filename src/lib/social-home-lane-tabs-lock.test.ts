@@ -130,11 +130,9 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
     expect(lock).toContain("`lock_tabs_topics_stories_composer_wall`");
     // The host and its name stay.
     expect(lock).toContain('`nav aria-label="Feed scope"`');
-    // Text tabs (20 / 480, ink underline) → the pill slider (17 / 600 on
-    // the ink thumb).
+    // Text tabs (20 / 480, ink underline) → the pill slider on the ink
+    // thumb (its labels 15 / 500 since the cards lock, pinned there).
     expect(lock).toContain("20 / 480 / -0.02em");
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toContain("text-[length:var(--text-base)]");
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toContain("font-semibold");
     expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).not.toContain("border-b-2");
     expect(lock).toContain("`text-ink-3 dark:text-ink-2`");
     expect(SOCIAL_FEED_QUIET_INK_CLASS).toBe("text-ink-3 dark:text-ink-2");

@@ -9,10 +9,15 @@ import {
   socialFeedFrameOnScreen,
   socialFeedVideoFrame,
   socialFeedVideoPosterSrc,
+  SOCIAL_FEED_VIDEO_ASPECT_MAX,
+  SOCIAL_FEED_VIDEO_ASPECT_MIN,
   SOCIAL_FEED_VIDEO_PENDING_CLASS,
   SOCIAL_POST_PHOTO_ASPECT_MAX,
   SOCIAL_POST_PHOTO_ASPECT_MIN,
+  socialPostMediaAllDropped,
+  socialPostMediaUsable,
   socialPostPhotoAspect,
+  socialPostUsableMedia,
   socialStoryMediaFrameClass,
   socialMediaOrientation,
 } from "./social-media-display";
@@ -79,32 +84,34 @@ describe("social media display", () => {
     expect(socialStoryMediaFrameClass()).not.toContain("aspect-[4/5]");
   });
 
-  it("frames an in-feed video from width and height, not a 16:9 or 4:5 guess", () => {
+  it("frames an in-feed video at its shape held to 4:5 … 2.39:1, full width, no screen", () => {
+    // Cards lock: the video sits in the media block like a photo. A
+    // 9:16 or 3:4 phone video draws 4:5 (cover-cropped); scope draws at
+    // its true shape; no min(70vh, 560px) cap, no near-black screen.
     const portrait = socialFeedVideoFrame({ width: 1080, height: 1920 });
     expect(portrait?.orientation).toBe("portrait");
-    expect(portrait?.style.aspectRatio).toBe("1080 / 1920");
-    expect(portrait?.style.width).toBe("min(100%, calc(min(70vh, 560px) * 1080 / 1920))");
-    expect(portrait?.style.maxHeight).toBe("min(70vh, 560px)");
-    expect(portrait?.className).toContain("shrink-0");
-    expect(portrait?.className).not.toContain("aspect-video");
-    expect(portrait?.className).not.toContain("aspect-[4/5]");
-    expect(portrait?.className).not.toContain("md:");
-    expect(portrait?.className).not.toContain("object-fill");
-    // H · Posts: the frame sits on the near-black screen; a still that has
-    // not loaded reads as the screen, not a grey slab.
-    expect(portrait?.className).toContain("bg-screen");
-    expect(portrait?.className).not.toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_VIDEO_PENDING_CLASS).toContain("bg-screen");
+    expect(portrait?.style.aspectRatio).toBe(String(4 / 5));
+    expect(socialFeedVideoFrame({ width: 1080, height: 1440 })?.style.aspectRatio).toBe(String(4 / 5));
+    expect(portrait?.style).toEqual({ aspectRatio: String(SOCIAL_FEED_VIDEO_ASPECT_MIN) });
+    // The limits: 4:5 (tallest) and scope 2.39:1 (widest).
+    expect(SOCIAL_FEED_VIDEO_ASPECT_MIN).toBe(4 / 5);
+    expect(SOCIAL_FEED_VIDEO_ASPECT_MAX).toBe(2.39);
+    // Full width in the media block, soft grey while the still loads; the
+    // frame is group/video so the static play disc steps out once a player mounts.
+    expect(portrait?.className).toBe("group/video relative block w-full shrink-0 overflow-hidden bg-surface-muted");
+    expect(portrait?.className).not.toContain("bg-screen");
+    expect(SOCIAL_FEED_VIDEO_PENDING_CLASS).toBe("group/video relative w-full shrink-0 overflow-hidden bg-surface-muted");
 
     const landscape = socialFeedVideoFrame({ width: 1920, height: 1080 });
     expect(landscape?.orientation).toBe("landscape");
-    expect(landscape?.style.aspectRatio).toBe("1920 / 1080");
-    expect(landscape?.className).not.toContain("aspect-[4/5]");
+    expect(landscape?.style.aspectRatio).toBe(String(1920 / 1080));
 
-    const wider = socialFeedVideoFrame({ width: 2000, height: 800 });
-    expect(wider?.orientation).toBe("landscape");
-    expect(wider?.style.aspectRatio).toBe("2000 / 800");
-    expect(wider?.style.aspectRatio).not.toBe("16 / 9");
+    const scope = socialFeedVideoFrame({ width: 2390, height: 1000 });
+    expect(scope?.style.aspectRatio).toBe(String(2.39));
+    expect(socialFeedVideoFrame({ width: 3000, height: 1000 })?.style.aspectRatio).toBe(String(SOCIAL_FEED_VIDEO_ASPECT_MAX));
+    expect(socialFeedVideoFrame({ width: 2000, height: 1000 })?.style.aspectRatio).toBe("2");
+    expect(socialFeedVideoFrame({ width: 1080, height: 1350 })?.style.aspectRatio).toBe(String(0.8));
+    expect(socialFeedVideoFrame({ width: 1080, height: 1080 })?.style.aspectRatio).toBe("1");
 
     expect(socialFeedVideoFrame({ width: 1080, height: 1080 })?.orientation).toBe("square");
     expect(socialFeedVideoFrame({})).toBeNull();
@@ -122,6 +129,38 @@ describe("social media display", () => {
     expect(fn).not.toContain("filename");
     expect(fn).not.toContain("aspect-video");
     expect(fn).not.toContain("aspect-[4/5]");
+  });
+
+  it("keeps only media that can draw: a video needs a Mux playback id, an image a url", () => {
+    // A legacy S3 video (no Mux playback, no stored frame) maps to url ""
+    // and no playbackId: it never plays and has no still.
+    expect(socialPostMediaUsable({ kind: "video", url: "", playbackId: undefined })).toBe(false);
+    expect(socialPostMediaUsable({ kind: "video", url: "https://x/legacy.mp4" })).toBe(false);
+    expect(socialPostMediaUsable({ kind: "video", url: "", playbackId: "not a mux id!" })).toBe(false);
+    expect(socialPostMediaUsable({ kind: "video", url: "", playbackId: "JetLandscape0000001" })).toBe(true);
+    expect(socialPostMediaUsable({ kind: "image", url: "/api/social/media?key=a.jpg" })).toBe(true);
+    expect(socialPostMediaUsable({ kind: "image", url: "" })).toBe(false);
+    expect(socialPostMediaUsable({ kind: "image", url: "   " })).toBe(false);
+    const legacy = { kind: "video" as const, url: "" };
+    const still = { kind: "image" as const, url: "/a.jpg" };
+    const mux = { kind: "video" as const, url: "", playbackId: "JetLandscape0000001" };
+    expect(socialPostUsableMedia([legacy])).toEqual([]);
+    expect(socialPostUsableMedia([legacy, still, mux])).toEqual([still, mux]);
+  });
+
+  it("marks a post whose media all dropped, and only that post (cards lock C5)", () => {
+    const legacy = { kind: "video" as const, url: "" };
+    const still = { kind: "image" as const, url: "/a.jpg" };
+    const all = (media: readonly (typeof legacy | typeof still)[]) =>
+      socialPostMediaAllDropped(media, socialPostUsableMedia(media));
+    // Had media, none can draw: the card keeps a line in the words' place.
+    expect(all([legacy])).toBe(true);
+    expect(all([legacy, { kind: "image", url: " " }])).toBe(true);
+    // Something still draws: not this case.
+    expect(all([legacy, still])).toBe(false);
+    expect(all([still])).toBe(false);
+    // Never had media (a text post): not this case either.
+    expect(all([])).toBe(false);
   });
 
   it("paints a public still immediately and withholds a signed still until the thumbnail token", () => {

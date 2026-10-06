@@ -35,6 +35,11 @@ import {
   encodeFollowingWallCursor,
 } from "@/lib/social-home-bounds";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
+import {
+  SOCIAL_COMPOSER_CLASS,
+  SOCIAL_COMPOSER_FIELD_CLASS,
+  SOCIAL_HOME_STORIES_CARD_CLASS,
+} from "@/lib/social-chrome";
 import { SocialPostMedia } from "@/components/social/social-post-media";
 import SocialHomePage from "./page";
 
@@ -232,12 +237,13 @@ describe("Social home", () => {
     expect(html).toContain(SOCIAL.create.title);
     expect(html).not.toContain("data-social-composer-action");
     expect(html).not.toContain("data-social-home-topics-composer-divider");
-    // The composer is one 44 row with the grey pill (no 52 muted bar).
+    // Cards (founder 2026-10-06; replaces H's bare 44 row): the composer
+    // is its own card; the prompt pill flips to the in-card fill.
     const composer = html.match(/data-social-home-composer="" class="([^"]+)"/)?.[1] ?? "";
+    expect(composer).toBe(SOCIAL_COMPOSER_CLASS);
     expect(composer).not.toContain("h-[52px]");
-    expect(composer).not.toContain("bg-surface-muted");
     expect(composer).not.toContain("border-y");
-    expect(html).toMatch(/data-social-composer-prompt="" class="[^"]*rounded-full[^"]*bg-surface-muted/);
+    expect(html).toContain(`data-social-composer-prompt="" class="${SOCIAL_COMPOSER_FIELD_CLASS} shadow-none"`);
     const order = ["data-social-home-lanes", "data-social-stories", "data-social-home-composer", "data-social-home-topics", "data-social-home-wall"];
     for (let i = 1; i < order.length; i += 1) {
       expect(html.indexOf(order[i - 1]!)).toBeGreaterThan(-1);
@@ -540,6 +546,55 @@ describe("Social home", () => {
     expect(html).not.toContain(SOCIAL.home.recentChats);
     expect(html).not.toContain("data-social-chats-empty");
     expect(html).not.toContain('"/messages"');
+  });
+
+  // Cards (founder 2026-10-06: "Stories have to stay at the top of the
+  // feed"): the stories card is the first module under the lane slider in
+  // both lanes, also when its one tile is Create story; the composer
+  // carries no story control. docs/design-locks/social-feed-cards-lock-v1.md
+  it("keeps the stories card first under the slider in both lanes, with Create story alone or with stories", async () => {
+    const followers = [{ followee_id: "u2" }, { followee_id: "u3" }];
+    const people = [
+      { id: "u2", handle: "maya", display_name: "Maya Chen", status: "active" },
+      { id: "u3", handle: "omar", display_name: "Omar Diaz", status: "active" },
+    ];
+    const several = ["u2", "u3"].map((author, i) => ({
+      id: `s${i}`,
+      author_id: author,
+      body: null,
+      media: [],
+      expires_at: "2099-01-01T00:00:00.000Z",
+      created_at: "2026-09-14T12:00:00.000Z",
+    }));
+    for (const lane of ["following", "for-you"] as const) {
+      for (const stories of [[], several]) {
+        stubClient({ profile: ensured, follows: followers, profiles: people, stories });
+        vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+        const html = await renderHome(lane === "for-you" ? { lane } : {});
+        const at = (needle: string) => html.indexOf(needle);
+        const card = at(`data-social-stories-card="" class="${SOCIAL_HOME_STORIES_CARD_CLASS}"`);
+        expect(card, `${lane} ${stories.length}`).toBeGreaterThan(at("data-social-home-lanes"));
+        // Nothing between the slider and the stories card.
+        const between = html.slice(html.indexOf("</nav>", at("data-social-home-lanes")), card);
+        expect(between).not.toMatch(/data-social-(?:home-composer|home-topics|home-wall|feed|post)=/);
+        expect(card).toBeLessThan(at("data-social-home-composer"));
+        expect(at("data-social-home-composer")).toBeLessThan(at("data-social-home-topics"));
+        expect(at("data-social-home-topics")).toBeLessThan(at("data-social-home-wall"));
+        // Create story is always the first tile.
+        const rail = html.slice(card, at("data-social-home-composer"));
+        expect(rail).toContain("data-social-story-create");
+        expect(rail).toContain(`aria-label="${SOCIAL.stories.yourStoryCreate}"`);
+        expect(rail.split("data-social-story-card=").length - 1).toBe(stories.length);
+        if (stories.length > 0) {
+          expect(rail.indexOf("data-social-story-create")).toBeLessThan(rail.indexOf("data-social-story-card="));
+        }
+        // The composer holds no story control (the prototype's "+").
+        const composer = html.slice(at("data-social-home-composer"), at("data-social-home-topics"));
+        expect(composer).not.toContain("/social/stories/new");
+        expect(composer).not.toContain(SOCIAL.stories.yourStoryCreate);
+        expect(composer).not.toContain("data-social-story-create");
+      }
+    }
   });
 
   it("opens For you as suggested people and locked topics, not an invented feed", async () => {

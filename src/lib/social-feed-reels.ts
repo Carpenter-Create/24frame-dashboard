@@ -224,6 +224,24 @@ export function socialRowFocusShift(input: {
   return Math.abs(shift) < 1 ? 0 : shift;
 }
 
+/**
+ * Feed topics: a chip whose end passes under the row's trailing fade (the
+ * fade and More topics, 96 wide) is cut, and hides until the row scrolls
+ * it clear; no label is ever drawn cut under the fade (cards lock; the
+ * founder's state showed "Cinematog" cut there). A chip that ends within
+ * 1px of the clear edge is clear (subpixel rest). Viewport x, LTR. Only
+ * the trailing edge: a chip scrolled past the leading edge is plain
+ * scroll clipping, with no fade over it.
+ * docs/design-locks/social-feed-cards-lock-v1.md
+ */
+export function socialRowItemUnderFade(input: {
+  itemEnd: number;
+  portEnd: number;
+  fade: number;
+}): boolean {
+  return input.itemEnd > input.portEnd - Math.max(0, input.fade) + 1;
+}
+
 // Tap opens Explore at that reel. Exit returns to the same spot. The feed's
 // vertical scroll is the house lead-scroll memory (captured on the tap,
 // restored when Back lands on /social). This in-tab note says which Explore
