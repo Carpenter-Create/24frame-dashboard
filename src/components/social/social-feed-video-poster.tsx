@@ -28,23 +28,8 @@ export function SocialFeedVideoPoster({
       onLoad={onLoad}
       className={
         frame
-          ? "relative z-0 block max-w-full object-cover"
-          : "relative z-0 block w-full object-contain"
-      }
-      style={
-        frame
-          ? {
-              aspectRatio: frame.style.aspectRatio,
-              width: "100%",
-              height: "auto",
-              maxHeight: frame.style.maxHeight,
-            }
-          : {
-              width: "100%",
-              height: "auto",
-              maxHeight: "min(70vh, 560px)",
-              objectFit: "contain",
-            }
+          ? "absolute inset-0 z-0 block size-full object-cover"
+          : "relative z-0 block h-auto w-full object-contain"
       }
     />
   );

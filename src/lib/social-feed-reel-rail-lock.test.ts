@@ -6,6 +6,7 @@ import {
   SOCIAL_FEED_REEL_NEAR_ROOT_MARGIN,
 } from "./social-feed-reels";
 import {
+  SOCIAL_FEED_CARD_CLASS,
   SOCIAL_FEED_REEL_CAPTION_CLASS,
   SOCIAL_FEED_REEL_NAME_CLASS,
   SOCIAL_FEED_REEL_SCRIM_CLASS,
@@ -96,24 +97,22 @@ describe("Feed Reels rail lock v1 (Adam 2026-10-04)", () => {
   });
 
   it("keeps phone full-bleed snap and desktop arrows as locked", () => {
-    expect(SOCIAL_FEED_REELS_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
+    // Phone full bleed: the row is a card that meets the viewport (cards lock).
+    expect(SOCIAL_FEED_REELS_CLASS).toContain(SOCIAL_FEED_CARD_CLASS);
+    expect(SOCIAL_FEED_CARD_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
     // Label row: was phone 16 (the eyebrow line) and desktop 30 (arrows);
     // H · Feed: one 44 head row for the 20 / 480 heading and the 44 arrows.
     expect(lock).toContain("on a 16 label row");
     expect(SOCIAL_FEED_REELS_HEAD_CLASS).toMatch(/(^| )h-11( |$)/);
     expect(SOCIAL_FEED_REELS_HEAD_CLASS).not.toContain("md:h-[30px]");
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("max-md:snap-x");
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("max-md:snap-mandatory");
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("max-md:scroll-pl-4");
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("[touch-action:pan-x_pan-y]");
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("overscroll-x-contain");
-    // Gap 8 on both (H · Feed; was md:gap-3).
-    expect(SOCIAL_FEED_REELS_TRACK_CLASS).toContain("gap-2");
+    // The track's snap, pan, pad and gap (pad 16 inside the card) and the
+    // arrows' in-card fill are pinned in the cards lock test; the snap and
+    // the vertical pan pass-through stay this lock's.
+    for (const cls of ["max-md:snap-x", "max-md:snap-mandatory", "[touch-action:pan-x_pan-y]", "overscroll-x-contain"]) {
+      expect(SOCIAL_FEED_REELS_TRACK_CLASS.split(/\s+/), cls).toContain(cls);
+    }
     expect(SOCIAL_FEED_REELS_TRACK_CLASS).not.toContain("md:gap-3");
-    expect(SOCIAL_FEED_REELS_ARROW_OFF_CLASS).toContain("opacity-40");
-    expect(SOCIAL_FEED_REELS_ARROW_OFF_CLASS).toBe(
-      "grid size-11 place-items-center rounded-full bg-surface-muted text-ink cursor-default opacity-40",
-    );
+    expect(SOCIAL_FEED_REELS_ARROW_OFF_CLASS.split(/\s+/)).toContain("opacity-40");
     for (const guard of ARROW_GUARDS) {
       expect(rail).toContain(guard);
     }

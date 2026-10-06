@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { socialFeedVideoFrame } from "@/lib/social-media-display";
+import { SOCIAL_FEED_VIDEO_ASPECT_MIN, socialFeedVideoFrame } from "@/lib/social-media-display";
 import {
   SOCIAL_AVATAR_ROUTE,
   SOCIAL_MEDIA_ROUTE,
@@ -177,7 +177,9 @@ describe("Social Edge media proxies", () => {
     expect(items[0]).toMatchObject({ kind: "video", playbackId: "uNbxnGLKJ00yfbijDO8COxT", width: 1080, height: 1920 });
     const frame = socialFeedVideoFrame(items[0] ?? {});
     expect(frame?.orientation).toBe("portrait");
-    expect(frame?.style.aspectRatio).toBe("1080 / 1920");
+    // The feed draws a 9:16 frame at 4:5 (cards lock); the source pixels
+    // still make it portrait.
+    expect(frame?.style.aspectRatio).toBe(String(SOCIAL_FEED_VIDEO_ASPECT_MIN));
     expect(frame?.className).not.toContain("aspect-video");
     expect(frame?.className).not.toContain("aspect-[4/5]");
   });

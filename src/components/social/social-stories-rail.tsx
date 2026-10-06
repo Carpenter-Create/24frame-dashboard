@@ -6,6 +6,7 @@ import { SocialStoryRailCover } from "@/components/social/social-story-rail-cove
 import { SocialStoryRailFace } from "@/components/social/social-story-rail-face";
 import { cn } from "@/lib/cn";
 import {
+  SOCIAL_HOME_STORIES_CARD_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
   SOCIAL_HOME_STORY_CREATE_FACE_CLASS,
@@ -25,6 +26,7 @@ import {
 import { SOCIAL_ICON_SIZE_STORY_PLUS } from "@/lib/social-icons";
 import { socialStoryRailCover } from "@/lib/social-edge";
 import type { SocialStoryRailCard } from "@/lib/social-feed";
+import { socialHomeStoryRailHasTiles } from "@/lib/social-home";
 import {
   SOCIAL,
   SOCIAL_ROUTES,
@@ -41,11 +43,14 @@ function storyCardHref(card: SocialStoryRailCard): string {
 // Adam 2026-09-20 — white plus glyph on the accent well.
 // SocialIcon active = Phosphor fill. Plus fill is a filled square with a
 // knockout +, so white currentColor on bg-accent reads as a white disc
-// with a blue +. Bold is the plus stroke. Do not pass active here.
+// with a blue +. Bold is the plus stroke (SocialIcon draws Regular by
+// default since the cards lock; the well keeps the bold stroke). Do not
+// pass active here.
 function StoryCreatePlus({ className }: { className?: string } = {}) {
   return (
     <SocialIcon
       name="plus"
+      weight="bold"
       size={SOCIAL_ICON_SIZE_STORY_PLUS}
       className={cn("text-accent-contrast", className)}
     />
@@ -71,10 +76,16 @@ function warmForCard(
 // (phone 108×192) cards, radius 16, gap 8. The cover fills the card; the
 // author's avatar sits top-left in an accent ring when unseen (hairline
 // when seen); the name ("Elena R.") is on the picture over a band scrim.
-// Create story leads: the member's photo over a muted plate, the accent
-// plus on the seam, "Create story" on the plate. The cover fill and its
+// Create story leads: the member's photo over the plate, the accent plus
+// on the seam, "Create story" on the plate. The cover fill and its
 // mint-on-visible stay SocialStoryRailCover.
 // docs/design-locks/social-feed-register-lock-v1.md
+// Cards lock (founder 2026-10-06, "Stories have to stay at the top of the
+// feed"): the rail is the Feed's first module, in its own card, drawn in
+// both lanes whenever it has a tile (the member's Create story is always
+// one), so a sparse rail stays in place. With no tile at all (no profile,
+// no live story) there is nothing to draw and no empty card.
+// docs/design-locks/social-feed-cards-lock-v1.md
 function HomeStoryCards({
   cards,
   authors,
@@ -92,71 +103,74 @@ function HomeStoryCards({
   createPhotoUrl?: string | null;
   warmedThumbs?: readonly SocialStoryRailWarmThumb[];
 }) {
+  if (!socialHomeStoryRailHasTiles({ canCreate, cards: cards.length })) return null;
   return (
-    <div
-      role="group"
-      aria-label={SOCIAL.home.storiesLabel}
-      data-social-stories=""
-      data-social-stories-surface="home"
-      className={SOCIAL_HOME_STORIES_RAIL_CLASS}
-    >
-      {canCreate ? (
-        <Link
-          href={SOCIAL_ROUTES.storiesNew}
-          data-social-story-create=""
-          aria-label={SOCIAL.stories.yourStoryCreate}
-          className={SOCIAL_HOME_STORY_CARD_CLASS}
-        >
-          <span className={SOCIAL_HOME_STORY_CREATE_FACE_CLASS}>
-            <SocialAvatar
-              name={createName ?? SOCIAL.home.you}
-              photoUrl={createPhotoUrl}
-              className="absolute inset-0 size-full rounded-none"
-            />
-          </span>
-          <span className={SOCIAL_HOME_STORY_PLUS_CLASS}>
-            <StoryCreatePlus className="max-md:size-[18px]" />
-          </span>
-          <span className={SOCIAL_HOME_STORY_CREATE_LABEL_CLASS}>{SOCIAL.stories.create}</span>
-        </Link>
-      ) : null}
-      {cards.map((card) => {
-        const author = authors.get(card.authorId);
-        const name = socialPersonLabel({
-          handle: author?.handle ?? "",
-          displayName: author?.display_name,
-        });
-        const photo = faces.get(card.authorId);
-        return (
+    <div data-social-stories-card="" className={SOCIAL_HOME_STORIES_CARD_CLASS}>
+      <div
+        role="group"
+        aria-label={SOCIAL.home.storiesLabel}
+        data-social-stories=""
+        data-social-stories-surface="home"
+        className={SOCIAL_HOME_STORIES_RAIL_CLASS}
+      >
+        {canCreate ? (
           <Link
-            key={card.authorId}
-            href={storyCardHref(card)}
-            data-social-story-card={card.authorId}
-            data-social-story-unseen={card.unseen ? "" : undefined}
-            aria-label={SOCIAL.stories.cardLabel(name)}
+            href={SOCIAL_ROUTES.storiesNew}
+            data-social-story-create=""
+            aria-label={SOCIAL.stories.yourStoryCreate}
             className={SOCIAL_HOME_STORY_CARD_CLASS}
           >
-            <span data-social-story-media="" className={SOCIAL_HOME_STORY_MEDIA_CLASS}>
-              <SocialStoryRailCover
-                media={card.latest.media}
-                authorId={card.authorId}
-                warm={warmForCard(card, warmedThumbs)}
-              />
-            </span>
-            <span data-social-story-face="" className={socialHomeStoryFaceRingClass(card.unseen)}>
+            <span className={SOCIAL_HOME_STORY_CREATE_FACE_CLASS}>
               <SocialAvatar
-                name={name}
-                photoUrl={photo ?? null}
-                size="sm"
-                className={SOCIAL_HOME_STORY_FACE_CLASS}
+                name={createName ?? SOCIAL.home.you}
+                photoUrl={createPhotoUrl}
+                className="absolute inset-0 size-full rounded-none"
               />
             </span>
-            <span data-social-story-name="" className={SOCIAL_HOME_STORY_NAME_CLASS}>
-              {socialStoryCardName(name)}
+            <span className={SOCIAL_HOME_STORY_PLUS_CLASS}>
+              <StoryCreatePlus className="max-md:size-[18px]" />
             </span>
+            <span className={SOCIAL_HOME_STORY_CREATE_LABEL_CLASS}>{SOCIAL.stories.create}</span>
           </Link>
-        );
-      })}
+        ) : null}
+        {cards.map((card) => {
+          const author = authors.get(card.authorId);
+          const name = socialPersonLabel({
+            handle: author?.handle ?? "",
+            displayName: author?.display_name,
+          });
+          const photo = faces.get(card.authorId);
+          return (
+            <Link
+              key={card.authorId}
+              href={storyCardHref(card)}
+              data-social-story-card={card.authorId}
+              data-social-story-unseen={card.unseen ? "" : undefined}
+              aria-label={SOCIAL.stories.cardLabel(name)}
+              className={SOCIAL_HOME_STORY_CARD_CLASS}
+            >
+              <span data-social-story-media="" className={SOCIAL_HOME_STORY_MEDIA_CLASS}>
+                <SocialStoryRailCover
+                  media={card.latest.media}
+                  authorId={card.authorId}
+                  warm={warmForCard(card, warmedThumbs)}
+                />
+              </span>
+              <span data-social-story-face="" className={socialHomeStoryFaceRingClass(card.unseen)}>
+                <SocialAvatar
+                  name={name}
+                  photoUrl={photo ?? null}
+                  size="sm"
+                  className={SOCIAL_HOME_STORY_FACE_CLASS}
+                />
+              </span>
+              <span data-social-story-name="" className={SOCIAL_HOME_STORY_NAME_CLASS}>
+                {socialStoryCardName(name)}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

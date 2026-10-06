@@ -8,9 +8,8 @@ import { SocialIcon } from "@/components/social/social-icon";
 import { cn } from "@/lib/cn";
 import {
   SOCIAL_POST_ACTION_HIT_CLASS,
+  SOCIAL_POST_ROUND_CLASS,
   SOCIAL_POST_ROUND_GLYPH,
-  socialPostRoundClass,
-  type SocialPostSurface,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import { SOCIAL } from "@/lib/social";
@@ -42,12 +41,12 @@ export function SocialPostShareSentToast() {
 export function SocialPostShareButton({
   postId,
   tone = "canvas",
-  round,
+  round = false,
 }: {
   postId: string;
   tone?: "canvas" | "stage";
-  /** The feed post face (H · Posts): the round grey Share. */
-  round?: SocialPostSurface;
+  /** The feed post card's round Share. */
+  round?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState(false);
@@ -68,7 +67,7 @@ export function SocialPostShareButton({
         aria-expanded={open}
         className={
           round
-            ? socialPostRoundClass(round)
+            ? SOCIAL_POST_ROUND_CLASS
             : cn(SOCIAL_POST_ACTION_HIT_CLASS, tone === "stage" && "text-band-ink")
         }
         onClick={() => setOpen(true)}
@@ -76,6 +75,7 @@ export function SocialPostShareButton({
         <SocialIcon
           name="paper-plane-tilt"
           size={round ? SOCIAL_POST_ROUND_GLYPH : SOCIAL_ICON_SIZE_POST_ACTION}
+          weight={tone === "stage" ? "bold" : undefined}
         />
       </button>
       {open ? (

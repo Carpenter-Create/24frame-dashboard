@@ -54,23 +54,26 @@ export function SocialPostCaptionPlace({
   postId,
   serverBody,
   className,
+  empty = null,
 }: {
   postId: string;
   serverBody: string | null;
-  /** The caption (17 / 420 ink-2) or a text post's body (20 / 480 ink). */
+  /** The words' one style (cards lock): a caption and a text body alike. */
   className: string;
+  /** Drawn in the words' place while the live body is empty. */
+  empty?: ReactNode;
 }) {
   const body = useSyncExternalStore(
     subscribeSocialPostOwn,
     () => socialPostLiveBody(postId, serverBody),
     () => serverBody,
   );
-  // H · Posts: under the credit row, the words alone (the name sits just
-  // above, so no handle prefix). Wraps; never clamped. Plain text, as the
-  // board draws it: the permalink is the time's 44 hit, so the words are
-  // no sub-44 phone target. The live body follows an owner's edit.
-  // docs/design-locks/social-feed-register-lock-v1.md §7
-  if (!body) return null;
+  // Under the header, the words alone (the name sits just above, so no
+  // handle prefix). Wraps; never clamped. Plain text: the permalink is the
+  // time's 44 hit, so the words are no sub-44 phone target. The live body
+  // follows an owner's edit, so a caption written later replaces `empty`.
+  // docs/design-locks/social-feed-cards-lock-v1.md
+  if (!body) return empty;
   return (
     <p data-social-post-caption="" className={className}>
       {body}

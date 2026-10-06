@@ -115,7 +115,9 @@ describe("SocialFeedVideo", () => {
     const disc = css.slice(css.indexOf(".social-feed-play-disc"));
     expect(disc).toContain("::part(center play button)");
     expect(disc).toContain("border-radius: 9999px");
-    expect(disc).toContain("color-mix(in srgb, var(--ink) 42%, transparent)");
+    // The band at 72% (cards lock: the same values as the static disc; the
+    // old rule read the undefined var(--ink)), pinned in the cards lock test.
+    expect(disc).toContain("var(--band)");
     const chromeless = renderToStaticMarkup(
       createElement(SocialFeedVideo, {
         item: { url: "https://image.mux.com/abc12345/thumbnail.webp", playbackId: "abc12345xx" },

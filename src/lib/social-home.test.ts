@@ -8,8 +8,9 @@ import {
   SOCIAL_HOME_STACK_ORDER,
   socialChecklistIncomplete,
   socialChecklistItems,
+  socialHomeStoryRailHasTiles,
 } from "./social-home";
-import { SOCIAL_COMPOSER_CLASS } from "./social-chrome";
+import { SOCIAL_COMPOSER_CLASS, SOCIAL_FEED_CARD_SURFACE_CLASS } from "./social-chrome";
 import {
   isStoryLive,
   oldestLiveStoryId,
@@ -26,8 +27,19 @@ describe("Social Home stack lock", () => {
   it("locks slider → stories → composer → topics → wall on phone and desktop", () => {
     expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_slider_stories_composer_topics_wall");
     expect(SOCIAL_HOME_STACK_ORDER).toEqual(["slider", "stories", "composer", "topics", "wall"]);
-    // One 44 row, no bar: no height, fill, radius or rule of its own.
-    expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)(?:bg-|rounded)/);
+    // Cards lock: the composer is a card (the card face), no rule of its own.
+    expect(SOCIAL_COMPOSER_CLASS).toContain(SOCIAL_FEED_CARD_SURFACE_CLASS);
+    expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)border-[by]?(?:\s|$)/);
+  });
+
+  it("keeps the stories at the top whenever the rail has a tile (founder 2026-10-06, cards lock)", () => {
+    // The member's own Create story is a tile: alone, it still draws the rail.
+    expect(socialHomeStoryRailHasTiles({ canCreate: true, cards: 0 })).toBe(true);
+    expect(socialHomeStoryRailHasTiles({ canCreate: true, cards: 4 })).toBe(true);
+    // Someone else's story with no profile to create with.
+    expect(socialHomeStoryRailHasTiles({ canCreate: false, cards: 1 })).toBe(true);
+    // Only no tile at all draws nothing (no empty card).
+    expect(socialHomeStoryRailHasTiles({ canCreate: false, cards: 0 })).toBe(false);
   });
 });
 

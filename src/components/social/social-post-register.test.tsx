@@ -1,7 +1,9 @@
-// H · Posts (founder 2026-10-05, approving the H boards: "I like the
-// designs. Let's use them."): the post face everywhere SocialPostCard
-// renders. One assertion group per decision in the lock's §7 (G9–G14).
-// docs/design-locks/social-feed-register-lock-v1.md §7
+// Cards · posts (founder 2026-10-06, Direction B: "B."; "notice how every
+// single facebook post type is clearly in its own surface?"): the post
+// face everywhere SocialPostCard renders. One assertion group per gate of
+// the cards lock (C1, C3–C5, C7, C9); the exact class values are pinned
+// once in src/lib/social-feed-cards-lock.test.ts and referenced here.
+// docs/design-locks/social-feed-cards-lock-v1.md
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -34,31 +36,36 @@ vi.mock("next/dynamic", () => ({
 
 import { SOCIAL } from "@/lib/social";
 import {
+  SOCIAL_CARD_FILL_CLASS,
+  SOCIAL_FEED_CARD_CLASS,
   SOCIAL_FEED_CAROUSEL_DOTS_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
-  SOCIAL_POST_CAPTION_CLASS,
-  SOCIAL_POST_CLASS,
+  SOCIAL_IN_CARD_FILL_CLASS,
+  SOCIAL_POST_ACTIONS_CLASS,
+  SOCIAL_POST_AVATAR_EMPTY_CLASS,
+  SOCIAL_POST_COMMENTS_CLASS,
   SOCIAL_POST_COUNT_CHIP_CLASS,
   SOCIAL_POST_COUNT_CLASS,
+  SOCIAL_POST_GROUP_CLASS,
+  SOCIAL_POST_HEAD_CLASS,
   SOCIAL_POST_MEDIA_CLASS,
+  SOCIAL_POST_MEDIA_UNAVAILABLE_CLASS,
+  SOCIAL_POST_META_CLASS,
+  SOCIAL_POST_META_DOT_CLASS,
   SOCIAL_POST_MORE_CLASS,
   SOCIAL_POST_NAME_CLASS,
-  SOCIAL_POST_ROUND_CARD_CLASS,
+  SOCIAL_POST_PLAY_DISC_CLASS,
   SOCIAL_POST_ROUND_CLASS,
   SOCIAL_POST_ROUND_GLYPH,
-  SOCIAL_POST_ROUND_IN_GROUP_CARD_CLASS,
+  SOCIAL_POST_ROUND_IN_GROUP_CLASS,
   SOCIAL_POST_SCREEN_CLASS,
-  SOCIAL_POST_SCREEN_HEAD_CLASS,
-  SOCIAL_POST_TEXT_BODY_CLASS,
-  SOCIAL_POST_TEXT_CARD_CLASS,
   SOCIAL_POST_TIME_CLASS,
   SOCIAL_POST_TOPIC_CHIP_CLASS,
-  socialPostActionsClass,
-  socialPostAvatarEmptyClass,
-  socialPostFootClass,
+  SOCIAL_POST_WORDS_CLASS,
   socialPostKind,
 } from "@/lib/social-chrome";
 import type { SocialPostCardModel } from "@/lib/social-author-post-card";
+import { SocialIcon } from "./social-icon";
 import { SocialPostCard } from "./social-post-card";
 import { SocialPostMedia } from "./social-post-media";
 import { SocialPostWallSkeleton } from "./social-skeletons";
@@ -67,7 +74,8 @@ dynamicRegistry.resolve = (source) =>
   source.includes("social-post-media") ? (SocialPostMedia as never) : null;
 
 const tokens = readFileSync("src/app/tokens.css", "utf8");
-const globals = readFileSync("src/app/globals.css", "utf8");
+
+const MUX_ID = "uNbxnGLKJ00yfbijDO8COxT";
 
 function post(overrides: Partial<SocialPostCardModel> = {}): SocialPostCardModel {
   return {
@@ -90,8 +98,10 @@ function post(overrides: Partial<SocialPostCardModel> = {}): SocialPostCardModel
   };
 }
 
-function render(model: SocialPostCardModel): string {
-  return renderToStaticMarkup(<SocialPostCard post={model} />);
+function render(model: SocialPostCardModel, comments: string | null = null): string {
+  return renderToStaticMarkup(
+    <SocialPostCard post={model} comments={comments ? <p data-test-comments="">{comments}</p> : null} />,
+  );
 }
 
 function hasClass(classes: string, cls: string): boolean {
@@ -104,18 +114,103 @@ function openTag(html: string, attr: string): string {
   return html.slice(html.lastIndexOf("<", at), html.indexOf(">", at) + 1);
 }
 
-describe("H · Posts (founder 2026-10-05)", () => {
-  it("G9: a photo fills the column at its true shape (1.91:1 … 4:5) at radius 24 with no card or frame", () => {
+/** Every kind the Feed draws, as the loaders hand it to the card. */
+const KINDS: Array<[string, SocialPostCardModel]> = [
+  ["text", post({ media: [], topic: null })],
+  ["photo", post()],
+  [
+    "swipe",
+    post({
+      media: [
+        { kind: "image", url: "a", width: 1080, height: 1350 },
+        { kind: "image", url: "b" },
+        { kind: "image", url: "c" },
+      ],
+    }),
+  ],
+  ["landscape video", post({ media: [{ kind: "video", url: "", playbackId: MUX_ID, width: 1920, height: 1080 }] })],
+  ["vertical video", post({ media: [{ kind: "video", url: "", playbackId: MUX_ID, width: 1080, height: 1920 }] })],
+  ["group", post({ media: [], topic: null, groupSlug: "writers-room", groupName: "Writers' Room" })],
+  ["owned", post({ owned: true })],
+];
+
+describe("Cards · posts (founder 2026-10-06)", () => {
+  it("C3: every post kind is one card, header on top: header → words → media → actions", () => {
+    for (const [name, model] of KINDS) {
+      const html = render(model);
+      expect(openTag(html, "data-social-post="), name).toContain(`class="${SOCIAL_FEED_CARD_CLASS}"`);
+      const at = (needle: string) => html.indexOf(needle);
+      // The media block: one frame, or the swipe's carousel.
+      const media = Math.max(at("data-social-post-media"), at("data-social-post-carousel="));
+      expect(at("data-social-post-head"), name).toBeGreaterThan(-1);
+      expect(at("data-social-post-head"), name).toBeLessThan(at("data-social-post-caption"));
+      if (model.media.length > 0) {
+        expect(at("data-social-post-caption"), name).toBeLessThan(media);
+        expect(media, name).toBeLessThan(at("data-social-post-actions"));
+      } else {
+        expect(media, name).toBe(-1);
+        expect(at("data-social-post-caption"), name).toBeLessThan(at("data-social-post-actions"));
+      }
+      expect(openTag(html, "data-social-post-head"), name).toContain(`class="${SOCIAL_POST_HEAD_CLASS}"`);
+      expect(openTag(html, "data-social-post-actions"), name).toContain(`class="${SOCIAL_POST_ACTIONS_CLASS}"`);
+    }
+  });
+
+  it("C3: the header — the 40 face, the name as the member link, the meta \"2h · Group\", the owner's ⋯ at its end", () => {
+    const html = render(post({ owned: true, groupSlug: "writers-room", groupName: "Writers' Room" }));
+    const head = html.slice(html.indexOf("data-social-post-head"), html.indexOf("data-social-post-caption"));
+    // The face repeats the member link for a pointer, out of the tab order
+    // and the accessibility tree; the name is the one member link.
+    const memberLinks = head.match(/<a [^>]*href="\/social\/u\/elena"[^>]*>/g) ?? [];
+    expect(memberLinks).toHaveLength(2);
+    expect(memberLinks[0]).toContain('tabindex="-1"');
+    expect(memberLinks[0]).toContain('aria-hidden="true"');
+    expect(memberLinks[1]).toContain(`class="${SOCIAL_POST_NAME_CLASS}"`);
+    expect(memberLinks[1]).not.toMatch(/tabindex|aria-hidden/);
+    expect(head).toContain(">Elena Ruiz</a>");
+    const avatar = openTag(html, "data-social-avatar");
+    for (const cls of ["size-10", "rounded-full", "shrink-0", "overflow-hidden"]) {
+      expect(hasClass(avatar.match(/class="([^"]*)"/)?.[1] ?? "", cls), cls).toBe(true);
+    }
+    // A photo face has no grey behind it.
+    expect(avatar).not.toMatch(/bg-surface/);
+    // The meta: the time (the permalink), an aria-hidden dot, the group.
+    const meta = head.slice(head.indexOf("data-social-post-meta"));
+    expect(openTag(head, "data-social-post-meta")).toContain(`class="${SOCIAL_POST_META_CLASS}"`);
+    expect(meta.indexOf('href="/social/p/p1"')).toBeLessThan(meta.indexOf(`class="${SOCIAL_POST_META_DOT_CLASS}"`));
+    expect(meta).toContain(`<span aria-hidden="true" class="${SOCIAL_POST_META_DOT_CLASS}">·</span>`);
+    expect(openTag(meta, 'href="/social/groups/writers-room"')).toContain(`class="${SOCIAL_POST_GROUP_CLASS}"`);
+    expect(meta).toContain("Writers&#x27; Room</a>");
+    expect(openTag(meta, 'href="/social/p/p1"')).toContain(`class="${SOCIAL_POST_TIME_CLASS}"`);
+    // The owner's ⋯ closes the header; others see none.
+    expect(openTag(head, "data-social-post-owner")).toContain(SOCIAL_POST_MORE_CLASS);
+    expect(head.indexOf("data-social-post-meta")).toBeLessThan(head.indexOf("data-social-post-owner"));
+    expect(render(post())).not.toContain("data-social-post-owner");
+    // No role eyebrow until members choose one.
+    expect(head).not.toContain("uppercase");
+    expect(html).not.toContain("tracking-[0.06em]");
+  });
+
+  it("C3: one words style for a caption and a text body, never clamped; the time is the one permalink", () => {
+    const photo = render(post());
+    const text = render(post({ media: [], topic: null }));
+    expect(socialPostKind([])).toBe("text");
+    for (const html of [photo, text]) {
+      expect(openTag(html, "data-social-post-caption")).toContain(`class="${SOCIAL_POST_WORDS_CLASS}"`);
+      expect(openTag(html, "data-social-post-caption").startsWith("<p ")).toBe(true);
+      expect(html.match(/\shref="\/social\/p\/p1"/g)?.length).toBe(1);
+    }
+    expect(SOCIAL_POST_WORDS_CLASS).not.toMatch(/line-clamp|truncate|text-ellipsis/);
+    // The permalink page draws the time as plain text (no self link).
+    const page = renderToStaticMarkup(<SocialPostCard post={post()} permalink={false} />);
+    expect(page).not.toContain('href="/social/p/p1"');
+    expect(page).toContain("<time ");
+  });
+
+  it("C4: a photo keeps its true shape (1.91:1 … 4:5) inside the card, with the topic chip on it", () => {
     const html = render(post());
     expect(html).toContain('data-social-post-kind="photo"');
-    // The article is no card: no fill, no radius, no border.
-    expect(openTag(html, "data-social-post=")).toContain(`class="${SOCIAL_POST_CLASS}"`);
-    expect(SOCIAL_POST_CLASS).not.toMatch(/bg-|rounded|border|shadow/);
-    // The media block: radius 24 from md; phone meets the viewport at radius 0.
-    expect(openTag(html, "data-social-post-media")).toContain(SOCIAL_POST_MEDIA_CLASS);
-    expect(hasClass(SOCIAL_POST_MEDIA_CLASS, "max-md:-mx-[var(--chrome-gutter)]")).toBe(true);
-    expect(SOCIAL_POST_MEDIA_CLASS).not.toMatch(/(?:^|\s)rounded-|border|shadow-(?!none)/);
-    // True shape: 1200×800 is 3:2; out-of-range shapes hold at the limits.
+    expect(openTag(html, "data-social-post-media")).toContain(`class="${SOCIAL_POST_MEDIA_CLASS}"`);
     expect(openTag(html, "data-social-post-image")).toContain("aspect-ratio:1.5");
     expect(render(post({ media: [{ kind: "image", url: "u", width: 1080, height: 1920 }] }))).toContain(
       "aspect-ratio:0.8",
@@ -124,43 +219,25 @@ describe("H · Posts (founder 2026-10-05)", () => {
       "aspect-ratio:1.91",
     );
     expect(html).not.toContain("min(70vh,560px)");
-  });
-
-  it("G9: the topic and the counter are small chips on the photo (28, the band at 72%, 13 / 500)", () => {
-    const html = render(post());
     const chip = openTag(html, "data-social-post-topic");
     expect(chip).toContain(SOCIAL_POST_TOPIC_CHIP_CLASS);
     expect(html).toContain(">Cinematography</span>");
     for (const cls of ["h-7", "px-2.5", "rounded-full", "bg-band/72", "text-band-ink", "font-medium", "pointer-events-none", "top-4", "left-4"]) {
       expect(hasClass(SOCIAL_POST_TOPIC_CHIP_CLASS, cls), cls).toBe(true);
     }
-    expect(hasClass(SOCIAL_POST_TOPIC_CHIP_CLASS, "text-[length:var(--text-xs)]")).toBe(true);
     expect(hasClass(SOCIAL_POST_COUNT_CHIP_CLASS, "right-4")).toBe(true);
-    expect(hasClass(SOCIAL_POST_COUNT_CHIP_CLASS, "tabular-nums")).toBe(true);
-    // No topic: no chip.
     expect(render(post({ topic: null }))).not.toContain("data-social-post-topic");
-    // Two or more items: one frame at the first still's shape, "1 / 3" on it.
-    const swipe = render(
-      post({
-        media: [
-          { kind: "image", url: "a", width: 1080, height: 1350 },
-          { kind: "image", url: "b" },
-          { kind: "image", url: "c" },
-        ],
-      }),
-    );
+  });
+
+  it("C4: a swipe is one frame at the first still's shape with \"1 / 3\"; the dots stay buttons below md", () => {
+    const swipe = render(KINDS[2]![1]);
     expect(openTag(swipe, "data-social-post-carousel=")).toContain("aspect-ratio:0.8");
     expect(openTag(swipe, "data-social-post-carousel=")).toContain(SOCIAL_POST_MEDIA_CLASS);
     expect(swipe).toContain(SOCIAL_POST_COUNT_CHIP_CLASS);
     expect(swipe).toContain('<span aria-hidden="true">1 / 3</span>');
     expect(swipe).toContain('<span class="sr-only">1 of 3</span>');
-    // The dots are drawn from md. Below md a finger swipes and reads the
-    // chip, but the dots stay buttons in the accessibility tree: visually
-    // hidden (sr-only) until one has keyboard focus, never display:none,
-    // so a keyboard, switch or screen-reader user can change slides.
     const dots = openTag(swipe, "data-social-post-carousel-dots");
     expect(dots).toContain(`class="${SOCIAL_FEED_CAROUSEL_DOTS_CLASS}"`);
-    expect(hasClass(SOCIAL_FEED_CAROUSEL_DOTS_CLASS, "flex")).toBe(true);
     expect(hasClass(SOCIAL_FEED_CAROUSEL_DOTS_CLASS, "max-md:not-focus-within:sr-only")).toBe(true);
     for (const gone of ["hidden", "max-md:hidden", "md:flex", "invisible", "sr-only", "max-md:sr-only"]) {
       expect(hasClass(SOCIAL_FEED_CAROUSEL_DOTS_CLASS, gone), gone).toBe(false);
@@ -174,70 +251,84 @@ describe("H · Posts (founder 2026-10-05)", () => {
     expect(swipe).toContain(">Cinematography</span>");
   });
 
-  it("G10: a video plays on the near-black screen (radius 24) under a band: the topic left, \"Video\" right", () => {
-    const html = render(
-      post({
-        media: [{ kind: "video", url: "", playbackId: "uNbxnGLKJ00yfbijDO8COxT", width: 1920, height: 1080 }],
-      }),
-    );
-    expect(html).toContain('data-social-post-kind="video"');
-    expect(openTag(html, "data-social-post-screen=")).toContain(SOCIAL_POST_SCREEN_CLASS);
-    expect(hasClass(SOCIAL_POST_SCREEN_CLASS, "bg-screen")).toBe(true);
-    expect(openTag(html, "data-social-post-media")).toContain("md:rounded-[var(--radius-xl)]");
-    const head = html.slice(html.indexOf("data-social-post-screen-head"), html.indexOf("data-social-feed-media-frame"));
-    expect(head).toContain(SOCIAL_POST_SCREEN_HEAD_CLASS);
-    expect(head.indexOf("Cinematography")).toBeLessThan(head.indexOf(`>${SOCIAL.post.videoLabel}<`));
-    for (const cls of ["min-h-11", "justify-between", "px-4", "text-band-ink/72", "font-medium"]) {
-      expect(hasClass(SOCIAL_POST_SCREEN_HEAD_CLASS, cls), cls).toBe(true);
+  it("C4: a video sits in the media block — no screen, no band, no \"Video\"; 4:5 … 2.39:1; a static play disc", () => {
+    const landscape = render(KINDS[3]![1]);
+    const vertical = render(KINDS[4]![1]);
+    for (const html of [landscape, vertical]) {
+      expect(html).toContain('data-social-post-kind="video"');
+      expect(openTag(html, "data-social-post-screen=")).toContain(`class="${SOCIAL_POST_SCREEN_CLASS}"`);
+      expect(openTag(html, "data-social-post-media")).toContain(`class="${SOCIAL_POST_MEDIA_CLASS}"`);
+      expect(html).not.toContain("bg-screen");
+      expect(html).not.toContain("data-social-post-screen-head");
+      expect(html).not.toContain(`>${SOCIAL.post.videoLabel}<`);
+      // The disc says "video": aria-hidden, under the player in the DOM.
+      const disc = openTag(html, "data-social-post-play-disc");
+      expect(disc).toContain(`class="${SOCIAL_POST_PLAY_DISC_CLASS}"`);
+      expect(disc).toContain('aria-hidden="true"');
+      expect(html.indexOf("data-social-post-play-disc")).toBeLessThan(html.indexOf("data-social-mux-player"));
+      // The frame, the player and tap-to-immersive stay; the topic chip sits on the media.
+      expect(html).toContain(`data-social-mux-player="${MUX_ID}"`);
+      expect(html).toContain(`aria-label="${SOCIAL.post.viewVideo}"`);
+      expect(html).toContain(">Cinematography</span>");
     }
-    // The existing frame, player and tap-to-immersive stay inside the screen.
-    expect(html).toContain('data-social-feed-video-frame="landscape"');
-    expect(html).toContain('data-social-mux-player="uNbxnGLKJ00yfbijDO8COxT"');
-    expect(html).toContain(`aria-label="${SOCIAL.post.viewVideo}"`);
-    expect(html.indexOf("data-social-post-screen-head")).toBeLessThan(html.indexOf("data-social-mux-player"));
-    // The one new token: the screen, near-black in light, true black in dark.
-    const root = tokens.slice(tokens.indexOf(":root {"), tokens.indexOf("@media (max-width: 767px)"));
-    const dark = tokens.slice(tokens.indexOf(".dark {"));
-    expect(root).toMatch(/--screen:\s*#0f0f0f;/);
-    expect(dark).toMatch(/--screen:\s*#000000;/);
-    expect(globals).toContain("--color-screen: var(--screen);");
+    expect(landscape).toContain('data-social-feed-video-frame="landscape"');
+    expect(openTag(landscape, "data-social-feed-video-frame")).toContain(`aspect-ratio:${1920 / 1080}`);
+    // A 9:16 phone video draws 4:5 (cover-cropped), the whole frame one tap away.
+    expect(vertical).toContain('data-social-feed-video-frame="portrait"');
+    expect(openTag(vertical, "data-social-feed-video-frame")).toContain("aspect-ratio:0.8");
+    expect(vertical).not.toContain("min(70vh");
   });
 
-  it("G11: the credit row sits under the media: the 40 circle, the name 17 / 600, the time 15 quiet — no role line", () => {
-    const html = render(post());
-    expect(html.indexOf("data-social-post-media")).toBeLessThan(html.indexOf("data-social-post-credit"));
-    expect(openTag(html, "data-social-post-credit")).toContain(socialPostFootClass("photo"));
-    expect(hasClass(socialPostFootClass("photo"), "mt-3")).toBe(true);
-    expect(hasClass(socialPostFootClass("photo"), "md:mt-4")).toBe(true);
-    const avatar = openTag(html, "data-social-avatar");
-    for (const cls of ["size-10", "rounded-full", "shrink-0", "overflow-hidden"]) {
-      expect(hasClass(avatar.match(/class="([^"]*)"/)?.[1] ?? "", cls), cls).toBe(true);
+  it("C5: media that cannot draw is dropped in the card; a post left with none is a text card (no words: one quiet line)", () => {
+    // A legacy video: no Mux playback id and no still (the loader's url "").
+    const legacy = render(post({ media: [{ kind: "video", url: "" }] }));
+    expect(legacy).toContain('data-social-post-kind="text"');
+    expect(openTag(legacy, "data-social-post=")).toContain(`class="${SOCIAL_FEED_CARD_CLASS}"`);
+    expect(legacy).not.toContain("data-social-post-screen");
+    expect(legacy).not.toContain("data-social-feed-media-frame");
+    expect(legacy).toContain("Night exterior, take 4.");
+    // Mixed: the still stays, alone in one frame (no swipe of one).
+    const mixed = render(post({ media: [{ kind: "video", url: "" }, { kind: "image", url: "https://cf.example/s.jpg" }] }));
+    expect(mixed).toContain('data-social-post-kind="photo"');
+    expect(mixed).not.toContain("data-social-post-carousel=");
+    expect(mixed).toContain('src="https://cf.example/s.jpg"');
+    // The legacy video is the post's only media and it has no words: one
+    // quiet line in the words' place, between the header and the actions
+    // (never a header and actions around nothing).
+    const bare = render(post({ body: "", media: [{ kind: "video", url: "" }] }));
+    expect(bare).toContain('data-social-post-kind="text"');
+    expect(bare).not.toContain("data-social-post-caption");
+    const line = openTag(bare, "data-social-post-media-unavailable");
+    expect(line).toContain(`class="${SOCIAL_POST_MEDIA_UNAVAILABLE_CLASS}"`);
+    expect(bare).toContain(`>${SOCIAL.post.mediaUnavailable}</p>`);
+    expect(bare.indexOf("data-social-post-head")).toBeLessThan(bare.indexOf("data-social-post-media-unavailable"));
+    expect(bare.indexOf("data-social-post-media-unavailable")).toBeLessThan(bare.indexOf("data-social-post-actions"));
+    // Only then: the words win when there are any; a post that never had
+    // media, or one whose still remains, draws no line.
+    for (const [name, model] of [
+      ["captioned legacy", post({ media: [{ kind: "video", url: "" }] })],
+      ["text, no media", post({ body: "", media: [] })],
+      ["still remains", post({ body: "", media: [{ kind: "video", url: "" }, { kind: "image", url: "https://cf.example/s.jpg" }] })],
+    ] as const) {
+      expect(render(model), name).not.toContain("data-social-post-media-unavailable");
     }
-    // A photo face has no grey behind it.
-    expect(avatar).not.toMatch(/bg-surface/);
-    expect(html).toContain(`<span class="${SOCIAL_POST_NAME_CLASS}">Elena Ruiz</span>`);
-    expect(SOCIAL_POST_NAME_CLASS).toContain("text-[length:var(--text-base)] font-semibold");
-    // The avatar and the name are one 44 link to the member.
-    const author = openTag(html, 'href="/social/u/elena"');
-    expect(author).toContain("min-h-11");
-    expect(html).toContain(SOCIAL_POST_TIME_CLASS);
-    // No role eyebrow until members choose one.
-    const name = html.slice(html.indexOf("data-social-post-name"), html.indexOf("Elena Ruiz"));
-    expect(name).not.toContain("uppercase");
-    expect(html).not.toContain("tracking-[0.06em]");
   });
 
-  it("G12: round grey 40 / 44 actions, glyph 20, 8 apart, counts beside (none at zero), the owner's quiet ⋯", () => {
+  it("C3 / C7: round actions on the in-card fill, a 20 Regular glyph, 8 apart, counts beside (none at zero)", () => {
     const html = render(post({ owned: true }));
-    const actions = html.slice(html.indexOf("data-social-post-actions"), html.indexOf("data-social-post-owner"));
-    expect(openTag(html, "data-social-post-actions")).toContain(socialPostActionsClass("photo"));
-    expect(hasClass(socialPostActionsClass("photo"), "gap-2")).toBe(true);
-    for (const cls of ["size-11", "md:size-10", "rounded-full", "bg-surface-muted", "text-ink"]) {
-      expect(hasClass(SOCIAL_POST_ROUND_CLASS, cls), cls).toBe(true);
-    }
+    const actions = html.slice(html.indexOf("data-social-post-actions"), html.indexOf("</article>"));
     expect(actions).toContain(`class="${SOCIAL_POST_ROUND_CLASS}"`);
+    expect(actions).toContain(`class="${SOCIAL_POST_ROUND_IN_GROUP_CLASS}"`);
+    expect(SOCIAL_POST_ROUND_CLASS).toContain(SOCIAL_IN_CARD_FILL_CLASS);
     expect(SOCIAL_POST_ROUND_GLYPH).toBe(20);
     expect(actions.match(/width="20"/g)?.length).toBe(3);
+    // Regular glyphs: the heart is the default SocialIcon (Regular), not Bold.
+    const path = (svg: string) => svg.match(/<path d="[^"]*"/)?.[0] ?? "missing";
+    const regular = path(renderToStaticMarkup(<SocialIcon name="heart" size={20} />));
+    const bold = path(renderToStaticMarkup(<SocialIcon name="heart" size={20} weight="bold" />));
+    expect(regular).not.toBe(bold);
+    expect(actions).toContain(regular);
+    expect(actions).not.toContain(bold);
     // Like · Comment · Share, in that order.
     expect(actions.indexOf("data-social-like=")).toBeLessThan(actions.indexOf("data-social-comment-open"));
     expect(actions.indexOf("data-social-comment-open")).toBeLessThan(actions.indexOf("data-social-post-share"));
@@ -250,49 +341,21 @@ describe("H · Posts (founder 2026-10-05)", () => {
     expect(quiet).not.toContain("data-social-like-count");
     expect(quiet).not.toContain("data-social-comment-count");
     expect(quiet).toContain('aria-label="Comment"');
-    // Phone: their own row under the caption, aligned to the name (52).
-    expect(hasClass(socialPostActionsClass("photo"), "pl-[52px]")).toBe(true);
-    expect(hasClass(socialPostActionsClass("photo"), "order-4")).toBe(true);
-    expect(hasClass(socialPostActionsClass("photo"), "md:order-2")).toBe(true);
-    // The owner's ⋯: quiet, outside the trio.
-    expect(openTag(html, "data-social-post-owner")).toContain(SOCIAL_POST_MORE_CLASS);
+    // The owner's ⋯ is in the header, never in the trio.
     expect(actions).not.toContain("data-social-post-owner");
-    expect(render(post())).not.toContain("data-social-post-owner");
   });
 
-  it("G13: the caption is 17 / 420 ink-2 under the credit, never clamped; a text post is the soft grey card at 20 / 480", () => {
-    const html = render(post());
-    expect(openTag(html, "data-social-post-caption")).toContain(SOCIAL_POST_CAPTION_CLASS);
-    // Plain words (as drawn); the permalink is the time's 44 hit.
-    expect(openTag(html, "data-social-post-caption").startsWith("<p ")).toBe(true);
-    expect(openTag(html, "data-social-post-time").startsWith("<time ")).toBe(true);
-    const permalink = html.match(/<a [^>]*href="\/social\/p\/p1"[^>]*>/)?.[0] ?? "";
-    expect(permalink).toContain(SOCIAL_POST_TIME_CLASS);
-    // One link to the permalink (the article's data hook aside).
-    expect(html.match(/\shref="\/social\/p\/p1"/g)?.length).toBe(1);
-    expect(html.indexOf("data-social-post-credit")).toBeLessThan(html.indexOf("data-social-post-caption"));
-    for (const cls of ["mt-2", "pl-[52px]", "text-ink-2", "md:text-[length:var(--text-base)]", "whitespace-pre-wrap", "break-words"]) {
-      expect(hasClass(SOCIAL_POST_CAPTION_CLASS, cls), cls).toBe(true);
-    }
-    expect(SOCIAL_POST_CAPTION_CLASS).not.toMatch(/line-clamp|truncate|text-ellipsis|font-semibold/);
-    const text = render(post({ media: [], topic: null }));
-    expect(socialPostKind([])).toBe("text");
-    expect(openTag(text, "data-social-post=")).toContain(SOCIAL_POST_TEXT_CARD_CLASS);
-    for (const cls of ["bg-surface-muted", "rounded-[var(--radius-xl)]", "p-4", "md:p-6"]) {
-      expect(hasClass(SOCIAL_POST_TEXT_CARD_CLASS, cls), cls).toBe(true);
-    }
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toMatch(/border|shadow/);
-    expect(openTag(text, "data-social-post-caption")).toContain(SOCIAL_POST_TEXT_BODY_CLASS);
-    for (const cls of ["text-[length:var(--text-lg)]", "[font-weight:var(--type-title-weight)]", "leading-[1.4]", "tracking-[-0.02em]", "text-ink"]) {
-      expect(hasClass(SOCIAL_POST_TEXT_BODY_CLASS, cls), cls).toBe(true);
-    }
-    // Rounds on the grey card are the page white.
-    expect(text).toContain(`class="${SOCIAL_POST_ROUND_CARD_CLASS}"`);
-    expect(hasClass(SOCIAL_POST_ROUND_CARD_CLASS, "bg-surface")).toBe(true);
-    expect(text).not.toContain("data-social-post-media");
+  it("C3: the permalink's comments (and Profile's \"You commented\") sit inside the card under the actions", () => {
+    const html = render(post(), "Lesssgoooooo!");
+    const article = html.slice(html.indexOf("<article"), html.indexOf("</article>"));
+    expect(article).toContain(
+      `<div data-social-post-comments="" class="${SOCIAL_POST_COMMENTS_CLASS}"><p data-test-comments="">Lesssgoooooo!</p></div>`,
+    );
+    expect(article.indexOf("data-social-post-actions")).toBeLessThan(article.indexOf("data-social-post-comments"));
+    expect(render(post())).not.toContain("data-social-post-comments");
   });
 
-  it("G13: on the grey card the rounds and the empty avatar sit lighter than the card in light and dark (the board's onMuted)", () => {
+  it("C1: every in-card control sits lighter than the card, and the card lifts off the page, in light and dark", () => {
     const root = tokens.slice(tokens.indexOf(":root {"), tokens.indexOf("@media (max-width: 767px)"));
     const darkBlock = tokens.slice(tokens.indexOf(".dark {"));
     const block = { light: root, dark: darkBlock } as const;
@@ -311,46 +374,40 @@ describe("H · Posts (founder 2026-10-05)", () => {
       });
       return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
     }
-    const onCard: Array<[string, string]> = [
-      ["Like / Share round", SOCIAL_POST_ROUND_CARD_CLASS],
-      ["Comment round", SOCIAL_POST_ROUND_IN_GROUP_CARD_CLASS],
-      ["empty avatar", socialPostAvatarEmptyClass("card")],
+    const inCard: Array<[string, string]> = [
+      ["Like / Share round", SOCIAL_POST_ROUND_CLASS],
+      ["Comment round", SOCIAL_POST_ROUND_IN_GROUP_CLASS],
+      ["empty avatar", SOCIAL_POST_AVATAR_EMPTY_CLASS],
     ];
     for (const theme of ["light", "dark"] as const) {
-      const card = fill(SOCIAL_POST_TEXT_CARD_CLASS, theme);
-      for (const [name, cls] of onCard) {
+      const card = fill(SOCIAL_CARD_FILL_CLASS, theme);
+      for (const [name, cls] of inCard) {
         expect(luminance(fill(cls, theme)), `${theme}: ${name} lighter than the card`).toBeGreaterThan(luminance(card));
       }
+      const page = block[theme].match(/--bg:\s*(#[0-9a-fA-F]{6});/)?.[1]?.toLowerCase() ?? "missing bg";
+      if (theme === "light") expect(luminance(card), "light: the grey card under the white canvas").toBeLessThan(luminance(page));
+      else expect(luminance(card), "dark: the card above the page").toBeGreaterThan(luminance(page));
     }
-    // The board's values, in existing tokens: light card muted under surface
-    // rounds; dark card surface under muted rounds. The hex values are pinned
-    // once in src/app/tokens.test.ts.
-    const tokenHex = (theme: "light" | "dark", token: string) =>
-      block[theme].match(new RegExp(`--${token}:\\s*(#[0-9a-fA-F]{6});`))?.[1]?.toLowerCase();
-    expect(fill(SOCIAL_POST_TEXT_CARD_CLASS, "light")).toBe(tokenHex("light", "surface-muted"));
-    expect(fill(SOCIAL_POST_ROUND_CARD_CLASS, "light")).toBe(tokenHex("light", "surface"));
-    expect(fill(SOCIAL_POST_TEXT_CARD_CLASS, "dark")).toBe(tokenHex("dark", "surface"));
-    expect(fill(SOCIAL_POST_ROUND_CARD_CLASS, "dark")).toBe(tokenHex("dark", "surface-muted"));
-    // Off the card nothing remaps: page rounds are muted in both themes.
-    expect(SOCIAL_POST_ROUND_CLASS).not.toContain("dark:");
-    expect(socialPostAvatarEmptyClass("page")).toBe("bg-surface-muted");
-    // Rendered: a text post with no photo carries the card's classes.
+    // Rendered: a text post with no photo carries the in-card fill on its rounds and empty face.
     const text = render(post({ media: [], topic: null, authorPhotoUrl: null }));
-    expect(openTag(text, "data-social-post=")).toContain(SOCIAL_POST_TEXT_CARD_CLASS);
-    expect(text).toContain(`class="${SOCIAL_POST_ROUND_CARD_CLASS}"`);
-    expect(text).toContain(`class="${SOCIAL_POST_ROUND_IN_GROUP_CARD_CLASS}"`);
-    expect(openTag(text, "data-social-avatar")).toContain(socialPostAvatarEmptyClass("card"));
+    expect(text).toContain(`class="${SOCIAL_POST_ROUND_CLASS}"`);
+    expect(text).toContain(`class="${SOCIAL_POST_ROUND_IN_GROUP_CLASS}"`);
+    expect(openTag(text, "data-social-avatar")).toContain(SOCIAL_POST_AVATAR_EMPTY_CLASS);
   });
 
-  it("G14: the wall is 24 / 48 and the wall skeleton uses the live post classes", () => {
+  it("C9: the wall skeleton draws the live card in the live order", () => {
     const skeleton = renderToStaticMarkup(<SocialPostWallSkeleton />);
     expect(skeleton).toContain(`class="${SOCIAL_FEED_GUTTER_CLASS}"`);
-    expect(skeleton.match(/data-social-post-skeleton/g)?.length).toBe(3);
-    expect(skeleton).toContain(`class="${SOCIAL_POST_MEDIA_CLASS}"`);
+    const cards = skeleton.match(/<div data-social-post-skeleton="" class="[^"]*"/g) ?? [];
+    expect(cards).toHaveLength(3);
+    for (const card of cards) expect(card).toContain(`class="${SOCIAL_FEED_CARD_CLASS}"`);
+    const first = skeleton.slice(skeleton.indexOf("data-social-post-skeleton"));
+    const at = (cls: string) => first.indexOf(`class="${cls}"`);
+    expect(at(SOCIAL_POST_HEAD_CLASS)).toBeGreaterThan(-1);
+    expect(at(SOCIAL_POST_HEAD_CLASS)).toBeLessThan(at(SOCIAL_POST_MEDIA_CLASS));
+    expect(at(SOCIAL_POST_MEDIA_CLASS)).toBeLessThan(at(SOCIAL_POST_ACTIONS_CLASS));
     expect(skeleton).toContain("aspect-[4/5]");
-    expect(skeleton).toContain(socialPostFootClass("photo"));
-    expect(skeleton).toContain(socialPostActionsClass("photo"));
-    // Three posts, each with the three round actions.
+    // Three cards, each with the three live rounds.
     expect(skeleton.match(/md:size-10/g)?.length).toBe(9);
   });
 });

@@ -493,18 +493,29 @@ html:has([data-social-feed-immersive]) [data-house-phone-bottom-nav] {
   object-fit: cover;
 }
 
-/* Quiet disc behind the paused play glyph. Phone Mux center control
-   ships transparent — a naked glyph on the still. 48 is the on-scale
-   disc. !important beats the player shadow rule that paints a solid
-   disc only above its small breakpoint.
-   docs/design-locks/social-home-craft-wave-1-lock-v1.md */
+/* The play disc on the mounted player's paused centre control, drawn to
+   the same values as the static disc every feed video shows before the
+   player mounts (SOCIAL_POST_PLAY_DISC_CLASS): the band at 72%, 48 on
+   phone, 56 from md, a 24 glyph. The old rule read var(--ink), which no
+   token defines, so the player fell back to its own default fill.
+   !important beats the player shadow rule that paints a solid disc
+   only above its small breakpoint.
+   docs/design-locks/social-feed-cards-lock-v1.md */
 .social-feed-play-disc mux-player::part(center play button) {
-  --media-control-background: color-mix(in srgb, var(--ink) 42%, transparent) !important;
-  --media-control-hover-background: color-mix(in srgb, var(--ink) 55%, transparent) !important;
+  --media-control-background: color-mix(in srgb, var(--band) 72%, transparent) !important;
+  --media-control-hover-background: color-mix(in srgb, var(--band) 84%, transparent) !important;
   border-radius: 9999px !important;
   width: 48px !important;
   height: 48px !important;
   padding: 12px !important;
+}
+
+@media (min-width: 48rem) {
+  .social-feed-play-disc mux-player::part(center play button) {
+    width: 56px !important;
+    height: 56px !important;
+    padding: 16px !important;
+  }
 }
 
 /* Adam lock 2026-09-25. Feed carousel slide: the same Media Immersion

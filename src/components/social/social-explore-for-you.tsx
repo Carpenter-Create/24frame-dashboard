@@ -247,7 +247,7 @@ function SocialExploreForYouSlide({
           className={cn(SOCIAL_POST_ACTION_HIT_CLASS, "text-band-ink")}
           onClick={onToggleMute}
         >
-          <SocialIcon name={muted ? "speaker-slash" : "speaker-high"} size={20} />
+          <SocialIcon weight="bold" name={muted ? "speaker-slash" : "speaker-high"} size={20} />
         </button>
         {item.canLike ? (
           <SocialLikeButton
@@ -260,6 +260,7 @@ function SocialExploreForYouSlide({
         ) : (
           <span className={cn(SOCIAL_POST_ACTION_HIT_CLASS, "text-band-ink")}>
             <SocialIcon
+              weight="bold"
               name="heart"
               size={SOCIAL_POST_ACTION_GLYPH}
               className={SOCIAL_POST_ACTION_HEART_NUDGE_CLASS}

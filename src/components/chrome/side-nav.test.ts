@@ -38,12 +38,11 @@ describe("SideNav Access rail", () => {
   // Coinbase register (Adam 2026-10-05, "I like the designs. Let's use
   // them."): 56 pill rows, a 24 glyph in a 24 slot, 16 to a 17 / 500
   // label, 8 apart, pad 16; collapsed 56 circles. No tiles.
-  it("uses 56 pill rows at 17 / 500 with a 24 Phosphor glyph, 8 apart — no icon tiles", () => {
+  it("uses 56 pill rows with a 24 Phosphor glyph, 8 apart — no icon tiles", () => {
     expect(navSrc).toContain("HOUSE_DEST_RAIL_ROW_CLASS");
     expect(navSrc).toContain("HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS");
-    expect(HOUSE_DEST_RAIL_ROW_CLASS).toBe(
-      "relative flex min-h-14 w-full items-center gap-[var(--space-4)] rounded-full px-[var(--space-4)] text-left text-[length:var(--text-base)] font-medium transition-colors",
-    );
+    // The row (56, 15 / 500 since the cards lock, founder 2026-10-06) is
+    // pinned in src/lib/social-feed-cards-lock.test.ts.
     expect(HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS).toBe(
       "relative flex size-14 shrink-0 items-center justify-center rounded-full transition-colors",
     );

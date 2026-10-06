@@ -6,7 +6,7 @@ import { PAGE_LEAD_STACK_CLASS } from "@/components/ui/page-header";
 import { socialAvatarHref, socialMediaProxies } from "@/lib/social-edge";
 import { SOCIAL, socialPersonLabel } from "@/lib/social";
 import { normalizeSocialCategory } from "@/lib/social-categories";
-import { SOCIAL_FEED_GUTTER_CLASS, SOCIAL_PAGE_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_POST_PAGE_CLASS } from "@/lib/social-chrome";
 import {
   loadGroupsByIds,
   loadLikedPostIds,
@@ -28,7 +28,7 @@ export default async function SocialPostPage({
 
   if (!post) {
     return (
-      <div data-social-post-missing="" className={SOCIAL_PAGE_CLASS}>
+      <div data-social-post-missing="" className={SOCIAL_POST_PAGE_CLASS}>
         <div className={PAGE_LEAD_STACK_CLASS}>
           <SocialPostBack />
           <h1 className="t-title text-ink">{SOCIAL.post.title}</h1>
@@ -50,43 +50,46 @@ export default async function SocialPostPage({
   const group = post.group_id ? groups.get(post.group_id) : null;
 
   return (
-    <div data-social-post-detail="" className={SOCIAL_PAGE_CLASS}>
+    <div data-social-post-detail="" className={SOCIAL_POST_PAGE_CLASS}>
       <div className={PAGE_LEAD_STACK_CLASS}>
         <SocialPostBack />
         <h1 className="t-title text-ink">{SOCIAL.post.title}</h1>
       </div>
-      <div className={SOCIAL_FEED_GUTTER_CLASS}>
-        <SocialPostCard
-          permalink={false}
-          post={{
-            id: post.id,
-            body: post.body,
-            likeCount: post.like_count,
-            commentCount: post.comment_count,
-            liked: liked.has(post.id),
-            createdAt: post.created_at,
-            authorId: post.author_id,
-            authorHandle: author?.handle ?? null,
-            authorName: socialPersonLabel({
-              handle: author?.handle ?? "",
-              displayName: author?.display_name,
-            }),
-            authorPhotoUrl: photoUrl,
-            groupSlug: group?.slug ?? null,
-            groupName: group?.name ?? null,
-            canLike: !!profile,
-            owned: post.author_id === ctx.user.id,
-            topic: normalizeSocialCategory(post.category),
-            media,
-          }}
-        />
-      </div>
-      <SocialCommentThread
-        postId={post.id}
-        groupSlug={group?.slug}
-        canComment={!!profile}
-        commentCount={post.comment_count}
-        variant="page"
+      {/* Cards lock: the post is one card in the Feed's 600 column, its
+          comment thread inside the card under the actions.
+          docs/design-locks/social-feed-cards-lock-v1.md */}
+      <SocialPostCard
+        permalink={false}
+        post={{
+          id: post.id,
+          body: post.body,
+          likeCount: post.like_count,
+          commentCount: post.comment_count,
+          liked: liked.has(post.id),
+          createdAt: post.created_at,
+          authorId: post.author_id,
+          authorHandle: author?.handle ?? null,
+          authorName: socialPersonLabel({
+            handle: author?.handle ?? "",
+            displayName: author?.display_name,
+          }),
+          authorPhotoUrl: photoUrl,
+          groupSlug: group?.slug ?? null,
+          groupName: group?.name ?? null,
+          canLike: !!profile,
+          owned: post.author_id === ctx.user.id,
+          topic: normalizeSocialCategory(post.category),
+          media,
+        }}
+        comments={
+          <SocialCommentThread
+            postId={post.id}
+            groupSlug={group?.slug}
+            canComment={!!profile}
+            commentCount={post.comment_count}
+            variant="page"
+          />
+        }
       />
     </div>
   );

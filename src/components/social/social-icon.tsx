@@ -85,11 +85,14 @@ export function SocialIcon({
   name,
   active = false,
   size = 20,
+  weight = "regular",
   className,
 }: {
   name: SocialPhosphorIconName;
   active?: boolean;
   size?: number;
+  /** Regular on the light canvas and cards; "bold" opt-in on media and the dark stage. */
+  weight?: "regular" | "bold";
   className?: string;
 }) {
   const Icon = ICONS[name];
@@ -99,7 +102,7 @@ export function SocialIcon({
       data-social-icon-active={active ? "" : undefined}
       className={className}
       size={size}
-      weight={active ? "fill" : "bold"}
+      weight={active ? "fill" : weight}
     />
   );
 }

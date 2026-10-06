@@ -153,7 +153,7 @@ export function SocialFeedImmersive({
         className={SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS}
         onClick={onClose}
       >
-        <SocialIcon name="x" size={22} />
+        <SocialIcon weight="bold" name="x" size={22} />
       </button>
       {item.kind === "video" ? (
         <button
@@ -164,7 +164,7 @@ export function SocialFeedImmersive({
           className={SOCIAL_FEED_IMMERSIVE_MUTE_CLASS}
           onClick={() => setMuted((value) => !value)}
         >
-          <SocialIcon name={muted ? "speaker-slash" : "speaker-high"} size={20} />
+          <SocialIcon weight="bold" name={muted ? "speaker-slash" : "speaker-high"} size={20} />
         </button>
       ) : null}
       <div data-social-feed-immersive-dock="" className={SOCIAL_FEED_IMMERSIVE_DOCK_CLASS}>
@@ -204,7 +204,7 @@ export function SocialFeedImmersive({
             />
           ) : (
             <span className={cn(SOCIAL_POST_ACTION_HIT_CLASS, "text-band-ink")}>
-              <SocialIcon name="heart" size={SOCIAL_POST_ACTION_GLYPH} />
+              <SocialIcon weight="bold" name="heart" size={SOCIAL_POST_ACTION_GLYPH} />
             </span>
           )}
           <SocialCommentTrigger
