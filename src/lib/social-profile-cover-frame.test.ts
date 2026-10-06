@@ -11,8 +11,13 @@ import {
 import {
   COVER_FOCUS_CENTER,
   COVER_FRAME_ASPECT,
+  COVER_GRID_COLUMNS,
+  COVER_GRID_ROWS,
   COVER_KEY_NUDGE_PX,
   COVER_KEY_NUDGE_SHIFT,
+  COVER_NUDGE_DIRECTIONS,
+  COVER_NUDGE_REPEAT_DELAY_MS,
+  COVER_NUDGE_REPEAT_MS,
   COVER_PHONE_ASPECT,
   COVER_SLACK_MIN_PX,
   COVER_ZOOM_KEY_STEP,
@@ -23,6 +28,7 @@ import {
   COVER_ZOOM_WHEEL_RATE,
   type CoverFocus,
   type CoverImageSize,
+  type CoverNudgeDirection,
   clampCoverZoom,
   coverBandOverflow,
   coverCenteredRegion,
@@ -34,6 +40,8 @@ import {
   coverHasSlack,
   coverKeyDelta,
   coverMaxZoom,
+  coverNudgeBlocked,
+  coverNudgeDelta,
   coverPhoneSafeRegion,
   coverPinchZoom,
   coverPointerDistance,
@@ -776,5 +784,125 @@ describe("parseCoverCrop — server check of the stored framing", () => {
       }
     }
     expect(refused).toEqual([]);
+  });
+});
+
+// docs/design-locks/social-profile-cover-grid-nudge-lock-v1.md
+describe("cover nudge pad", () => {
+  const KEYS: Record<CoverNudgeDirection, string> = {
+    left: "ArrowLeft",
+    up: "ArrowUp",
+    down: "ArrowDown",
+    right: "ArrowRight",
+  };
+
+  it("steps exactly as its arrow key does, in pad order, with the hold timings", () => {
+    expect(COVER_NUDGE_DIRECTIONS).toEqual(["left", "up", "down", "right"]);
+    for (const direction of COVER_NUDGE_DIRECTIONS) {
+      expect(coverNudgeDelta(direction)).toEqual(coverKeyDelta(KEYS[direction], false));
+    }
+    expect(coverNudgeDelta("left")).toEqual({ x: -COVER_KEY_NUDGE_PX, y: 0 });
+    expect(COVER_NUDGE_REPEAT_DELAY_MS).toBe(350);
+    expect(COVER_NUDGE_REPEAT_MS).toBe(70);
+  });
+
+  it("moves the image the way its arrow points", () => {
+    const image = { width: 1920, height: 1080 };
+    const start = coverZoomTo(COVER_FOCUS_CENTER, 1.5, image);
+    const box = (focus: CoverFocus) => {
+      const preview = coverPreviewBox(focus, image)!;
+      return { left: parseFloat(preview.marginLeft), top: parseFloat(preview.marginTop) };
+    };
+    const step = (direction: CoverNudgeDirection) => box(moveCoverFocus(start, coverNudgeDelta(direction), image, 366));
+    expect(step("left").left).toBeLessThan(box(start).left);
+    expect(step("right").left).toBeGreaterThan(box(start).left);
+    expect(step("up").top).toBeLessThan(box(start).top);
+    expect(step("down").top).toBeGreaterThan(box(start).top);
+    expect(step("left").top).toBeCloseTo(box(start).top, 9);
+    expect(step("up").left).toBeCloseTo(box(start).left, 9);
+  });
+
+  it("blocks a direction at that edge, or on an axis with no slack", () => {
+    const blocked = (focus: CoverFocus, image: CoverImageSize) =>
+      COVER_NUDGE_DIRECTIONS.filter((direction) => coverNudgeBlocked(focus, image, direction));
+    // 16:9 at zoom 1 fills the frame's width: only up and down move it.
+    const wide = { width: 1920, height: 1080 };
+    expect(blocked(COVER_FOCUS_CENTER, wide)).toEqual(["left", "right"]);
+    // Moving up pushes focus toward 1, so focus 1 is the top edge's stop.
+    expect(blocked({ x: 0.5, y: 1, zoom: 1 }, wide)).toEqual(["left", "up", "right"]);
+    expect(blocked({ x: 0.5, y: 0, zoom: 1 }, wide)).toEqual(["left", "down", "right"]);
+    // The 1584×396 banner only drags sideways.
+    const banner = { width: 1584, height: 396 };
+    expect(blocked(COVER_FOCUS_CENTER, banner)).toEqual(["up", "down"]);
+    expect(blocked({ x: 0, y: 0.5, zoom: 1 }, banner)).toEqual(["up", "down", "right"]);
+    expect(blocked({ x: 1, y: 0.5, zoom: 1 }, banner)).toEqual(["left", "up", "down"]);
+    // An exact 16:7 photo cannot move at zoom 1, and can in every direction once zoomed.
+    const exact = { width: 2400, height: 1050 };
+    expect(blocked(COVER_FOCUS_CENTER, exact)).toEqual([...COVER_NUDGE_DIRECTIONS]);
+    expect(blocked(coverZoomTo(COVER_FOCUS_CENTER, 1.5, exact), exact)).toEqual([]);
+    // Before the original's size is known, nothing nudges.
+    expect(blocked(COVER_FOCUS_CENTER, { width: 0, height: 0 })).toEqual([...COVER_NUDGE_DIRECTIONS]);
+  });
+
+  it("held nudges walk to the edge and stop there, never past the image", () => {
+    for (const image of IMAGES) {
+      for (const width of WIDTHS) {
+        for (const zoom of [1, 1.5]) {
+          for (const direction of COVER_NUDGE_DIRECTIONS) {
+            let focus = coverZoomTo(COVER_FOCUS_CENTER, zoom, image);
+            let steps = 0;
+            while (!coverNudgeBlocked(focus, image, direction) && steps < 2000) {
+              focus = moveCoverFocus(focus, coverNudgeDelta(direction), image, width);
+              steps += 1;
+            }
+            // Every hold ends: the edge (or no slack) blocks the button.
+            expect(coverNudgeBlocked(focus, image, direction)).toBe(true);
+            expect(steps).toBeLessThan(2000);
+            // One more step changes nothing, and the window stays inside the original.
+            expect(moveCoverFocus(focus, coverNudgeDelta(direction), image, width)).toEqual(focus);
+            const rect = coverCropRect(focus, image);
+            expect(parseCoverCrop(rect)).toEqual(rect);
+            expect(rect.x + rect.w).toBeLessThanOrEqual(1);
+            expect(rect.y + rect.h).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("cover framing grid", () => {
+  it("draws the rule of thirds over the whole 16:7 frame", () => {
+    // Column band: its side edges are the vertical lines at 1/3 and 2/3.
+    expect(COVER_GRID_COLUMNS.x).toBeCloseTo(1 / 3, 12);
+    expect(COVER_GRID_COLUMNS.x + COVER_GRID_COLUMNS.w).toBeCloseTo(2 / 3, 12);
+    expect(COVER_GRID_COLUMNS.y).toBe(0);
+    expect(COVER_GRID_COLUMNS.h).toBe(1);
+    // Row band: its top and bottom edges are the horizontal lines at 1/3 and 2/3.
+    expect(COVER_GRID_ROWS.y).toBeCloseTo(1 / 3, 12);
+    expect(COVER_GRID_ROWS.y + COVER_GRID_ROWS.h).toBeCloseTo(2 / 3, 12);
+    expect(COVER_GRID_ROWS.x).toBe(0);
+    expect(COVER_GRID_ROWS.w).toBe(1);
+  });
+
+  it("places both bands with in-flow margins, the row's top scaled by 7/16", () => {
+    expect(coverRegionStyle(COVER_GRID_COLUMNS)).toEqual({
+      marginLeft: "33.3333%",
+      marginTop: "0%",
+      width: "33.3333%",
+      height: "100%",
+    });
+    expect(coverRegionStyle(COVER_GRID_ROWS)).toEqual({
+      marginLeft: "0%",
+      marginTop: "14.5833%",
+      width: "100%",
+      height: "33.3333%",
+    });
+    // A percentage margin resolves against the frame's width: at 720 the
+    // 315-tall frame's first horizontal line sits 105 down.
+    for (const frameWidth of WIDTHS) {
+      const top = (parseFloat(coverRegionStyle(COVER_GRID_ROWS).marginTop) / 100) * frameWidth;
+      expect(top).toBeCloseTo(frameWidth / COVER_FRAME_ASPECT / 3, 1);
+    }
   });
 });

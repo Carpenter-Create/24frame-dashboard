@@ -224,6 +224,48 @@ export function coverKeyDelta(key: string, shift: boolean): { x: number; y: numb
   return null;
 }
 
+/** Nudge pad buttons, in on-screen order. Each moves the image, as a drag or arrow key does. */
+export const COVER_NUDGE_DIRECTIONS = ["left", "up", "down", "right"] as const;
+export type CoverNudgeDirection = (typeof COVER_NUDGE_DIRECTIONS)[number];
+
+/** Hold on a nudge button: one step at once, then repeats after the delay at the interval. */
+export const COVER_NUDGE_REPEAT_DELAY_MS = 350;
+export const COVER_NUDGE_REPEAT_MS = 70;
+
+const COVER_NUDGE_KEY: Record<CoverNudgeDirection, string> = {
+  left: "ArrowLeft",
+  up: "ArrowUp",
+  down: "ArrowDown",
+  right: "ArrowRight",
+};
+
+/** A nudge button step: exactly its arrow key's step (COVER_KEY_NUDGE_PX band px). */
+export function coverNudgeDelta(direction: CoverNudgeDirection): { x: number; y: number } {
+  return coverKeyDelta(COVER_NUDGE_KEY[direction], false) ?? { x: 0, y: 0 };
+}
+
+/**
+ * True when a nudge this way cannot move the image: that axis has no slack
+ * at this zoom, or the image already sits at that edge (moveCoverFocus
+ * moves focus against the delta, so moving left stops at focus 1). Slack
+ * is judged in the crop view, as coverHasSlack does for the drag hint.
+ */
+export function coverNudgeBlocked(
+  focus: CoverFocus,
+  image: CoverImageSize,
+  direction: CoverNudgeDirection,
+): boolean {
+  if (!validSize(image)) return true;
+  const overflow = coverBandOverflow(image, COVER_CROP_VIEW_WIDTH, focus.zoom);
+  const delta = coverNudgeDelta(direction);
+  if (delta.x !== 0) {
+    if (overflow.x <= 0) return true;
+    return delta.x < 0 ? clamp01(focus.x) >= 1 : clamp01(focus.x) <= 0;
+  }
+  if (overflow.y <= 0) return true;
+  return delta.y < 0 ? clamp01(focus.y) >= 1 : clamp01(focus.y) <= 0;
+}
+
 /**
  * + or = zooms in, - zooms out, by COVER_ZOOM_KEY_STEP (Shift × 4). On a US
  * layout Shift+= is "+" and Shift+- is "_", so those are the Shift steps.
@@ -425,6 +467,15 @@ export function coverCenteredRegion(frameAspect: number, boxAspect: number): Cov
 export function coverPhoneSafeRegion(): CoverRegion {
   return coverCenteredRegion(COVER_FRAME_ASPECT, COVER_PHONE_ASPECT);
 }
+
+/**
+ * Rule-of-thirds grid over the 16:7 frame while framing: the middle column
+ * band (its side edges are the vertical lines) and the middle row band (its
+ * top and bottom edges are the horizontal lines). Frame space, like the
+ * phone outline: no zoom or focus input, so the lines stay put.
+ */
+export const COVER_GRID_COLUMNS: Readonly<CoverRegion> = { x: 1 / 3, y: 0, w: 1 / 3, h: 1 };
+export const COVER_GRID_ROWS: Readonly<CoverRegion> = { x: 0, y: 1 / 3, w: 1, h: 1 / 3 };
 
 /**
  * In-flow box for a region inside its frame, for an unpositioned item that

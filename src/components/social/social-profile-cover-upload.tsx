@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -31,11 +31,17 @@ import {
 } from "@/lib/social-profile-cover";
 import {
   COVER_FOCUS_CENTER,
+  COVER_GRID_COLUMNS,
+  COVER_GRID_ROWS,
+  COVER_NUDGE_DIRECTIONS,
+  COVER_NUDGE_REPEAT_DELAY_MS,
+  COVER_NUDGE_REPEAT_MS,
   COVER_ZOOM_MIN,
   COVER_ZOOM_STEP,
   type CoverFocus,
   type CoverFraming,
   type CoverImageSize,
+  type CoverNudgeDirection,
   type CoverPoint,
   coverCropFrame,
   coverCropRect,
@@ -43,6 +49,8 @@ import {
   coverEditorHint,
   coverFocusFromCrop,
   coverMaxZoom,
+  coverNudgeBlocked,
+  coverNudgeDelta,
   coverPhoneSafeRegion,
   coverPinchZoom,
   coverPointerDistance,
@@ -71,8 +79,13 @@ import {
   SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS,
   SOCIAL_PROFILE_COVER_EDIT_CLASS,
   SOCIAL_PROFILE_COVER_EDIT_LABEL_CLASS,
+  SOCIAL_PROFILE_COVER_GRID_COLUMNS_CLASS,
+  SOCIAL_PROFILE_COVER_GRID_ROWS_CLASS,
   SOCIAL_PROFILE_COVER_MENU_CLASS,
   SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS,
+  SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS,
+  SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS,
+  SOCIAL_PROFILE_COVER_NUDGE_CLASS,
   SOCIAL_PROFILE_COVER_PHONE_LABEL_CLASS,
   SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
   SOCIAL_PROFILE_COVER_PILL_ANCHOR_CLASS,
@@ -84,7 +97,11 @@ import {
   SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS,
 } from "@/lib/social-chrome";
 import { socialMediaKindFor } from "@/lib/social-media";
-import { SOCIAL_ICON_SIZE_COVER_EDIT, SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
+import {
+  SOCIAL_ICON_SIZE_COVER_EDIT,
+  SOCIAL_ICON_SIZE_HEADER,
+  SOCIAL_PROFILE_COVER_NUDGE_ICONS,
+} from "@/lib/social-icons";
 import { patchSocialProfileOptimistic } from "@/lib/social-profile-edit";
 
 type CoverMode = "idle" | "menu" | "reposition";
@@ -110,6 +127,12 @@ type CoverEditSource = "picked" | "stored";
 // frame space, not image space: the phone shows a fixed part of the saved
 // crop, so the outline stays put while the image zooms and pans under it.
 const PHONE_SAFE = coverRegionStyle(coverPhoneSafeRegion());
+
+// docs/design-locks/social-profile-cover-grid-nudge-lock-v1.md — the
+// rule-of-thirds grid is frame space too: the column and row bands whose
+// edges are the lines, fixed while the image moves under them.
+const GRID_COLUMNS = coverRegionStyle(COVER_GRID_COLUMNS);
+const GRID_ROWS = coverRegionStyle(COVER_GRID_ROWS);
 export function SocialProfileCoverUpload({
   coverUrl,
   coverFraming = null,
@@ -141,6 +164,12 @@ export function SocialProfileCoverUpload({
   // The focus the running gesture last set, so a finger joining or leaving
   // continues from it rather than from a render that has not landed yet.
   const gestureFocus = useRef<CoverFocus | null>(null);
+  // Nudge pad hold: the repeat timer and the direction held. pointerNudged
+  // marks a press that already stepped, so the click after it does not step again.
+  const nudgeTimer = useRef<number | null>(null);
+  const nudgeHeld = useRef<CoverNudgeDirection | null>(null);
+  const pointerNudged = useRef(false);
+  const nudgeLabelId = useId();
   const [trail, setTrail] = useState<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -267,6 +296,44 @@ export function SocialProfileCoverUpload({
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [changeFocus, mode, repositionSize, uploading]);
+
+  const stopNudge = useCallback(() => {
+    if (nudgeTimer.current !== null) window.clearTimeout(nudgeTimer.current);
+    nudgeTimer.current = null;
+    nudgeHeld.current = null;
+  }, []);
+
+  // One nudge pad step: its arrow key's step, measured on the drag surface
+  // (band px) and applied through changeFocus, so a drag held on the surface
+  // re-anchors at it. moveCoverFocus clamps, so it never leaves an empty edge.
+  const nudge = useCallback(
+    (direction: CoverNudgeDirection) => {
+      const el = surfaceRef.current;
+      if (!el || !repositionSize || uploading) return;
+      const size = repositionSize;
+      const delta = coverNudgeDelta(direction);
+      const width = el.getBoundingClientRect().width;
+      changeFocus((current) => moveCoverFocus(current, delta, size, width));
+    },
+    [changeFocus, repositionSize, uploading],
+  );
+
+  // A hold ends when the editor closes, Save starts, or the image reaches
+  // that edge: the button disables then, so its pointerup may never arrive.
+  useEffect(() => {
+    const held = nudgeHeld.current;
+    if (!held) return;
+    if (
+      mode !== "reposition" ||
+      uploading ||
+      !repositionSize ||
+      coverNudgeBlocked(focus, repositionSize, held)
+    ) {
+      stopNudge();
+    }
+  }, [focus, mode, repositionSize, stopNudge, uploading]);
+
+  useEffect(() => stopNudge, [stopNudge]);
 
   useEffect(() => {
     const input = fileRef.current;
@@ -650,6 +717,35 @@ export function SocialProfileCoverUpload({
     changeFocus((current) => moveCoverFocus(current, delta, size, width));
   }
 
+  // Press: one step now, then repeat while held. Release, cancel or leaving
+  // the button stops it.
+  function onNudgePointerDown(direction: CoverNudgeDirection, e: React.PointerEvent<HTMLButtonElement>) {
+    if (!e.isPrimary || e.button !== 0) return;
+    pointerNudged.current = true;
+    stopNudge();
+    nudgeHeld.current = direction;
+    nudge(direction);
+    const repeat = () => {
+      nudge(direction);
+      nudgeTimer.current = window.setTimeout(repeat, COVER_NUDGE_REPEAT_MS);
+    };
+    nudgeTimer.current = window.setTimeout(repeat, COVER_NUDGE_REPEAT_DELAY_MS);
+  }
+
+  // Enter / Space and assistive-tech activation arrive as a click with no
+  // press before it: one step. A click after a press already stepped.
+  function onNudgeClick(direction: CoverNudgeDirection) {
+    if (pointerNudged.current) {
+      pointerNudged.current = false;
+      return;
+    }
+    nudge(direction);
+  }
+
+  function onNudgeKeyDown() {
+    pointerNudged.current = false;
+  }
+
   function onZoomInput(e: React.ChangeEvent<HTMLInputElement>) {
     if (uploading || !repositionSize) return;
     const size = repositionSize;
@@ -667,8 +763,9 @@ export function SocialProfileCoverUpload({
   const hintText =
     hint === "drag" ? SOCIAL.profile.coverDragHint : hint === "zoom" ? SOCIAL.profile.coverZoomHint : null;
 
-  // Nothing paints over the image except the phone outline: the hint, Zoom,
-  // Cancel/Save and errors sit in the trail below the hero.
+  // Nothing paints over the image except the thirds grid and the phone
+  // outline: the hint, Zoom, the nudge pad, Cancel/Save and errors sit in the
+  // trail below the hero.
   const trailContent = (
     <>
       {hintText ? <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{hintText}</p> : null}
@@ -686,6 +783,39 @@ export function SocialProfileCoverUpload({
             onChange={onZoomInput}
           />
         </label>
+      ) : null}
+      {isReposition ? (
+        <div
+          data-social-cover-nudge=""
+          role="group"
+          aria-labelledby={nudgeLabelId}
+          className={SOCIAL_PROFILE_COVER_NUDGE_CLASS}
+        >
+          <span id={nudgeLabelId}>{SOCIAL.profile.coverNudge}</span>
+          <div className={SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS}>
+            {COVER_NUDGE_DIRECTIONS.map((direction) => (
+              <button
+                key={direction}
+                type="button"
+                data-social-cover-nudge-button={direction}
+                aria-label={SOCIAL.profile.coverNudgeLabels[direction]}
+                title={SOCIAL.profile.coverNudgeLabels[direction]}
+                disabled={
+                  uploading || !ready || !repositionSize || coverNudgeBlocked(focus, repositionSize, direction)
+                }
+                className={SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS}
+                onPointerDown={(e) => onNudgePointerDown(direction, e)}
+                onPointerUp={stopNudge}
+                onPointerCancel={stopNudge}
+                onPointerLeave={stopNudge}
+                onKeyDown={onNudgeKeyDown}
+                onClick={() => onNudgeClick(direction)}
+              >
+                <SocialIcon name={SOCIAL_PROFILE_COVER_NUDGE_ICONS[direction]} size={SOCIAL_ICON_SIZE_HEADER} />
+              </button>
+            ))}
+          </div>
+        </div>
       ) : null}
       {isReposition ? (
         <div data-social-cover-actions="" className={SOCIAL_PROFILE_COVER_TRAIL_ACTIONS_CLASS}>
@@ -749,6 +879,18 @@ export function SocialProfileCoverUpload({
               onError={() => setError(SOCIAL.profile.coverCropFailed)}
             />
           ) : null}
+          <div
+            data-social-cover-grid="columns"
+            aria-hidden
+            className={SOCIAL_PROFILE_COVER_GRID_COLUMNS_CLASS}
+            style={GRID_COLUMNS}
+          />
+          <div
+            data-social-cover-grid="rows"
+            aria-hidden
+            className={SOCIAL_PROFILE_COVER_GRID_ROWS_CLASS}
+            style={GRID_ROWS}
+          />
           <div
             data-social-cover-phone-outline=""
             className={SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS}

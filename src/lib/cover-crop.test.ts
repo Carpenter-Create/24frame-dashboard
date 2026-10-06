@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+
+import { SocialIcon } from "@/components/social/social-icon";
 
 import {
   clampRectCropOffset,
@@ -20,10 +24,16 @@ import { SOCIAL } from "./social";
 import {
   SOCIAL_PROFILE_COVER_DRAG_CLASS,
   SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS,
+  SOCIAL_PROFILE_COVER_GRID_COLUMNS_CLASS,
+  SOCIAL_PROFILE_COVER_GRID_ROWS_CLASS,
+  SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS,
+  SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS,
+  SOCIAL_PROFILE_COVER_NUDGE_CLASS,
   SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
   SOCIAL_PROFILE_COVER_ZOOM_CLASS,
   SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS,
 } from "./social-chrome";
+import { SOCIAL_PROFILE_COVER_NUDGE_ICONS } from "./social-icons";
 import { SOCIAL_IMAGE_MAX_BYTES } from "./social-media";
 
 describe("rectangular cover crop math", () => {
@@ -673,5 +683,186 @@ describe("clearSocialProfileCover action", () => {
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
     expect(actions).toContain("clearSocialProfileCover");
     expect(actions).toContain("cover_key: null, cover_source_key: null, cover_crop: null");
+  });
+});
+
+// docs/design-locks/social-profile-cover-grid-nudge-lock-v1.md
+describe("cover editor grid and nudge pad", () => {
+  const src = readFileSync("src/components/social/social-profile-cover-upload.tsx", "utf8");
+  const slice = (from: string, to: string) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from)));
+  const POSITIONED = /^(?:[\w-]+:)*(?:absolute|relative|fixed|sticky|-?inset-|-?z-|-?top-|-?left-)/;
+
+  it("draws the thirds grid in the drag surface only, between the preview and the phone outline", () => {
+    const surface = slice("ref={surfaceRef}", "{trail ? createPortal");
+    const columns = surface.indexOf('data-social-cover-grid="columns"');
+    const rows = surface.indexOf('data-social-cover-grid="rows"');
+    expect(columns).toBeGreaterThan(surface.indexOf("className={SOCIAL_PROFILE_COVER_DRAG_IMAGE_CLASS}"));
+    expect(rows).toBeGreaterThan(columns);
+    expect(surface.indexOf("data-social-cover-phone-outline")).toBeGreaterThan(rows);
+    // Only inside the editor's surface: the idle hero has no grid.
+    expect(src.split("data-social-cover-grid=").length - 1).toBe(2);
+    expect(src.indexOf("data-social-cover-grid=")).toBeGreaterThan(src.indexOf("{isReposition ? ("));
+    expect(src.indexOf("data-social-cover-grid=")).toBeGreaterThan(src.indexOf("ref={surfaceRef}"));
+    const grid = surface.slice(columns, surface.indexOf("data-social-cover-phone-outline"));
+    expect(grid).toContain("className={SOCIAL_PROFILE_COVER_GRID_COLUMNS_CLASS}");
+    expect(grid).toContain("className={SOCIAL_PROFILE_COVER_GRID_ROWS_CLASS}");
+    expect(grid).toContain("style={GRID_COLUMNS}");
+    expect(grid).toContain("style={GRID_ROWS}");
+    expect((grid.match(/aria-hidden/g) ?? []).length).toBe(2);
+    // Frame space: module constants from the lib regions, never zoom, focus or the preview box.
+    for (const decl of [
+      "const GRID_COLUMNS = coverRegionStyle(COVER_GRID_COLUMNS);",
+      "const GRID_ROWS = coverRegionStyle(COVER_GRID_ROWS);",
+    ]) {
+      expect(src.indexOf(decl)).toBeGreaterThan(-1);
+      expect(src.indexOf(decl)).toBeLessThan(src.indexOf("export function SocialProfileCoverUpload("));
+    }
+    expect(grid).not.toMatch(/focus|preview|zoom/i);
+  });
+
+  it("grid lines: a band-ink rule beside a band hairline, in flow, never dimming", () => {
+    for (const [cls, borders] of [
+      [SOCIAL_PROFILE_COVER_GRID_COLUMNS_CLASS, "border-x"],
+      [SOCIAL_PROFILE_COVER_GRID_ROWS_CLASS, "border-y"],
+    ] as const) {
+      const tokens = cls.split(/\s+/);
+      expect(tokens).toEqual(
+        expect.arrayContaining([
+          "[grid-area:1/1]",
+          "pointer-events-none",
+          "self-start",
+          "justify-self-start",
+          borders,
+          "border-band-ink/30",
+          "outline",
+          "outline-1",
+          "outline-band/20",
+        ]),
+      );
+      for (const token of tokens) expect(token).not.toMatch(POSITIONED);
+      expect(cls).not.toMatch(/\bbg-|opacity-|shadow-|ring-|#[0-9a-f]{3,8}\b/i);
+    }
+  });
+
+  it("puts the nudge pad in the trail between Zoom and Cancel/Save, labelled from lib copy", () => {
+    const trail = slice("const trailContent", "return (");
+    const at = (needle: string) => trail.indexOf(needle);
+    expect(at("data-social-cover-nudge=")).toBeGreaterThan(at("data-social-cover-zoom"));
+    expect(at("data-social-cover-nudge=")).toBeLessThan(at("data-social-cover-actions"));
+    expect(src.indexOf("data-social-cover-nudge=")).toBeGreaterThan(src.indexOf("const trailContent"));
+    const pad = trail.slice(at("data-social-cover-nudge="), at("data-social-cover-actions"));
+    expect(pad).toContain('role="group"');
+    expect(pad).toContain("aria-labelledby={nudgeLabelId}");
+    expect(pad).toContain("<span id={nudgeLabelId}>{SOCIAL.profile.coverNudge}</span>");
+    expect(pad).toContain("className={SOCIAL_PROFILE_COVER_NUDGE_CLASS}");
+    expect(pad).toContain("className={SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS}");
+    expect(pad).toContain("{COVER_NUDGE_DIRECTIONS.map((direction) => (");
+    expect(pad).toContain('type="button"');
+    expect(pad).toContain("aria-label={SOCIAL.profile.coverNudgeLabels[direction]}");
+    expect(pad).toContain("className={SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS}");
+    expect(pad).toContain("<SocialIcon name={SOCIAL_PROFILE_COVER_NUDGE_ICONS[direction]}");
+    // Held while Save runs and before the original decodes; an arrow greys out at its edge.
+    expect(pad).toMatch(
+      /disabled=\{\s*uploading \|\| !ready \|\| !repositionSize \|\| coverNudgeBlocked\(focus, repositionSize, direction\)\s*\}/,
+    );
+    expect(pad).toContain("onPointerDown={(e) => onNudgePointerDown(direction, e)}");
+    expect(pad).toContain("onPointerUp={stopNudge}");
+    expect(pad).toContain("onPointerCancel={stopNudge}");
+    expect(pad).toContain("onPointerLeave={stopNudge}");
+    expect(pad).toContain("onKeyDown={onNudgeKeyDown}");
+    expect(pad).toContain("onClick={() => onNudgeClick(direction)}");
+    // Still one line of text in the trail: the hint.
+    expect((trail.match(/<p\b/g) ?? []).length).toBe(1);
+  });
+
+  it("steps like an arrow key on the drag surface, through changeFocus", () => {
+    const step = slice("const nudge = useCallback", "// A hold ends when");
+    expect(step).toContain("const el = surfaceRef.current;");
+    expect(step).toContain("if (!el || !repositionSize || uploading) return;");
+    expect(step).toContain("const delta = coverNudgeDelta(direction);");
+    // Band px are the surface's, not the button's.
+    expect(step).toContain("const width = el.getBoundingClientRect().width;");
+    expect(step).toContain("changeFocus((current) => moveCoverFocus(current, delta, size, width))");
+    expect(step).not.toContain("setFocus(");
+  });
+
+  it("repeats while held and stops on release, at the edge, on Save and on close", () => {
+    const press = slice("function onNudgePointerDown", "// Enter / Space and assistive-tech");
+    expect(press).toContain("if (!e.isPrimary || e.button !== 0) return;");
+    expect(press).toContain("pointerNudged.current = true;");
+    expect(press.indexOf("stopNudge();")).toBeLessThan(press.indexOf("nudge(direction);"));
+    expect(press).toContain("nudgeHeld.current = direction;");
+    expect(press).toContain("window.setTimeout(repeat, COVER_NUDGE_REPEAT_MS)");
+    expect(press).toContain("window.setTimeout(repeat, COVER_NUDGE_REPEAT_DELAY_MS)");
+    const stop = slice("const stopNudge = useCallback", "// One nudge pad step");
+    expect(stop).toContain("window.clearTimeout(nudgeTimer.current)");
+    expect(stop).toContain("nudgeTimer.current = null;");
+    expect(stop).toContain("nudgeHeld.current = null;");
+    const ends = slice("// A hold ends when", "function onDragKeyDown");
+    expect(ends).toContain("const held = nudgeHeld.current;");
+    expect(ends).toMatch(
+      /mode !== "reposition" \|\|\s*uploading \|\|\s*!repositionSize \|\|\s*coverNudgeBlocked\(focus, repositionSize, held\)/,
+    );
+    expect(ends).toContain("stopNudge();");
+    expect(ends).toContain("[focus, mode, repositionSize, stopNudge, uploading]");
+    // Unmount clears a running timer.
+    expect(src).toContain("useEffect(() => stopNudge, [stopNudge]);");
+  });
+
+  it("a click after a press never steps twice; a keyboard click steps once", () => {
+    const click = slice("function onNudgeClick", "function onNudgeKeyDown");
+    const consumed = click.indexOf("if (pointerNudged.current) {");
+    expect(consumed).toBeGreaterThan(-1);
+    expect(click.indexOf("pointerNudged.current = false;")).toBeGreaterThan(consumed);
+    expect(click.indexOf("return;")).toBeGreaterThan(consumed);
+    expect(click.indexOf("nudge(direction);")).toBeGreaterThan(click.indexOf("return;"));
+    const key = slice("function onNudgeKeyDown", "function onZoomInput");
+    expect(key).toContain("pointerNudged.current = false;");
+  });
+
+  it("nudge pad chrome: 44 circles, wraps rather than truncates, tokens only", () => {
+    expect(SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "size-11",
+        "shrink-0",
+        "rounded-full",
+        "border-hairline",
+        "bg-surface",
+        "text-ink",
+        "select-none",
+        "touch-manipulation",
+        "disabled:opacity-60",
+      ]),
+    );
+    expect(SOCIAL_PROFILE_COVER_NUDGE_CLASS.split(/\s+/)).toEqual(
+      expect.arrayContaining(["flex", "flex-wrap", "justify-end", "items-center"]),
+    );
+    expect(SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS.split(/\s+/)).toContain("flex");
+    for (const cls of [
+      SOCIAL_PROFILE_COVER_NUDGE_CLASS,
+      SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS,
+      SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS,
+    ]) {
+      expect(cls).not.toMatch(/truncate|line-clamp|text-ellipsis|overflow-x-|#[0-9a-f]{3,8}\b/i);
+    }
+  });
+
+  it("names each button for what it does and draws its caret", () => {
+    expect(SOCIAL.profile.coverNudge).toBe("Nudge");
+    expect(SOCIAL.profile.coverNudgeLabels).toEqual({
+      left: "Move image left",
+      up: "Move image up",
+      down: "Move image down",
+      right: "Move image right",
+    });
+    expect(SOCIAL_PROFILE_COVER_NUDGE_ICONS).toEqual({
+      left: "caret-left",
+      up: "caret-up",
+      down: "caret-down",
+      right: "caret-right",
+    });
+    for (const name of Object.values(SOCIAL_PROFILE_COVER_NUDGE_ICONS)) {
+      expect(renderToStaticMarkup(createElement(SocialIcon, { name }))).toContain(`data-social-icon="${name}"`);
+    }
   });
 });

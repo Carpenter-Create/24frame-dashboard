@@ -867,6 +867,14 @@ export const SOCIAL = {
     // A photo that already fits the 16:7 frame exactly cannot move until it is zoomed in.
     coverZoomHint: "Zoom in to reposition image",
     coverZoom: "Zoom",
+    // Nudge pad label and its buttons' names, by direction (cover grid + nudge lock).
+    coverNudge: "Nudge",
+    coverNudgeLabels: {
+      left: "Move image left",
+      up: "Move image up",
+      down: "Move image down",
+      right: "Move image right",
+    },
     coverSaveChanges: "Save changes",
     coverCancel: "Cancel",
     coverCropFailed: "Could not crop cover photo.",

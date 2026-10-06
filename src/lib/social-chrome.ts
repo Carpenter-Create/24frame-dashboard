@@ -697,6 +697,21 @@ export const SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS =
 export const SOCIAL_PROFILE_COVER_PHONE_LABEL_CLASS =
   "m-2 rounded-full bg-band/75 px-2 py-0.5 text-[length:var(--text-xs)] font-medium text-band-ink";
 
+// Rule-of-thirds grid while framing (social-profile-cover-grid-nudge-lock-v1):
+// two boxes in the same grid cell as the preview, placed inline from
+// COVER_GRID_COLUMNS / COVER_GRID_ROWS through coverRegionStyle. The column
+// box's side borders are the vertical lines, the row box's top and bottom
+// borders the horizontal ones. Each line is a band-ink rule (border) beside a
+// band hairline (outline), so it reads on bright and dark photos; the outline
+// along the frame's own edges falls outside the cell and is clipped. In flow,
+// never positioned (the focus ring paints over them, G10); pointer-events-none
+// so a drag goes straight through. Nothing is dimmed.
+export const SOCIAL_PROFILE_COVER_GRID_COLUMNS_CLASS =
+  "pointer-events-none self-start justify-self-start border-x border-band-ink/30 outline outline-1 outline-band/20 [grid-area:1/1]";
+
+export const SOCIAL_PROFILE_COVER_GRID_ROWS_CLASS =
+  "pointer-events-none self-start justify-self-start border-y border-band-ink/30 outline outline-1 outline-band/20 [grid-area:1/1]";
+
 // Owner trail under the hero: the cover editor's hint, Zoom slider,
 // Cancel/Save and errors, and the inline avatar crop, portal here. Never
 // over the image. Empty (hidden) unless one of them is showing.
@@ -710,6 +725,19 @@ export const SOCIAL_PROFILE_COVER_ZOOM_CLASS =
 
 export const SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS =
   "h-11 min-w-0 flex-1 md:max-w-[240px] cursor-pointer accent-accent disabled:cursor-default disabled:opacity-60";
+
+// Nudge pad in the trail, between Zoom and Cancel/Save: a visible label and
+// four circles in one row. Wraps under the label rather than truncate on a
+// narrow phone.
+export const SOCIAL_PROFILE_COVER_NUDGE_CLASS =
+  "pointer-events-auto flex w-full flex-wrap items-center justify-end gap-[var(--space-3)] t-body-sm text-ink-2";
+
+export const SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS = "flex gap-[var(--space-2)]";
+
+// 44 circles, the touch floor. select-none and touch-manipulation keep a
+// held press from selecting text or waiting on double-tap zoom.
+export const SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS =
+  "inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-hairline bg-surface text-ink select-none touch-manipulation enabled:hover:bg-surface-muted disabled:cursor-default disabled:opacity-60";
 
 // Editor copy in the trail.
 export const SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS =
