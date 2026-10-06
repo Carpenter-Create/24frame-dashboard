@@ -136,7 +136,7 @@ No new token and no new hex. `--screen` (the register lock's one new token) is n
 7. The unusable-media rule runs once in the card, not in each loader, so every renderer gets it.
 8. Comment times are ink-2 in the sheet as well as in the card.
 9. The Feed skeleton draws the member's state (§5). The one state it cannot match is **no profile**: `ensureOwnSocialProfile` returns none only when it cannot create the row (an insert error, or eight handle collisions). There the live page draws no composer and, unless a followee has a live story, no stories card, so the page moves up when it mounts. The fallback cannot know this state: the profile loads inside the suspended Feed center, the session carries no profile bit, and `loading.tsx` has no data. Waiting for the profile before the fallback would block the stream for every member to suit a failure path. The composer skeleton has behaved the same way since before this lock.
-10. The "Media unavailable" line shows only when the post had media, none of it can draw, and the words are empty. A captioned post whose media all dropped stays a plain text card (its words are its content).
+10. The "Media unavailable" line shows only when the post had media, none of it can draw, and the words are empty. A captioned post whose media all dropped stays a plain text card (its words are its content). Its owner can still clear that caption: the owner menu counts the stored media, as the server does, so the line comes back.
 
 ## Explicit OUT
 

@@ -180,7 +180,7 @@ export function SocialPostCard({
           <SocialPostOwnerMenu
             postId={post.id}
             body={post.body}
-            hasMedia={kind !== "text"}
+            hasMedia={post.media.length > 0}
             groupSlug={post.groupSlug}
           />
         ) : null}
