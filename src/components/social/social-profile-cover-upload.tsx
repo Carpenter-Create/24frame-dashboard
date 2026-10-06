@@ -34,28 +34,28 @@ import {
   COVER_GRID_COLUMNS,
   COVER_GRID_ROWS,
   COVER_NUDGE_DIRECTIONS,
-  COVER_NUDGE_REPEAT_DELAY_MS,
-  COVER_NUDGE_REPEAT_MS,
+  COVER_STEP_REPEAT_DELAY_MS,
+  COVER_STEP_REPEAT_MS,
   COVER_ZOOM_MIN,
   COVER_ZOOM_STEP,
   type CoverFocus,
   type CoverFraming,
   type CoverImageSize,
-  type CoverNudgeDirection,
   type CoverPoint,
+  type CoverStepControl,
   coverCropFrame,
   coverCropRect,
   coverDragKeyAction,
   coverEditorHint,
   coverFocusFromCrop,
   coverMaxZoom,
-  coverNudgeBlocked,
-  coverNudgeDelta,
   coverPhoneSafeRegion,
   coverPinchZoom,
   coverPointerDistance,
   coverPreviewBox,
   coverRegionStyle,
+  coverStepBlocked,
+  coverStepFocus,
   coverWheelZoom,
   coverZoomTo,
   moveCoverFocus,
@@ -64,6 +64,7 @@ import {
   coverMenuClosesOnDocumentPress,
   coverRepositionAction,
   coverTrailTarget,
+  coverZoomText,
   nextCoverPillMode,
 } from "@/lib/social-profile-cover-menu";
 import {
@@ -83,24 +84,25 @@ import {
   SOCIAL_PROFILE_COVER_GRID_ROWS_CLASS,
   SOCIAL_PROFILE_COVER_MENU_CLASS,
   SOCIAL_PROFILE_COVER_MENU_ITEM_CLASS,
-  SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS,
-  SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS,
   SOCIAL_PROFILE_COVER_NUDGE_CLASS,
   SOCIAL_PROFILE_COVER_PHONE_LABEL_CLASS,
   SOCIAL_PROFILE_COVER_PHONE_OUTLINE_CLASS,
   SOCIAL_PROFILE_COVER_PILL_ANCHOR_CLASS,
+  SOCIAL_PROFILE_COVER_STEP_BUTTON_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_ACTIONS_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_BUTTON_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_NOTICE_CLASS,
   SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS,
   SOCIAL_PROFILE_COVER_ZOOM_CLASS,
+  SOCIAL_PROFILE_COVER_ZOOM_CONTROLS_CLASS,
   SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS,
+  SOCIAL_PROFILE_COVER_ZOOM_VALUE_CLASS,
 } from "@/lib/social-chrome";
 import { socialMediaKindFor } from "@/lib/social-media";
 import {
   SOCIAL_ICON_SIZE_COVER_EDIT,
   SOCIAL_ICON_SIZE_HEADER,
-  SOCIAL_PROFILE_COVER_NUDGE_ICONS,
+  SOCIAL_PROFILE_COVER_STEP_ICONS,
 } from "@/lib/social-icons";
 import { patchSocialProfileOptimistic } from "@/lib/social-profile-edit";
 
@@ -164,12 +166,13 @@ export function SocialProfileCoverUpload({
   // The focus the running gesture last set, so a finger joining or leaving
   // continues from it rather than from a render that has not landed yet.
   const gestureFocus = useRef<CoverFocus | null>(null);
-  // Nudge pad hold: the repeat timer and the direction held. pointerNudged
-  // marks a press that already stepped, so the click after it does not step again.
-  const nudgeTimer = useRef<number | null>(null);
-  const nudgeHeld = useRef<CoverNudgeDirection | null>(null);
-  const pointerNudged = useRef(false);
-  const nudgeLabelId = useId();
+  // Step button hold (arrows and zoom − / +): the repeat timer and the
+  // button held. pointerStepped marks a press that already stepped, so the
+  // click after it does not step again.
+  const stepTimer = useRef<number | null>(null);
+  const stepHeld = useRef<CoverStepControl | null>(null);
+  const pointerStepped = useRef(false);
+  const zoomLabelId = useId();
   const [trail, setTrail] = useState<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -297,43 +300,44 @@ export function SocialProfileCoverUpload({
     return () => el.removeEventListener("wheel", onWheel);
   }, [changeFocus, mode, repositionSize, uploading]);
 
-  const stopNudge = useCallback(() => {
-    if (nudgeTimer.current !== null) window.clearTimeout(nudgeTimer.current);
-    nudgeTimer.current = null;
-    nudgeHeld.current = null;
+  const stopStep = useCallback(() => {
+    if (stepTimer.current !== null) window.clearTimeout(stepTimer.current);
+    stepTimer.current = null;
+    stepHeld.current = null;
   }, []);
 
-  // One nudge pad step: its arrow key's step, measured on the drag surface
-  // (band px) and applied through changeFocus, so a drag held on the surface
-  // re-anchors at it. moveCoverFocus clamps, so it never leaves an empty edge.
-  const nudge = useCallback(
-    (direction: CoverNudgeDirection) => {
+  // One step button press: an arrow moves its arrow key's step, measured on
+  // the drag surface (band px); − / + zoom the - / + key's step. Applied
+  // through changeFocus, so a drag held on the surface re-anchors at it.
+  // Both clamp, so a step never leaves an empty edge.
+  const stepCover = useCallback(
+    (control: CoverStepControl) => {
       const el = surfaceRef.current;
       if (!el || !repositionSize || uploading) return;
       const size = repositionSize;
-      const delta = coverNudgeDelta(direction);
       const width = el.getBoundingClientRect().width;
-      changeFocus((current) => moveCoverFocus(current, delta, size, width));
+      changeFocus((current) => coverStepFocus(current, size, control, width));
     },
     [changeFocus, repositionSize, uploading],
   );
 
-  // A hold ends when the editor closes, Save starts, or the image reaches
-  // that edge: the button disables then, so its pointerup may never arrive.
+  // A hold ends when the editor closes, Save starts, or the button can do no
+  // more (an edge, zoom 1, the max zoom): it disables then, so its pointerup
+  // may never arrive.
   useEffect(() => {
-    const held = nudgeHeld.current;
+    const held = stepHeld.current;
     if (!held) return;
     if (
       mode !== "reposition" ||
       uploading ||
       !repositionSize ||
-      coverNudgeBlocked(focus, repositionSize, held)
+      coverStepBlocked(focus, repositionSize, held)
     ) {
-      stopNudge();
+      stopStep();
     }
-  }, [focus, mode, repositionSize, stopNudge, uploading]);
+  }, [focus, mode, repositionSize, stopStep, uploading]);
 
-  useEffect(() => stopNudge, [stopNudge]);
+  useEffect(() => stopStep, [stopStep]);
 
   useEffect(() => {
     const input = fileRef.current;
@@ -719,31 +723,31 @@ export function SocialProfileCoverUpload({
 
   // Press: one step now, then repeat while held. Release, cancel or leaving
   // the button stops it.
-  function onNudgePointerDown(direction: CoverNudgeDirection, e: React.PointerEvent<HTMLButtonElement>) {
+  function onStepPointerDown(control: CoverStepControl, e: React.PointerEvent<HTMLButtonElement>) {
     if (!e.isPrimary || e.button !== 0) return;
-    pointerNudged.current = true;
-    stopNudge();
-    nudgeHeld.current = direction;
-    nudge(direction);
+    pointerStepped.current = true;
+    stopStep();
+    stepHeld.current = control;
+    stepCover(control);
     const repeat = () => {
-      nudge(direction);
-      nudgeTimer.current = window.setTimeout(repeat, COVER_NUDGE_REPEAT_MS);
+      stepCover(control);
+      stepTimer.current = window.setTimeout(repeat, COVER_STEP_REPEAT_MS);
     };
-    nudgeTimer.current = window.setTimeout(repeat, COVER_NUDGE_REPEAT_DELAY_MS);
+    stepTimer.current = window.setTimeout(repeat, COVER_STEP_REPEAT_DELAY_MS);
   }
 
   // Enter / Space and assistive-tech activation arrive as a click with no
   // press before it: one step. A click after a press already stepped.
-  function onNudgeClick(direction: CoverNudgeDirection) {
-    if (pointerNudged.current) {
-      pointerNudged.current = false;
+  function onStepClick(control: CoverStepControl) {
+    if (pointerStepped.current) {
+      pointerStepped.current = false;
       return;
     }
-    nudge(direction);
+    stepCover(control);
   }
 
-  function onNudgeKeyDown() {
-    pointerNudged.current = false;
+  function onStepKeyDown() {
+    pointerStepped.current = false;
   }
 
   function onZoomInput(e: React.ChangeEvent<HTMLInputElement>) {
@@ -762,59 +766,63 @@ export function SocialProfileCoverUpload({
   const coverLabel = hasCover ? SOCIAL.profile.editCover : SOCIAL.profile.addCover;
   const hintText =
     hint === "drag" ? SOCIAL.profile.coverDragHint : hint === "zoom" ? SOCIAL.profile.coverZoomHint : null;
+  const zoomText = coverZoomText(focus.zoom);
+
+  // Icon-only step buttons: the arrow pad and zoom − / +. The name is the
+  // aria-label (and tooltip); no visible words.
+  const stepButton = (control: CoverStepControl) => (
+    <button
+      key={control}
+      type="button"
+      data-social-cover-step={control}
+      aria-label={SOCIAL.profile.coverStepLabels[control]}
+      title={SOCIAL.profile.coverStepLabels[control]}
+      disabled={uploading || !ready || !repositionSize || coverStepBlocked(focus, repositionSize, control)}
+      className={SOCIAL_PROFILE_COVER_STEP_BUTTON_CLASS}
+      onPointerDown={(e) => onStepPointerDown(control, e)}
+      onPointerUp={stopStep}
+      onPointerCancel={stopStep}
+      onPointerLeave={stopStep}
+      onKeyDown={onStepKeyDown}
+      onClick={() => onStepClick(control)}
+    >
+      <SocialIcon name={SOCIAL_PROFILE_COVER_STEP_ICONS[control]} size={SOCIAL_ICON_SIZE_HEADER} />
+    </button>
+  );
 
   // Nothing paints over the image except the thirds grid and the phone
-  // outline: the hint, Zoom, the nudge pad, Cancel/Save and errors sit in the
-  // trail below the hero.
+  // outline: the hint, Zoom with − / +, the arrow pad, Cancel/Save and
+  // errors sit in the trail below the hero.
   const trailContent = (
     <>
       {hintText ? <p className={SOCIAL_PROFILE_COVER_TRAIL_TEXT_CLASS}>{hintText}</p> : null}
       {isReposition ? (
-        <label data-social-cover-zoom="" className={SOCIAL_PROFILE_COVER_ZOOM_CLASS}>
-          <span>{SOCIAL.profile.coverZoom}</span>
-          <input
-            type="range"
-            min={COVER_ZOOM_MIN}
-            max={maxZoom}
-            step={COVER_ZOOM_STEP}
-            value={focus.zoom}
-            disabled={uploading || !ready || maxZoom <= COVER_ZOOM_MIN}
-            className={SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS}
-            onChange={onZoomInput}
-          />
-        </label>
+        <div data-social-cover-zoom="" className={SOCIAL_PROFILE_COVER_ZOOM_CLASS}>
+          <span id={zoomLabelId}>{SOCIAL.profile.coverZoom}</span>
+          <span aria-hidden className={SOCIAL_PROFILE_COVER_ZOOM_VALUE_CLASS}>
+            {zoomText}
+          </span>
+          <div className={SOCIAL_PROFILE_COVER_ZOOM_CONTROLS_CLASS}>
+            {stepButton("out")}
+            <input
+              type="range"
+              aria-labelledby={zoomLabelId}
+              aria-valuetext={zoomText}
+              min={COVER_ZOOM_MIN}
+              max={maxZoom}
+              step={COVER_ZOOM_STEP}
+              value={focus.zoom}
+              disabled={uploading || !ready || maxZoom <= COVER_ZOOM_MIN}
+              className={SOCIAL_PROFILE_COVER_ZOOM_INPUT_CLASS}
+              onChange={onZoomInput}
+            />
+            {stepButton("in")}
+          </div>
+        </div>
       ) : null}
       {isReposition ? (
-        <div
-          data-social-cover-nudge=""
-          role="group"
-          aria-labelledby={nudgeLabelId}
-          className={SOCIAL_PROFILE_COVER_NUDGE_CLASS}
-        >
-          <span id={nudgeLabelId}>{SOCIAL.profile.coverNudge}</span>
-          <div className={SOCIAL_PROFILE_COVER_NUDGE_BUTTONS_CLASS}>
-            {COVER_NUDGE_DIRECTIONS.map((direction) => (
-              <button
-                key={direction}
-                type="button"
-                data-social-cover-nudge-button={direction}
-                aria-label={SOCIAL.profile.coverNudgeLabels[direction]}
-                title={SOCIAL.profile.coverNudgeLabels[direction]}
-                disabled={
-                  uploading || !ready || !repositionSize || coverNudgeBlocked(focus, repositionSize, direction)
-                }
-                className={SOCIAL_PROFILE_COVER_NUDGE_BUTTON_CLASS}
-                onPointerDown={(e) => onNudgePointerDown(direction, e)}
-                onPointerUp={stopNudge}
-                onPointerCancel={stopNudge}
-                onPointerLeave={stopNudge}
-                onKeyDown={onNudgeKeyDown}
-                onClick={() => onNudgeClick(direction)}
-              >
-                <SocialIcon name={SOCIAL_PROFILE_COVER_NUDGE_ICONS[direction]} size={SOCIAL_ICON_SIZE_HEADER} />
-              </button>
-            ))}
-          </div>
+        <div data-social-cover-nudge="" className={SOCIAL_PROFILE_COVER_NUDGE_CLASS}>
+          {COVER_NUDGE_DIRECTIONS.map((direction) => stepButton(direction))}
         </div>
       ) : null}
       {isReposition ? (

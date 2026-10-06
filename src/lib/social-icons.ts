@@ -1,4 +1,4 @@
-import type { CoverNudgeDirection } from "@/lib/social-profile-cover-frame";
+import type { CoverStepControl } from "@/lib/social-profile-cover-frame";
 
 // Social workspace Phosphor lock (Adam). Aggregation chrome and every
 // dest rail (Social included) use NavGlyph / phosphor-icon.
@@ -8,6 +8,7 @@ export const SOCIAL_PHOSPHOR_ICONS = [
   "house",
   "compass",
   "plus",
+  "minus",
   "chat-circle",
   "user",
   "check",
@@ -64,13 +65,16 @@ export const SOCIAL_ICON_SIZE_PROFILE_LINK = 15;
 export const SOCIAL_ICON_SIZE_PROFILE_WEBSITE = 14;
 // Edit cover pencil: in the desktop glass pill and the phone circle.
 export const SOCIAL_ICON_SIZE_COVER_EDIT = 15;
-// Cover editor nudge pad glyphs, by direction (social-profile-cover-grid-nudge-lock-v1).
-export const SOCIAL_PROFILE_COVER_NUDGE_ICONS = {
+// Cover editor step buttons: the arrow pad and zoom − / + (social-profile-cover-grid-nudge-lock-v1).
+// Icons only, no visible words; each button's name is its aria-label.
+export const SOCIAL_PROFILE_COVER_STEP_ICONS = {
   left: "caret-left",
   up: "caret-up",
   down: "caret-down",
   right: "caret-right",
-} as const satisfies Record<CoverNudgeDirection, SocialPhosphorIconName>;
+  out: "minus",
+  in: "plus",
+} as const satisfies Record<CoverStepControl, SocialPhosphorIconName>;
 export const SOCIAL_ICON_SIZE_PROFILE_PLAY = 16;
 export const SOCIAL_ICON_SIZE_SHARE_SHEET_CLOSE = 18;
 export const SOCIAL_ICON_SIZE_SHARE_SHEET_ACTION = 22;

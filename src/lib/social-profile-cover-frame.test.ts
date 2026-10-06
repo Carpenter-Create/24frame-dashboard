@@ -16,8 +16,8 @@ import {
   COVER_KEY_NUDGE_PX,
   COVER_KEY_NUDGE_SHIFT,
   COVER_NUDGE_DIRECTIONS,
-  COVER_NUDGE_REPEAT_DELAY_MS,
-  COVER_NUDGE_REPEAT_MS,
+  COVER_STEP_REPEAT_DELAY_MS,
+  COVER_STEP_REPEAT_MS,
   COVER_PHONE_ASPECT,
   COVER_SLACK_MIN_PX,
   COVER_ZOOM_KEY_STEP,
@@ -25,6 +25,7 @@ import {
   COVER_ZOOM_MAX_UPSCALE,
   COVER_ZOOM_MIN,
   COVER_ZOOM_STEP,
+  COVER_ZOOM_STEP_CONTROLS,
   COVER_ZOOM_WHEEL_RATE,
   type CoverFocus,
   type CoverImageSize,
@@ -47,6 +48,8 @@ import {
   coverPointerDistance,
   coverPreviewBox,
   coverRegionStyle,
+  coverStepBlocked,
+  coverStepFocus,
   coverWheelZoom,
   coverZoomKeyStep,
   coverZoomTo,
@@ -802,8 +805,8 @@ describe("cover nudge pad", () => {
       expect(coverNudgeDelta(direction)).toEqual(coverKeyDelta(KEYS[direction], false));
     }
     expect(coverNudgeDelta("left")).toEqual({ x: -COVER_KEY_NUDGE_PX, y: 0 });
-    expect(COVER_NUDGE_REPEAT_DELAY_MS).toBe(350);
-    expect(COVER_NUDGE_REPEAT_MS).toBe(70);
+    expect(COVER_STEP_REPEAT_DELAY_MS).toBe(350);
+    expect(COVER_STEP_REPEAT_MS).toBe(70);
   });
 
   it("moves the image the way its arrow points", () => {
@@ -904,5 +907,45 @@ describe("cover framing grid", () => {
       const top = (parseFloat(coverRegionStyle(COVER_GRID_ROWS).marginTop) / 100) * frameWidth;
       expect(top).toBeCloseTo(frameWidth / COVER_FRAME_ASPECT / 3, 1);
     }
+  });
+});
+
+describe("cover zoom step buttons", () => {
+  it("− then +, each the - / + key's step with the centre held", () => {
+    expect(COVER_ZOOM_STEP_CONTROLS).toEqual(["out", "in"]);
+    const image = { width: 4000, height: 3000 };
+    const start = coverZoomTo({ x: 0.3, y: 0.7, zoom: 1.5 }, 1.5, image);
+    expect(coverStepFocus(start, image, "in", 366)).toEqual(coverZoomTo(start, 1.5 + COVER_ZOOM_KEY_STEP, image));
+    expect(coverStepFocus(start, image, "out", 366)).toEqual(coverZoomTo(start, 1.5 - COVER_ZOOM_KEY_STEP, image));
+    // An arrow through the same entry point is its nudge.
+    expect(coverStepFocus(start, image, "left", 366)).toEqual(moveCoverFocus(start, coverNudgeDelta("left"), image, 366));
+  });
+
+  it("− greys out at zoom 1 and + at this original's max, even after float sums of 0.1", () => {
+    const image = { width: 2400, height: 1050 };
+    expect(coverMaxZoom(image)).toBe(2);
+    let focus: CoverFocus = { ...COVER_FOCUS_CENTER };
+    expect(coverStepBlocked(focus, image, "out")).toBe(true);
+    expect(coverStepBlocked(focus, image, "in")).toBe(false);
+    let steps = 0;
+    while (!coverStepBlocked(focus, image, "in") && steps < 100) {
+      focus = coverStepFocus(focus, image, "in", 366);
+      steps += 1;
+    }
+    expect(steps).toBe(10);
+    expect(focus.zoom).toBe(2);
+    expect(coverStepBlocked(focus, image, "out")).toBe(false);
+    steps = 0;
+    while (!coverStepBlocked(focus, image, "out") && steps < 100) {
+      focus = coverStepFocus(focus, image, "out", 366);
+      steps += 1;
+    }
+    expect(steps).toBe(10);
+    expect(focus.zoom).toBeCloseTo(1, 9);
+    // A banner too small to zoom: both stay grey.
+    const banner = { width: 1584, height: 396 };
+    expect(coverStepBlocked(COVER_FOCUS_CENTER, banner, "in")).toBe(true);
+    expect(coverStepBlocked(COVER_FOCUS_CENTER, banner, "out")).toBe(true);
+    expect(coverStepBlocked(COVER_FOCUS_CENTER, { width: 0, height: 0 }, "in")).toBe(true);
   });
 });

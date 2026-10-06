@@ -1,3 +1,6 @@
+import { SOCIAL } from "@/lib/social";
+import { coverZoomReadout } from "@/lib/social-profile-cover-frame";
+
 // Cover pill menu. The document listener arms on a later turn than the
 // gesture that opened the menu, so that press cannot also close it.
 // Closing disarms the listener; the next pill press can open again.
@@ -88,4 +91,9 @@ export const COVER_TRAIL_SELECTOR = "[data-social-profile-head-trail]";
 export function coverTrailTarget(node: Element | null): HTMLElement | null {
   const host = node?.closest("[data-social-profile-identity]");
   return host?.querySelector<HTMLElement>(COVER_TRAIL_SELECTOR) ?? null;
+}
+
+/** Zoom readout beside the slider ("1.5×"); also the slider's spoken value. */
+export function coverZoomText(zoom: number): string {
+  return SOCIAL.profile.coverZoomValue.replace("{zoom}", coverZoomReadout(zoom));
 }

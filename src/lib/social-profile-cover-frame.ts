@@ -228,9 +228,19 @@ export function coverKeyDelta(key: string, shift: boolean): { x: number; y: numb
 export const COVER_NUDGE_DIRECTIONS = ["left", "up", "down", "right"] as const;
 export type CoverNudgeDirection = (typeof COVER_NUDGE_DIRECTIONS)[number];
 
-/** Hold on a nudge button: one step at once, then repeats after the delay at the interval. */
-export const COVER_NUDGE_REPEAT_DELAY_MS = 350;
-export const COVER_NUDGE_REPEAT_MS = 70;
+/** Zoom step buttons beside the slider, in on-screen order: − then +. */
+export const COVER_ZOOM_STEP_CONTROLS = ["out", "in"] as const;
+export type CoverZoomStepControl = (typeof COVER_ZOOM_STEP_CONTROLS)[number];
+
+/** Every step button: the four arrows and − / +. */
+export type CoverStepControl = CoverNudgeDirection | CoverZoomStepControl;
+
+/** Hold on a step button: one step at once, then repeats after the delay at the interval. */
+export const COVER_STEP_REPEAT_DELAY_MS = 350;
+export const COVER_STEP_REPEAT_MS = 70;
+
+// Zoom compares within this of an end, so float sums of 0.1 steps still read as the end.
+const COVER_ZOOM_END_EPSILON = 1e-9;
 
 const COVER_NUDGE_KEY: Record<CoverNudgeDirection, string> = {
   left: "ArrowLeft",
@@ -264,6 +274,43 @@ export function coverNudgeBlocked(
   }
   if (overflow.y <= 0) return true;
   return delta.y < 0 ? clamp01(focus.y) >= 1 : clamp01(focus.y) <= 0;
+}
+
+function isZoomStep(control: CoverStepControl): control is CoverZoomStepControl {
+  return control === "in" || control === "out";
+}
+
+/**
+ * One step button press: an arrow moves like its arrow key; − / + zoom like
+ * the - / + keys (COVER_ZOOM_KEY_STEP, centre held). Both clamp to the image.
+ */
+export function coverStepFocus(
+  focus: CoverFocus,
+  image: CoverImageSize,
+  control: CoverStepControl,
+  bandWidth: number,
+): CoverFocus {
+  if (isZoomStep(control)) {
+    const step = control === "in" ? COVER_ZOOM_KEY_STEP : -COVER_ZOOM_KEY_STEP;
+    return coverZoomTo(focus, focus.zoom + step, image);
+  }
+  return moveCoverFocus(focus, coverNudgeDelta(control), image, bandWidth);
+}
+
+/** True when a step button can do nothing: an arrow at its edge, − at zoom 1, + at this original's max. */
+export function coverStepBlocked(focus: CoverFocus, image: CoverImageSize, control: CoverStepControl): boolean {
+  if (!isZoomStep(control)) return coverNudgeBlocked(focus, image, control);
+  if (!validSize(image)) return true;
+  const zoom = clampCoverZoom(focus.zoom, image);
+  return control === "in"
+    ? zoom >= coverMaxZoom(image) - COVER_ZOOM_END_EPSILON
+    : zoom <= COVER_ZOOM_MIN + COVER_ZOOM_END_EPSILON;
+}
+
+/** Zoom readout number, one decimal ("1.5"), as the slider shows it. */
+export function coverZoomReadout(zoom: number): string {
+  const value = Number.isFinite(zoom) ? Math.max(COVER_ZOOM_MIN, zoom) : COVER_ZOOM_MIN;
+  return (Math.round(value * 10) / 10).toFixed(1);
 }
 
 /**
