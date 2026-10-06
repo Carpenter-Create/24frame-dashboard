@@ -1,6 +1,6 @@
 // Owner caption guard (cards lock, C5): the owner menu's hasMedia counts
-// the post's stored media, as the server does, not the media left once the
-// card drops what cannot draw. A media-only legacy post can still have its
+// the post's stored media with the server's own postHasMedia, not the
+// media left once the card drops what cannot draw. A media-only legacy post can still have its
 // caption cleared, and then shows "Media unavailable" again.
 // docs/design-locks/social-feed-cards-lock-v1.md
 import { createElement } from "react";

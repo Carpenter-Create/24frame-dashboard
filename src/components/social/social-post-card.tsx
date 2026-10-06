@@ -14,6 +14,7 @@ import {
 } from "@/lib/social";
 import { type SocialPostCardModel } from "@/lib/social-author-post-card";
 import { socialPostMediaAllDropped, socialPostUsableMedia } from "@/lib/social-media-display";
+import { postHasMedia } from "@/lib/social-post-own";
 import {
   SOCIAL_FEED_CARD_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
@@ -180,7 +181,7 @@ export function SocialPostCard({
           <SocialPostOwnerMenu
             postId={post.id}
             body={post.body}
-            hasMedia={post.media.length > 0}
+            hasMedia={postHasMedia(post.media)}
             groupSlug={post.groupSlug}
           />
         ) : null}
