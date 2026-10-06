@@ -93,7 +93,6 @@ describe("DashboardAdminControls", () => {
     expect(src).not.toContain("DASHBOARD_PERIOD_GRAINS");
     expect(src).not.toContain("data-dashboard-period-grains");
     expect(src).not.toMatch(/<label[\s\S]*data-dashboard-period[\s\S]*<\/label>/);
-    expect(src).toContain("data-dashboard-period-sheet");
     expect(primitive).toContain("AppearanceCheck");
     expect(primitive).toContain("createPortal");
     expect(src).not.toContain("DotsThree");

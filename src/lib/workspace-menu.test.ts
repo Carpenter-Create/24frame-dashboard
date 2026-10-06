@@ -87,7 +87,6 @@ describe("workspace menu copy", () => {
     expect(existsSync(join(here, "../app/(app)/social/courses/lessons/[id]/page.tsx"))).toBe(
       false,
     );
-    expect(WORKSPACE_MENU).not.toHaveProperty("href");
     expect(workspaceModeLabel("aggregation")).toBe("Aggregation");
     expect(workspaceModeLabel("social")).toBe("Social");
     expect(workspaceModeLabel("education")).toBe("Education");

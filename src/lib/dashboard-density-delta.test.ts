@@ -13,15 +13,10 @@ import {
 } from "@/lib/dashboard-admin";
 import {
   DASHBOARD_ADMIN_CHROME_CLASS,
-  DASHBOARD_ADMIN_STACK_CLASS,
-  DASHBOARD_CARD_PAD_HERO,
   DASHBOARD_CHART_EMPTY_CLASS,
   DASHBOARD_HERO_ASOF_CLASS,
   DASHBOARD_HERO_TO_CHART_GAP_CLASS,
-  DASHBOARD_HERO_VALUE_CLASS,
   DASHBOARD_PERIOD_SHEET_HOST_CLASS,
-  DASHBOARD_RELATED_GAP_CLASS,
-  DASHBOARD_SECTION_AIR_CLASS,
   DASHBOARD_STANDARD_STACK_CLASS,
 } from "@/lib/dashboard-craft";
 import { DASHBOARD_FIXTURE } from "@/lib/dashboard-fixture";
@@ -71,13 +66,11 @@ describe("Aggregation Dashboard density delta after #332", () => {
     expect(stat).toBe("$0.00");
     expect(stat).not.toContain(DASHBOARD_ADMIN.revenueEmpty);
     expect(html).toMatch(/data-dashboard-stat="revenue"[^>]*t-display t-data/);
-    expect(DASHBOARD_HERO_VALUE_CLASS).toBe("t-display t-data text-ink");
     expect(html).not.toMatch(/data-dashboard-stat="revenue"[^>]*>No revenue/);
     expect(heroSrc).not.toContain("DASHBOARD_ADMIN.revenueEmpty");
     expect(heroSrc).toContain("dashboardHeroMoney");
     expect(html).toContain("data-dashboard-revenue-asof");
     expect(html).toContain("As of All time · No closed statement.");
-    expect(DASHBOARD_HERO_ASOF_CLASS).toBe("t-body-sm text-ink-3");
     expect(html).toContain(DASHBOARD_HERO_ASOF_CLASS);
     expect(html).not.toContain("data-dashboard-fixture-banner");
   });
@@ -142,11 +135,7 @@ describe("Aggregation Dashboard density delta after #332", () => {
   });
 
   it("locks air to 8 / 16 / 24 and page 48 — no fifth gutter", () => {
-    expect(DASHBOARD_RELATED_GAP_CLASS).toBe("gap-[var(--space-2)]");
-    expect(DASHBOARD_CARD_PAD_HERO).toBe("px-[var(--space-4)] py-[var(--space-4)]");
     expect(DASHBOARD_HERO_TO_CHART_GAP_CLASS).toBe("pt-[var(--space-4)]");
-    expect(DASHBOARD_SECTION_AIR_CLASS).toBe("gap-[var(--space-6)]");
-    expect(DASHBOARD_ADMIN_STACK_CLASS).toBe("flex w-full flex-col gap-[var(--space-6)]");
     expect(DASHBOARD_ADMIN_CHROME_CLASS).toContain("gap-[var(--space-6)]");
     expect(DASHBOARD_STANDARD_STACK_CLASS).toBe("flex flex-col gap-[var(--space-12)]");
     expect(heroSrc).toContain("DASHBOARD_HERO_TO_CHART_GAP_CLASS");

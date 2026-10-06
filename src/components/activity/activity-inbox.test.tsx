@@ -16,7 +16,6 @@ vi.mock("next/navigation", () => ({
 import { ActivityInbox } from "./activity-inbox";
 import { PAGE_LEAD_STACK_CLASS } from "@/components/ui/page-header";
 import {
-  ACTIVITY_FAMILIES,
   ACTIVITY_HREF,
   ACTIVITY_LEAD_ROW_CLASS,
   ACTIVITY_PAGE,
@@ -75,14 +74,6 @@ describe("ActivityInbox", () => {
     expect(html).toContain(NOTIFICATION_PREFS.groups.social);
     expect(html).toContain(NOTIFICATION_PREFS.groups.education);
     expect(html).toContain(NOTIFICATION_PREFS.groups.account);
-    expect(ACTIVITY_FAMILIES).toEqual([
-      "all",
-      "aggregation",
-      "reporting",
-      "social",
-      "education",
-      "account",
-    ]);
     expect(html).toContain("North Wind was returned");
     expect(html).toContain("data-activity-done");
     expect(html).toContain(`aria-label="${ACTIVITY_PAGE.dismiss}"`);
@@ -137,7 +128,6 @@ describe("ActivityInbox", () => {
     expect(html).toContain(HOUSE_THEME_TOGGLE_CLASS);
     expect(html).toContain(`href="${ACTIVITY_HREF}?family=social"`);
     expect(html).not.toContain("status=done");
-    expect(ACTIVITY_PREFS_HREF).toBe("/settings/preferences/notifications");
   });
 
   it("uses the crafted caught-up empty, not a skinny open card", () => {

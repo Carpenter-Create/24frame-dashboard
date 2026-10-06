@@ -90,7 +90,6 @@ describe("HousePeriodPresets", () => {
     expect(ytd?.[0]).toContain(SEGMENTED_ITEM_SELECTED_ATTR);
     expect(all?.[0]).toContain(HOUSE_SEGMENTED_ITEM_OFF_CLASS);
     expect(all?.[0]).toContain('aria-pressed="false"');
-    expect(SEGMENTED_TRACK_PERSIST.period).toBe("house-period-presets");
   });
 
   it("yields to All time after a later committed route abandons the YTD hop", () => {

@@ -14,8 +14,6 @@ import { AddTitleButton } from "./add-title-button";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, "add-title-button.tsx"), "utf8");
-const tokens = readFileSync(join(here, "../../../tokens.css"), "utf8");
-const globals = readFileSync(join(here, "../../../globals.css"), "utf8");
 
 function openingTagWith(html: string, marker: string): string {
   const at = html.indexOf(marker);
@@ -40,9 +38,6 @@ describe("AddTitleButton header", () => {
     expect(src).toContain("<Button");
     expect(src).not.toContain("t-body-sm text-accent");
     expect(src).not.toContain("fixed");
-    expect(tokens).toMatch(/--text-sm:\s*0\.9375rem;/);
-    expect(tokens).toContain("--accent: #1769ff;");
-    expect(globals).toMatch(/\.t-body-sm\s*\{[\s\S]*?font-size:\s*var\(--text-sm\)/);
   });
 
   it("locks the phone Sporty Blue + to house 44 with an Add Title name", () => {

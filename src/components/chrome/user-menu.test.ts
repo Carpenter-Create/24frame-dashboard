@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { menuHostClass } from "@/lib/menu-host";
-import { USER_MENU, USER_MENU_ABSENT, USER_MENU_ACTIONS } from "@/lib/user-menu";
+import { USER_MENU, USER_MENU_ABSENT } from "@/lib/user-menu";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
@@ -15,7 +15,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/actions", () => ({ signOut: vi.fn() }));
 
 import { signOut } from "@/app/actions";
-import { APPEARANCE } from "@/lib/appearance";
 import { onUserMenuLogOut, UserMenu, UserMenuIdentity } from "./user-menu";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -185,31 +184,11 @@ describe("UserMenu item lock (source)", () => {
   });
 
   it("keeps Profile as a Settings pane href and Theme on /settings/preferences/theme", () => {
-    expect(USER_MENU.profileHref).toBe("/settings/profile");
     expect(USER_MENU.profile).toBe("Profile");
-    expect(USER_MENU.settings).toBe("Settings");
-    expect(USER_MENU.settingsHref).toBe("/settings");
-    expect(USER_MENU.theme).toBe("Theme");
-    expect(USER_MENU.themeHref).toBe("/settings/preferences/theme");
-    expect(USER_MENU.agreementsHref).toBe("/settings/agreements");
-    expect(USER_MENU.helpHref).toBe("/help");
-    expect(USER_MENU.referHref).toBe("/settings/refer");
-    expect(USER_MENU).not.toHaveProperty("appearanceHref");
-    expect(USER_MENU).not.toHaveProperty("workspaceHref");
-    expect(USER_MENU).not.toHaveProperty("companyProfileHref");
-    expect(USER_MENU.appearance).toBe("Appearance");
-    expect(USER_MENU.workspace).toBe("Workspace");
-    expect(USER_MENU_ABSENT).not.toContain("Appearance");
     expect(USER_MENU_ABSENT).not.toContain("Theme");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).toContain("theme");
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("appearance");
-    expect(APPEARANCE.back).toBe("Back");
-    expect(APPEARANCE.back).not.toBe("Back to main menu");
   });
 
   it("desktop panel items are the same list as mobile", () => {
-    expect(USER_MENU_ACTIONS.map((item) => item.label)).toEqual(["Settings", "Theme", "Get Help"]);
-    expect(USER_MENU_ACTIONS.map((item) => item.kind)).not.toContain("profile");
     expect(sheetSrc).toContain("ACCOUNT_SHEET_ITEMS");
     expect(sheetSrc).toContain("ACCOUNT_SHEET_PHONE_ITEMS");
     expect(sheetSrc.indexOf("DesktopAccountMenu")).toBeGreaterThan(-1);
@@ -264,9 +243,6 @@ describe("UserMenu actions", () => {
     expect(sheetSrc).not.toContain("/account/appearance");
     expect(sheetSrc).not.toContain("purple");
     expect(sheetSrc).not.toContain("violet");
-    expect(APPEARANCE.systemDefault).toBe("System default");
-    expect(APPEARANCE.light).toBe("Light");
-    expect(APPEARANCE.dark).toBe("Dark");
   });
 });
 

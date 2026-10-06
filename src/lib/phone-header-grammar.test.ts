@@ -35,8 +35,7 @@ import {
 } from "@/lib/house-lead-chrome";
 import { HOUSE_PHONE_TRAILING_GUTTER_CLASS } from "@/lib/house-shell";
 import { ASSISTANT_NAME } from "@/lib/product";
-import { USER_MENU, USER_MENU_ACTIONS, USER_MENU_PHONE_ACTIONS } from "@/lib/user-menu";
-import { ACCOUNT_SHEET_ITEMS, ACCOUNT_SHEET_PHONE_ITEMS } from "@/lib/account-sheet";
+import { USER_MENU } from "@/lib/user-menu";
 
 const leadSrc = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
 const leadLib = readFileSync("src/lib/house-lead-chrome.ts", "utf8");
@@ -194,17 +193,6 @@ describe("phone header grammar A — trim trailing", () => {
   });
 
   it("keeps the same Settings — Theme — Get Help stack on phone and desktop — 24Frame AI stays header-only", () => {
-    expect(USER_MENU_PHONE_ACTIONS.map((item) => item.kind)).toEqual([
-      "settings",
-      "theme",
-      "help",
-    ]);
-    expect(USER_MENU_PHONE_ACTIONS).toBe(USER_MENU_ACTIONS);
-    expect(USER_MENU).not.toHaveProperty("askAssistant");
-    expect(USER_MENU).not.toHaveProperty("askAssistantHref");
-    expect(ACCOUNT_SHEET_PHONE_ITEMS).toBe(USER_MENU_PHONE_ACTIONS);
-    expect(ACCOUNT_SHEET_ITEMS).toBe(USER_MENU_ACTIONS);
-    expect(ACCOUNT_SHEET_ITEMS.map((item) => item.kind)).toEqual(["settings", "theme", "help"]);
 
     const sheet = renderToStaticMarkup(
       createElement(AccountSheet, {

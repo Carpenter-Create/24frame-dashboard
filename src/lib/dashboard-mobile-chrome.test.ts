@@ -137,7 +137,6 @@ describe("Aggregation Dashboard mobile chrome — emblem left, dest chips under 
   });
 
   it("opens a portaled Workspaces panel of Layer 1 tiles", () => {
-    expect(WORKSPACE_SWITCHER.heading).toBe("Workspaces");
     const open = renderToStaticMarkup(
       createElement(WorkspaceSwitcher, {
         current: "aggregation",
@@ -193,7 +192,6 @@ describe("Aggregation Dashboard mobile chrome — org-row Period", () => {
     expect(DASHBOARD_ORG_NAME_MOBILE_CLASS).not.toContain("t-label");
     expect(html).not.toContain("data-dashboard-period-kicker");
     expect(controlsSrc).not.toContain("data-dashboard-period-kicker");
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("t-body-sm");
     expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("max-md:bg-transparent");
     expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("max-md:border-0");
     expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("max-md:flex-none");
@@ -201,7 +199,6 @@ describe("Aggregation Dashboard mobile chrome — org-row Period", () => {
     expect(html.indexOf("data-dashboard-title-mobile")).toBeLessThan(
       html.indexOf("data-dashboard-period-current"),
     );
-    expect(heroSrc).toContain("data-dashboard-identity-row");
     expect(heroSrc).not.toContain("period.label");
     expect(craftSrc).not.toContain("DASHBOARD_PERIOD_KICKER_CLASS");
   });

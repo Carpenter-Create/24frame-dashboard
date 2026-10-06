@@ -11,6 +11,7 @@ import { SOCIAL_DM_INBOX_ROW_CLASS } from "@/lib/social-chrome";
 import { dmThreadDayLabel, dmThreadTimeLabel } from "@/lib/social-dm-thread-format";
 import SocialDmsPage from "./page";
 import SocialDmThreadPage from "./[id]/page";
+import { ASSISTANT_NAME } from "@/lib/product";
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((to: string) => {
@@ -150,7 +151,7 @@ describe("social DMs", () => {
     expect(html).toContain('href="/social/dms/24frame-ai"');
     expect(html).toContain("data-social-frame-ai-face");
     expect(html).toContain("data-house-ai-mark");
-    expect(html).toContain("24Frame AI");
+    expect(html).toContain(ASSISTANT_NAME);
     expect(rpc).toHaveBeenCalledWith("get_dm_inbox", { p_limit: 51 });
     expect(html).not.toContain("data-social-dms-truncated");
   });
@@ -168,7 +169,7 @@ describe("social DMs", () => {
     expect(html).not.toContain("data-social-dms-empty");
     expect(html).not.toContain(SOCIAL.dms.empty);
     expect(html).toContain('data-social-dm-kind="frame-ai"');
-    expect(html).toContain("24Frame AI");
+    expect(html).toContain(ASSISTANT_NAME);
     expect(html).toContain('href="/social/dms/24frame-ai"');
     expect(html).toContain("data-social-frame-ai-face");
     expect(html).toContain("data-social-dms-start");

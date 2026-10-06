@@ -157,7 +157,6 @@ describe("house primitives", () => {
     expect(sameOrigin).not.toContain(">A<");
     expect(sameOrigin).not.toContain("?");
     expect(sameOrigin).toContain('fetchPriority="high"');
-    expect(houseSrc).toContain('fetchPriority="high"');
   });
 
   it("puts a hairline between inset rows and leaves a one-row card bare", () => {

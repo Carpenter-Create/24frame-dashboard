@@ -114,7 +114,6 @@ describe("AvailsGrid avails-grid-3", () => {
     expect(src).not.toContain("PosterCard");
     expect(src).not.toContain("StatusProgressTrack");
     expect(src).not.toContain("TitlesCatalogListRow");
-    expect(AVAILS_PAGE.empty).toBe("No Approved titles.");
     expect(TITLES_LANDSCAPE_ART_CLASS).toContain("aspect-[16/9]");
   });
 });

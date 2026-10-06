@@ -62,7 +62,6 @@ describe("SettingsThemePage", () => {
     expect(pageSrc).not.toContain("AppearancePreferences");
     expect(pageSrc).not.toContain("NotificationPreferences");
     expect(pageSrc).not.toContain("permanentRedirect");
-    expect(SETTINGS.themeHref).toBe("/settings/preferences/theme");
   });
 
   it("sends an unauthenticated visitor to login", async () => {

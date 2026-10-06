@@ -134,10 +134,19 @@ describe("title lifecycle copy", () => {
   });
 
   it("labels archived as a first-class title status", () => {
-    expect(TITLE_STATUS_LABELS.archived).toBe("Archived");
+    // In key order: the GC status override lists the statuses in this order.
+    expect(Object.entries(TITLE_STATUS_LABELS)).toEqual([
+      ["draft", "Draft"],
+      ["submitted", "Submitted"],
+      ["in_review", "In review"],
+      ["in_delivery", "Submitted"],
+      ["live", "Approved"],
+      ["takedown_requested", "Takedown requested"],
+      ["taken_down", "Taken down"],
+      ["archived", "Archived"],
+    ]);
     expect(titleDisplayStatus("archived", 2, 3)).toBe("Archived");
     expect(titleDisplayStatus("live", 2, 3)).toBe("Approved · 2 of 3 platforms");
-    expect(TITLE_STATUS_LABELS.live).toBe("Approved");
   });
 });
 

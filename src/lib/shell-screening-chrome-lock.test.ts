@@ -202,12 +202,9 @@ describe("shell screening chrome lock v1 (Adam 2026-10-04, \"Yes, everywhere\")"
     expect(HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS).toBe(HOUSE_SHELL_GUTTER_X_CLASS);
     // 3 — phone lead pad 16.
     expect(departures).toContain("3. **Phone lead pad.** 16");
-    // 4 — dark muted stays the house ramp; the live and board values are
-    // pinned in the dark tokens below.
+    // 4 — dark muted stays the house ramp; the dark --surface and
+    // --surface-muted values are pinned once in src/app/tokens.test.ts.
     expect(departures).toContain("4. **Dark muted.**");
-    const dark = tokens.slice(tokens.indexOf(".dark {"));
-    expect(dark).toMatch(/--surface-muted:\s*#25292f;/);
-    expect(dark).toMatch(/--surface:\s*#1e2126;/);
   });
 
   // The tokens comments now name the register's sizes, not the

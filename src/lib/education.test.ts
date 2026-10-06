@@ -74,7 +74,6 @@ describe("education names and keys", () => {
     expect(EDUCATION_ADMIN.manage).toBe("Manage courses");
     expect(EDUCATION_ADMIN.title).toBe("Manage courses");
     expect(EDUCATION_ADMIN.addLesson).toBe("Add lesson");
-    expect(EDUCATION_ADMIN.title).toBe("Manage courses");
     expect(EDUCATION_ADMIN.newCourse).toBe("New course");
     expect(JSON.stringify(EDUCATION_ADMIN)).not.toContain("Welcome");
     expect(JSON.stringify(EDUCATION_ADMIN)).not.toContain("New & For You");

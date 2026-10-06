@@ -17,17 +17,11 @@ import { ReportsTerritories } from "@/components/reports/reports-ranked";
 import {
   DASHBOARD_CHOROPLETH_LEGEND_BAR_CLASS,
   DASHBOARD_CHOROPLETH_SWATCH_CLASS,
-  DASHBOARD_MAP_FRAME_CLASS,
-  DASHBOARD_MAP_PAD_CLASS,
   DASHBOARD_RANKED_PANE_CLASS,
   DASHBOARD_RANKED_PANE_MIN_HEIGHT_CLASS,
   DASHBOARD_RANKED_SHARE_TRACK_CLASS,
   DASHBOARD_RANKED_TABLE_ROW_CLASS,
   DASHBOARD_SECTION_TITLE_CLASS,
-  DASHBOARD_TOP_PILL_BUTTON_CLASS,
-  DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS,
-  DASHBOARD_TOP_PILL_BUTTON_ON_CLASS,
-  DASHBOARD_TOP_PILL_CLUSTER_CLASS,
 } from "@/lib/dashboard-craft";
 import { DASHBOARD_HOME } from "@/lib/dashboard-home";
 import {
@@ -152,11 +146,8 @@ describe("dashboard register chrome", () => {
     expect(mapSrc).toContain("DASHBOARD_MAP_SCALE");
     expect(mapSrc).toContain("DASHBOARD_MAP_CENTER");
     expect(mapSrc).toContain("data-dashboard-territory-swatch");
-    expect(mapSrc).toContain("data-dashboard-territory-legend-bar");
-    expect(mapSrc).toContain("data-dashboard-territory-filled");
     expect(mapSrc).toContain("dashboardRowForTopologyId");
     expect(mapSrc).toContain("dashboardRowsByAlpha2");
-    expect(mapSrc).toContain("data-dashboard-territory-scale");
     expect(mapSrc).toContain("DASHBOARD_MAP_PAD_CLASS");
     expect(mapSrc).not.toMatch(/from ["']react-simple-maps["']/);
     expect(mapSrc).not.toContain("rounded-[var(--radius-sm)]");
@@ -171,8 +162,6 @@ describe("dashboard register chrome", () => {
     expect(DASHBOARD_MAP_HEIGHT).toBe(340);
     expect(DASHBOARD_MAP_SCALE).toBe(120);
     expect(DASHBOARD_MAP_CENTER).toEqual([0, 30]);
-    expect(DASHBOARD_MAP_PAD_CLASS).toBe("p-[var(--space-6)]");
-    expect(DASHBOARD_MAP_FRAME_CLASS).toContain("min-h-[340px]");
   });
 
   it("uses Sources table grammar for list and bars — not a stub chart", () => {
@@ -291,19 +280,16 @@ describe("dashboard register chrome", () => {
     );
     expect(DASHBOARD_HOME.topTitles).toBe("Top titles");
     expect(DASHBOARD_HOME.topPlatforms).toBe("Top platforms");
-    expect(DASHBOARD_HOME.topTerritories).toBe("Top territories");
     expect(DASHBOARD_HOME.platforms).toBe("Top platforms");
-    expect(DASHBOARD_SECTION_TITLE_CLASS).toBe("t-heading text-ink");
-    expect(DASHBOARD_SECTION_TITLE_CLASS).not.toContain("t-label");
     expect(DASHBOARD_SECTION_TITLE_CLASS).not.toContain("text-ink-3");
     expect(stack).toContain("data-dashboard-top-performing");
     expect(stack).not.toContain("data-dashboard-top-pills");
     expect(stack).not.toContain("data-dashboard-top-pill=");
     expect(stack).not.toContain("data-dashboard-top-pill-active");
     expect(stack).not.toContain(DASHBOARD_HOME.topPerforming);
-    expect(stack).toContain(`t-heading text-ink">${DASHBOARD_HOME.topTitles}`);
-    expect(stack).toContain(`t-heading text-ink">${DASHBOARD_HOME.topPlatforms}`);
-    expect(stack).toContain(`t-heading text-ink">${DASHBOARD_HOME.topTerritories}`);
+    expect(stack).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.topTitles}`);
+    expect(stack).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.topPlatforms}`);
+    expect(stack).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.topTerritories}`);
     expect(stack).toContain('data-dashboard-module="top-titles"');
     expect(stack).toContain('data-dashboard-ranked="platforms"');
     expect(stack).toContain('data-dashboard-ranked="territories"');
@@ -317,7 +303,7 @@ describe("dashboard register chrome", () => {
     expect(stack).toContain("Window A");
     expect(stack).toContain("data-dashboard-territory-map");
     expect(stack).not.toContain("Top works");
-    expect(titles).toContain(`t-heading text-ink">${DASHBOARD_HOME.topTitles}`);
+    expect(titles).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.topTitles}`);
     expect(titles).toContain('data-dashboard-view="list"');
     expect(titles).toContain('data-dashboard-ranked-grammar="grade"');
     expect(titles).toContain("data-dashboard-ranked-mark");
@@ -330,13 +316,13 @@ describe("dashboard register chrome", () => {
     expect(titles).toContain("data-dashboard-view-all-arrow");
     expect(titles).toContain('href="/aggregation/titles"');
     expect(titles).not.toContain("Window A");
-    expect(platforms).toContain(`t-heading text-ink">${DASHBOARD_HOME.topPlatforms}`);
+    expect(platforms).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.topPlatforms}`);
     expect(platforms).toContain('data-dashboard-view="list"');
     expect(platforms).toContain("Window A");
     expect(platforms).toContain('data-dashboard-ranked-grammar="grade"');
     expect(platforms).toContain('href="/aggregation/titles"');
     expect(platforms).not.toContain('data-dashboard-view-alt="map"');
-    expect(territories).toContain(`t-heading text-ink">${DASHBOARD_HOME.topTerritories}`);
+    expect(territories).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.topTerritories}`);
     expect(territories).toContain('data-dashboard-view="map"');
     expect(territories).toContain("data-dashboard-territory-map");
     expect(territories).toContain('data-dashboard-territory-scale="overview"');
@@ -345,14 +331,6 @@ describe("dashboard register chrome", () => {
     expect(territories).toContain('data-dashboard-view-alt="map"');
     expect(territories).toContain('data-dashboard-view-alt="list"');
     expect(territories).toContain('data-dashboard-view-alt="bars"');
-    expect(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS).toBe("text-white");
-    expect(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS).not.toContain("text-accent");
-    expect(DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS).toBe("text-ink-2");
-    expect(DASHBOARD_TOP_PILL_BUTTON_CLASS).toContain("rounded-full");
-    expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).toContain("rounded-full");
-    expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).toContain("bg-surface-muted");
-    expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).not.toContain("divide-x");
-    expect(DASHBOARD_TOP_PILL_CLUSTER_CLASS).not.toContain("border-hairline");
     expect(DASHBOARD_RANKED_PANE_MIN_HEIGHT_CLASS).toBe(
       "min-h-[calc(340px+2*var(--space-6))]",
     );
@@ -360,8 +338,6 @@ describe("dashboard register chrome", () => {
     expect(DASHBOARD_RANKED_PANE_MIN_HEIGHT_CLASS).toContain("var(--space-6)");
     expect(DASHBOARD_RANKED_PANE_CLASS).toContain("[overflow-anchor:none]");
     expect(DASHBOARD_RANKED_PANE_CLASS).toContain(DASHBOARD_RANKED_PANE_MIN_HEIGHT_CLASS);
-    expect(DASHBOARD_MAP_FRAME_CLASS).toContain("min-h-[340px]");
-    expect(DASHBOARD_MAP_PAD_CLASS).toBe("p-[var(--space-6)]");
   });
 
   it("does not multiplex Titles, Platforms, and Territories behind one pill row", () => {
@@ -414,7 +390,6 @@ describe("dashboard register chrome", () => {
         viewAllHref: "/titles",
       }),
     );
-    expect(DASHBOARD_HOME.territories).toBe("Territories");
     expect(DASHBOARD_HOME.territories).not.toBe("Top territories");
     expect(titles).toContain(DASHBOARD_HOME.topTitles);
     expect(titles).toContain('data-dashboard-view-alt="list"');

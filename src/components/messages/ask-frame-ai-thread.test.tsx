@@ -120,7 +120,6 @@ describe("AskFrameAiThread", () => {
     expect(src).toContain("askFrameAiUsesModel(next)");
     expect(src).toContain("AskFrameAiThinking");
     expect(src).toContain("stopThinking");
-    expect(src).toContain("data-ask-frame-ai-composer-busy");
     expect(src).toContain("ASK_FRAME_AI.escToCancel");
     expect(html).not.toContain("data-ask-frame-ai-thinking");
     expect(html).not.toContain("data-ask-frame-ai-composer-busy");
@@ -523,7 +522,6 @@ describe("AskFrameAiThread", () => {
     expect(html).not.toContain(ASK_FRAME_AI.analyze);
     expect(html).not.toContain(ASK_FRAME_AI.included);
     expect(html).not.toContain(`href="${ASK_FRAME_AI.upgradeHref}"`);
-    expect(src).toContain("data-ask-frame-ai-thread");
     expect(src).not.toContain("AccessUpgradeGate");
     expect(src).not.toContain("canRenderAskFrameAiThread");
   });

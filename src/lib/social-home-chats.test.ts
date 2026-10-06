@@ -1,16 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { SOCIAL } from "@/lib/social";
-import { SOCIAL_HOME_CHATS_LIMIT } from "@/lib/social-home-bounds";
 import { socialHomeChatPreview, socialHomeChats } from "@/lib/social-home-chats";
 
 describe("Social Home recent chats", () => {
-  it("caps the Home preview at four rooms and keeps Messages as the full inbox", () => {
-    expect(SOCIAL_HOME_CHATS_LIMIT).toBe(4);
-    expect(SOCIAL.home.recentChats).toBe("Recent chats");
-    expect(SOCIAL.home.chatsEmpty).toBe("No messages yet");
-  });
-
   it("uses unread or last-active time — never invented snippet copy", () => {
     expect(socialHomeChatPreview({ last_message_at: null, unread_count: 2 })).toBe("2 unread");
     expect(

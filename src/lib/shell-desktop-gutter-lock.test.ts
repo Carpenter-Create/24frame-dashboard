@@ -63,15 +63,10 @@ describe("desktop shell horizontal gutters — lock v2", () => {
     expect(HOUSE_AGG_SHELL_COLUMN_CLASS).not.toContain("page-max-width");
     expect(shell).toContain("HOUSE_AGG_SHELL_COLUMN_CLASS");
     expect(shell).toContain("aggregationCards");
-    expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("md:pr-[var(--shell-gutter-inline-end)]");
-    expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("max-md:px-[var(--chrome-gutter)]");
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).not.toMatch(
       /(?:^|\s)md:px-\[var\(--chrome-gutter\)\]/,
     );
-    expect(SOCIAL_HOME_LAYOUT_CLASS).toContain("lg:ml-auto");
     expect(SOCIAL_HOME_LAYOUT_CLASS).toContain("lg:max-w-[1052px]");
-    expect(SOCIAL_HOME_LAYOUT_CLASS).not.toContain("lg:mx-auto");
-    expect(SOCIAL_HOME_LAYOUT_CLASS).not.toContain("justify-between");
     expect(readFileSync("src/app/(app)/social/stories/new/page.tsx", "utf8")).not.toContain(
       "SOCIAL_HOME_LAYOUT_CLASS",
     );

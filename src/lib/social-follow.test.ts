@@ -89,7 +89,6 @@ describe("social follow helpers", () => {
     expect(followButtonLabel(true)).toBe(SOCIAL.follow.following);
     expect(followButtonLabel(false, true)).toBe(SOCIAL.follow.followBack);
     expect(followButtonLabel(true, true)).toBe(SOCIAL.follow.following);
-    expect(SOCIAL.follow.followBack).toBe("Follow back");
   });
 
   it("filters the follow list by handle or display name", () => {

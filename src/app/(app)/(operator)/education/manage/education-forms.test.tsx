@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { EDUCATION_ADMIN, EDUCATION_ENCODE_LABELS } from "@/lib/education";
 
+// --accent read from tokens.css, so this guard follows the pending GC accent checkpoint.
+const ACCENT = readFileSync("src/app/tokens.css", "utf8").match(/--accent:\s*(#[0-9a-fA-F]{6});/)?.[1];
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
 }));
@@ -94,14 +97,14 @@ describe("New lesson modal miss list A v1.1", () => {
     expect(html).not.toContain("freePreview");
     expect(html).not.toMatch(/free.?taste|Free preview/i);
     expect(html).not.toMatch(/#e91e63|#d500f9|#ff00ff|magenta/i);
-    expect(html).not.toContain("1769FF");
+    expect(ACCENT).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(html.toLowerCase()).not.toContain(String(ACCENT).slice(1).toLowerCase());
   });
 });
 
 describe("instructor picker P0", () => {
   it("links instructor_id and does not create-as-you-type", () => {
     const src = readFileSync("src/app/(app)/(operator)/education/manage/education-forms.tsx", "utf8");
-    expect(src).toContain("data-education-instructor-picker");
     expect(src).toContain('name="instructorId"');
     expect(src).not.toContain('name="instructorName"');
     expect(src).not.toContain("instructorName");
@@ -191,7 +194,6 @@ describe("LessonAdminForm encode status", () => {
   it("gates Start encode on canStartEncode, not source presence alone", () => {
     const src = readFileSync("src/app/(app)/(operator)/education/manage/education-forms.tsx", "utf8");
     expect(src).toContain("disabled={saving || !canStartEncode}");
-    expect(src).toContain("data-education-encode-error");
     expect(src).not.toContain("disabled={saving || !hasSource}");
   });
 });

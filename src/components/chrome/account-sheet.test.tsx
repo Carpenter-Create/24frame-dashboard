@@ -60,7 +60,6 @@ const menuSrc = readFileSync(join(here, "user-menu.tsx"), "utf8");
 const destsSrc = readFileSync(join(here, "house-phone-bottom-nav.tsx"), "utf8");
 const headerSrc = readFileSync(join(here, "messages-app-header.tsx"), "utf8");
 const landingSrc = readFileSync(join(here, "../messages/ask-frame-ai-landing.tsx"), "utf8");
-const tokens = readFileSync(join(here, "../../app/tokens.css"), "utf8");
 
 function attrClass(html: string, attr: string): string {
   const escaped = attr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -213,16 +212,12 @@ describe("AccountSheet 544:561 / 537:557", () => {
     expect(src).not.toMatch(/duration-\d|ease-out|ease-in|@keyframes|bounce/i);
     expect(houseSrc).toContain('<X className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />');
     expect(src).toContain("event.key === \"Escape\"");
-    expect(tokens).toMatch(/--space-6:\s*1\.5rem/);
-    expect(tokens).toMatch(/--space-8:\s*2rem/);
-    expect(tokens).toContain("--accent: #1769ff;");
   });
 
   it("uses AppSheet pad 16 on the phone sheet and Coinbase MenuSurface chrome on the 280", () => {
     const html = renderSheet();
     const surfaceClass = attrClass(html, "data-account-sheet-surface");
     const accent = attrClass(html, "data-menu-surface-accent");
-    const dropdownSurface = ACCOUNT_MENU_DROPDOWN_SURFACE_CLASS;
 
     expect(surfaceClass).toBe(ACCOUNT_SHEET_SURFACE_CLASS);
     expect(surfaceClass).toContain("p-[var(--space-4)]");
@@ -236,19 +231,6 @@ describe("AccountSheet 544:561 / 537:557", () => {
     expect(accent).toContain("left-0");
     expect(accent).toContain("bg-accent");
     expect(accent).not.toContain("#1769");
-    expect(dropdownSurface).toContain("rounded-[12px]");
-    expect(dropdownSurface).toContain("w-[280px]");
-    expect(dropdownSurface).toContain("shadow-none");
-    expect(dropdownSurface).not.toMatch(/shadow-(?:sm|md|lg)|elevation/);
-    expect(dropdownSurface).toContain("h-auto");
-    expect(dropdownSurface).not.toMatch(/h-\[\d+px\]/);
-    expect(dropdownSurface).not.toContain("min-h");
-    expect(dropdownSurface).not.toContain("px-");
-    expect(dropdownSurface).not.toContain("p-[var(--space-2)]");
-    expect(dropdownSurface).not.toContain("pt-[calc(4px+var(--space-8))]");
-    expect(dropdownSurface).not.toContain("pb-[var(--space-8)]");
-    expect(dropdownSurface).not.toContain("w-[264px]");
-    expect(tokens).toMatch(/--space-8:\s*2rem/);
   });
 
   it("puts Identity and Close/44 on one top row, centers aligned", () => {
@@ -550,7 +532,6 @@ describe("AccountSheet 544:561 / 537:557", () => {
     expect(logoutStack).toContain("logOut");
     expect(logoutStack).not.toContain("data-account-sheet-footer-rule");
     expect(logoutStack).not.toContain("bg-hairline");
-    expect(src).toContain("ACCOUNT_SHEET_PIN_CLASS");
     expect(src).toContain('data-account-sheet-pin=""');
     expect(src).toContain("<AccountMenuPin");
     expect(src.slice(
@@ -562,7 +543,6 @@ describe("AccountSheet 544:561 / 537:557", () => {
       src.indexOf("function AccountMenuGroups"),
     )).toContain("AppSheetHairline");
     expect(src).not.toContain("data-account-sheet-logout-rule");
-    expect(src).toContain("data-account-sheet-footer-rule");
     expect(src).toContain("571:911 stays off");
     expect(src).toContain("618:785 overlay");
     expect(src).toContain("is void");
@@ -753,7 +733,6 @@ describe("AccountMenuDropdown Coinbase grammar", () => {
     expect(src).toContain("useHousePathname()");
     expect(html).toContain(`${ACCOUNT_MENU_ROOT_ATTR}=""`);
     expect(renderSheet()).toContain(`${ACCOUNT_MENU_ROOT_ATTR}=""`);
-    expect(tokens).toContain("--accent: #1769ff;");
     expect(renderSheet()).toContain("data-menu-surface-accent");
     expect(renderSheet()).toContain("data-sheet-group");
   });
@@ -779,7 +758,7 @@ describe("AccountMenuDropdown Coinbase grammar", () => {
     expect(head).not.toContain("data-identity-block");
     expect(head).toContain("Ada Lovelace");
     expect(head).toContain("ada@example.com");
-    expect(head).toContain("Manage account");
+    expect(head).toContain(USER_MENU.manageAccount);
     expect(headClass).toContain("items-center");
     expect(headClass).toContain("gap-[var(--space-3)]");
     expect(headClass).not.toContain("flex-col");

@@ -56,7 +56,5 @@ describe("account avatar crop", () => {
     expect(
       accountAvatarPickError({ type: "image/jpeg", size: 2 * 1024 * 1024 + 1 } as File),
     ).toBe(ACCOUNT_PROFILE.photoTooLarge);
-    expect(ACCOUNT_PROFILE.cropTitle).toBe("Reposition");
-    expect(ACCOUNT_PROFILE.dropPhoto).toBe("Drop a photo");
   });
 });

@@ -2,23 +2,14 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
-  SOCIAL_COMPOSER_CLASS,
   SOCIAL_FEED_ASIDE_CLASS,
-  SOCIAL_FEED_CENTER_CLASS,
-  SOCIAL_FEED_LAYOUT_CLASS,
-  SOCIAL_FEED_MEASURE,
   SOCIAL_FEED_QUIET_INK_CLASS,
   SOCIAL_FEED_SCOPE_CLASS,
   SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
-  SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS,
-  SOCIAL_HOME_TOPIC_CLASS,
-  SOCIAL_HOME_TOPIC_CURRENT_CLASS,
   SOCIAL_HOME_TOPIC_FADE_CLASS,
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
 } from "./social-chrome";
-import { SOCIAL_HOME_STACK_LOCK, SOCIAL_HOME_STACK_ORDER } from "./social-home";
-import { SOCIAL } from "./social";
 
 const lock = readFileSync("docs/design-locks/social-home-lane-tabs-lock-v1.md", "utf8");
 const register = readFileSync("docs/design-locks/social-feed-register-lock-v1.md", "utf8");
@@ -137,11 +128,8 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
     expect(register).toContain("[`social-home-lane-tabs-lock-v1.md`](social-home-lane-tabs-lock-v1.md) — the E text tabs");
     // Stack → slider, stories, composer, topics, wall.
     expect(lock).toContain("`lock_tabs_topics_stories_composer_wall`");
-    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_slider_stories_composer_topics_wall");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["slider", "stories", "composer", "topics", "wall"]);
     // The host and its name stay.
     expect(lock).toContain('`nav aria-label="Feed scope"`');
-    expect(SOCIAL.home.lanesLabel).toBe("Feed scope");
     // Text tabs (20 / 480, ink underline) → the pill slider (17 / 600 on
     // the ink thumb).
     expect(lock).toContain("20 / 480 / -0.02em");
@@ -153,27 +141,17 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
     // Topic words (no pill, no fill, no accent) → chips; the current one
     // is the accent wash.
     expect(lock).toContain("**No pill, no fill, no accent**");
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("rounded-full");
-    expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).toContain("text-accent-ink");
-    expect(SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS).toContain("bg-accent-wash");
     // Fade 120 / 76 → 96 on both.
     expect(lock).toContain("(phone 120, desktop 76)");
     expect(SOCIAL_HOME_TOPIC_FADE_CLASS).toContain("w-24");
     expect(SOCIAL_HOME_TOPIC_FADE_CLASS).not.toContain("md:w-[76px]");
-    expect(SOCIAL.home.moreTopics).toBe("More topics");
     // 56×100 tiles in a 70 item → the 112×200 story cards.
     expect(lock).toContain("56×100, radius 10, in a 70 item");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("md:h-[200px] md:w-[112px]");
     expect(SOCIAL_HOME_STORY_CARD_CLASS).not.toContain("h-[100px] w-14");
     // The 52 composer bar → a 44 row with a grey pill.
     expect(lock).toContain("52 tall, radius 16, `--surface-muted`, no rule");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-[52px]");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-surface-muted");
     // 620 / 40 / 244 → 600 / 48 / 296.
     expect(lock).toContain("Feed column **620**, gap **40**, aside **244**");
-    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 600, gutter: 48, right: 296 });
-    expect(SOCIAL_FEED_CENTER_CLASS).toContain("md:max-w-[600px]");
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("gap-12");
     expect(SOCIAL_FEED_ASIDE_CLASS).toContain("w-[296px]");
   });
 

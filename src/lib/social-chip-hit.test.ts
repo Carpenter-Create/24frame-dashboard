@@ -41,8 +41,6 @@ describe("social chip hit", () => {
     // docs/design-locks/social-feed-register-lock-v1.md
     expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_HOME_TOPIC_CURRENT_CLASS).not.toContain(SOCIAL_CHIP_HIT_CLASS);
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("rounded-full");
-    expect(SOCIAL_HOME_TOPIC_CLASS).toContain("md:h-10");
     expect(SOCIAL_HOME_TOPIC_CLASS).not.toContain("h-8");
     expect(SOCIAL_TOPIC_CHIP_MEASURE_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);
     expect(SOCIAL_TOPIC_CHIP_CLASS).toContain(SOCIAL_CHIP_HIT_CLASS);

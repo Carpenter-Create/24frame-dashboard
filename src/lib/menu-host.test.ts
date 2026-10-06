@@ -165,6 +165,5 @@ describe("menu family hard gate", () => {
     expect(lead).toContain("No hamburger");
     expect(HOUSE_RAIL_COLUMN_CLASS).toContain("hidden");
     expect(HOUSE_RAIL_COLUMN_CLASS).toContain("md:flex");
-    expect(MENU_FAMILIES.D.mounted).toBe(false);
   });
 });

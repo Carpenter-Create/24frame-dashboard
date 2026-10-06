@@ -107,7 +107,6 @@ describe("MessagesAppHeader", () => {
     expect(src).toContain(
       'className="flex min-w-0 flex-1 items-center gap-[var(--space-4)]"',
     );
-    expect(src).toContain("data-ask-frame-ai-header-chrome");
     expect(src).toContain("flex shrink-0 items-center gap-[var(--space-4)]");
     expect(src).toContain('<DownloadSimple className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />');
     expect(src).toContain('<DotsThree className="size-4" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />');
@@ -159,9 +158,6 @@ describe("MessagesAppHeader", () => {
       html.indexOf("</button>", html.indexOf("data-ask-frame-ai-delete-cancel")) + 9,
     );
 
-    expect(ASK_FRAME_AI.deleteBody).toBe(
-      "This permanently deletes the conversation and cannot be undone.",
-    );
     expect(html).toContain(ASK_FRAME_AI.deleteTitle);
     expect(html).toContain(ASK_FRAME_AI.deleteBody);
     expect(html).toContain(ASK_FRAME_AI.deleteConfirm);
@@ -192,27 +188,10 @@ describe("MessagesAppHeader", () => {
   });
 
   it("keeps desktop title on t-heading 17 and mobile 531:542 on t-body 15", () => {
-    const tokens = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
-      "utf8",
-    );
-    const globals = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "../../app/globals.css"),
-      "utf8",
-    );
-
     expect(src).toContain("truncate t-heading text-ink max-md:hidden");
     expect(src).toContain("truncate t-body text-ink md:hidden");
     expect(src).not.toContain("truncate t-body-sm text-ink");
     expect(src).not.toContain("t-title");
-    expect(tokens).toMatch(/--text-lg:\s*1\.25rem;/);
-    expect(tokens).toMatch(/--text-base:\s*1\.0625rem;/);
-    expect(tokens).toMatch(/--text-sm:\s*0\.9375rem;/);
-    expect(tokens).toMatch(/--text-title:\s*1\.75rem;/);
-    expect(globals).toMatch(/\.t-heading\s*\{[\s\S]*?font-size:\s*var\(--text-lg\)/);
-    expect(globals).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
-    expect(globals).toMatch(/\.t-body-sm\s*\{[\s\S]*?font-size:\s*var\(--text-sm\)/);
-    expect(globals).toMatch(/\.t-title\s*\{[\s\S]*?font-size:\s*var\(--text-title\)/);
   });
 
   it("locks mobile 531:542 to thin ink and PDF inside the existing ···", () => {
@@ -315,10 +294,6 @@ describe("MessagesAppHeader", () => {
       join(dirname(fileURLToPath(import.meta.url)), "user-menu.tsx"),
       "utf8",
     );
-    const tokens = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "../../app/tokens.css"),
-      "utf8",
-    );
 
     expect(src).toContain(
       'className="flex min-w-0 flex-1 items-center gap-[var(--space-4)]"',
@@ -359,7 +334,6 @@ describe("MessagesAppHeader", () => {
     expect(lead).toContain('presentation="slider"');
     expect(lead).toContain('presentation="waffle"');
     expect(shell.indexOf("<MessagesAppHeader")).toBeLessThan(shell.indexOf("<UserMenu"));
-    expect(tokens).toMatch(/--space-4:\s*1rem;/);
     expect(userMenu).not.toContain("data-ask-frame-ai-title-cluster");
     expect(userMenu).not.toContain("data-header-thread");
     expect(userMenu).not.toContain("data-ask-frame-ai-header-chrome");

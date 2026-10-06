@@ -225,7 +225,5 @@ describe("news UI source", () => {
     expect(card).not.toContain("DASHBOARD_LICENSING_THUMB_CLASS");
     expect(rail).toContain("OverviewModule");
     expect(rail).toContain("DASHBOARD_NEWS_HISTORY_LIST_CLASS");
-    expect(DASHBOARD_NEWS_HISTORY_LIST_CLASS).toContain("flex flex-col");
-    expect(DASHBOARD_NEWS_HISTORY_LIST_CLASS).not.toContain("lg:grid-cols-2");
   });
 });

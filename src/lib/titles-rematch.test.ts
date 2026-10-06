@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { TITLE_DETAIL } from "@/lib/titles";
-import { TITLES_CATALOG } from "@/lib/titles-catalog";
 
 const ROOT = process.cwd();
 
@@ -24,7 +23,6 @@ describe("titles rematch miss list v1 — P0 gates", () => {
     expect(titlesPage).not.toContain("in catalog");
     expect(titlesCatalog).not.toContain("data-titles-catalog-count");
     expect(titlesCatalog).not.toMatch(/count\s*\?/);
-    expect(TITLES_CATALOG.title).toBe("Titles");
   });
 
   it("G2: H1 → toolbar → rows sit on tight 8 air", () => {

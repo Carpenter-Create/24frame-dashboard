@@ -9,7 +9,7 @@ import {
   DASHBOARD_TOP_PILL_BUTTON_ON_CLASS,
   DASHBOARD_TOP_PILL_CLUSTER_CLASS,
 } from "@/lib/dashboard-craft";
-import { SEGMENTED_ITEM_SELECTED_ATTR, SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
+import { SEGMENTED_ITEM_SELECTED_ATTR } from "@/lib/segmented-track";
 
 const src = readFileSync("src/components/activity/activity-family-chips.tsx", "utf8");
 
@@ -28,7 +28,6 @@ describe("ActivityFamilyChips", () => {
     expect(html).not.toContain("data-activity-status");
     expect(html).not.toContain(">Open<");
     expect(html).not.toContain(">Done<");
-    expect(SEGMENTED_TRACK_PERSIST.activityFamily).toBe("activity-family");
     expect(src).toContain("({ selectedIndex })");
     expect(src).toContain("segmentedItemOn");
     expect(src).not.toContain("pendingFamily");

@@ -377,7 +377,6 @@ describe("cover zoom", () => {
     expect(COVER_ZOOM_STEP).toBe(0.01);
     // The cap is the Stage crop width (2400×1050), not the LinkedIn-era 1784:
     // the source window never goes under 1200px.
-    expect(COVER_CROP_OUTPUT_WIDTH).toBe(2400);
     expect(COVER_CROP_OUTPUT_WIDTH).toBe(SOCIAL_PROFILE_COVER_STAGE.outputWidth);
     expect(coverMaxZoom({ width: 2400, height: 1050 })).toBe(2);
     expect(coverMaxZoom({ width: 1600, height: 700 })).toBe(1.33);

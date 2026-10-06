@@ -29,6 +29,7 @@ import {
   DASHBOARD_HOME_DO_NEXT,
   DASHBOARD_HOME_DRAFTS,
 } from "./dashboard-home";
+import { DASHBOARD_SECTION_TITLE_CLASS } from "@/lib/dashboard-craft";
 
 const NOW = new Date("2026-08-16T12:00:00.000Z");
 
@@ -74,6 +75,8 @@ describe("clientHomeSnapshot", () => {
     expect(snap.doNext[1]?.reason).toBeNull();
     expect(DASHBOARD_HOME.catalog).toBe("Catalog");
     expect(DASHBOARD_HOME.needsAttention).toBe("Needs attention");
+    expect(DASHBOARD_HOME.doNext).toBe("Do next");
+    expect(DASHBOARD_HOME.findingsGlance).toBe("Attention");
     expect(DASHBOARD_HOME.live).toBe(TITLE_STATUS_LABELS.live);
     expect(DASHBOARD_HOME.live).toBe("Approved");
   });
@@ -330,29 +333,13 @@ describe("dashboardTitleStatusLabel", () => {
 });
 
 describe("house type register", () => {
-  const tokens = readFileSync("src/app/tokens.css", "utf8");
   const globals = readFileSync("src/app/globals.css", "utf8");
-
-  it("keeps one large moment in the shared --text-* scale", () => {
-    expect(tokens).toMatch(/--text-xs:\s*0\.8125rem;/);
-    expect(tokens).toMatch(/--text-sm:\s*0\.9375rem;/);
-    expect(tokens).toMatch(/--text-base:\s*1\.0625rem;/);
-    expect(tokens).toMatch(/--text-lg:\s*1\.25rem;/);
-    expect(tokens).toMatch(/--text-title:\s*1\.75rem;/);
-    expect(tokens).toMatch(/--text-hero:\s*3\.5rem;/);
-  });
 
   it("binds .t-* steps to those tokens instead of display clamp()", () => {
     expect(globals).toMatch(/\.t-display\s*\{[\s\S]*?font-size:\s*var\(--text-hero\)/);
-    expect(globals).toMatch(/\.t-title\s*\{[\s\S]*?font-size:\s*var\(--text-title\)/);
     expect(globals).toMatch(/\.t-section\s*\{[\s\S]*?font-size:\s*var\(--text-title\)/);
     expect(globals).toMatch(/\.t-subhead\s*\{[\s\S]*?font-size:\s*var\(--text-lg\)/);
-    expect(globals).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
-    expect(globals).toMatch(/\.t-body-sm\s*\{[\s\S]*?font-size:\s*var\(--text-sm\)/);
     expect(globals).toMatch(/\.t-label\s*\{[\s\S]*?font-size:\s*var\(--text-xs\)/);
-    expect(globals).toMatch(/\.card-surface\s*\{[\s\S]*?box-shadow:\s*none/);
-    expect(tokens).toContain("--accent-wash:");
-    expect(tokens).toContain("--accent: #1769ff;");
     expect(globals).not.toMatch(
       /\.t-(display|title|statement|section|heading|subhead|lead)\s*\{[^}]*clamp\(/,
     );
@@ -418,7 +405,7 @@ describe("client home type locks", () => {
       }),
     );
 
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.doNext}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.doNext}`);
     expect(html).toContain("Winter Light");
     expect(html).toContain("Synopsis is required.");
     expect(html).toContain("Draft Work");
@@ -453,7 +440,7 @@ describe("client home type locks", () => {
       }),
     );
 
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.justIn}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.justIn}`);
     expect(html).toContain("Winter Light");
     expect(html).toContain(TITLE_STATUS_LABELS.submitted);
     expect(html).toContain(dashboardJustInDate(created));
@@ -525,7 +512,7 @@ describe("client home copy lock", () => {
     const addEnd = html.indexOf("</a>", marker);
     const link = html.slice(addStart, addEnd);
 
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.justIn}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.justIn}`);
     expect(html).toContain(DASHBOARD_HOME.catalogEmpty);
     expect(html.split(DASHBOARD_HOME.catalogEmpty).length - 1).toBe(1);
     expect(html.split(DASHBOARD_HOME.addTitle).length - 1).toBe(1);

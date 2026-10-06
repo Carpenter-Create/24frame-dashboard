@@ -8,21 +8,17 @@ import { DashboardDoNext } from "@/components/dashboard/dashboard-home";
 import { DashboardFindingsGlance, DashboardTopTitles } from "@/components/dashboard/dashboard-modules";
 import { DASHBOARD_ADMIN, parseDashboardPeriod } from "@/lib/dashboard-admin";
 import {
-  DASHBOARD_ADMIN_STACK_CLASS,
   DASHBOARD_CARD_PAD_HERO,
   DASHBOARD_CARD_PAD_LIST,
   DASHBOARD_DO_NEXT_SECONDARY_CLASS,
-  DASHBOARD_HERO_ASOF_CLASS,
   DASHBOARD_HERO_DELTA_CLASS,
   DASHBOARD_HERO_VALUE_CLASS,
   DASHBOARD_KICKER_CLASS,
-  DASHBOARD_SECTION_TITLE_CLASS,
   DASHBOARD_MONEY_CLASS,
   DASHBOARD_PERIOD_TRIGGER_CLASS,
   DASHBOARD_RANKED_LIST_CLASS,
-  DASHBOARD_RELATED_GAP_CLASS,
   DASHBOARD_ROW_CLASS,
-  DASHBOARD_SECTION_AIR_CLASS,
+  DASHBOARD_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-craft";
 import { DASHBOARD_HOME } from "@/lib/dashboard-home";
 
@@ -64,10 +60,8 @@ describe("Dashboard Fidelity × Royalogic density", () => {
   it("keeps dominant $ with a quieter greyscale delta under — never green, never peer", () => {
     const html = adminHero(true);
     expect(html).toMatch(/data-dashboard-stat="revenue"[^>]*t-display t-data/);
-    expect(DASHBOARD_HERO_VALUE_CLASS).toContain("t-display");
     expect(DASHBOARD_HERO_VALUE_CLASS).toContain("t-data");
     expect(DASHBOARD_HERO_DELTA_CLASS).toBe("t-body-sm text-ink-3");
-    expect(DASHBOARD_HERO_ASOF_CLASS).toBe("t-body-sm text-ink-3");
     expect(DASHBOARD_HERO_DELTA_CLASS).not.toContain("t-display");
     expect(DASHBOARD_HERO_DELTA_CLASS).not.toContain("t-title");
     expect(html).toContain("data-dashboard-revenue-compare");
@@ -89,10 +83,6 @@ describe("Dashboard Fidelity × Royalogic density", () => {
     const html = adminHero(false);
     expect(html).toContain("data-dashboard-period-one");
     expect(html).toContain(DASHBOARD_PERIOD_TRIGGER_CLASS);
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("t-body-sm");
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).toContain("bg-surface-muted");
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).not.toContain("t-display");
-    expect(DASHBOARD_PERIOD_TRIGGER_CLASS).not.toContain("bg-accent");
     expect(html).not.toContain("data-dashboard-period-grains");
     expect(html.split("data-dashboard-period=").length - 1).toBe(1);
     expect(heroSrc).not.toContain("data-dashboard-period-grains");
@@ -141,14 +131,12 @@ describe("Dashboard Fidelity × Royalogic density", () => {
       }),
     );
 
-    expect(DASHBOARD_SECTION_TITLE_CLASS).toBe("t-heading text-ink");
-    expect(DASHBOARD_SECTION_TITLE_CLASS).not.toContain("t-label");
     expect(DASHBOARD_KICKER_CLASS).toBe("t-label text-ink-3");
-    expect(hero).toContain(`t-heading text-ink">${DASHBOARD_ADMIN.revenue}`);
-    expect(activity).toContain(`t-heading text-ink">${DASHBOARD_ADMIN.activity}`);
-    expect(top).toContain(`t-heading text-ink">${DASHBOARD_HOME.topTitles}`);
-    expect(doNext).toContain(`t-heading text-ink">${DASHBOARD_HOME.doNext}`);
-    expect(findings).toContain(`t-heading text-ink">${DASHBOARD_HOME.findingsGlance}`);
+    expect(hero).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_ADMIN.revenue}`);
+    expect(activity).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_ADMIN.activity}`);
+    expect(top).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.topTitles}`);
+    expect(doNext).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.doNext}`);
+    expect(findings).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.findingsGlance}`);
     expect(hero).not.toContain(`t-label text-ink-3">${DASHBOARD_ADMIN.revenue}`);
     expect(DASHBOARD_MONEY_CLASS).toContain("t-data");
     expect(DASHBOARD_MONEY_CLASS).toContain("text-right");
@@ -156,18 +144,12 @@ describe("Dashboard Fidelity × Royalogic density", () => {
   });
 
   it("locks related gap 8, card pad 16, section air 24, and dense hairline rows", () => {
-    expect(DASHBOARD_RELATED_GAP_CLASS).toBe("gap-[var(--space-2)]");
     expect(DASHBOARD_CARD_PAD_LIST).toBe("px-[var(--space-4)] py-[var(--space-4)]");
     expect(DASHBOARD_CARD_PAD_HERO).toBe(DASHBOARD_CARD_PAD_LIST);
-    expect(DASHBOARD_SECTION_AIR_CLASS).toBe("gap-[var(--space-6)]");
-    expect(DASHBOARD_ADMIN_STACK_CLASS).toBe("flex w-full flex-col gap-[var(--space-6)]");
     expect(DASHBOARD_ROW_CLASS).toContain("min-h-10");
     expect(DASHBOARD_ROW_CLASS).toContain("py-[var(--space-2)]");
     expect(DASHBOARD_ROW_CLASS).toContain("px-[var(--space-4)]");
     expect(DASHBOARD_RANKED_LIST_CLASS).toContain("gap-[var(--space-2)]");
-    expect(tokens).toMatch(/--space-2:\s*0\.5rem;/);
-    expect(tokens).toMatch(/--space-4:\s*1rem;/);
-    expect(tokens).toMatch(/--space-6:\s*1\.5rem;/);
   });
 
   it("keeps compact Aggregation secondaries — no Markets, Do next not peer to hero", () => {
@@ -190,10 +172,7 @@ describe("Dashboard Fidelity × Royalogic density", () => {
   });
 
   it("stays on the light house shell — no dark Fidelity port, no soft shadows, no green", () => {
-    expect(tokens).toMatch(/--bg:\s*#ffffff;/);
-    expect(tokens).toMatch(/--surface:\s*#ffffff;/);
     expect(tokens).toMatch(/--border:\s*#ecedf0;/);
-    expect(tokens).toMatch(/--accent:\s*#1769ff;/);
     expect(craftSrc).toContain("shadow-none");
     expect(craftSrc).not.toContain("shadow-lg");
     expect(craftSrc).not.toContain("shadow-md");

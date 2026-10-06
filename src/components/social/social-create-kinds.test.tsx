@@ -14,7 +14,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { SocialCreateCompose } from "./social-create-compose";
-import { fitSocialWriteComposeField, SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS } from "@/lib/social-chrome";
+import {
+  fitSocialWriteComposeField,
+  SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS,
+  SOCIAL_STORY_STAGE_IN_CLASS,
+} from "@/lib/social-chrome";
 import { SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_CREATE_MEDIA_ACCEPT } from "@/lib/social-create-media";
@@ -85,7 +89,7 @@ describe("Social create kinds", () => {
     expect(write).not.toContain(`>${SOCIAL.home.photoKind}<`);
     expect(write).not.toContain(SOCIAL.home.audienceFollowing);
     expect(write).not.toContain("@acarpcreate");
-    expect(write).toContain("social-story-stage-in");
+    expect(write).toContain(SOCIAL_STORY_STAGE_IN_CLASS);
     expect(write).toContain(SOCIAL.home.submit);
     expect(write).not.toContain("autofocus");
     expect(src.indexOf("data-social-create-preview")).toBeLessThan(src.indexOf('id="social-create-body"'));

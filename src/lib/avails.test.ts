@@ -13,9 +13,8 @@ import {
   availsTitleHref,
   toAvailsTile,
 } from "@/lib/avails";
-import { DASHBOARD_HOME } from "@/lib/dashboard-home";
 import { LIST_PAGE } from "@/lib/list-bounds";
-import { GC_NAV, NAV, STAFF_RAIL_EYEBROW, mobileNavDestinations, railDestinations } from "@/lib/nav";
+import { GC_NAV, NAV, mobileNavDestinations, railDestinations } from "@/lib/nav";
 import { SETTINGS_RAIL_ABSENT } from "@/lib/settings";
 import {
   DELIVERY_STATUS_ROW_LABELS,
@@ -88,9 +87,6 @@ describe("avails-grid-3 miss list", () => {
     const page = readFileSync("src/app/(app)/(operator)/staff/avails/page.tsx", "utf8");
     expect(page).toContain('eq("status", "live")');
     expect(page).not.toContain("StatusProgressTrack");
-    expect(STAFF_RAIL_EYEBROW).toBe("Team");
-    expect(GC_NAV.find((item) => item.href === AVAILS_HREF)?.label).toBe(AVAILS_PAGE.title);
-    expect(NAV.map((item) => item.href)).not.toContain(AVAILS_HREF);
     expect(AVAILS_PAGE.empty).toBe("No Approved titles.");
     expect(AVAILS_EMPTY_CLASS).toContain("border-hairline");
     expect(AVAILS_PAGE.empty).not.toBe("Nothing waiting.");
@@ -128,10 +124,8 @@ describe("Avails tile mapping", () => {
 
 describe("Approved label SoT", () => {
   it("uses Approved for title and delivery live keys without renaming the enum", () => {
-    expect(TITLE_STATUS_LABELS.live).toBe("Approved");
     expect(GC_TITLE_STATUS_LABELS.live).toBe("Approved");
     expect(DELIVERY_STATUS_ROW_LABELS.live).toBe("Approved");
-    expect(DASHBOARD_HOME.live).toBe(TITLE_STATUS_LABELS.live);
     expect(titleDisplayStatus("live", 2, 3)).toBe("Approved · 2 of 3 platforms");
     expect(TITLE_STATUS_TRACK_STEPS.at(-1)).toBe("Approved");
     expect(DELIVERY_STATUS_TRACK_STEPS.at(-1)).toBe("Approved");

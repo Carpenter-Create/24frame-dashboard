@@ -11,6 +11,7 @@ import { SOCIAL } from "@/lib/social";
 import { POST_SHARE_RECIPIENT_CAP } from "@/lib/social-post-share";
 import { SocialPostShareButton } from "./social-post-share-button";
 import { SocialPostShareSheet } from "./social-post-share-sheet";
+import { ASSISTANT_NAME } from "@/lib/product";
 
 const person = {
   id: "u2",
@@ -66,7 +67,7 @@ describe("SocialPostShareSheet", () => {
     expect(html).not.toContain("?ai=1");
     expect(html).toContain("data-social-frame-ai");
     expect(html).toContain("data-house-ai-mark");
-    expect(html).toContain("24Frame AI");
+    expect(html).toContain(ASSISTANT_NAME);
     expect(html).toContain(SOCIAL.post.shareCopyLink);
     expect(html).toContain(SOCIAL.post.shareTo);
     expect(html).toContain('data-social-post-share-footer="closed"');

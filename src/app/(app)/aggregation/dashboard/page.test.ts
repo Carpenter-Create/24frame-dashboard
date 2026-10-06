@@ -16,6 +16,7 @@ import { AGGREGATION_EMPTY } from "@/lib/aggregation-empty";
 import { DASHBOARD_ATTENTION_CLEAR, dashboardAttentionSummary } from "@/lib/findings";
 import { UNPAGINATED_MAX } from "@/lib/list-bounds";
 import { TITLE_STATUS_LABELS } from "@/lib/titles";
+import { DASHBOARD_SECTION_TITLE_CLASS } from "@/lib/dashboard-craft";
 import DashboardPage from "./page";
 
 vi.mock("next/navigation", () => ({
@@ -483,9 +484,9 @@ describe("client home information model", () => {
     expect(html).not.toMatch(/data-dashboard-stat="live"[^>]*t-display/);
     expect(html).not.toMatch(/data-dashboard-stat="catalog"[^>]*t-title/);
     expect(html).not.toMatch(/<h1[^>]*t-display/);
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.hero}`);
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.doNext}`);
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.justIn}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.hero}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.doNext}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.justIn}`);
     expect(html).toContain(DASHBOARD_HOME.live);
     expect(html).toContain(DASHBOARD_HOME.doNext);
     expect(html).toContain("data-dashboard-overview-row");
@@ -624,10 +625,8 @@ describe("client home copy lock", () => {
     const addEnd = html.indexOf("</a>", marker);
     const link = html.slice(addStart, addEnd);
 
-    expect(DASHBOARD_HOME.catalogEmpty).toBe("The catalog is empty.");
-    expect(DASHBOARD_HOME.addTitle).toBe("Add Title");
-    expect(html).toContain("The catalog is empty.");
-    expect(html.split("The catalog is empty.").length - 1).toBe(1);
+    expect(html).toContain(DASHBOARD_HOME.catalogEmpty);
+    expect(html.split(DASHBOARD_HOME.catalogEmpty).length - 1).toBe(1);
     expect(html.split("Add Title").length - 1).toBe(1);
     expect(html).toContain('href="/aggregation/titles"');
     expect(link).toContain("data-dashboard-add-title");
@@ -652,8 +651,7 @@ describe("client home copy lock", () => {
 
     const html = renderToStaticMarkup(await DashboardPage());
 
-    expect(DASHBOARD_HOME.justIn).toBe("Recent");
-    expect(html).toContain(`t-heading text-ink">${DASHBOARD_HOME.justIn}`);
+    expect(html).toContain(`${DASHBOARD_SECTION_TITLE_CLASS}">${DASHBOARD_HOME.justIn}`);
     expect(html).toContain(">Recent<");
     expect(html).not.toContain("Just in");
   });

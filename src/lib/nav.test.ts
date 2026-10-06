@@ -45,6 +45,12 @@ describe("client NAV", () => {
       "/aggregation/attention",
       "/aggregation/reports",
     ]);
+    expect(NAV.map((item) => item.label)).toEqual([
+      "Dashboard",
+      "Titles",
+      "Recent activity",
+      "Reports",
+    ]);
     expect(hrefs).not.toContain("/activity");
     expect(hrefs).not.toContain("/aggregation/activity");
     expect(hrefs).not.toContain("?ai=1");
@@ -88,7 +94,6 @@ describe("client NAV", () => {
   it("keeps Ask 24Frame AI off the Aggregation rail — overlay trigger, not a dest", () => {
     expect(NAV.some(isHouseAiNavItem)).toBe(false);
     expect(NAV.map((item) => item.label)).not.toContain("Ask 24Frame AI");
-    expect(NAV.map((item) => item.href)).not.toContain("?ai=1");
     expect(NAV.filter(isHouseAiNavItem)).toHaveLength(0);
     expect(NAV.map((item) => item.label)).not.toContain("Messages");
     expect(NAV.map((item) => item.label)).not.toContain("Groups");
@@ -122,7 +127,6 @@ describe("client NAV", () => {
       Users,
     ]);
     expect(NAV.every((item) => item.family === "phosphor")).toBe(true);
-    expect(NAV.filter(isHouseAiNavItem)).toHaveLength(0);
     expect(GC_NAV.every((item) => item.family === "phosphor")).toBe(true);
     expect(SOCIAL_NAV.every((item) => item.family === "phosphor")).toBe(true);
     expect(navSrc).not.toContain("LayoutDashboard");

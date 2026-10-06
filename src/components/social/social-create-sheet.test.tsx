@@ -62,11 +62,11 @@ describe("SocialCreateSheet", () => {
     expect(html).toContain(SOCIAL.create.media);
     expect(html).toContain(SOCIAL.create.write);
     expect(html).toContain(SOCIAL.create.goLive);
-    expect(html).toContain("/social/create?kind=media");
+    expect(html).toContain(SOCIAL_CREATE_TILES[0].href);
     expect(html).not.toContain("/social/create?kind=photo");
     expect(html).not.toContain("/social/create?kind=video");
-    expect(html).toContain("/social/create?kind=text");
-    expect(html).toContain("/social/live");
+    expect(html).toContain(SOCIAL_CREATE_TILES[1].href);
+    expect(html).toContain(SOCIAL_CREATE_TILES[2].href);
     expect(html).toContain('data-social-icon="image"');
     expect(html).toContain('data-social-icon="pencil-simple"');
     expect(html).toContain('data-social-icon="broadcast"');

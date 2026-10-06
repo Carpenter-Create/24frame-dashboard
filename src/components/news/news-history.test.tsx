@@ -122,7 +122,6 @@ describe("NewsHistory layout", () => {
     expect(DASHBOARD_NEWS_SOURCE_CHIP_CLASS).toBe(DASHBOARD_TOP_PILL_BUTTON_CLASS);
     expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).toBe(DASHBOARD_TOP_PILL_BUTTON_ON_CLASS);
     expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).toBe(HOUSE_SEGMENTED_ITEM_ON_CLASS);
-    expect(DASHBOARD_NEWS_SOURCE_CHIP_ON_CLASS).not.toContain("bg-accent");
     expect(DASHBOARD_NEWS_SOURCE_CHIP_OFF_CLASS).toBe(DASHBOARD_TOP_PILL_BUTTON_OFF_CLASS);
     expect(html).toContain(NEWS_PAGE.sourcesAll);
     expect(html.indexOf('data-news-source-option="all"')).toBeLessThan(

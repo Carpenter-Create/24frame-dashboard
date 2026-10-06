@@ -23,30 +23,13 @@ import {
   houseDestRailGlyphWeight,
 } from "@/lib/house-shell";
 import { PlusSquare } from "@phosphor-icons/react";
-import { NAV, SOCIAL_NAV, SOCIAL_RAIL_CREATE_ICON, isSocialMessagesDest } from "@/lib/nav";
+import { SOCIAL_NAV, SOCIAL_RAIL_CREATE_ICON, isSocialMessagesDest } from "@/lib/nav";
 import { socialMessagesNavLabel } from "@/lib/social";
 
 const navSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "side-nav.tsx"), "utf8");
 
 describe("SideNav Access rail", () => {
   it("keeps the locked client destinations", () => {
-    expect(NAV.map((item) => item.label)).toEqual([
-      "Dashboard",
-      "Titles",
-      "Recent activity",
-      "Reports",
-    ]);
-    expect(NAV.map((item) => item.label)).not.toContain("Activity");
-    expect(NAV.map((item) => item.label)).not.toContain("Ask 24Frame AI");
-    expect(NAV.map((item) => item.href)).toEqual([
-      "/aggregation/dashboard",
-      "/aggregation/titles",
-      "/aggregation/attention",
-      "/aggregation/reports",
-    ]);
-    expect(NAV.map((item) => item.href)).not.toContain("/activity");
-    expect(NAV.map((item) => item.href)).not.toContain("/aggregation/activity");
-    expect(NAV.map((item) => item.href)).not.toContain("?ai=1");
     expect(navSrc).not.toContain("AskAiOpenButton");
     expect(navSrc).not.toContain("data-side-nav-ask-ai");
     expect(navSrc).not.toContain("isHouseAiNavItem");

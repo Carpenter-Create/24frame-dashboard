@@ -52,6 +52,7 @@ import {
   TitlesCatalogStatusFilter,
   TitlesCatalogToolbar,
 } from "./titles-catalog";
+import { TITLE_STATUS_TRACK_STEPS } from "@/lib/status-progress";
 
 const ALL_STATUSES = Object.keys(TITLE_STATUS_LABELS) as TitleStatus[];
 
@@ -184,7 +185,7 @@ describe("TitlesCatalogListRow craft", () => {
     expect(takedownHost).toContain("border-hairline");
     expect(takedownHost).toContain("text-ink-2");
     expect(takedown).not.toContain("data-status-progress-track");
-    expect(takedown).toContain("Takedown requested");
+    expect(takedown).toContain(TITLE_STATUS_LABELS.takedown_requested);
   });
 
   it("places title, year, and the track stage label — In delivery is not Submitted", () => {
@@ -198,7 +199,7 @@ describe("TitlesCatalogListRow craft", () => {
       });
       expect(html).toContain(`${status} film`);
       if (status === "in_delivery") {
-        expect(html).toContain("In delivery");
+        expect(html).toContain(TITLE_STATUS_TRACK_STEPS[3]);
         expect(html).not.toContain("Submitted");
       } else {
         expect(html).toContain(TITLE_STATUS_LABELS[status]);
@@ -210,8 +211,6 @@ describe("TitlesCatalogListRow craft", () => {
         expect(html).not.toContain("data-titles-catalog-year");
       }
     }
-    expect(TITLE_STATUS_LABELS.archived).toBe("Archived");
-    expect(TITLE_STATUS_LABELS.in_delivery).toBe("Submitted");
     expect(TITLE_STATUS_LABELS.submitted).toBe("Submitted");
   });
 
@@ -244,7 +243,7 @@ describe("TitlesCatalogListRow craft", () => {
     expect(html).toContain("data-titles-catalog-org");
     expect(html).toContain("data-titles-catalog-findings");
     expect(html).toContain("⚑ 2");
-    expect(html).toContain("In review");
+    expect(html).toContain(TITLE_STATUS_TRACK_STEPS[2]);
     expect(submitter).toContain("t-body-sm");
     expect(submitted).toContain("t-body-sm");
     expect(html).toContain("flex flex-col");
@@ -382,18 +381,6 @@ describe("TitlesCatalogHeader type lock", () => {
     expect(html).not.toContain("in catalog");
   });
 
-  it("locks the page title to --text-title / --text-lg and the row title to --text-base", () => {
-    const tokens = readFileSync(join(ROOT, "src/app/tokens.css"), "utf8");
-    const globals = readFileSync(join(ROOT, "src/app/globals.css"), "utf8");
-
-    expect(tokens).toMatch(/--text-sm:\s*0\.9375rem;/);
-    expect(tokens).toMatch(/--text-base:\s*1\.0625rem;/);
-    expect(tokens).toMatch(/--text-title:\s*1\.75rem;/);
-    expect(globals).toMatch(/\.t-title\s*\{[\s\S]*?font-size:\s*var\(--text-title\)/);
-    expect(globals).toMatch(/\.t-heading\s*\{[\s\S]*?font-size:\s*var\(--text-lg\)/);
-    expect(globals).toMatch(/\.t-body\s*\{[\s\S]*?font-size:\s*var\(--text-base\)/);
-  });
-
   it("keeps Titles as the page title on phone and desktop", () => {
     const html = renderToStaticMarkup(createElement(TitlesCatalogHeader));
     expect(html).toContain("data-titles-catalog-title-mobile");
@@ -484,8 +471,8 @@ describe("TitlesCatalogStatusFilter craft", () => {
     expect(html).toContain("t-body-sm");
     expect(html).toContain("All");
     expect(html).toContain("Draft");
-    expect(html).toContain("In review");
-    expect(html).toContain("Takedown requested");
+    expect(html).toContain(TITLE_STATUS_LABELS.in_review);
+    expect(html).toContain(TITLE_STATUS_LABELS.takedown_requested);
     expect(html).toContain("Archived");
     expect(current).not.toContain("t-label");
     expect(html).not.toContain("Upcoming");
@@ -499,7 +486,6 @@ describe("TitlesCatalogStatusFilter craft", () => {
       "utf8",
     );
     expect(catalog).toContain("data-titles-catalog-header-row");
-    expect(catalog).toContain("data-titles-catalog-filters");
     expect(catalog).toContain("TitlesCatalogStatusFilter");
     expect(catalog).toMatch(/TitlesCatalogHeader[\s\S]*TitlesCatalogStatusFilter/);
     expect(catalog).toMatch(/Phone toolbar is search only/i);

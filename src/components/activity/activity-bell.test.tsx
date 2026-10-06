@@ -58,7 +58,6 @@ describe("ActivityBell", () => {
     );
     expect(html).toContain("data-activity-bell");
     expect(html).toContain(`aria-label="${ACTIVITY_PAGE.bellLabelNew}"`);
-    expect(ACTIVITY_PAGE.bellLabel).toBe("Notifications");
     expect(ACTIVITY_PAGE.bellLabelNew).toBe("Notifications, new");
     expect(html).not.toContain(`aria-label="Activity"`);
     expect(html).not.toContain("data-activity-bell-badge");
@@ -114,8 +113,6 @@ describe("ActivityBell", () => {
     expect(html).not.toContain('aria-label="Activity"');
     expect(bellSrc).toContain("createPortal");
     expect(bellSrc).toContain("ActivityBellSheet");
-    expect(bellSrc).toContain("data-activity-bell-popover");
-    expect(bellSrc).toContain("data-activity-bell-sheet");
     expect(bellSrc).toContain("ActivityFeedRow");
     expect(bellSrc).toContain("closePeekOnRowNavigate");
     expect(bellSrc).toContain('target.closest("[data-activity-done]")');

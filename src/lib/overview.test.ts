@@ -171,7 +171,6 @@ describe("Home lead pills", () => {
   });
 
   it("keeps /home/news on Home chrome — Home pill still navigates to /home", () => {
-    expect(NEWS_HREF).toBe("/home/news");
     expect(isNewsHistoryPath(NEWS_HREF)).toBe(true);
     expect(isNewsHistoryPath(`${NEWS_HREF}/x`)).toBe(true);
     expect(isNewsHistoryPath("/news")).toBe(false);
@@ -276,6 +275,9 @@ describe("Home module caps", () => {
     expect(OVERVIEW_HOME_LAYOUT_CLASS).not.toContain("md:grid-cols");
     expect(OVERVIEW_HOME_LAYOUT_CLASS).not.toContain("auto-cols");
     expect(OVERVIEW_HOME_LAYOUT_CLASS).toContain("grid-cols-1");
+    expect(OVERVIEW_HOME_LAYOUT_CLASS).toBe(
+      "grid w-full grid-cols-1 items-start gap-y-[var(--space-6)] gap-x-[var(--chrome-gutter)] [grid-template-areas:'revenue'_'social'_'education'_'needs'_'ai'_'news'] @min-[60rem]:grid-cols-[minmax(0,1fr)_22rem] @min-[60rem]:[grid-template-areas:'revenue_news'_'social_news'_'education_news'_'needs_news'_'ai_news']",
+    );
     expect(OVERVIEW_PAGE.thisWeek).toBe("This week");
     expect(OVERVIEW_PAGE.aiNext).toBe("24Frame AI");
     expect(OVERVIEW_PAGE.aiAsk).toBe("Ask 24Frame AI");

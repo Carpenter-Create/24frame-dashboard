@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import { USER_MENU } from "./user-menu";
-import { availableWorkspaceOptions, WORKSPACE_EDUCATION_HREF } from "./workspace-menu";
+import { availableWorkspaceOptions } from "./workspace-menu";
 import { housePhoneForbidsTruncate } from "./house-phone-stack";
 import {
   APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
@@ -85,7 +85,6 @@ describe("workspace switcher lock", () => {
     expect(WORKSPACE_SWITCHER.heading).toBe("Workspaces");
     expect(WORKSPACE_SWITCHER.close).toBe("Close workspaces");
     expect(WORKSPACE_SWITCHER).not.toHaveProperty("settings");
-    expect(USER_MENU).not.toHaveProperty("workspaceHref");
   });
 
   it("lists only accessible lanes on Route A /education", () => {
@@ -108,7 +107,6 @@ describe("workspace switcher lock", () => {
     expect(availableWorkspaceOptions().map((option) => option.href)).toEqual(
       workspaceSwitcherOptions().map((option) => option.href),
     );
-    expect(WORKSPACE_EDUCATION_HREF).toBe("/education");
     expect(workspaceHome("education")).toBe("/education");
     expect(workspaceHome("education")).not.toBe("/social/courses");
   });
