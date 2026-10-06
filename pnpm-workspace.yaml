@@ -56,7 +56,7 @@ allowBuilds:
 #   is still exceljs/archiver moving off glob@7.
 overrides:
   postcss: '>=8.5.18'
-  sharp: '>=0.35.4'
+  sharp: '>=0.35.5'
   brace-expansion@<1.1.20: '^1.1.20'
   brace-expansion@>=2.0.0 <2.1.6: '^2.1.6'
   brace-expansion@>=4.0.0 <5.0.11: '^5.0.11'
@@ -65,6 +65,8 @@ overrides:
   js-yaml@>=4.0.0 <4.3.2: '^4.3.2'
   browserslist@<=4.28.6: '^4.28.7'
   nanoid@>=3.0.0 <3.3.17: '^3.3.17'
+  shell-quote@>=1.8.4 <1.11.0: '^1.11.0'
+  source-map-js@>=1.0.0 <1.2.2: '^1.2.2'
 
 # Audit exceptions are declared here rather than by lowering the gate in CI: an exception you
 # can see in a config file is a decision; one carried by weakening the threshold is a habit.
