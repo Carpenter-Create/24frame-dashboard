@@ -34,7 +34,7 @@ v1.1's desktop geometry (the ~320 rail beside two cards ~220 to ~280 wide, 24 ap
 |---|---|
 | Rail | **240** from 768 to 1023, **320** from 1024. Still the left **Your story** rail beside the stage (the v1.1 structure, hard lock) |
 | Cards | Side by side from 768. Each shrinks from 280 toward its **220** floor when the stage is narrower than the pair: **236** at 768, **252** at 800, **262** at 820, **280** from 900. Height 420 and the 24 between them unchanged; both labels stay on one line |
-| Stage | Fills what the rail leaves and may narrow below the cards' row, so the cards shrink instead of the page scrolling sideways |
+| Stage | Fills what the rail leaves and may narrow below the cards' row, so the cards shrink instead of the page scrolling sideways. The pair is centred safely: if it ever cannot fit (a smaller browser text size moves the breakpoints, which are in rem, while the rail and the cards are in px), the row starts at the stage's edge and scrolls rather than covering the rail |
 | Phone | The stage has no viewport floor: it fills the height under the stacked rail (**508** at 360 × 740, 612 at 390 × 844 as before), and the two stacked cards keep their 200 minimum. Where the rail and the two cards are taller than the window (320 × 640, 360 × 640: 40), the page scrolls, as before |
 | From 1024 | Unchanged: the rail 320, the cards 280 × 420 |
 

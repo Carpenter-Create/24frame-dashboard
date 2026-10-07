@@ -77,11 +77,14 @@ describe("SocialStoryCompose create stage", () => {
     );
     expect(SOCIAL_STORY_CREATE_STAGE_CLASS).toBe("flex min-w-0 flex-1 flex-col bg-surface-muted md:min-h-full");
     expect(SOCIAL_STORY_CREATE_CARDS_CLASS).toBe(
-      "flex flex-1 flex-col items-stretch justify-center gap-[var(--space-4)] p-[var(--space-4)] md:flex-row md:items-center md:justify-center md:gap-[var(--space-6)]",
+      "flex flex-1 flex-col items-stretch justify-center gap-[var(--space-4)] p-[var(--space-4)] md:flex-row md:items-center md:justify-center-safe md:gap-[var(--space-6)]",
     );
     expect(SOCIAL_STORY_CREATE_CARD_CLASS).toBe(
       "flex w-full min-h-[200px] flex-col items-center justify-center gap-[var(--space-4)] rounded-[var(--radius-lg)] px-[var(--space-4)] py-[var(--space-6)] text-center md:h-[420px] md:w-[280px] md:min-w-[220px] md:max-w-[280px]",
     );
+    // Centred safely: a row that cannot fit starts at the stage's edge
+    // (and scrolls) rather than spilling left over the rail.
+    expect(SOCIAL_STORY_CREATE_CARDS_CLASS.split(/\s+/)).toContain("md:justify-center-safe");
     // The pair's narrowest row: the rail, two cards at their floor, the
     // 24 between them and the stage's 16 each side.
     const px = (classes: string, utility: string) => {
