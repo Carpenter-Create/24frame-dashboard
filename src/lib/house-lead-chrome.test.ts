@@ -418,10 +418,11 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(leadLib).not.toContain("Pressed ink marks open");
   });
 
-  // Coinbase register (Adam 2026-10-05): 80 desktop (supersedes the
-  // screening chrome's 52), 60 phone; every header control 44; the
-  // avatar 44 on both.
-  it("locks desktop header height and the sizes that derive from it", () => {
+  // The header reads --header-height (pinned in src/app/tokens.test.ts:
+  // 56 on desktop and phone since the cards lock §8, founder 2026-10-07);
+  // every header control 44; the avatar 44 on both. What hangs off the
+  // height is checked in src/lib/shell-header-height.test.ts.
+  it("locks the header height and the sizes that derive from it", () => {
     const tokens = readFileSync("src/app/tokens.css", "utf8");
     expect(tokens).not.toMatch(/--header-height:\s*88px;/);
     expect(HOUSE_LEAD_SEARCH_PILL_CLASS).toBe(

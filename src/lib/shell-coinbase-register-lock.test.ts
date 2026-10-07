@@ -107,7 +107,7 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     );
   });
 
-  it("decision 2 — the real BrandLogo moves from the header to the side menu's 80 top band", () => {
+  it("decision 2 — the real BrandLogo moves from the header to the side menu's top band (the header's height)", () => {
     expect(railBrand).toContain("{collapsed ? <BrandEmblem /> : <BrandLogo />}");
     expect(appShell).toContain("<RailBrand");
     expect(appShell.indexOf("<RailBrand")).toBeLessThan(appShell.indexOf("data-app-rail-body"));
@@ -129,7 +129,7 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     expect(lead).not.toContain("data-app-header-divider");
   });
 
-  it("the header is 80, starts at the full-height side menu's edge, and pads 24 / 32", () => {
+  it("the header (--header-height, 56 since the cards lock §8) starts at the full-height side menu's edge, and pads 24 / 32", () => {
     expect(HOUSE_LEAD_STACK_CLASS).toContain("md:ml-[var(--sidebar-width)]");
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("border-b border-hairline");
     expect(HOUSE_LEAD_CHROME_CLASS).toContain("md:gap-[var(--space-6)]");
@@ -170,7 +170,7 @@ describe("shell Coinbase register lock v1 (Adam 2026-10-05, \"I like the designs
     expect(socialMessagesNavLabel("Messages", 1)).toBe("Messages, 1 unread");
   });
 
-  it("the phone bar: 60, the grey workspace pill (name out below 360), pads 16 / 12", () => {
+  it("the phone bar (--header-height, 56 since the cards lock §8), the grey workspace pill (name out below 360), pads 16 / 12", () => {
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("rounded-full bg-surface-muted pl-[var(--space-3)] pr-[var(--space-4)]");
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("text-[length:var(--text-sm)] font-semibold text-ink");
     // The emblem link is a 44 × 44 hit (phone targets ≥ 44): it reaches

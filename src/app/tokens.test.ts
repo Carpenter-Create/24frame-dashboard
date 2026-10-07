@@ -172,16 +172,25 @@ describe("accent ink on the wash (founder pick \"Deeper blue text\", Adam 2026-1
 
 // Shell, width, gutter and dock tokens: the one value pin per token. Other
 // tests read or name these tokens; they do not re-type the values.
-// docs/design-locks/shell-coinbase-register-lock-v1.md (header 80 / 60,
-// side menu 240 / 80, controls 44),
+// docs/design-locks/shell-coinbase-register-lock-v1.md (side menu 240 / 80,
+// controls 44), docs/design-locks/social-feed-cards-lock-v1.md §8 Header
+// height (the header 56 on desktop and phone, founder 2026-10-07: "Header
+// height locked: 56 (match Facebook), shell-wide." and "Phone header → 56
+// same as desktop."),
 // docs/design-locks/shell-desktop-horizontal-gutter-lock-v2.md (32 / 32),
 // src/lib/HOME-width-lock.md (1376).
 describe("shell tokens — one value pin each", () => {
   const light = extractBlock(tokens, ":root");
   const phone = extractBlock(tokens, "@media (max-width: 767px)");
 
-  it("pins the desktop header, side menu, and width tokens", () => {
-    expect(light).toMatch(/--header-height:\s*80px;/);
+  it("pins the header (one value, desktop and phone), side menu, and width tokens", () => {
+    // 56 on desktop and phone (cards lock §8 Header height): one
+    // declaration, on :root; the phone block does not override it. The H
+    // register's 80 and phone 60, and the screening bar's 52, are gone.
+    expect(light).toMatch(/--header-height:\s*56px;/);
+    expect(tokens.match(/--header-height:/g)).toHaveLength(1);
+    expect(tokens).not.toMatch(/--header-height:\s*80px;/);
+    expect(tokens).not.toMatch(/--header-height:\s*60px;/);
     expect(tokens).not.toMatch(/--header-height:\s*52px;/);
     // 44 is the touch-target floor for every header control and the avatar.
     expect(light).toMatch(/--header-avatar-size:\s*44px;/);
@@ -209,11 +218,12 @@ describe("shell tokens — one value pin each", () => {
     );
   });
 
-  it("pins the phone overrides: no rail slot, a 60 bar, 44 controls", () => {
+  it("pins the phone overrides: no rail slot, 44 controls; the bar keeps the one 56", () => {
     expect(phone).toMatch(/--sidebar-width:\s*0px;/);
     expect(phone).toMatch(/--sidebar-width-collapsed:\s*0px;/);
     expect(phone).toMatch(/--access-rail-width:\s*0px;/);
-    expect(phone).toMatch(/--header-height:\s*60px;/);
+    // "Phone header → 56 same as desktop.": no phone override.
+    expect(phone).not.toContain("--header-height");
     expect(phone).toMatch(/--header-avatar-size:\s*44px;/);
     expect(phone).toMatch(/--header-control-size:\s*44px;/);
     expect(phone).toMatch(/--header-search-height:\s*44px;/);

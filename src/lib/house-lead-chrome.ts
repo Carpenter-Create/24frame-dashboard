@@ -11,7 +11,7 @@
 // menu's top band, linking to the workspace home; where a page has no
 // side menu (Co-Productions, Help, Activity, the story stages, Explore)
 // it heads this bar instead (brandInHeader). Neither opens the rail.
-// Phone bar (60):
+// Phone bar (--header-height: 56, the same as desktop):
 //   Left: [emblem] [workspace pill].
 //   Trailing: [search if needed] [24Frame AI] [bell] [account], 4 apart.
 //   Every phone target is 44: round grey buttons and the 44 avatar
@@ -113,7 +113,7 @@ export const HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS = HOUSE_SHELL_GUTTER_X_CLASS;
 // emblem stays put. Phone: no gap between the lead and the trailing
 // cluster (the spacer is the lead's flex-1). md+: at least 24 between
 // the lead (the slider) and the trailing cluster. Height is
-// --header-height: 80 desktop, 60 phone. One hairline under it. The bar
+// --header-height: 56 on desktop and phone. One hairline under it. The bar
 // sits on the page canvas (--bg glass), like the side menu, so dark
 // mode reads as one surface.
 export const HOUSE_LEAD_CHROME_CLASS = `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`;
