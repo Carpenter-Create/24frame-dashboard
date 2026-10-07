@@ -10,7 +10,8 @@
 **Keep / do not reopen:** `create-story-photo-video-fb-layout-lock-v1.5` (Take+Upload — Adam iPhone media PASS) · `stories-home-rail-fb-card-lock-v1` · Coinbase chrome / shell gutters · geometry fights already settled in `stories-viewer-desktop-ig-carousel-lock-v1`  
 **Out of scope:** text story · create Take/Upload changes · ornamental chrome invent · IG brand/music/ads clone  
 **Gospels:** Stories = Facebook/Instagram grade only · rich-calm v1.4 (IG/TikTok/YouTube media level) · film/media audience G0 · Coinbase/thoughtful shell · **no soft-grade** · no drop shadows  
-**House register:** Geist · Sporty Blue `#1769FF` · spacing **8 / 16 / 24 / 48** · surfaces as house SoT
+**House register:** Geist · Sporty Blue `#1769FF` · spacing **8 / 16 / 24 / 48** · surfaces as house SoT  
+**Amended 2026-10-07:** House SoT auditor 2026-10-05, P0 (CoS brief): on phone the header's author name never truncates (house gospel 2026-09-19, AGENTS.md). It stacks over the time beside the face and wraps (`SOCIAL_STORY_VIEWER_AUTHOR_CLASS`, the house phone stack; the name is the house person name, `SOCIAL_PERSON_NAME_CLASS`). From md the name and the time share one line, and a long name wraps there too.
 
 ---
 

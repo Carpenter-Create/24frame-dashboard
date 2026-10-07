@@ -17,7 +17,8 @@
 **Keeps:** v1.4 sheet morph · self · live `SocialFeedVideo` / same-host fullscreen · no raw URL · #677 · heart untouched · no #664 fold  
 **Accent parody:** IG blue → house **Sporty Blue `#1769FF`** only (Send CTA · selection check). Everything else matches IG dark send chrome from refs.  
 **Out of scope:** #664 · thumbs · public comments thread · share-to-feed / Copy link / Add to story / Facebook / OS Share row · inventing a **second** modal after select · inventing soft house sheet chrome  
-**Amended:** `social-frame-ai-pin-lock-v1.md` pins 24Frame AI as the first grid cell. That cell opens the 24Frame AI conversation. It is not a send recipient.
+**Amended:** `social-frame-ai-pin-lock-v1.md` pins 24Frame AI as the first grid cell. That cell opens the 24Frame AI conversation. It is not a send recipient.  
+**Amended 2026-10-07:** House SoT auditor 2026-10-05, P0 (CoS brief): on phone a person's name never truncates (house gospel 2026-09-19, AGENTS.md). The grid name, and the search list's name and @handle, wrap; the old 1-line truncate is out. Each is the house person name (`SOCIAL_PERSON_NAME_CLASS`, the house phone wrap) with this sheet's type and white ink.
 
 ---
 
@@ -74,9 +75,9 @@ Paper plane opens one **IG-dark share drawer** over the story. **While that draw
 | Search row | Height **40** · radius **20** (pill) · fill `#2A2A2E` · icon + placeholder **Search** white/secondary · trailing **create-group** control hit **40** (people+ icon) — precise IG affordance |
 | People | **3-column** grid · column gap **16** · row gap **16** |
 | Avatar | **56** circle |
-| Name | Under avatar · `t-body-sm` · white · 1-line truncate · center |
+| Name | Under avatar · `t-body-sm` · white · wraps, never cut to one line (amended 2026-10-07) · center |
 | Self | **Required** in grid + searchable (note-to-self) · same cell · no special badge except selection check |
-| Search results | List rows when query active (ref 03): avatar **40** · display `t-body` medium · `@handle` `t-body-sm` secondary · Cancel trailing · includes self hits |
+| Search results | List rows when query active (ref 03): avatar **40** · display `t-body` medium · `@handle` `t-body-sm` secondary · both wrap (amended 2026-10-07) · Cancel trailing · includes self hits |
 | Meta platform row | **OUT** (Copy link / Add to story / Facebook / Share to…) — paper plane = send-via-DM only |
 
 ### State 1 — selected (ref 04) — **same drawer morphs**

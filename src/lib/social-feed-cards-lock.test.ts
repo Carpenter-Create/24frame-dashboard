@@ -616,7 +616,9 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
       "m-0 text-[length:var(--text-base)] leading-6 [font-weight:var(--type-title-weight)] text-ink",
     );
     expect(SOCIAL_FEED_ASIDE_ROWS_CLASS).toBe("-mx-3 mt-2 flex flex-col");
-    expect(SOCIAL_PERSON_PRIMARY_CLASS).toBe("block break-words t-body-sm font-medium text-ink");
+    expect(SOCIAL_PERSON_PRIMARY_CLASS).toBe(
+      "block min-w-0 max-w-full whitespace-normal break-words t-body-sm font-medium text-ink",
+    );
     expect(COURSE_FEATURE_TITLE_CLASS).toBe("text-[length:var(--text-sm)] leading-5 font-semibold text-ink");
     // SocialIcon draws Regular unless a host opts into Bold.
     expect(icon).toContain('weight = "regular"');

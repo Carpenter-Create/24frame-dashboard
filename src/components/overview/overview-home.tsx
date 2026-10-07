@@ -17,6 +17,8 @@ import {
   DASHBOARD_RELATED_GAP_CLASS,
   DASHBOARD_ROW_CLASS,
   DASHBOARD_ROW_LIST_CLASS,
+  DASHBOARD_ROW_STACK_CLASS,
+  DASHBOARD_ROW_TITLE_CLASS,
   DASHBOARD_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-craft";
 import type { ClientHomeDoNextItem, DashboardChangeRow } from "@/lib/dashboard-home";
@@ -232,10 +234,10 @@ export function OverviewHome({
         {aiNext.length > 0 ? (
           <ul className={DASHBOARD_ROW_LIST_CLASS}>
             {aiNext.map((row) => (
-              <li key={row.id} data-overview-ai-next={row.id} className={DASHBOARD_ROW_CLASS}>
+              <li key={row.id} data-overview-ai-next={row.id} className={DASHBOARD_ROW_STACK_CLASS}>
                 <Link
                   href={`${TITLES_HREF}/${row.id}`}
-                  className="min-w-0 truncate t-body-sm font-medium text-ink"
+                  className={DASHBOARD_ROW_TITLE_CLASS}
                 >
                   {row.title}
                 </Link>

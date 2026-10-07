@@ -10,7 +10,14 @@ vi.mock("next/image", () => ({
 import { SOCIAL } from "@/lib/social";
 import { SocialStorySendSheet } from "./social-story-send-sheet";
 import { SocialStorySentToast } from "./social-story-sent-toast";
+import { HOUSE_PHONE_WRAP_CLASS, housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
 import { ASSISTANT_NAME } from "@/lib/product";
+import {
+  SOCIAL_PERSON_NAME_CLASS,
+  SOCIAL_STORY_SEND_CELL_NAME_CLASS,
+  SOCIAL_STORY_SEND_HANDLE_CLASS,
+  SOCIAL_STORY_SEND_NAME_CLASS,
+} from "@/lib/social-chrome";
 
 const person = {
   id: "u2",
@@ -68,7 +75,11 @@ describe("SocialStorySendSheet", () => {
     expect(html).toContain("data-house-ai-mark");
     expect(html).toContain(ASSISTANT_NAME);
     expect(src).not.toContain("router");
-    expect(html).toContain("truncate");
+    // Names under the faces wrap; none is cut to one line (house gospel
+    // 2026-09-19 over the craft lock's old 1-line rule).
+    expect(housePhoneForbidsTruncate(html)).toBe(true);
+    expect(html).toContain(`class="${SOCIAL_STORY_SEND_CELL_NAME_CLASS}">${person.name}<`);
+    expect(html).toContain(`class="${SOCIAL_STORY_SEND_CELL_NAME_CLASS}">${ASSISTANT_NAME}<`);
     expect(html).toContain('data-social-story-send-footer="closed"');
     expect(html).toContain("duration-200");
     expect(html).toMatch(/data-social-story-send-submit=""\s+disabled/);
@@ -117,6 +128,44 @@ describe("SocialStorySendSheet", () => {
     expect(html).not.toMatch(/data-social-story-send-submit=""\s+disabled/);
     expect(html).toContain('data-social-story-send-note=""');
     expect(html).not.toContain("HouseDialog");
+  });
+
+  // House SoT auditor 2026-10-05, P0: on phone a person's name never
+  // truncates. Every name and handle in the sheet is the house person
+  // name (the phone wrap) with the sheet's type and white ink.
+  it("wraps every name and handle, in the grid and in the search list", () => {
+    // The house person name is the house phone wrap, nothing more.
+    expect(SOCIAL_PERSON_NAME_CLASS).toBe(`block ${HOUSE_PHONE_WRAP_CLASS}`);
+    expect(SOCIAL_STORY_SEND_CELL_NAME_CLASS).toBe(
+      `${SOCIAL_PERSON_NAME_CLASS} w-full text-center t-body-sm text-white`,
+    );
+    expect(SOCIAL_STORY_SEND_NAME_CLASS).toBe(`${SOCIAL_PERSON_NAME_CLASS} t-body font-medium text-white`);
+    expect(SOCIAL_STORY_SEND_HANDLE_CLASS).toBe(`${SOCIAL_PERSON_NAME_CLASS} t-body-sm text-white/60`);
+    const long = {
+      id: "u9",
+      name: "Maximilian Alexander Featherstonehaugh-Smythe",
+      handle: "maximilianalexanderfeatherstonehaugh",
+      photoUrl: null,
+    };
+    const searched = renderToStaticMarkup(
+      createElement(SocialStorySendSheet, {
+        storyId: "s1",
+        open: true,
+        onClose: () => undefined,
+        directory: [self, long],
+        initialQuery: "max",
+      }),
+    );
+    expect(searched).toContain(`data-social-story-send-result="${long.id}"`);
+    expect(searched).toContain(`class="${SOCIAL_STORY_SEND_NAME_CLASS}">${long.name}<`);
+    expect(searched).toContain(`class="${SOCIAL_STORY_SEND_HANDLE_CLASS}">@${long.handle}<`);
+    expect(housePhoneForbidsTruncate(searched)).toBe(true);
+    const src = readFileSync("src/components/social/social-story-send-sheet.tsx", "utf8");
+    expect(housePhoneForbidsTruncate(src)).toBe(true);
+    // The 24Frame AI cell and row take the same constants (no hand-typed copy).
+    expect(src).not.toMatch(/labelClassName="/);
+    expect(src).toContain("labelClassName={SOCIAL_STORY_SEND_NAME_CLASS}");
+    expect(src).toContain("labelClassName={SOCIAL_STORY_SEND_CELL_NAME_CLASS}");
   });
 
   it("keeps 24Frame AI when nobody else is available", () => {

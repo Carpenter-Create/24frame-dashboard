@@ -32,7 +32,7 @@ import {
   HOUSE_PHONE_DOCK_CHROME_BOTTOM_CLASS,
   HOUSE_PHONE_DOCK_CHROME_PB_CLASS,
 } from "@/lib/house-phone-dock";
-import { HOUSE_PHONE_WRAP_CLASS } from "@/lib/house-phone-stack";
+import { HOUSE_PHONE_STACK_CLASS, HOUSE_PHONE_WRAP_CLASS } from "@/lib/house-phone-stack";
 import {
   SETTINGS_DIALOG_ERROR_CLASS,
   SETTINGS_DIALOG_HELP_CLASS,
@@ -1303,11 +1303,35 @@ export const SOCIAL_FIRST_WIN_CLASS =
 export const SOCIAL_AVATAR_SM_CLASS =
   "flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted t-body-sm font-medium text-ink-2";
 
+// A person's name, wherever it shows: the house phone wrap (gospel
+// 2026-09-19: on phone a name never truncates; it wraps, and its row
+// stacks). Each surface adds only its type and ink.
+export const SOCIAL_PERSON_NAME_CLASS = `block ${HOUSE_PHONE_WRAP_CLASS}`;
+
 // Person row and create-author stack. Primary is body; secondary is
 // body-sm. Wrap. Never an 11px crumb.
-export const SOCIAL_PERSON_PRIMARY_CLASS = "block break-words t-body-sm font-medium text-ink";
+export const SOCIAL_PERSON_PRIMARY_CLASS = `${SOCIAL_PERSON_NAME_CLASS} t-body-sm font-medium text-ink`;
 
-export const SOCIAL_PERSON_SECONDARY_CLASS = "block break-words t-body-sm text-ink-2";
+export const SOCIAL_PERSON_SECONDARY_CLASS = `${SOCIAL_PERSON_NAME_CLASS} t-body-sm text-ink-2`;
+
+// Story viewer header: on phone the author's name and the time stack
+// beside the face, so a long name wraps; from md they share one line.
+export const SOCIAL_STORY_VIEWER_AUTHOR_CLASS =
+  `${HOUSE_PHONE_STACK_CLASS} flex-1 md:flex-row md:items-baseline md:gap-2`;
+
+export const SOCIAL_STORY_VIEWER_AUTHOR_NAME_CLASS =
+  `${SOCIAL_PERSON_NAME_CLASS} t-body-sm font-medium text-band-ink`;
+
+export const SOCIAL_STORY_VIEWER_AUTHOR_TIME_CLASS = "shrink-0 t-label text-band-ink/65";
+
+// Story send sheet (dark): the name under each face, and the name and
+// handle in the search list, wrap; none is cut to one line.
+export const SOCIAL_STORY_SEND_CELL_NAME_CLASS =
+  `${SOCIAL_PERSON_NAME_CLASS} w-full text-center t-body-sm text-white`;
+
+export const SOCIAL_STORY_SEND_NAME_CLASS = `${SOCIAL_PERSON_NAME_CLASS} t-body font-medium text-white`;
+
+export const SOCIAL_STORY_SEND_HANDLE_CLASS = `${SOCIAL_PERSON_NAME_CLASS} t-body-sm text-white/60`;
 
 export const SOCIAL_AVATAR_LG_CLASS =
   "flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted text-[length:var(--text-title)] font-semibold text-ink-2";

@@ -18,9 +18,12 @@ import {
   DASHBOARD_PERIOD_TRIGGER_CLASS,
   DASHBOARD_RANKED_LIST_CLASS,
   DASHBOARD_ROW_CLASS,
+  DASHBOARD_ROW_STACK_CLASS,
+  DASHBOARD_ROW_TITLE_CLASS,
   DASHBOARD_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-craft";
 import { DASHBOARD_HOME } from "@/lib/dashboard-home";
+import { HOUSE_PHONE_WRAP_CLASS, housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
@@ -149,6 +152,15 @@ describe("Dashboard Fidelity × Royalogic density", () => {
     expect(DASHBOARD_ROW_CLASS).toContain("min-h-10");
     expect(DASHBOARD_ROW_CLASS).toContain("py-[var(--space-2)]");
     expect(DASHBOARD_ROW_CLASS).toContain("px-[var(--space-4)]");
+    // The stacked row is the Dashboard row plus the phone stack (house
+    // gospel 2026-09-19; SoT auditor 2026-10-05, Home AI next): below md
+    // the label wraps and the rest sits under it.
+    expect(DASHBOARD_ROW_STACK_CLASS).toBe(
+      `${DASHBOARD_ROW_CLASS} max-md:flex-col max-md:items-stretch max-md:justify-start max-md:gap-[var(--space-1)]`,
+    );
+    expect(DASHBOARD_ROW_TITLE_CLASS).toBe(`${HOUSE_PHONE_WRAP_CLASS} t-body-sm font-medium text-ink`);
+    expect(housePhoneForbidsTruncate(DASHBOARD_ROW_STACK_CLASS)).toBe(true);
+    expect(housePhoneForbidsTruncate(DASHBOARD_ROW_TITLE_CLASS)).toBe(true);
     expect(DASHBOARD_RANKED_LIST_CLASS).toContain("gap-[var(--space-2)]");
   });
 

@@ -44,6 +44,9 @@ import {
   SOCIAL_STORY_PROGRESS_ROW_CLASS,
   SOCIAL_STORY_STAGE_CLASS,
   SOCIAL_STORY_STILL_PROGRESS_MS,
+  SOCIAL_STORY_VIEWER_AUTHOR_CLASS,
+  SOCIAL_STORY_VIEWER_AUTHOR_NAME_CLASS,
+  SOCIAL_STORY_VIEWER_AUTHOR_TIME_CLASS,
 } from "@/lib/social-chrome";
 import { SOCIAL_POST_IMAGE_SIZES } from "@/lib/social-media-display";
 import { isSocialMuxId } from "@/lib/social-mux";
@@ -665,9 +668,12 @@ export function SocialStoryViewer({
                 size="sm"
                 className="size-8"
               />
-              <p className="min-w-0 truncate t-body-sm font-medium text-band-ink">{author.authorName}</p>
-              <p className="shrink-0 t-label text-band-ink/65">{socialRelativeTime(item.createdAt)}</p>
-              <span className="flex-1" />
+              <div data-social-story-author="" className={SOCIAL_STORY_VIEWER_AUTHOR_CLASS}>
+                <p data-social-story-author-name="" className={SOCIAL_STORY_VIEWER_AUTHOR_NAME_CLASS}>
+                  {author.authorName}
+                </p>
+                <p className={SOCIAL_STORY_VIEWER_AUTHOR_TIME_CLASS}>{socialRelativeTime(item.createdAt)}</p>
+              </div>
               {playable ? (
                 <button
                   type="button"
