@@ -25,6 +25,12 @@ at its right edge. With the rail open the Home frame reaches 960 at a
 columns from 1104 (was 1088). The Home container thresholds are
 unchanged.
 
+Amended 2026-10-07 (founder, "Header height locked: 56 (match
+Facebook), shell-wide."; `docs/design-locks/social-feed-cards-lock-v1.md`
+§8): the header is 56, not 80; then "Phone header → 56 same as
+desktop.": on phone 56, not 60. Heights only: no width or threshold here
+changes.
+
 At the 1440 frame:
 
 | Surface | Measure |

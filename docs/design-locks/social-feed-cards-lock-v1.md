@@ -1,12 +1,12 @@
 # [GC][24Frame] LOCK — Social Feed cards: white canvas, soft grey cards, every post and module in its own card, stories at the top, lighter ink v1
 
 **Date:** 2026-10-06 (CT)  
-**Status:** **LOCKED** (Adam, 2026-10-06, in chat: Direction B, "B." — recorded from the founder-authorized task brief) · §8 Feed placement (Adam, 2026-10-07, in chat — recorded from the founder-authorized task brief) · side defaults open for the founder on preview (below)  
-**Scope:** Everywhere `SocialPostCard` renders (the Feed in both lanes, the optimistic post right after Post, Profile activity, a member's posts, a group, the permalink) and the Feed's modules (the stories, the composer, the Reels row, the For you lane, the rail's course card and Suggested people, the empty panel, the skeletons). §8: the Feed column's width and placement, the For you rail's fit, the Feed's top under the header, and the permalink column. The shell's ink ladder (the header workspace thumb, the pill-slider labels, the side-menu labels, the header search input) changes in every workspace.  
+**Status:** **LOCKED** (Adam, 2026-10-06, in chat: Direction B, "B." — recorded from the founder-authorized task brief) · §8 Feed placement (Adam, 2026-10-07, in chat — recorded from the founder-authorized task brief) · §8 Header height (Adam, 2026-10-07, in chat, desktop then phone — recorded from the founder-authorized task brief) · side defaults open for the founder on preview (below)  
+**Scope:** Everywhere `SocialPostCard` renders (the Feed in both lanes, the optimistic post right after Post, Profile activity, a member's posts, a group, the permalink) and the Feed's modules (the stories, the composer, the Reels row, the For you lane, the rail's course card and Suggested people, the empty panel, the skeletons). §8: the Feed column's width and placement, the For you rail's fit, the Feed's top under the header, the permalink column, and (Header height) the shell's header height in every workspace, desktop and phone. The shell's ink ladder (the header workspace thumb, the pill-slider labels, the side-menu labels, the header search input) changes in every workspace.  
 **Entity:** Global Content / 24Frame only  
 **Source:** Social audit 2 (the founder's state, screenshots 27 and 28, reproduced on the production build) and the Direction B prototype (`proto-B`), reviewed and finished on the real components.  
 **Code name:** the source files call this the **cards lock** (`SOCIAL_FEED_CARD_*`, `SOCIAL_CARD_FILL_CLASS`, `SOCIAL_IN_CARD_FILL_CLASS`).  
-**Supersedes (in part):** [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) — (§8, 2026-10-07) §6's grid (the 600 column, the 944 pair end-aligned on the shell gutter, the rail from xl), Assumptions 1 and 2, G7's grid, the slider 24 under the desktop header (the stack note, G3's note, Verify-on-ship 1 and 4) and the 600 column in §2 and §5; (2026-10-06) §7 "the media is the card" (a photo with no card or frame at radius 24; a video on the near-black screen under a topic · "Video" band; the credit row under the media; the caption aligned to the name; the text post's 20 / 480 body; the wall 24 / 48), G9, G10, G11, G13, G14, Assumptions 7 and 9; the stack air 24 · 24 · 24 · 16; the slider's 17 / 600 labels with ink idle (§1, G1); the topics' ink idle and 600 current (§2, G2); the bare story rail, the bare composer row, the bare Reels row and the rail's bare people (§3–§6, G3, G5–G7 in part) · [`shell-coinbase-register-lock-v1.md`](shell-coinbase-register-lock-v1.md) — §1 the ink header thumb and the 17 / 600 slider labels, the 17 / 420 search input; §2 the 17 / 500 side-menu labels (G2, G4 in part).  
+**Supersedes (in part):** [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) — (§8, 2026-10-07) §6's grid (the 600 column, the 944 pair end-aligned on the shell gutter, the rail from xl), Assumptions 1 and 2, G7's grid, the slider 24 under the desktop header (the stack note, G3's note, Verify-on-ship 1 and 4) and the 600 column in §2 and §5; (2026-10-06) §7 "the media is the card" (a photo with no card or frame at radius 24; a video on the near-black screen under a topic · "Video" band; the credit row under the media; the caption aligned to the name; the text post's 20 / 480 body; the wall 24 / 48), G9, G10, G11, G13, G14, Assumptions 7 and 9; the stack air 24 · 24 · 24 · 16; the slider's 17 / 600 labels with ink idle (§1, G1); the topics' ink idle and 600 current (§2, G2); the bare story rail, the bare composer row, the bare Reels row and the rail's bare people (§3–§6, G3, G5–G7 in part) · [`shell-coinbase-register-lock-v1.md`](shell-coinbase-register-lock-v1.md) — §1 the ink header thumb and the 17 / 600 slider labels, the 17 / 420 search input; §2 the 17 / 500 side-menu labels (G2, G4 in part); (§8 Header height, 2026-10-07) §1 the 80 header (the Height row, G1), §2 the 80 top band (the Top band row, G4), §3 the phone bar's 60 (the Height row, G5), §5 `--header-height` 80 and phone 60 · [`shell-screening-chrome-lock-v1.md`](shell-screening-chrome-lock-v1.md) — (§8 Header height, 2026-10-07) §3 the phone bar's 60 (the Height row, G4, Measured).  
 **Keeps:** the white page canvas (`--bg`, tokens.css: "white page canvas — not a grey wash"); the stack order slider → stories → composer → topics → wall (`lock_slider_stories_composer_topics_wall`); the Following / For you ink thumb (Social's one ink element); the topic slate, the keyboard rule and `socialRowFocusShift`; the story cards' 112×200 / 108×192 geometry, the name on the picture and the accent unseen ring; the Reels data, cadence and face; tap-to-immersive and the theatre; the Following Mux band (one player); the comments thread, who liked, the share sheet, the owner's Edit and Delete with the live caption; optimistic likes and comments; the swipe carousel and its "1 / 3" chip; the photo's true shape (1.91:1 to 4:5); the `data-social-post*` hooks; no role line until members choose one; tokens only.
 
 ---
@@ -48,6 +48,16 @@ With two screenshots from the same Chrome window at 100% zoom (Facebook's home f
 > Measure and make sure our feed is in the identical placement with the identical width as the Facebook feed.
 
 §8 records the measurements and the rule.
+
+After #768 merged, deciding open choice 5 (the header height):
+
+> Header height locked: 56 (match Facebook), shell-wide.
+
+Then, on phone:
+
+> Phone header → 56 same as desktop.
+
+§8 Header height records both.
 
 ---
 
@@ -161,11 +171,19 @@ From a 1432 viewport (either side menu) the rail fits beside the centred column,
 
 **The permalink, expected and measured** (same method): on the Feed's column at 1920, 1680, 1512, 1440 (**380 to 1060**), 1280 (300 to 980), 1024 (256 to 936) and 768 (256 to 736), and at 1920 and 1440 collapsed. Where the Feed shifts for its rail, it stays centred: 1366, **343 to 1023** (the Feed 310 to 990); 1312, 316 to 996 (the Feed 256 to 936); 1280 collapsed, 300 to 980 (the Feed 224 to 904); 1152 collapsed, 236 to 916 (the Feed 96 to 776).
 
-**Header height.** Our header is **80** in every workspace (the shell register lock); Facebook's bar is **56**. Not changed: recorded as a founder choice (Open founder choices 5).
+**Header height** (founder 2026-10-07, open choice 5: "Header height locked: 56 (match Facebook), shell-wide."; then, on phone: "Phone header → 56 same as desktop."). Our header was **80** in every workspace and the phone bar **60** (the shell register lock); Facebook's bar is **56**.
+
+| Item | Lock |
+|---|---|
+| Height | The header is **56** on desktop and on phone, in every workspace and on every page the house shell draws (Home, Aggregation, Social, Education, Staff, Settings, Help, Activity, Co-Productions, the story studio, Explore's bar). One token, one value: `--header-height` 80 → **56** in `src/app/tokens.css`, and the phone block no longer overrides it (its 60 is gone). Its one hairline is the bar's bottom 1 |
+| Phone | **56**, the same as desktop (was **60**, the shell register lock §3). Every phone target stays **44** and centred: the emblem link, the grey workspace pill, search (Social), Ask, the bell and the avatar; pads 16 / 12 and the 4 between hits are unchanged. Everything under the bar moves up **4** (the page, the Social frame, the Education search row, which is itself unchanged). The dock, the sheets, the Ask overlay, Explore, a Messages thread and compose, the story viewer and Write have no phone bar above them, so they do not move |
+| Follows the token | Everything that hangs off the header reads `--header-height`, so it moves with it and nothing re-types the height: the bar itself (`HOUSE_LEAD_CHROME_CLASS` and its `min-height`), the side menu's top band, open and collapsed (`HOUSE_RAIL_BRAND_BAND_CLASS`, `HOUSE_RAIL_BRAND_BAND_COLLAPSED_CLASS`), so the brand mark stays level with the bar; Home's sticky News rail (`OVERVIEW_AREA_NEWS_CLASS`: its top and its height); the Ask gate's minimum height (`AccessUpgradeGate`). Every other pane under the header (the lead scroller, Explore's stage, the story studio, the Social frame) fills the space below it, and the stages without the bar (a Messages thread and compose, the story viewer, Write) have no header to subtract; sheets and the Ask overlay sit over the whole viewport |
+| Controls | Unchanged and centred in the bar, desktop and phone: the round grey **44** search, Ask and bell, the **44** avatar, the slider's **44** segments, the grey workspace pill (**44**), the **44** search pill, Exit **44**, the brand link's **44** hit in the side menu's top band and in the phone bar (in the desktop bar, on a page with no side menu, the brand link is the **24** mark, centred, 15.5 above and below). In the 55 above the hairline a 44 control has **5.5** above and below |
+| Feed | The slider stays **16** under the header, so at 1440 it starts **72** from the top, where Facebook's first card does. On phone it stays 16 under the bar: **72** from the top (was 76) |
 
 ## Tokens
 
-No new token and no new hex. `--screen` (the register lock's one new token) is no longer drawn by a feed post; it stays in `tokens.css`, unchanged, until the founder settles Direction B.
+No new token and no new hex. Changed (§8 Header height): `--header-height` 80 → **56**, one value on desktop and phone (the phone block's 60 override is removed). `--screen` (the register lock's one new token) is no longer drawn by a feed post; it stays in `tokens.css`, unchanged, until the founder settles Direction B.
 
 ## Founder decisions (2026-10-07)
 
@@ -173,15 +191,23 @@ Asked to decide the open choices 1–4 below and the queued chrome-constants tid
 
 > 1 keep, 2 keep, 3 match, 4 keep, 5 run
 
-Card grey stays `--surface-muted`; the 4:5 crop stays; the post page matches the Feed column (680, centred, §8); "Media unavailable" stays; the tidy-up ships as its own PR. Only the header height (5 below) stays open.
+Card grey stays `--surface-muted`; the 4:5 crop stays; the post page matches the Feed column (680, centred, §8); "Media unavailable" stays; the tidy-up ships as its own PR. The header height (5 below) stayed open until #768 merged; then:
 
-## Open founder choices (1–4 decided 2026-10-07; 5 open)
+> Header height locked: 56 (match Facebook), shell-wide.
+
+Then, on phone:
+
+> Phone header → 56 same as desktop.
+
+The header is 56 in every workspace, desktop and phone (§8 Header height).
+
+## Open founder choices (1–5 decided 2026-10-07)
 
 1. **Card grey strength.** The card is `--surface-muted` (1.10:1 on white). If it reads faint on the founder's display, a slightly darker card grey is a founder choice and a one-line change (`SOCIAL_CARD_FILL_CLASS`). Not changed now. **Decided: keep.**
 2. **4:5 crop.** Tall photos (beyond 4:5) and vertical video draw 4:5 in the feed, the whole frame one tap away in the theatre. **Decided: keep.**
 3. **Post page width.** The permalink's card is the Feed's 680 column, centred as the Feed's (§8; the default, "match the Feed"). It has no rail, so it does not take the Feed's move-left for the rail; between a 1312 and a 1431 viewport (1152 collapsed) the column therefore moves by up to 60 (140 collapsed) when a post opens from the Feed. Sharing the Feed's shift instead (no move, the post off centre there) is a two-constant change (`SOCIAL_POST_PAGE_CLASS` takes `SOCIAL_FEED_LEAD_CLASS`, its row the `@container/feed`). **Decided: match the Feed.**
 4. **Media unavailable line.** The wording of the one line a media-only post shows when none of its media can draw ("Media unavailable", after the Messages "Post unavailable" / "Story unavailable"). Copy is a founder checkpoint; the words are one string in `src/lib/social.ts`. **Decided: keep.**
-5. **Header height.** Facebook's bar is 56; ours is 80 in every workspace. The Feed matches Facebook's 16 under the bar, not its bar. Changing the header is a shell decision for the founder; not changed here.
+5. **Header height.** Facebook's bar is 56; ours was 80 in every workspace. The Feed matched Facebook's 16 under the bar, not its bar. Changing the header is a shell decision for the founder. **Decided: 56, shell-wide** ("Header height locked: 56 (match Facebook), shell-wide."; §8 Header height). Then the phone bar too: **56, the same as desktop** ("Phone header → 56 same as desktop."; it was 60).
 
 ## Assumptions (stated, reversible)
 
@@ -222,7 +248,8 @@ Card grey stays `--surface-muted`; the 4:5 crop stays; the post page matches the
 **C8.** Phone: cards meet the viewport with 8 of white between; every target ≥ 44; nothing truncated.  
 **C9.** The skeletons use the live card classes in the live order.  
 **C10.** Tokens only: no new hex, no new token.  
-**C11.** Feed placement (§8): the column is 680, centred on the viewport with the side menu open or collapsed and never under it; the rail at the shell gutter when the container fits 1024, the column keeping 680 and moving left just enough to keep 48, else hidden with the column centred; the slider and the rail's heading 16 under the header; the skeleton at the same placement; the permalink 680, centred the same way, with no move-left (it has no rail); phone unchanged.
+**C11.** Feed placement (§8): the column is 680, centred on the viewport with the side menu open or collapsed and never under it; the rail at the shell gutter when the container fits 1024, the column keeping 680 and moving left just enough to keep 48, else hidden with the column centred; the slider and the rail's heading 16 under the header; the skeleton at the same placement; the permalink 680, centred the same way, with no move-left (it has no rail); phone unchanged.  
+**C12.** Header height (§8): `--header-height` is 56 on desktop and phone, one declaration pinned once (`src/app/tokens.test.ts`) with no phone override; the bar, the side menu's top band (open and collapsed) and every sticky or full-height offset read the token, and no source re-types the height (nor a retired 80, 60 or 52) in a sticky, fixed, scroll-margin or viewport-height rule; every header control is centred in the bar and none clips; the Feed's slider 72 from the top at 1440; phone: the bar 56, every target ≥ 44, nothing clipped or truncated, the page 4 higher.
 
 ## Verify-on-ship
 
@@ -232,6 +259,7 @@ Card grey stays `--surface-muted`; the 4:5 crop stays; the post page matches the
 4. The header in every workspace at 768, 1024, 1280 and 1440: the wash thumb, 15 / 500 labels, nothing clipped.
 5. No horizontal overflow; no ellipsis on phone; every target ≥ 44; the skeleton matches the live layout.
 6. §8 at 1024, 1280, 1366, 1440 and 1920, side menu open and collapsed: the column's x and width against the table; the rail's trailing edge on the avatar's line; the slider 16 under the header; Following and For you at the same x; the permalink at the Feed's x where the Feed is centred, and centred (not shifted) at 1366 and 1312 open, 1280 and 1152 collapsed.
+7. §8 Header height at 768, 1024, 1280, 1440 and 1920 (1440 light and dark), every workspace and the collapsed side menu: the bar 56, every control centred and unclipped, the side menu's top band level with the bar, the Feed's slider 72 from the top at 1440, Messages, Explore, the story studio and the sheets with no gap or overflow at the bottom; phone 390 and 360, every workspace: the bar 56, every target ≥ 44, nothing clipped or truncated, the content 4 higher than before.
 
 ## Measured (headless Chromium, the production build's CSS)
 
@@ -244,10 +272,13 @@ Fixtures rendered from the real shell and Social components, styled by the build
 - **Post page (C3).** The permalink card is 680 wide on desktop, centred as the Feed's column (§8), with its comments inside; Profile's "You commented" sits inside its card.
 - **Ink (C7).** The header thumb is the wash with accent-ink labels at 15 / 500 in every workspace at 1024 / 1280 / 1440, light and dark; at 768 the header shows the workspace pill. Ink-filled elements per screen: 1 on the Feed (the Following thumb), 0 on Home, Aggregation, Education, Staff, Profile, Messages and the permalink.
 - **Phone and parity (C8, C9).** No horizontal overflow and no ellipsis at 320 / 390 / 768 / 1024 / 1280 / 1440. The skeleton's slider, stories, composer, topics, wall, first card and its header sit at the live x / y / width at 390, 1280 and 1440; the first media sits one caption lower live (the skeleton draws no caption).
+- **Header height (C12, §8).** The real shell on Home, Aggregation (member and staff), Social, Education, Staff, Settings, Co-Productions, Help, the side menu collapsed, Explore, the story studio and Messages; before = main at `2670eecc` (`--header-height` 80, phone 60), after = this build (one `--header-height: 56px`); the two stylesheets differ only in that token. At 768, 1024, 1280, 1440 and 1920 (1440 light and dark): the bar is **56** at y 0 (was 80); every header control (the slider's segments or the grey workspace pill, the search pill or icon, Ask, the bell, the avatar, Exit) is 44 tall with **5.5** above and below over the hairline (was 17.5), none clipped; where the bar carries the brand mark (Co-Productions, Help, Explore) the 24-tall mark has 15.5 / 15.5. The side menu runs the full height; its top band is 56 at y 0 with the brand link centred on the bar's middle (y 28); its rows move up 24. The lead scroller starts at 56 and ends at the viewport's bottom, and everything in its flow moves up exactly **24** (what a filling stage centres moves 12; Home's News rail 48, below); Explore's stage and the story studio fill 56 to the bottom; a Messages thread and compose (no bar), the story viewer, the sheets and the drawer cover the viewport, unchanged. The Feed's slider is **72** from the top at every desktop width (was 96), where Facebook's first card is at 1440. Home's News rail reads top 72 and max-height 812 at 900 (`100dvh − 56 − 32`); the Ask gate's floor is 448 at 1440 × 600 (was 424). No page overflow either way.
+- **Header height on phone (C12, §8).** 390 × 844 and 360 × 740, every workspace and Settings, Co-Productions, Help, Messages, the permalink, Profile, the story studio: the bar is **56** (was 60); every bar target is 44 or wider (the emblem link, the grey workspace pill, search, Ask, the bell, the avatar) with 5.5 above and below (was 7.5); everything under the bar is **4** higher (what the story studio centres, 2; the Feed's slider 72, was 76; the Education search row 56 to 125, its field 44); the dock, the sheets, the Ask overlay, Explore, a Messages thread and the story viewer do not move. No overflow and no ellipsis.
+- **Seen, not changed here.** Home's News rail sits at rest 40 under the first module (was 64), so it moves up 48: its sticky offset adds the header inside a scroller that already starts under it. The story studio at 360 × 740 runs 10 past the viewport inside the scroller (was 14), and at 768 its frame is 168 wider than the scroller before and after.
 - **Outside this lock, unchanged from `origin/main`** (the same sizes on the BEFORE build): the permalink Back link (24 tall), the comment Post button (40), the swipe dots (24, below md), Profile's photo and cover edit buttons and activity tabs (40), the compact Follow (40), and Profile's activity pill server paint.
 
 ---
 
 ## Repo citation
 
-`docs/design-locks/social-feed-cards-lock-v1.md` · classes in `src/lib/social-chrome.ts` (the cards block at the top and "Cards · posts"), `src/lib/house-shell.ts` (`HOUSE_PILL_SLIDER_*`, `HOUSE_DEST_RAIL_ROW_CLASS`), `src/lib/workspace-switcher.ts` (the wash thumb), `src/lib/house-lead-chrome.ts` (the search input), `src/lib/courses.ts` (`COURSE_FEATURE_*`); logic in `src/lib/social-home.ts` (`socialHomeStoryRailHasTiles`), `src/lib/social-media-display.ts` (`socialFeedVideoFrame`, `socialPostUsableMedia`, `socialPostMediaAllDropped`), `src/lib/social.ts` (`SOCIAL.post.mediaUnavailable`), `src/lib/social-feed-reels.ts` (`socialRowItemUnderFade`); components `social-post-card.tsx`, `social-post-media.tsx`, `social-stories-rail.tsx`, `social-home-composer.tsx`, `social-home-topics.tsx`, `social-for-you.tsx`, `social-comment-thread.tsx`, `social-activity-history.tsx`, `social-skeletons.tsx`, `social-icon.tsx`; the page `src/app/(app)/social/page.tsx` and the permalink `src/app/(app)/social/p/[postId]/page.tsx`; the play disc in `src/app/globals.css`.
+`docs/design-locks/social-feed-cards-lock-v1.md` · the header height in `src/app/tokens.css` (`--header-height`; §8 Header height) · classes in `src/lib/social-chrome.ts` (the cards block at the top and "Cards · posts"), `src/lib/house-shell.ts` (`HOUSE_PILL_SLIDER_*`, `HOUSE_DEST_RAIL_ROW_CLASS`), `src/lib/workspace-switcher.ts` (the wash thumb), `src/lib/house-lead-chrome.ts` (the search input), `src/lib/courses.ts` (`COURSE_FEATURE_*`); logic in `src/lib/social-home.ts` (`socialHomeStoryRailHasTiles`), `src/lib/social-media-display.ts` (`socialFeedVideoFrame`, `socialPostUsableMedia`, `socialPostMediaAllDropped`), `src/lib/social.ts` (`SOCIAL.post.mediaUnavailable`), `src/lib/social-feed-reels.ts` (`socialRowItemUnderFade`); components `social-post-card.tsx`, `social-post-media.tsx`, `social-stories-rail.tsx`, `social-home-composer.tsx`, `social-home-topics.tsx`, `social-for-you.tsx`, `social-comment-thread.tsx`, `social-activity-history.tsx`, `social-skeletons.tsx`, `social-icon.tsx`; the page `src/app/(app)/social/page.tsx` and the permalink `src/app/(app)/social/p/[postId]/page.tsx`; the play disc in `src/app/globals.css`.

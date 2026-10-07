@@ -106,7 +106,7 @@ type Org = { id: string; name: string };
 // with the same rows as every workspace (Adam 2026-10-04,
 // shell-unified-chrome-lock-v1; supersedes the 2026-09-18 no-rail
 // Home). The rail is a full-height 240 column (80 collapsed) with the
-// brand mark in its 80 top band and a hairline right edge, no card
+// brand mark in its top band (the header's height) and a hairline right edge, no card
 // (H register). Co-Productions stays rail-free; where the rail
 // is off the brand mark heads the header (brandInHeader).
 // Home SoT (HOME-width-lock.md): Home modules keep the shell gutters
@@ -364,7 +364,7 @@ export function AppShell({
           data-settings-rail={settingsPage ? "" : undefined}
         >
           {/* One full-height column for every workspace rail (Social
-              included) and Settings: the brand mark in the 80 top band,
+              included) and Settings: the brand mark in the top band (the header's height),
               the rows, then the collapse control at the bottom (not on
               Settings). The foot is the same element in both states, so
               keyboard focus stays on the collapse control. */}

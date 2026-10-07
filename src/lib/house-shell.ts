@@ -5,7 +5,8 @@
 // white use hairline. No shadow. Shell chrome is the H register
 // (Adam 2026-10-05, the shell register lock v1 in docs/design-locks):
 // a full-height 240 side menu with the brand mark in its top band and a
-// hairline right edge (no card); an 80 header whose workspace switch is
+// hairline right edge (no card); a 56 header on desktop and phone (the
+// cards lock §8, founder 2026-10-07; was 80 / 60) whose workspace switch is
 // the primary pill slider (muted track, ink thumb); round grey 44
 // controls; the current side-menu row and the phone dock's current glyph
 // in the accent register. The Settings and Education course rails keep
@@ -68,7 +69,7 @@ export const HOUSE_AGG_SHELL_COLUMN_CLASS =
 export const HOUSE_RAIL_COLUMN_CLASS =
   "fixed bottom-0 left-0 top-0 z-30 hidden flex-col md:flex";
 
-/** The side menu's top band: as tall as the header (80), the existing
+/** The side menu's top band: as tall as the header (--header-height), the existing
  *  brand mark with its ink at 32 (the house gutter), vertically centred.
  *  No hairline under it. Collapsed (80 wide) the mark is centred. */
 export const HOUSE_RAIL_BRAND_BAND_CLASS =

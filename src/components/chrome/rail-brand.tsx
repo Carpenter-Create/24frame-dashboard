@@ -10,7 +10,7 @@ import {
 // The side menu's top band (H register, Adam 2026-10-05,
 // decision 2: "the brand mark moves from the header to the top band of
 // the side menu"). The real BrandLogo, unchanged, its ink at 32 in the
-// 80 band; collapsed (80 wide) the emblem, centred, because the 93-wide
+// header-height band; collapsed (80 wide) the emblem, centred, because the 93-wide
 // wordmark does not fit. It links to the workspace home, as the header
 // wordmark did. Desktop only: the column is hidden below md, where the
 // phone bar keeps its emblem.

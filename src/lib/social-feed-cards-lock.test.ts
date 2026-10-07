@@ -147,6 +147,11 @@ const QUOTES = [
 const PLACEMENT_QUOTE =
   "Measure and make sure our feed is in the identical placement with the identical width as the Facebook feed.";
 
+// §8 Header height (Adam, 2026-10-07, open choice 5): the decision, then its
+// phone extension, verbatim.
+const HEADER_QUOTE = "Header height locked: 56 (match Facebook), shell-wide.";
+const PHONE_HEADER_QUOTE = "Phone header → 56 same as desktop.";
+
 // The locks this one reverses in part, read from its Supersedes section.
 function supersededLocks(doc: string): string[] {
   const start = doc.indexOf("**Supersedes (in part):**");
@@ -345,8 +350,15 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
 
   it("marks the register and shell locks it reverses, in their head and their index row", () => {
     const superseded = supersededLocks(lock);
-    expect([...superseded].sort()).toEqual(["shell-coinbase-register-lock-v1.md", "social-feed-register-lock-v1.md"]);
-    for (const file of superseded) {
+    expect([...superseded].sort()).toEqual([
+      "shell-coinbase-register-lock-v1.md",
+      "shell-screening-chrome-lock-v1.md",
+      "social-feed-register-lock-v1.md",
+    ]);
+    // The cards (2026-10-06) reverse the two register locks. §8 Header height
+    // (2026-10-07) adds the screening lock's phone bar; its head marker is
+    // checked with §8 Header height below.
+    for (const file of superseded.filter((name) => name !== "shell-screening-chrome-lock-v1.md")) {
       const doc = readFileSync(`docs/design-locks/${file}`, "utf8");
       const head = doc.split("\n").slice(0, 8).join("\n");
       expect(head, file).toContain("**Superseded in part (founder 2026-10-06, cards lock):**");
@@ -667,15 +679,15 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
   });
 
   // §8 Feed placement (founder 2026-10-07): the Facebook column.
-  it("§8: records the placement request verbatim, the Facebook and the measured numbers, and the header as a founder choice", () => {
+  it("§8: records the placement request verbatim, the Facebook and the measured numbers", () => {
     expect(lock).toContain("## Founder direction (verbatim, 2026-10-07)");
     expect(lock).toContain(`> ${PLACEMENT_QUOTE}`);
     expect(lock).toContain("## 8) Feed placement");
     // Facebook's column and ours, before and after, at 1440.
     expect(lock).toContain("x **380 to 1060**, width **680**");
     expect(lock).toContain("x 464 to 1064, width 600");
-    // The header stays 80 (Facebook's bar is 56): recorded, not changed.
-    expect(lock).toContain("**Header height.**");
+    // The header height was open choice 5; it is decided (the next test).
+    expect(lock).toContain("5. **Header height.**");
     // Every rule that named the 600 column names 680 (§8 keeps "before").
     const post = lock.slice(lock.indexOf("## 7) Post page"), lock.indexOf("## 8) Feed placement"));
     expect(post).toContain("Feed's **680** column, centred as the Feed's");
@@ -691,6 +703,81 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
     }
     expect(post).not.toMatch(/\b600\b/);
     expect(lock).toContain("**C11.** Feed placement (§8)");
+  });
+
+  // §8 Header height (founder 2026-10-07): the shell's header is 56 on
+  // desktop and phone. The token's value is pinned in src/app/tokens.test.ts;
+  // what hangs off it in src/lib/shell-header-height.test.ts.
+  it("§8 Header height: records the decision and its phone extension verbatim, closes open choice 5, and marks the shell locks, the index and the status line", () => {
+    const direction = lock.slice(lock.indexOf("## Founder direction (verbatim, 2026-10-07)"), lock.indexOf("## 1) Canvas"));
+    expect(direction).toContain(`\n> ${HEADER_QUOTE}\n\nThen, on phone:\n\n> ${PHONE_HEADER_QUOTE}\n`);
+    const decisions = lock.slice(lock.indexOf("## Founder decisions (2026-10-07)"), lock.indexOf("## Open founder choices"));
+    expect(decisions).toContain(`\n> ${HEADER_QUOTE}\n\nThen, on phone:\n\n> ${PHONE_HEADER_QUOTE}\n`);
+    expect(decisions).toContain("The header is 56 in every workspace, desktop and phone");
+    expect(lock).toContain("## Open founder choices (1–5 decided 2026-10-07)");
+    const choice = lock.split("\n").find((row) => row.startsWith("5. **Header height.**")) ?? "";
+    expect(choice).toContain("**Decided: 56, shell-wide**");
+    expect(choice).toContain(HEADER_QUOTE);
+    expect(choice).toContain(`Then the phone bar too: **56, the same as desktop** ("${PHONE_HEADER_QUOTE}"; it was 60)`);
+    // §8: the rule on desktop and phone (one value, no phone override), and
+    // the Feed then 72 from the top at 1440, where Facebook's first card is.
+    const section = lock.slice(lock.indexOf("**Header height** (founder 2026-10-07"), lock.indexOf("## Tokens"));
+    expect(section).toContain(HEADER_QUOTE);
+    expect(section).toContain(PHONE_HEADER_QUOTE);
+    expect(section).toContain("`--header-height` 80 → **56**");
+    expect(section).toContain("the phone block no longer overrides it (its 60 is gone)");
+    expect(section).toContain("| Phone | **56**, the same as desktop (was **60**");
+    expect(section).not.toContain("stays **60**");
+    expect(section).toContain("Everything under the bar moves up **4**");
+    expect(section).toContain("**72** from the top");
+    expect(lock).toContain("**C12.** Header height (§8)");
+    expect(lock).toContain("7. §8 Header height at 768, 1024, 1280, 1440 and 1920");
+    expect(lock).toContain("phone 390 and 360, every workspace: the bar 56, every target ≥ 44");
+    // The shell register lock: a head marker and each row that said 80.
+    const register = readFileSync("docs/design-locks/shell-coinbase-register-lock-v1.md", "utf8");
+    const head = register.split("\n").slice(0, 8).join("\n");
+    expect(head).toContain("**Superseded in part (founder 2026-10-07, cards lock §8 Header height):**");
+    expect(head).toContain(HEADER_QUOTE);
+    expect(head).toContain(PHONE_HEADER_QUOTE);
+    expect(head).toContain("on desktop and phone, not 80 / 60");
+    expect(head).not.toContain("The phone bar stays 60");
+    const lines = register.split("\n");
+    const desktopHeight = lines.find((line) => line.startsWith("| Height | ") && line.includes("the page canvas"));
+    expect(desktopHeight).toMatch(/superseded by the cards lock §8: 56/i);
+    // The phone bar's row and G5: 56, the same as desktop.
+    const phoneHeight = lines.find((line) => line.startsWith("| Height | ") && line.includes("Pads **16** lead / **12** trail"));
+    expect(phoneHeight).toMatch(/superseded by the cards lock §8: 56, the same as desktop/i);
+    for (const start of ["| Top band | ", "**G1.**", "**G4.**", "**G5.**"]) {
+      const row = lines.find((line) => line.startsWith(start)) ?? "";
+      expect(row, start).toMatch(/superseded by the cards lock §8: 56/i);
+    }
+    // The superseded shell locks that still said "the header is 80".
+    for (const file of ["shell-screening-chrome-lock-v1.md", "shell-unified-chrome-lock-v1.md"]) {
+      const doc = readFileSync(`docs/design-locks/${file}`, "utf8");
+      expect(doc, file).toContain("*(56 since 2026-10-07: [`social-feed-cards-lock-v1.md`](social-feed-cards-lock-v1.md) §8)*");
+    }
+    // The screening lock's phone bar (60, still in force until now): a head marker.
+    const screening = readFileSync("docs/design-locks/shell-screening-chrome-lock-v1.md", "utf8");
+    const screeningHead = screening.split("\n").find((line) => line.startsWith("**Superseded in part 2026-10-07**")) ?? "";
+    expect(screeningHead).toContain(PHONE_HEADER_QUOTE);
+    expect(screeningHead).toContain("§3 — the phone bar is **56**, not 60");
+    const home = readFileSync("src/lib/HOME-width-lock.md", "utf8");
+    expect(home).toContain("the header is 56, not 80");
+    expect(home).toContain("on phone 56, not 60");
+    // The index: both rows; the status line in the shell section, no date.
+    const row = (file: string) => readme.split("\n").find((line) => line.startsWith(`- [\`${file}\`]`)) ?? "";
+    expect(row("shell-coinbase-register-lock-v1.md")).toContain("§8: the header 56 on desktop and phone, not 80 / 60");
+    expect(row("social-feed-cards-lock-v1.md")).toContain(HEADER_QUOTE);
+    expect(row("social-feed-cards-lock-v1.md")).toContain(PHONE_HEADER_QUOTE);
+    expect(row("social-feed-cards-lock-v1.md")).not.toContain("Open:");
+    expect(row("social-feed-cards-lock-v1.md")).not.toContain("phone 60");
+    const shellAt = current.indexOf("## Shared shell chrome");
+    const shell = current.slice(shellAt, current.indexOf("---", shellAt));
+    const status = shell.split("\n").filter((line) => line.startsWith("Header height"));
+    expect(status).toHaveLength(1);
+    expect(status[0]).toContain("the header is 56 in every workspace on desktop and phone");
+    expect(status[0]).not.toContain("60");
+    expect(status[0]).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 
   it("§8: the Feed column is 680 and the rail 296 with a 48 gap; the classes are exact", () => {

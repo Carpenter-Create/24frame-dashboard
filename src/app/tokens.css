@@ -127,11 +127,14 @@
   /* --- Dashboard shell proportions ---
      Ported from watershedportal's shell (proportions kept, vocabulary dropped —
      see docs/known-divergences.md D2). GC had no equivalents, so these fill the gap.
-     Desktop header: the H-register bar, 80 (Adam 2026-10-05,
-     the shell register lock v1 in docs/design-locks). The side
-     menu's top band (the brand mark) is the same 80. Supersedes the
-     screening bar's 52. Phone is 60 (below). */
-  --header-height: 80px;
+     Header: 56 in every workspace, desktop and phone (founder
+     2026-10-07, "Header height locked: 56 (match Facebook),
+     shell-wide." and "Phone header → 56 same as desktop."; the cards
+     lock §8 in docs/design-locks). One value: the phone block below does
+     not override it. The side menu's top band (the brand mark) is the
+     same 56. Supersedes the H register's 80 (phone 60) and the
+     screening bar's 52. */
+  --header-height: 56px;
   /* Avatar 44 on desktop and phone: the photo is the 44 control. */
   --header-avatar-size: 44px;
   /* Header controls are 44 on phone and desktop (round grey buttons,
@@ -145,8 +148,9 @@
   --header-search-height: 48px;
   /* Dest-rail slot. One measure for Home, Aggregation, Social,
      Education, Staff, and Settings. H register (Adam
-     2026-10-05): a 240 column, full height, the brand mark in its 80
-     top band, a hairline on its right, no card; 80 collapsed.
+     2026-10-05): a 240 column, full height, the brand mark in its top
+     band (the header's height), a hairline on its right, no card; 80
+     collapsed.
      Supersedes the screening chrome's 200 / 64. Social does not own a
      second width. Only Co-Productions hides the rail. */
   --sidebar-width: 240px;
@@ -191,7 +195,6 @@
     --sidebar-width: 0px;
     --sidebar-width-collapsed: 0px;
     --access-rail-width: 0px;
-    --header-height: 60px;
     --header-avatar-size: 44px;
     --header-control-size: 44px;
     --header-search-height: 44px;

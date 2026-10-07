@@ -319,7 +319,8 @@ describe("house chrome rematch miss list v1.1", () => {
   it("locks lead ↔ rail chrome gutter (G6)", () => {
     const leadLib = readFileSync("src/lib/house-lead-chrome.ts", "utf8");
     // H register: the column is flush (no gutter inset) and runs the
-    // viewport's full height; its 80 top band matches the header.
+    // viewport's full height; its top band matches the header (one token,
+    // src/lib/shell-header-height.test.ts).
     expect(HOUSE_RAIL_COLUMN_CLASS).not.toContain("var(--chrome-gutter)");
     expect(leadLib).toContain("HOUSE_SHELL_GUTTER_X_CLASS");
     expect(leadLib).not.toContain("md:px-[var(--chrome-gutter)]");

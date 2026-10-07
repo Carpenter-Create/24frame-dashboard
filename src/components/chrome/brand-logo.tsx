@@ -82,7 +82,7 @@ export function BrandLogo() {
 }
 
 // The emblem alone at every width (the same Asset 8 geometry as the
-// phone lead): the collapsed side menu's 80 top band, where the
+// phone lead): the collapsed side menu's top band, where the
 // wordmark does not fit. BrandLogo itself is unchanged.
 export function BrandEmblem() {
   return (
