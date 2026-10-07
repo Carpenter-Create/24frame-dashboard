@@ -25,6 +25,7 @@ import {
   IDENTITY_BLOCK_CLASS,
   IDENTITY_EMAIL_CLASS,
   IDENTITY_NAME_CLASS,
+  IDENTITY_WHO_CLASS,
   SHEET_GROUP_CLASS,
   SHEET_GROUP_INSET_CLASS,
   SHEET_GROUP_INSET_ITEM_CLASS,
@@ -144,7 +145,7 @@ export function IdentityBlock({
   return (
     <div data-identity-block="" className={cn(IDENTITY_BLOCK_CLASS, className)}>
       <IdentityAvatar avatarInitial={avatarInitial} photoUrl={photoUrl} />
-      <div data-identity-who="" className="flex flex-col items-start gap-[var(--space-2)]">
+      <div data-identity-who="" className={IDENTITY_WHO_CLASS}>
         <p data-identity-name="" className={IDENTITY_NAME_CLASS}>
           {name}
         </p>

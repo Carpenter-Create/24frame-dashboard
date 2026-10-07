@@ -8,7 +8,10 @@ import {
   HOUSE_FORM_SELECT_OPTION_CHECK_CLASS,
   HOUSE_FORM_SELECT_PANEL_CLASS,
   HOUSE_FORM_SELECT_TRIGGER_CLASS,
+  HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS,
 } from "@/lib/house-form-select";
+import { housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
+import { stripSourceComments } from "@/test/strip-source-comments";
 import { Select } from "./select";
 
 describe("Select", () => {
@@ -55,5 +58,36 @@ describe("Select", () => {
     expect(src).toContain("AppearanceCheck");
     expect(src).not.toContain("<select");
     expect(src).not.toContain("createPortal");
+  });
+});
+
+describe("Select: a long chosen value wraps (house gospel 2026-09-19)", () => {
+  const LONG = "Sole proprietorship held in trust for the Featherstonehaugh family film archive";
+
+  it("renders the chosen value in the house wrap ahead of the chevron, with no ellipsis", () => {
+    const html = renderToStaticMarkup(
+      createElement(Select, {
+        id: "entity-type",
+        value: "long",
+        "aria-label": "Entity type",
+        onChange: () => undefined,
+        options: [
+          { value: "llc", label: "LLC" },
+          { value: "long", label: LONG },
+        ],
+      }),
+    );
+    expect(html).toContain(
+      `data-house-form-select-current="" class="${HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS}">${LONG}</span>`,
+    );
+    expect(html.indexOf(LONG)).toBeLessThan(html.indexOf("data-house-form-select-chevron"));
+    expect(housePhoneForbidsTruncate(html)).toBe(true);
+  });
+
+  it("keeps the label span on the shared constant in the source", () => {
+    const code = stripSourceComments(readFileSync("src/components/ui/select.tsx", "utf8"));
+    expect(code).toMatch(
+      /^\s*<span data-house-form-select-current="" className=\{HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS\}>$/m,
+    );
   });
 });

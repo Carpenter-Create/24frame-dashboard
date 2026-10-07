@@ -1,3 +1,5 @@
+import { HOUSE_PHONE_WRAP_CLASS } from "@/lib/house-phone-stack";
+
 // Locked house sheet primitives. Classes live here so account and nav
 // consume one scale — do not restyle per page.
 // Figma: Close/44 543:562, Text action 543:563, Identity 543:565, Group
@@ -21,9 +23,15 @@ export const IDENTITY_BLOCK_CLASS = "flex min-w-0 items-center gap-[var(--space-
 export const IDENTITY_AVATAR_CLASS =
   "flex size-14 shrink-0 items-center justify-center rounded-full bg-surface-muted t-body text-ink-2";
 
-export const IDENTITY_NAME_CLASS = "t-heading text-ink";
+// Name over email beside the face. The column can shrink (min-w-0) and
+// both lines take the house phone wrap (gospel 2026-09-19), so a long
+// name or email wraps and stops at the close X instead of running off
+// the sheet.
+export const IDENTITY_WHO_CLASS = "flex min-w-0 flex-col items-start gap-[var(--space-2)]";
 
-export const IDENTITY_EMAIL_CLASS = "t-body-sm text-ink-3";
+export const IDENTITY_NAME_CLASS = `${HOUSE_PHONE_WRAP_CLASS} t-heading text-ink`;
+
+export const IDENTITY_EMAIL_CLASS = `${HOUSE_PHONE_WRAP_CLASS} t-body-sm text-ink-3`;
 
 export const SHEET_GROUP_CLASS = "flex flex-col items-start gap-[var(--space-6)]";
 

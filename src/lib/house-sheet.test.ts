@@ -21,6 +21,7 @@ import {
   IDENTITY_EMAIL_CLASS,
   HOUSE_EMPTY_CLASS,
   IDENTITY_NAME_CLASS,
+  IDENTITY_WHO_CLASS,
   SHEET_GROUP_CHEVRON_CLASS,
   SHEET_GROUP_CLASS,
   SHEET_GROUP_INSET_CLASS,
@@ -32,6 +33,8 @@ import {
   TEXT_ACTION_CLASS,
   THREAD_POPOVER_ICON_CLASS,
 } from "./house-sheet";
+import { housePhoneForbidsTruncate } from "./house-phone-stack";
+import { stripSourceComments } from "@/test/strip-source-comments";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const tokens = readFileSync(join(here, "../app/tokens.css"), "utf8");
@@ -188,5 +191,24 @@ describe("house sheet lock", () => {
     expect(APP_SHEET_HOST_CLASS).toContain("md:hidden");
     expect(APP_SHEET_SURFACE_CLASS).not.toContain("md:shadow");
     expect(APP_SHEET_SURFACE_CLASS).not.toContain("backdrop-blur");
+  });
+});
+
+describe("house Identity: phone never-truncate (house gospel 2026-09-19)", () => {
+  it("pins the identity column and lines to the house wrap, type and ink unchanged", () => {
+    expect(IDENTITY_WHO_CLASS).toBe("flex min-w-0 flex-col items-start gap-[var(--space-2)]");
+    expect(IDENTITY_NAME_CLASS).toBe(
+      "min-w-0 max-w-full whitespace-normal break-words t-heading text-ink",
+    );
+    expect(IDENTITY_EMAIL_CLASS).toBe(
+      "min-w-0 max-w-full whitespace-normal break-words t-body-sm text-ink-3",
+    );
+    for (const value of [IDENTITY_WHO_CLASS, IDENTITY_NAME_CLASS, IDENTITY_EMAIL_CLASS]) {
+      expect(housePhoneForbidsTruncate(value)).toBe(true);
+    }
+    // The lines are built from the house wrap itself, not hand-typed copies.
+    const sheet = stripSourceComments(readFileSync(join(here, "house-sheet.ts"), "utf8"));
+    expect(sheet).toMatch(/^export const IDENTITY_NAME_CLASS = `\$\{HOUSE_PHONE_WRAP_CLASS\} t-heading text-ink`;$/m);
+    expect(sheet).toMatch(/^export const IDENTITY_EMAIL_CLASS = `\$\{HOUSE_PHONE_WRAP_CLASS\} t-body-sm text-ink-3`;$/m);
   });
 });

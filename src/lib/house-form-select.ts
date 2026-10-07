@@ -1,5 +1,6 @@
 import { cn } from "@/lib/cn";
 import { FORM_CONTROL_BOX_CLASS, FORM_CONTROL_TEXT_CLASS } from "@/lib/form-control";
+import { HOUSE_PHONE_WRAP_CLASS } from "@/lib/house-phone-stack";
 import {
   HOUSE_PAGE_SELECT_CHEVRON_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS,
@@ -19,6 +20,11 @@ export const HOUSE_FORM_SELECT_TRIGGER_CLASS = cn(
   FORM_CONTROL_BOX_CLASS,
   "flex items-center justify-between gap-[var(--space-2)] text-left",
 );
+
+// The chosen value in the closed field: the house phone wrap at every
+// width (gospel 2026-09-19), never an ellipsis in a form. The box grows
+// and the chevron stays centred on it.
+export const HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS = `flex-1 ${HOUSE_PHONE_WRAP_CLASS}`;
 
 export const HOUSE_FORM_SELECT_CHEVRON_CLASS = HOUSE_PAGE_SELECT_CHEVRON_CLASS;
 

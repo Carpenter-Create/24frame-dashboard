@@ -10,7 +10,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 
-import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
+import { ASK_AI_HISTORY_ROW_TITLE_CLASS } from "@/lib/ask-ai-overlay";
+import { ASK_FRAME_AI, ASK_FRAME_AI_TITLE_MAX, askFrameAiConversationTitle } from "@/lib/ask-frame-ai";
+import { housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
+import { stripSourceComments } from "@/test/strip-source-comments";
 import { AskFrameAiHistoryClock, AskFrameAiHistoryPanel } from "./ask-frame-ai-history";
 
 function visible(html: string): string {
@@ -125,5 +128,42 @@ describe("AskFrameAiHistoryPanel", () => {
     expect(src).toContain('align === "end" ? "right-0" : "left-0"');
     expect(src).toContain("AskFrameAiHistoryClock");
     expect(src).toContain("MOBILE_CHROME_ICON_BUTTON_CLASS");
+  });
+});
+
+describe("AskFrameAiHistoryPanel: a long title wraps (house gospel 2026-09-19)", () => {
+  const TITLE = askFrameAiConversationTitle(
+    "Which of my titles are still missing artwork or captions before the October delivery window closes",
+  );
+
+  it("renders an 80-character title in the house wrap, with the time still on its right", () => {
+    expect(TITLE).toHaveLength(ASK_FRAME_AI_TITLE_MAX);
+    const html = visible(
+      renderToStaticMarkup(
+        <AskFrameAiHistoryPanel
+          conversations={[
+            {
+              id: THREAD,
+              title: TITLE,
+              pinned_at: null,
+              created_at: "2026-08-19T11:00:00.000Z",
+              updated_at: new Date(2026, 7, 19, 7, 10, 0).toISOString(),
+            },
+          ]}
+          now={NOW}
+        />,
+      ),
+    );
+    const row = html.slice(html.indexOf("data-ask-frame-ai-history-row"), html.indexOf("</li>"));
+    expect(row).toContain(
+      `<span class="${ASK_AI_HISTORY_ROW_TITLE_CLASS}">${TITLE}</span><span class="shrink-0 t-body-sm text-ink-3">`,
+    );
+    expect(housePhoneForbidsTruncate(row)).toBe(true);
+  });
+
+  it("keeps the row title on the shared constant in the source", () => {
+    expect(stripSourceComments(src)).toMatch(
+      /^\s*<span className=\{ASK_AI_HISTORY_ROW_TITLE_CLASS\}>\{row\.title\}<\/span>$/m,
+    );
   });
 });

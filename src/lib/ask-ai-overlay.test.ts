@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ASK_AI_HISTORY_ROW_TITLE_CLASS,
   ASK_AI_OPEN_VALUE,
   ASK_AI_OVERLAY,
   ASK_AI_OVERLAY_BODY_CLASS,
@@ -33,6 +34,8 @@ import {
   rememberAskAiReturnPath,
   toggleAskAiOverlay,
 } from "./ask-ai-overlay";
+import { housePhoneForbidsTruncate } from "./house-phone-stack";
+import { stripSourceComments } from "@/test/strip-source-comments";
 
 const THREAD = "2f1c8b6a-4d3e-4a11-9c22-7b8e1d0a5f44";
 const memory = new Map<string, string>();
@@ -227,5 +230,17 @@ describe("ask AI overlay URL", () => {
     expect(src).not.toMatch(/ASK_AI_RETURN_\w*KEY\s*=/);
     expect(src).not.toContain("STORAGE_KEY");
     expect(src).not.toMatch(/\b\d[A-Za-z0-9_]*ask_ai_return\b/);
+  });
+});
+
+describe("ask AI history row title: phone never-truncate (house gospel 2026-09-19)", () => {
+  it("pins the row title to the house wrap with body type and ink", () => {
+    expect(ASK_AI_HISTORY_ROW_TITLE_CLASS).toBe(
+      "min-w-0 max-w-full whitespace-normal break-words t-body text-ink",
+    );
+    expect(housePhoneForbidsTruncate(ASK_AI_HISTORY_ROW_TITLE_CLASS)).toBe(true);
+    expect(stripSourceComments(readFileSync("src/lib/ask-ai-overlay.ts", "utf8"))).toMatch(
+      /^export const ASK_AI_HISTORY_ROW_TITLE_CLASS = `\$\{HOUSE_PHONE_WRAP_CLASS\} t-body text-ink`;$/m,
+    );
   });
 });

@@ -11,6 +11,7 @@ import {
   HOUSE_FORM_SELECT_OPTION_LABEL_CLASS,
   HOUSE_FORM_SELECT_PANEL_CLASS,
   HOUSE_FORM_SELECT_TRIGGER_CLASS,
+  HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS,
   houseFormSelectOptionClass,
   type HouseFormSelectOption,
 } from "@/lib/house-form-select";
@@ -78,7 +79,7 @@ export function Select({
         onClick={() => setOpen((next) => !next)}
         className={HOUSE_FORM_SELECT_TRIGGER_CLASS}
       >
-        <span data-house-form-select-current="" className="min-w-0 flex-1 truncate">
+        <span data-house-form-select-current="" className={HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS}>
           {current?.label ?? value}
         </span>
         <CaretDown
