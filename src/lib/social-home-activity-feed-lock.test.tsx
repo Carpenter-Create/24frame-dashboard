@@ -61,7 +61,9 @@ describe("Social Home activity feed lock v1", () => {
     expect(html).toContain(SOCIAL.home.findPeople);
     expect(html).toContain("t-heading");
     expect(html).toContain("t-body-sm");
-    expect(html).toContain("text-ink-3");
+    // The hint sits on the empty card: ink-2 (ink-3 on the grey card fails AA; cards lock).
+    expect(html).toContain("t-body-sm text-ink-2");
+    expect(html).not.toContain("text-ink-3");
     expect(html).toContain("gap-[var(--space-4)]");
     expect(html).not.toContain("No stories yet");
     expect(html).not.toContain("truncate");

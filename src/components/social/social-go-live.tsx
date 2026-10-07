@@ -474,7 +474,7 @@ export function SocialGoLive() {
               router.replace(takeSocialGoLiveExitHref());
             }}
           >
-            <SocialIcon name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+            <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
           </HouseLink>
           <span className="t-label font-semibold text-band-ink">{SOCIAL.create.goLive}</span>
           <button
@@ -484,7 +484,7 @@ export function SocialGoLive() {
             disabled={phase !== "preview"}
             onClick={() => void flipCamera()}
           >
-            <SocialIcon name="camera-rotate" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+            <SocialIcon weight="bold" name="camera-rotate" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
           </button>
         </div>
         {phase === "recording" ? (

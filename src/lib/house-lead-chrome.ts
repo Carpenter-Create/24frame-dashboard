@@ -156,14 +156,14 @@ export const HOUSE_LEAD_SEARCH_PILL_CLASS =
 
 // Desktop header search (xl+): the H register's wide grey pill —
 // 44 tall, radius full, muted, pad 0 16, a 20 glyph in ink-2, gap 12,
-// 17 / 420 input; placeholder and glyph on ink-2 (ink-3 on the muted
-// fill is under 4.5:1). Same form, input, and voice mic as every
-// HouseLeadSearch field; only the face is header-sized.
+// 15 / 420 input (cards lock, lighter ink); placeholder and glyph on
+// ink-2 (ink-3 on the muted fill is under 4.5:1). Same form, input, and
+// voice mic as every HouseLeadSearch field; only the face is header-sized.
 export const HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS =
   "flex h-[var(--header-control-size)] w-full min-w-0 items-center gap-[var(--space-3)] rounded-full border-0 bg-surface-muted px-[var(--space-4)] text-ink-2";
 
 export const HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS =
-  "h-full min-w-0 flex-1 text-[length:var(--text-base)] text-ink placeholder:text-ink-2";
+  "h-full min-w-0 flex-1 text-[length:var(--text-sm)] text-ink placeholder:text-ink-2";
 
 export const HOUSE_LEAD_SEARCH_HEADER_GLYPH_CLASS = "size-5 shrink-0 text-ink-2";
 

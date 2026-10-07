@@ -31,6 +31,8 @@ import {
   SOCIAL_COMPOSER_FIELD_CLASS,
   SOCIAL_EMPTY_ACTION_CLASS,
   SOCIAL_EMPTY_PANEL_CLASS,
+  SOCIAL_FEED_CARD_SURFACE_CLASS,
+  SOCIAL_HOME_STORIES_CARD_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
   SOCIAL_HOME_STORY_CREATE_FACE_CLASS,
@@ -46,6 +48,8 @@ import {
   SOCIAL_HOME_TOPIC_FADE_CLASS,
   SOCIAL_HOME_TOPIC_MORE_CLASS,
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
+  SOCIAL_IN_CARD_EDGE_CLASS,
+  SOCIAL_IN_CARD_FILL_CLASS,
   SOCIAL_STORIES_EMPTY_ACTION_CLASS,
   SOCIAL_STORIES_PLUS_WELL_CLASS,
   SOCIAL_STORY_CREATE_LABEL_TYPE_CLASS,
@@ -126,14 +130,15 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     const cameraAt = html.indexOf('data-social-composer-affordance="camera"');
     expect(photoAt).toBeGreaterThan(html.indexOf("data-social-composer-prompt"));
     expect(cameraAt).toBeGreaterThan(photoAt);
-    // H · Feed composer (founder 2026-10-05; replaces the G composer bar
-    // pins: one muted 52 bar, radius 16): one 44 row, no bar — the 44
-    // avatar, 12, the grey "Share something" pill, then round grey 44
-    // Photo and Camera (8 apart on desktop, 4 on phone), 20 ink glyphs.
-    expect(SOCIAL_COMPOSER_CLASS).toContain("mt-6");
+    // Cards (founder 2026-10-06; replaces the H bare 44 row): the composer
+    // is its own card on the shared surface — the 44 avatar, 12, the
+    // "Share something" pill, then round 44 Photo and Camera (8 apart on
+    // desktop, 4 on phone) on the in-card fill, 20 ink glyphs. Its margins
+    // are owned by the cards lock test.
+    expect(SOCIAL_COMPOSER_CLASS.endsWith(` ${SOCIAL_FEED_CARD_SURFACE_CLASS}`)).toBe(true);
     expect(SOCIAL_COMPOSER_CLASS).toContain("gap-1");
     expect(SOCIAL_COMPOSER_CLASS).toContain("md:gap-2");
-    expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/bg-|rounded|border|shadow|accent/);
+    expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/border|shadow|accent/);
     expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("flex-1");
     expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("items-center");
     expect(SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS).toContain("gap-1");
@@ -142,7 +147,8 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("size-11");
     expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).not.toContain("md:size-9");
     expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("rounded-full");
-    expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("bg-surface-muted");
+    expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain(SOCIAL_IN_CARD_FILL_CLASS);
+    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain(SOCIAL_IN_CARD_FILL_CLASS);
     expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).toContain("text-ink");
     expect(SOCIAL_COMPOSER_AFFORDANCE_CLASS).not.toContain("bg-accent");
     expect(html).toContain(`width="20"`);
@@ -249,25 +255,30 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
       />,
     );
     expect(html).toContain('role="group" aria-label="Stories"');
+    // Cards (founder 2026-10-06): the rail sits in its own stories card;
+    // the rail pads 8 inside it (values owned by the cards lock test).
+    expect(html).toContain(`data-social-stories-card="" class="${SOCIAL_HOME_STORIES_CARD_CLASS}"`);
+    expect(html.indexOf("data-social-stories-card")).toBeLessThan(html.indexOf(SOCIAL_HOME_STORIES_RAIL_CLASS));
     expect(html).toContain(SOCIAL_HOME_STORIES_RAIL_CLASS);
     expect(html).toContain(SOCIAL_HOME_STORY_CARD_CLASS);
     expect(SOCIAL_HOME_STORY_CARD_CLASS).not.toMatch(/border|shadow/);
     expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("gap-2");
-    expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("max-md:px-4");
+    // The card carries the phone bleed, so the rail adds none.
+    expect(SOCIAL_HOME_STORIES_RAIL_CLASS).not.toContain("max-md:-mx-");
     expect(html).not.toContain("h-[100px] w-14");
     expect(html).not.toContain("w-[70px]");
     expect(html).not.toContain("data-social-stories-tall");
-    // Create story: the photo in the upper 120, the label on the muted
-    // plate, the accent plus ringed in muted on the seam.
+    // Create story: the photo in the upper 120, the label on the plate,
+    // the accent plus ringed in the in-card fill on the seam (the label's
+    // 13 / 500 is owned by the cards lock test).
     expect(html).toContain("data-social-story-create");
     expect(html).toContain(`aria-label="${SOCIAL.stories.yourStoryCreate}"`);
     expect(html).toContain(`>${SOCIAL.stories.create}<`);
     expect(html).toContain(SOCIAL_HOME_STORY_CREATE_FACE_CLASS);
     expect(html).toContain(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS);
-    expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("text-[length:var(--text-sm)]");
     expect(SOCIAL_HOME_STORY_CREATE_LABEL_CLASS).toContain("font-medium");
     expect(html).toContain(SOCIAL_HOME_STORY_PLUS_CLASS);
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("border-[3px] border-surface-muted");
+    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain(`border-[3px] ${SOCIAL_IN_CARD_EDGE_CLASS}`);
     // Unseen: the accent ring around the top-left avatar. Seen: hairline.
     const userCard = html.slice(html.indexOf("data-social-story-card"));
     expect(userCard).toContain(SOCIAL_HOME_STORY_FACE_RING_UNSEEN_CLASS);
@@ -321,7 +332,9 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(SOCIAL_STORIES_PLUS_WELL_CLASS).not.toContain("bg-surface");
   });
 
-  it("uses Phosphor users, 8px empty panel, and Sporty Blue empty CTA", () => {
+  // Cards (founder 2026-10-06; replaces "8px empty panel"): the empty
+  // panel is a card on the shared surface (radius owned by the cards lock).
+  it("uses Phosphor users, the card empty panel, and Sporty Blue empty CTA", () => {
     const html = renderToStaticMarkup(
       <SocialEmpty
         icon="users"
@@ -338,7 +351,7 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).toContain("/social/search?intent=people");
     expect(html).toContain(SOCIAL_EMPTY_PANEL_CLASS);
     expect(html).toContain(SOCIAL_EMPTY_ACTION_CLASS);
-    expect(SOCIAL_EMPTY_PANEL_CLASS).toContain("rounded-[var(--radius-lg)]");
+    expect(SOCIAL_EMPTY_PANEL_CLASS.endsWith(` ${SOCIAL_FEED_CARD_SURFACE_CLASS}`)).toBe(true);
     expect(SOCIAL_EMPTY_ACTION_CLASS).toContain("bg-accent");
   });
 

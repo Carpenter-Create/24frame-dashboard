@@ -166,8 +166,9 @@ export const HOUSE_DEST_RAIL_DIVIDER_CLASS = "my-2 h-px w-full shrink-0 bg-hairl
 export const HOUSE_DEST_RAIL_DIVIDER_COLLAPSED_CLASS = "my-2 h-px w-6 shrink-0 bg-hairline";
 
 // min-h, not h: a long label wraps and the row grows; nothing is cut.
+// Labels 15 / 500 (cards lock, lighter ink; the shell register lock drew 17).
 export const HOUSE_DEST_RAIL_ROW_CLASS =
-  "relative flex min-h-14 w-full items-center gap-[var(--space-4)] rounded-full px-[var(--space-4)] text-left text-[length:var(--text-base)] font-medium transition-colors";
+  "relative flex min-h-14 w-full items-center gap-[var(--space-4)] rounded-full px-[var(--space-4)] text-left text-[length:var(--text-sm)] font-medium transition-colors";
 
 export const HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS =
   "relative flex size-14 shrink-0 items-center justify-center rounded-full transition-colors";
@@ -284,19 +285,25 @@ export const HOUSE_SEGMENTED_ITEM_OFF_CLASS = "text-ink-2";
 // Primary pill slider (H register §3.1; founder 2026-10-05, "I like the
 // designs. Let's use them."). One pattern for every primary view switch:
 // the header workspace slider and the Feed's Following / For you. It is
-// this SegmentedTrack with an ink thumb: a muted track, radius full, no
-// inset (the thumb is the full track height); the thumb slides 220 ms
-// ease-out (the register's listed motion). Labels 17 / 600, 44 tall,
-// never truncated; ink idle, the page colour on the thumb. The label ink
-// snaps with the thumb's index (no colour transition). Dark: the thumb
-// and labels flip with --text / --bg. Hosts set only the side pad (16 in
-// the header, 20 on a page switch).
+// this SegmentedTrack: a muted track, radius full, no inset (the thumb is
+// the full track height); the thumb slides 220 ms ease-out (the
+// register's listed motion). Labels 15 / 500, 44 tall, never truncated;
+// ink-2 idle (cards lock, founder 2026-10-06: "feels like thick ink
+// everywhere"). The Feed's thumb is ink with the page colour on it (the
+// one ink element on Social); the header's thumb is the accent wash with
+// accent-ink (workspace-switcher). The label ink snaps with the thumb's
+// index (no colour transition). Dark: the ink thumb and its label flip
+// with --text / --bg. Hosts set only the side pad (16 in the header, 20
+// on a page switch). docs/design-locks/social-feed-cards-lock-v1.md
 export const HOUSE_PILL_SLIDER_TRACK_CLASS = HOUSE_SEGMENTED_TRACK_CLASS;
 
 export const HOUSE_PILL_SLIDER_THUMB_DURATION_MS = 220;
 
-export const HOUSE_PILL_SLIDER_THUMB_CLASS =
-  "pointer-events-none absolute inset-y-0 rounded-full bg-ink transition-[left,width] duration-[220ms] ease-out motion-reduce:transition-none";
+// The thumb's geometry and motion; a host adds its fill.
+export const HOUSE_PILL_SLIDER_THUMB_BASE_CLASS =
+  "pointer-events-none absolute inset-y-0 rounded-full transition-[left,width] duration-[220ms] ease-out motion-reduce:transition-none";
+
+export const HOUSE_PILL_SLIDER_THUMB_CLASS = `${HOUSE_PILL_SLIDER_THUMB_BASE_CLASS} bg-ink`;
 
 // Before the thumb is placed (the server paint, until hydration measures
 // it), the lit segment carries the thumb's ink itself, so its page-colour
@@ -307,11 +314,11 @@ export const HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS =
   "in-data-segmented-pending:data-segmented-selected:bg-ink";
 
 export const HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS =
-  `relative z-10 inline-flex h-11 shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full text-[length:var(--text-base)] font-semibold ${HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS}`;
+  `relative z-10 inline-flex h-11 shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full text-[length:var(--text-sm)] font-medium ${HOUSE_PILL_SLIDER_SEGMENT_PENDING_CLASS}`;
 
 export const HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS = "text-bg";
 
-export const HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS = "text-ink";
+export const HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS = "text-ink-2";
 
 /** Hide the accent thumb when no segment is selected (activeIndex < 0). */
 export function houseSegmentedThumbHidden(activeIndex: number): boolean {

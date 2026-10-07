@@ -25,6 +25,10 @@ import {
 } from "@/lib/social-chrome";
 import {
   HOUSE_PILL_SELECTED_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
+  HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS,
+  HOUSE_PILL_SLIDER_THUMB_BASE_CLASS,
   HOUSE_PILL_SLIDER_THUMB_CLASS,
   HOUSE_PILL_SLIDER_TRACK_CLASS,
 } from "@/lib/house-shell";
@@ -177,14 +181,18 @@ describe("SocialHomeLaneTabs (the primary pill slider)", () => {
     expect(tabsSrc).toContain("persistKey={SEGMENTED_TRACK_PERSIST.socialFeedScope}");
     expect(tabsSrc).toContain("durationMs={SOCIAL_FEED_SCOPE_THUMB_DURATION_MS}");
     expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toBe(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS);
+    // Cards lock (founder 2026-10-06): the header's thumb shares the
+    // geometry and motion but is the wash; the Feed's keeps the ink.
+    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS.startsWith(HOUSE_PILL_SLIDER_THUMB_BASE_CLASS)).toBe(true);
+    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS.startsWith(HOUSE_PILL_SLIDER_THUMB_BASE_CLASS)).toBe(true);
+    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).not.toBe(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS);
     expect(SOCIAL_FEED_SCOPE_TRACK_CLASS.startsWith(HOUSE_PILL_SLIDER_TRACK_CLASS)).toBe(true);
     // Left-aligned: the track hugs its labels; no pull, no underline row.
     expect(SOCIAL_FEED_SCOPE_TRACK_CLASS).toContain("w-max");
     expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/justify-(center|end|between)|-mt-/);
   });
 
-  it("lights the current lane: aria-current and the ink thumb's page-colour label; idle is ink", () => {
+  it("lights the current lane: aria-current and the ink thumb's page-colour label; idle is ink-2", () => {
     const html = renderToStaticMarkup(<SocialHomeLaneTabs topic={SOCIAL_CATEGORY_ALL} />);
     const following = laneMarkup(html, "following");
     const forYou = laneMarkup(html, "for-you");
@@ -202,18 +210,18 @@ describe("SocialHomeLaneTabs (the primary pill slider)", () => {
     expect(forYou).toContain("in-data-segmented-pending:data-segmented-selected:bg-ink");
     expect(forYou).toContain(`class="${SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS}"`);
     expect(forYou).toContain('href="/social?lane=for-you"');
-    // Ink thumb with the page-colour label; ink idle; 44 tall, 17 / 600,
-    // pad 20; no underline, no accent.
+    // Ink thumb with the page-colour label (the one ink element on the
+    // Feed); the house slider's segment (its size and weight are owned by
+    // the cards lock test), pad 20; no underline, no accent.
     expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toContain("bg-ink");
     expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toContain("duration-[220ms] ease-out");
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toContain("text-bg");
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS).toContain("text-ink");
+    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS.endsWith(` ${HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS}`)).toBe(true);
+    expect(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS.endsWith(` ${HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS}`)).toBe(true);
     for (const cls of [SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS, SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS]) {
+      expect(cls.startsWith(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS)).toBe(true);
       expect(cls).toContain("h-11");
       expect(cls).toContain("px-5");
       expect(cls).toContain("rounded-full");
-      expect(cls).toContain("text-[length:var(--text-base)]");
-      expect(cls).toContain("font-semibold");
       expect(cls).not.toMatch(/accent|border|shadow|transition-colors/);
     }
     expect(socialFeedScopeSegmentClass(true)).toBe(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS);

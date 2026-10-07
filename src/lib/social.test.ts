@@ -891,6 +891,13 @@ describe("feed post craft lock 2026-09-21", () => {
   });
 });
 
+describe("feed cards lock 2026-10-06", () => {
+  it("names a post whose media all failed to draw and that has no words", () => {
+    // docs/design-locks/social-feed-cards-lock-v1.md (C5)
+    expect(SOCIAL.post.mediaUnavailable).toBe("Media unavailable");
+  });
+});
+
 describe("profile stat labels", () => {
   it("reads one as singular: 1 post, 1 follower (Stage mockup), never 1 posts", () => {
     expect(socialProfileStatLabel("posts", 1)).toBe("post");

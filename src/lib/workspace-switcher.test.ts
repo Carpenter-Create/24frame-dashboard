@@ -123,14 +123,13 @@ describe("workspace switcher lock", () => {
     expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toBe("hidden lg:contents");
     expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("shrink-0 lg:hidden");
     expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).not.toContain("lg:contents");
-    // The slider is the house muted track; the thumb is ink, not accent.
+    // The slider is the house muted track. The lit segment's label takes
+    // the ON class and the idle ones the OFF class (the wash thumb with
+    // accent-ink, cards lock, pinned in social-feed-cards-lock.test.ts).
     expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toBe(HOUSE_SEGMENTED_TRACK_CLASS);
-    expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toContain("rounded-full bg-surface-muted");
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toContain("bg-ink");
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).not.toContain("bg-accent");
-    expect(workspaceSwitcherSegmentClass(true)).toContain("text-bg");
+    expect(workspaceSwitcherSegmentClass(true).endsWith(` ${WORKSPACE_SWITCHER_SEGMENT_ON_CLASS}`)).toBe(true);
+    expect(workspaceSwitcherSegmentClass(false).endsWith(` ${WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS}`)).toBe(true);
     expect(workspaceSwitcherSegmentClass(true)).not.toContain("text-white");
-    expect(workspaceSwitcherSegmentClass(false)).toContain("text-ink");
     expect(workspaceSwitcherNextSegmentIndex(0, 3, -1)).toBe(2);
     expect(WORKSPACE_WAFFLE_TRIGGER_CLASS).toContain("relative");
     expect(WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS).toBe("bg-hairline");
@@ -462,22 +461,19 @@ describe("workspace switcher lock", () => {
   // workspace switcher is the primary pill slider — muted track, no
   // inset, an ink thumb that slides 220ms ease-out, 17 / 600 labels 44
   // tall with 16 pads. Supersedes the screening chrome's text lanes.
-  it("paints the desktop switcher as the pill slider — muted track, ink thumb, 17 / 600, 44", () => {
+  it("paints the desktop switcher as the pill slider — muted track, the sliding thumb, 44", () => {
     expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toBe(
       "relative flex shrink-0 items-center rounded-full bg-surface-muted",
     );
     expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).not.toMatch(/(?:^|\s)p[xy]?-/);
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).toBe(
-      "pointer-events-none absolute inset-y-0 rounded-full bg-ink transition-[left,width] duration-[220ms] ease-out motion-reduce:transition-none",
-    );
+    // The thumb, the segment (44, 15 / 500, the pending wash) and the ON /
+    // OFF label inks are the cards lock's values (founder 2026-10-06),
+    // pinned in src/lib/social-feed-cards-lock.test.ts.
     expect(WORKSPACE_SWITCHER_SLIDER_THUMB_DURATION_MS).toBe(220);
     // Until the thumb is placed (the server paint), the lit segment
-    // carries the thumb's ink so "Social" never paints white on grey.
-    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toBe(
-      "relative z-10 inline-flex h-[var(--header-control-size)] shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full px-[var(--space-4)] text-[length:var(--text-base)] font-semibold in-data-segmented-pending:data-segmented-selected:bg-ink",
-    );
-    expect(WORKSPACE_SWITCHER_SEGMENT_ON_CLASS).toBe("text-bg");
-    expect(WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS).toBe("text-ink");
+    // carries the thumb's fill itself, so "Social" reads on the server paint.
+    const thumbFill = WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS.split(/\s+/).find((cls) => cls.startsWith("bg-"));
+    expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).toContain(`in-data-segmented-pending:data-segmented-selected:${thumbFill}`);
     expect(workspaceSwitcherSegmentClass(true)).toBe(`${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_ON_CLASS}`);
     expect(workspaceSwitcherSegmentClass(false)).toBe(`${WORKSPACE_SWITCHER_SEGMENT_CLASS} ${WORKSPACE_SWITCHER_SEGMENT_OFF_CLASS}`);
     expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).not.toContain("truncate");

@@ -12,6 +12,7 @@ import {
   SOCIAL_FEED_ASIDE_SECTION_CLASS,
   SOCIAL_FEED_ASIDE_SUBHEAD_CLASS,
   SOCIAL_FOR_YOU_CARD_CLASS,
+  SOCIAL_FOR_YOU_LANE_CARD_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,
 } from "@/lib/social-chrome";
 import type { CourseRow } from "@/lib/courses";
@@ -23,12 +24,15 @@ export function SocialSuggestedPeople({
   faces,
   title = SOCIAL.forYou.people,
   framed = true,
+  cardClassName = SOCIAL_FOR_YOU_CARD_CLASS,
 }: {
   people: readonly SocialSuggestedPerson[];
   faces: ReadonlyMap<string, string | null>;
   title?: string;
-  /** False: the Feed rail's section (a 17 / 600 heading over 56 rows). */
+  /** False: the Feed rail's section (a 17 / 480 heading over 56 rows). */
   framed?: boolean;
+  /** The framed card: the rail's module, or the Feed lane's card. */
+  cardClassName?: string;
 }) {
   if (people.length === 0) return null;
   if (!framed) {
@@ -60,7 +64,7 @@ export function SocialSuggestedPeople({
     );
   }
   return (
-    <div data-social-for-you-people="" className={SOCIAL_FOR_YOU_CARD_CLASS}>
+    <div data-social-for-you-people="" className={cardClassName}>
       <p className="t-body-sm font-semibold text-ink">{title}</p>
       {people.map((person) => (
         <div
@@ -120,7 +124,13 @@ export function SocialForYouRail({
           <p className="t-body-sm font-medium text-ink-2">{SOCIAL.forYou.title}</p>
         </div>
       ) : null}
-      <SocialSuggestedPeople people={people} faces={faces} />
+      {/* Cards lock: in the Feed's For you lane the people are a card
+          like every Feed module; the framed rail keeps its module. */}
+      <SocialSuggestedPeople
+        people={people}
+        faces={faces}
+        cardClassName={layout === "lane" ? SOCIAL_FOR_YOU_LANE_CARD_CLASS : SOCIAL_FOR_YOU_CARD_CLASS}
+      />
       {layout === "rail" && latestCourse ? (
         <div data-social-latest-course="" className={SOCIAL_FOR_YOU_CARD_CLASS}>
           <p className="t-body-sm font-semibold text-ink">{SOCIAL.forYou.latestCourse}</p>
@@ -143,9 +153,9 @@ export function SocialForYouRail({
 // Feed For you rail (H register §5.5; founder 2026-10-05, decision 5:
 // "For you" stays both as the slider option and as this rail's heading —
 // "sure"). The "For you" heading level with the slider, the latest
-// course as one soft grey card, then Suggested people as 56 rows with
-// the grey Follow. No hairlines, no border. Profile, Messages and Create
-// keep the framed rail above.
+// course as one card, then Suggested people as one card of 56 rows with
+// Follow on the in-card fill (cards lock). No hairlines, no border.
+// Profile, Messages and Create keep the framed rail above.
 function SocialFeedForYouAside({
   people,
   faces,
@@ -172,8 +182,9 @@ function SocialFeedForYouAside({
       )}
       {latestCourse ? (
         <ul data-social-latest-course="" className={SOCIAL_FEED_ASIDE_COURSE_CLASS}>
-          {/* The rail is display:none until xl. An eager signed cover.png is
-              hoisted as <link rel="preload"> and Chrome warns it was unused. */}
+          {/* The rail is display:none until the Feed fits it. An eager
+              signed cover.png is hoisted as <link rel="preload"> and
+              Chrome warns it was unused. */}
           <CourseCard
             course={latestCourse}
             coverUrl={latestCourseCoverUrl}

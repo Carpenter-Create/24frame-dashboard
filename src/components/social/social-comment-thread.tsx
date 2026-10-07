@@ -13,6 +13,13 @@ import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
 import {
   SOCIAL_ACTION_CLASS,
   SOCIAL_COMMENT_COMPOSER_CLASS,
+  SOCIAL_COMMENT_COMPOSER_IN_CARD_CLASS,
+  SOCIAL_COMMENT_NEED_PROFILE_CLASS,
+  SOCIAL_COMMENT_NEED_PROFILE_IN_CARD_CLASS,
+  SOCIAL_COMMENT_ROW_AVATAR_CLASS,
+  SOCIAL_COMMENT_ROW_BODY_CLASS,
+  SOCIAL_COMMENT_ROW_NAME_CLASS,
+  SOCIAL_COMMENT_ROW_TIME_CLASS,
   SOCIAL_COMMENT_SHEET_HOST_CLASS,
   SOCIAL_COMMENT_SHEET_SCRIM_CLASS,
   SOCIAL_COMMENT_SHEET_SURFACE_CLASS,
@@ -186,19 +193,24 @@ export function SocialCommentThread({
         comments.map((comment) => (
           <article key={comment.id} data-social-comment={comment.id} className="flex flex-col gap-1">
             <div className="flex items-start gap-2">
-              <SocialAvatar name={comment.authorName} photoUrl={comment.authorPhotoUrl} size="sm" />
+              <SocialAvatar
+                name={comment.authorName}
+                photoUrl={comment.authorPhotoUrl}
+                size="sm"
+                className={SOCIAL_COMMENT_ROW_AVATAR_CLASS}
+              />
               <div className="min-w-0 flex-1">
-                <p className="t-body-sm text-ink">
+                <p>
                   {comment.authorHandle ? (
-                    <Link href={socialMemberHref(comment.authorHandle)} className="font-semibold">
+                    <Link href={socialMemberHref(comment.authorHandle)} className={SOCIAL_COMMENT_ROW_NAME_CLASS}>
                       {comment.authorName}
                     </Link>
                   ) : (
-                    <span className="font-semibold">{comment.authorName}</span>
-                  )}{" "}
-                  <span className="whitespace-pre-wrap break-words">{comment.body}</span>
+                    <span className={SOCIAL_COMMENT_ROW_NAME_CLASS}>{comment.authorName}</span>
+                  )}
+                  <span className={SOCIAL_COMMENT_ROW_BODY_CLASS}>{comment.body}</span>
                 </p>
-                <p className="t-label text-ink-3">{socialRelativeTime(comment.created_at)}</p>
+                <p className={SOCIAL_COMMENT_ROW_TIME_CLASS}>{socialRelativeTime(comment.created_at)}</p>
               </div>
               {comment.canDelete ? (
                 <button
@@ -217,7 +229,11 @@ export function SocialCommentThread({
     </div>
   );
   const composer = canComment ? (
-    <form data-social-comment-composer="" className={SOCIAL_COMMENT_COMPOSER_CLASS} onSubmit={onSubmit}>
+    <form
+      data-social-comment-composer=""
+      className={variant === "page" ? SOCIAL_COMMENT_COMPOSER_IN_CARD_CLASS : SOCIAL_COMMENT_COMPOSER_CLASS}
+      onSubmit={onSubmit}
+    >
       <Textarea
         id="social-comment-body"
         name="body"
@@ -234,7 +250,9 @@ export function SocialCommentThread({
       </button>
     </form>
   ) : (
-    <p className="px-4 py-3 t-body-sm text-ink-2">{SOCIAL.cta.needProfile}</p>
+    <p className={variant === "page" ? SOCIAL_COMMENT_NEED_PROFILE_IN_CARD_CLASS : SOCIAL_COMMENT_NEED_PROFILE_CLASS}>
+      {SOCIAL.cta.needProfile}
+    </p>
   );
 
   if (variant === "page") {

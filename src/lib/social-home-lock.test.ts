@@ -7,33 +7,24 @@ import { SOCIAL_PHONE_DESTS } from "./house-phone-shell";
 import {
   SOCIAL_CENTER_WIDTH_CLASS,
   SOCIAL_COMPOSER_CLASS,
-  SOCIAL_COMPOSER_FIELD_CLASS,
   SOCIAL_COMPOSER_ROW_CLASS,
   SOCIAL_CONTENT_PAIR_WIDTH,
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
   SOCIAL_DESKTOP_HEADER_INSET_CLASS,
   SOCIAL_DESKTOP_MEASURE,
-  SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_FEED_MEASURE,
-  SOCIAL_FEED_PAIR_WIDTH,
   SOCIAL_FEED_SCOPE_CLASS,
-  SOCIAL_HOME_STORIES_RAIL_CLASS,
-  SOCIAL_HOME_STORY_CARD_CLASS,
-  SOCIAL_HOME_STORY_PLUS_CLASS,
   SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
   SOCIAL_POST_ACTIONS_GAP_CLASS,
   SOCIAL_POST_ACTIONS_ROW_CLASS,
   SOCIAL_MOBILE_BLEED_CLASS,
-  SOCIAL_POST_CAPTION_CLASS,
-  SOCIAL_POST_CLASS,
-  SOCIAL_POST_MEDIA_CLASS,
-  SOCIAL_POST_TEXT_CARD_CLASS,
-  socialPostActionsClass,
-  socialPostFootClass,
+  SOCIAL_FEED_CARD_CLASS,
+  SOCIAL_FEED_CARD_SURFACE_CLASS,
+  SOCIAL_HOME_STORIES_CARD_CLASS,
   SOCIAL_FIGMA_PROFILE_BIO,
   SOCIAL_FIGMA_PROFILE_EDIT,
   SOCIAL_FIGMA_PROFILE_OWN,
@@ -47,8 +38,6 @@ import {
   SOCIAL_PROFILE_NAME_CLASS,
   SOCIAL_PROFILE_NAME_STACK_CLASS,
   SOCIAL_POST_ACTION_GLYPH,
-  SOCIAL_POST_COUNT_CLASS,
-  SOCIAL_POST_TIME_CLASS,
   SOCIAL_PROFILE_LINKS_CLASS,
   SOCIAL_STORY_STILL_PROGRESS_MS,
   SOCIAL_STORY_STAGE_IN_CLASS,
@@ -56,7 +45,6 @@ import {
   SOCIAL_PROFILE_ACTIONS_CLASS,
   SOCIAL_STORY_STUDIO_REVIEW_CLASS,
   SOCIAL_HANDLE_FIELD_LABEL_CLASS,
-  SOCIAL_POST_ROUND_CARD_CLASS,
 } from "./social-chrome";
 import { SETTINGS_DIALOG_LABEL_CLASS } from "./settings";
 import { SOCIAL, SOCIAL_ROUTES } from "./social";
@@ -223,13 +211,14 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(rail).toContain("bg-hairline");
     expect(rail).toContain("w-[112px]");
     expect(rail).not.toContain("size-10");
-    // H · Posts: the media is the card — media first, then the credit row.
-    expect(card).toContain("className={socialPostClass(kind)}");
+    // Cards lock (founder 2026-10-06): every post is one card, the header
+    // on top (supersedes H · Posts' media first, then the credit row).
+    expect(card).toContain("className={SOCIAL_FEED_CARD_CLASS}");
     expect(card).toContain("SOCIAL_FEED_GUTTER_CLASS");
     expect(postMedia).toContain("socialPostPhotoAspect");
     const article = card.slice(card.indexOf("<article"), card.indexOf("</article>"));
     expect(article.indexOf("<SocialPostMedia")).toBeGreaterThan(-1);
-    expect(article.indexOf("<SocialPostMedia")).toBeLessThan(article.indexOf("data-social-post-credit"));
+    expect(article.indexOf("data-social-post-head")).toBeLessThan(article.indexOf("<SocialPostMedia"));
     expect(home).toContain('icon="users"');
     expect(home).toContain("<SocialHomeTopics active={topic} lane={lane}");
     expect(home).not.toContain("SocialHomeTabs");
@@ -271,36 +260,16 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(composer).toContain("useSocialCreateMediaPick");
     expect(composer).toContain("SOCIAL_CREATE_CAMERA_ACCEPT");
     // H · Feed composer (founder 2026-10-05; replaces G's muted 52 bar):
-    // one 44 row, no bar, no rule — the 44 avatar, 12, the grey pill.
-    expect(SOCIAL_COMPOSER_CLASS).toContain("flex ");
-    expect(SOCIAL_COMPOSER_CLASS).toContain("items-center");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("flex-col");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("hidden");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-20");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-[52px]");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-surface-muted");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("border-y");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("rounded-none");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("bg-hairline");
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain("h-px");
-    expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)border(?:\s|$)/);
+    // one 44 row — the 44 avatar, 12, the pill — in its own card since
+    // the cards lock (its classes are pinned in the cards lock test).
+    expect(SOCIAL_COMPOSER_CLASS).toContain(SOCIAL_FEED_CARD_SURFACE_CLASS);
     expect(composer).toContain("SOCIAL_COMPOSER_AVATAR_CLASS");
     expect(composer).not.toContain('className="size-10"');
     expect(SOCIAL_COMPOSER_ROW_CLASS).toContain("gap-3");
     expect(SOCIAL_COMPOSER_ROW_CLASS).toBe(
       "group flex min-w-0 flex-1 items-center gap-3 text-left",
     );
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("h-11");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("md:h-10");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("border-0");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("rounded-full");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("bg-surface-muted");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toContain("outline-none");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("border-hairline");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).not.toContain("shadow-");
-    expect(SOCIAL_COMPOSER_FIELD_CLASS).toBe(
-      "flex h-11 min-w-0 flex-1 items-center rounded-full border-0 bg-surface-muted px-4 text-[length:var(--text-base)] text-ink-2 outline-none transition-colors group-hover:bg-hairline",
-    );
+    expect(composer).toContain("SOCIAL_COMPOSER_FIELD_CLASS");
     expect(chrome).toContain("SOCIAL_COMPOSER_ROW_CLASS");
     expect(chrome).toContain("SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS");
     expect(chrome).not.toContain("pl-[calc(2.5rem+var(--space-3))]");
@@ -339,27 +308,13 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).not.toContain("rounded-[14px]");
     expect(chrome).toContain("SOCIAL_COMPOSER_CLASS");
     expect(chrome).toContain("SOCIAL_EMPTY_PANEL_CLASS");
-    expect(chrome).toContain("SOCIAL_POST_TEXT_CARD_CLASS");
+    expect(chrome).toContain("SOCIAL_FEED_CARD_CLASS");
     expect(chrome).toContain("SOCIAL_FEED_GUTTER_CLASS");
-    expect(SOCIAL_FEED_GUTTER_CLASS).toBe(`flex flex-col ${HOUSE_SECTION_AIR_CLASS} md:gap-[var(--space-12)]`);
-    expect(SOCIAL_FEED_GUTTER_CLASS).toContain(HOUSE_SECTION_AIR_CLASS);
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-y");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide-hairline");
-    // H · Posts: a media post is no card; a text post is the soft grey
-    // card (muted, radius 24, pad 24 / 16, no border, no shadow).
-    expect(SOCIAL_POST_CLASS).toBe("block min-w-0 shrink-0");
-    expect(SOCIAL_POST_CLASS).not.toContain(HOUSE_MODULE_CLASS);
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toContain(HOUSE_MODULE_CLASS);
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("bg-surface-muted");
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("rounded-[var(--radius-xl)]");
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toMatch(/border|shadow-(?!none)/);
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).toMatch(/(?:^|\s)block(?:\s|$)/);
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).toContain("shrink-0");
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toContain("flex-col");
-    // Credit 12 / 16 under the media; the round actions 8 apart.
-    expect(socialPostFootClass("photo")).toContain("mt-3");
-    expect(socialPostFootClass("photo")).toContain("md:mt-4");
-    expect(socialPostActionsClass("photo")).toContain("gap-2");
+    // Cards lock: every post kind is the one card (not the house module);
+    // the gutter between cards and the card are pinned in the cards lock test.
+    expect(SOCIAL_FEED_CARD_CLASS).not.toContain(HOUSE_MODULE_CLASS);
+    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain(HOUSE_SECTION_AIR_CLASS);
+    // The immersive's action row keeps the house 8 gap.
     expect(SOCIAL_POST_ACTIONS_GAP_CLASS).toBe("gap-2");
     expect(SOCIAL_POST_ACTIONS_ROW_CLASS).toBe("flex items-center gap-2");
     expect(SOCIAL_POST_ACTIONS_ROW_CLASS).toContain(SOCIAL_POST_ACTIONS_GAP_CLASS);
@@ -370,18 +325,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     );
     expect(SOCIAL_POST_ACTION_HIT_CLASS).not.toContain("scale");
     expect(SOCIAL_POST_ACTION_GLYPH).toBe(24);
-    expect(SOCIAL_POST_COUNT_CLASS).toBe(
-      "inline-flex h-11 min-w-11 items-center justify-center px-1 text-[length:var(--text-sm)] font-medium tabular-nums text-ink-2 md:h-10 md:min-w-10",
-    );
-    expect(SOCIAL_POST_TIME_CLASS).toBe(
-      "inline-flex min-h-11 min-w-11 items-center text-[length:var(--text-sm)] leading-6 tracking-normal tabular-nums text-ink-3 dark:text-ink-2",
-    );
-    expect(SOCIAL_POST_TIME_CLASS).not.toContain("t-label");
     expect(SOCIAL_POST_ACTION_HEART_NUDGE_CLASS).toBe("translate-y-px");
     // The phone Stories→feed hairline is superseded by the G story tiles.
     expect(chrome).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
     const postCard = card.slice(card.indexOf("export function SocialPostCard"));
-    expect(postCard).toContain("socialPostActionsClass(kind)");
+    expect(postCard).toContain("className={SOCIAL_POST_ACTIONS_CLASS}");
     expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_OPTICAL_CLASS");
     expect(postCard).not.toContain("SOCIAL_POST_ACTIONS_ROW_CLASS");
     expect(postCard).not.toContain("gap-3.5");
@@ -410,46 +358,19 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(homeStories.length).toBeGreaterThan(0);
     expect(homeStories).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
     expect(rail).not.toContain("SOCIAL_STORIES_FEED_RULE_CLASS");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("bg-surface-muted");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("py-");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("gap-[var(--space-8)]");
-    // H · Posts: 48 between posts from md (the board's desktop air); 24 on phone.
-    expect(SOCIAL_FEED_GUTTER_CLASS).toContain("md:gap-[var(--space-12)]");
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toMatch(/(?:^|\s)gap-\[var\(--space-12\)\]/);
-    expect(SOCIAL_FEED_GUTTER_CLASS).not.toContain("divide");
-    for (const post of [SOCIAL_POST_CLASS, SOCIAL_POST_TEXT_CARD_CLASS]) {
-      expect(post).not.toContain("border-y-2");
-      expect(post).not.toMatch(/(?:^|\s)border-[by](?:\s|$)/);
-      expect(post).not.toMatch(/md:border|max-md:border/);
-      expect(post).not.toMatch(/(?:^|\s)(?:m[ytb]|my)-/);
-    }
-    // The text card: one fill and one radius at every width (pad 16 → 24).
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).not.toMatch(/md:bg-|max-md:bg-|md:rounded-|max-md:rounded-/);
-    expect(SOCIAL_POST_TEXT_CARD_CLASS).toBe(
-      "block min-w-0 shrink-0 rounded-[var(--radius-xl)] bg-surface-muted p-4 md:p-6 dark:bg-surface",
-    );
     expect(SOCIAL_MOBILE_BLEED_CLASS.startsWith("max-md:")).toBe(true);
     expect(SOCIAL_MOBILE_BLEED_CLASS).toContain("-mx-[var(--chrome-gutter)]");
     expect(SOCIAL_MOBILE_BLEED_CLASS).not.toMatch(/(?:^|\s)-mx-/);
-    // Phone: the media meets the viewport; the post itself does not bleed.
-    expect(SOCIAL_POST_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_CLASS);
-    expect(SOCIAL_POST_MEDIA_CLASS).toContain(SOCIAL_MOBILE_BLEED_CLASS);
-    expect(SOCIAL_POST_MEDIA_CLASS).toContain("md:rounded-[var(--radius-xl)]");
-    expect(SOCIAL_POST_MEDIA_CLASS).toBe(
-      "relative block overflow-hidden max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))] md:w-full md:rounded-[var(--radius-xl)]",
-    );
-    expect(SOCIAL_COMPOSER_CLASS).not.toContain(SOCIAL_MOBILE_BLEED_CLASS);
-    expect(SOCIAL_COMPOSER_CLASS).toBe("mt-6 flex w-full items-center gap-1 md:gap-2");
-    // D topic words and story tiles meet the phone viewport and scroll.
-    expect(SOCIAL_HOME_TOPIC_ROW_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
-    expect(SOCIAL_HOME_TOPIC_ROW_CLASS).toBe(
-      "relative mt-6 min-w-0 max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))]",
-    );
-    expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toContain("max-md:-mx-[var(--chrome-gutter)]");
+    // Cards lock: on phone every card meets the viewport (the post, the
+    // composer, the stories); its text rows keep their own 16.
+    expect(SOCIAL_FEED_CARD_SURFACE_CLASS).toContain(SOCIAL_MOBILE_BLEED_CLASS);
+    expect(SOCIAL_COMPOSER_CLASS).toContain(SOCIAL_FEED_CARD_SURFACE_CLASS);
+    expect(SOCIAL_HOME_STORIES_CARD_CLASS).toContain(SOCIAL_FEED_CARD_CLASS);
+    // The topic row still meets the phone viewport and scrolls.
+    expect(SOCIAL_HOME_TOPIC_ROW_CLASS).toContain(SOCIAL_MOBILE_BLEED_CLASS);
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain("max-md:px-[var(--chrome-gutter)]");
     // The Option A card's in-card 16 inset is gone: the text rows sit on the frame's 16.
     expect(chrome).not.toContain("export const SOCIAL_FEED_CHROME_CLASS");
-    expect(socialPostFootClass("photo")).not.toMatch(/(?:^|\s)px-/);
     // G · Feed spacing is per block (D), not one spine gap.
     expect(chrome).not.toContain("SOCIAL_HOME_SPINE_CLASS");
     expect(home).not.toContain("SOCIAL_HOME_SPINE_CLASS");
@@ -457,20 +378,16 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).not.toContain("SOCIAL_HOME_STORIES_TRACK_CLASS");
     expect(rail).not.toContain("pr-4 pb-2");
     expect(card).not.toContain("SOCIAL_FEED_CHROME_CLASS");
-    // The caption: 17 / 1.5 desktop, 15 / 1.45 phone; no pulls between rows.
-    expect(SOCIAL_POST_CAPTION_CLASS).toContain("md:leading-normal");
-    expect(SOCIAL_POST_CAPTION_CLASS).toContain("leading-[1.45]");
-    expect(SOCIAL_POST_CAPTION_CLASS).toBe(
-      "order-3 mt-2 basis-full whitespace-pre-wrap break-words pl-[52px] text-[length:var(--text-sm)] leading-[1.45] text-ink-2 md:order-4 md:text-[length:var(--text-base)] md:leading-normal",
-    );
+    // The words: one style for a caption and a text body (cards lock); no
+    // pulls between rows.
     expect(postCard).not.toContain("SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS");
     expect(postCard).not.toContain("-mb-[var(--space-1)]");
     expect(postCard).not.toContain("-mt-[var(--space-1)]");
-    expect(card).toContain("socialPostFootClass(kind)");
-    expect(card).toContain("socialPostBodyClass(kind)");
-    // Actions come before the caption in the credit block (desktop order 2 vs 4).
-    expect(postCard.indexOf("data-social-post-actions")).toBeLessThan(
-      postCard.indexOf("<SocialPostCaptionPlace"),
+    expect(card).toContain("className={SOCIAL_POST_HEAD_CLASS}");
+    expect(card).toContain("className={SOCIAL_POST_WORDS_CLASS}");
+    // Cards lock: the words come before the actions (the actions close the card).
+    expect(postCard.indexOf("<SocialPostCaptionPlace")).toBeLessThan(
+      postCard.indexOf("data-social-post-actions"),
     );
     expect(immersive).not.toContain("SOCIAL_FEED_ACTIONS_META_CLASS");
     expect(immersive).not.toContain("SOCIAL_FEED_ACTIONS_OPTICAL_PULL_CLASS");
@@ -487,7 +404,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(forYou).not.toContain("education");
     expect(forYou).not.toContain("Education");
     expect(empty).toContain("SOCIAL_EMPTY_ACTION_CLASS");
-    expect(chrome).toContain("SOCIAL_POST_CLASS");
+    expect(chrome).toContain("SOCIAL_POST_HEAD_CLASS");
     expect(chrome).toContain("p-[3px]");
     expect(icons).toContain("SOCIAL_ICON_SIZE_STORY_CREATE = 28");
     expect(icons).toContain('"users"');
@@ -512,11 +429,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).not.toContain("chats: 200");
     expect(chrome).toContain("gutter: 32");
     expect(chrome).toContain("center: 720");
-    // The shared Social row stays 720; the only 600 centre is the Feed's
-    // own H measure (founder 2026-10-05; the Feed register lock).
+    // The shared Social row stays 720; the only other centre is the Feed's
+    // own measure (Feed placement, founder 2026-10-07: the cards lock §8
+    // pins it).
     expect(SOCIAL_DESKTOP_MEASURE.center).toBe(720);
-    expect(chrome.match(/center: 600/g)?.length).toBe(1);
-    expect(chrome).toContain("SOCIAL_FEED_MEASURE = { center: 600, gutter: 48, right: 296 }");
+    expect([...chrome.matchAll(/center: (\d+)/g)].map((m) => Number(m[1]))).toEqual([720, SOCIAL_FEED_MEASURE.center]);
     expect(chrome).not.toContain("center: 892");
     expect(chrome).not.toContain("892");
     expect(chrome).toContain("right: 300");
@@ -631,24 +548,15 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(rail).toMatch(/function StoryCreatePlus\(\{ className \}[^)]*\) \{[\s\S]*?name="plus"[\s\S]*?\}/);
     expect(rail).not.toMatch(/function StoryCreatePlus\([^)]*\) \{[\s\S]*?\bactive\b[\s\S]*?\n\}/);
     // The Feed create plus is the accent circle again (replaces G's ink
-    // badge), ringed 3 in muted on the seam.
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("bg-accent");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toContain("text-accent-contrast");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).not.toContain("bg-ink");
-    expect(SOCIAL_HOME_STORY_PLUS_CLASS).toBe(
-      "absolute left-1/2 top-[99px] z-10 grid size-[42px] -translate-x-1/2 place-items-center rounded-full border-[3px] border-surface-muted bg-accent text-accent-contrast md:top-[97px] md:size-[46px]",
-    );
+    // badge); its classes are pinned in the cards lock test.
+    expect(rail).toContain("SOCIAL_HOME_STORY_PLUS_CLASS");
     expect(chrome).toMatch(
       /export const SOCIAL_STORIES_PLUS_WELL_CLASS =\s*"[^"]*\bbg-accent\b[^"]*\btext-accent-contrast\b/,
     );
     expect(chrome).toContain("h-[168px]");
     // H · Feed: the stories card lock's 112×200 / 108×192 again (replaces
-    // G's 56×100 tiles and v1.1's "never 108×192").
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("h-[192px] w-[108px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toContain("md:h-[200px] md:w-[112px]");
-    expect(SOCIAL_HOME_STORY_CARD_CLASS).toBe(
-      "relative block h-[192px] w-[108px] shrink-0 overflow-hidden rounded-[var(--radius-lg)] bg-surface-muted md:h-[200px] md:w-[112px]",
-    );
+    // G's 56×100 tiles and v1.1's "never 108×192"); pinned in the cards lock test.
+    expect(rail).toContain("SOCIAL_HOME_STORY_CARD_CLASS");
     expect(SOCIAL_STORY_STILL_PROGRESS_MS).toBe(5000);
     expect(SOCIAL_STORY_STAGE_IN_CLASS).toBe("social-story-stage-in");
     expect(chrome).not.toContain("h-[100px] w-14");
@@ -1072,10 +980,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     );
     // H · Feed (founder 2026-10-05; replaces G's 12 phone pull): the pill
     // slider leads the column with no pull — 16 under the phone bar (the
-    // frame's 16) and 24 under the desktop header (the shared 8 inset plus
-    // the Feed grid's 16).
+    // frame's 16) and, since the Feed placement (founder 2026-10-07), 16
+    // under the desktop header (the shared 8 inset plus the Feed row's 8;
+    // the cards lock §8 pins it).
     expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/-mt-|(?:^|\s)mt-/);
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("md:pt-4");
     expect(SOCIAL_FEED_LAYOUT_CLASS).not.toMatch(/(?:^|\s)pt-|max-md:/);
     for (const page of [
       "src/app/(app)/social/page.tsx",
@@ -1149,21 +1057,15 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(publicProfile).toContain("SocialDesktopForYouSlot");
     expect(publicProfile).not.toContain("SOCIAL_HOME_CENTER_CLASS");
     expect(ownFace).toContain("SOCIAL_PROFILE_CENTER_CLASS");
-    // H · Feed grid (founder 2026-10-05; replaces G's 620 + 40 + 244):
-    // /social is the 600 column + 48 + the 296 For you rail, the rail from
-    // xl (the pair fits beside the 240 side menu from 1248). The other
-    // Social rows keep the 720/32/300 pair above.
+    // Feed grid (H, founder 2026-10-05; then the Feed placement, founder
+    // 2026-10-07): /social is its own row — the 680 column centred on the
+    // viewport, 48, the 296 For you rail when the container fits the pair.
+    // The cards lock §8 pins its classes and lays it out at every width.
+    // The other Social rows keep the 720/32/300 pair above.
     expect(home).toContain("SOCIAL_FEED_CENTER_CLASS");
     expect(home).toContain("SOCIAL_FEED_LAYOUT_CLASS");
     expect(home).not.toContain("SOCIAL_HOME_CENTER_CLASS");
     expect(home).not.toContain("SOCIAL_HOME_LAYOUT_CLASS");
-    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 600, gutter: 48, right: 296 });
-    expect(SOCIAL_FEED_PAIR_WIDTH).toBe(944);
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toBe("flex w-full items-start gap-12 md:pt-4 xl:ml-auto xl:max-w-[944px]");
-    expect(SOCIAL_FEED_CENTER_CLASS).toBe("flex min-w-0 w-full flex-1 flex-col md:max-w-[600px]");
-    // 1248 = the 240 side menu + the 16 lead frame pad + 944 + the 32 shell gutter.
-    expect(240 + 16 + SOCIAL_FEED_PAIR_WIDTH + 32).toBeLessThanOrEqual(1280);
-    expect(240 + 16 + SOCIAL_FEED_PAIR_WIDTH + 32).toBeGreaterThan(1024);
     expect(SOCIAL_FEED_LAYOUT_CLASS).not.toContain("justify-between");
     expect(SOCIAL_FEED_LAYOUT_CLASS).not.toMatch(/(^|\s)max-w-/);
     expect(home).toContain('layout="aside"');
@@ -1216,10 +1118,5 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_STORY_STUDIO_REVIEW_CLASS).toBe("absolute inset-0 size-full object-cover");
     // Alias: the Settings dialog label, pinned once in settings.test.ts.
     expect(SOCIAL_HANDLE_FIELD_LABEL_CLASS).toBe(SETTINGS_DIALOG_LABEL_CLASS);
-    // G13: rounds on the grey text card are the page white in light and
-    // muted on the dark card.
-    expect(SOCIAL_POST_ROUND_CARD_CLASS).toBe(
-      "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink transition-colors md:size-10 bg-surface dark:bg-surface-muted hover:bg-hairline active:opacity-70",
-    );
   });
 });

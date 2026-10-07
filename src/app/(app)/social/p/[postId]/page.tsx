@@ -6,7 +6,7 @@ import { PAGE_LEAD_STACK_CLASS } from "@/components/ui/page-header";
 import { socialAvatarHref, socialMediaProxies } from "@/lib/social-edge";
 import { SOCIAL, socialPersonLabel } from "@/lib/social";
 import { normalizeSocialCategory } from "@/lib/social-categories";
-import { SOCIAL_FEED_GUTTER_CLASS, SOCIAL_PAGE_CLASS } from "@/lib/social-chrome";
+import { SOCIAL_POST_PAGE_CLASS, SOCIAL_POST_PAGE_LAYOUT_CLASS } from "@/lib/social-chrome";
 import {
   loadGroupsByIds,
   loadLikedPostIds,
@@ -28,12 +28,14 @@ export default async function SocialPostPage({
 
   if (!post) {
     return (
-      <div data-social-post-missing="" className={SOCIAL_PAGE_CLASS}>
-        <div className={PAGE_LEAD_STACK_CLASS}>
-          <SocialPostBack />
-          <h1 className="t-title text-ink">{SOCIAL.post.title}</h1>
+      <div data-social-post-layout="" className={SOCIAL_POST_PAGE_LAYOUT_CLASS}>
+        <div data-social-post-missing="" className={SOCIAL_POST_PAGE_CLASS}>
+          <div className={PAGE_LEAD_STACK_CLASS}>
+            <SocialPostBack />
+            <h1 className="t-title text-ink">{SOCIAL.post.title}</h1>
+          </div>
+          <HouseEmpty>{SOCIAL.post.missing}</HouseEmpty>
         </div>
-        <HouseEmpty>{SOCIAL.post.missing}</HouseEmpty>
       </div>
     );
   }
@@ -50,12 +52,16 @@ export default async function SocialPostPage({
   const group = post.group_id ? groups.get(post.group_id) : null;
 
   return (
-    <div data-social-post-detail="" className={SOCIAL_PAGE_CLASS}>
-      <div className={PAGE_LEAD_STACK_CLASS}>
-        <SocialPostBack />
-        <h1 className="t-title text-ink">{SOCIAL.post.title}</h1>
-      </div>
-      <div className={SOCIAL_FEED_GUTTER_CLASS}>
+    <div data-social-post-layout="" className={SOCIAL_POST_PAGE_LAYOUT_CLASS}>
+      <div data-social-post-detail="" className={SOCIAL_POST_PAGE_CLASS}>
+        <div className={PAGE_LEAD_STACK_CLASS}>
+          <SocialPostBack />
+          <h1 className="t-title text-ink">{SOCIAL.post.title}</h1>
+        </div>
+        {/* Cards lock: the post is one card in the Feed's 680 column,
+            centred as the Feed's (no rail here), its comment thread inside
+            the card under the actions.
+            docs/design-locks/social-feed-cards-lock-v1.md */}
         <SocialPostCard
           permalink={false}
           post={{
@@ -79,15 +85,17 @@ export default async function SocialPostPage({
             topic: normalizeSocialCategory(post.category),
             media,
           }}
+          comments={
+            <SocialCommentThread
+              postId={post.id}
+              groupSlug={group?.slug}
+              canComment={!!profile}
+              commentCount={post.comment_count}
+              variant="page"
+            />
+          }
         />
       </div>
-      <SocialCommentThread
-        postId={post.id}
-        groupSlug={group?.slug}
-        canComment={!!profile}
-        commentCount={post.comment_count}
-        variant="page"
-      />
     </div>
   );
 }

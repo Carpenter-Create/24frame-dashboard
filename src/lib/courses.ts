@@ -1,4 +1,5 @@
 import { SOCIAL } from "@/lib/social";
+import { SOCIAL_CARD_FILL_CLASS } from "@/lib/social-chrome";
 import { educationCourseHref, type CourseStatus } from "@/lib/education";
 import type { createClient } from "@/lib/supabase/server";
 import { UNPAGINATED_MAX, rangeFor } from "@/lib/list-bounds";
@@ -34,19 +35,20 @@ export type CourseCardDensity = (typeof COURSE_CARD_DENSITIES)[number];
 
 // Feature: the Social Feed's For you rail (H register §5.5; founder
 // 2026-10-05, "I like the designs. Let's use them."). One soft grey card
-// that is one link: --surface-muted, radius 24, pad 16, no border, no
-// shadow; the 16:9 cover at radius 16 (no hairline); 16, then the label
-// (13 / 500 ink-2), 4, the title (17 / 600 ink). No signed cover: the
-// glance plate (so the cover never reads as a blank on the grey card),
-// with the title under it, not in it.
+// that is one link: the Social card fill (cards lock: --surface-muted,
+// dark --surface), radius 24, pad 16, no border, no shadow; the 16:9
+// cover at radius 16 (no hairline); 16, then the label (13 / 500 ink-2),
+// 4, the title (15 / 600 ink). No signed cover: the glance plate (so the
+// cover never reads as a blank on the grey card), with the title under
+// it, not in it. docs/design-locks/social-feed-cards-lock-v1.md
 export const COURSE_FEATURE_CARD_CLASS =
-  "flex flex-col gap-4 rounded-[var(--radius-xl)] bg-surface-muted p-4";
+  `flex flex-col gap-4 rounded-[var(--radius-xl)] ${SOCIAL_CARD_FILL_CLASS} p-4`;
 export const COURSE_FEATURE_COVER_CLASS = "rounded-[var(--radius-lg)] border-0";
 export const COURSE_FEATURE_TEXT_CLASS = "flex flex-col gap-1";
 export const COURSE_FEATURE_META_CLASS =
   "text-[length:var(--text-xs)] leading-[18px] font-medium text-ink-2";
 export const COURSE_FEATURE_TITLE_CLASS =
-  "text-[length:var(--text-base)] leading-6 font-semibold text-ink";
+  "text-[length:var(--text-sm)] leading-5 font-semibold text-ink";
 
 // Home Education glance plates — empty-cover fallback only.
 // Real signed covers use the same 16:9 photo path as discover.

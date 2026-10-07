@@ -169,6 +169,10 @@ async function SocialHomeCenter({
       </div>
       <SocialHomeLaneTabs lane={lane} topic={topic} />
       <SocialHomeColdSlot seedLane={lane} seedTopic={topic}>
+        {/* Stories stay at the top of the Feed (founder 2026-10-06), in
+            their own card, in both lanes, also when the one tile is the
+            member's own Create story. Cards lock:
+            docs/design-locks/social-feed-cards-lock-v1.md */}
         <SocialStoriesRail
           cards={rail}
           authors={authors}
