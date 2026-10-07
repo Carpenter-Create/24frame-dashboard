@@ -80,7 +80,7 @@ own rail; Social's own Home tab is Feed. Light default, dark available.
 Lock: [`docs/design-locks/shell-unified-chrome-lock-v1.md`](../design-locks/shell-unified-chrome-lock-v1.md).
 Screening-room face (text lanes, tile-less side menu, named phone switch, ink dock dot): [`docs/design-locks/shell-screening-chrome-lock-v1.md`](../design-locks/shell-screening-chrome-lock-v1.md).
 Coinbase register (pill slider, round grey controls, brand mark in the full-height side menu, filled accent current, 56 dock): [`docs/design-locks/shell-coinbase-register-lock-v1.md`](../design-locks/shell-coinbase-register-lock-v1.md).
-Header height (founder decision, match Facebook): the header is 56 in every workspace on desktop and phone, and the side menu's top band with it; recorded in the Feed cards lock §8 and marked in [`docs/design-locks/shell-coinbase-register-lock-v1.md`](../design-locks/shell-coinbase-register-lock-v1.md).
+Header height (founder decision, match Facebook): the header is 56 in every workspace on desktop and phone, and the side menu's top band with it; recorded in the Feed cards lock §8 and marked in [`docs/design-locks/shell-coinbase-register-lock-v1.md`](../design-locks/shell-coinbase-register-lock-v1.md). Home's News rail pins 16 under the header (the cards lock §8).
 
 ---
 

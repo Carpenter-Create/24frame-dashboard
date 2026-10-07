@@ -151,10 +151,13 @@ describe("the header height: one token, everything that hangs off it reads it", 
     );
   });
 
-  it("the sticky and full-height offsets under the header subtract the token", () => {
-    // Home's News rail pins under the header and fits the viewport below it.
+  it("the full-height offsets subtract the token; a sticky offset inside the lead scroller does not", () => {
+    // Home's News rail fits the viewport below the header (its height
+    // counts from the viewport), but its sticky top counts from the lead
+    // scroller, which already starts under the header: adding the token
+    // there counts the header twice (pinned 72 under the bar, not 16).
     const news = OVERVIEW_AREA_NEWS_CLASS.split(/\s+/);
-    expect(news.find((cls) => cls.includes(":top-["))).toContain(TOKEN);
+    expect(news.find((cls) => cls.includes(":top-["))).not.toContain("--header-height");
     expect(news.find((cls) => cls.includes(":max-h-["))).toContain(`100dvh-${TOKEN}`);
     // The Ask gate fits the viewport below the header.
     expect(readFileSync("src/components/messages/access-upgrade-gate.tsx", "utf8")).toContain(

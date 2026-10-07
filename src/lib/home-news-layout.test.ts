@@ -198,6 +198,25 @@ describe("Home News layout + register lock", () => {
     }
   });
 
+  // Founder 2026-10-07: "one-class sticky offset so pinned sits ~16 under
+  // the header, not ~72". The sticky top counts from the lead scroller,
+  // which already starts under the header; the height counts from the
+  // viewport. Cards lock §8.
+  it("pins the desktop News rail 16 under the header and ends it 16 above the viewport's bottom", () => {
+    expect(OVERVIEW_AREA_NEWS_CLASS).toBe(
+      "[grid-area:news] @min-[60rem]:sticky @min-[60rem]:top-[var(--space-4)] " +
+        "@min-[60rem]:max-h-[calc(100dvh-var(--header-height)-var(--space-8))] @min-[60rem]:overflow-y-auto",
+    );
+    // The 16 above and the 16 below are the 32 the height subtracts.
+    const tokens = readFileSync("src/app/tokens.css", "utf8");
+    const rem = (name: string) => {
+      const match = tokens.match(new RegExp(`--${name}:\\s*(\\d+(?:\\.\\d+)?)rem;`));
+      if (!match) throw new Error(`--${name} has no rem value in tokens.css`);
+      return Number(match[1]);
+    };
+    expect(2 * rem("space-4")).toBe(rem("space-8"));
+  });
+
   it("keeps the News column when the rail is empty", () => {
     const html = emptyHome();
     expect(html).toContain("data-overview-layout");
