@@ -261,6 +261,8 @@ describe("Aggregation Reports miss list v1.1", () => {
     const src = readFileSync("src/components/reports/reports-shell.tsx", "utf8");
     expect(housePhoneForbidsTruncate(src)).toBe(true);
     expect(src).not.toContain("DASHBOARD_ROW_CLASS");
+    expect(src).toContain("className={DASHBOARD_ROW_STACK_CLASS}");
+    expect(src).toContain("className={DASHBOARD_ROW_TITLE_CLASS}");
   });
 
   it("bans the foreign brand word from Reports source comments", () => {

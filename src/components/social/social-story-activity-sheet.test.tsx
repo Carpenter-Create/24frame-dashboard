@@ -51,6 +51,10 @@ describe("Story activity sheet: phone never-truncate (house gospel 2026-09-19)",
     );
     expect(housePhoneForbidsTruncate(SOCIAL_STORY_ACTIVITY_NAME_CLASS)).toBe(true);
     expect(housePhoneForbidsTruncate(SOCIAL_PERSON_SECONDARY_CLASS)).toBe(true);
+    // Composed from the person-name primitive, not a hand-typed copy of its value.
+    expect(readFileSync("src/lib/social-chrome.ts", "utf8")).toContain(
+      `SOCIAL_STORY_ACTIVITY_NAME_CLASS = \`\${SOCIAL_PERSON_NAME_CLASS}`,
+    );
   });
 
   it("renders long and short viewers in the phone sheet with wrapping names and handles", () => {
