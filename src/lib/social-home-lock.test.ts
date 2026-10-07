@@ -12,11 +12,9 @@ import {
   SOCIAL_DESKTOP_FRAME_PAD_CLASS,
   SOCIAL_DESKTOP_HEADER_INSET_CLASS,
   SOCIAL_DESKTOP_MEASURE,
-  SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_FEED_MEASURE,
-  SOCIAL_FEED_PAIR_WIDTH,
   SOCIAL_FEED_SCOPE_CLASS,
   SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
@@ -431,11 +429,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(chrome).not.toContain("chats: 200");
     expect(chrome).toContain("gutter: 32");
     expect(chrome).toContain("center: 720");
-    // The shared Social row stays 720; the only 600 centre is the Feed's
-    // own H measure (founder 2026-10-05; the Feed register lock).
+    // The shared Social row stays 720; the only other centre is the Feed's
+    // own measure (Feed placement, founder 2026-10-07: the cards lock §8
+    // pins it).
     expect(SOCIAL_DESKTOP_MEASURE.center).toBe(720);
-    expect(chrome.match(/center: 600/g)?.length).toBe(1);
-    expect(chrome).toContain("SOCIAL_FEED_MEASURE = { center: 600, gutter: 48, right: 296 }");
+    expect([...chrome.matchAll(/center: (\d+)/g)].map((m) => Number(m[1]))).toEqual([720, SOCIAL_FEED_MEASURE.center]);
     expect(chrome).not.toContain("center: 892");
     expect(chrome).not.toContain("892");
     expect(chrome).toContain("right: 300");
@@ -982,10 +980,10 @@ describe("Social Home miss list v1 P0 lock", () => {
     );
     // H · Feed (founder 2026-10-05; replaces G's 12 phone pull): the pill
     // slider leads the column with no pull — 16 under the phone bar (the
-    // frame's 16) and 24 under the desktop header (the shared 8 inset plus
-    // the Feed grid's 16).
+    // frame's 16) and, since the Feed placement (founder 2026-10-07), 16
+    // under the desktop header (the shared 8 inset plus the Feed row's 8;
+    // the cards lock §8 pins it).
     expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/-mt-|(?:^|\s)mt-/);
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("md:pt-4");
     expect(SOCIAL_FEED_LAYOUT_CLASS).not.toMatch(/(?:^|\s)pt-|max-md:/);
     for (const page of [
       "src/app/(app)/social/page.tsx",
@@ -1059,21 +1057,15 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(publicProfile).toContain("SocialDesktopForYouSlot");
     expect(publicProfile).not.toContain("SOCIAL_HOME_CENTER_CLASS");
     expect(ownFace).toContain("SOCIAL_PROFILE_CENTER_CLASS");
-    // H · Feed grid (founder 2026-10-05; replaces G's 620 + 40 + 244):
-    // /social is the 600 column + 48 + the 296 For you rail, the rail from
-    // xl (the pair fits beside the 240 side menu from 1248). The other
-    // Social rows keep the 720/32/300 pair above.
+    // Feed grid (H, founder 2026-10-05; then the Feed placement, founder
+    // 2026-10-07): /social is its own row — the 680 column centred on the
+    // viewport, 48, the 296 For you rail when the container fits the pair.
+    // The cards lock §8 pins its classes and lays it out at every width.
+    // The other Social rows keep the 720/32/300 pair above.
     expect(home).toContain("SOCIAL_FEED_CENTER_CLASS");
     expect(home).toContain("SOCIAL_FEED_LAYOUT_CLASS");
     expect(home).not.toContain("SOCIAL_HOME_CENTER_CLASS");
     expect(home).not.toContain("SOCIAL_HOME_LAYOUT_CLASS");
-    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 600, gutter: 48, right: 296 });
-    expect(SOCIAL_FEED_PAIR_WIDTH).toBe(944);
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toBe("flex w-full items-start gap-12 md:pt-4 xl:ml-auto xl:max-w-[944px]");
-    expect(SOCIAL_FEED_CENTER_CLASS).toBe("flex min-w-0 w-full flex-1 flex-col md:max-w-[600px]");
-    // 1248 = the 240 side menu + the 16 lead frame pad + 944 + the 32 shell gutter.
-    expect(240 + 16 + SOCIAL_FEED_PAIR_WIDTH + 32).toBeLessThanOrEqual(1280);
-    expect(240 + 16 + SOCIAL_FEED_PAIR_WIDTH + 32).toBeGreaterThan(1024);
     expect(SOCIAL_FEED_LAYOUT_CLASS).not.toContain("justify-between");
     expect(SOCIAL_FEED_LAYOUT_CLASS).not.toMatch(/(^|\s)max-w-/);
     expect(home).toContain('layout="aside"');

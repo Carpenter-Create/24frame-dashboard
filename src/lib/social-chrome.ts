@@ -857,27 +857,57 @@ export const SOCIAL_PROFILE_ROLE_PILL_CLASS =
 // docs/design-locks/social-feed-register-lock-v1.md
 // ---------------------------------------------------------------------
 
-// Grid: feed column 600, gap 48, For you rail 296 (pair 944). /social
-// only. The rail shows from xl: beside the 240 side menu and the shell
-// gutters the pair fits from 1248, so below xl the rail is display:none
-// and the column keeps its 600 cap from md. The pair keeps the Social
-// row's end alignment (its trailing edge on the shell gutter, the
-// avatar's line). Desktop: 16 under the shared header inset (8), so the
-// slider and the rail's heading sit 24 under the header, as drawn.
-export const SOCIAL_FEED_MEASURE = { center: 600, gutter: 48, right: 296 } as const;
+// Feed placement (founder 2026-10-07: "Measure and make sure our feed is
+// in the identical placement with the identical width as the Facebook
+// feed."). Facebook at 1440: the feed column is 680 wide, x 380 to 1060,
+// centred on the viewport; its right column hugs the window's edge; the
+// first card starts 16 under the bar. Supersedes H's 600 column and the
+// end-aligned 944 pair from xl.
+//
+// Grid: feed column 680, gap 48, For you rail 296 (pair 1024). /social
+// only. Desktop (md and up): the column fills a narrower frame and caps at
+// 680; it is centred on the viewport, with the side menu open (240) or
+// collapsed (80). Its lead space inside the frame (the feed container,
+// 100%) is (100% - 680 - --sidebar-width - --chrome-gutter +
+// --shell-gutter-inline-end) / 2, never below 0, so the column never
+// slides under the side menu. The rail keeps its trailing edge on the
+// shell gutter (the avatar's line, ml-auto) and shows only when the
+// container fits the pair (1024, @container/feed); there the lead also
+// stops at 100% - 1024, so the column keeps 680 and moves left just enough
+// to keep the 48. Below 1024 the rail is display:none and the column stays
+// centred. The lead reads the container, not whether the rail is drawn, so
+// the column does not move between Following and For you. Phone: the full
+// frame, unchanged. Desktop top: 8 under the shared header inset (8), so
+// the slider and the rail's heading start 16 under the header, as
+// Facebook's first card does under its bar.
+// Complete class strings — Tailwind does not see interpolations.
+// docs/design-locks/social-feed-cards-lock-v1.md §8
+export const SOCIAL_FEED_MEASURE = { center: 680, gutter: 48, right: 296 } as const;
 export const SOCIAL_FEED_PAIR_WIDTH =
   SOCIAL_FEED_MEASURE.center + SOCIAL_FEED_MEASURE.gutter + SOCIAL_FEED_MEASURE.right;
-export const SOCIAL_FEED_LAYOUT_CLASS =
-  "flex w-full items-start gap-12 md:pt-4 xl:ml-auto xl:max-w-[944px]";
+export const SOCIAL_FEED_LAYOUT_CLASS = "@container/feed flex w-full items-start gap-12 md:pt-2";
+// The column's lead space (above). Below 1024: centred, clamped at 0.
+// From 1024 (the rail fits): also at most 100% - 1024.
+export const SOCIAL_FEED_LEAD_CLASS =
+  "md:@max-[1024px]/feed:ml-[max(0px,calc((100%-680px-var(--sidebar-width)-var(--chrome-gutter)+var(--shell-gutter-inline-end))/2))] md:@min-[1024px]/feed:ml-[max(0px,min(calc((100%-680px-var(--sidebar-width)-var(--chrome-gutter)+var(--shell-gutter-inline-end))/2),calc(100%-1024px)))]";
 export const SOCIAL_FEED_CENTER_CLASS =
-  "flex min-w-0 w-full flex-1 flex-col md:max-w-[600px]";
-export const SOCIAL_FEED_ASIDE_CLASS = "hidden w-[296px] shrink-0 flex-col xl:flex";
+  `flex min-w-0 w-full flex-1 flex-col md:max-w-[680px] ${SOCIAL_FEED_LEAD_CLASS}`;
+export const SOCIAL_FEED_ASIDE_CLASS = "hidden w-[296px] shrink-0 flex-col ml-auto @min-[1024px]/feed:flex";
 
 // The post page (/social/p/[id]): Back, the title and the post card in
-// the Feed's 600 column (cards lock side default; the founder may widen
-// it on preview).
+// the Feed's column (cards lock open choice 3, default "match the Feed"):
+// 680, centred on the viewport by the Feed's own centring, never below 0.
+// It has no rail, so the Feed's move-left (which only keeps 48 to a drawn
+// rail) does not apply: where the Feed shifts for its rail (a 1312 to 1431
+// viewport with the side menu open, 1152 to 1431 collapsed) this column
+// stays centred; at every other width it sits where the Feed's does. Its
+// wrapper is a plain row (the % resolves against it, as the Feed's against
+// its row); its top stays the shared header inset.
+export const SOCIAL_POST_PAGE_LAYOUT_CLASS = "flex w-full items-start";
+export const SOCIAL_POST_PAGE_LEAD_CLASS =
+  "md:ml-[max(0px,calc((100%-680px-var(--sidebar-width)-var(--chrome-gutter)+var(--shell-gutter-inline-end))/2))]";
 export const SOCIAL_POST_PAGE_CLASS =
-  "flex w-full min-w-0 flex-col gap-[var(--space-4)] pb-[var(--space-12)] md:max-w-[600px]";
+  `flex w-full min-w-0 flex-col gap-[var(--space-4)] pb-[var(--space-12)] md:max-w-[680px] ${SOCIAL_POST_PAGE_LEAD_CLASS}`;
 
 // The board's quiet ink is the house ink-3 in light and the house ink-2
 // in dark: the house dark ink-3 is 3.9:1 on the dark page and fails AA
@@ -895,8 +925,8 @@ export const SOCIAL_FEED_HEADING_CLASS =
 // ease-out; Social's one ink element, cards lock) and 15 / 500 labels
 // (idle ink-2); segments pad 20 on a page switch. It
 // hugs its labels (about 221 wide) and leads the Feed, left-aligned, on
-// phone and desktop (the frame's 16 on phone; 24 under the header on
-// desktop). Supersedes G's text tabs with an ink underline.
+// phone and desktop (the frame's 16 on phone; 16 under the header on
+// desktop, Feed placement). Supersedes G's text tabs with an ink underline.
 export const SOCIAL_FEED_SCOPE_CLASS = "flex shrink-0";
 export const SOCIAL_FEED_SCOPE_TRACK_CLASS = `${HOUSE_PILL_SLIDER_TRACK_CLASS} w-max`;
 export const SOCIAL_FEED_SCOPE_THUMB_CLASS = HOUSE_PILL_SLIDER_THUMB_CLASS;

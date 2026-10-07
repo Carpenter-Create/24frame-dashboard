@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { SocialHomeSkeleton } from "@/components/social/social-skeletons";
 import { SocialStoriesRail } from "@/components/social/social-stories-rail";
 import {
   COURSE_FEATURE_CARD_CLASS,
@@ -30,25 +31,36 @@ import {
   SOCIAL_COMPOSER_AFFORDANCE_CLASS,
   SOCIAL_COMPOSER_CLASS,
   SOCIAL_COMPOSER_FIELD_CLASS,
+  SOCIAL_DESKTOP_FRAME_PAD_CLASS,
+  SOCIAL_DESKTOP_HEADER_INSET_CLASS,
   SOCIAL_EMPTY_ACTION_CLASS,
   SOCIAL_EMPTY_ACTION_SECONDARY_CLASS,
   SOCIAL_EMPTY_PANEL_CLASS,
+  SOCIAL_FEED_ASIDE_CLASS,
+  SOCIAL_FEED_ASIDE_HEADING_CLASS,
   SOCIAL_FEED_ASIDE_ROWS_CLASS,
   SOCIAL_FEED_ASIDE_SECTION_CLASS,
   SOCIAL_FEED_ASIDE_SUBHEAD_CLASS,
   SOCIAL_FEED_CARD_CLASS,
   SOCIAL_FEED_CARD_SURFACE_CLASS,
   SOCIAL_FEED_CAROUSEL_BLEED_CLASS,
+  SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_GUTTER_CLASS,
+  SOCIAL_FEED_LAYOUT_CLASS,
+  SOCIAL_FEED_LEAD_CLASS,
+  SOCIAL_FEED_MEASURE,
+  SOCIAL_FEED_PAIR_WIDTH,
   SOCIAL_FEED_REELS_ARROW_CLASS,
   SOCIAL_FEED_REELS_ARROW_OFF_CLASS,
   SOCIAL_FEED_REELS_CLASS,
   SOCIAL_FEED_REELS_HEAD_CLASS,
   SOCIAL_FEED_REELS_TRACK_CLASS,
+  SOCIAL_FEED_SCOPE_CLASS,
   SOCIAL_FEED_SCOPE_THUMB_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOLLOW_QUIET_CLASS,
   SOCIAL_FOR_YOU_LANE_CARD_CLASS,
+  SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_HOME_STORIES_CARD_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
@@ -81,6 +93,8 @@ import {
   SOCIAL_POST_MORE_CLASS,
   SOCIAL_POST_NAME_CLASS,
   SOCIAL_POST_PAGE_CLASS,
+  SOCIAL_POST_PAGE_LAYOUT_CLASS,
+  SOCIAL_POST_PAGE_LEAD_CLASS,
   SOCIAL_POST_PLAY_DISC_CLASS,
   SOCIAL_POST_PLAY_DISC_GLYPH,
   SOCIAL_POST_ROUND_CLASS,
@@ -108,6 +122,8 @@ const icon = readFileSync("src/components/social/social-icon.tsx", "utf8");
 const card = readFileSync("src/components/social/social-post-card.tsx", "utf8");
 const permalink = readFileSync("src/app/(app)/social/p/[postId]/page.tsx", "utf8");
 const skeletons = readFileSync("src/components/social/social-skeletons.tsx", "utf8");
+const tokens = readFileSync("src/app/tokens.css", "utf8");
+const homeLoading = readFileSync("src/app/(app)/social/loading.tsx", "utf8");
 
 function hasClass(classes: string, cls: string): boolean {
   return classes.split(/\s+/).includes(cls);
@@ -127,6 +143,10 @@ const QUOTES = [
   "I want the Coinbase register",
 ] as const;
 
+// Feed placement (Adam, 2026-10-07): the request, verbatim.
+const PLACEMENT_QUOTE =
+  "Measure and make sure our feed is in the identical placement with the identical width as the Facebook feed.";
+
 // The locks this one reverses in part, read from its Supersedes section.
 function supersededLocks(doc: string): string[] {
   const start = doc.indexOf("**Supersedes (in part):**");
@@ -144,6 +164,158 @@ function socialSources(): Array<[string, string]> {
     }
   }
   return files.map((file) => [file, readFileSync(file, "utf8")]);
+}
+
+// A token's px value from tokens.css (the :root value, desktop).
+function tokenPx(name: string): number {
+  const match = tokens.match(new RegExp(`--${name}:\\s*(\\d+)px;`));
+  if (!match) throw new Error(`--${name} has no px value in tokens.css`);
+  return Number(match[1]);
+}
+
+// The lead class's two rules: a left margin under the feed container's
+// max-width query and one under its min-width query, each an arbitrary CSS
+// length. (Not spelled as class names here: Tailwind scans this file.)
+function leadRules(cls: string): Array<{ kind: "min" | "max"; at: number; expr: string }> {
+  return cls.split(/\s+/).map((name) => {
+    const match = /^md:@(min|max)-\[(\d+)px\]\/feed:ml-\[(.+)\]$/.exec(name);
+    if (!match) throw new Error(`not a lead rule: ${name}`);
+    return { kind: match[1] as "min" | "max", at: Number(match[2]), expr: match[3]! };
+  });
+}
+
+// Evaluates a Tailwind arbitrary CSS length (max / min / calc over px, %,
+// plain numbers, var(--token), + - * /) as the browser does: % is the
+// container's width.
+function cssLength(expr: string, pct: number, vars: Record<string, number>): number {
+  const src = expr.replace(/_/g, " ");
+  let at = 0;
+  const skip = () => {
+    while (src[at] === " ") at += 1;
+  };
+  const sees = (token: string) => {
+    skip();
+    return src.startsWith(token, at);
+  };
+  const take = (token: string) => {
+    if (!sees(token)) throw new Error(`expected ${token} at ${at} in ${src}`);
+    at += token.length;
+  };
+  const value = (): number => {
+    skip();
+    for (const fn of ["max", "min", "calc"] as const) {
+      if (src.startsWith(`${fn}(`, at)) {
+        at += fn.length + 1;
+        const args = [sum()];
+        while (sees(",")) {
+          take(",");
+          args.push(sum());
+        }
+        take(")");
+        return fn === "max" ? Math.max(...args) : fn === "min" ? Math.min(...args) : args[0]!;
+      }
+    }
+    if (src.startsWith("var(--", at)) {
+      const end = src.indexOf(")", at);
+      const name = src.slice(at + 6, end);
+      if (!(name in vars)) throw new Error(`unknown var --${name}`);
+      at = end + 1;
+      return vars[name]!;
+    }
+    if (sees("(")) {
+      take("(");
+      const inner = sum();
+      take(")");
+      return inner;
+    }
+    const match = /^(\d+(?:\.\d+)?)(px|%)?/.exec(src.slice(at));
+    if (!match) throw new Error(`no length at ${at} in ${src}`);
+    at += match[0].length;
+    return match[2] === "%" ? (pct * Number(match[1])) / 100 : Number(match[1]);
+  };
+  const product = (): number => {
+    let left = value();
+    while (sees("*") || sees("/")) {
+      const op = src[at];
+      at += 1;
+      const right = value();
+      left = op === "*" ? left * right : left / right;
+    }
+    return left;
+  };
+  const sum = (): number => {
+    let left = product();
+    while (sees("+") || sees("-")) {
+      const op = src[at];
+      at += 1;
+      const right = product();
+      left = op === "+" ? left + right : left - right;
+    }
+    return left;
+  };
+  const result = sum();
+  skip();
+  if (at !== src.length) throw new Error(`trailing input at ${at} in ${src}`);
+  return result;
+}
+
+// The desktop Feed row as the browser lays it out: the frame's content box
+// (after the side menu and the frame's lead pad, before the shell's trail
+// gutter) is the feed container; the column (flex-1, capped) takes the
+// lead's margin; the rail (fixed width, ml-auto) sits at the container's
+// end when the container query shows it. Every number comes from the
+// classes and tokens.css.
+function shellVars(sideMenu: number) {
+  return {
+    "sidebar-width": sideMenu,
+    "chrome-gutter": tokenPx("chrome-gutter"),
+    "shell-gutter-inline-end": tokenPx("shell-gutter-inline-end"),
+  };
+}
+
+function feedRow(viewport: number, sideMenu: number) {
+  const vars = shellVars(sideMenu);
+  const start = sideMenu + vars["chrome-gutter"];
+  const container = viewport - start - vars["shell-gutter-inline-end"];
+  const railAt = Number(/(?:^|\s)@min-\[(\d+)px\]\/feed:flex(?:\s|$)/.exec(SOCIAL_FEED_ASIDE_CLASS)?.[1]);
+  const railWidth = Number(/(?:^|\s)w-\[(\d+)px\]/.exec(SOCIAL_FEED_ASIDE_CLASS)?.[1]);
+  const gap = 4 * Number(/(?:^|\s)gap-(\d+)(?:\s|$)/.exec(SOCIAL_FEED_LAYOUT_CLASS)?.[1]);
+  const cap = Number(/(?:^|\s)md:max-w-\[(\d+)px\]/.exec(SOCIAL_FEED_CENTER_CLASS)?.[1]);
+  const rail = container >= railAt;
+  const rule = leadRules(SOCIAL_FEED_LEAD_CLASS).find((r) => (r.kind === "min" ? container >= r.at : container < r.at));
+  if (!rule) throw new Error(`no lead rule for a ${container} container`);
+  const lead = cssLength(rule.expr, container, vars);
+  const width = Math.min(cap, container - lead - (rail ? gap + railWidth : 0));
+  const x = start + lead;
+  return {
+    start,
+    x,
+    right: x + width,
+    width,
+    rail: rail ? ([start + container - railWidth, start + container] as const) : null,
+  };
+}
+
+// The permalink's lead: one desktop left margin, an arbitrary CSS length,
+// with no container query (it has no rail).
+function postLeadExpr(): string {
+  const match = /^md:ml-\[(.+)\]$/.exec(SOCIAL_POST_PAGE_LEAD_CLASS);
+  if (!match) throw new Error(`not a lead rule: ${SOCIAL_POST_PAGE_LEAD_CLASS}`);
+  return match[1]!;
+}
+
+// The permalink column as the browser lays it out: the same frame as the
+// Feed's, its row the full frame (the % is the row's width), the column
+// capped and led by its own margin.
+function postColumn(viewport: number, sideMenu: number) {
+  const vars = shellVars(sideMenu);
+  const start = sideMenu + vars["chrome-gutter"];
+  const frame = viewport - start - vars["shell-gutter-inline-end"];
+  const cap = Number(/(?:^|\s)md:max-w-\[(\d+)px\]/.exec(SOCIAL_POST_PAGE_CLASS)?.[1]);
+  const lead = cssLength(postLeadExpr(), frame, vars);
+  const width = Math.min(cap, frame - lead);
+  const x = start + lead;
+  return { start, x, right: x + width, width };
 }
 
 // docs/design-locks/social-feed-cards-lock-v1.md
@@ -352,10 +524,8 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
     expect(SOCIAL_COMMENT_NEED_PROFILE_CLASS).toBe("px-4 py-3 t-body-sm text-ink-2");
     expect(SOCIAL_COMMENT_NEED_PROFILE_IN_CARD_CLASS).toBe("pt-3 t-body-sm text-ink-2");
     expect(SOCIAL_ACTIVITY_COMMENTED_LABEL_CLASS).toBe("t-label text-ink-2");
-    expect(SOCIAL_POST_PAGE_CLASS).toBe(
-      "flex w-full min-w-0 flex-col gap-[var(--space-4)] pb-[var(--space-12)] md:max-w-[600px]",
-    );
-    // The permalink's thread goes in the card, the page in the 600 column.
+    // The permalink's thread goes in the card, the page in the Feed's
+    // column (680 at the Feed's placement: §8 pins the column's classes).
     expect(permalink).toContain("className={SOCIAL_POST_PAGE_CLASS}");
     expect(permalink.indexOf("comments={")).toBeGreaterThan(permalink.indexOf("<SocialPostCard"));
     expect(permalink.indexOf("<SocialCommentThread")).toBeLessThan(permalink.lastIndexOf("/>"));
@@ -494,5 +664,207 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
     expect(center).toContain('data-social-home-composer-skeleton="" className={SOCIAL_COMPOSER_CLASS}');
     expect(skeletons).toContain('data-social-post-skeleton="" className={SOCIAL_FEED_CARD_CLASS}');
     expect(skeletons).toContain("SOCIAL_IN_CARD_FILL_CLASS");
+  });
+
+  // §8 Feed placement (founder 2026-10-07): the Facebook column.
+  it("§8: records the placement request verbatim, the Facebook and the measured numbers, and the header as a founder choice", () => {
+    expect(lock).toContain("## Founder direction (verbatim, 2026-10-07)");
+    expect(lock).toContain(`> ${PLACEMENT_QUOTE}`);
+    expect(lock).toContain("## 8) Feed placement");
+    // Facebook's column and ours, before and after, at 1440.
+    expect(lock).toContain("x **380 to 1060**, width **680**");
+    expect(lock).toContain("x 464 to 1064, width 600");
+    // The header stays 80 (Facebook's bar is 56): recorded, not changed.
+    expect(lock).toContain("**Header height.**");
+    // Every rule that named the 600 column names 680 (§8 keeps "before").
+    const post = lock.slice(lock.indexOf("## 7) Post page"), lock.indexOf("## 8) Feed placement"));
+    expect(post).toContain("Feed's **680** column, centred as the Feed's");
+    const line = (start: string) => lock.split("\n").find((row) => row.startsWith(start)) ?? "";
+    expect(line("3. **Post page width.**")).toContain("680 column, centred as the Feed's");
+    expect(line("- **Cards (C1, C8).**")).toContain("at 1280 / 1440, 680 wide");
+    expect(line("- **Post page (C3).**")).toContain("680 wide on desktop, centred as the Feed's column");
+    // The permalink has no rail: centred where the Feed shifts for its rail.
+    expect(line("| Post page |")).toContain("does not apply");
+    expect(lock).toContain("1366, **343 to 1023** (the Feed 310 to 990)");
+    for (const start of ["3. **Post page width.**", "- **Cards (C1, C8).**", "- **Post page (C3).**"]) {
+      expect(line(start), start).not.toMatch(/\b600\b/);
+    }
+    expect(post).not.toMatch(/\b600\b/);
+    expect(lock).toContain("**C11.** Feed placement (§8)");
+  });
+
+  it("§8: the Feed column is 680 and the rail 296 with a 48 gap; the classes are exact", () => {
+    expect(SOCIAL_FEED_MEASURE).toEqual({ center: 680, gutter: 48, right: 296 });
+    expect(SOCIAL_FEED_PAIR_WIDTH).toBe(1024);
+    expect(SOCIAL_FEED_LAYOUT_CLASS).toBe("@container/feed flex w-full items-start gap-12 md:pt-2");
+    expect(SOCIAL_FEED_LEAD_CLASS).toBe(
+      "md:@max-[1024px]/feed:ml-[max(0px,calc((100%-680px-var(--sidebar-width)-var(--chrome-gutter)+var(--shell-gutter-inline-end))/2))] md:@min-[1024px]/feed:ml-[max(0px,min(calc((100%-680px-var(--sidebar-width)-var(--chrome-gutter)+var(--shell-gutter-inline-end))/2),calc(100%-1024px)))]",
+    );
+    expect(SOCIAL_FEED_CENTER_CLASS).toBe(`flex min-w-0 w-full flex-1 flex-col md:max-w-[680px] ${SOCIAL_FEED_LEAD_CLASS}`);
+    expect(SOCIAL_FEED_ASIDE_CLASS).toBe("hidden w-[296px] shrink-0 flex-col ml-auto @min-[1024px]/feed:flex");
+    expect(SOCIAL_POST_PAGE_LAYOUT_CLASS).toBe("flex w-full items-start");
+    expect(SOCIAL_POST_PAGE_LEAD_CLASS).toBe(
+      "md:ml-[max(0px,calc((100%-680px-var(--sidebar-width)-var(--chrome-gutter)+var(--shell-gutter-inline-end))/2))]",
+    );
+    expect(SOCIAL_POST_PAGE_CLASS).toBe(
+      `flex w-full min-w-0 flex-col gap-[var(--space-4)] pb-[var(--space-12)] md:max-w-[680px] ${SOCIAL_POST_PAGE_LEAD_CLASS}`,
+    );
+    // The classes carry the measure: the cap, the rail, the gap, the fit.
+    expect(hasClass(SOCIAL_FEED_CENTER_CLASS, `md:max-w-[${SOCIAL_FEED_MEASURE.center}px]`)).toBe(true);
+    expect(hasClass(SOCIAL_FEED_ASIDE_CLASS, `w-[${SOCIAL_FEED_MEASURE.right}px]`)).toBe(true);
+    expect(hasClass(SOCIAL_FEED_LAYOUT_CLASS, `gap-${SOCIAL_FEED_MEASURE.gutter / 4}`)).toBe(true);
+    expect(hasClass(SOCIAL_FEED_ASIDE_CLASS, `@min-[${SOCIAL_FEED_PAIR_WIDTH}px]/feed:flex`)).toBe(true);
+    for (const rule of leadRules(SOCIAL_FEED_LEAD_CLASS)) {
+      expect(rule.at).toBe(SOCIAL_FEED_PAIR_WIDTH);
+      expect(rule.expr).toContain(`100%-${SOCIAL_FEED_MEASURE.center}px`);
+    }
+    // Phone is unchanged: every placement rule is md and up, the frame stays
+    // full width with its 16.
+    expect(SOCIAL_FEED_LEAD_CLASS.split(/\s+/).every((cls) => cls.startsWith("md:"))).toBe(true);
+    expect(SOCIAL_FEED_LAYOUT_CLASS).not.toMatch(/(?:^|\s)(?:max-md:|p[xlr]?-|m[xlr]?-|max-w-)/);
+    // Explore, Profile and Messages keep the 1052 Social row.
+    expect(SOCIAL_HOME_LAYOUT_CLASS).not.toContain("@container/feed");
+  });
+
+  it("§8: the column is centred on the viewport with the side menu open or collapsed, and the rail fits beside it or hides", () => {
+    const open = tokenPx("sidebar-width");
+    const collapsed = tokenPx("sidebar-width-collapsed");
+    expect([open, collapsed]).toEqual([240, 80]);
+    const row = (vw: number, menu: number) => {
+      const r = feedRow(vw, menu);
+      return [r.x, r.right, r.rail ? [...r.rail] : null];
+    };
+    // Facebook at 1440: 380 to 1060, centred (720). Ours, side menu open.
+    expect(row(1440, open)).toEqual([380, 1060, [1112, 1408]]);
+    expect(row(1920, open)).toEqual([620, 1300, [1592, 1888]]);
+    expect(row(1680, open)).toEqual([500, 1180, [1352, 1648]]);
+    expect(row(1512, open)).toEqual([416, 1096, [1184, 1480]]);
+    // The rail fits, the centred column would leave under 48: 680 kept,
+    // moved left just enough.
+    expect(row(1366, open)).toEqual([310, 990, [1038, 1334]]);
+    expect(row(1312, open)).toEqual([256, 936, [984, 1280]]);
+    // The rail does not fit: hidden, the column centred.
+    expect(row(1280, open)).toEqual([300, 980, null]);
+    // Cannot centre without going under the side menu: it starts at the frame.
+    expect(row(1024, open)).toEqual([256, 936, null]);
+    // A frame narrower than 680: the column fills it.
+    expect(row(768, open)).toEqual([256, 736, null]);
+    // Side menu collapsed (80).
+    expect(row(1440, collapsed)).toEqual([380, 1060, [1112, 1408]]);
+    expect(row(1920, collapsed)).toEqual([620, 1300, [1592, 1888]]);
+    expect(row(1280, collapsed)).toEqual([224, 904, [952, 1248]]);
+    expect(row(1152, collapsed)).toEqual([96, 776, [824, 1120]]);
+    // Every width, both menus: never under the side menu; 680 when the
+    // frame has room; the rail on the shell gutter with at least 48; centred
+    // whenever the side menu and the rail allow it.
+    const end = tokenPx("shell-gutter-inline-end");
+    for (const menu of [open, collapsed]) {
+      for (let vw = 768; vw <= 2560; vw += 1) {
+        const r = feedRow(vw, menu);
+        const centredX = (vw - SOCIAL_FEED_MEASURE.center) / 2;
+        expect(r.x, `${vw}/${menu}`).toBeGreaterThanOrEqual(r.start);
+        expect(r.width, `${vw}/${menu}`).toBe(Math.min(SOCIAL_FEED_MEASURE.center, vw - r.start - end));
+        if (r.rail) {
+          expect(r.rail[1], `${vw}/${menu}`).toBe(vw - end);
+          expect(r.rail[0] - r.right, `${vw}/${menu}`).toBeGreaterThanOrEqual(SOCIAL_FEED_MEASURE.gutter);
+          // Off centre only to keep the 48: then the gap is exactly 48.
+          if (r.x !== centredX) expect(r.rail[0] - r.right, `${vw}/${menu}`).toBe(SOCIAL_FEED_MEASURE.gutter);
+        } else if (r.x !== centredX) {
+          // Not centred only where centring would go under the side menu.
+          expect(r.x, `${vw}/${menu}`).toBe(r.start);
+          expect(centredX, `${vw}/${menu}`).toBeLessThan(r.start);
+        }
+        // From 1432 the rail fits beside the centred column at any menu.
+        if (vw >= 1432) expect(r.x, `${vw}/${menu}`).toBe(centredX);
+      }
+    }
+  });
+
+  it("§8: the permalink column is 680, centred as the Feed's, and never shifts for a rail it does not have", () => {
+    const open = tokenPx("sidebar-width");
+    const collapsed = tokenPx("sidebar-width-collapsed");
+    // The Feed's own centring term, clamped at 0: the rule the Feed column
+    // follows whenever no rail is drawn beside it.
+    const feedCentring = leadRules(SOCIAL_FEED_LEAD_CLASS).find((rule) => rule.kind === "max");
+    expect(postLeadExpr()).toBe(feedCentring?.expr);
+    expect(SOCIAL_POST_PAGE_LEAD_CLASS).not.toContain("/feed:");
+    const col = (vw: number, menu: number) => {
+      const c = postColumn(vw, menu);
+      return [c.x, c.right];
+    };
+    // Where the Feed is centred (or held at the frame), the permalink sits
+    // on it: Facebook's 380 to 1060 at 1440.
+    expect(col(1920, open)).toEqual([620, 1300]);
+    expect(col(1440, open)).toEqual([380, 1060]);
+    expect(col(1280, open)).toEqual([300, 980]);
+    expect(col(1024, open)).toEqual([256, 936]);
+    expect(col(768, open)).toEqual([256, 736]);
+    expect(col(1440, collapsed)).toEqual([380, 1060]);
+    // Where the Feed moves left for its rail, the permalink (no rail) stays
+    // centred: the Feed is 310 to 990 at 1366, 256 to 936 at 1312, and
+    // 224 to 904 / 96 to 776 collapsed at 1280 / 1152.
+    expect(col(1366, open)).toEqual([343, 1023]);
+    expect(col(1312, open)).toEqual([316, 996]);
+    expect(col(1280, collapsed)).toEqual([300, 980]);
+    expect(col(1152, collapsed)).toEqual([236, 916]);
+    // Every width, both menus: never under the side menu; 680 when the
+    // frame has room; centred unless centring would go under the side menu;
+    // on the Feed's column except where the Feed keeps 48 to its rail.
+    const end = tokenPx("shell-gutter-inline-end");
+    for (const menu of [open, collapsed]) {
+      for (let vw = 768; vw <= 2560; vw += 1) {
+        const c = postColumn(vw, menu);
+        const f = feedRow(vw, menu);
+        const centredX = (vw - SOCIAL_FEED_MEASURE.center) / 2;
+        expect(c.x, `${vw}/${menu}`).toBeGreaterThanOrEqual(c.start);
+        expect(c.width, `${vw}/${menu}`).toBe(Math.min(SOCIAL_FEED_MEASURE.center, vw - c.start - end));
+        expect(c.x, `${vw}/${menu}`).toBe(Math.max(c.start, centredX));
+        expect(c.width, `${vw}/${menu}`).toBe(f.width);
+        if (f.rail && f.x !== centredX) {
+          expect(f.rail[0] - f.right, `${vw}/${menu}`).toBe(SOCIAL_FEED_MEASURE.gutter);
+          expect(c.x, `${vw}/${menu}`).toBeGreaterThan(f.x);
+        } else {
+          expect(c.x, `${vw}/${menu}`).toBe(f.x);
+        }
+      }
+    }
+  });
+
+  it("§8: the slider and the rail's heading start 16 under the header", () => {
+    // The shared header inset (8) plus the Feed row's own md:pt-2 (8).
+    const rem = Number(/--space-2:\s*([\d.]+)rem/.exec(tokens)?.[1]) * 16;
+    expect(SOCIAL_DESKTOP_HEADER_INSET_CLASS).toBe("md:pt-[var(--space-2)]");
+    expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain(SOCIAL_DESKTOP_HEADER_INSET_CLASS);
+    const rowPad = 4 * Number(/(?:^|\s)md:pt-(\d+)(?:\s|$)/.exec(SOCIAL_FEED_LAYOUT_CLASS)?.[1]);
+    expect(rem + rowPad).toBe(16);
+    // Nothing above them pushes them down: the slider leads the column and
+    // the heading leads the rail, neither with a top margin.
+    const topMargin = /(?:^|\s)-?m[ty]?-(?!0(?:\s|$))/;
+    expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(topMargin);
+    expect(SOCIAL_FEED_ASIDE_HEADING_CLASS).not.toMatch(topMargin);
+    expect(SOCIAL_FEED_CENTER_CLASS).not.toMatch(/(?:^|\s)(?:md:)?(?:p[ty]?|m[ty]?)-/);
+  });
+
+  it("§8 / C9: the page and the loading skeleton draw the same placement; the permalink its centred column", () => {
+    // The live Feed and its skeleton compose the same three classes.
+    expect(page).toContain('<div data-social-home="" className={SOCIAL_FEED_LAYOUT_CLASS}>');
+    expect(page).toContain("className={SOCIAL_FEED_CENTER_CLASS}");
+    expect(homeLoading).toContain("<SocialHomeSkeleton />");
+    const skeleton = renderToStaticMarkup(createElement(SocialHomeSkeleton));
+    expect(skeleton.startsWith(`<div data-social-home-skeleton="" class="${SOCIAL_FEED_LAYOUT_CLASS}">`)).toBe(true);
+    expect(skeleton).toContain(`class="${SOCIAL_FEED_CENTER_CLASS}"`);
+    expect(skeleton).toContain(`data-social-for-you-layout="aside" class="${SOCIAL_FEED_ASIDE_CLASS}"`);
+    // The permalink (no rail): its column inside its full-width row, at the
+    // Feed's 680 with the Feed's centring and not the Feed's rail shift, in
+    // both of its states.
+    expect(permalink.match(/<div data-social-post-layout="" className=\{SOCIAL_POST_PAGE_LAYOUT_CLASS\}>/g)).toHaveLength(2);
+    for (const hook of ["data-social-post-missing", "data-social-post-detail"]) {
+      const at = permalink.indexOf(`<div ${hook}="" className={SOCIAL_POST_PAGE_CLASS}>`);
+      expect(at, hook).toBeGreaterThan(-1);
+      expect(permalink.lastIndexOf("data-social-post-layout", at), hook).toBeGreaterThan(-1);
+    }
+    expect(SOCIAL_POST_PAGE_CLASS).toContain(SOCIAL_POST_PAGE_LEAD_CLASS);
+    expect(SOCIAL_POST_PAGE_CLASS).not.toContain(SOCIAL_FEED_LEAD_CLASS);
+    expect(hasClass(SOCIAL_POST_PAGE_CLASS, `md:max-w-[${SOCIAL_FEED_MEASURE.center}px]`)).toBe(true);
   });
 });

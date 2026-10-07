@@ -38,6 +38,9 @@ import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import {
   SOCIAL_COMPOSER_CLASS,
   SOCIAL_COMPOSER_FIELD_CLASS,
+  SOCIAL_FEED_ASIDE_CLASS,
+  SOCIAL_FEED_CENTER_CLASS,
+  SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_HOME_STORIES_CARD_CLASS,
 } from "@/lib/social-chrome";
 import { SocialPostMedia } from "@/components/social/social-post-media";
@@ -222,12 +225,13 @@ describe("Social home", () => {
     expect(html).toContain("data-social-home-composer");
     // H · Feed (founder 2026-10-05; replaces G's tabs → topic words → story
     // tiles → composer bar → wall in the 620 column): slider → story cards
-    // → composer → topic chips → wall, in the 600 column.
+    // → composer → topic chips → wall, in the Feed column (680 since the
+    // Feed placement, founder 2026-10-07).
     expect(html).toContain('data-social-home-stack="lock_slider_stories_composer_topics_wall"');
     expect(html).not.toContain("lock_topics_composer_stories_wall");
     expect(html).not.toContain("lock_tabs_topics_stories_composer_wall");
     const stackClass = html.match(/data-social-home-stack="lock_slider_stories_composer_topics_wall"[^>]*class="([^"]+)"/)?.[1];
-    expect(stackClass).toContain("md:max-w-[600px]");
+    expect(stackClass).toBe(SOCIAL_FEED_CENTER_CLASS);
     expect(stackClass).not.toContain("lg:max-w-[720px]");
     expect(stackClass).not.toContain("gap-[var(--space-2)]");
     expect(html).toContain('aria-haspopup="dialog"');
@@ -282,12 +286,11 @@ describe("Social home", () => {
     expect(html).toContain("data-social-stories");
     expect(html).toContain("data-social-following-empty");
     expect(html).toContain("data-social-for-you");
-    // H grid (replaces G's 620 / 40 / 244): 600 column, 48 gap, the 296
-    // For you rail from xl.
-    expect(html).toContain("md:max-w-[600px]");
-    expect(html).toContain("xl:max-w-[944px]");
-    expect(html).toContain("gap-12");
-    expect(html).toContain("w-[296px]");
+    // The Feed row (replaces G's 620 / 40 / 244 and H's 600 / 48 / 296 from
+    // xl): the placement classes the cards lock §8 pins, the column and the
+    // rail inside the feed container.
+    expect(html).toContain(`<div data-social-home="" class="${SOCIAL_FEED_LAYOUT_CLASS}">`);
+    expect(html).toContain(`class="${SOCIAL_FEED_ASIDE_CLASS}"`);
     expect(html).not.toContain("lg:max-w-[620px]");
     expect(html).not.toContain("w-[244px]");
     expect(html).toContain('data-social-for-you-layout="aside"');

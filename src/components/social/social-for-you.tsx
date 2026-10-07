@@ -182,8 +182,9 @@ function SocialFeedForYouAside({
       )}
       {latestCourse ? (
         <ul data-social-latest-course="" className={SOCIAL_FEED_ASIDE_COURSE_CLASS}>
-          {/* The rail is display:none until xl. An eager signed cover.png is
-              hoisted as <link rel="preload"> and Chrome warns it was unused. */}
+          {/* The rail is display:none until the Feed fits it. An eager
+              signed cover.png is hoisted as <link rel="preload"> and
+              Chrome warns it was unused. */}
           <CourseCard
             course={latestCourse}
             coverUrl={latestCourseCoverUrl}

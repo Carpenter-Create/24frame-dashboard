@@ -26,13 +26,11 @@ import {
   SOCIAL_COMPOSER_FIELD_CLASS,
   SOCIAL_COMPOSER_ROW_CLASS,
   SOCIAL_FEED_ASIDE_AVATAR_CLASS,
-  SOCIAL_FEED_ASIDE_CLASS,
   SOCIAL_FEED_ASIDE_COURSE_CLASS,
   SOCIAL_FEED_ASIDE_HEADING_CLASS,
   SOCIAL_FEED_ASIDE_ROW_CLASS,
   SOCIAL_FEED_CARD_CLASS,
   SOCIAL_FEED_HEADING_CLASS,
-  SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_FEED_REEL_TILE_CLASS,
   SOCIAL_FEED_REELS_ARROW_CLASS,
   SOCIAL_FEED_REELS_ARROW_OFF_CLASS,
@@ -268,10 +266,10 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     for (const cls of [SOCIAL_COMPOSER_CLASS, SOCIAL_HOME_TOPIC_ROW_CLASS, SOCIAL_FEED_WALL_CLASS]) {
       expect(cls).not.toMatch(/(?:^|\s)mt-6(?:\s|$)/);
     }
-    // The slider: 16 under the phone bar (the frame's 16, no pull), 24
-    // under the desktop header (the 8 inset plus the grid's 16).
+    // The slider: 16 under the phone bar (the frame's 16, no pull). The
+    // desktop 24 is superseded by the Feed placement (founder 2026-10-07):
+    // 16 under the header, pinned in the cards lock §8.
     expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/-?mt-/);
-    expect(hasClass(SOCIAL_FEED_LAYOUT_CLASS, "md:pt-4")).toBe(true);
   });
 
   it("G4: story cards at the locked 112×200 / 108×192 with the name on the picture and an accent unseen ring", () => {
@@ -366,9 +364,10 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     expect(SOCIAL_FEED_REEL_TILE_CLASS).toContain("h-[284px] w-40");
   });
 
-  it("G7: the grid is 600 / 48 / 296 and the For you rail keeps its heading over a soft grey course card", () => {
-    expect(SOCIAL_FEED_LAYOUT_CLASS).toContain("xl:max-w-[944px]");
-    expect(SOCIAL_FEED_ASIDE_CLASS).toBe("hidden w-[296px] shrink-0 flex-col xl:flex");
+  it("G7: the For you rail keeps its heading over a soft grey course card (the grid: cards lock §8)", () => {
+    // The 600 / 48 / 296 grid from xl is superseded by the Feed placement
+    // (founder 2026-10-07): 680 / 48 / 296, centred on the viewport; the
+    // cards lock §8 pins the layout, column and rail classes.
     // Decision 5 ("sure"): "For you" heads the rail, level with the slider.
     expect(SOCIAL.forYou.title).toBe("For you");
     expect(forYou).toContain("{SOCIAL.forYou.title}");
