@@ -65,7 +65,9 @@
 // scroll lives on main. Social + Education share this contract —
 // not an Aggregation-only sticky hack. Phone follows the same pin.
 
+import { cn } from "@/lib/cn";
 import {
+  HOUSE_SEARCH_PILL_CLASS,
   HOUSE_SHELL_GUTTER_X_CLASS,
   HOUSE_PHONE_TRAILING_GUTTER_CLASS,
 } from "@/lib/house-shell";
@@ -158,9 +160,14 @@ export const HOUSE_LEAD_SEARCH_PILL_CLASS =
 // 44 tall, radius full, muted, pad 0 16, a 20 glyph in ink-2, gap 12,
 // 15 / 420 input (cards lock, lighter ink); placeholder and glyph on
 // ink-2 (ink-3 on the muted fill is under 4.5:1). Same form, input, and
-// voice mic as every HouseLeadSearch field; only the face is header-sized.
-export const HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS =
-  "flex h-[var(--header-control-size)] w-full min-w-0 items-center gap-[var(--space-3)] rounded-full border-0 bg-surface-muted px-[var(--space-4)] text-ink-2";
+// voice mic as every HouseLeadSearch field; only the face is header-sized:
+// the field pill and the shared grey pill skin, with the header's own
+// height, gap, pad, and ink replacing the field pill's.
+export const HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS = cn(
+  HOUSE_LEAD_SEARCH_PILL_CLASS,
+  HOUSE_SEARCH_PILL_CLASS,
+  "h-[var(--header-control-size)] gap-[var(--space-3)] px-[var(--space-4)] text-ink-2",
+);
 
 export const HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS =
   "h-full min-w-0 flex-1 text-[length:var(--text-sm)] text-ink placeholder:text-ink-2";

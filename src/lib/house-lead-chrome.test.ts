@@ -62,11 +62,8 @@ import {
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { HOUSE_ASK_AI_MARK_CLASS } from "@/lib/house-phone-shell";
 import { ACTIVITY_BELL_TRIGGER_CLASS, ACTIVITY_BELL_TRIGGER_OPEN_CLASS } from "@/lib/activity";
-import {
-  HOUSE_HEADER_SEARCH_GAP_CLASS,
-  HOUSE_SEARCH_PILL_CLASS,
-  HOUSE_SHELL_GUTTER_X_CLASS,
-} from "@/lib/house-shell";
+import { cn } from "@/lib/cn";
+import { HOUSE_SEARCH_PILL_CLASS, HOUSE_SHELL_GUTTER_X_CLASS } from "@/lib/house-shell";
 import { EDUCATION_SEARCH } from "@/lib/course-search";
 import { SOCIAL } from "@/lib/social";
 import { workspaceHome } from "@/lib/workspace";
@@ -90,6 +87,21 @@ function htmlClass(html: string, attr: string): string {
   if (start < 0) return "";
   const tag = html.slice(html.lastIndexOf("<", start), html.indexOf(">", start));
   return tag.match(/class="([^"]*)"/)?.[1] ?? "";
+}
+
+const VOID_TAG = /^(?:area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/;
+
+// Class of the element that directly contains the first tag carrying
+// `attr` (static markup: React escapes ">" inside attribute values).
+function parentClass(html: string, attr: string): string {
+  const at = html.indexOf(attr);
+  if (at < 0) return "";
+  const open: string[] = [];
+  for (const m of html.slice(0, html.lastIndexOf("<", at)).matchAll(/<(\/?)([a-zA-Z][\w-]*)([^>]*)>/g)) {
+    if (m[1]) open.pop();
+    else if (!VOID_TAG.test(m[2]) && !m[3].endsWith("/")) open.push(m[3]);
+  }
+  return open.at(-1)?.match(/class="([^"]*)"/)?.[1] ?? "";
 }
 
 function leadHtml(workspace: "aggregation" | "social" | "education", brandInHeader = false) {
@@ -129,7 +141,6 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).toContain("data-house-lead");
       expect(html).toContain("data-brand-emblem");
       expect(html).toContain(HOUSE_LEAD_LOGO_CLASS);
-      expect(html).toContain(HOUSE_HEADER_SEARCH_GAP_CLASS);
     }
 
     expect(aggregation.indexOf("data-brand-emblem")).toBeLessThan(
@@ -151,9 +162,19 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_LEAD_SEARCH_DESKTOP_CLASS).toBe(
       "hidden min-w-[240px] max-w-[360px] flex-[0_1_360px] xl:flex",
     );
+    // The header face is the field pill plus the shared grey pill skin;
+    // only its 44 height, 12 gap, 16 pad, and ink-2 are its own.
     expect(HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS).toBe(
-      "flex h-[var(--header-control-size)] w-full min-w-0 items-center gap-[var(--space-3)] rounded-full border-0 bg-surface-muted px-[var(--space-4)] text-ink-2",
+      cn(
+        HOUSE_LEAD_SEARCH_PILL_CLASS,
+        HOUSE_SEARCH_PILL_CLASS,
+        "h-[var(--header-control-size)] gap-[var(--space-3)] px-[var(--space-4)] text-ink-2",
+      ),
     );
+    // Those replace the field pill's height, gap, and pad; none doubles up.
+    expect(
+      HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS.split(" ").filter((t) => /^(?:h|gap|px)-/.test(t)),
+    ).toEqual(["h-[var(--header-control-size)]", "gap-[var(--space-3)]", "px-[var(--space-4)]"]);
     expect(HOUSE_LEAD_SEARCH_HEADER_GLYPH_CLASS).toBe("size-5 shrink-0 text-ink-2");
     expect(leadLib).toContain("Facebook-compact");
     expect(leadSearch).toContain("HOUSE_LEAD_SEARCH_PILL_CLASS");
@@ -268,9 +289,13 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     // Same 232×34 header face as Social (screening chrome).
     expect(education).toContain(`class="${HOUSE_LEAD_SEARCH_HEADER_FIELD_CLASS}`);
     expect(education).toContain(EDUCATION_SEARCH.placeholder);
-    expect(education).toContain(HOUSE_HEADER_SEARCH_GAP_CLASS);
     expect(social).toContain(HOUSE_LEAD_SEARCH_DESKTOP_CLASS);
-    expect(social).toContain(HOUSE_HEADER_SEARCH_GAP_CLASS);
+    // The search host and Ask are siblings in the trailing cluster, so the
+    // cluster's gap is the one gap between the search and the controls.
+    for (const html of [social, education]) {
+      expect(parentClass(html, 'data-house-lead-search=""')).toBe(APP_HEADER_TRAILING_CLUSTER_CLASS);
+      expect(parentClass(html, 'data-ask-assistant-header=""')).toBe(APP_HEADER_TRAILING_CLUSTER_CLASS);
+    }
     expect(education).not.toContain("w-[420px]");
   });
 

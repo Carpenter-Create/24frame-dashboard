@@ -116,11 +116,6 @@ export const HOUSE_RELATED_GAP_CLASS = "gap-[var(--space-2)]";
 
 export const HOUSE_SECTION_AIR_CLASS = "gap-[var(--space-6)]";
 
-// Logo → search air on Social + Education top bars. 16 related
-// (house --space-4). Not flush, not mid-bar. Phone Education keeps
-// the compact under-nav search; do not invent a desktop mid-bar.
-export const HOUSE_HEADER_SEARCH_GAP_CLASS = "gap-[var(--space-4)]";
-
 export const HOUSE_RAIL_TITLE_CLASS = "px-2 pb-1 t-label text-ink-3";
 
 export const HOUSE_RAIL_ITEM_CLASS =
