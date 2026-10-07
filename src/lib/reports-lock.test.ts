@@ -12,6 +12,7 @@ import { DASHBOARD_HOME } from "@/lib/dashboard-home";
 import { formatUsdCents } from "@/lib/finance";
 import { housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
 import { reportsFixtureLabel } from "@/lib/reports-fixture";
+import { stripSourceComments } from "@/test/strip-source-comments";
 import {
   REPORTS_PAGE,
   parseReportsPeriod,
@@ -261,11 +262,13 @@ describe("Aggregation Reports miss list v1.1", () => {
     const src = readFileSync("src/components/reports/reports-shell.tsx", "utf8");
     expect(housePhoneForbidsTruncate(src)).toBe(true);
     expect(src).not.toContain("DASHBOARD_ROW_CLASS");
-    // Anchored to the elements themselves, so a commented-out copy does not count.
-    expect(src).toMatch(
+    // Comments stripped, then anchored to the elements themselves, so a
+    // commented-out copy does not count.
+    const code = stripSourceComments(src);
+    expect(code).toMatch(
       /^\s*<li key=\{row\.name\} data-reports-composition-row="" className=\{DASHBOARD_ROW_STACK_CLASS\}>$/m,
     );
-    expect(src).toMatch(/^\s*<span className=\{DASHBOARD_ROW_TITLE_CLASS\}>\{row\.name\}<\/span>$/m);
+    expect(code).toMatch(/^\s*<span className=\{DASHBOARD_ROW_TITLE_CLASS\}>\{row\.name\}<\/span>$/m);
   });
 
   it("bans the foreign brand word from Reports source comments", () => {

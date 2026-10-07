@@ -19,6 +19,7 @@ import {
   SOCIAL_PERSON_SECONDARY_CLASS,
   SOCIAL_STORY_ACTIVITY_NAME_CLASS,
 } from "@/lib/social-chrome";
+import { stripSourceComments } from "@/test/strip-source-comments";
 import { SocialStoryActivitySheet } from "./social-story-activity-sheet";
 
 const LONG_NAME = "Maximilian Alexander Featherstonehaugh-Smythe";
@@ -52,8 +53,9 @@ describe("Story activity sheet: phone never-truncate (house gospel 2026-09-19)",
     expect(housePhoneForbidsTruncate(SOCIAL_STORY_ACTIVITY_NAME_CLASS)).toBe(true);
     expect(housePhoneForbidsTruncate(SOCIAL_PERSON_SECONDARY_CLASS)).toBe(true);
     // Composed from the person-name primitive, not a hand-typed copy of its value.
-    // Anchored to the declaration line, so a commented-out copy does not count.
-    expect(readFileSync("src/lib/social-chrome.ts", "utf8")).toMatch(
+    // Comments stripped, then anchored to the declaration line, so a
+    // commented-out copy does not count.
+    expect(stripSourceComments(readFileSync("src/lib/social-chrome.ts", "utf8"))).toMatch(
       /^export const SOCIAL_STORY_ACTIVITY_NAME_CLASS = `\$\{SOCIAL_PERSON_NAME_CLASS\} t-body text-ink`;$/m,
     );
   });
@@ -75,9 +77,11 @@ describe("Story activity sheet: phone never-truncate (house gospel 2026-09-19)",
   it("keeps the sheet source free of a one-line cut", () => {
     const src = readFileSync("src/components/social/social-story-activity-sheet.tsx", "utf8");
     expect(housePhoneForbidsTruncate(src)).toBe(true);
-    // Anchored to the elements themselves, so a commented-out copy does not count.
-    expect(src).toMatch(/^\s*<span className=\{SOCIAL_STORY_ACTIVITY_NAME_CLASS\}>\{person\.name\}<\/span>$/m);
-    expect(src).toMatch(
+    // Comments stripped, then anchored to the elements themselves, so a
+    // commented-out copy does not count.
+    const code = stripSourceComments(src);
+    expect(code).toMatch(/^\s*<span className=\{SOCIAL_STORY_ACTIVITY_NAME_CLASS\}>\{person\.name\}<\/span>$/m);
+    expect(code).toMatch(
       /^\s*<span className=\{SOCIAL_PERSON_SECONDARY_CLASS\}>\{displayHandle\(person\.handle\)\}<\/span>$/m,
     );
   });
