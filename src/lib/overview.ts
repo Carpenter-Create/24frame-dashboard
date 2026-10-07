@@ -100,8 +100,13 @@ export const OVERVIEW_AREA_AI_CLASS = "[grid-area:ai]";
 // header pins at top-0 *inside* this overflow — do not add a second
 // sticky offset here. Stacked Home uses the page scroller. Same 60rem
 // frame switch as the two-column grid.
+// The sticky top counts from the lead scroller, which already starts
+// under the header: pinned, the rail sits 16 under the bar (founder
+// 2026-10-07); at rest it stays level with the first module. The height
+// counts from the viewport, so it subtracts the header and the 16 above
+// and below (space-8). Cards lock §8.
 export const OVERVIEW_AREA_NEWS_CLASS =
-  "[grid-area:news] @min-[60rem]:sticky @min-[60rem]:top-[calc(var(--header-height)+var(--space-4))] @min-[60rem]:max-h-[calc(100dvh-var(--header-height)-var(--space-8))] @min-[60rem]:overflow-y-auto";
+  "[grid-area:news] @min-[60rem]:sticky @min-[60rem]:top-[var(--space-4)] @min-[60rem]:max-h-[calc(100dvh-var(--header-height)-var(--space-8))] @min-[60rem]:overflow-y-auto";
 
 /** Inner pad + gap for tiles inside a Home module shell (Education covers, News cards). */
 export const OVERVIEW_MODULE_NEST_CLASS =
