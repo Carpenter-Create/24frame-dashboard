@@ -24,7 +24,13 @@ import type { CourseRow } from "@/lib/courses";
 import { parseDashboardPeriod } from "@/lib/dashboard-admin";
 import { TEXT_ACTION_CLASS } from "@/lib/house-sheet";
 import { HOUSE_ACTION_ARROW_CLASS } from "@/components/chrome/house-action-arrow";
-import { DASHBOARD_SECTION_TITLE_CLASS } from "@/lib/dashboard-craft";
+import {
+  DASHBOARD_ROW_STACK_CLASS,
+  DASHBOARD_ROW_TITLE_CLASS,
+  DASHBOARD_SECTION_TITLE_CLASS,
+} from "@/lib/dashboard-craft";
+import { housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
+import { TITLES_HREF } from "@/lib/title-public-id";
 import { NEWS_HREF, NEWS_PAGE } from "@/lib/news";
 import { HOME_GREETING_TIME_ZONE, homeGreeting, homeGreetingDate } from "@/lib/home-greeting";
 import {
@@ -391,6 +397,29 @@ describe("OverviewHome", () => {
     expect(moduleSrc).toContain("HouseActionArrow");
     expect(homeSrc).toContain('testId="ai-next"');
     expect(homeSrc).toContain("OVERVIEW_PAGE.aiAsk");
+  });
+
+  // House SoT auditor 2026-10-05, P0: on phone an AI next title never
+  // truncates. The row is the Dashboard row with the phone stack (the
+  // title wraps, the reason sits under it); from md it is the row.
+  it("stacks AI next rows on phone so a long title wraps", () => {
+    const long = "The Remarkable and Unusually Long Documentary Title About Coastal Lighthouses";
+    const html = renderToStaticMarkup(
+      createElement(
+        OverviewHome,
+        homeProps({
+          aiNext: [
+            { id: "a1", title: long, reason: "Chain of title is missing.", status: "draft" },
+            { id: "a2", title: "Winter Light", reason: null, status: "draft" },
+          ],
+        }),
+      ),
+    );
+    const ai = moduleChunk(html, "ai-next");
+    expect(ai).toContain(`data-overview-ai-next="a1" class="${DASHBOARD_ROW_STACK_CLASS}"`);
+    expect(ai).toContain(`data-overview-ai-next="a2" class="${DASHBOARD_ROW_STACK_CLASS}"`);
+    expect(ai).toContain(`class="${DASHBOARD_ROW_TITLE_CLASS}" href="${TITLES_HREF}/a1">${long}<`);
+    expect(housePhoneForbidsTruncate(ai)).toBe(true);
   });
 
   it("shows Social unread + faces, Education covers, week pulse, and three AI next-moves", () => {

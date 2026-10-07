@@ -6,7 +6,7 @@ Design locks land in this directory before CoS undrafts a UI pull request.
 
 - One lock per file. The filename is the lock id.
 - Cite the lock path in the pull request body: `docs/design-locks/….md`. A UI, visual, or information-architecture change cites the lock it follows.
-- Phone never truncates. Prefer a vertical stack. House gospel 2026-09-19.
+- Phone never truncates. Prefer a vertical stack. House gospel 2026-09-19. A person's name is `SOCIAL_PERSON_NAME_CLASS` (the house phone wrap) plus the surface's type and ink; a Dashboard row whose label may not be cut is `DASHBOARD_ROW_STACK_CLASS` with `DASHBOARD_ROW_TITLE_CLASS` (House SoT auditor 2026-10-05, P0: Story person names, Home AI next).
 - Never-patch lookalikes. Do not restyle a near-match, fork a second host, or patch a cousin into the job. Extend the locked primitive, or stop.
 - Craft lanes. One row unlock at a time. The order is [`house-dual-host-primitive-audit-v1.md`](house-dual-host-primitive-audit-v1.md). A pull request opens one row.
 

@@ -19,12 +19,17 @@ vi.mock("next/dynamic", () => ({
 }));
 
 import {
+  SOCIAL_PERSON_NAME_CLASS,
   SOCIAL_STORY_ACTIVE_CARD_CLASS,
   SOCIAL_STORY_HOLD_SURFACE_CLASS,
   SOCIAL_STORY_REPLY_PILL_CLASS,
   SOCIAL_STORY_STAGE_CLASS,
   SOCIAL_STORY_STILL_PROGRESS_MS,
+  SOCIAL_STORY_VIEWER_AUTHOR_CLASS,
+  SOCIAL_STORY_VIEWER_AUTHOR_NAME_CLASS,
+  SOCIAL_STORY_VIEWER_AUTHOR_TIME_CLASS,
 } from "@/lib/social-chrome";
+import { HOUSE_PHONE_STACK_CLASS, housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
 import { SocialStoryViewer } from "./social-story-viewer";
 import { SOCIAL } from "@/lib/social";
 
@@ -144,6 +149,37 @@ describe("SocialStoryViewer", () => {
     expect(mux).not.toContain("https://image.mux.com/uNbxnGLKJ00yfbijDO8COxT/thumbnail.webp");
     expect(mux).not.toContain("<video");
     expect(mux).toContain("data-social-story-mute");
+  });
+
+  // House SoT auditor 2026-10-05, P0: on phone the author's name never
+  // truncates. It is the house person name (the phone wrap), stacked
+  // over the time beside the face; from md the two share one line.
+  it("stacks the author's name over the time on phone so a long name wraps", () => {
+    expect(SOCIAL_STORY_VIEWER_AUTHOR_CLASS).toBe(
+      `${HOUSE_PHONE_STACK_CLASS} flex-1 md:flex-row md:items-baseline md:gap-2`,
+    );
+    expect(SOCIAL_STORY_VIEWER_AUTHOR_NAME_CLASS).toBe(
+      `${SOCIAL_PERSON_NAME_CLASS} t-body-sm font-medium text-band-ink`,
+    );
+    expect(SOCIAL_STORY_VIEWER_AUTHOR_TIME_CLASS).toBe("shrink-0 t-label text-band-ink/65");
+    const name = "Maximilian Alexander Featherstonehaugh-Smythe";
+    const html = renderToStaticMarkup(
+      createElement(SocialStoryViewer, {
+        ...viewerProps,
+        authorName: name,
+        media: [{ kind: "image", url: "/api/social/media?key=stories%2Forg%2Fstill.jpg" }],
+      }),
+    );
+    const at = html.indexOf('data-social-story-author=""');
+    expect(at).toBeGreaterThan(-1);
+    const header = html.slice(html.lastIndexOf("<div", at), html.indexOf("</div>", at) + "</div>".length);
+    expect(header).toContain(`class="${SOCIAL_STORY_VIEWER_AUTHOR_CLASS}"`);
+    expect(header).toContain(`class="${SOCIAL_STORY_VIEWER_AUTHOR_NAME_CLASS}">${name}<`);
+    expect(header).toContain(`class="${SOCIAL_STORY_VIEWER_AUTHOR_TIME_CLASS}"`);
+    expect(housePhoneForbidsTruncate(header)).toBe(true);
+    // The header no longer cuts the name anywhere in the source.
+    const src = readFileSync("src/components/social/social-story-viewer.tsx", "utf8");
+    expect(src).not.toMatch(/truncate[^"]*">\{author\.authorName\}/);
   });
 
   it("pauses a hidden story and commits the enter class before paint", () => {

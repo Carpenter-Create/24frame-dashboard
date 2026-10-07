@@ -11,6 +11,11 @@ import { Input } from "@/components/ui/input";
 import { listStorySendPeople, sendSocialStoryItem } from "@/app/(app)/social/light-actions";
 import { HouseScrim } from "@/components/chrome/house-overlay";
 import { displayHandle, SOCIAL } from "@/lib/social";
+import {
+  SOCIAL_STORY_SEND_CELL_NAME_CLASS,
+  SOCIAL_STORY_SEND_HANDLE_CLASS,
+  SOCIAL_STORY_SEND_NAME_CLASS,
+} from "@/lib/social-chrome";
 import { isSocialFrameAiTarget, pinSocialFrameAiPeople } from "@/lib/social-frame-ai";
 import {
   storySendPeopleQuery,
@@ -226,7 +231,7 @@ export function SocialStorySendSheet({
                       className="flex w-full min-w-0 items-center gap-3 py-2 text-left"
                       faceClassName="size-10"
                       label={person.name}
-                      labelClassName="block break-words t-body font-medium text-white"
+                      labelClassName={SOCIAL_STORY_SEND_NAME_CLASS}
                       marker={{ "data-social-story-send-result": person.id }}
                       storyId={storyId}
                       onOpen={onClose}
@@ -242,8 +247,8 @@ export function SocialStorySendSheet({
                     >
                       {personFace(person, "size-10")}
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate t-body font-medium text-white">{person.name}</span>
-                        <span className="block truncate t-body-sm text-white/60">{displayHandle(person.handle)}</span>
+                        <span className={SOCIAL_STORY_SEND_NAME_CLASS}>{person.name}</span>
+                        <span className={SOCIAL_STORY_SEND_HANDLE_CLASS}>{displayHandle(person.handle)}</span>
                       </span>
                     </button>
                   )}
@@ -259,7 +264,7 @@ export function SocialStorySendSheet({
                     className="flex min-w-0 flex-col items-center gap-2"
                     faceClassName="size-14"
                     label={person.name}
-                    labelClassName="w-full break-words text-center t-body-sm text-white"
+                    labelClassName={SOCIAL_STORY_SEND_CELL_NAME_CLASS}
                     marker={{ "data-social-story-send-cell": person.id }}
                     storyId={storyId}
                     onOpen={onClose}
@@ -275,7 +280,7 @@ export function SocialStorySendSheet({
                     onClick={() => toggle(person.id)}
                   >
                     {personFace(person, "size-14")}
-                    <span className="w-full truncate text-center t-body-sm text-white">{person.name}</span>
+                    <span className={SOCIAL_STORY_SEND_CELL_NAME_CLASS}>{person.name}</span>
                   </button>
                 ),
               )}

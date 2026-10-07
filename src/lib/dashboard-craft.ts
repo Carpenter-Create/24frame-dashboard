@@ -26,6 +26,7 @@ import {
   HOUSE_SEGMENTED_TRACK_CLASS,
   HOUSE_SEGMENTED_TRACK_SCROLL_CLASS,
 } from "@/lib/house-shell";
+import { HOUSE_PHONE_WRAP_CLASS } from "@/lib/house-phone-stack";
 
 import {
   HOUSE_PAGE_SELECT_CHEVRON_CLASS,
@@ -68,6 +69,14 @@ export const DASHBOARD_SECTION_AIR_CLASS = HOUSE_SECTION_AIR_CLASS;
 
 export const DASHBOARD_ROW_CLASS =
   "flex min-h-10 items-center justify-between gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)]";
+
+// The row whose label may not be cut on phone (house gospel 2026-09-19):
+// below md the label wraps and what follows it stacks under it; from md
+// it is the row above.
+export const DASHBOARD_ROW_STACK_CLASS =
+  `${DASHBOARD_ROW_CLASS} max-md:flex-col max-md:items-stretch max-md:justify-start max-md:gap-[var(--space-1)]`;
+
+export const DASHBOARD_ROW_TITLE_CLASS = `${HOUSE_PHONE_WRAP_CLASS} t-body-sm font-medium text-ink`;
 
 // House ranked-row grade: circular mark · bold name · quiet meta · right $.
 // Bars view-alt keeps the share track. List does not.
