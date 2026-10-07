@@ -5,9 +5,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { ReportsControls } from "@/components/reports/reports-controls";
-import { ReportsBody } from "@/components/reports/reports-shell";
+import { ReportsBody, ReportsComposition } from "@/components/reports/reports-shell";
 import { DASHBOARD_ADMIN, parseDashboardPeriod } from "@/lib/dashboard-admin";
+import { DASHBOARD_ROW_STACK_CLASS, DASHBOARD_ROW_TITLE_CLASS } from "@/lib/dashboard-craft";
 import { DASHBOARD_HOME } from "@/lib/dashboard-home";
+import { formatUsdCents } from "@/lib/finance";
+import { housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
+import { reportsFixtureLabel } from "@/lib/reports-fixture";
 import {
   REPORTS_PAGE,
   parseReportsPeriod,
@@ -223,6 +227,40 @@ describe("Aggregation Reports miss list v1.1", () => {
     expect(html).toContain(REPORTS_TITLE_DESKTOP_CLASS);
     expect(html).not.toContain("min-h-[calc(340px+2*var(--space-6))]");
     expect(parseDashboardPeriod("ytd", now).kind).toBe("ytd");
+  });
+
+  it("stacks composition rows on phone so a long name wraps, never cut (house gospel 2026-09-19)", () => {
+    expect(DASHBOARD_ROW_STACK_CLASS).toBe(
+      "flex min-h-10 items-center justify-between gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-2)] max-md:flex-col max-md:items-stretch max-md:justify-start max-md:gap-[var(--space-1)]",
+    );
+    expect(DASHBOARD_ROW_TITLE_CLASS).toBe(
+      "min-w-0 max-w-full whitespace-normal break-words t-body-sm font-medium text-ink",
+    );
+    const longName =
+      "The Extraordinarily Long Festival Cut of a Documentary About Lighthouse Keepers";
+    const rows = [
+      { name: longName, count: 3, cents: 123_456 },
+      { name: "Platforms", count: 7, cents: null },
+    ];
+    const renderRows = (fixture: boolean) =>
+      renderToStaticMarkup(createElement(ReportsComposition, { rows, fixture }));
+    for (const fixture of [false, true]) {
+      const html = renderRows(fixture);
+      const money = fixture
+        ? reportsFixtureLabel(formatUsdCents(123_456))
+        : formatUsdCents(123_456);
+      expect(html).toContain(`data-reports-composition-row="" class="${DASHBOARD_ROW_STACK_CLASS}"`);
+      expect(html).toContain(`class="${DASHBOARD_ROW_TITLE_CLASS}">${longName}<`);
+      expect(html).toContain(`class="${DASHBOARD_ROW_TITLE_CLASS}">Platforms<`);
+      expect(html).toContain(`>${money}<`);
+      expect(html).toContain(">7<");
+      expect(housePhoneForbidsTruncate(html)).toBe(true);
+    }
+    expect(renderRows(true)).toContain("(sample)");
+    expect(renderRows(false)).not.toContain("(sample)");
+    const src = readFileSync("src/components/reports/reports-shell.tsx", "utf8");
+    expect(housePhoneForbidsTruncate(src)).toBe(true);
+    expect(src).not.toContain("DASHBOARD_ROW_CLASS");
   });
 
   it("bans the foreign brand word from Reports source comments", () => {

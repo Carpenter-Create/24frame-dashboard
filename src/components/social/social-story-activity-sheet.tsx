@@ -16,6 +16,7 @@ import { SocialAvatar } from "@/components/social/social-avatar";
 import { listStoryViewers } from "@/app/(app)/social/light-actions";
 import { APP_SHEET_HOST_CLASS } from "@/lib/house-sheet";
 import { displayHandle, SOCIAL, socialMemberHref } from "@/lib/social";
+import { SOCIAL_PERSON_SECONDARY_CLASS, SOCIAL_STORY_ACTIVITY_NAME_CLASS } from "@/lib/social-chrome";
 import type { StoryActivityViewer } from "@/lib/social-story-actions";
 
 export function SocialStoryActivitySheet({
@@ -84,8 +85,8 @@ export function SocialStoryActivitySheet({
           >
             <SocialAvatar name={person.name} photoUrl={person.photoUrl} size="sm" className="size-10" />
             <span className="min-w-0">
-              <span className="block truncate t-body text-ink">{person.name}</span>
-              <span className="block truncate t-body-sm text-ink-2">{displayHandle(person.handle)}</span>
+              <span className={SOCIAL_STORY_ACTIVITY_NAME_CLASS}>{person.name}</span>
+              <span className={SOCIAL_PERSON_SECONDARY_CLASS}>{displayHandle(person.handle)}</span>
             </span>
           </Link>
         ))
