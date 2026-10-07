@@ -1593,12 +1593,14 @@ export const SOCIAL_STORY_PICKER_WELL_CLASS =
   "flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-muted text-ink";
 
 // Create-story stage. Lock v1.1. House tokens only. No drop shadow.
-// Rail ~320. Stage muted. Two cards. Phone stacks.
+// Rail ~320, 240 below lg (founder 2026-10-07, lock v1.5 Fit): from 768
+// the rail and the two cards fit with no sideways scroll. Stage muted.
+// Two cards. Phone stacks.
 export const SOCIAL_STORY_CREATE_HOST_CLASS =
   "flex min-h-full flex-1 flex-col bg-surface md:min-h-full md:flex-row";
 
 export const SOCIAL_STORY_CREATE_RAIL_CLASS =
-  "flex w-full shrink-0 flex-col border-hairline bg-surface p-[var(--space-4)] md:w-[320px] md:border-r";
+  "flex w-full shrink-0 flex-col border-hairline bg-surface p-[var(--space-4)] md:w-[240px] md:border-r lg:w-[320px]";
 
 export const SOCIAL_STORY_CREATE_CLOSE_CLASS =
   "flex size-10 items-center justify-center rounded-full text-ink";
@@ -1611,14 +1613,17 @@ export const SOCIAL_STORY_CREATE_IDENTITY_CLASS =
 export const SOCIAL_STORY_CREATE_NAME_CLASS =
   "t-body min-w-0 text-ink whitespace-normal break-words";
 
+// The stage fills what the rail leaves, with no viewport floor (a 70vh
+// floor ran the page 10 past a 360 × 740 phone), and may narrow below
+// the cards' row, so the cards shrink instead of the page scrolling.
 export const SOCIAL_STORY_CREATE_STAGE_CLASS =
-  "flex min-h-[70vh] flex-1 flex-col bg-surface-muted md:min-h-full";
+  "flex min-w-0 flex-1 flex-col bg-surface-muted md:min-h-full";
 
 export const SOCIAL_STORY_CREATE_CARDS_CLASS =
   "flex flex-1 flex-col items-stretch justify-center gap-[var(--space-4)] p-[var(--space-4)] md:flex-row md:items-center md:justify-center md:gap-[var(--space-6)]";
 
 export const SOCIAL_STORY_CREATE_CARD_CLASS =
-  "flex w-full min-h-[200px] flex-col items-center justify-center gap-[var(--space-4)] rounded-[var(--radius-lg)] px-[var(--space-4)] py-[var(--space-6)] text-center md:h-[420px] md:w-[280px] md:min-w-[220px] md:max-w-[280px] md:shrink-0";
+  "flex w-full min-h-[200px] flex-col items-center justify-center gap-[var(--space-4)] rounded-[var(--radius-lg)] px-[var(--space-4)] py-[var(--space-6)] text-center md:h-[420px] md:w-[280px] md:min-w-[220px] md:max-w-[280px]";
 
 export const SOCIAL_STORY_PHOTO_CARD_CLASS =
   `${SOCIAL_STORY_CREATE_CARD_CLASS} bg-gradient-to-b from-accent to-ink text-accent-contrast`;

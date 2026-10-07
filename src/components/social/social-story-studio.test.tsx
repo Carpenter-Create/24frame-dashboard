@@ -8,7 +8,10 @@ import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
 import {
   SOCIAL_FIGMA_STORY_PICKER,
   SOCIAL_FIGMA_STORY_STUDIO,
+  SOCIAL_STORY_CREATE_CARD_CLASS,
+  SOCIAL_STORY_CREATE_CARDS_CLASS,
   SOCIAL_STORY_CREATE_RAIL_CLASS,
+  SOCIAL_STORY_CREATE_STAGE_CLASS,
   SOCIAL_STORY_PHOTO_CARD_CLASS,
   SOCIAL_STORY_POSTED_CTA_CLASS,
   SOCIAL_STORY_POSTED_SCRIM_CLASS,
@@ -37,9 +40,10 @@ describe("SocialStoryCompose create stage", () => {
     expect(html).toContain("Ada Lovelace");
     expect(html).toContain(`href="${SOCIAL_ROUTES.home}"`);
     expect(html).toContain(SOCIAL_STORY_CREATE_RAIL_CLASS);
+    expect(html).toContain(SOCIAL_STORY_CREATE_STAGE_CLASS);
     expect(html).toContain(SOCIAL_STORY_PHOTO_CARD_CLASS);
     expect(html).toContain(SOCIAL_STORY_VIDEO_CARD_CLASS);
-    expect(html).toContain("md:w-[320px]");
+    expect(html).toContain("lg:w-[320px]");
     expect(html).toContain("md:h-[420px]");
     expect(html).toContain("min-h-[200px]");
     expect(html).toContain("from-accent");
@@ -61,6 +65,34 @@ describe("SocialStoryCompose create stage", () => {
     expect(housePhoneForbidsTruncate(html)).toBe(true);
     expect((html.match(/data-social-story-photo=/g) ?? []).length).toBe(1);
     expect((html.match(/data-social-story-video=/g) ?? []).length).toBe(1);
+  });
+
+  // Founder 2026-10-07 (lock v1.5 Fit): below lg the rail is 240 and the
+  // cards shrink toward their 220 floor, so the pair fits from 768 with
+  // no sideways scroll; the stage has no viewport floor, so a 360 × 740
+  // phone does not scroll past its cards.
+  it("fits the create stage from a 360 phone to desktop: the rail, the stage and the cards", () => {
+    expect(SOCIAL_STORY_CREATE_RAIL_CLASS).toBe(
+      "flex w-full shrink-0 flex-col border-hairline bg-surface p-[var(--space-4)] md:w-[240px] md:border-r lg:w-[320px]",
+    );
+    expect(SOCIAL_STORY_CREATE_STAGE_CLASS).toBe("flex min-w-0 flex-1 flex-col bg-surface-muted md:min-h-full");
+    expect(SOCIAL_STORY_CREATE_CARDS_CLASS).toBe(
+      "flex flex-1 flex-col items-stretch justify-center gap-[var(--space-4)] p-[var(--space-4)] md:flex-row md:items-center md:justify-center md:gap-[var(--space-6)]",
+    );
+    expect(SOCIAL_STORY_CREATE_CARD_CLASS).toBe(
+      "flex w-full min-h-[200px] flex-col items-center justify-center gap-[var(--space-4)] rounded-[var(--radius-lg)] px-[var(--space-4)] py-[var(--space-6)] text-center md:h-[420px] md:w-[280px] md:min-w-[220px] md:max-w-[280px]",
+    );
+    // The pair's narrowest row: the rail, two cards at their floor, the
+    // 24 between them and the stage's 16 each side.
+    const px = (classes: string, utility: string) => {
+      const match = classes.match(new RegExp(`(?:^|\\s)${utility.replace(/[[\]:]/g, "\\$&")}(\\d+)px\\](?:\\s|$)`));
+      if (!match) throw new Error(`${utility} has no px value`);
+      return Number(match[1]);
+    };
+    const pairFloor = 2 * px(SOCIAL_STORY_CREATE_CARD_CLASS, "md:min-w-[") + 24 + 2 * 16;
+    expect(px(SOCIAL_STORY_CREATE_RAIL_CLASS, "md:w-[") + pairFloor).toBeLessThanOrEqual(768);
+    expect(px(SOCIAL_STORY_CREATE_RAIL_CLASS, "lg:w-[") + 2 * px(SOCIAL_STORY_CREATE_CARD_CLASS, "md:w-[") + 24 + 2 * 16)
+      .toBeLessThanOrEqual(1024);
   });
 
   it("keeps MediaRecorder as the Record path and never uses OS capture", () => {
