@@ -1333,6 +1333,10 @@ export const SOCIAL_STORY_SEND_NAME_CLASS = `${SOCIAL_PERSON_NAME_CLASS} t-body 
 
 export const SOCIAL_STORY_SEND_HANDLE_CLASS = `${SOCIAL_PERSON_NAME_CLASS} t-body-sm text-white/60`;
 
+// Story activity sheet (who viewed): the name wraps in this sheet's body
+// type; the @handle under it is SOCIAL_PERSON_SECONDARY_CLASS.
+export const SOCIAL_STORY_ACTIVITY_NAME_CLASS = `${SOCIAL_PERSON_NAME_CLASS} t-body text-ink`;
+
 export const SOCIAL_AVATAR_LG_CLASS =
   "flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted text-[length:var(--text-title)] font-semibold text-ink-2";
 

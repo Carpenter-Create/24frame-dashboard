@@ -12,8 +12,9 @@ import {
   DASHBOARD_CARD_PAD_HERO,
   DASHBOARD_CARD_PAD_LIST,
   DASHBOARD_RELATED_GAP_CLASS,
-  DASHBOARD_ROW_CLASS,
   DASHBOARD_ROW_LIST_CLASS,
+  DASHBOARD_ROW_STACK_CLASS,
+  DASHBOARD_ROW_TITLE_CLASS,
   DASHBOARD_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-craft";
 import { REPORTS_PAGE, type ReportsPeriod, type ReportsPeriodOption, type ReportsUserOption } from "@/lib/reports";
@@ -186,8 +187,8 @@ export function ReportsComposition({
                   : formatUsdCents(row.cents)
                 : String(row.count);
             return (
-              <li key={row.name} data-reports-composition-row="" className={DASHBOARD_ROW_CLASS}>
-                <span className="min-w-0 truncate t-body-sm text-ink">{row.name}</span>
+              <li key={row.name} data-reports-composition-row="" className={DASHBOARD_ROW_STACK_CLASS}>
+                <span className={DASHBOARD_ROW_TITLE_CLASS}>{row.name}</span>
                 <span className="t-data t-body-sm shrink-0 text-ink">{value}</span>
               </li>
             );
