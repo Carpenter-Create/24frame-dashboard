@@ -261,8 +261,11 @@ describe("Aggregation Reports miss list v1.1", () => {
     const src = readFileSync("src/components/reports/reports-shell.tsx", "utf8");
     expect(housePhoneForbidsTruncate(src)).toBe(true);
     expect(src).not.toContain("DASHBOARD_ROW_CLASS");
-    expect(src).toContain("className={DASHBOARD_ROW_STACK_CLASS}");
-    expect(src).toContain("className={DASHBOARD_ROW_TITLE_CLASS}");
+    // Anchored to the elements themselves, so a commented-out copy does not count.
+    expect(src).toMatch(
+      /^\s*<li key=\{row\.name\} data-reports-composition-row="" className=\{DASHBOARD_ROW_STACK_CLASS\}>$/m,
+    );
+    expect(src).toMatch(/^\s*<span className=\{DASHBOARD_ROW_TITLE_CLASS\}>\{row\.name\}<\/span>$/m);
   });
 
   it("bans the foreign brand word from Reports source comments", () => {
