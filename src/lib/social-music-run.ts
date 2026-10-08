@@ -280,7 +280,13 @@ async function scanOne(
     let audio: Uint8Array;
     try {
       audio = deps.sliceWindow(full, window);
-    } catch {
+    } catch (error) {
+      // Mux duration can run past the audio, or the remainder can be
+      // shorter than a frame. No samples there is the end of the track.
+      // Earlier windows already cover the audio that exists.
+      const pastAudio =
+        windowResults.length > 0 && error instanceof Error && error.message === "m4a_window_empty";
+      if (pastAudio) break;
       return recordFailure(scan, deps, book, "window_cut", muxReadyAt, scanStartedAt);
     }
     if (audio.byteLength === 0) {

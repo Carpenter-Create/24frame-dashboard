@@ -71,7 +71,8 @@ export type MusicScanCoverage =
 
 /**
  * Full contiguous coverage from the start of the asset. Unknown, non-finite,
- * or non-positive duration is not a window. Over the cap is not a sample.
+ * or non-positive duration is not a window. A remainder that rounds to an
+ * empty range is not a window. Over the cap is not a sample.
  */
 export function planMusicScanCoverage(durationSeconds: number | null | undefined): MusicScanCoverage {
   if (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
@@ -84,11 +85,12 @@ export function planMusicScanCoverage(durationSeconds: number | null | undefined
   for (let index = 0; index < count; index += 1) {
     const startSeconds = index * span;
     const endSeconds = Math.min(durationSeconds, startSeconds + span);
-    windows.push({
-      startSeconds: Math.round(startSeconds * 1000) / 1000,
-      endSeconds: Math.round(endSeconds * 1000) / 1000,
-    });
+    const start = Math.round(startSeconds * 1000) / 1000;
+    const end = Math.round(endSeconds * 1000) / 1000;
+    if (end <= start) continue;
+    windows.push({ startSeconds: start, endSeconds: end });
   }
+  if (windows.length === 0) return { kind: "unknown" };
   return { kind: "cover", windows };
 }
 

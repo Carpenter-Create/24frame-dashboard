@@ -85,5 +85,6 @@ describe("sliceSocialMusicAudio", () => {
     expect(() => sliceSocialMusicAudio(new Uint8Array([1, 2, 3, 4]), { startSeconds: 0, endSeconds: 12 })).toThrow(
       /m4a_unreadable/,
     );
+    expect(() => sliceSocialMusicAudio(file, { startSeconds: 36, endSeconds: 48 })).toThrow(/m4a_window_empty/);
   });
 });

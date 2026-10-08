@@ -230,6 +230,11 @@ describe("music scan windows", () => {
       { startSeconds: 12, endSeconds: 24 },
       { startSeconds: 24, endSeconds: 30 },
     ]);
+    expect(musicScanWindows(24.0004)).toEqual([
+      { startSeconds: 0, endSeconds: 12 },
+      { startSeconds: 12, endSeconds: 24 },
+    ]);
+    expect(planMusicScanCoverage(0.0004)).toEqual({ kind: "unknown" });
     expect(musicScanWindows(400)).toHaveLength(Math.ceil(400 / 12));
     expect(planMusicScanCoverage(MUSIC_SCAN_COVERED_SECONDS + 1)).toEqual({ kind: "over_cap" });
     expect(musicScanWindows(MUSIC_SCAN_COVERED_SECONDS)).toHaveLength(MUSIC_SCAN_MAX_WINDOWS);

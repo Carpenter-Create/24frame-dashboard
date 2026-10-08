@@ -382,6 +382,44 @@ describe("processMusicScan", () => {
     });
   });
 
+  it("allows a no-match when a later window has no samples", async () => {
+    const cuts: number[] = [];
+    const run = deps({
+      loadAsset: async () => ({ ...READY, duration: 30 }),
+      sliceWindow: (_audio, window) => {
+        cuts.push(window.startSeconds);
+        if (window.startSeconds >= 12) throw new Error("m4a_window_empty");
+        return new Uint8Array([1, 2, 3]);
+      },
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("allowed");
+    expect(cuts).toEqual([0, 12]);
+    expect(run.saves.at(-1)).toMatchObject({ status: "allowed", lastError: null });
+  });
+
+  it("still fails the scan when the first window has no samples", async () => {
+    const run = deps({
+      loadAsset: async () => ({ ...READY, duration: 30 }),
+      sliceWindow: () => {
+        throw new Error("m4a_window_empty");
+      },
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("retried");
+    expect(run.saves.at(-1)?.lastError).toBe("window_cut");
+  });
+
+  it("still fails when a later window cannot be parsed", async () => {
+    const run = deps({
+      loadAsset: async () => ({ ...READY, duration: 30 }),
+      sliceWindow: (_audio, window) => {
+        if (window.startSeconds >= 24) throw new Error("m4a_unreadable");
+        return new Uint8Array([window.startSeconds + 1, 2, 3]);
+      },
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("retried");
+    expect(run.saves.at(-1)?.lastError).toBe("window_cut");
+  });
+
   it("rejects a window that is implausible or identical to another window", async () => {
     const huge = deps({
       loadAsset: async () => ({ ...READY, duration: 24 }),
