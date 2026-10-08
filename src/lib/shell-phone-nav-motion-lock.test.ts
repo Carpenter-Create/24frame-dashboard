@@ -6,7 +6,9 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_THUMB_CLASS,
   housePhoneDestinations,
+  housePhoneDockDestinations,
   housePhoneDockThumbIndex,
+  housePhoneDockTrackKey,
 } from "./house-phone-shell";
 import {
   HOUSE_PHONE_NAV_GLYPH_FADE_CLASS,
@@ -105,6 +107,14 @@ describe("phone nav motion lock v1", () => {
     // Messages is the third dest that can be current: Create is skipped.
     expect(housePhoneDockThumbIndex("/social/dms", social, "social")).toBe(2);
     expect(housePhoneDockThumbIndex("/social/create", social, "social")).toBe(-1);
+    // A new dest set mounts a fresh track: the index can stay 0 across a
+    // workspace switch while the slots change size, so the pill must
+    // measure again rather than keep the old slot's box.
+    expect(dockSrc).toContain("key={housePhoneDockTrackKey(items)}");
+    const aggregation = housePhoneDockDestinations({ isGcStaff: false, workspace: "aggregation" });
+    const education = housePhoneDockDestinations({ isGcStaff: false, workspace: "education" });
+    expect(housePhoneDockTrackKey(aggregation)).not.toBe(housePhoneDockTrackKey(education));
+    expect(housePhoneDockTrackKey(aggregation)).toBe(housePhoneDockTrackKey([...aggregation]));
     // Only real dests are track items; Create's trigger is not.
     expect(dockSrc.match(/data-segmented-item=""/g)).toHaveLength(1);
     expect(dockSrc.indexOf('data-segmented-item=""')).toBeGreaterThan(dockSrc.indexOf("<HouseLink"));

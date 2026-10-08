@@ -33,6 +33,7 @@ The recommendation put to the founder (condensed from the chat):
 | Band | The thumb is the page colour (`bg-bg`), 36 tall, the pill's own width, behind the current pill's icon and word. Until it is placed (the server paint), the current face paints the colour itself, as the desktop slider does |
 | Dock | The thumb spans the current dest's slot, 4 in from the dock's top and bottom (48 tall); the pill drawn is 64 wide, centred, `--surface-muted` on the dock surface. Create (Social) is an action, never current, and never carries the pill. A dock with no current dest shows no pill |
 | Dock offscreen | The dock never scrolls to its current dest (it can sit below the screen while it hides) |
+| Dock set | A new set of dests (a workspace switch) mounts a fresh track, so the pill measures the new slots even when the current index is unchanged |
 
 ## 2) Press and glyph
 
@@ -61,7 +62,7 @@ The global reduced-motion rule (`tokens.css`) drops every transition to ~0: the 
 
 **G1.** `house-phone-nav-motion`: thumb 260ms on `cubic-bezier(0.25,1.2,0.5,1)`; glyph fade `duration-100 delay-150`; press 96% (band face) and 90% (dock glyph) under `group/nav`.  
 **G2.** The band's pills are `data-segmented-item`s of a `SegmentedTrack` (`SEGMENTED_TRACK_PERSIST.workspaceBand`) whose thumb is `bg-bg h-9`; the current face paints `bg-bg` only `in-data-segmented-pending`.  
-**G3.** Every dock's row is a `SegmentedTrack` (`SEGMENTED_TRACK_PERSIST.phoneDest`, `revealActive={false}`); its thumb is the 64 `--surface-muted` pill; `housePhoneDockThumbIndex` skips Create.  
+**G3.** Every dock's row is a `SegmentedTrack` (`SEGMENTED_TRACK_PERSIST.phoneDest`, `revealActive={false}`); its thumb is the 64 `--surface-muted` pill; `housePhoneDockThumbIndex` skips Create; the track is keyed by `housePhoneDockTrackKey` (its dest set).  
 **G4.** Band and dock glyphs render through `HouseGlyphSwap`: two SVGs, the shown one (`opacity-100`) Fill on the current item and Regular elsewhere.  
 **G5.** The band's fold is `overflow-clip`, so the track's scroll-into-view cannot move the row inside it.
 

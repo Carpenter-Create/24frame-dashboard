@@ -346,6 +346,13 @@ export function housePhoneDockThumbIndex(
     .findIndex((item) => housePhoneDestActive(pathname, item, workspace));
 }
 
+/** The dock track's identity: its dest set. A new set (a workspace
+ *  switch) mounts a fresh track, so the pill measures the new slots
+ *  instead of keeping the old slot's box when the index stays the same. */
+export function housePhoneDockTrackKey(items: readonly NavItem[]): string {
+  return items.map((item) => item.href).join(" ");
+}
+
 export function housePhoneDestActiveIndex(
   pathname: string,
   items: readonly NavItem[],

@@ -42,6 +42,7 @@ import {
   housePhoneDestIsCreate,
   housePhoneDockDestinations,
   housePhoneDockThumbIndex,
+  housePhoneDockTrackKey,
   housePhoneDockLabel,
   housePhonePrefetchDestHrefs,
   housePhoneShowsBottomDests,
@@ -122,8 +123,10 @@ export function HousePhoneBottomNav({
       <div data-house-phone-bottom-nav-pill="" className={HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS}>
         {/* The current dest's pill is the track's thumb: it slides to the
             tapped dest (shell-phone-nav-motion-lock-v1). The dock can sit
-            off screen while it hides, so it never scrolls to the dest. */}
+            off screen while it hides, so it never scrolls to the dest.
+            A new dest set (a workspace switch) mounts a fresh track. */}
         <SegmentedTrack
+          key={housePhoneDockTrackKey(items)}
           activeIndex={thumbIndex}
           persistKey={SEGMENTED_TRACK_PERSIST.phoneDest}
           trackClass={HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS}
