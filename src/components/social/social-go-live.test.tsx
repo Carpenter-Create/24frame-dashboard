@@ -192,9 +192,10 @@ describe("Social Go live recorder", () => {
     const picker = chrome.slice(0, chrome.indexOf(") : ("));
     const phone = chrome.slice(chrome.indexOf(") : ("));
     expect(picker).toContain("<DropdownMenu>");
-    expect(picker).toContain("aria-label={SOCIAL.create.liveCamera}");
+    // The Feed composer's shipped word "Camera", no new copy.
+    expect(picker).toContain("aria-label={SOCIAL.home.composerCamera}");
     expect(picker).toContain('name="video-camera"');
-    expect(picker).toContain('disabled={phase !== "preview" || cameras.length === 0}');
+    expect(picker).toContain('disabled={phase !== "preview" || switching || cameras.length === 0}');
     expect(picker).toContain("<MenuSurfaceContent align=\"end\" className={SOCIAL_GO_LIVE_CAMERA_MENU_CLASS}>");
     expect(picker).toContain("<DropdownMenuRadioGroup value={activeCamera} onValueChange={(id) => void chooseCamera(id)}>");
     expect(picker).toContain("<MenuSurfaceRadioItem");
@@ -208,7 +209,8 @@ describe("Social Go live recorder", () => {
     expect(html).not.toContain("data-social-go-live-camera=");
     // Names wrap, never truncate.
     expect(SOCIAL_GO_LIVE_CAMERA_MENU_CLASS).not.toMatch(/truncate|ellipsis/);
-    expect(SOCIAL.create.liveCamera).toBe("Camera");
+    expect(SOCIAL.home.composerCamera).toBe("Camera");
+    expect(SOCIAL.create).not.toHaveProperty("liveCamera");
   });
 
   it("opens the remembered camera, falls back to the default when it is gone, and lists what streams", () => {
@@ -220,21 +222,45 @@ describe("Social Go live recorder", () => {
     expect(mount.indexOf(pick)).toBeLessThan(mount.indexOf("await ensurePreview(facing);"));
     // A chosen camera that cannot open (an iPhone out of reach) gives way to the default.
     const acquire = src.slice(src.indexOf("async function acquireStream("), src.indexOf("async function openCamera("));
-    expect(acquire).toMatch(/catch \(failure\) \{\s*if \(!desktopNow \|\| !deviceId\) throw failure;\s*\/\/[^\n]*\n\s*return openCamera\(goLiveVideoConstraints\(nextFacing, desktopNow\)\);/);
+    expect(acquire).toMatch(
+      /catch \(failure\) \{\s*if \(!desktopNow \|\| !deviceId \|\| !orDefault\) throw failure;(\s*\/\/[^\n]*\n)+\s*return openCamera\(goLiveVideoConstraints\(nextFacing, desktopNow\)\);/,
+    );
     // The check marks the camera actually streaming, not the one asked for.
     expect(src).toContain('setActiveCamera(track?.getSettings().deviceId ?? "");');
-    expect(src).toContain("return goLiveCameras(devices, SOCIAL.create.liveCamera);");
+    expect(src).toContain("return goLiveCameras(devices, SOCIAL.home.composerCamera);");
     const attach = src.slice(src.indexOf("async function attachPreview("), src.indexOf("function ensurePreview("));
     expect(attach).toContain("void refreshCameras();");
-    // A pick is remembered only once it opens; a failed pick restores the last.
+    // A pick is remembered only once it opens; a failed pick restores the last
+    // camera, not the default (Codex #791: the default fallback is for the
+    // remembered camera only).
     const choose = src.slice(src.indexOf("async function chooseCamera("), src.indexOf("function startClock()"));
-    expect(choose).toContain('if (phase !== "preview" || recordingRef.current || id === activeCamera) return;');
-    expect(choose).toContain("if ((await attachPreview(facing, live, id)) && camera) rememberGoLiveCamera(camera);");
+    expect(choose).toContain('if (phase !== "preview" || recordingRef.current || switching || id === activeCamera) return;');
+    expect(choose).toContain("const opened = await attachPreview(facing, live, id, false);");
+    expect(choose).toContain("if (opened && camera) rememberGoLiveCamera(camera);");
     expect(choose).toContain("cameraIdRef.current = previous;");
-    expect(choose).toContain("await attachPreview(facing, live, previous);");
+    expect(choose).toContain("return await attachPreview(facing, live, previous);");
+    expect(acquire).toContain("if (!desktopNow || !deviceId || !orDefault) throw failure;");
     // New cameras (an iPhone in reach, a webcam plugged in) join the list.
     expect(src).toContain('media.addEventListener("devicechange", onChange);');
     expect(src).toContain('return () => media.removeEventListener("devicechange", onChange);');
+  });
+
+  // Codex #791: a pick followed at once by Record (or a second pick) must not
+  // open two cameras, nor leave a superseded one running.
+  it("serializes camera switches: only the latest open attaches, record waits for it", () => {
+    const attach = src.slice(src.indexOf("async function attachPreview("), src.indexOf("function ensurePreview("));
+    expect(attach).toContain("const attach = ++attachSeqRef.current;");
+    expect(attach).toMatch(
+      /if \(attach !== attachSeqRef\.current \|\| !storyStudioIsLive\(liveRef\.current, live\)\) \{\s*stopStream\(stream\);\s*return false;/,
+    );
+    const choose = src.slice(src.indexOf("async function chooseCamera("), src.indexOf("function startClock()"));
+    expect(choose).toContain("setSwitching(true);");
+    expect(choose).toContain("attachPromiseRef.current = pending;");
+    expect(choose).toMatch(/finally \{\s*if \(attachPromiseRef\.current === pending\) attachPromiseRef\.current = null;\s*if \(aliveRef\.current\) setSwitching\(false\);/);
+    // ensurePreview (the path Record takes without a stream) joins the switch.
+    expect(src).toContain("if (attachPromiseRef.current) return attachPromiseRef.current;");
+    const record = src.slice(src.indexOf('data-social-go-live-record=""'), src.indexOf("data-social-go-live-record=\"\"") + 400);
+    expect(record).toContain("disabled={switching}");
   });
 
   it("posts as the one author every Social path uses (the shell's), not \"You\"", () => {

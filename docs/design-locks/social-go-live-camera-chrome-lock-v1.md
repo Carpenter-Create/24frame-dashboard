@@ -104,7 +104,7 @@ The founder's Mac camera read 1280 × 720 (its most): the app asks for 1920 × 1
 | Menu | The house menu (MenuSurface: radius 12, hairline, surface, 44 rows), right-aligned under the button. One row per camera, by the device's own name (as the browser reports it, without the USB id Chrome appends); "Camera 1", "Camera 2" if the browser gives no name. Names wrap, never truncate. The current camera carries the 20 check at the row's end (a radio group) |
 | Current | The camera actually streaming, read from the open track, not the one asked for |
 | When | Preview only, as flip: disabled while recording and in review, and until the browser lists the cameras (after camera access) |
-| Choosing | Opens that camera at once, still asked for 16:9 HD. If it cannot open, the last camera returns |
+| Choosing | Opens that camera at once, still asked for 16:9 HD. If it cannot open, the last camera returns (never the default) and it is not remembered. While it switches, the picker and record wait; only the latest open stays, and any earlier one still opening is stopped |
 | Remembered | On this browser only (local storage, by id and name). The next Go live opens it; found by name if the browser has issued new ids; if it is not here (an iPhone out of reach), the default camera opens, with no message |
 | Live list | A camera that arrives (an iPhone in reach, a webcam plugged in) joins the list while the camera is open |
-| Copy | "Camera" (new, founder to confirm). Device names are the hardware's own, shown as the browser gives them; 24Frame names no vendor |
+| Copy | Existing only: "Camera", the Feed composer's shipped camera label, names the button and the "Camera 1" fallback. Device names are the hardware's own, shown as the browser gives them; 24Frame names no vendor |

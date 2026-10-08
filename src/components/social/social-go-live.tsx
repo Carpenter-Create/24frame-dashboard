@@ -179,6 +179,7 @@ export function SocialGoLive() {
   const cutRef = useRef<FrameRecording | null>(null);
   // The camera chosen in the picker (desktop), remembered on this browser.
   const cameraIdRef = useRef<string | null>(null);
+  const attachSeqRef = useRef(0);
   const reviewRef = useRef<HTMLVideoElement>(null);
   // The poster: the one author every Social post path uses (the shell's).
   const author = useSocialCompose()?.author;
@@ -189,6 +190,8 @@ export function SocialGoLive() {
 
   const [cameras, setCameras] = useState<GoLiveCamera[]>([]);
   const [activeCamera, setActiveCamera] = useState("");
+  // A camera switch in flight: the picker and record wait for it.
+  const [switching, setSwitching] = useState(false);
 
   const [phase, setPhase] = useState<LivePhase>("preview");
   const [facing, setFacing] = useState<StoryStudioFacing>("user");
@@ -285,6 +288,7 @@ export function SocialGoLive() {
   async function acquireStream(
     nextFacing: StoryStudioFacing,
     deviceId: string | null = cameraIdRef.current,
+    orDefault = true,
   ): Promise<MediaStream> {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error(SOCIAL.stories.unavailable);
@@ -294,8 +298,10 @@ export function SocialGoLive() {
     try {
       return await openCamera(goLiveVideoConstraints(nextFacing, desktopNow, deviceId));
     } catch (failure) {
-      if (!desktopNow || !deviceId) throw failure;
-      // The chosen camera is gone (an iPhone out of reach): open the default.
+      if (!desktopNow || !deviceId || !orDefault) throw failure;
+      // The remembered camera is gone (an iPhone out of reach): open the
+      // default. A camera picked now that fails rejects instead, so the
+      // picker can bring the last camera back.
       return openCamera(goLiveVideoConstraints(nextFacing, desktopNow));
     }
   }
@@ -312,7 +318,8 @@ export function SocialGoLive() {
   async function listCameras(): Promise<GoLiveCamera[]> {
     if (!navigator.mediaDevices?.enumerateDevices) return [];
     const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
-    return goLiveCameras(devices, SOCIAL.create.liveCamera);
+    // "Camera": the Feed composer's shipped word, no new copy.
+    return goLiveCameras(devices, SOCIAL.home.composerCamera);
   }
 
   // The picker lists them once the camera is open, and marks the one
@@ -329,12 +336,16 @@ export function SocialGoLive() {
     nextFacing: StoryStudioFacing,
     live: number,
     deviceId: string | null = cameraIdRef.current,
+    orDefault = true,
   ) {
+    // Only the latest open may attach: an earlier one that lands late is
+    // stopped, so no camera or microphone is left running unseen.
+    const attach = ++attachSeqRef.current;
     stopStream(streamRef.current);
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
-    const stream = await acquireStream(nextFacing, deviceId);
-    if (!storyStudioIsLive(liveRef.current, live)) {
+    const stream = await acquireStream(nextFacing, deviceId, orDefault);
+    if (attach !== attachSeqRef.current || !storyStudioIsLive(liveRef.current, live)) {
       stopStream(stream);
       return false;
     }
@@ -429,21 +440,36 @@ export function SocialGoLive() {
   }, []);
 
   async function chooseCamera(id: string) {
-    if (phase !== "preview" || recordingRef.current || id === activeCamera) return;
+    if (phase !== "preview" || recordingRef.current || switching || id === activeCamera) return;
     const previous = cameraIdRef.current;
     const live = liveRef.current;
+    const camera = cameras.find((item) => item.id === id);
     cameraIdRef.current = id;
-    try {
-      const camera = cameras.find((item) => item.id === id);
-      if ((await attachPreview(facing, live, id)) && camera) rememberGoLiveCamera(camera);
-    } catch {
-      cameraIdRef.current = previous;
-      if (!storyStudioIsLive(liveRef.current, live)) return;
+    setSwitching(true);
+    const pending = (async () => {
       try {
-        await attachPreview(facing, live, previous);
+        const opened = await attachPreview(facing, live, id, false);
+        if (opened && camera) rememberGoLiveCamera(camera);
+        return opened;
       } catch {
-        setError(SOCIAL.stories.permission);
+        // That camera did not open: the last one comes back.
+        cameraIdRef.current = previous;
+        if (!storyStudioIsLive(liveRef.current, live)) return false;
+        try {
+          return await attachPreview(facing, live, previous);
+        } catch {
+          setError(SOCIAL.stories.permission);
+          return false;
+        }
       }
+    })();
+    // Record (through ensurePreview) waits on the switch, not a second open.
+    attachPromiseRef.current = pending;
+    try {
+      await pending;
+    } finally {
+      if (attachPromiseRef.current === pending) attachPromiseRef.current = null;
+      if (aliveRef.current) setSwitching(false);
     }
   }
 
@@ -697,10 +723,10 @@ export function SocialGoLive() {
             // A computer chooses among its cameras (built in, an iPhone, a
             // webcam); there is no back camera to flip to.
             <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={phase !== "preview" || cameras.length === 0}>
+              <DropdownMenuTrigger asChild disabled={phase !== "preview" || switching || cameras.length === 0}>
                 <button
                   type="button"
-                  aria-label={SOCIAL.create.liveCamera}
+                  aria-label={SOCIAL.home.composerCamera}
                   data-social-go-live-camera=""
                   className={SOCIAL_STORY_STUDIO_ICON_CLASS}
                 >
@@ -771,6 +797,7 @@ export function SocialGoLive() {
               data-social-go-live-record=""
               aria-label={phase === "recording" ? SOCIAL.create.liveStop : SOCIAL.create.liveStart}
               className={SOCIAL_STORY_RECORD_CLASS}
+              disabled={switching}
               onClick={() => {
                 if (recordingRef.current) stopRecording();
                 else startRecording();
