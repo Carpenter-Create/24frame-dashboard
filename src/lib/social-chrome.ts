@@ -1161,10 +1161,11 @@ export const SOCIAL_POST_MEDIA_CLASS =
   "relative mx-2 mt-3 block overflow-hidden rounded-[var(--radius-lg)] max-md:mx-0 max-md:rounded-none";
 
 // Actions: Like, Comment, Share, 8 apart, counts beside; the first round
-// on the card's 16 line (the avatar's and the words' edge). 4 under the
-// media (desktop 8), 8 above the card's end (desktop 12).
+// on the card's 16 line (the avatar's and the words' edge). Centred between
+// the media and the card's end: 8 above and 8 below (desktop 12 and 12)
+// (Adam 2026-10-08, cards lock).
 export const SOCIAL_POST_ACTIONS_CLASS =
-  "flex items-center gap-2 px-4 pt-1 pb-2 md:pt-2 md:pb-3";
+  "flex items-center gap-2 px-4 py-2 md:py-3";
 
 // The permalink's comments (and Profile's "You commented" line), inside
 // the card under the actions: a hairline, then pad 16.

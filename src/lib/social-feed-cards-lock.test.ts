@@ -511,7 +511,10 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
       "relative mx-2 mt-3 block overflow-hidden rounded-[var(--radius-lg)] max-md:mx-0 max-md:rounded-none",
     );
     expect(SOCIAL_FEED_CAROUSEL_BLEED_CLASS).toBe(`${SOCIAL_POST_MEDIA_CLASS} bg-surface-muted`);
-    expect(SOCIAL_POST_ACTIONS_CLASS).toBe("flex items-center gap-2 px-4 pt-1 pb-2 md:pt-2 md:pb-3");
+    expect(SOCIAL_POST_ACTIONS_CLASS).toBe("flex items-center gap-2 px-4 py-2 md:py-3");
+    // Even between the media and the card's end (amended 2026-10-08): one
+    // pad above and below, no separate top or bottom.
+    expect(SOCIAL_POST_ACTIONS_CLASS).not.toMatch(/(?:^|\s)(?:md:)?p[tb]-/);
     expect(SOCIAL_POST_COMMENTS_CLASS).toBe("border-t border-hairline px-4 pt-3 pb-4");
     expect(SOCIAL_POST_COUNT_CLASS).toBe(
       "inline-flex h-11 min-w-11 items-center justify-center px-1 text-[length:var(--text-sm)] [font-weight:var(--type-body-weight)] tabular-nums text-ink-2 md:h-10 md:min-w-10",
