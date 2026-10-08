@@ -24,7 +24,7 @@ allowBuilds:
 
 # Transitive-only security floors (audit 2.1). None is a direct dependency, so they are
 # pinned here rather than added to package.json:
-#   postcss      >=8.5.18  arbitrary file read + path traversal (+ XSS in CSS stringify)
+#   postcss      >=8.5.23  arbitrary file read + path traversal (+ XSS in CSS stringify); GHSA-fxqj-rqcc-2cmp
 #   sharp        >=0.35.4  libheif GHSA-g89c-p67h-r497 / GHSA-2jg2-4ch7-h545 (was 0.35.0 for CVE-2026-33327)
 #   js-yaml      4.x <4.3.2 → ^4.3.2  (GHSA-2883-xcg3-v3hh; ESLint tooling only)
 #   browserslist 4.x <=4.28.6 → ^4.28.7 (GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g; babel/next)
@@ -55,7 +55,7 @@ allowBuilds:
 #   of the incomplete CVE-2026-14257 mitigation. Re-check on every exceljs bump; the real fix
 #   is still exceljs/archiver moving off glob@7.
 overrides:
-  postcss: '>=8.5.18'
+  postcss: '>=8.5.23'
   sharp: '>=0.35.5'
   brace-expansion@<1.1.20: '^1.1.20'
   brace-expansion@>=2.0.0 <2.1.6: '^2.1.6'
