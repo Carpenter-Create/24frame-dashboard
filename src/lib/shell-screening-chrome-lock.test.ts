@@ -144,7 +144,7 @@ describe("shell screening chrome lock v1 (Adam 2026-10-04, \"Yes, everywhere\")"
     expect(lock).toContain("at most one `aria-current=\"page\"` lane");
     expect(lock).not.toContain("exactly one `aria-current=\"page\"` lane with the 2px ink underline");
     // The lanes light index === overviewLeadActiveIndex (WorkspaceLanes).
-    const lanes = workspaceSliderSegments(availableWorkspaceOptions({ isGcStaff: true }));
+    const lanes = workspaceSliderSegments(availableWorkspaceOptions());
     const lit = (path: string, cookie: WorkspaceMode) =>
       overviewLeadActiveIndex(path, resolveWorkspaceMode(path, cookie), lanes);
     const laneAt = (path: string, cookie: WorkspaceMode) => lanes[lit(path, cookie)]?.id ?? null;
@@ -153,7 +153,8 @@ describe("shell screening chrome lock v1 (Adam 2026-10-04, \"Yes, everywhere\")"
     expect(laneAt("/aggregation/dashboard", "social")).toBe("aggregation");
     expect(laneAt("/social", "aggregation")).toBe("social");
     expect(laneAt("/education", "aggregation")).toBe("education");
-    expect(laneAt("/staff/queue", "staff")).toBe("staff");
+    // Staff is not a lane (staff-account-menu-lock-v1): a Staff page lights none.
+    expect(lit("/staff/queue", "staff")).toBe(-1);
     for (const path of ["/settings", ACTIVITY_HREF, HELP.href, CO_PRODUCTIONS_HREF]) {
       for (const cookie of ["aggregation", "social", "education", "staff"] as const) {
         expect(lit(path, cookie), `${path} (${cookie})`).toBe(-1);

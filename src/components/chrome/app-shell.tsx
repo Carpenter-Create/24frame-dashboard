@@ -323,6 +323,7 @@ export function AppShell({
       accountMenu={
         <AccountMenuSlot
           chrome={chrome}
+          isGcStaff={isGcStaff}
           email={identity.email}
           name={identity.name}
           photoUrl={identity.photoUrl}
@@ -486,23 +487,31 @@ export function AppShell({
   );
 }
 
+// The Staff row (GC staff only) follows the same gate as the staff
+// dock: the AppShell prop until chrome resolves, then data.isGcStaff.
 function AccountMenuSlot({
   chrome,
+  isGcStaff,
   email,
   name,
   photoUrl,
 }: {
   chrome?: Promise<AppShellChrome>;
+  isGcStaff: boolean;
   email: string;
   name?: string | null;
   photoUrl?: string | null;
 }) {
   const face = stickyAccountChromeIdentity({ email, name, photoUrl });
   if (!chrome) {
-    return <UserMenu email={face.email} name={face.name} photoUrl={face.photoUrl} />;
+    return (
+      <UserMenu email={face.email} name={face.name} photoUrl={face.photoUrl} isGcStaff={isGcStaff} />
+    );
   }
   return (
-    <Suspense fallback={<UserMenu email={face.email} name={face.name} photoUrl={face.photoUrl} />}>
+    <Suspense
+      fallback={<UserMenu email={face.email} name={face.name} photoUrl={face.photoUrl} isGcStaff={isGcStaff} />}
+    >
       <UserMenuFromChrome chrome={chrome} />
     </Suspense>
   );
@@ -519,7 +528,14 @@ function UserMenuFromChrome({
     name: data.name,
     photoUrl: data.photoUrl,
   });
-  return <UserMenu email={data.email} name={data.name} photoUrl={data.photoUrl} />;
+  return (
+    <UserMenu
+      email={data.email}
+      name={data.name}
+      photoUrl={data.photoUrl}
+      isGcStaff={data.isGcStaff}
+    />
+  );
 }
 
 function ChromeCookieSync({

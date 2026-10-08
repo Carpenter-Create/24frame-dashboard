@@ -56,29 +56,12 @@ describe("workspace menu copy", () => {
       "/social",
       "/education",
     ]);
+    // Staff is not a lane for anyone (Adam 2026-10-08): GC staff reach
+    // /staff from the account menu's Staff row. The lanes take no gate.
+    expect(availableWorkspaceOptions.length).toBe(0);
     expect(availableWorkspaceOptions().map((option) => option.mode)).not.toContain("staff");
-    expect(availableWorkspaceOptions({ isGcStaff: true }).map((option) => option.label)).toEqual([
-      "Aggregation",
-      "Social",
-      "Education",
-      "Staff",
-    ]);
-    expect(availableWorkspaceOptions({ isGcStaff: true }).map((option) => option.href)).toEqual([
-      "/aggregation/dashboard",
-      "/social",
-      "/education",
-      "/staff/queue",
-    ]);
-    expect(availableWorkspaceOptions({ isGcStaff: false }).map((option) => option.mode)).not.toContain(
-      "staff",
-    );
-    expect(availableWorkspaceOptions({ isGcStaff: undefined }).map((option) => option.mode)).not.toContain(
-      "staff",
-    );
-    expect(availableWorkspaceOptions().some((option) => option.mode === "staff")).toBe(false);
-    expect(availableWorkspaceOptions({ isGcStaff: false }).some((option) => option.label === "Staff")).toBe(
-      false,
-    );
+    expect(availableWorkspaceOptions().some((option) => option.label === "Staff")).toBe(false);
+    expect(availableWorkspaceOptions().some((option) => option.href.startsWith("/staff"))).toBe(false);
     expect(WORKSPACE_EDUCATION_HREF).toBe("/education");
     expect(WORKSPACE_EDUCATION_HREF).not.toBe("/social/courses");
     expect(WORKSPACE_EDUCATION_LABEL).toBe("Education");

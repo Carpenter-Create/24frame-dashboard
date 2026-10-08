@@ -9,7 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, BookOpen, DotsNine, FilmStrip, Tray, Users } from "@phosphor-icons/react";
+import { ArrowLeft, BookOpen, DotsNine, FilmStrip, Users, type Icon } from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
@@ -82,14 +82,16 @@ import {
   workspaceSwitcherTriggerName,
   workspaceSliderSegments,
   workspaceWaffleTiles,
+  type WorkspaceLaneMode,
+  type WorkspaceLaneOption,
 } from "@/lib/workspace-switcher";
 
+// Lanes only. Staff is the account menu's row (Tray lives there now).
 const WORKSPACE_WAFFLE_ICON = {
   social: Users,
   education: BookOpen,
   aggregation: FilmStrip,
-  staff: Tray,
-} as const;
+} as const satisfies Record<WorkspaceLaneMode, Icon>;
 
 // Slider segment or waffle tile. Home is a lane id here too: it goes
 // to /home and writes no cookie (selectWorkspaceLane).
@@ -207,7 +209,7 @@ function WorkspaceWaffleTiles({
   onNavigate,
   onIntent,
 }: {
-  tiles: readonly WorkspaceMenuOption[];
+  tiles: readonly WorkspaceLaneOption[];
   current: WorkspaceMode;
   chromePath: string;
   staffGate: boolean;
@@ -339,8 +341,8 @@ function WorkspaceSlider({
   const house = useHouseClient();
   const { activePath, markPending } = useHouseNavPending();
   const segmentRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  // Home · Aggregation · Social · Education · Staff (entitled). Home is
-  // a real segment: lit on /home and /home/news, hop to /home.
+  // Home · Aggregation · Social · Education. Home is a real segment:
+  // lit on /home and /home/news, hop to /home. No Staff segment.
   const pills = workspaceSliderSegments(options);
   const routeWorkspace = resolveWorkspaceMode(activePath, current);
   const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
@@ -424,7 +426,8 @@ export function WorkspaceSwitcher({
   defaultOpen?: boolean;
   presentation?: "waffle" | "slider";
 }) {
-  const staffGate = isGcStaff || options.some((option) => option.mode === "staff");
+  // Staff is not a lane, so the gate is the caller's isGcStaff alone.
+  const staffGate = isGcStaff;
   const current = clampWorkspaceMode(requestedCurrent, staffGate);
   const router = useRouter();
   const pathname = useHousePathname();

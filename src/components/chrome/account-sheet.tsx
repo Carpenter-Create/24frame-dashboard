@@ -9,7 +9,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { CaretRight, Gear, Moon, Question, SignOut, Sun } from "@phosphor-icons/react";
+import { CaretRight, Gear, Moon, Question, SignOut, Sun, Tray } from "@phosphor-icons/react";
 
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 
@@ -58,6 +58,7 @@ import {
   ACCOUNT_SHEET_GROUP_CLASS,
   ACCOUNT_SHEET_HEAD_CLASS,
   accountSheetGroupedRows,
+  accountSheetRows,
   ACCOUNT_SHEET_HOST_CLASS,
   ACCOUNT_SHEET_ITEMS,
   ACCOUNT_SHEET_PHONE_ITEMS,
@@ -327,6 +328,13 @@ function menuThemeIcon(preference: ThemePreference) {
   return preference === "light" ? Sun : Moon;
 }
 
+// Desktop flat-row glyphs. Staff keeps the Tray it had as a switcher tile.
+function desktopAccountMenuRowIcon(kind: Exclude<UserMenuAction["kind"], "theme">) {
+  if (kind === "staff") return Tray;
+  if (kind === "settings") return Gear;
+  return Question;
+}
+
 function AccountThemeStoredValue({
   attr,
 }: {
@@ -401,12 +409,14 @@ function DesktopAccountMenuFace({
   photoUrl,
   pathname,
   onClose,
+  items,
 }: {
   email: string;
   name?: string | null;
   photoUrl?: string | null;
   pathname: string;
   onClose: () => void;
+  items: readonly UserMenuAction[];
 }) {
   const identity = accountSheetIdentity(email, name, photoUrl);
   const settingsHref = settingsLandHref(pathname);
@@ -440,7 +450,7 @@ function DesktopAccountMenuFace({
       </div>
       <AppSheetHairline data-account-menu-head-rule="" />
       <div data-account-menu-rows="" className={ACCOUNT_MENU_DROPDOWN_ROWS_CLASS}>
-        {ACCOUNT_SHEET_ITEMS.map((item) =>
+        {items.map((item) =>
           item.kind === "theme" ? (
             <DesktopAccountMenuThemeRow key={item.kind} pathname={pathname} onClose={onClose} />
           ) : (
@@ -451,7 +461,7 @@ function DesktopAccountMenuFace({
               href={item.kind === "settings" ? settingsHref : item.href}
               pathname={pathname}
               onClose={onClose}
-              icon={item.kind === "settings" ? Gear : Question}
+              icon={desktopAccountMenuRowIcon(item.kind)}
             />
           ),
         )}
@@ -518,6 +528,7 @@ function AccountMenuBody({
   pathname,
   onClose,
   variant,
+  isGcStaff = false,
 }: {
   email: string;
   name?: string | null;
@@ -525,8 +536,10 @@ function AccountMenuBody({
   pathname: string;
   onClose: () => void;
   variant: "sheet" | "dropdown";
+  isGcStaff?: boolean;
 }) {
   const identity = accountSheetIdentity(email, name, photoUrl);
+  // The shared lists; GC staff get Staff first (accountSheetRows).
   if (variant === "dropdown") {
     return (
       <DesktopAccountMenuFace
@@ -535,6 +548,7 @@ function AccountMenuBody({
         photoUrl={photoUrl}
         pathname={pathname}
         onClose={onClose}
+        items={accountSheetRows(ACCOUNT_SHEET_ITEMS, isGcStaff)}
       />
     );
   }
@@ -542,7 +556,7 @@ function AccountMenuBody({
     <AccountMenuGroups
       pathname={pathname}
       onClose={onClose}
-      items={ACCOUNT_SHEET_PHONE_ITEMS}
+      items={accountSheetRows(ACCOUNT_SHEET_PHONE_ITEMS, isGcStaff)}
     />
   );
 
@@ -598,10 +612,12 @@ export function MobileAccountMenu({
   email,
   name,
   photoUrl,
+  isGcStaff = false,
 }: {
   email: string;
   name?: string | null;
   photoUrl?: string | null;
+  isGcStaff?: boolean;
 }) {
   const { pathname, open, openMenu, closeMenu } = useAccountMenuOpen();
 
@@ -612,6 +628,7 @@ export function MobileAccountMenu({
       photoUrl={photoUrl}
       pathname={pathname}
       onClose={closeMenu}
+      isGcStaff={isGcStaff}
     />
   ) : null;
 
@@ -643,10 +660,12 @@ export function DesktopAccountMenu({
   email,
   name,
   photoUrl,
+  isGcStaff = false,
 }: {
   email: string;
   name?: string | null;
   photoUrl?: string | null;
+  isGcStaff?: boolean;
 }) {
   const { pathname, open, openMenu, closeMenu } = useAccountMenuOpen();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -660,6 +679,7 @@ export function DesktopAccountMenu({
       pathname={pathname}
       onClose={closeMenu}
       alignEnd={alignEnd}
+      isGcStaff={isGcStaff}
     />
   ) : null;
 
@@ -694,12 +714,14 @@ export function AccountSheet({
   photoUrl,
   pathname,
   onClose,
+  isGcStaff = false,
 }: {
   email: string;
   name?: string | null;
   photoUrl?: string | null;
   pathname: string;
   onClose: () => void;
+  isGcStaff?: boolean;
 }) {
   useAccountMenuDismiss(onClose, true);
 
@@ -731,6 +753,7 @@ export function AccountSheet({
           pathname={pathname}
           onClose={onClose}
           variant="sheet"
+          isGcStaff={isGcStaff}
         />
       </div>
     </div>
@@ -744,6 +767,7 @@ export function AccountMenuDropdown({
   pathname,
   onClose,
   alignEnd,
+  isGcStaff = false,
 }: {
   email: string;
   name?: string | null;
@@ -751,6 +775,7 @@ export function AccountMenuDropdown({
   pathname: string;
   onClose: () => void;
   alignEnd?: AccountMenuDropdownAlign;
+  isGcStaff?: boolean;
 }) {
   useAccountMenuDismiss(onClose, false);
 
@@ -786,6 +811,7 @@ export function AccountMenuDropdown({
           pathname={pathname}
           onClose={onClose}
           variant="dropdown"
+          isGcStaff={isGcStaff}
         />
       </div>
     </div>

@@ -66,9 +66,14 @@ describe("Home lead pills", () => {
       "social",
       "education",
     ]);
-    expect(
-      overviewLeadPills(availableWorkspaceOptions({ isGcStaff: true })).map((pill) => pill.id),
-    ).toEqual(["home", "aggregation", "social", "education", "staff", "co-productions"]);
+    // No Staff pill for anyone: Staff is the account menu's row (2026-10-08).
+    expect(overviewLeadPills().map((pill) => pill.id)).toEqual([
+      "home",
+      "aggregation",
+      "social",
+      "education",
+      "co-productions",
+    ]);
     expect(OVERVIEW_HREF).toBe("/home");
     expect(OVERVIEW_PAGE.title).toBe("Home");
     expect(OVERVIEW_HREF).not.toBe(SOCIAL_ROUTES.home);

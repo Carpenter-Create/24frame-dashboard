@@ -18,6 +18,7 @@ import {
   ACCOUNT_SHEET_GROUP_CLASS,
   ACCOUNT_SHEET_GROUPS,
   accountSheetGroupedRows,
+  accountSheetRows,
   ACCOUNT_MENU_DROPDOWN_HEAD_CLASS,
   ACCOUNT_MENU_DROPDOWN_HOST_CLASS,
   ACCOUNT_MENU_DROPDOWN_ICON_CLASS,
@@ -73,19 +74,37 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_SHEET_PHONE_ITEMS.map((item) => item.label)).not.toContain(ASSISTANT_NAME);
   });
 
-  it("shares one inset grouping SoT — Settings + Theme, Get Help alone", () => {
-    expect(ACCOUNT_SHEET_GROUPS.map((group) => group.id)).toEqual(["preferences", "help"]);
+  it("shares one inset grouping SoT — Staff (GC staff only), Settings + Theme, Get Help alone", () => {
+    expect(ACCOUNT_SHEET_GROUPS.map((group) => group.id)).toEqual(["staff", "preferences", "help"]);
     expect(ACCOUNT_SHEET_GROUPS.map((group) => [...group.kinds])).toEqual([
+      ["staff"],
       ["settings", "theme"],
       ["help"],
     ]);
     const desktop = accountSheetGroupedRows(ACCOUNT_SHEET_ITEMS);
     const phone = accountSheetGroupedRows(ACCOUNT_SHEET_PHONE_ITEMS);
     expect(phone).toEqual(desktop);
+    // A member's Staff card is empty, so it draws nothing.
     expect(desktop.map((group) => group.items.map((item) => item.kind))).toEqual([
+      [],
       ["settings", "theme"],
       ["help"],
     ]);
+    // accountSheetRows: the shared list for a member; Staff first for GC staff.
+    for (const items of [ACCOUNT_SHEET_ITEMS, ACCOUNT_SHEET_PHONE_ITEMS]) {
+      expect(accountSheetRows(items, false)).toBe(items);
+      expect(accountSheetRows(items, false).map((item) => item.kind)).not.toContain("staff");
+      expect(
+        accountSheetGroupedRows(accountSheetRows(items, true)).map((group) =>
+          group.items.map((item) => item.kind),
+        ),
+      ).toEqual([["staff"], ["settings", "theme"], ["help"]]);
+    }
+    expect(accountSheetRows(ACCOUNT_SHEET_ITEMS, true)[0]).toEqual({
+      kind: "staff",
+      label: "Staff",
+      href: "/staff/queue",
+    });
     expect(desktop.flatMap((group) => group.items.map((item) => item.kind))).not.toContain("profile");
     expect(desktop.flatMap((group) => group.items.map((item) => item.kind))).not.toContain("logOut");
   });

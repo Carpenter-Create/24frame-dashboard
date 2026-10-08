@@ -4,8 +4,10 @@
 // docs/design-locks/shell-workspace-waffle-layer-lock-v1.md
 // One Layer 1 inventory. Two faces by width (lg = 1024).
 // Desktop lg+: the primary pill slider in the header LEADING slot:
-// Home · Aggregation · Social · Education · Staff (when isGcStaff,
-// last). Home is a real segment — /home, no workspace cookie, lit on
+// Home · Aggregation · Social · Education, for members and GC staff
+// alike. Staff is the account menu's Staff row, not a lane (Adam
+// 2026-10-08, docs/design-locks/staff-account-menu-lock-v1.md); a
+// Staff page lights no lane. Home is a real segment — /home, no workspace cookie, lit on
 // /home and /home/news. The slider is the house SegmentedTrack: a muted
 // track with no inset, an ink thumb that slides 220ms ease-out to the
 // chosen segment, labels 17 / 600 (ink idle, the page colour on the
@@ -15,8 +17,7 @@
 // (or first in the bar from md), a filled grid and the current
 // workspace's name (15 / 600, ink); it opens the sheet (phone) or the
 // popover (md to lg). Below 360 the pill is the grid alone. Waffle
-// tiles use the slider's order: Aggregation · Social · Education ·
-// Staff (when isGcStaff).
+// tiles use the slider's order: Aggregation · Social · Education.
 // Hide lanes the caller omits. No dead tiles. Social Layer 2
 // dests stay out of the tiles and the slider (Feed / Explore /
 // Create / Messages / Profile). Account / Settings / Help stay on
@@ -42,22 +43,22 @@
 // Do not invent Move / search.
 // Do not return the Social Messages icon to the top bar.
 //
-// Member lanes are Aggregation · Social · Education. Staff is a
-// fourth lane, visible only when isGcStaff — hide lanes the
-// user/org lacks; no dead tiles. Labels stay full words —
+// The lanes are Aggregation · Social · Education — hide lanes the
+// user/org lacks; no dead tiles. Staff is never a lane or a tile
+// (WORKSPACE_WAFFLE_ORDER leaves it out). Labels stay full words —
 // no Agg, Edu, or ellipsis-as-design. No All Accounts clone.
 // No Referrals / billing.
 // Staff Manage courses lives on the Education workspace
-// (/education/manage), not Settings Preferences and not this
-// Staff lane. Education land is /education. Staff land is
-// /staff/queue.
+// (/education/manage), not Settings Preferences and not the
+// account menu's Staff row. Education land is /education. Staff
+// land is /staff/queue.
 // Education quiet search stays Education-only: phone in a
 // full-width row under HouseLeadChrome, desktop in the shared
 // trailing slot (the same grey pill as Social).
 // Persist with workspaceSwitcherPersistLane → persistWorkspaceCookie.
 // Do not invent a second cookie. Unselected waffle tiles are
 // Link + prefetch. That full prefetch belongs to the anchor; closing
-// the sheet unmounts it and cancels the task, so a fast Staff or
+// the sheet unmounts it and cancels the task, so a fast
 // Aggregation tap still waits on the dynamic RSC. Mount
 // prefetchHrefList is AUTO — loading.js only. Intent prefetch is
 // router-owned and kind full: waffle pointerdown, open, and tile
@@ -252,13 +253,20 @@ export function workspaceSwitcherOptions(
 /**
  * Layer 1 lane order — the desktop slider after Home and the phone
  * waffle tiles. Entitlement stays on `options` — omit a lane to hide it.
+ * No Staff: it is the account menu's row for GC staff (Adam 2026-10-08,
+ * docs/design-locks/staff-account-menu-lock-v1.md), so a "staff"
+ * option never becomes a tile or a segment.
  */
 export const WORKSPACE_WAFFLE_ORDER = [
   "aggregation",
   "social",
   "education",
-  "staff",
 ] as const satisfies readonly WorkspaceMode[];
+
+/** A switcher lane: a workspace in WORKSPACE_WAFFLE_ORDER. */
+export type WorkspaceLaneMode = (typeof WORKSPACE_WAFFLE_ORDER)[number];
+
+export type WorkspaceLaneOption = WorkspaceMenuOption & { mode: WorkspaceLaneMode };
 
 /** Social Layer 2 dock labels plus Home. Never waffle tiles. */
 export const WORKSPACE_WAFFLE_FORBIDDEN_LABELS = [
@@ -392,7 +400,7 @@ export function workspaceSwitcherNextSegmentIndex(
 
 /**
  * Desktop slider segments: Home first, then the waffle lanes in the
- * same order and gate (Aggregation · Social · Education · Staff).
+ * same order and gate (Aggregation · Social · Education).
  */
 export function workspaceSliderSegments(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
@@ -409,12 +417,12 @@ export function workspaceSliderSegments(
 
 export function workspaceWaffleTiles(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
-): WorkspaceMenuOption[] {
+): WorkspaceLaneOption[] {
   const byMode = new Map(options.map((option) => [option.mode, option]));
-  const tiles: WorkspaceMenuOption[] = [];
+  const tiles: WorkspaceLaneOption[] = [];
   for (const mode of WORKSPACE_WAFFLE_ORDER) {
     const option = byMode.get(mode);
-    if (option) tiles.push(option);
+    if (option) tiles.push({ ...option, mode });
   }
   return tiles;
 }
@@ -504,7 +512,7 @@ export const WORKSPACE_WAFFLE_INTENT_PREFETCH_KIND = "full" as const;
 
 /**
  * Homes a waffle tap can open, minus the land already showing.
- * Staff is included only when `options` already entitled it.
+ * Never Staff: it is not a tile.
  */
 export function workspaceWaffleIntentPrefetchHrefs(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),

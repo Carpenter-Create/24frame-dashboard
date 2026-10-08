@@ -3,32 +3,34 @@
 // left of the avatar — not the rail. Trailing cluster is
 // switcher + avatar. One switcher. Popover lists only
 // accessible lanes.
-// Not a page. Not a route. Not an account-menu row. Member
-// miss-list is Aggregation | Social | Education. Staff is a
-// fourth lane, visible only when isGcStaff. Member Education
+// Not a page. Not a route. Not an account-menu row. The lanes are
+// Aggregation | Social | Education, the same for members and GC
+// staff. Staff is not a lane: it is the account menu's Staff row,
+// GC staff only (Adam 2026-10-08,
+// docs/design-locks/staff-account-menu-lock-v1.md). Member Education
 // land is /education. Staff CMS is /education/manage. Do not
 // send members to /education/manage, /account/workspace, or
 // /settings/workspace. Staff Manage courses is Education
 // workspace manage, not Settings Preferences and not
-// workspace land. Staff workspace land is the first GC_NAV
+// workspace land. Staff land is the first GC_NAV
 // href (/staff/queue) — no new Staff dashboard page.
 
 import { USER_MENU } from "@/lib/user-menu";
 import {
   WORKSPACE_AGGREGATION_LABEL,
   WORKSPACE_SOCIAL_LABEL,
+  WORKSPACE_STAFF_LABEL,
 } from "@/lib/product";
 import { EDUCATION_HREF } from "@/lib/education";
 import { type WorkspaceMode, workspaceHome } from "@/lib/workspace";
+
+export { WORKSPACE_STAFF_LABEL };
 
 export const WORKSPACE_MENU = {
   title: USER_MENU.workspace,
 } as const;
 
 export const WORKSPACE_EDUCATION_LABEL = "Education";
-
-/** Adam 2026-09-20 — Staff workspace label. Not Team. Not Ops. */
-export const WORKSPACE_STAFF_LABEL = "Staff";
 
 /** Member Education destination — never staff CMS /education/manage. */
 export const WORKSPACE_EDUCATION_HREF = EDUCATION_HREF;
@@ -58,9 +60,7 @@ export function workspaceCandidateAccessible(id: WorkspaceMenuCandidateId): bool
   return true;
 }
 
-export function availableWorkspaceOptions(
-  input: { isGcStaff?: boolean } = {},
-): readonly WorkspaceMenuOption[] {
+export function availableWorkspaceOptions(): readonly WorkspaceMenuOption[] {
   const options: WorkspaceMenuOption[] = [];
   for (const candidate of WORKSPACE_MENU_CANDIDATES) {
     if (!workspaceCandidateAccessible(candidate.id)) continue;
@@ -76,13 +76,6 @@ export function availableWorkspaceOptions(
       mode: candidate.id,
       label: candidate.label,
       href: workspaceHome(candidate.id),
-    });
-  }
-  if (input.isGcStaff) {
-    options.push({
-      mode: "staff",
-      label: WORKSPACE_STAFF_LABEL,
-      href: workspaceHome("staff"),
     });
   }
   return options;

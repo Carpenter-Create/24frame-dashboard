@@ -4,6 +4,7 @@
 **Status:** **LOCKED** (Adam craft ask) · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS routes Dev  
 **Scope:** **Desktop avatar → account MenuSurface face only**  
 **Related:** `house-overlay-dual-host-lock-v1.md` (desktop host = MenuSurface) · `mobile-menu-family-tree-lock-v1.md` (phone Family **A** unchanged) · PR **#648** menu hard-gate (desktop face must match **this** lock, not SheetGroup cards)
+**Amended 2026-10-08:** [`staff-account-menu-lock-v1.md`](staff-account-menu-lock-v1.md) (Adam). GC staff get a **Staff** row first, above Settings: a flat row with the 20 Tray glyph, `/staff/queue`. Members never get it. The phone sheet (Family A) gains a Staff inset card first, in the same grammar. The Coinbase face is otherwise unchanged.  
 
 ## One lock
 

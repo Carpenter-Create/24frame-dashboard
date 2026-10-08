@@ -1,6 +1,9 @@
 // Account-menu copy and lock. Lives in lib/, not JSX.
 // Apple door — phone sheet and desktop 264 share one stack:
-// identity → Settings → Theme → Get Help → Log out. Chrome may
+// identity → Settings → Theme → Get Help → Log out. GC staff get
+// Staff first, above Settings (Adam 2026-10-08,
+// docs/design-locks/staff-account-menu-lock-v1.md): Staff left the
+// workspace switcher for this menu. Members never see the row. Chrome may
 // differ (full-bleed sheet vs dropdown). Labels may not fork.
 // Adam lock 2026-09-22, path amended 2026-09-23: Theme is its own
 // avatar-menu row. It drills to /settings/preferences/theme. The
@@ -24,10 +27,13 @@
 // That link is not a body row. The phone sheet does not show it.
 
 import { version as APP_VERSION } from "../../package.json";
-import { ASK_ASSISTANT, ASSISTANT_NAME } from "@/lib/product";
+import { ASK_ASSISTANT, ASSISTANT_NAME, WORKSPACE_STAFF_LABEL } from "@/lib/product";
+import { workspaceHome } from "@/lib/workspace";
 
 export const USER_MENU = {
   workspace: "Workspace",
+  staff: WORKSPACE_STAFF_LABEL,
+  staffHref: workspaceHome("staff"),
   profile: "Profile",
   profileHref: "/settings/profile",
   manageAccount: "Manage account",
@@ -62,6 +68,12 @@ export const USER_MENU_ABSENT = [
   ASK_ASSISTANT,
 ] as const;
 
+export type UserMenuStaffAction = {
+  kind: "staff";
+  label: typeof USER_MENU.staff;
+  href: typeof USER_MENU.staffHref;
+};
+
 export type UserMenuSettingsAction = {
   kind: "settings";
   label: typeof USER_MENU.settings;
@@ -81,11 +93,17 @@ export type UserMenuHelpAction = {
 };
 
 export type UserMenuLinkAction =
+  | UserMenuStaffAction
   | UserMenuSettingsAction
   | UserMenuThemeAction
   | UserMenuHelpAction;
 
 export type UserMenuAction = UserMenuLinkAction;
+
+/** GC staff only — never in USER_MENU_ACTIONS (accountSheetRows adds it). */
+export const USER_MENU_STAFF_ACTIONS: readonly UserMenuStaffAction[] = [
+  { kind: "staff", label: USER_MENU.staff, href: USER_MENU.staffHref },
+];
 
 export const USER_MENU_PRIMARY_ACTIONS: readonly UserMenuSettingsAction[] = [
   { kind: "settings", label: USER_MENU.settings, href: USER_MENU.settingsHref },
