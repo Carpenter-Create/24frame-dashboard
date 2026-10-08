@@ -35,11 +35,23 @@ Before this, the desktop stage was the 9:16 studio pane, but the clip recorded t
 
 | Token | Lock |
 |-------|------|
-| Default | **Full**: the camera's own frame, as the device opens it. The stage takes the camera's aspect (from the stream), as wide as fits (92vw, 1280, or 90dvh at that aspect), the whole image shown (contain). What you see is what records |
+| Default | **Full**: the camera fills the whole window, edge to edge, like a video call (amended below). The recording is the camera's whole frame |
 | Switch | **Full · Reel**, a two-segment pill centred above the record button, on the camera's band wash; the current segment band-ink. Desktop only (`md+`), before recording only (hidden while recording and in review). A radio group named "Camera frame" |
 | Reel | The 9:16 studio stage (420 × 746). The recording is the same 9:16 centre cut, drawn into a canvas and recorded (the camera's audio rides along), so the clip is the frame that was shown. No upscale: a 720p camera records 404 × 720 |
 | Phone | Unchanged: the full-screen stage records the phone's own (portrait) frame. No switch |
 | Copy | "Full", "Reel", "Camera frame" (new, founder to confirm) |
+
+**Amended 2026-10-08 (Full fills the window).** Adam, in chat, on the first Full (a card at the camera's aspect, centred on the dark page):
+
+> shouldn't full camera on computer be full screen like zoom or something??
+
+| Token | Lock |
+|-------|------|
+| Full stage | The whole window (the phone's full-screen stage at window size): no card, edge, radius, or dark page around it. The camera covers it; where the window and the camera differ in shape, the preview trims the overflow, as a video call does |
+| Chrome | Unchanged and floating on the camera: X, "Go live", flip on top; the switch and record button at the bottom |
+| Recording | The camera's whole frame (a 16:9 webcam records 16:9). The preview's trim is never cut from the clip |
+| Review | The clip fills the window the same way |
+| Not | The browser's own full-screen mode (the tab and the menu bar stay) |
 
 ## Review (Adam, 2026-10-08)
 

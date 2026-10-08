@@ -1681,14 +1681,14 @@ export const SOCIAL_STORY_STUDIO_STAGE_CLASS =
   "relative flex h-full w-full flex-col overflow-hidden bg-band md:h-[746px] md:max-h-[90dvh] md:w-[420px] md:rounded-[16px] md:border md:border-band-ink/20";
 
 // Go live, desktop frame (social-go-live-camera-chrome-lock-v1 §Desktop
-// frame, Adam 2026-10-08). Full: the camera's own frame, as wide as the
-// screen allows (92vw, 1280, or 90dvh at the camera's aspect), the whole
-// image shown (contain). Phone keeps the full-screen stage with cover.
+// frame, Adam 2026-10-08: "shouldn't full camera on computer be full screen
+// like zoom"). Full: the camera fills the whole window edge to edge (cover),
+// the phone's full-screen stage at window size; no card, edge, or radius.
 // Reel: the 9:16 studio stage above.
 export const SOCIAL_GO_LIVE_STAGE_FULL_CLASS =
-  "relative flex h-full w-full flex-col overflow-hidden bg-band md:aspect-[var(--go-live-aspect)] md:h-auto md:w-[min(92vw,1280px,calc(90dvh*var(--go-live-aspect)))] md:rounded-[16px] md:border md:border-band-ink/20";
+  "relative flex h-full w-full flex-col overflow-hidden bg-band";
 
-export const SOCIAL_GO_LIVE_FULL_VIDEO_CLASS = "absolute inset-0 size-full object-cover md:object-contain";
+export const SOCIAL_GO_LIVE_FULL_VIDEO_CLASS = "absolute inset-0 size-full object-cover";
 
 // The frame switch: two segments above the record button, desktop only,
 // on the camera's band wash (no blur). The current one is band-ink.
@@ -1739,8 +1739,8 @@ export function socialStoryStudioPreviewClass(mirrored: boolean): string {
     : SOCIAL_STORY_STUDIO_PREVIEW_CLASS;
 }
 
-/** Go live's live video: the reel stage cuts to cover (the studio's);
- *  the full stage shows the camera's whole frame. Front camera mirrored. */
+/** Go live's live video: both stages cover (the reel's 9:16 pane, or the
+ *  whole window on Full). Front camera mirrored. */
 export function socialGoLivePreviewClass(frame: "full" | "reel", mirrored: boolean): string {
   if (frame === "reel") return socialStoryStudioPreviewClass(mirrored);
   return mirrored
