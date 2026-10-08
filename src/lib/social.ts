@@ -1161,11 +1161,10 @@ export const SOCIAL = {
   music: {
     pending: "This video is not visible to others yet.",
     blocked: "This video can't be shared because it includes music.",
-    // Addendum. Not in the committed lock file. Design has not written these lines.
-    tooLong: "PENDING DESIGN LOCK: This video is longer than 8 minutes.",
-    welcomePending: "PENDING DESIGN LOCK: This welcome video is not visible to others yet.",
-    legacyHeld: "PENDING DESIGN LOCK: This video is held until it can be checked.",
-    malformed: "PENDING DESIGN LOCK: This video can't be checked.",
+    tooLong: "Videos can be up to 8 minutes.",
+    welcomePending: "This welcome video is not visible to others yet.",
+    legacyHeld: "This video is not visible to others until it's checked.",
+    malformed: "This video can't be checked. Try uploading it again.",
   },
 } as const;
 

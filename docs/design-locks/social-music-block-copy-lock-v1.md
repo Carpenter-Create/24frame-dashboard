@@ -1,6 +1,6 @@
-# [GC][24Frame] LOCK — Social music block copy v1 (Phase 0)
+# [GC][24Frame] LOCK: Social music block copy v1 (Phase 0)
 
-**Date:** 2026-10-08 (CT)  
+**Date:** 2026-10-08 (CT) · **Amend A1:** 2026-10-08 (CT), four Phase 0 keys added  
 **Status:** **LOCKED** · Design Own→READY · Design does **not** open a PR · CoS seeds `docs/design-locks/` · CoS CLEARs Dev on #790  
 **Repo citation:** `docs/design-locks/social-music-block-copy-lock-v1.md`  
 **Box draft:** `/workspace/24frame-agg-ux/social-music-block-copy-lock-v1.md`  
@@ -30,6 +30,25 @@ Shown only to the **author** on their own post card / story (existing `InlineNot
 **Why blocked wording:** “shared” matches Social visibility (author may still see their own held video). “includes music” states the gate without claiming ownership or infringement.
 
 **FAIL:** Naming a match. Soft hedging piles. Long legal tone. Inventing a second CTA on this tip.
+
+### A1) Amend: Phase 0 keys (Adam locks: no music; 8 minute cap on posts, stories and Go live; welcome videos on Mux with the same scan; older videos held until scanned)
+
+Same hosts, same author-only rule, same voice. Notice text only. No new buttons.
+
+| Key | Lock |
+|-----|------|
+| `SOCIAL.music.tooLong` | **Videos can be up to 8 minutes.** |
+| `SOCIAL.music.welcomePending` | **This welcome video is not visible to others yet.** |
+| `SOCIAL.music.legacyHeld` | **This video is not visible to others until it's checked.** |
+| `SOCIAL.music.malformed` | **This video can't be checked. Try uploading it again.** |
+
+**Why:**
+- `tooLong` states the limit, which is the next step. One key covers post, story and Go live, so no "trim" or "choose another" (neither fits a live). Do not split keys in this tip.
+- `welcomePending` keeps the Dev line. It mirrors `pending`.
+- `legacyHeld` joins the "not visible to others" family so owners read held, pending and welcome the same way. Drops "held", which reads as staff language.
+- `malformed` adds one plain next step in text. No retry button invent.
+
+**FAIL:** "Content ID", "copyright", "violation" or score in any of these. Ellipsis or truncation on phone (stack). Curly apostrophes in code strings.
 
 ---
 
@@ -67,5 +86,6 @@ Row name stays `Social post · {author}` / `Social story · {author}` when a nam
 ## Ship cite for Dev
 
 1. Replace placeholder `SOCIAL.music.blocked` with the locked string above. Keep `pending` as locked (already matches).  
+1a. Set `tooLong`, `welcomePending`, `legacyHeld`, `malformed` to table A1.  
 2. Align `SOCIAL_MUSIC_REVIEW` + Staff nav label to table B (`matchFallback` → **Music match**; `subtitle` drop “commercial-”).  
 3. Cite `docs/design-locks/social-music-block-copy-lock-v1.md` before undraft.
