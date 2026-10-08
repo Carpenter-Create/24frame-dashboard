@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-06 (CT)  
 **Status:** **LOCKED** (Adam, 2026-10-06, in chat: Direction B, "B." — recorded from the founder-authorized task brief) · §8 Feed placement (Adam, 2026-10-07, in chat — recorded from the founder-authorized task brief) · §8 Header height (Adam, 2026-10-07, in chat, desktop then phone — recorded from the founder-authorized task brief) · side defaults open for the founder on preview (below)  
+**Amended 2026-10-08 (actions):** Adam, in chat: "make sure the post icons (like, comment, share) are vertically even (between photo and edge)." The action row is centred between the media and the card's end: 8 above and 8 below on phone (was 4 / 8), 12 and 12 on desktop (was 8 / 12).  
 **Amended 2026-10-08:** [`shell-phone-workspace-band-lock-v1.md`](shell-phone-workspace-band-lock-v1.md). The hide-under-fade rule (C6) is desktop only; the phone topic row slides with no fade.  
 **Scope:** Everywhere `SocialPostCard` renders (the Feed in both lanes, the optimistic post right after Post, Profile activity, a member's posts, a group, the permalink) and the Feed's modules (the stories, the composer, the Reels row, the For you lane, the rail's course card and Suggested people, the empty panel, the skeletons). §8: the Feed column's width and placement, the For you rail's fit, the Feed's top under the header, the permalink column, and (Header height) the shell's header height in every workspace, desktop and phone. The shell's ink ladder (the header workspace thumb, the pill-slider labels, the side-menu labels, the header search input) changes in every workspace.  
 **Entity:** Global Content / 24Frame only  
@@ -94,7 +95,7 @@ Then, on phone:
 | Header | On top. 16 in, 12 down (desktop 16): the **40** avatar, 12, the name **15 / 600** ink, the meta **"2h · Group"** **13 / 420 ink-2** (one run: the time, an `aria-hidden` dot, the group link). Phone: name and meta share one 44 row (each a 44 hit, wrapping); from md the name stacks over the meta. The owner's ⋯ at the end (44 / desktop 40), its glyph on the 16 line |
 | Words | 12 under the header: the caption and a text-only body share **one style**: **15 / 420** `--body`, line 1.45; desktop **17 / 1.5**. Never clamped |
 | Media | 12 under the words: **inset 8 at radius 16** (16 + 8 = the card's 24); phone **edge to edge** at radius 0 |
-| Actions | At the bottom: round **44** (desktop **40**) Like · Comment · Share on the in-card fill, a **20 Regular** glyph, **8** apart, counts beside **15 / 420** ink-2 (none at zero); the first round on the 16 line. 4 under the media (desktop 8), 8 to the card's end (desktop 12) |
+| Actions | At the bottom: round **44** (desktop **40**) Like · Comment · Share on the in-card fill, a **20 Regular** glyph, **8** apart, counts beside **15 / 420** ink-2 (none at zero); the first round on the 16 line. Even between the media and the card's end: 8 above and 8 below (desktop 12 and 12) (amended 2026-10-08) |
 | Comments | The permalink: the thread **inside the card** under the actions (a hairline, then pad 16): rows with the 32 face, the name 13 / 600 over the body 15 / 420, the time 13 ink-2, and the composer on the in-card fill. Profile activity's "You commented" line sits in the same place |
 
 ## 4) Media rules
