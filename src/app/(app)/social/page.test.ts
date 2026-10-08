@@ -550,7 +550,7 @@ describe("Social home", () => {
   // feed"): the stories card is the first module under the lane slider in
   // both lanes, also when its one tile is Create story; the composer
   // carries no story control. docs/design-locks/social-feed-cards-lock-v1.md
-  it("keeps the stories card first under the slider in both lanes, with Create story alone or with stories", async () => {
+  it("keeps the stories card first in the Feed in both lanes (no slider above it), with Create story alone or with stories", async () => {
     const followers = [{ followee_id: "u2" }, { followee_id: "u3" }];
     const people = [
       { id: "u2", handle: "maya", display_name: "Maya Chen", status: "active" },
@@ -571,9 +571,15 @@ describe("Social home", () => {
         const html = await renderHome(lane === "for-you" ? { lane } : {});
         const at = (needle: string) => html.indexOf(needle);
         const card = at(`data-social-stories-card="" class="${SOCIAL_HOME_STORIES_CARD_CLASS}"`);
-        expect(card, `${lane} ${stories.length}`).toBeGreaterThan(at("data-social-home-lanes"));
-        // Nothing between the slider and the stories card.
-        const between = html.slice(html.indexOf("</nav>", at("data-social-home-lanes")), card);
+        expect(card, `${lane} ${stories.length}`).toBeGreaterThan(-1);
+        // The stories card is the column's first module: between the stack's
+        // top and the card sit only the sr-only heading, and no slider
+        // (founder 2026-10-08).
+        const stack = at('data-social-home-stack="lock_stories_composer_topics_wall"');
+        expect(stack).toBeGreaterThan(-1);
+        const between = html.slice(stack, card);
+        expect(between).not.toContain("<nav");
+        expect(between).not.toContain("data-social-home-lane");
         expect(between).not.toMatch(/data-social-(?:home-composer|home-topics|home-wall|feed|post)=/);
         expect(card).toBeLessThan(at("data-social-home-composer"));
         expect(at("data-social-home-composer")).toBeLessThan(at("data-social-home-topics"));

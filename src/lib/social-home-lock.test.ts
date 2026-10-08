@@ -80,7 +80,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_NAV.map((item) => item.href)).not.toContain(SOCIAL_ROUTES.leaderboard);
   });
 
-  it("keeps Home on the following wall with stories, composer, and Following | For you tabs", () => {
+  it("keeps Home on the following wall with stories, composer, and topics, and no Following | For you slider", () => {
     expect(home).toContain("loadCachedFollowingPosts");
     expect(home).toContain("SocialStoriesRail");
     expect(home).toContain("SocialHomeComposer");
