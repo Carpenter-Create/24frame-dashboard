@@ -91,6 +91,7 @@ export const STAFF_PATH_PREFIXES = [
   staffPath("queue"),
   staffPath("avails"),
   staffPath("channels"),
+  staffPath("music"),
   staffPath("gc"),
 ] as const;
 

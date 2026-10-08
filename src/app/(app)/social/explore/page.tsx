@@ -39,6 +39,7 @@ import {
   type ExploreForYouQuery,
 } from "@/lib/social-explore-for-you";
 import { warmExploreForYouPlaybackTokens } from "@/lib/social-explore-mux-warm";
+import { loadOwnMusicNotices, omitHeldPosts } from "@/lib/social-music-scan";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession, type SocialSession } from "@/lib/social-session";
 
@@ -104,10 +105,14 @@ async function SocialExploreForYouBody({
   const loaded = discovering
     ? { page: { hits: [], truncated: false }, author: null }
     : await loadExploreForYouPage(session, query, mode, viewer);
+  const music = await loadOwnMusicNotices(session.supabase, session.ctx.user.id, {
+    postIds: loaded.page.hits.map((hit) => hit.id),
+  });
+  const hits = omitHeldPosts(loaded.page.hits, music.posts);
   const mediaByPost = socialMediaProxiesByPostId(
-    loaded.page.hits.map((hit) => ({ id: hit.id, author_id: hit.authorId, media: hit.media })),
+    hits.map((hit) => ({ id: hit.id, author_id: hit.authorId, media: hit.media })),
   );
-  const videoHits = loaded.page.hits.filter((hit) => exploreForYouMuxVideo(mediaByPost.get(hit.id) ?? []));
+  const videoHits = hits.filter((hit) => exploreForYouMuxVideo(mediaByPost.get(hit.id) ?? []));
   const authorIds = [...new Set(videoHits.map((hit) => hit.authorId))];
   const [authors, liked, peoplePage] = await Promise.all([
     loadProfilesByIds(session.supabase, authorIds),

@@ -13,6 +13,7 @@ import {
   loadProfilesByIds,
   loadVisiblePost,
 } from "@/lib/social-feed";
+import { loadOwnMusicNotices } from "@/lib/social-music-scan";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession } from "@/lib/social-session";
 
@@ -50,6 +51,10 @@ export default async function SocialPostPage({
   ]);
   const author = authors.get(post.author_id);
   const group = post.group_id ? groups.get(post.group_id) : null;
+  const owned = post.author_id === ctx.user.id;
+  const music = owned
+    ? await loadOwnMusicNotices(supabase, ctx.user.id, { postIds: [post.id] })
+    : null;
 
   return (
     <div data-social-post-layout="" className={SOCIAL_POST_PAGE_LAYOUT_CLASS}>
@@ -81,9 +86,10 @@ export default async function SocialPostPage({
             groupSlug: group?.slug ?? null,
             groupName: group?.name ?? null,
             canLike: !!profile,
-            owned: post.author_id === ctx.user.id,
+            owned,
             topic: normalizeSocialCategory(post.category),
             media,
+            musicNotice: music?.posts.get(post.id),
           }}
           comments={
             <SocialCommentThread

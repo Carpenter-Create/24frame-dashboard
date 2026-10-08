@@ -11,6 +11,7 @@ import {
   loadProfilesByIds,
   loadVisiblePosts,
 } from "@/lib/social-feed";
+import { loadOwnMusicNotices } from "@/lib/social-music-scan";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession } from "@/lib/social-session";
 
@@ -60,6 +61,9 @@ export default async function SocialGroupPage({
   const liked = profile
     ? await loadLikedPostIds(supabase, ctx.user.id, posts.map((post) => post.id))
     : new Set<string>();
+  const music = await loadOwnMusicNotices(supabase, ctx.user.id, {
+    postIds: posts.map((post) => post.id),
+  });
 
   return (
     <div data-social-group="">
@@ -99,6 +103,9 @@ export default async function SocialGroupPage({
             canLike: !!profile,
             owned: post.author_id === ctx.user.id,
             media: media.get(post.id) ?? [],
+            ...(post.author_id === ctx.user.id && music.posts.get(post.id)
+              ? { musicNotice: music.posts.get(post.id) }
+              : {}),
           };
         })}
         empty={<HouseEmpty>{SOCIAL.group.empty}</HouseEmpty>}

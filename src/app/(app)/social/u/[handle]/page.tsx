@@ -12,6 +12,7 @@ import { SocialProfileTabPanels } from "@/components/social/social-profile-tab-p
 import { SocialShareButton } from "@/components/social/social-share-button";
 import { SocialProfileIdentity } from "@/components/social/social-profile-identity";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
+import { loadOwnMusicNotices } from "@/lib/social-music-scan";
 import { SocialWelcomeVideo } from "@/components/social/social-welcome-video";
 import { SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PAGE_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
 import {
@@ -160,6 +161,9 @@ export default async function SocialPublicProfilePage({
     : new Set<string>();
   const parentFaces = parentAuthorIds.length > 0 ? socialAvatarFaces(parentAuthorIds) : new Map();
   const mediaIds = socialActivityMediaPostIds(activityFeedPosts);
+  const music = await loadOwnMusicNotices(supabase, ctx.user.id, {
+    postIds: cardPosts.map((post) => post.id),
+  });
   const counts = await loadCachedProfileSocialCounts(supabase, member.id);
   const mutuals = isSelf ? null : await loadProfileMutuals(supabase, ctx.user.id, member.id);
   const mutualFaces =
@@ -250,6 +254,7 @@ export default async function SocialPublicProfilePage({
                 canLike: !!own,
                 media: media.get(post.id) ?? [],
                 owned: isSelf,
+                musicNotice: isSelf ? (music.posts.get(post.id) ?? null) : null,
               }),
             ),
             imageIds: mediaIds.imageIds,
@@ -274,6 +279,8 @@ export default async function SocialPublicProfilePage({
                   canLike: !!own,
                   media: media.get(item.post.id) ?? [],
                   owned: item.post.author_id === ctx.user.id,
+                  musicNotice:
+                    item.post.author_id === ctx.user.id ? (music.posts.get(item.post.id) ?? null) : null,
                 }),
               };
             }),

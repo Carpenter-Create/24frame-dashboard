@@ -1156,7 +1156,15 @@ export const SOCIAL = {
     needProfile: "Create a creator profile to post, like, comment, or message.",
     profileHrefLabel: "Create a creator profile",
   },
+  // Phase 0 music check. Generic. No song title, no artist, no clearance language.
+  // blocked is a placeholder. PENDING DESIGN LOCK before this PR leaves draft.
+  music: {
+    pending: "This video is not visible to others yet.",
+    blocked: "This video can't be posted because it contains music.",
+  },
 } as const;
+
+export type SocialMusicNotice = keyof typeof SOCIAL.music;
 
 export function socialCreateWellCopy(
   kind: SocialCreateKind,

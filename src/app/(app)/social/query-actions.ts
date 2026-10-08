@@ -15,6 +15,7 @@ import { signedAvatarUrls, signedSocialMediaByPostId } from "@/lib/social-edge";
 import { loadGroupsByIds, loadLikedPostIds, loadProfilesByIds } from "@/lib/social-feed";
 import type { SocialProfileCounts, SocialProfileRow } from "@/lib/social-feed";
 import { socialFollowingWallView, type SocialFollowingWallView } from "@/lib/social-following-wall";
+import { loadOwnMusicNotices } from "@/lib/social-music-scan";
 import { followingAuthorIds } from "@/lib/social-home";
 import { parseFollowingWallCursorParam } from "@/lib/social-home-bounds";
 import { loadSocialSession } from "@/lib/social-session";
@@ -66,6 +67,9 @@ export async function readSocialFollowingWall(input: {
       wall.posts.map((post) => post.id),
     ),
   ]);
+  const music = await loadOwnMusicNotices(session.supabase, session.ctx.user.id, {
+    postIds: wall.posts.map((post) => post.id),
+  });
   return socialFollowingWallView({
     wall,
     authors,
@@ -75,5 +79,6 @@ export async function readSocialFollowingWall(input: {
     media: signedSocialMediaByPostId(wall.posts),
     canLike: !!viewer,
     viewerId: session.ctx.user.id,
+    musicNotices: music.posts,
   });
 }
