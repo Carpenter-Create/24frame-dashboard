@@ -60,7 +60,7 @@ The house menus (the post ··· menu and every Radix menu) move focus to the ro
 
 ## Gates
 
-**G1.** `side-nav.tsx` mounts `SocialRailCreate` on Social's Create row (`data-social-create-compose="dest"`, `aria-haspopup="dialog"`); `social-create-sheet.tsx` (the tile dialog) is gone.  
+**G1.** `AppShell` owns the window and its open state, above the side menu's Suspense swap (fallback → resolved), so a draft survives the chrome resolving. Social's Create row in `side-nav.tsx` is a dialog trigger (`data-social-create-compose="dest"`, `aria-haspopup="dialog"`, `onClick={compose?.onOpen}`). `social-create-sheet.tsx` (the tile dialog) is gone. The window's field has its own id (it can open over the Create page's).  
 **G2.** `SocialWriteComposeSheet` passes `presentation="dialog"` on desktop and `panelClassName={SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS}` (`w-[min(92vw,600px)] rounded-[var(--radius-xl)] border-0 p-[var(--space-4)]`).  
 **G3.** The dialog presentation reads close → avatar + field → tool row (Media, Go live, Post); Media and Go live use `HOUSE_HEADER_ROUND_BUTTON_CLASS` with 20 glyphs; Go live calls `rememberSocialGoLiveOpener` before closing.  
 **G4.** Only the full page pins the compose form to the viewport (`presentation !== "page"` returns early), so the window hugs its content.  

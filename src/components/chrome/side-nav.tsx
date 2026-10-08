@@ -3,7 +3,6 @@
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
-import { SocialRailCreate } from "@/components/social/social-rail-create";
 import {
   isSocialCreateDest,
   isSocialMessagesDest,
@@ -52,14 +51,17 @@ import { NavGlyph } from "./nav-glyph";
 // stays in the accessible name. Collapsed (80): 56 circle links,
 // labels hidden (title tooltips). Glyphs are the Figma 75:5 rail family
 // (house Phosphor).
+/** Social's Create row opens the composer window, which AppShell owns
+ *  (docs/design-locks/social-desktop-create-composer-lock-v1.md). */
+export type SideNavCreate = { open: boolean; onOpen: () => void; controls: string };
+
 export function SideNav({
   isGcStaff = false,
   collapsed = false,
   workspace: requestedWorkspace = "aggregation",
   homeOwned = false,
   messagesUnread = 0,
-  composerName = null,
-  composerPhotoUrl = null,
+  compose,
 }: {
   isGcStaff?: boolean;
   collapsed?: boolean;
@@ -68,9 +70,8 @@ export function SideNav({
   homeOwned?: boolean;
   /** Social DM unread total: the Messages row's dot and accessible name. */
   messagesUnread?: number;
-  /** Social Create's composer author: the shell's account name and photo. */
-  composerName?: string | null;
-  composerPhotoUrl?: string | null;
+  /** Social's Create: the shell opens the composer window. */
+  compose?: SideNavCreate;
 }) {
   const workspace = clampWorkspaceMode(requestedWorkspace, isGcStaff);
   const social = workspace === "social";
@@ -123,24 +124,22 @@ export function SideNav({
     const name = unread ? socialMessagesNavLabel(item.label, messagesUnread) : undefined;
     if (create) {
       return (
-        <SocialRailCreate
+        <button
           key={item.href}
-          authorName={composerName}
-          authorPhotoUrl={composerPhotoUrl}
-          trigger={
-            <button
-              type="button"
-              title={collapsed ? item.label : undefined}
-              aria-label={item.ariaLabel ?? item.label}
-              aria-current={active ? "page" : undefined}
-              data-social-create-compose="dest"
-              className={rowClass}
-            >
-              {glyph}
-              {label}
-            </button>
-          }
-        />
+          type="button"
+          title={collapsed ? item.label : undefined}
+          aria-label={item.ariaLabel ?? item.label}
+          aria-current={active ? "page" : undefined}
+          aria-haspopup="dialog"
+          aria-expanded={compose?.open ?? false}
+          aria-controls={compose?.open ? compose.controls : undefined}
+          data-social-create-compose="dest"
+          className={rowClass}
+          onClick={compose?.onOpen}
+        >
+          {glyph}
+          {label}
+        </button>
       );
     }
     return (

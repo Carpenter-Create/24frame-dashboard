@@ -80,7 +80,7 @@ describe("SideNav Access rail", () => {
     expect(navSrc).toContain("Aggregation: VIEWPORT prefetch off, HOVER prefetch on");
     expect(navSrc).toContain("Social: VIEWPORT prefetch on");
     expect(navSrc).toContain("same five");
-    expect(navSrc).toContain("SocialRailCreate");
+    expect(navSrc).toContain("onClick={compose?.onOpen}");
     expect(navSrc).toContain("isSocialCreateDest");
     expect(navSrc).toContain('data-social-create-compose="dest"');
     expect(navSrc).toContain("useSocialNavPending");

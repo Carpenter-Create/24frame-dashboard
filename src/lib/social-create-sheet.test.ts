@@ -30,14 +30,13 @@ describe("Social Create sheet SoT", () => {
     const header = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
     const switcher = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
     const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
-    const railCreate = readFileSync("src/components/social/social-rail-create.tsx", "utf8");
     expect(dests).toContain("SocialCreateFan");
     expect(dests).toContain('data-social-create-fan-trigger=""');
     expect(dests).not.toContain("SocialCreateSheet");
     expect(dests).not.toContain("data-social-create-sheet");
     expect(dests).toContain("housePhoneDestIsCreate");
     expect(dests).not.toContain("SocialCreateMenu");
-    expect(rail).toContain("SocialRailCreate");
+    expect(rail).toContain('aria-haspopup="dialog"');
     expect(rail).toContain('data-social-create-compose="dest"');
     expect(rail).toContain("isSocialCreateDest");
     expect(rail).not.toContain("SocialCreateSheet");
@@ -53,13 +52,10 @@ describe("Social Create sheet SoT", () => {
     expect(switcher).not.toContain("SocialCreateSheet");
     expect(shell).not.toContain("SocialCreateSheet");
     expect(existsSync("src/components/social/social-create-sheet.tsx")).toBe(false);
-    expect(railCreate).toContain("<SocialWriteComposeSheet");
-    expect(railCreate).toContain('"aria-haspopup": "dialog"');
-    expect(railCreate).not.toContain("SOCIAL_CREATE_TILES");
-    expect(railCreate).not.toContain("MenuSurface");
-    expect(railCreate).not.toContain("DropdownMenu");
-    expect(railCreate).not.toContain("backdrop-blur");
-    expect(railCreate).not.toMatch(/YouTube|Instagram|TikTok|Facebook|Meta/);
+    expect(shell).toContain("<SocialWriteComposeSheet");
+    expect(rail).not.toContain("SOCIAL_CREATE_TILES");
+    expect(rail).not.toContain("MenuSurface");
+    expect(rail).not.toContain("DropdownMenu");
 
     const sot = readFileSync("src/lib/social-create-sheet.ts", "utf8");
     expect(sot).toContain("Coinbase institutional");

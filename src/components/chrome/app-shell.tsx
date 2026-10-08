@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, use, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useId, useRef, useState } from "react";
 import { HouseScreenOutlet, useHousePathname } from "./house-client-shell";
 
 import { UserMenu } from "./user-menu";
-import { SideNav } from "./side-nav";
+import { SideNav, type SideNavCreate } from "./side-nav";
 import { SettingsRail } from "./settings-rail";
 import { HouseLeadChrome } from "./house-lead-chrome";
 import { HouseLeadSearch } from "./house-lead-search";
@@ -13,6 +13,7 @@ import { RailBrand } from "./rail-brand";
 import { useDmUnread } from "./dm-unread";
 import { AskAssistantChromeProvider } from "@/components/messages/ask-frame-ai-chrome";
 import { SocialExploreExit } from "@/components/social/social-explore-exit";
+import { SocialWriteComposeSheet } from "@/components/social/social-write-compose-sheet";
 import { AskAiOverlayProvider } from "./ask-ai-overlay";
 import { cn } from "@/lib/cn";
 import { isAccountChromeNoRailPath } from "@/lib/account-chrome";
@@ -59,6 +60,7 @@ import {
   isSocialStoryCreatePath,
   isSocialStoryOpenPath,
   isSocialWriteComposePath,
+  SOCIAL,
 } from "@/lib/social";
 import { isHomeOwnedPath, OVERVIEW_RAIL_OFF_WIDTH, overviewHidesRail } from "@/lib/overview";
 import { QUEUE_HREF } from "@/lib/queue";
@@ -236,6 +238,13 @@ export function AppShell({
   const exploreStage = isSocialExplorePath(pathname);
   const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage;
   const socialChrome = workspace === "social" && !settingsPage && !hideProductRail;
+  // Desktop Create's composer window (social-desktop-create-composer-lock-v1).
+  // It lives here, not in the side menu: the side menu is swapped when the
+  // chrome resolves (Suspense fallback → resolved), which would drop a draft.
+  const createTitleId = useId();
+  const [createOpen, setCreateOpen] = useState(false);
+  const openCreate = useCallback(() => setCreateOpen(true), []);
+  const closeCreate = useCallback(() => setCreateOpen(false), []);
   const accountChrome = settingsPage || helpPage || activityPage;
   const phoneDestDock =
     !storyCreateStage &&
@@ -390,8 +399,18 @@ export function AppShell({
                 workspace={socialChrome ? "social" : workspace}
                 homeOwned={homeOwned}
                 messagesUnread={socialChrome ? dmUnreadCount : 0}
+                compose={{ open: createOpen, onOpen: openCreate, controls: createTitleId }}
               />
             )}
+            {socialChrome ? (
+              <SocialWriteComposeSheet
+                open={createOpen}
+                onClose={closeCreate}
+                titleId={createTitleId}
+                authorName={identity.name || SOCIAL.home.you}
+                authorPhotoUrl={identity.photoUrl}
+              />
+            ) : null}
           </div>
           {settingsPage ? null : (
             <div
@@ -661,6 +680,7 @@ function SideNavSlot({
   workspace,
   homeOwned,
   messagesUnread,
+  compose,
 }: {
   chrome?: Promise<AppShellChrome>;
   isGcStaff: boolean;
@@ -668,6 +688,7 @@ function SideNavSlot({
   workspace: WorkspaceMode;
   homeOwned: boolean;
   messagesUnread: number;
+  compose: SideNavCreate;
 }) {
   if (!chrome) {
     return (
@@ -677,6 +698,7 @@ function SideNavSlot({
         workspace={clampWorkspaceMode(workspace, isGcStaff)}
         homeOwned={homeOwned}
         messagesUnread={messagesUnread}
+        compose={compose}
       />
     );
   }
@@ -689,6 +711,7 @@ function SideNavSlot({
           workspace={clampWorkspaceMode(workspace, isGcStaff)}
           homeOwned={homeOwned}
           messagesUnread={messagesUnread}
+          compose={compose}
         />
       }
     >
@@ -698,6 +721,7 @@ function SideNavSlot({
         workspace={workspace}
         homeOwned={homeOwned}
         messagesUnread={messagesUnread}
+        compose={compose}
       />
     </Suspense>
   );
@@ -709,12 +733,14 @@ function SideNavFromChrome({
   workspace,
   homeOwned,
   messagesUnread,
+  compose,
 }: {
   chrome: Promise<AppShellChrome>;
   collapsed: boolean;
   workspace: WorkspaceMode;
   homeOwned: boolean;
   messagesUnread: number;
+  compose: SideNavCreate;
 }) {
   const data = use(chrome);
   return (
@@ -724,8 +750,7 @@ function SideNavFromChrome({
       workspace={clampWorkspaceMode(workspace, data.isGcStaff)}
       homeOwned={homeOwned}
       messagesUnread={messagesUnread}
-      composerName={data.name}
-      composerPhotoUrl={data.photoUrl}
+      compose={compose}
     />
   );
 }

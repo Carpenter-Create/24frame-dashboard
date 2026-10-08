@@ -30,7 +30,6 @@ vi.mock("next/link", async () => {
 
 import { SocialCreateCompose } from "./social-create-compose";
 import { SocialHomeComposer } from "./social-home-composer";
-import { SocialRailCreate } from "./social-rail-create";
 import { SocialWriteComposeSheet } from "./social-write-compose-sheet";
 import { SOCIAL } from "@/lib/social";
 import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
@@ -140,9 +139,15 @@ describe("Desktop composer window", () => {
     expect(html).toContain('data-social-write-compose-presentation="dialog"');
     expect(at('data-social-create-dismiss=""')).toBeGreaterThan(-1);
     expect(at('data-social-create-dismiss=""')).toBeLessThan(at('data-social-create-author=""'));
-    expect(at('data-social-create-author=""')).toBeLessThan(at('id="social-create-body"'));
-    expect(at('id="social-create-body"')).toBeLessThan(at("data-social-write-compose-tools"));
-    const field = html.slice(html.lastIndexOf("<textarea", at('id="social-create-body"')), html.indexOf(">", at('id="social-create-body"')));
+    const fieldAt = at("data-social-write-compose-field");
+    expect(at('data-social-create-author=""')).toBeLessThan(fieldAt);
+    expect(fieldAt).toBeLessThan(at("data-social-write-compose-tools"));
+    const field = html.slice(html.lastIndexOf("<textarea", fieldAt), html.indexOf(">", fieldAt));
+    // Its own id: the window can open over the Create page's field.
+    expect(field).not.toContain('id="social-create-body"');
+    const fieldId = field.match(/ id="([^"]+)"/)?.[1];
+    expect(fieldId).toBeTruthy();
+    expect(html).toContain(`for="${fieldId}"`);
     for (const token of SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS.split(" ")) expect(field).toContain(token);
     expect(html).toContain(`placeholder="${SOCIAL.home.composerPrompt}"`);
     // The phone sheet's top bar and bottom field are not in the window.
@@ -190,16 +195,17 @@ describe("Desktop composer window", () => {
     );
   });
 
-  it("opens from the side menu's Create as a dialog trigger, closed until clicked", () => {
-    const rail = renderToStaticMarkup(
-      createElement(SocialRailCreate, {
-        authorName: "Ada Lovelace",
-        trigger: createElement("button", { type: "button", "data-social-create-compose": "dest" }, "Create"),
-      }),
-    );
-    expect(rail).toContain('data-social-create-compose="dest"');
-    expect(rail).toContain('aria-haspopup="dialog"');
-    expect(rail).toContain('aria-expanded="false"');
-    expect(rail).not.toContain("data-social-write-compose-sheet");
+  // The side menu is a Suspense fallback until the chrome resolves, then it
+  // is swapped for the resolved one: a window inside it would lose a draft.
+  it("is owned by the shell, above the side menu's swap; the Create row only asks it to open", () => {
+    const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
+    const nav = readFileSync("src/components/chrome/side-nav.tsx", "utf8");
+    expect(shell).toContain("<SocialWriteComposeSheet");
+    expect(shell).toContain("compose={{ open: createOpen, onOpen: openCreate, controls: createTitleId }}");
+    const slot = shell.slice(shell.indexOf("function SideNavSlot("));
+    expect(slot).not.toContain("SocialWriteComposeSheet");
+    expect(slot).not.toContain("useState");
+    expect(nav).not.toContain("SocialWriteComposeSheet");
+    expect(nav).toContain("onClick={compose?.onOpen}");
   });
 });

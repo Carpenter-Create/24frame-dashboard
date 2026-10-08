@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -519,6 +519,8 @@ export function SocialCreateCompose({
   const previewUrlsRef = useRef(previewUrls);
   const writeFormRef = useRef<HTMLFormElement>(null);
   const writeBodyRef = useRef<HTMLTextAreaElement>(null);
+  // The window can open over the Create page, so its field has its own id.
+  const dialogFieldId = useId();
   const mediaRows = kind === "media" ? socialCreateMediaRows(pickedFiles) : { rows: [], error: "" };
   const formError = error || mediaRows.error;
   const mediaStep: SocialCreateMediaStep =
@@ -981,13 +983,14 @@ export function SocialCreateCompose({
               className={SOCIAL_WRITE_COMPOSE_DIALOG_AVATAR_CLASS}
             />
             <div className={SOCIAL_WRITE_COMPOSE_DIALOG_COLUMN_CLASS}>
-              <label className="sr-only" htmlFor="social-create-body">
+              <label className="sr-only" htmlFor={dialogFieldId}>
                 {SOCIAL.home.composerPrompt}
               </label>
               <Textarea
                 ref={writeBodyRef}
                 variant="bare"
-                id="social-create-body"
+                id={dialogFieldId}
+                data-social-write-compose-field=""
                 name="body"
                 rows={1}
                 value={body}
