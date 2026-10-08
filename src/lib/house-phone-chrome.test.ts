@@ -81,11 +81,14 @@ describe("phone chrome tuck (lock §5)", () => {
   });
 
   it("keeps the band on a short page; the dock still hides", () => {
-    const p = page({ range: HOUSE_PHONE_BAND_ROW_PX * 2 });
+    // More than two rows (112) must remain after the fold, and the fold
+    // grows the scroller by a row: the open page needs more than 168.
+    const p = page({ range: HOUSE_PHONE_BAND_ROW_PX * 3 });
     p.scrollTo(60);
     expect(p.chrome.state()).toEqual({ dockHidden: true, bandTucked: false });
-    expect(housePhoneBandCanTuck(HOUSE_PHONE_BAND_ROW_PX * 2)).toBe(false);
-    expect(housePhoneBandCanTuck(HOUSE_PHONE_BAND_ROW_PX * 2 + 1)).toBe(true);
+    expect(housePhoneBandCanTuck(HOUSE_PHONE_BAND_ROW_PX * 2 + 1)).toBe(false);
+    expect(housePhoneBandCanTuck(HOUSE_PHONE_BAND_ROW_PX * 3)).toBe(false);
+    expect(housePhoneBandCanTuck(HOUSE_PHONE_BAND_ROW_PX * 3 + 1)).toBe(true);
   });
 
   it("pulls the bar down to open and pushes it up to fold, on any page", () => {

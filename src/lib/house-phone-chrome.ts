@@ -9,9 +9,9 @@
 //   - Settle: for a beat after the band folds or opens, scroll events only
 //     re-base the tracker. Near the bottom of a page the fold clamps the
 //     scroll position up to 56; that clamp must not read as a scroll up.
-//   - Short pages: a scroll only folds the band when the page can still
-//     scroll after the fold (more than two rows of travel). Otherwise the
-//     dock hides alone and the band stays.
+//   - Short pages: a scroll only folds the band when the page keeps more
+//     than two rows of travel after the fold. Otherwise the dock hides
+//     alone and the band stays.
 // A swipe on the lead stack (band, bar, Education search row) folds or
 // opens it on any page.
 
@@ -48,9 +48,11 @@ export const HOUSE_PHONE_CHROME_SWIPE_PX = 24;
 /** Where a swipe folds or opens the band. */
 export const HOUSE_PHONE_CHROME_SWIPE_ZONE = "[data-house-lead-stack]";
 
-/** True when the page can still scroll after the band folds. */
+/** True when the page keeps more than two rows of travel after the band
+ *  folds. The fold grows the scroller by one row, so the open page needs
+ *  more than three. */
 export function housePhoneBandCanTuck(scrollRange: number, rowPx = HOUSE_PHONE_BAND_ROW_PX): boolean {
-  return scrollRange > rowPx * 2;
+  return scrollRange - rowPx > rowPx * 2;
 }
 
 /** A mostly vertical drag past the threshold: down opens, up folds. */

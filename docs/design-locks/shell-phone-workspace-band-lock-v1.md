@@ -90,7 +90,7 @@ The band row and the Feed topic row may draw a pill cut at the screen edge: the 
 | Together | One tracker for the band and the dock (`house-phone-chrome`, owned by the phone shell): the same scroll that hides the dock folds the band; the same scroll up brings both back. The top of the page always shows both |
 | Pull | A mostly vertical drag of 24 or more that starts on the lead stack (band, bar, or the Education search row): down brings the band and dock back, up folds them. Works on any page, short ones included. Sideways slides of the band row never fold it |
 | Handle | 36 × 4, radius full, the tertiary ink at 40%, centred 4 below the bar's top edge, in the bar's 8 phone strip. Decorative (`aria-hidden`); the drag is the control, so no target smaller than 44 is added |
-| Short pages | A scroll folds the band only when the page can still scroll more than two rows (112) after the fold. Otherwise the dock hides alone and the band stays, so the page never jumps between folded and open |
+| Short pages | A scroll folds the band only when the page can still scroll more than two rows (112) after the fold (the fold adds a row, so more than 168 open). Otherwise the dock hides alone and the band stays, so the page never jumps between folded and open |
 | Settle | For 280ms after the band folds or opens, scroll events only re-base the tracker: the fold's own clamp near the bottom of a page is not a scroll up |
 | Access | The folded band stays in the accessibility tree. Keyboard focus into it opens it |
 | Status-bar tap | While the tap bridge holds the window at 1, html's scroll anchoring is off (`house-lead-scroll-to-top`): otherwise the fold's layout shift pulls the window to 0 in Chromium (Android), which reads as a tap and sends the page to the top |
@@ -126,7 +126,7 @@ The band row and the Feed topic row may draw a pill cut at the screen edge: the 
 **G7.** The band row sits in `data-workspace-band-fold`: `h-14` open, `h-0` folded, `overflow-hidden`, `transition-[height] duration-200`, `motion-reduce:transition-none`; folded adds `data-workspace-band-tucked`.  
 **G8.** One tracker: the phone shell provides `HousePhoneChromeContext`; the dock's hidden state and the band's fold both read it; no other scroll listener hides the dock.  
 **G9.** The bar's first child is `data-house-lead-grip` (`aria-hidden`, `md:hidden`, 36 × 4); the phone bar is 64 with an 8 top strip.  
-**G10.** A scroll folds the band only with more than 112 of travel left after the fold; a 24 vertical drag on `[data-house-lead-stack]` opens (down) or folds (up).
+**G10.** A scroll folds the band only with more than 112 of travel left after the fold (more than 168 open); a 24 vertical drag on `[data-house-lead-stack]` opens (down) or folds (up).
 
 ## Verify-on-ship
 
