@@ -127,7 +127,6 @@ import { AskFrameAiHistoryPanel } from "@/components/messages/ask-frame-ai-histo
 import { AskFrameAiLanding } from "@/components/messages/ask-frame-ai-landing";
 import { NewsSourceChips } from "@/components/news/news-sources-filter";
 import { SocialCreateFan } from "@/components/social/social-create-fan";
-import { SocialCreateTile } from "@/components/social/social-create-sheet";
 import { SocialFrameAiOpen } from "@/components/social/social-frame-ai-face";
 import { houseReadScroll, resetHouseScrollForTests } from "@/lib/house-client-shell";
 import { NEWS_HREF, NEWS_SOURCE_FILTER_SOURCES, newsHistoryHref } from "@/lib/news";
@@ -756,31 +755,6 @@ describe("Social, AI and News links keep their click handler", () => {
       }),
     );
   }
-
-  it("Create sheet Write tile: runs onPick, then Next opens the screen", () => {
-    const onPick = vi.fn();
-    renderInShell(createElement(SocialCreateTile, { tile: WRITE, onPick }));
-
-    const event = click(findLink(WRITE.href));
-
-    expect(onPick).toHaveBeenCalledTimes(1);
-    expect(nav.push).toHaveBeenCalledWith(WRITE.href);
-    expect(shellHistory.pushState).not.toHaveBeenCalled();
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it("Create sheet Media tile: opens the picker and never hops", () => {
-    const pick = vi.fn();
-    miniElementProto.click = pick;
-    renderInShell(createElement(SocialCreateTile, { tile: MEDIA }));
-
-    const event = click(findLink(MEDIA.href));
-
-    expect(pick).toHaveBeenCalledTimes(1);
-    expect(event.defaultPrevented).toBe(true);
-    expect(shellHistory.pushState).not.toHaveBeenCalled();
-    expect(nav.push).not.toHaveBeenCalled();
-  });
 
   it("Create fan Write item: closes the fan, then Next opens the screen", () => {
     renderFan();

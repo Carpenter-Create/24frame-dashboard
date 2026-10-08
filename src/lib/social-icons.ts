@@ -49,7 +49,6 @@ export const SOCIAL_ICON_SIZE_EMPTY = 40;
 export const SOCIAL_ICON_SIZE_STORY_CREATE = 28;
 export const SOCIAL_ICON_SIZE_STORY_PLUS = 20;
 export const SOCIAL_ICON_SIZE_COMPOSER = 22;
-export const SOCIAL_ICON_SIZE_CREATE_TILE = 32;
 export const SOCIAL_ICON_SIZE_SEARCH = 16;
 /** Post Like / Comment / Share glyph. Hit stays 40. */
 export const SOCIAL_ICON_SIZE_POST_ACTION = 24;

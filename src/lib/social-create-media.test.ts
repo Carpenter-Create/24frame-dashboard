@@ -31,7 +31,7 @@ describe("Social Create Media SoT", () => {
     expect(socialCreateMediaStepAfterPick([{}], "caption")).toBe("caption");
 
     const sheet = readFileSync("src/lib/social-create-sheet.ts", "utf8");
-    const tiles = readFileSync("src/components/social/social-create-sheet.tsx", "utf8");
+    const fan = readFileSync("src/components/social/social-create-fan.tsx", "utf8");
     const media = readFileSync("src/components/social/social-create-media.tsx", "utf8");
     const compose = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
     const profile = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
@@ -39,8 +39,8 @@ describe("Social Create Media SoT", () => {
     expect(sheet).toContain('id: "media"');
     expect(sheet).not.toContain('id: "photo"');
     expect(sheet).not.toContain('id: "video"');
-    expect(tiles).toContain("SocialCreateMediaTile");
-    expect(media).toContain("event.preventDefault()");
+    expect(fan).toContain("openPicker();");
+    expect(fan).toContain("event.preventDefault()");
     expect(media).toContain("SOCIAL_CREATE_MEDIA_ACCEPT");
     expect(media).toContain("stashSocialHomeComposerMedia");
     expect(media).toContain("socialCreateMediaHref()");

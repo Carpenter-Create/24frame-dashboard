@@ -228,6 +228,15 @@ body {
   border-radius: 4px;
 }
 
+/* Menus mark the active row with their highlight wash, not the ring:
+   the menu moves focus to the row under the pointer, so the ring would
+   follow the mouse. The panel and rows keep their own radius. */
+[data-radix-menu-content]:focus-visible,
+[data-radix-menu-content] [role="menuitem"]:focus-visible {
+  outline: none;
+  border-radius: revert-layer;
+}
+
 /* text selection picks up the one accent */
 ::selection {
   background: var(--color-accent);

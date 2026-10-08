@@ -3,7 +3,6 @@
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
-import { SocialCreateSheet } from "@/components/social/social-create-sheet";
 import {
   isSocialCreateDest,
   isSocialMessagesDest,
@@ -52,12 +51,17 @@ import { NavGlyph } from "./nav-glyph";
 // stays in the accessible name. Collapsed (80): 56 circle links,
 // labels hidden (title tooltips). Glyphs are the Figma 75:5 rail family
 // (house Phosphor).
+/** Social's Create row opens the composer window, which AppShell owns
+ *  (docs/design-locks/social-desktop-create-composer-lock-v1.md). */
+export type SideNavCreate = { open: boolean; onOpen: () => void; controls: string };
+
 export function SideNav({
   isGcStaff = false,
   collapsed = false,
   workspace: requestedWorkspace = "aggregation",
   homeOwned = false,
   messagesUnread = 0,
+  compose,
 }: {
   isGcStaff?: boolean;
   collapsed?: boolean;
@@ -66,6 +70,8 @@ export function SideNav({
   homeOwned?: boolean;
   /** Social DM unread total: the Messages row's dot and accessible name. */
   messagesUnread?: number;
+  /** Social's Create: the shell opens the composer window. */
+  compose?: SideNavCreate;
 }) {
   const workspace = clampWorkspaceMode(requestedWorkspace, isGcStaff);
   const social = workspace === "social";
@@ -118,22 +124,22 @@ export function SideNav({
     const name = unread ? socialMessagesNavLabel(item.label, messagesUnread) : undefined;
     if (create) {
       return (
-        <SocialCreateSheet
+        <button
           key={item.href}
-          trigger={
-            <button
-              type="button"
-              title={collapsed ? item.label : undefined}
-              aria-label={item.ariaLabel ?? item.label}
-              aria-current={active ? "page" : undefined}
-              data-social-create-sheet="dest"
-              className={rowClass}
-            >
-              {glyph}
-              {label}
-            </button>
-          }
-        />
+          type="button"
+          title={collapsed ? item.label : undefined}
+          aria-label={item.ariaLabel ?? item.label}
+          aria-current={active ? "page" : undefined}
+          aria-haspopup="dialog"
+          aria-expanded={compose?.open ?? false}
+          aria-controls={compose?.open ? compose.controls : undefined}
+          data-social-create-compose="dest"
+          className={rowClass}
+          onClick={compose?.onOpen}
+        >
+          {glyph}
+          {label}
+        </button>
       );
     }
     return (
@@ -147,7 +153,7 @@ export function SideNav({
         // about to click. Deduped per href so re-hovering does not re-fire.
         // Social: VIEWPORT prefetch on. Desktop rail is the same five
         // SOCIAL_NAV dests plus local loading.tsx — not the Aggregation
-        // dashboard skeleton. Create opens the equal-tile sheet.
+        // dashboard skeleton. Create opens the composer window.
         prefetch={social}
         onMouseEnter={social ? undefined : () => warm(item.href)}
         onFocus={social ? undefined : () => warm(item.href)}

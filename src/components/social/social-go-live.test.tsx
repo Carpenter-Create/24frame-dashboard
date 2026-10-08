@@ -7,7 +7,7 @@ const src = readFileSync("src/components/social/social-go-live.tsx", "utf8");
 const page = readFileSync("src/app/(app)/social/live/page.tsx", "utf8");
 const loading = readFileSync("src/app/(app)/social/live/loading.tsx", "utf8");
 const fan = readFileSync("src/components/social/social-create-fan.tsx", "utf8");
-const sheet = readFileSync("src/components/social/social-create-sheet.tsx", "utf8");
+const sheet = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
 
 describe("Social Go live recorder", () => {
   it("records in-app then posts on the normal video path with a 10:00 cap", () => {
