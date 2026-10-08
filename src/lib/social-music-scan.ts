@@ -159,16 +159,42 @@ export function muxItemReleasedToOthers(
   return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
 }
 
+export type SocialMuxReleaseParent = {
+  surface: "post" | "story";
+  id: string;
+  assetId: string;
+  playbackId: string;
+};
+
+export type SocialMusicPlaybackScan = {
+  postId: string | null;
+  storyId: string | null;
+  assetId: string;
+  playbackId: string;
+  status: MusicScanVisibility;
+};
+
 /**
- * Playback mint for someone else's video. Allowed only when every scan for
- * this playback id is allowed. No row is not a release.
+ * Playback mint for someone else's video. Each parent the viewer can see
+ * needs its own allowed scan for that asset and playback id. A pending or
+ * blocked scan on a different post or story does not hold this parent.
+ * No row for the parent is not a release. Same parent rule as
+ * private.social_video_released.
  */
 export function socialMuxPlaybackMusicReleased(
-  playbackId: string,
-  scans: readonly { playbackId: string; status: MusicScanVisibility }[],
+  parents: readonly SocialMuxReleaseParent[],
+  scans: readonly SocialMusicPlaybackScan[],
 ): boolean {
-  const rows = scans.filter((scan) => scan.playbackId === playbackId);
-  return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
+  if (parents.length === 0) return false;
+  return parents.every((parent) => {
+    const rows = scans.filter(
+      (scan) =>
+        scan.assetId === parent.assetId &&
+        scan.playbackId === parent.playbackId &&
+        (parent.surface === "post" ? scan.postId === parent.id : scan.storyId === parent.id),
+    );
+    return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
+  });
 }
 
 /** Other viewers see the parent only when every Mux video on it is allowed. */

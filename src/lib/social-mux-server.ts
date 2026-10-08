@@ -271,23 +271,16 @@ export async function createSocialMuxAudioRendition(assetId: string): Promise<vo
   }
 }
 
-/** Signed audio.m4a for the music worker. The token never goes to a browser. */
-export async function signSocialMuxStaticAudioUrl(
-  playbackId: string,
-  window?: { startSeconds: number; endSeconds: number },
-): Promise<string> {
+/**
+ * Signed whole-file audio.m4a for the music worker. The token never goes to
+ * a browser. Instant-clip claims trim HLS playback only; a static rendition
+ * is the entire asset, so the worker cuts windows from the file.
+ */
+export async function signSocialMuxStaticAudioUrl(playbackId: string): Promise<string> {
   if (!isSocialMuxId(playbackId)) throw new Error("Mux playback id is invalid");
-  const clipped =
-    window && Number.isFinite(window.startSeconds) && Number.isFinite(window.endSeconds)
-      ? {
-          asset_start_time: String(window.startSeconds),
-          asset_end_time: String(window.endSeconds),
-        }
-      : undefined;
   const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
     type: "video",
     expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
-    ...(clipped ? { params: clipped } : {}),
   });
   return `https://stream.mux.com/${playbackId}/audio.m4a?token=${encodeURIComponent(token)}`;
 }

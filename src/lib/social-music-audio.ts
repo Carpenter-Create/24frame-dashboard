@@ -1,5 +1,6 @@
 // Mux-native audio for the music scan. The worker asks for an audio-only
 // static rendition once the asset is ready, then reads audio.m4a.
+// That file is the whole asset. Window cuts live in social-music-m4a.ts.
 
 /** One identify window stays under ACRCloud's 5 MB sample cap. */
 export const SOCIAL_MUSIC_AUDIO_MAX_BYTES = 5 * 1024 * 1024;

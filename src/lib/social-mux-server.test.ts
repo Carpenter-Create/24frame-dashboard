@@ -259,6 +259,10 @@ describe("social Mux server client", () => {
     vi.stubEnv("MUX_PRIVATE_KEY", Buffer.from(pem).toString("base64"));
     const url = await signSocialMuxStaticAudioUrl(PLAYBACK_ID);
     expect(url.startsWith(`https://stream.mux.com/${PLAYBACK_ID}/audio.m4a?token=`)).toBe(true);
+    const token = new URL(url).searchParams.get("token") ?? "";
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString()) as Record<string, unknown>;
+    expect(payload.asset_start_time).toBeUndefined();
+    expect(payload.asset_end_time).toBeUndefined();
   });
 
   it("maps live and video intents without client pixel fields", () => {

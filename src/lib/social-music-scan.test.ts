@@ -178,14 +178,36 @@ describe("reused Mux asset release", () => {
     expect(socialParentVisibleToOthers([{ kind: "image" }], [])).toBe(true);
   });
 
-  it("mints someone else's playback only when every scan for that id is allowed", () => {
-    expect(socialMuxPlaybackMusicReleased("play12345678", [])).toBe(false);
-    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("pending")])).toBe(false);
-    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("blocked")])).toBe(false);
-    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("allowed")])).toBe(true);
+  it("releases a parent whose own scan is allowed while a reuse is still pending", () => {
+    const parent = {
+      surface: "post" as const,
+      id: "11111111-1111-4111-8111-111111111111",
+      assetId: "asset12345678",
+      playbackId: "play12345678",
+    };
+    const other = "22222222-2222-4222-8222-222222222222";
+    const row = (status: "pending" | "blocked" | "allowed", postId: string) => ({
+      postId,
+      storyId: null,
+      assetId: "asset12345678",
+      playbackId: "play12345678",
+      status,
+    });
+    expect(socialMuxPlaybackMusicReleased([parent], [])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased([parent], [row("pending", parent.id)])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased([parent], [row("blocked", parent.id)])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased([parent], [row("allowed", parent.id)])).toBe(true);
     expect(
-      socialMuxPlaybackMusicReleased("play12345678", [scan("allowed"), scan("blocked")]),
+      socialMuxPlaybackMusicReleased([parent], [row("allowed", parent.id), row("pending", other)]),
+    ).toBe(true);
+    expect(
+      socialMuxPlaybackMusicReleased([parent], [row("allowed", parent.id), row("blocked", other)]),
+    ).toBe(true);
+    expect(
+      socialMuxPlaybackMusicReleased([parent], [row("allowed", parent.id), row("blocked", parent.id)]),
     ).toBe(false);
+    expect(socialMuxPlaybackMusicReleased([parent], [row("allowed", other)])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased([], [row("allowed", parent.id)])).toBe(false);
   });
 });
 

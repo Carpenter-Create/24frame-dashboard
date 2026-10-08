@@ -13,7 +13,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { classifyAcrProbe, createAcrCloudAdapter, silenceWav } from "../../src/lib/social-music-acrcloud";
-import { readBoundedBody, SOCIAL_MUSIC_AUDIO_MAX_BYTES } from "../../src/lib/social-music-audio";
+import { readM4aAudioWindow } from "../../src/lib/social-music-m4a";
 import type { MusicScanWindow } from "../../src/lib/social-music-scan";
 import {
   runSocialMusicBatch,
@@ -111,12 +111,9 @@ async function saveScan(admin: Admin, id: string, patch: MusicScanPatch): Promis
 }
 
 async function downloadMuxAudio(playbackId: string, window: MusicScanWindow): Promise<Uint8Array> {
-  const url = await signSocialMuxStaticAudioUrl(playbackId, window);
-  const response = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
-  });
-  return readBoundedBody(response, SOCIAL_MUSIC_AUDIO_MAX_BYTES);
+  // audio.m4a is the whole rendition. Cut this window from its sample table.
+  const url = await signSocialMuxStaticAudioUrl(playbackId);
+  return readM4aAudioWindow(url, window);
 }
 
 export async function socialMusicDryRun(admin: Admin): Promise<SocialMusicDryRun> {

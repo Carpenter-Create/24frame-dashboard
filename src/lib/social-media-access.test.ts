@@ -358,6 +358,9 @@ describe("socialProfileCoverReadGrant", () => {
 });
 
 const PLAYBACK = "uNbxnGLKJ00yfbijDO8COxT";
+const ASSET = "asset12345678";
+const STORY_ID = "22222222-2222-4222-8222-222222222222";
+const OTHER_STORY_ID = "44444444-4444-4444-8444-444444444444";
 
 function muxMedia(authorId: string, lane: "stories" | "posts") {
   return [
@@ -366,10 +369,21 @@ function muxMedia(authorId: string, lane: "stories" | "posts") {
       key: `${lane}/${authorId}/${OBJECT}.mp4`,
       contentType: "video/mp4" as const,
       provider: SOCIAL_MUX_PROVIDER,
+      assetId: ASSET,
       playbackId: PLAYBACK,
       playbackPolicy: "signed" as const,
     },
   ];
+}
+
+function scanRow(storyId: string, status: "pending" | "allowed" | "blocked") {
+  return {
+    post_id: null,
+    story_id: storyId,
+    asset_id: ASSET,
+    playback_id: PLAYBACK,
+    status,
+  };
 }
 
 describe("socialMuxPlaybackReadGrant", () => {
@@ -454,10 +468,17 @@ describe("socialMuxPlaybackReadGrant", () => {
 
 function scansQuery(result: { data: unknown; error: { code?: string; message?: string } | null }) {
   const query = {
-    select: vi.fn(() => query),
-    eq: vi.fn(() => query),
-    limit: vi.fn(async () => result),
+    select: vi.fn(),
+    eq: vi.fn(),
+    in: vi.fn(),
+    limit: vi.fn(),
+    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve, reject),
   };
+  query.select.mockImplementation(() => query);
+  query.eq.mockImplementation(() => query);
+  query.in.mockImplementation(() => query);
+  query.limit.mockImplementation(() => query);
   return query;
 }
 
@@ -497,14 +518,18 @@ describe("viewerMayMintSocialMuxPlayback", () => {
     await expect(viewerMayMintSocialMuxPlayback(USER, "short", NOW)).resolves.toBe(false);
   });
 
-  it("refuses someone else's playback until an allowed music scan exists", async () => {
-    const stories = chain({
-      data: [{ author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
-    });
+  it("refuses someone else's playback until that parent's music scan is allowed", async () => {
+    const story = {
+      id: STORY_ID,
+      author_id: OTHER,
+      status: "active",
+      expires_at: LIVE,
+      media: muxMedia(OTHER, "stories"),
+    };
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => {
         if (table === "posts") return chain({ data: [] });
-        if (table === "stories") return stories;
+        if (table === "stories") return chain({ data: [story] });
         return chain({ data: [{ followee_id: OTHER }] });
       }),
     } as never);
@@ -514,18 +539,57 @@ describe("viewerMayMintSocialMuxPlayback", () => {
     await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
 
     vi.mocked(createAdminClient).mockReturnValue({
-      from: vi.fn(() =>
-        scansQuery({ data: [{ playback_id: PLAYBACK, status: "blocked" }], error: null }),
-      ),
+      from: vi.fn(() => scansQuery({ data: [scanRow(STORY_ID, "blocked")], error: null })),
     } as never);
     await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
 
+    const allowed = scansQuery({ data: [scanRow(STORY_ID, "allowed")], error: null });
     vi.mocked(createAdminClient).mockReturnValue({
-      from: vi.fn(() =>
-        scansQuery({ data: [{ playback_id: PLAYBACK, status: "allowed" }], error: null }),
-      ),
+      from: vi.fn(() => allowed),
     } as never);
     await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+    expect(allowed.in).toHaveBeenCalledWith("story_id", [STORY_ID]);
+    expect(allowed.limit).not.toHaveBeenCalled();
+  });
+
+  it("mints an allowed parent when a later reuse of the same playback id is still pending", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "posts") return chain({ data: [] });
+        if (table === "stories") {
+          return chain({
+            data: [
+              {
+                id: STORY_ID,
+                author_id: OTHER,
+                status: "active",
+                expires_at: LIVE,
+                media: muxMedia(OTHER, "stories"),
+              },
+            ],
+          });
+        }
+        return chain({ data: [{ followee_id: OTHER }] });
+      }),
+    } as never);
+    const scans = scansQuery({
+      data: [scanRow(STORY_ID, "allowed"), scanRow(OTHER_STORY_ID, "pending")],
+      error: null,
+    });
+    vi.mocked(createAdminClient).mockReturnValue({ from: vi.fn(() => scans) } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+    expect(scans.in).toHaveBeenCalledWith("story_id", [STORY_ID]);
+    expect(scans.limit).not.toHaveBeenCalled();
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({
+          data: [scanRow(STORY_ID, "blocked"), scanRow(OTHER_STORY_ID, "allowed")],
+          error: null,
+        }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
   });
 
   it("never queries messages while deciding a mux playback grant", async () => {
