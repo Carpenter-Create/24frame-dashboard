@@ -21,8 +21,6 @@ import {
 } from "./house-phone-nav-motion";
 import { SEGMENTED_TRACK_PERSIST } from "./segmented-track";
 import {
-  WORKSPACE_BAND_FOLD_OPEN_CLASS,
-  WORKSPACE_BAND_FOLD_TUCKED_CLASS,
   WORKSPACE_BAND_PILL_CLASS,
   WORKSPACE_BAND_PILL_CURRENT_CLASS,
   WORKSPACE_BAND_PILL_HIT_CLASS,
@@ -126,11 +124,9 @@ describe("phone nav motion lock v1", () => {
     expect(dockSrc).toContain("hostClassName={HOUSE_PHONE_NAV_PRESS_GLYPH_CLASS}");
   });
 
-  it("G5: the fold is never a scroll container, and the dock never scrolls to its dest", () => {
-    for (const fold of [WORKSPACE_BAND_FOLD_OPEN_CLASS, WORKSPACE_BAND_FOLD_TUCKED_CLASS]) {
-      expect(classes(fold)).toContain("overflow-clip");
-      expect(classes(fold)).not.toContain("overflow-hidden");
-    }
+  it("G5: the band no longer folds (band lock v1.3), and the dock never scrolls to its dest", () => {
+    expect(switcherSrc).not.toContain("data-workspace-band-fold");
+    expect(lock).toContain("~~The band's fold is `overflow-clip`~~");
     expect(trackSrc).toContain(
       'if (revealActive) active.scrollIntoView({ block: "nearest", inline: "nearest" });',
     );

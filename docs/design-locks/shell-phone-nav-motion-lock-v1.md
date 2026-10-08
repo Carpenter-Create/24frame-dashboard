@@ -64,7 +64,7 @@ The global reduced-motion rule (`tokens.css`) drops every transition to ~0: the 
 **G2.** The band's pills are `data-segmented-item`s of a `SegmentedTrack` (`SEGMENTED_TRACK_PERSIST.workspaceBand`) whose thumb is `bg-bg h-9`; the current face paints `bg-bg` only `in-data-segmented-pending`.  
 **G3.** Every dock's row is a `SegmentedTrack` (`SEGMENTED_TRACK_PERSIST.phoneDest`, `revealActive={false}`); its thumb is the 64 `--surface-muted` pill; `housePhoneDockThumbIndex` skips Create; the track is keyed by `housePhoneDockTrackKey` (its dest set).  
 **G4.** Band and dock glyphs render through `HouseGlyphSwap`: two SVGs, the shown one (`opacity-100`) Fill on the current item and Regular elsewhere.  
-**G5.** The band's fold is `overflow-clip`, so the track's scroll-into-view cannot move the row inside it.
+**G5.** ~~The band's fold is `overflow-clip`~~ (the band no longer folds: band lock v1.3 §5). The band's track still reveals its current pill sideways; it sits outside the page scroller, so that never moves the page.
 
 ## Verify-on-ship
 

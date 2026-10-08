@@ -13,14 +13,25 @@ import {
 
 import {
   createHousePhoneChrome,
+  HOUSE_PHONE_CHROME_DRAG_ZONE,
   HOUSE_PHONE_CHROME_OPEN,
-  HOUSE_PHONE_CHROME_SWIPE_ZONE,
+  HOUSE_PHONE_SHEET_IDLE_MS,
+  HOUSE_PHONE_SHEET_SNAP_MS,
+  housePhoneSheetDragAxis,
   type HousePhoneChromeController,
 } from "@/lib/house-phone-chrome";
+import {
+  HOUSE_PHONE_CHROME_HEIGHT_VAR,
+  HOUSE_PHONE_CHROME_VISIBLE_VAR,
+  HOUSE_PHONE_SHEET_SETTLE_ATTR,
+  HOUSE_PHONE_SHEET_Y_VAR,
+} from "@/lib/house-lead-chrome";
 
 // One phone chrome state for the dock and the workspace band
-// (shell-phone-workspace-band-lock-v1 §5). HousePhoneAppShell owns it;
-// the dock hides and the band folds from the same tracker.
+// (shell-phone-workspace-band-lock-v1 §5). HousePhoneAppShell owns it.
+// The bar's position is written straight to CSS variables on the shell
+// every scroll frame (no React render per frame); React state changes
+// only when the dock hides or the band is fully covered.
 // G9 page scroll lives on main (`[data-house-lead-scroll]`), not window.
 
 export type HousePhoneChrome = {
@@ -51,51 +62,128 @@ export function useHousePhoneChromeTracker(
 
   useEffect(() => {
     const root = rootRef.current;
-    const scroller = root?.querySelector<HTMLElement>("[data-house-lead-scroll]") ?? null;
-    const tuck = createHousePhoneChrome({
-      readY: () => (scroller ? scroller.scrollTop : window.scrollY),
+    if (!root) return undefined;
+    const scroller = root.querySelector<HTMLElement>("[data-house-lead-scroll]");
+    const readY = () => (scroller ? scroller.scrollTop : window.scrollY);
+
+    // The chrome's height (band + bar + Education search row) pads the
+    // page under it; the visible part (less the bar's cover) is where
+    // sticky rows and scroll-into-view stop.
+    let chromeHeight = 0;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    const paint = (offset: number) => {
+      root.style.setProperty(HOUSE_PHONE_SHEET_Y_VAR, `${offset}px`);
+      root.style.setProperty(HOUSE_PHONE_CHROME_VISIBLE_VAR, `${Math.max(0, chromeHeight - offset)}px`);
+    };
+    const reduceMotion =
+      typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const sheet = createHousePhoneChrome({
+      readY,
       readRange: () => (scroller ? scroller.scrollHeight - scroller.clientHeight : 0),
-      now: () => performance.now(),
+      scrollPage: (y, smooth) =>
+        scroller?.scrollTo({ top: y, behavior: smooth && !reduceMotion ? "smooth" : "auto" }),
+      onOffset: (offset, settle) => {
+        clearTimeout(settleTimer);
+        if (settle) {
+          root.setAttribute(HOUSE_PHONE_SHEET_SETTLE_ATTR, "");
+          settleTimer = setTimeout(
+            () => root.removeAttribute(HOUSE_PHONE_SHEET_SETTLE_ATTR),
+            HOUSE_PHONE_SHEET_SNAP_MS + 40,
+          );
+        } else {
+          root.removeAttribute(HOUSE_PHONE_SHEET_SETTLE_ATTR);
+        }
+        paint(offset);
+      },
       onChange: (next) =>
         setChrome((current) => (current.path !== pathname ? current : { path: pathname, ...next })),
     });
-    controller.current = tuck;
+    controller.current = sheet;
 
-    const target: EventTarget = scroller ?? window;
-    const onScroll = () => tuck.scroll();
+    const measure = () => {
+      const stack = root.querySelector<HTMLElement>("[data-house-lead-stack]");
+      chromeHeight = stack ? stack.offsetHeight : 0;
+      root.style.setProperty(HOUSE_PHONE_CHROME_HEIGHT_VAR, `${chromeHeight}px`);
+      paint(sheet.offset());
+    };
+    // The stack is replaced when the header's data resolves (Suspense),
+    // and it grows with Education's search row: watch both.
+    const resize = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    const watchStack = () => {
+      resize?.disconnect();
+      const stack = root.querySelector<HTMLElement>("[data-house-lead-stack]");
+      if (stack) resize?.observe(stack);
+      measure();
+    };
+    const swaps = typeof MutationObserver === "undefined" ? undefined : new MutationObserver(watchStack);
+    swaps?.observe(root, { childList: true });
+    watchStack();
 
-    // Pull the bar down / push it up: a vertical drag that starts on the
-    // lead stack. Passive, so taps and the band's sideways slide are
-    // untouched.
-    let start: { x: number; y: number } | null = null;
+    // Settle once the scroll is at rest and no finger is down.
+    let touching = false;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const armSettle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (!touching) sheet.settle();
+      }, HOUSE_PHONE_SHEET_IDLE_MS);
+    };
+    const onScroll = () => {
+      sheet.scroll();
+      armSettle();
+    };
+
+    // A drag on the bar or the band moves the bar under the finger once it
+    // reads as vertical; a sideways drag leaves the band's pills to slide.
+    let drag: { x: number; y: number; axis: "vertical" | "horizontal" | null } | null = null;
     const onTouchStart = (event: TouchEvent) => {
+      touching = true;
+      clearTimeout(idleTimer);
       const el = event.target instanceof Element ? event.target : null;
       const touch = event.touches[0];
-      start =
-        event.touches.length === 1 && touch && el?.closest(HOUSE_PHONE_CHROME_SWIPE_ZONE)
-          ? { x: touch.clientX, y: touch.clientY }
+      drag =
+        event.touches.length === 1 && touch && el?.closest(HOUSE_PHONE_CHROME_DRAG_ZONE)
+          ? { x: touch.clientX, y: touch.clientY, axis: null }
           : null;
     };
     const onTouchMove = (event: TouchEvent) => {
       const touch = event.touches[0];
-      if (!start || event.touches.length !== 1 || !touch) return;
-      if (tuck.swipe(touch.clientX - start.x, touch.clientY - start.y)) start = null;
+      if (!drag || event.touches.length !== 1 || !touch) return;
+      const dx = touch.clientX - drag.x;
+      const dy = touch.clientY - drag.y;
+      if (!drag.axis) {
+        drag.axis = housePhoneSheetDragAxis(dx, dy);
+        if (drag.axis === "vertical") sheet.dragStart();
+        if (drag.axis !== "vertical") return;
+      }
+      if (drag.axis === "vertical") sheet.drag(dy);
     };
-    const onTouchEnd = () => {
-      start = null;
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length > 0) return;
+      touching = false;
+      if (drag?.axis === "vertical") sheet.dragEnd();
+      else armSettle();
+      drag = null;
     };
 
+    const target: EventTarget = scroller ?? window;
     target.addEventListener("scroll", onScroll, { passive: true });
-    root?.addEventListener("touchstart", onTouchStart, { passive: true });
-    root?.addEventListener("touchmove", onTouchMove, { passive: true });
-    root?.addEventListener("touchend", onTouchEnd, { passive: true });
-    root?.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    root.addEventListener("touchstart", onTouchStart, { passive: true });
+    root.addEventListener("touchmove", onTouchMove, { passive: true });
+    root.addEventListener("touchend", onTouchEnd, { passive: true });
+    root.addEventListener("touchcancel", onTouchEnd, { passive: true });
     return () => {
       target.removeEventListener("scroll", onScroll);
-      root?.removeEventListener("touchstart", onTouchStart);
-      root?.removeEventListener("touchmove", onTouchMove);
-      root?.removeEventListener("touchend", onTouchEnd);
-      root?.removeEventListener("touchcancel", onTouchEnd);
+      root.removeEventListener("touchstart", onTouchStart);
+      root.removeEventListener("touchmove", onTouchMove);
+      root.removeEventListener("touchend", onTouchEnd);
+      root.removeEventListener("touchcancel", onTouchEnd);
+      swaps?.disconnect();
+      resize?.disconnect();
+      clearTimeout(idleTimer);
+      clearTimeout(settleTimer);
+      root.removeAttribute(HOUSE_PHONE_SHEET_SETTLE_ATTR);
+      root.style.setProperty(HOUSE_PHONE_SHEET_Y_VAR, "0px");
       controller.current = null;
     };
   }, [pathname, rootRef]);

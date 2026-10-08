@@ -58,6 +58,7 @@ import {
   HOUSE_LEAD_SEARCH_ICON_CLASS,
   HOUSE_LEAD_SEARCH_TOGGLE_HOST_CLASS,
   HOUSE_THEME_TOGGLE_CLASS,
+  HOUSE_PHONE_SHEET_MOTION_CLASS,
 } from "@/lib/house-lead-chrome";
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import { HOUSE_ASK_AI_MARK_CLASS } from "@/lib/house-phone-shell";
@@ -489,9 +490,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
 
   it("G9 pins the shared lead to the viewport — page scroll lives on main", () => {
     // md+ the stack starts at the full-height side menu's edge.
-    // Phone: Sporty Blue behind the bar's rounded corners (the band).
+    // Phone: it floats over main (shell-phone-workspace-band-lock-v1 §5
+    // v1.3); page scroll still lives on main, so overscroll never carries it.
     expect(HOUSE_LEAD_STACK_CLASS).toBe(
-      "sticky top-0 z-40 shrink-0 max-md:bg-workspace-band md:ml-[var(--sidebar-width)]",
+      "sticky top-0 z-40 shrink-0 max-md:absolute max-md:inset-x-0 max-md:top-0 md:ml-[var(--sidebar-width)]",
     );
     expect(HOUSE_LEAD_STACK_CLASS).toContain("sticky");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("top-0");
@@ -503,10 +505,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(HOUSE_LEAD_UNDER_NAV_CLASS).not.toContain("py-[var(--space-2)]");
     expect(HOUSE_LEAD_UNDER_NAV_CLASS).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);
     expect(HOUSE_LEAD_SHELL_CLASS).toBe(
-      "flex h-dvh flex-col overflow-hidden overscroll-none",
+      "flex h-dvh flex-col overflow-hidden overscroll-none max-md:relative",
     );
     expect(HOUSE_LEAD_SCROLL_CLASS).toBe(
-      "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+      "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:scroll-pt-[var(--house-phone-chrome-visible,0px)]",
     );
     expect(HOUSE_LEAD_SHELL_CLASS).not.toContain("min-h-dvh");
     expect(leadLib).toContain("G9");
@@ -558,7 +560,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       htmlClass(html, 'data-app-header=""'),
       htmlClass(html, 'data-app-header-leading=""'),
     ];
-    expect(ancestors[0]).toBe(`${HOUSE_LEAD_CHROME_CLASS} ${HOUSE_LEAD_DESKTOP_PAD_CLASS}`);
+    expect(ancestors[0]).toBe(
+      `${HOUSE_LEAD_CHROME_CLASS} ${HOUSE_LEAD_DESKTOP_PAD_CLASS} ${HOUSE_PHONE_SHEET_MOTION_CLASS}`,
+    );
     expect(ancestors[1]).toBe(APP_HEADER_LEADING_CLASS);
     for (const className of ancestors) {
       expect(className).not.toMatch(/(?:^|\s)(?:max-md:)?overflow-hidden(?:\s|$)/);

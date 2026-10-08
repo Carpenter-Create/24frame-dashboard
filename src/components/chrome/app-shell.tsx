@@ -25,7 +25,7 @@ import {
   migrateSidebarCollapsedCookie,
   persistSidebarCollapsed,
 } from "@/lib/rail-collapse";
-import { HOUSE_LEAD_SCROLL_CLASS } from "@/lib/house-lead-chrome";
+import { HOUSE_LEAD_SCROLL_CLASS, HOUSE_PHONE_CHROME_SPACER_CLASS } from "@/lib/house-lead-chrome";
 import {
   HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS,
   housePhoneShowsBottomDests,
@@ -250,6 +250,8 @@ export function AppShell({
     });
   const phoneDestPad =
     phoneDestDock && !exploreStage ? HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS : undefined;
+  // The lead chrome shows on phone (it floats over main there).
+  const phoneLeadChrome = !storyOpenStage && !dmImmersiveStage && !writeComposeStage && !exploreStage;
 
   useEffect(() => {
     migrateSidebarCollapsedCookie(collapsed);
@@ -447,6 +449,10 @@ export function AppShell({
         data-house-lead-scroll=""
         style={{ marginLeft: "var(--sidebar-width)" }}
       >
+        {/* Phone: the chrome floats over the page; the page starts under it. */}
+        {phoneLeadChrome ? (
+          <div aria-hidden="true" data-house-phone-chrome-spacer="" className={HOUSE_PHONE_CHROME_SPACER_CLASS} />
+        ) : null}
         <div
           className={
             storyOpenStage || dmImmersiveStage || writeComposeStage

@@ -101,7 +101,6 @@ import {
   WORKSPACE_BAND_ROW_CLASS,
   WORKSPACE_BAND_THUMB_CLASS,
   WORKSPACE_BAND_TRACK_CLASS,
-  workspaceBandFoldClass,
   workspaceBandPillClass,
   type WorkspaceLaneMode,
   type WorkspaceLaneOption,
@@ -365,8 +364,8 @@ function WorkspaceBand({
   const pills = workspaceSliderSegments(options);
   const routeWorkspace = resolveWorkspaceMode(activePath, current);
   const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
-  // Folded under the bar while the page scrolls down (lock §5). It stays
-  // in the accessibility tree; keyboard focus into it opens it.
+  // Covered by the bar while the page scrolls down (lock §5). It stays in
+  // the accessibility tree; keyboard focus into it brings the bar back.
   const { bandTucked, open } = useHousePhoneChrome();
 
   return (
@@ -379,68 +378,66 @@ function WorkspaceBand({
       className={WORKSPACE_BAND_CLASS}
       onFocus={bandTucked ? open : undefined}
     >
-      <div data-workspace-band-fold="" className={workspaceBandFoldClass(bandTucked)}>
-        <div data-workspace-band-row="" className={WORKSPACE_BAND_ROW_CLASS}>
-          <SegmentedTrack
-            activeIndex={routeIndex}
-            persistKey={SEGMENTED_TRACK_PERSIST.workspaceBand}
-            trackClass={WORKSPACE_BAND_TRACK_CLASS}
-            thumbClass={WORKSPACE_BAND_THUMB_CLASS}
-            durationMs={HOUSE_PHONE_NAV_THUMB_DURATION_MS}
-            data-workspace-band-track=""
-          >
-            {({ selectedIndex }) =>
-              pills.map((pill, index) => {
-                // aria-current follows the route; the face and glyph
-                // follow the thumb, which moves on the tap.
-                const lit = index === routeIndex;
-                const on = segmentedItemOn(index, selectedIndex);
-                const Glyph = pill.id === "home" ? House : WORKSPACE_WAFFLE_ICON[pill.id];
-                return (
-                  <HouseLink
-                    key={pill.id}
-                    href={pill.href}
-                    prefetch={!lit}
-                    data-segmented-item=""
-                    data-workspace-band-pill={pill.id}
-                    data-workspace-band-current={lit ? "" : undefined}
-                    aria-current={lit ? "page" : undefined}
-                    className={WORKSPACE_BAND_PILL_HIT_CLASS}
-                    onClick={(event) => {
-                      // Modified clicks stay on the anchor; a plain tap owns
-                      // the hop (cookie, pending, soft swap) like the slider.
-                      if (houseNavIgnorePendingClick(event)) return;
-                      event.preventDefault();
-                      selectWorkspaceTile(
-                        current,
-                        pill,
-                        options,
-                        router,
-                        shellPath,
-                        isGcStaff,
-                        markPending,
-                        event,
-                        house?.navigateOwned,
-                      );
-                    }}
-                  >
-                    {lit ? null : <HouseNavPendingProbe href={pill.href} onPending={markPending} />}
-                    <span className={workspaceBandPillClass(on)}>
-                      <HouseGlyphSwap
-                        glyph={Glyph}
-                        on={on}
-                        className={WORKSPACE_BAND_ICON_CLASS}
-                        idleWeight={WORKSPACE_BAND_ICON_WEIGHT}
-                        onWeight={WORKSPACE_BAND_ICON_CURRENT_WEIGHT}
-                      />
-                      {pill.label}
-                    </span>
-                  </HouseLink>
-                );
-              })
-            }
-          </SegmentedTrack>
-        </div>
+      <div data-workspace-band-row="" className={WORKSPACE_BAND_ROW_CLASS}>
+        <SegmentedTrack
+          activeIndex={routeIndex}
+          persistKey={SEGMENTED_TRACK_PERSIST.workspaceBand}
+          trackClass={WORKSPACE_BAND_TRACK_CLASS}
+          thumbClass={WORKSPACE_BAND_THUMB_CLASS}
+          durationMs={HOUSE_PHONE_NAV_THUMB_DURATION_MS}
+          data-workspace-band-track=""
+        >
+          {({ selectedIndex }) =>
+            pills.map((pill, index) => {
+              // aria-current follows the route; the face and glyph
+              // follow the thumb, which moves on the tap.
+              const lit = index === routeIndex;
+              const on = segmentedItemOn(index, selectedIndex);
+              const Glyph = pill.id === "home" ? House : WORKSPACE_WAFFLE_ICON[pill.id];
+              return (
+                <HouseLink
+                  key={pill.id}
+                  href={pill.href}
+                  prefetch={!lit}
+                  data-segmented-item=""
+                  data-workspace-band-pill={pill.id}
+                  data-workspace-band-current={lit ? "" : undefined}
+                  aria-current={lit ? "page" : undefined}
+                  className={WORKSPACE_BAND_PILL_HIT_CLASS}
+                  onClick={(event) => {
+                    // Modified clicks stay on the anchor; a plain tap owns
+                    // the hop (cookie, pending, soft swap) like the slider.
+                    if (houseNavIgnorePendingClick(event)) return;
+                    event.preventDefault();
+                    selectWorkspaceTile(
+                      current,
+                      pill,
+                      options,
+                      router,
+                      shellPath,
+                      isGcStaff,
+                      markPending,
+                      event,
+                      house?.navigateOwned,
+                    );
+                  }}
+                >
+                  {lit ? null : <HouseNavPendingProbe href={pill.href} onPending={markPending} />}
+                  <span className={workspaceBandPillClass(on)}>
+                    <HouseGlyphSwap
+                      glyph={Glyph}
+                      on={on}
+                      className={WORKSPACE_BAND_ICON_CLASS}
+                      idleWeight={WORKSPACE_BAND_ICON_WEIGHT}
+                      onWeight={WORKSPACE_BAND_ICON_CURRENT_WEIGHT}
+                    />
+                    {pill.label}
+                  </span>
+                </HouseLink>
+              );
+            })
+          }
+        </SegmentedTrack>
       </div>
     </nav>
   );

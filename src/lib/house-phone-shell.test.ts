@@ -585,7 +585,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     // shell owns it, the dock reads it.
     const tuckLib = readFileSync("src/lib/house-phone-chrome.ts", "utf8");
     expect(tuckLib).toContain('from "./social-tab-bar-scroll"');
-    expect(tuckLib).toContain("stepSocialTabBarScroll(tracker, y)");
+    expect(tuckLib).toContain("dock = stepSocialTabBarScroll(dock, y);");
     expect(phoneAppShellSrc).toContain("useHousePhoneChromeTracker(rootRef, pathname)");
     expect(phoneAppShellSrc).toContain("<HousePhoneChromeContext.Provider value={phoneChrome}>");
     expect(bottomNavSrc).toContain("const { dockHidden: hidden } = useHousePhoneChrome();");

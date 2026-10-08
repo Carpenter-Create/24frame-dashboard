@@ -242,21 +242,6 @@ export const WORKSPACE_BAND_TRACK_CLASS =
 
 export const WORKSPACE_BAND_THUMB_CLASS = `pointer-events-none absolute top-1/2 h-9 -translate-y-1/2 rounded-full bg-bg ${HOUSE_PHONE_NAV_THUMB_MOTION_CLASS}`;
 
-// The sheet rides over the band (lock §5): scroll down and the row folds
-// 56 → 0 under the bar while the dock hides; scroll up, or pull the bar
-// down, and it opens. The row stays pinned to the fold's top, so the bar
-// reads as sliding over the pills. 56 is HOUSE_PHONE_BAND_ROW_PX.
-// overflow-clip, not hidden: a hidden box is still a scroll container, and
-// the pill track's scroll-into-view would shift the row inside the fold.
-const WORKSPACE_BAND_FOLD_BASE_CLASS =
-  "overflow-clip transition-[height] duration-200 ease-out motion-reduce:transition-none";
-export const WORKSPACE_BAND_FOLD_OPEN_CLASS = `${WORKSPACE_BAND_FOLD_BASE_CLASS} h-14`;
-export const WORKSPACE_BAND_FOLD_TUCKED_CLASS = `${WORKSPACE_BAND_FOLD_BASE_CLASS} h-0`;
-
-export function workspaceBandFoldClass(tucked: boolean): string {
-  return tucked ? WORKSPACE_BAND_FOLD_TUCKED_CLASS : WORKSPACE_BAND_FOLD_OPEN_CLASS;
-}
-
 // The hit is 44 tall; the pill face inside it is 36. Keyboard focus: the
 // house ring (globals.css, unlayered: 2px, the accent, radius 4) would
 // vanish on the blue, so the band overrides its colour to white, hugs the
