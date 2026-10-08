@@ -3,6 +3,7 @@
 **Date:** 2026-10-08 (CT)  
 **Status:** **LOCKED** (Adam, 2026-10-08, in chat — recorded from the founder-authorized task brief) · Design Own→READY  
 **Amended v1.1:** 2026-10-08 (Adam, in chat) — §5, the sheet rides over the band: scroll down folds the band under the bar with the dock; scroll up or pull the bar down brings both back; a grab handle on the bar. Supersedes Departure 1 and the Explicit OUT drag handle.  
+**Amended v1.2:** 2026-10-08 (Adam, "just build it") — [`shell-phone-nav-motion-lock-v1.md`](shell-phone-nav-motion-lock-v1.md): §1 Current's page colour is a sliding thumb (it slides to the tapped pill and settles; the glyph fills as it lands), and the fold is `overflow-clip`.  
 **Scope:** The phone shell (`max-md`) in every workspace: where the workspace switch lives (a band above the bar), the bar as a sheet over it, and the Feed's topic row on phone. Desktop and `md` to `lg` are unchanged.  
 **Entity:** Global Content / 24Frame only  
 **Reference:** the founder's screenshot of a phone app — a coloured top band of icon + word product tabs, under it a dark sheet with the logo row.  
@@ -123,7 +124,7 @@ The band row and the Feed topic row may draw a pill cut at the screen edge: the 
 **G4.** The row is `overflow-x-auto`; the band has no fade and no button.  
 **G5.** Phone bar: `max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg`; the grey pill host is `hidden md:block lg:hidden`.  
 **G6.** Topic row: the fade is `max-md:hidden`; the cut class and the end scroll padding are `md:` only.  
-**G7.** The band row sits in `data-workspace-band-fold`: `h-14` open, `h-0` folded, `overflow-hidden`, `transition-[height] duration-200`, `motion-reduce:transition-none`; folded adds `data-workspace-band-tucked`.  
+**G7.** The band row sits in `data-workspace-band-fold`: `h-14` open, `h-0` folded, `overflow-clip` (v1.2: not a scroll container), `transition-[height] duration-200`, `motion-reduce:transition-none`; folded adds `data-workspace-band-tucked`.  
 **G8.** One tracker: the phone shell provides `HousePhoneChromeContext`; the dock's hidden state and the band's fold both read it; no other scroll listener hides the dock.  
 **G9.** The bar's first child is `data-house-lead-grip` (`aria-hidden`, `md:hidden`, 36 × 4); the phone bar is 64 with an 8 top strip.  
 **G10.** A scroll folds the band only with more than 112 of travel left after the fold (more than 168 open); a 24 vertical drag on `[data-house-lead-stack]` opens (down) or folds (up).

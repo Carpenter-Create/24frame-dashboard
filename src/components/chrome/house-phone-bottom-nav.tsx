@@ -4,7 +4,11 @@ import { useEffect } from "react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHousePathname } from "./house-client-shell";
+import { HouseGlyphSwap } from "./house-glyph-swap";
 import { useHousePhoneChrome } from "./house-phone-chrome-state";
+import { SegmentedTrack } from "@/components/ui/segmented-track";
+import { HOUSE_PHONE_NAV_PRESS_GLYPH_CLASS, HOUSE_PHONE_NAV_THUMB_DURATION_MS } from "@/lib/house-phone-nav-motion";
+import { SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
 
 import {
   HouseNavPendingProbe,
@@ -31,11 +35,14 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_THUMB_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS,
   housePhoneDestActive,
   housePhoneDestGlyph,
   housePhoneDestIsCreate,
   housePhoneDockDestinations,
+  housePhoneDockThumbIndex,
+  housePhoneDockTrackKey,
   housePhoneDockLabel,
   housePhonePrefetchDestHrefs,
   housePhoneShowsBottomDests,
@@ -96,6 +103,7 @@ export function HousePhoneBottomNav({
     });
   const items = housePhoneDockDestinations({ isGcStaff, workspace, homeOwned });
   const destWorkspace = homeOwned ? "aggregation" : workspace;
+  const thumbIndex = housePhoneDockThumbIndex(activePath, items, destWorkspace);
 
   useEffect(() => {
     if (!visible) return;
@@ -113,92 +121,110 @@ export function HousePhoneBottomNav({
       className={cn(HOUSE_PHONE_BOTTOM_NAV_CLASS, hidden && HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS)}
     >
       <div data-house-phone-bottom-nav-pill="" className={HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS}>
-        <div className={HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS}>
-          {items.map((item) => {
-            const active = housePhoneDestActive(activePath, item, destWorkspace);
-            const Glyph = housePhoneDestGlyph(item);
-            const unread = isSocialMessagesDest(item) && messagesUnread > 0;
-            const glyph = (
-              <Glyph
-                className={HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS}
-                weight={active ? HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT : HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT}
-              />
-            );
-            // The unread dot hangs off the glyph's own box, so the
-            // glyph stays centred in every slot.
-            const face = !unread ? (
-              glyph
-            ) : (
-              <span className={HOUSE_PHONE_BOTTOM_NAV_GLYPH_HOST_CLASS}>
-                {glyph}
-                <span
-                  aria-hidden
-                  data-house-phone-bottom-nav-unread=""
-                  className={HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS}
-                />
-              </span>
-            );
-            const destClass = cn(
-              HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
-              active
-                ? HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS
-                : HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS,
-            );
-            if (housePhoneDestIsCreate(item)) {
-              return (
-                <SocialCreateFan
-                  key={item.href}
-                  hidden={hidden}
-                  trigger={
-                    <button
-                      type="button"
-                      aria-label={item.label}
-                      aria-current={active ? "page" : undefined}
-                      tabIndex={hidden ? -1 : undefined}
-                      data-house-phone-bottom-nav-item={item.href}
-                      data-house-phone-bottom-nav-item-active={active ? "" : undefined}
-                      data-house-phone-dest={item.label}
-                      data-house-phone-dest-create=""
-                      data-social-create-fan-trigger=""
-                      className={HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS}
-                    >
-                      <span
-                        data-house-phone-bottom-nav-create=""
-                        className={cn(
-                          HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
-                          active && HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
-                        )}
-                      >
-                        <Glyph
-                          className={HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS}
-                          weight={HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_WEIGHT}
-                        />
-                      </span>
-                    </button>
-                  }
+        {/* The current dest's pill is the track's thumb: it slides to the
+            tapped dest (shell-phone-nav-motion-lock-v1). The dock can sit
+            off screen while it hides, so it never scrolls to the dest.
+            A new dest set (a workspace switch) mounts a fresh track. */}
+        <SegmentedTrack
+          key={housePhoneDockTrackKey(items)}
+          activeIndex={thumbIndex}
+          persistKey={SEGMENTED_TRACK_PERSIST.phoneDest}
+          trackClass={HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS}
+          thumbClass={HOUSE_PHONE_BOTTOM_NAV_THUMB_CLASS}
+          durationMs={HOUSE_PHONE_NAV_THUMB_DURATION_MS}
+          revealActive={false}
+          data-house-phone-bottom-nav-track=""
+        >
+            {() => items.map((item) => {
+              const active = housePhoneDestActive(activePath, item, destWorkspace);
+              const Glyph = housePhoneDestGlyph(item);
+              const unread = isSocialMessagesDest(item) && messagesUnread > 0;
+              const glyph = (
+                <HouseGlyphSwap
+                  glyph={Glyph}
+                  on={active}
+                  className={HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS}
+                  hostClassName={HOUSE_PHONE_NAV_PRESS_GLYPH_CLASS}
+                  idleWeight={HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT}
+                  onWeight={HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT}
                 />
               );
-            }
-            return (
-              <HouseLink
-                key={item.href}
-                href={item.href}
-                prefetch
-                aria-label={unread ? socialMessagesNavLabel(item.label, messagesUnread) : item.label}
-                aria-current={active ? "page" : undefined}
-                tabIndex={hidden ? -1 : undefined}
-                data-house-phone-bottom-nav-item={item.href}
-                data-house-phone-bottom-nav-item-active={active ? "" : undefined}
-                data-house-phone-dest={item.label}
-                onClick={(event) => markPending(item.href, event)}
-                className={destClass}
-              >
-                <HouseNavPendingProbe href={item.href} onPending={markPending} />
-                {face}
-              </HouseLink>
-            );
-          })}
-        </div>
+              // The unread dot hangs off the glyph's own box, so the
+              // glyph stays centred in every slot.
+              const face = !unread ? (
+                glyph
+              ) : (
+                <span className={HOUSE_PHONE_BOTTOM_NAV_GLYPH_HOST_CLASS}>
+                  {glyph}
+                  <span
+                    aria-hidden
+                    data-house-phone-bottom-nav-unread=""
+                    className={HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS}
+                  />
+                </span>
+              );
+              const destClass = cn(
+                HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS,
+                active
+                  ? HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS
+                  : HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS,
+              );
+              if (housePhoneDestIsCreate(item)) {
+                return (
+                  <SocialCreateFan
+                    key={item.href}
+                    hidden={hidden}
+                    trigger={
+                      <button
+                        type="button"
+                        aria-label={item.label}
+                        aria-current={active ? "page" : undefined}
+                        tabIndex={hidden ? -1 : undefined}
+                        data-house-phone-bottom-nav-item={item.href}
+                        data-house-phone-bottom-nav-item-active={active ? "" : undefined}
+                        data-house-phone-dest={item.label}
+                        data-house-phone-dest-create=""
+                        data-social-create-fan-trigger=""
+                        className={HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS}
+                      >
+                        <span
+                          data-house-phone-bottom-nav-create=""
+                          className={cn(
+                            HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
+                            active && HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
+                          )}
+                        >
+                          <Glyph
+                            className={HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_CLASS}
+                            weight={HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_WEIGHT}
+                          />
+                        </span>
+                      </button>
+                    }
+                  />
+                );
+              }
+              return (
+                <HouseLink
+                  key={item.href}
+                  href={item.href}
+                  prefetch
+                  aria-label={unread ? socialMessagesNavLabel(item.label, messagesUnread) : item.label}
+                  aria-current={active ? "page" : undefined}
+                  tabIndex={hidden ? -1 : undefined}
+                  data-segmented-item=""
+                  data-house-phone-bottom-nav-item={item.href}
+                  data-house-phone-bottom-nav-item-active={active ? "" : undefined}
+                  data-house-phone-dest={item.label}
+                  onClick={(event) => markPending(item.href, event)}
+                  className={destClass}
+                >
+                  <HouseNavPendingProbe href={item.href} onPending={markPending} />
+                  {face}
+                </HouseLink>
+              );
+            })}
+        </SegmentedTrack>
       </div>
     </nav>
   );
