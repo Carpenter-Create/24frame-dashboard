@@ -11,8 +11,16 @@ import {
   musicScanLatencyLine,
   musicStaffPriority,
   omitHeldPosts,
+  combineMusicWindowResults,
+  musicScanWindows,
+  MUSIC_SCAN_MAX_WINDOWS,
+  muxItemReleasedToOthers,
+  socialMuxPlaybackMusicReleased,
+  socialParentVisibleToOthers,
   socialVideoVisibleToOthers,
   socialVideoVisibleToViewer,
+  type SocialMusicScanRef,
+  type SocialMuxMediaRef,
   type MusicIdentifyResult,
   type MusicScanDecision,
 } from "@/lib/social-music-scan";
@@ -39,6 +47,21 @@ describe("decideMusicScan", () => {
     {
       name: "vendor error retries",
       result: { kind: "error", code: "timeout", retryable: true },
+      decision: "retry",
+    },
+    {
+      name: "NaN score retries",
+      result: {
+        kind: "match",
+        code: 0,
+        score: Number.NaN,
+        title: null,
+        artist: null,
+        album: null,
+        acrid: null,
+        isrc: null,
+        label: null,
+      },
       decision: "retry",
     },
   ];
@@ -104,6 +127,87 @@ describe("music scan timing", () => {
   });
 });
 
+describe("reused Mux asset release", () => {
+  const media = (): SocialMuxMediaRef[] => [
+    {
+      kind: "video",
+      provider: "mux",
+      assetId: "asset12345678",
+      playbackId: "play12345678",
+    },
+  ];
+  const scan = (status: "pending" | "blocked" | "allowed"): SocialMusicScanRef => ({
+    assetId: "asset12345678",
+    playbackId: "play12345678",
+    status,
+  });
+
+  it("hides a second post that reuses a pending asset", () => {
+    expect(socialParentVisibleToOthers(media(), [scan("pending")])).toBe(false);
+  });
+
+  it("hides a second post that reuses a blocked asset", () => {
+    expect(socialParentVisibleToOthers(media(), [scan("blocked")])).toBe(false);
+  });
+
+  it("hides a story that reuses a post asset while that scan is pending", () => {
+    expect(socialParentVisibleToOthers(media(), [scan("pending")])).toBe(false);
+  });
+
+  it("shows a parent that reuses an allowed asset", () => {
+    expect(socialParentVisibleToOthers(media(), [scan("allowed")])).toBe(true);
+  });
+
+  it("hides a Mux video that has no scan, a short asset id, or only a different asset's block", () => {
+    expect(socialParentVisibleToOthers(media(), [])).toBe(false);
+    expect(muxItemReleasedToOthers({ kind: "video", provider: "mux", assetId: "short", playbackId: "play12345678" }, [])).toBe(
+      false,
+    );
+    expect(
+      muxItemReleasedToOthers(
+        { kind: "video", provider: "mux", playbackId: "play12345678" },
+        [scan("allowed")],
+      ),
+    ).toBe(false);
+    expect(
+      socialParentVisibleToOthers(
+        [{ kind: "video", provider: "mux", assetId: "otherasset1", playbackId: "otherplay1" }],
+        [scan("blocked")],
+      ),
+    ).toBe(false);
+    expect(socialParentVisibleToOthers([{ kind: "image" }], [])).toBe(true);
+  });
+
+  it("mints someone else's playback only when every scan for that id is allowed", () => {
+    expect(socialMuxPlaybackMusicReleased("play12345678", [])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("pending")])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("blocked")])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("allowed")])).toBe(true);
+    expect(
+      socialMuxPlaybackMusicReleased("play12345678", [scan("allowed"), scan("blocked")]),
+    ).toBe(false);
+  });
+});
+
+describe("music scan windows", () => {
+  const match = (score: number): MusicIdentifyResult => MATCH(score);
+
+  it("caps the windows and blocks on the highest score", () => {
+    expect(musicScanWindows(null)).toEqual([{ startSeconds: 0, endSeconds: 12 }]);
+    expect(musicScanWindows(30)).toHaveLength(3);
+    expect(musicScanWindows(30)[0]).toEqual({ startSeconds: 0, endSeconds: 12 });
+    expect(musicScanWindows(400)).toHaveLength(MUSIC_SCAN_MAX_WINDOWS);
+    expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(40), match(24)]) })).toBe("block");
+    expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(24)]) })).toBe("allow");
+    expect(
+      decideMusicScan({
+        result: combineMusicWindowResults([match(100), { kind: "error", code: "timeout", retryable: true }]),
+      }),
+    ).toBe("retry");
+    expect(combineMusicWindowResults([match(40), match(100)])).toMatchObject({ kind: "match", score: 100 });
+  });
+});
+
 describe("omitHeldPosts", () => {
   it("drops the viewer's own held discovery hits", () => {
     const notices = new Map([["held", "pending" as const]]);
@@ -122,6 +226,16 @@ describe("social music scan migration", () => {
     expect(sql).toMatch(/stories_select[\s\S]*social_video_released\('story'/);
     expect(sql).toContain("author_id = (select auth.uid())");
     expect(sql).toContain("enqueue_social_music_scan");
+    expect(sql).toContain("s.asset_id = mux.item->>'assetId'");
+    expect(sql).toContain("s.playback_id = mux.item->>'playbackId'");
+    expect(sql).toContain("s.post_id = p_id");
+    expect(sql).toContain("s.story_id = p_id");
+    expect(sql).toContain("private.social_video_released");
+    expect(sql).toContain("social music scan requires a Mux asset id and playback id");
+    expect(sql).toContain("on conflict do nothing");
+    expect(sql).not.toContain("on conflict (asset_id)");
+    expect(sql).not.toContain("grant execute on function public.social_video_released");
+    expect(sql).toContain("revoke all on function private.social_video_released(text, uuid) from public, anon");
     expect(sql).not.toContain("is_gc_staff(");
     expect(sql).toContain("Staff review only");
     expect(sql).not.toMatch(/grant select \([\s\S]*vendor_title/);

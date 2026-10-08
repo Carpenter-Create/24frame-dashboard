@@ -448,6 +448,16 @@ describe("posts.media persist shape", () => {
         { kind: "video", key: `stories/${USER}/${OBJECT}.mp4`, contentType: "video/mp4" },
       ]),
     ).toBe("type");
+    expect(socialPublishedVideoRejection([{ ...video, assetId: undefined }])).toBe("type");
+    expect(socialPublishedVideoRejection([{ ...video, assetId: "short" }])).toBe("type");
+    expect(mediaItemsForPublish([{ ...video, assetId: undefined }], USER)).toEqual({
+      ok: false,
+      error: "invalid",
+    });
+    expect(mediaItemsForPublish([{ ...video, assetId: "short" }], USER)).toEqual({
+      ok: false,
+      error: "invalid",
+    });
   });
 });
 

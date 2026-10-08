@@ -5,12 +5,18 @@
 -- (Stories, posts, Create). CoS CLEAR 2026-10-08: ACRCloud identify is the
 -- primary vendor. Decision is allow or block. No mute.
 --
--- A new Mux video on posts.media or stories.media gets one
--- social_music_scans row at status pending, in the same transaction as the
--- insert or media update. Pending and blocked rows are not visible to other
--- users. The author still sees their own post or story. Legacy videos with
--- no scan row stay visible: this gate applies to uploads after this
--- migration.
+-- A new Mux video on posts.media or stories.media gets its own
+-- social_music_scans row in the same transaction as the insert or media
+-- update. The row is keyed to that post or story. A later parent that
+-- reuses the asset gets its own row. A prior blocked decision is copied
+-- onto the new row, and a prior allowed decision is copied too, so the
+-- new parent does not start a second fingerprint. A prior pending scan
+-- does not copy: the new row stays pending. Other people cannot see a
+-- Mux video until that parent has an allowed scan for the asset and
+-- playback id. No scan row is not a release. Stills and text with no Mux
+-- item stay visible. The author still sees their own post or story.
+-- Existing Mux videos are backfilled as pending in this migration, so
+-- they leave the feed until a scan allows them.
 --
 -- Vendor title, artist, and the other match fields are staff-review columns.
 -- authenticated may select status columns on their own rows only. The
@@ -39,6 +45,7 @@
 --   drop trigger if exists social_music_scans_touch on public.social_music_scans;
 --   drop function if exists public.enqueue_social_music_scan();
 --   drop function if exists public.touch_social_music_scan();
+--   drop function if exists private.social_video_released(text, uuid);
 --   drop function if exists public.social_video_released(text, uuid);
 --   drop table if exists public.social_music_scans;
 --   drop type if exists public.social_music_scan_status;
@@ -86,7 +93,6 @@ create table if not exists public.social_music_scans (
     (surface = 'post' and post_id is not null and story_id is null)
     or (surface = 'story' and story_id is not null and post_id is null)
   ),
-  constraint social_music_scans_asset_id_key unique (asset_id),
   constraint social_music_scans_attempt_nonneg check (attempt_count >= 0),
   constraint social_music_scans_score check (
     vendor_score is null or (vendor_score >= 0 and vendor_score <= 100)
@@ -142,10 +148,30 @@ create index if not exists social_music_scans_story_idx
   on public.social_music_scans (story_id)
   where story_id is not null;
 
--- True when no still-attached scan is pending or blocked.
--- No scan row (legacy video, still, or text) is released.
--- A scan whose playback id is no longer on the media jsonb does not gate.
-create or replace function public.social_video_released(p_surface text, p_id uuid)
+create index if not exists social_music_scans_playback_idx
+  on public.social_music_scans (playback_id);
+
+-- One scan row per parent and playback id. A reused asset may have many rows.
+create unique index if not exists social_music_scans_post_playback_key
+  on public.social_music_scans (post_id, playback_id)
+  where post_id is not null;
+
+create unique index if not exists social_music_scans_story_playback_key
+  on public.social_music_scans (story_id, playback_id)
+  where story_id is not null;
+
+-- Not in the Data API schema list (public, graphql_public). RLS can call it.
+-- authenticated keeps execute so the policy runs. anon does not.
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated, service_role;
+
+drop function if exists public.social_video_released(text, uuid);
+
+-- A Mux video is released only when this parent has an allowed scan for
+-- that asset id and playback id. No row is not a release. A still or a
+-- text post has no Mux item, so it stays visible.
+create or replace function private.social_video_released(p_surface text, p_id uuid)
 returns boolean
 language sql
 stable
@@ -154,31 +180,41 @@ set search_path to 'public'
 as $$
   select not exists (
     select 1
-    from public.social_music_scans s
-    where s.status is distinct from 'allowed'
-      and (
-        (p_surface = 'post' and s.post_id = p_id)
-        or (p_surface = 'story' and s.story_id = p_id)
-      )
-      and (
-        (p_surface = 'post' and exists (
-          select 1
-          from public.posts p
-          where p.id = p_id
-            and p.media @> jsonb_build_array(jsonb_build_object('playbackId', s.playback_id))
-        ))
-        or (p_surface = 'story' and exists (
-          select 1
-          from public.stories st
-          where st.id = p_id
-            and st.media @> jsonb_build_array(jsonb_build_object('playbackId', s.playback_id))
-        ))
+    from (
+      select item
+      from public.posts p
+      cross join lateral jsonb_array_elements(
+        case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
+      ) as item
+      where p_surface = 'post'
+        and p.id = p_id
+      union all
+      select item
+      from public.stories st
+      cross join lateral jsonb_array_elements(
+        case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
+      ) as item
+      where p_surface = 'story'
+        and st.id = p_id
+    ) mux
+    where coalesce(mux.item->>'kind', '') = 'video'
+      and coalesce(mux.item->>'provider', '') = 'mux'
+      and not exists (
+        select 1
+        from public.social_music_scans s
+        where s.status = 'allowed'
+          and s.asset_id = mux.item->>'assetId'
+          and s.playback_id = mux.item->>'playbackId'
+          and (
+            (p_surface = 'post' and s.post_id = p_id)
+            or (p_surface = 'story' and s.story_id = p_id)
+          )
       )
   );
 $$;
 
-revoke all on function public.social_video_released(text, uuid) from public;
-grant execute on function public.social_video_released(text, uuid) to authenticated, service_role;
+revoke all on function private.social_video_released(text, uuid) from public, anon;
+grant execute on function private.social_video_released(text, uuid) to authenticated, service_role;
 
 create or replace function public.touch_social_music_scan()
 returns trigger
@@ -200,6 +236,19 @@ as $$
 declare
   item jsonb;
   v_upload text;
+  v_asset text;
+  v_playback text;
+  v_status public.social_music_scan_status;
+  v_decided timestamptz;
+  v_vendor text;
+  v_vendor_code integer;
+  v_score numeric(5, 2);
+  v_title text;
+  v_artist text;
+  v_album text;
+  v_acrid text;
+  v_isrc text;
+  v_label text;
 begin
   if tg_op = 'UPDATE' and new.media is not distinct from old.media then
     return new;
@@ -209,34 +258,90 @@ begin
   end if;
   for item in select value from jsonb_array_elements(new.media)
   loop
-    if coalesce(item->>'kind', '') = 'video'
-       and coalesce(item->>'provider', '') = 'mux'
-       and coalesce(item->>'assetId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
-       and coalesce(item->>'playbackId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
-    then
-      v_upload := item->>'uploadId';
-      if v_upload is null or v_upload !~ '^[A-Za-z0-9_-]{8,120}$' then
-        v_upload := null;
-      end if;
-      insert into public.social_music_scans (
-        surface,
-        post_id,
-        story_id,
-        author_id,
-        asset_id,
-        playback_id,
-        upload_id
-      ) values (
-        (case when tg_table_name = 'posts' then 'post' else 'story' end)::public.social_music_scan_surface,
-        case when tg_table_name = 'posts' then new.id else null end,
-        case when tg_table_name = 'stories' then new.id else null end,
-        new.author_id,
-        item->>'assetId',
-        item->>'playbackId',
-        v_upload
-      )
-      on conflict (asset_id) do nothing;
+    if coalesce(item->>'kind', '') is distinct from 'video'
+       or coalesce(item->>'provider', '') is distinct from 'mux' then
+      continue;
     end if;
+    v_asset := coalesce(item->>'assetId', '');
+    v_playback := coalesce(item->>'playbackId', '');
+    -- A Mux video that cannot be scanned must not be stored.
+    if v_asset !~ '^[A-Za-z0-9_-]{8,120}$' or v_playback !~ '^[A-Za-z0-9_-]{8,120}$' then
+      raise exception 'social music scan requires a Mux asset id and playback id';
+    end if;
+    v_upload := item->>'uploadId';
+    if v_upload is null or v_upload !~ '^[A-Za-z0-9_-]{8,120}$' then
+      v_upload := null;
+    end if;
+    v_status := 'pending';
+    v_decided := null;
+    v_vendor := null;
+    v_vendor_code := null;
+    v_score := null;
+    v_title := null;
+    v_artist := null;
+    v_album := null;
+    v_acrid := null;
+    v_isrc := null;
+    v_label := null;
+    -- Carry a prior block before a prior allow. Do not copy a pending row.
+    select s.status, s.decided_at, s.vendor, s.vendor_status_code, s.vendor_score,
+           s.vendor_title, s.vendor_artist, s.vendor_album, s.vendor_acrid,
+           s.vendor_isrc, s.vendor_label
+      into v_status, v_decided, v_vendor, v_vendor_code, v_score,
+           v_title, v_artist, v_album, v_acrid, v_isrc, v_label
+    from public.social_music_scans s
+    where s.asset_id = v_asset
+      and s.status in ('blocked', 'allowed')
+    order by case when s.status = 'blocked' then 0 else 1 end, s.decided_at desc nulls last
+    limit 1;
+    if not found then
+      v_status := 'pending';
+      v_decided := null;
+    elsif v_decided is null then
+      v_decided := now();
+    end if;
+    insert into public.social_music_scans (
+      surface,
+      post_id,
+      story_id,
+      author_id,
+      asset_id,
+      playback_id,
+      upload_id,
+      status,
+      decided_at,
+      next_attempt_at,
+      vendor,
+      vendor_status_code,
+      vendor_score,
+      vendor_title,
+      vendor_artist,
+      vendor_album,
+      vendor_acrid,
+      vendor_isrc,
+      vendor_label
+    ) values (
+      (case when tg_table_name = 'posts' then 'post' else 'story' end)::public.social_music_scan_surface,
+      case when tg_table_name = 'posts' then new.id else null end,
+      case when tg_table_name = 'stories' then new.id else null end,
+      new.author_id,
+      v_asset,
+      v_playback,
+      v_upload,
+      v_status,
+      case when v_status = 'pending' then null else v_decided end,
+      case when v_status = 'pending' then now() else null end,
+      case when v_status = 'pending' then null else v_vendor end,
+      case when v_status = 'pending' then null else v_vendor_code end,
+      case when v_status = 'pending' then null else v_score end,
+      case when v_status = 'pending' then null else v_title end,
+      case when v_status = 'pending' then null else v_artist end,
+      case when v_status = 'pending' then null else v_album end,
+      case when v_status = 'pending' then null else v_acrid end,
+      case when v_status = 'pending' then null else v_isrc end,
+      case when v_status = 'pending' then null else v_label end
+    )
+    on conflict do nothing;
   end loop;
   return new;
 end;
@@ -310,7 +415,7 @@ create policy posts_select on public.posts
     )
     and (
       author_id = (select auth.uid())
-      or public.social_video_released('post', id)
+      or private.social_video_released('post', id)
     )
   );
 
@@ -324,7 +429,7 @@ create policy stories_select on public.stories
     and (
       author_id = (select auth.uid())
       or (
-        public.social_video_released('story', id)
+        private.social_video_released('story', id)
         and exists (
           select 1
           from public.follows f
@@ -335,13 +440,70 @@ create policy stories_select on public.stories
     )
   );
 
+-- Existing Mux videos become pending scans. They stay hidden from other
+-- people until a worker allows them. Ids that cannot be scanned are not
+-- inserted; the release function still hides those items.
+insert into public.social_music_scans (
+  surface, post_id, story_id, author_id, asset_id, playback_id, upload_id
+)
+select
+  'post'::public.social_music_scan_surface,
+  p.id,
+  null,
+  p.author_id,
+  item->>'assetId',
+  item->>'playbackId',
+  case
+    when coalesce(item->>'uploadId', '') ~ '^[A-Za-z0-9_-]{8,120}$' then item->>'uploadId'
+    else null
+  end
+from public.posts p
+cross join lateral jsonb_array_elements(
+  case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
+) as item
+where coalesce(item->>'kind', '') = 'video'
+  and coalesce(item->>'provider', '') = 'mux'
+  and coalesce(item->>'assetId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
+  and coalesce(item->>'playbackId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
+on conflict do nothing;
+
+insert into public.social_music_scans (
+  surface, post_id, story_id, author_id, asset_id, playback_id, upload_id
+)
+select
+  'story'::public.social_music_scan_surface,
+  null,
+  st.id,
+  st.author_id,
+  item->>'assetId',
+  item->>'playbackId',
+  case
+    when coalesce(item->>'uploadId', '') ~ '^[A-Za-z0-9_-]{8,120}$' then item->>'uploadId'
+    else null
+  end
+from public.stories st
+cross join lateral jsonb_array_elements(
+  case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
+) as item
+where coalesce(item->>'kind', '') = 'video'
+  and coalesce(item->>'provider', '') = 'mux'
+  and coalesce(item->>'assetId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
+  and coalesce(item->>'playbackId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
+on conflict do nothing;
+
 do $$
 begin
   if to_regclass('public.social_music_scans') is null then
     raise exception 'social_music_scans missing after create';
   end if;
-  if to_regprocedure('public.social_video_released(text, uuid)') is null then
+  if to_regprocedure('private.social_video_released(text, uuid)') is null then
     raise exception 'social_video_released missing';
+  end if;
+  if to_regprocedure('public.social_video_released(text, uuid)') is not null then
+    raise exception 'social_video_released must not be in public';
+  end if;
+  if has_function_privilege('anon', 'private.social_video_released(text, uuid)', 'execute') then
+    raise exception 'anon must not execute social_video_released';
   end if;
   if to_regprocedure('public.enqueue_social_music_scan()') is null then
     raise exception 'enqueue_social_music_scan missing';

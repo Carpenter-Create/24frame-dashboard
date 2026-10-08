@@ -31,15 +31,20 @@ function scoreOf(value: number | string | null): number | null {
 
 // Same gc_staff check as Education CMS before any service-role read.
 // The operator layout is not enough on its own (Next 16 layouts).
-export const isMusicReviewStaff = cache(async (): Promise<boolean> => {
+async function readMusicReviewStaff(): Promise<boolean> {
   const user = await getAuthUser();
   if (!user) return false;
   const supabase = await createClient();
   const { data: staff } = await supabase.from("gc_staff").select("user_id").eq("user_id", user.id).maybeSingle();
   return Boolean(staff);
-});
+}
+
+export const isMusicReviewStaff = cache(readMusicReviewStaff);
 
 export async function loadMusicReviewQueue(): Promise<MusicReviewScan[]> {
+  if (!(await readMusicReviewStaff())) {
+    throw new Error("Music review is limited to staff");
+  }
   const admin = createAdminClient();
   const [blocked, held] = await Promise.all([
     admin
@@ -56,7 +61,10 @@ export async function loadMusicReviewQueue(): Promise<MusicReviewScan[]> {
       .order("created_at", { ascending: false })
       .range(...rangeFor(UNPAGINATED_MAX)),
   ]);
-  if (blocked.error || held.error) return [];
+  if (blocked.error || held.error) {
+    const message = blocked.error?.message ?? held.error?.message ?? "unknown";
+    throw new Error(`Music review could not be loaded: ${message.slice(0, 200)}`);
+  }
   const rows = [...((blocked.data ?? []) as ReviewRow[]), ...((held.data ?? []) as ReviewRow[])];
   rows.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
   const authorIds = [...new Set(rows.map((row) => row.author_id))];

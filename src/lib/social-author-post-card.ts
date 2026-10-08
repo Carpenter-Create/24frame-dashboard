@@ -35,7 +35,7 @@ export type SocialPostCardModel = {
    * a video's screen band. Absent or null: no topic shown.
    */
   topic?: SocialCategoryTopic | null;
-  /** Author-only. Pending or blocked commercial-music check. Never a song title. */
+  /** Author-only. Pending or blocked music check. Never a song title. */
   musicNotice?: SocialMusicNotice;
 };
 

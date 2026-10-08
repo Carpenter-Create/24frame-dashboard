@@ -423,18 +423,27 @@ export function mediaItemsForPublish(
       if (item.data.kind !== "video" || !isSocialMuxMediaItem(item.data)) {
         return { ok: false, error: "invalid" };
       }
+      if (!item.data.assetId || !isSocialMuxId(item.data.assetId)) {
+        return { ok: false, error: "invalid" };
+      }
+      if (!item.data.uploadId || !isSocialMuxId(item.data.uploadId)) {
+        return { ok: false, error: "invalid" };
+      }
     }
     items.push(storedMediaItem(item.data));
   }
   return { ok: true, items };
 }
 
-/** Post and story video complete only with a Mux playback id. */
+/** Post and story video needs a Mux asset id, upload id, and playback id. */
 export function socialPublishedVideoRejection(
   items: readonly SocialMediaItem[],
 ): SocialMediaRuleError | null {
   for (const item of items) {
-    if (item.kind === "video" && !isSocialMuxMediaItem(item)) return "type";
+    if (item.kind !== "video") continue;
+    if (!isSocialMuxMediaItem(item)) return "type";
+    if (!item.assetId || !isSocialMuxId(item.assetId)) return "type";
+    if (!item.uploadId || !isSocialMuxId(item.uploadId)) return "type";
   }
   return null;
 }

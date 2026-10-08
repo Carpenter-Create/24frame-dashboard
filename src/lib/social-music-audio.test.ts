@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { muxAudioRenditionState, readBoundedBody, SOCIAL_MUSIC_AUDIO_MAX_BYTES } from "@/lib/social-music-audio";
+import {
+  muxAudioRenditionRequestSettled,
+  muxAudioRenditionState,
+  readBoundedBody,
+  SOCIAL_MUSIC_AUDIO_MAX_BYTES,
+} from "@/lib/social-music-audio";
 
 describe("muxAudioRenditionState", () => {
   it("waits while the asset or the audio file is still preparing", () => {
@@ -44,6 +49,19 @@ describe("muxAudioRenditionState", () => {
         static_renditions: { files: [{ resolution: "audio-only", status: "errored" }] },
       }),
     ).toBe("rendition_errored");
+    expect(
+      muxAudioRenditionState({
+        status: "ready",
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    ).toBe("rendition_errored");
+  });
+
+  it("treats an existing or in-progress rendition request as settled", () => {
+    expect(muxAudioRenditionRequestSettled(Object.assign(new Error("Static rendition already exists"), { status: 400 }))).toBe(true);
+    expect(muxAudioRenditionRequestSettled(new Error("Rendition is in progress"))).toBe(true);
+    expect(muxAudioRenditionRequestSettled(Object.assign(new Error("conflict"), { status: 409 }))).toBe(true);
+    expect(muxAudioRenditionRequestSettled(Object.assign(new Error("Mux request failed (503)"), { status: 503 }))).toBe(false);
   });
 });
 
@@ -59,7 +77,7 @@ describe("readBoundedBody", () => {
     });
     const bytes = await readBoundedBody(new Response(body), 10);
     expect(bytes.byteLength).toBe(10);
-    expect(SOCIAL_MUSIC_AUDIO_MAX_BYTES).toBe(12 * 1024 * 1024);
+    expect(SOCIAL_MUSIC_AUDIO_MAX_BYTES).toBe(5 * 1024 * 1024);
   });
 
   it("rejects an empty or failed response", async () => {

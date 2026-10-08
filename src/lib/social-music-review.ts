@@ -6,13 +6,13 @@ import type { StaffDirectoryRowModel } from "@/lib/staff-directory";
 
 export const SOCIAL_MUSIC_REVIEW = {
   title: "Music review",
-  subtitle: "Social videos held after a commercial-music check.",
+  subtitle: "Social videos held after a music check.",
   empty: "No videos are waiting.",
   blocked: "Blocked",
   unfinished: "Unfinished",
   post: "Social post",
   story: "Social story",
-  matchFallback: "Commercial match",
+  matchFallback: "Music match",
   unfinishedDetail: "The check did not finish. The video stays hidden.",
 } as const;
 
@@ -39,7 +39,7 @@ function reviewSecondary(scan: MusicReviewScan): string {
   if (scan.status === "pending") {
     return `${SOCIAL_MUSIC_REVIEW.unfinishedDetail} ${scan.assetId}`;
   }
-  const recording = [scan.vendorTitle, scan.vendorArtist].filter(Boolean).join(" — ");
+  const recording = [scan.vendorTitle, scan.vendorArtist].filter(Boolean).join(" · ");
   const score = scan.vendorScore == null ? null : `score ${scan.vendorScore}`;
   return [recording || SOCIAL_MUSIC_REVIEW.matchFallback, score, scan.assetId].filter(Boolean).join(" · ");
 }

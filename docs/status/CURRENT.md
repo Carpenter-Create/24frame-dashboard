@@ -149,9 +149,13 @@ out. Any `metadata.music` score at or above 25 blocks immediately. Under 25,
 or no music match, passes. `metadata.custom_files` is ignored and cannot
 allow a clip. No allowlist in this phase. Adam's own CFN tracks block too,
 because they match ACRCloud Music at score 100. That is accepted.
-Staff Music review lists blocked rows for spot-checks and appeals. The
-queue does not gate going live. End users never see the matched title or
-artist. Blocked copy is a placeholder pending a design lock. Vendor error
+A Mux video stays hidden from other people until that post or story has
+an allowed scan. No scan row is not a release. Stills and text stay
+visible. Staff Music review lists blocked rows for spot-checks and
+appeals. The queue does not gate going live. End users never see the
+matched title or artist. End-user and staff copy follow
+[`docs/design-locks/social-music-block-copy-lock-v1.md`](../design-locks/social-music-block-copy-lock-v1.md).
+Vendor error
 retries with backoff and does not publish.
 
 The migration, the Lambda, its role, and its schedule are founder-applied

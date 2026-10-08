@@ -1,3 +1,7 @@
+import "server-only";
+
+import { socialMuxPlaybackMusicReleased } from "@/lib/social-music-scan";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   isForbiddenMediaKey,
@@ -242,7 +246,7 @@ export async function viewerMayMintSocialMuxPlayback(
       if (followError) return false;
       followeeIds = (follows ?? []).flatMap((row) => (row.followee_id ? [row.followee_id] : []));
     }
-    return socialMuxPlaybackReadGrant({
+    const granted = socialMuxPlaybackReadGrant({
       userId,
       playbackId,
       now,
@@ -250,7 +254,57 @@ export async function viewerMayMintSocialMuxPlayback(
       stories: storyRows,
       posts: posts ?? [],
     });
+    if (!granted) return false;
+    const postRows = posts ?? [];
+    const sharesWithSomeoneElse =
+      storyRows.some(
+        (story) =>
+          story.author_id !== userId &&
+          mediaStoresPlaybackId(story.media, playbackId, story.author_id, "stories"),
+      ) ||
+      postRows.some(
+        (post) =>
+          post.author_id !== userId &&
+          mediaStoresPlaybackId(post.media, playbackId, post.author_id, "posts"),
+      );
+    if (!sharesWithSomeoneElse) return true;
+    const release = await nonAuthorMuxPlaybackRelease(playbackId);
+    if (release === "uninstalled") return true;
+    return release === "allowed";
   } catch {
     return false;
+  }
+}
+
+function musicScanTableMissing(error: { code?: string; message?: string }): boolean {
+  if (error.code === "42P01" || error.code === "PGRST205") return true;
+  const message = error.message ?? "";
+  return /social_music_scans/.test(message) && /does not exist|schema cache/i.test(message);
+}
+
+/**
+ * Before the music migration, the scan table is absent and existing Mux
+ * playback keeps the selectability grant. After it exists, someone else's
+ * playback needs an allowed scan.
+ */
+async function nonAuthorMuxPlaybackRelease(
+  playbackId: string,
+): Promise<"allowed" | "held" | "uninstalled"> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("social_music_scans")
+      .select("playback_id, status")
+      .eq("playback_id", playbackId)
+      .limit(8);
+    if (error) return musicScanTableMissing(error) ? "uninstalled" : "held";
+    const scans = (data ?? []).flatMap((row) =>
+      row.status === "pending" || row.status === "allowed" || row.status === "blocked"
+        ? [{ playbackId: row.playback_id, status: row.status }]
+        : [],
+    );
+    return socialMuxPlaybackMusicReleased(playbackId, scans) ? "allowed" : "held";
+  } catch {
+    return "held";
   }
 }

@@ -26,6 +26,7 @@ describe("social music Lambda handler", () => {
   it("decides through the shared batch, not a second worker", () => {
     const source = readFileSync("workers/social-music/handler.ts", "utf8");
     expect(source).toContain("runSocialMusicBatch");
+    expect(source).toContain('.eq("status", "pending")');
     expect(source).not.toContain("phase0MusicAllowlist");
     expect(source).not.toContain("custom_files");
     expect(source).not.toContain("audd");
