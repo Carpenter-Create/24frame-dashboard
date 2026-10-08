@@ -8,10 +8,16 @@ import {
   goLiveFileName,
   goLiveFitsByteCap,
   goLiveReachedCap,
+  findGoLiveCamera,
+  goLiveCameraLabel,
+  goLiveCameras,
   goLiveFrameCut,
   goLiveRecorderOptions,
   goLiveRemainingMs,
   goLiveVideoConstraints,
+  readGoLiveCamera,
+  rememberGoLiveCamera,
+  SOCIAL_GO_LIVE_CAMERA_KEY,
   SOCIAL_GO_LIVE_DEFAULT_FRAME,
   SOCIAL_GO_LIVE_FRAME_ASPECT,
   SOCIAL_GO_LIVE_FRAMES,
@@ -71,6 +77,76 @@ describe("Go live duration cap", () => {
     });
     expect(goLiveVideoConstraints("environment", false)).toEqual({ facingMode: { ideal: "environment" } });
     expect(JSON.stringify(goLiveVideoConstraints("user", true))).not.toContain("exact");
+  });
+
+  // §Camera picker (Adam 2026-10-08: "yes, build the camera picker").
+  it("asks a computer for the chosen camera by id (exact), still in HD; the phone by facing only", () => {
+    expect(goLiveVideoConstraints("user", true, "cam-2")).toEqual({
+      deviceId: { exact: "cam-2" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+    });
+    expect(goLiveVideoConstraints("user", true, null)).toEqual(goLiveVideoConstraints("user", true));
+    expect(goLiveVideoConstraints("environment", false, "cam-2")).toEqual({ facingMode: { ideal: "environment" } });
+  });
+
+  it("lists each camera once by its own name, without Chrome's USB id", () => {
+    expect(goLiveCameraLabel("Desk Cam (046d:085e)", 0, "Camera")).toBe("Desk Cam");
+    expect(goLiveCameraLabel("FaceTime HD Camera", 0, "Camera")).toBe("FaceTime HD Camera");
+    expect(goLiveCameraLabel("", 1, "Camera")).toBe("Camera 2");
+    expect(
+      goLiveCameras(
+        [
+          { kind: "audioinput", deviceId: "mic", label: "Mic" },
+          { kind: "videoinput", deviceId: "a", label: "FaceTime HD Camera" },
+          { kind: "videoinput", deviceId: "b", label: "Desk Cam (046d:085e)" },
+          { kind: "videoinput", deviceId: "a", label: "FaceTime HD Camera" },
+          { kind: "videoinput", deviceId: "", label: "" },
+        ],
+        "Camera",
+      ),
+    ).toEqual([
+      { id: "a", label: "FaceTime HD Camera" },
+      { id: "b", label: "Desk Cam" },
+    ]);
+  });
+
+  it("remembers the chosen camera on this browser, and survives blocked storage", () => {
+    const data = new Map<string, string>();
+    const store = {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => void data.set(key, value),
+    };
+    expect(readGoLiveCamera(store)).toBeNull();
+    rememberGoLiveCamera({ id: "cam-2", label: "Desk Cam" }, store);
+    expect(JSON.parse(data.get(SOCIAL_GO_LIVE_CAMERA_KEY)!)).toEqual({ id: "cam-2", label: "Desk Cam" });
+    expect(readGoLiveCamera(store)).toEqual({ id: "cam-2", label: "Desk Cam" });
+    data.set(SOCIAL_GO_LIVE_CAMERA_KEY, "not json");
+    expect(readGoLiveCamera(store)).toBeNull();
+    data.set(SOCIAL_GO_LIVE_CAMERA_KEY, JSON.stringify({ id: 4 }));
+    expect(readGoLiveCamera(store)).toBeNull();
+    const blocked = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    };
+    expect(readGoLiveCamera(blocked)).toBeNull();
+    expect(() => rememberGoLiveCamera({ id: "cam-2", label: "Desk Cam" }, blocked)).not.toThrow();
+    expect(readGoLiveCamera(null)).toBeNull();
+  });
+
+  it("finds the remembered camera by id, else by name (new ids), else not at all", () => {
+    const here = [
+      { id: "a", label: "FaceTime HD Camera" },
+      { id: "b2", label: "Desk Cam" },
+    ];
+    expect(findGoLiveCamera({ id: "a", label: "Renamed" }, here)).toEqual(here[0]);
+    expect(findGoLiveCamera({ id: "b1", label: "Desk Cam" }, here)).toEqual(here[1]);
+    expect(findGoLiveCamera({ id: "c", label: "iPhone Camera" }, here)).toBeNull();
+    expect(findGoLiveCamera(null, here)).toBeNull();
   });
 
   it("cuts 9:16 from the centre of the camera frame, no upscale, even sizes", () => {

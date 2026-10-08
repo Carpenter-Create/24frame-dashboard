@@ -6,6 +6,13 @@ import { useRouter } from "next/navigation";
 
 import { HouseLink } from "@/components/chrome/house-link";
 import { isHouseDesktop, useHouseDesktop } from "@/components/chrome/house-overlay";
+import { MenuSurfaceContent, MenuSurfaceRadioItem } from "@/components/chrome/menu-surface";
+import {
+  DropdownMenu,
+  DropdownMenuItemIndicator,
+  DropdownMenuRadioGroup,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +20,8 @@ import { uploadSocialPostMedia } from "@/lib/social-media-upload";
 import {
   SOCIAL_GO_LIVE_CAPTION_CLASS,
   SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS,
+  SOCIAL_GO_LIVE_CAMERA_MENU_CLASS,
+  SOCIAL_GO_LIVE_CAMERA_OPTION_CLASS,
   SOCIAL_GO_LIVE_FRAME_OPTION_CLASS,
   SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS,
   SOCIAL_GO_LIVE_FULL_VIDEO_CLASS,
@@ -45,13 +54,18 @@ import {
   goLiveFitsByteCap,
   goLiveReachedCap,
   goLiveRecorderOptions,
+  findGoLiveCamera,
+  goLiveCameras,
   goLiveFrameCut,
   goLiveVideoConstraints,
+  readGoLiveCamera,
+  rememberGoLiveCamera,
   goLiveRemainingMs,
   SOCIAL_GO_LIVE_DEFAULT_FRAME,
   SOCIAL_GO_LIVE_FRAME_ASPECT,
   SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
+  type GoLiveCamera,
   type GoLiveFrame,
 } from "@/lib/social-go-live";
 import { clearSocialGoLiveOpener, takeSocialGoLiveExitHref } from "@/lib/social-go-live-nav";
@@ -163,6 +177,8 @@ export function SocialGoLive() {
   const aliveRef = useRef(true);
   const attachPromiseRef = useRef<Promise<boolean> | null>(null);
   const cutRef = useRef<FrameRecording | null>(null);
+  // The camera chosen in the picker (desktop), remembered on this browser.
+  const cameraIdRef = useRef<string | null>(null);
   const reviewRef = useRef<HTMLVideoElement>(null);
   // The poster: the one author every Social post path uses (the shell's).
   const author = useSocialCompose()?.author;
@@ -170,6 +186,9 @@ export function SocialGoLive() {
   const [frameChoice, setFrameChoice] = useState<GoLiveFrame>(SOCIAL_GO_LIVE_DEFAULT_FRAME);
   // The frame switch is desktop only; the phone records its own portrait frame.
   const frame: GoLiveFrame = desktop ? frameChoice : "full";
+
+  const [cameras, setCameras] = useState<GoLiveCamera[]>([]);
+  const [activeCamera, setActiveCamera] = useState("");
 
   const [phase, setPhase] = useState<LivePhase>("preview");
   const [facing, setFacing] = useState<StoryStudioFacing>("user");
@@ -263,12 +282,25 @@ export function SocialGoLive() {
     void node.play().catch(() => undefined);
   }, [phase]);
 
-  async function acquireStream(nextFacing: StoryStudioFacing): Promise<MediaStream> {
+  async function acquireStream(
+    nextFacing: StoryStudioFacing,
+    deviceId: string | null = cameraIdRef.current,
+  ): Promise<MediaStream> {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error(SOCIAL.stories.unavailable);
     }
     // Read at call time: the first client render does not know the host yet.
-    const video = goLiveVideoConstraints(nextFacing, isHouseDesktop());
+    const desktopNow = isHouseDesktop();
+    try {
+      return await openCamera(goLiveVideoConstraints(nextFacing, desktopNow, deviceId));
+    } catch (failure) {
+      if (!desktopNow || !deviceId) throw failure;
+      // The chosen camera is gone (an iPhone out of reach): open the default.
+      return openCamera(goLiveVideoConstraints(nextFacing, desktopNow));
+    }
+  }
+
+  async function openCamera(video: MediaTrackConstraints): Promise<MediaStream> {
     try {
       return await navigator.mediaDevices.getUserMedia({ video, audio: true });
     } catch {
@@ -276,11 +308,32 @@ export function SocialGoLive() {
     }
   }
 
-  async function attachPreview(nextFacing: StoryStudioFacing, live: number) {
+  // The cameras the browser names (ids and names once camera access is given).
+  async function listCameras(): Promise<GoLiveCamera[]> {
+    if (!navigator.mediaDevices?.enumerateDevices) return [];
+    const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    return goLiveCameras(devices, SOCIAL.create.liveCamera);
+  }
+
+  // The picker lists them once the camera is open, and marks the one
+  // actually streaming.
+  async function refreshCameras() {
+    const listed = await listCameras();
+    if (!aliveRef.current) return;
+    setCameras(listed);
+    const track = streamRef.current?.getVideoTracks()[0];
+    setActiveCamera(track?.getSettings().deviceId ?? "");
+  }
+
+  async function attachPreview(
+    nextFacing: StoryStudioFacing,
+    live: number,
+    deviceId: string | null = cameraIdRef.current,
+  ) {
     stopStream(streamRef.current);
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
-    const stream = await acquireStream(nextFacing);
+    const stream = await acquireStream(nextFacing, deviceId);
     if (!storyStudioIsLive(liveRef.current, live)) {
       stopStream(stream);
       return false;
@@ -293,6 +346,7 @@ export function SocialGoLive() {
       node.playsInline = true;
       await node.play().catch(() => undefined);
     }
+    void refreshCameras();
     return true;
   }
 
@@ -329,6 +383,12 @@ export function SocialGoLive() {
         return;
       }
       mimeRef.current = probed.mimeType;
+      // The remembered camera, found by id or by name among those here now.
+      const remembered = readGoLiveCamera();
+      if (remembered && isHouseDesktop()) {
+        cameraIdRef.current = (findGoLiveCamera(remembered, await listCameras()) ?? remembered).id;
+        if (cancelled) return;
+      }
       await ensurePreview(facing);
     })();
     return () => {
@@ -349,6 +409,38 @@ export function SocialGoLive() {
       if (!storyStudioIsLive(liveRef.current, live)) return;
       try {
         await attachPreview(facing, live);
+      } catch {
+        setError(SOCIAL.stories.permission);
+      }
+    }
+  }
+
+  // An iPhone coming in reach, or a webcam plugged in, joins the list.
+  useEffect(() => {
+    const media = typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
+    if (!media?.addEventListener) return undefined;
+    const onChange = () => {
+      if (streamRef.current) void refreshCameras();
+    };
+    media.addEventListener("devicechange", onChange);
+    return () => media.removeEventListener("devicechange", onChange);
+    // Listen once on mount; refreshCameras reads refs and setters only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function chooseCamera(id: string) {
+    if (phase !== "preview" || recordingRef.current || id === activeCamera) return;
+    const previous = cameraIdRef.current;
+    const live = liveRef.current;
+    cameraIdRef.current = id;
+    try {
+      const camera = cameras.find((item) => item.id === id);
+      if ((await attachPreview(facing, live, id)) && camera) rememberGoLiveCamera(camera);
+    } catch {
+      cameraIdRef.current = previous;
+      if (!storyStudioIsLive(liveRef.current, live)) return;
+      try {
+        await attachPreview(facing, live, previous);
       } catch {
         setError(SOCIAL.stories.permission);
       }
@@ -601,15 +693,49 @@ export function SocialGoLive() {
             <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
           </HouseLink>
           <span className="t-label font-semibold text-band-ink">{SOCIAL.create.goLive}</span>
-          <button
-            type="button"
-            aria-label={SOCIAL.stories.flipCamera}
-            className={SOCIAL_STORY_STUDIO_ICON_CLASS}
-            disabled={phase !== "preview"}
-            onClick={() => void flipCamera()}
-          >
-            <SocialIcon weight="bold" name="camera-rotate" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
-          </button>
+          {desktop ? (
+            // A computer chooses among its cameras (built in, an iPhone, a
+            // webcam); there is no back camera to flip to.
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={phase !== "preview" || cameras.length === 0}>
+                <button
+                  type="button"
+                  aria-label={SOCIAL.create.liveCamera}
+                  data-social-go-live-camera=""
+                  className={SOCIAL_STORY_STUDIO_ICON_CLASS}
+                >
+                  <SocialIcon weight="bold" name="video-camera" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+                </button>
+              </DropdownMenuTrigger>
+              <MenuSurfaceContent align="end" className={SOCIAL_GO_LIVE_CAMERA_MENU_CLASS}>
+                <DropdownMenuRadioGroup value={activeCamera} onValueChange={(id) => void chooseCamera(id)}>
+                  {cameras.map((camera) => (
+                    <MenuSurfaceRadioItem
+                      key={camera.id}
+                      value={camera.id}
+                      data-social-go-live-camera-option=""
+                      className={SOCIAL_GO_LIVE_CAMERA_OPTION_CLASS}
+                    >
+                      <span>{camera.label}</span>
+                      <DropdownMenuItemIndicator>
+                        <SocialIcon weight="bold" name="check" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+                      </DropdownMenuItemIndicator>
+                    </MenuSurfaceRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </MenuSurfaceContent>
+            </DropdownMenu>
+          ) : (
+            <button
+              type="button"
+              aria-label={SOCIAL.stories.flipCamera}
+              className={SOCIAL_STORY_STUDIO_ICON_CLASS}
+              disabled={phase !== "preview"}
+              onClick={() => void flipCamera()}
+            >
+              <SocialIcon weight="bold" name="camera-rotate" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
+            </button>
+          )}
         </div>
         {phase === "recording" ? (
           <p data-social-go-live-timer="" className={SOCIAL_STORY_REC_PILL_CLASS}>

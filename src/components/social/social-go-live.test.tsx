@@ -21,6 +21,7 @@ import { SocialGoLive } from "./social-go-live";
 import { SocialPostMedia } from "./social-post-media";
 import { SOCIAL } from "@/lib/social";
 import {
+  SOCIAL_GO_LIVE_CAMERA_MENU_CLASS,
   SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS,
   SOCIAL_GO_LIVE_FULL_VIDEO_CLASS,
   SOCIAL_GO_LIVE_STAGE_FULL_CLASS,
@@ -128,7 +129,8 @@ describe("Social Go live recorder", () => {
     expect(src).toContain("const stream = cutRef.current?.stream ?? source;");
     expect(src).toContain("goLiveFrameCut(video.videoWidth, video.videoHeight, aspect)");
     // The camera is asked for 16:9 HD on a computer, read at call time.
-    expect(src).toContain("const video = goLiveVideoConstraints(nextFacing, isHouseDesktop());");
+    expect(src).toContain("const desktopNow = isHouseDesktop();");
+    expect(src).toContain("openCamera(goLiveVideoConstraints(nextFacing, desktopNow, deviceId))");
     expect(src).toContain("context.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh)");
     expect(src).toContain("canvas.captureStream(30)");
     expect(src).toContain("for (const track of source.getAudioTracks()) stream.addTrack(track);");
@@ -182,6 +184,57 @@ describe("Social Go live recorder", () => {
     expect(post).toContain("body: caption,");
     // Nothing after the snapshot reads the live field.
     expect(post.replace("const caption = body;", "").replace("body: caption,", "")).not.toMatch(/\bbody\b/);
+  });
+
+  // §Camera picker (Adam 2026-10-08: "yes, build the camera picker").
+  it("on a computer, the top-right control picks the camera; the phone keeps flip", () => {
+    const chrome = src.slice(src.indexOf("{desktop ? ("), src.indexOf("{phase === \"recording\" ? ("));
+    const picker = chrome.slice(0, chrome.indexOf(") : ("));
+    const phone = chrome.slice(chrome.indexOf(") : ("));
+    expect(picker).toContain("<DropdownMenu>");
+    expect(picker).toContain("aria-label={SOCIAL.create.liveCamera}");
+    expect(picker).toContain('name="video-camera"');
+    expect(picker).toContain('disabled={phase !== "preview" || cameras.length === 0}');
+    expect(picker).toContain("<MenuSurfaceContent align=\"end\" className={SOCIAL_GO_LIVE_CAMERA_MENU_CLASS}>");
+    expect(picker).toContain("<DropdownMenuRadioGroup value={activeCamera} onValueChange={(id) => void chooseCamera(id)}>");
+    expect(picker).toContain("<MenuSurfaceRadioItem");
+    expect(picker).toContain('name="check"');
+    expect(picker).not.toContain("flipCamera");
+    expect(phone).toContain("aria-label={SOCIAL.stories.flipCamera}");
+    expect(phone).toContain("onClick={() => void flipCamera()}");
+    // The first render (server, and the phone) shows flip, not the picker.
+    const html = renderToStaticMarkup(createElement(SocialGoLive));
+    expect(html).toContain(`aria-label="${SOCIAL.stories.flipCamera}"`);
+    expect(html).not.toContain("data-social-go-live-camera=");
+    // Names wrap, never truncate.
+    expect(SOCIAL_GO_LIVE_CAMERA_MENU_CLASS).not.toMatch(/truncate|ellipsis/);
+    expect(SOCIAL.create.liveCamera).toBe("Camera");
+  });
+
+  it("opens the remembered camera, falls back to the default when it is gone, and lists what streams", () => {
+    // Read before the first open, and found by id or by name among the cameras here now.
+    const mount = src.slice(src.indexOf("mimeRef.current = probed.mimeType;"));
+    const pick = "cameraIdRef.current = (findGoLiveCamera(remembered, await listCameras()) ?? remembered).id;";
+    expect(mount).toContain("const remembered = readGoLiveCamera();");
+    expect(mount.indexOf(pick)).toBeGreaterThan(-1);
+    expect(mount.indexOf(pick)).toBeLessThan(mount.indexOf("await ensurePreview(facing);"));
+    // A chosen camera that cannot open (an iPhone out of reach) gives way to the default.
+    const acquire = src.slice(src.indexOf("async function acquireStream("), src.indexOf("async function openCamera("));
+    expect(acquire).toMatch(/catch \(failure\) \{\s*if \(!desktopNow \|\| !deviceId\) throw failure;\s*\/\/[^\n]*\n\s*return openCamera\(goLiveVideoConstraints\(nextFacing, desktopNow\)\);/);
+    // The check marks the camera actually streaming, not the one asked for.
+    expect(src).toContain('setActiveCamera(track?.getSettings().deviceId ?? "");');
+    expect(src).toContain("return goLiveCameras(devices, SOCIAL.create.liveCamera);");
+    const attach = src.slice(src.indexOf("async function attachPreview("), src.indexOf("function ensurePreview("));
+    expect(attach).toContain("void refreshCameras();");
+    // A pick is remembered only once it opens; a failed pick restores the last.
+    const choose = src.slice(src.indexOf("async function chooseCamera("), src.indexOf("function startClock()"));
+    expect(choose).toContain('if (phase !== "preview" || recordingRef.current || id === activeCamera) return;');
+    expect(choose).toContain("if ((await attachPreview(facing, live, id)) && camera) rememberGoLiveCamera(camera);");
+    expect(choose).toContain("cameraIdRef.current = previous;");
+    expect(choose).toContain("await attachPreview(facing, live, previous);");
+    // New cameras (an iPhone in reach, a webcam plugged in) join the list.
+    expect(src).toContain('media.addEventListener("devicechange", onChange);');
+    expect(src).toContain('return () => media.removeEventListener("devicechange", onChange);');
   });
 
   it("posts as the one author every Social path uses (the shell's), not \"You\"", () => {

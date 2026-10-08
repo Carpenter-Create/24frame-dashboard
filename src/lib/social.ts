@@ -678,6 +678,7 @@ export const SOCIAL = {
     // Desktop camera frame switch (Adam 2026-10-08: "normal view" by
     // default, a simple switch to "reel sized").
     liveFrame: "Aspect ratio",
+    liveCamera: "Camera",
     liveFrameFull: "16:9",
     liveFrameReel: "9:16",
     liveStart: "Start",

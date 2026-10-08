@@ -5,6 +5,7 @@ import { Children, isValidElement, type ComponentProps, type ReactNode } from "r
 import {
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/cn";
@@ -81,6 +82,14 @@ export function MenuSurfaceItem({
       {...props}
     />
   );
+}
+
+/** One choice of several (a radio row): the same row as MenuSurfaceItem. */
+export function MenuSurfaceRadioItem({
+  className,
+  ...props
+}: ComponentProps<typeof DropdownMenuRadioItem>) {
+  return <DropdownMenuRadioItem className={cn(MENU_SURFACE_ITEM_CLASS, className)} {...props} />;
 }
 
 export function MenuSurfaceSeparator({

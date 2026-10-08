@@ -73,13 +73,99 @@ export const SOCIAL_GO_LIVE_FRAME_ASPECT = {
 
 /** The camera a computer asks for: 16:9 HD. With no size, browsers open a
  *  webcam at 640 × 480 (4:3). Ideal, not exact: the nearest mode wins and
- *  the recording is cut to the frame's shape. The phone asks for nothing. */
+ *  the recording is cut to the frame's shape. A camera chosen in the picker
+ *  is asked for by id (exact) instead of by facing. The phone asks for
+ *  nothing but its facing. */
 export function goLiveVideoConstraints(
   facing: StoryStudioFacing,
   desktop: boolean,
+  deviceId?: string | null,
 ): MediaTrackConstraints {
   const base = storyRecorderVideoConstraints(facing);
-  return desktop ? { ...base, width: { ideal: 1920 }, height: { ideal: 1080 } } : base;
+  if (!desktop) return base;
+  const hd = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  return deviceId ? { deviceId: { exact: deviceId }, ...hd } : { ...base, ...hd };
+}
+
+// Camera picker (social-go-live-camera-chrome-lock-v1 §Camera picker, Adam
+// 2026-10-08: "yes, build the camera picker"). A computer can have several
+// cameras (built in, an iPhone, a USB webcam); the browser opens its default.
+
+export type GoLiveCamera = { id: string; label: string };
+
+/** The device's own name, without the USB vendor:product id Chrome appends
+ *  ("Desk Cam (046d:085e)" → "Desk Cam"); "Camera 2" before the browser
+ *  shares names. */
+export function goLiveCameraLabel(label: string, index: number, fallback: string): string {
+  const name = label.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, "").trim();
+  return name || `${fallback} ${index + 1}`;
+}
+
+/** The video inputs, once each, in the browser's order. Ids are empty until
+ *  camera permission is granted: none are listed then. */
+export function goLiveCameras(
+  devices: readonly Pick<MediaDeviceInfo, "kind" | "deviceId" | "label">[],
+  fallback: string,
+): GoLiveCamera[] {
+  const seen = new Set<string>();
+  const cameras: GoLiveCamera[] = [];
+  for (const device of devices) {
+    if (device.kind !== "videoinput" || !device.deviceId || seen.has(device.deviceId)) continue;
+    seen.add(device.deviceId);
+    cameras.push({ id: device.deviceId, label: goLiveCameraLabel(device.label, cameras.length, fallback) });
+  }
+  return cameras;
+}
+
+/** The chosen camera, remembered on this browser only (a convenience: a
+ *  blocked or cleared store opens the default camera). Its name is kept
+ *  with its id: a browser can issue new ids (cleared site data, a private
+ *  window), and the name finds the same camera again. */
+export const SOCIAL_GO_LIVE_CAMERA_KEY = "gc-go-live-camera";
+
+type CameraStore = Pick<Storage, "getItem" | "setItem">;
+
+function cameraStore(): CameraStore | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function readGoLiveCamera(store: CameraStore | null = cameraStore()): GoLiveCamera | null {
+  try {
+    const raw = store?.getItem(SOCIAL_GO_LIVE_CAMERA_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== "object") return null;
+    const { id, label } = value as Partial<GoLiveCamera>;
+    return typeof id === "string" && id && typeof label === "string" ? { id, label } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberGoLiveCamera(camera: GoLiveCamera, store: CameraStore | null = cameraStore()): void {
+  try {
+    store?.setItem(SOCIAL_GO_LIVE_CAMERA_KEY, JSON.stringify({ id: camera.id, label: camera.label }));
+  } catch {
+    // Blocked storage: the choice lasts this visit only.
+  }
+}
+
+/** The remembered camera among those listed now: by id, else by name. Null
+ *  when it is not here (the default camera opens). */
+export function findGoLiveCamera(
+  remembered: GoLiveCamera | null,
+  cameras: readonly GoLiveCamera[],
+): GoLiveCamera | null {
+  if (!remembered) return null;
+  return (
+    cameras.find((camera) => camera.id === remembered.id) ??
+    cameras.find((camera) => camera.label === remembered.label) ??
+    null
+  );
 }
 
 const even = (n: number) => Math.max(2, Math.floor(n / 2) * 2);
