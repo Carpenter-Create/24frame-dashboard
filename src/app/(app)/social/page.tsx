@@ -185,11 +185,7 @@ async function SocialHomeCenter({
           warmedThumbs={warmedThumbs}
         />
         {profile ? (
-          <SocialHomeComposer
-            authorName={profile.display_name}
-            authorHandle={profile.handle}
-            authorPhotoUrl={photoUrl}
-          />
+          <SocialHomeComposer authorName={profile.display_name} authorPhotoUrl={photoUrl} />
         ) : null}
         {/* Topics sit over the wall they filter (stories → composer →
             topics → wall). */}

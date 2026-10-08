@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, use, useCallback, useEffect, useId, useRef, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { HouseScreenOutlet, useHousePathname } from "./house-client-shell";
 
 import { UserMenu } from "./user-menu";
@@ -13,6 +13,7 @@ import { RailBrand } from "./rail-brand";
 import { useDmUnread } from "./dm-unread";
 import { AskAssistantChromeProvider } from "@/components/messages/ask-frame-ai-chrome";
 import { SocialExploreExit } from "@/components/social/social-explore-exit";
+import { SocialComposeContext } from "@/components/social/social-compose-context";
 import { SocialWriteComposeSheet } from "@/components/social/social-write-compose-sheet";
 import { socialCreateWindowAt, type SocialCreateWindow } from "@/lib/social-write-compose-sheet";
 import { AskAiOverlayProvider } from "./ask-ai-overlay";
@@ -239,9 +240,11 @@ export function AppShell({
   const exploreStage = isSocialExplorePath(pathname);
   const hideDestRail = hideProductRail || storyCreateStage || storyOpenStage || exploreStage;
   const socialChrome = workspace === "social" && !settingsPage && !hideProductRail;
-  // Desktop Create's composer window (social-desktop-create-composer-lock-v1).
-  // It lives here, not in the side menu: the side menu is swapped when the
-  // chrome resolves (Suspense fallback → resolved), which would drop a draft.
+  // The one write composer window (social-desktop-create-composer-lock-v1):
+  // the side menu's Create and the Feed's "Share something" both open it
+  // (SocialComposeContext), with one author, the shell's identity. It lives
+  // here, not in the side menu: the side menu is swapped when the chrome
+  // resolves (Suspense fallback → resolved), which would drop a draft.
   // Any navigation closes it (socialCreateWindowAt).
   const createTitleId = useId();
   const [createWindow, setCreateWindow] = useState<SocialCreateWindow>({ open: false, path: pathname });
@@ -250,6 +253,17 @@ export function AppShell({
   const createOpen = createAt.open;
   const openCreate = useCallback(() => setCreateWindow((current) => ({ ...current, open: true })), []);
   const closeCreate = useCallback(() => setCreateWindow((current) => ({ ...current, open: false })), []);
+  const composeAuthorName = identity.name || SOCIAL.home.you;
+  const composeAuthorPhoto = identity.photoUrl;
+  const compose = useMemo(
+    () => ({
+      open: createOpen,
+      onOpen: openCreate,
+      controls: createTitleId,
+      author: { name: composeAuthorName, photoUrl: composeAuthorPhoto },
+    }),
+    [createOpen, openCreate, createTitleId, composeAuthorName, composeAuthorPhoto],
+  );
   const accountChrome = settingsPage || helpPage || activityPage;
   const phoneDestDock =
     !storyCreateStage &&
@@ -351,8 +365,18 @@ export function AppShell({
   return (
     <AskAiOverlayProvider>
     <AskAssistantChromeProvider>
+    <SocialComposeContext.Provider value={compose}>
     {cookieSync}
     <SettingsReturnRecorder />
+    {socialChrome ? (
+      <SocialWriteComposeSheet
+        open={createOpen}
+        onClose={closeCreate}
+        titleId={createTitleId}
+        authorName={compose.author.name}
+        authorPhotoUrl={compose.author.photoUrl}
+      />
+    ) : null}
     <HousePhoneAppShell
       chrome={chrome}
       workspace={workspace}
@@ -404,18 +428,9 @@ export function AppShell({
                 workspace={socialChrome ? "social" : workspace}
                 homeOwned={homeOwned}
                 messagesUnread={socialChrome ? dmUnreadCount : 0}
-                compose={{ open: createOpen, onOpen: openCreate, controls: createTitleId }}
+                compose={compose}
               />
             )}
-            {socialChrome ? (
-              <SocialWriteComposeSheet
-                open={createOpen}
-                onClose={closeCreate}
-                titleId={createTitleId}
-                authorName={identity.name || SOCIAL.home.you}
-                authorPhotoUrl={identity.photoUrl}
-              />
-            ) : null}
           </div>
           {settingsPage ? null : (
             <div
@@ -514,6 +529,7 @@ export function AppShell({
         </div>
       </main>
     </HousePhoneAppShell>
+    </SocialComposeContext.Provider>
     </AskAssistantChromeProvider>
     </AskAiOverlayProvider>
   );

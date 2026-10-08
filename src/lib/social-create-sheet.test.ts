@@ -41,7 +41,8 @@ describe("Social Create sheet SoT", () => {
     expect(rail).toContain("isSocialCreateDest");
     expect(rail).not.toContain("SocialCreateSheet");
     expect(rail).not.toContain("SocialCreateMenu");
-    expect(composer).toContain("SocialWriteComposeSheet");
+    expect(composer).toContain("useSocialCompose()");
+    expect(composer).not.toContain("<SocialWriteComposeSheet");
     expect(composer).not.toContain('socialCreateHref("text")');
     expect(composer).toContain("data-social-composer-write");
     expect(composer).not.toContain("SocialCreateSheet");

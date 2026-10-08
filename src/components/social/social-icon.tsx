@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ArrowCounterClockwise,
+  ArrowUp,
   Broadcast,
   Camera,
   CameraRotate,
@@ -74,6 +76,8 @@ const ICONS: Record<SocialPhosphorIconName, Icon> = {
   "check-circle": CheckCircle,
   trash: Trash,
   "upload-simple": UploadSimple,
+  "arrow-counter-clockwise": ArrowCounterClockwise,
+  "arrow-up": ArrowUp,
   "caret-left": CaretLeft,
   "caret-right": CaretRight,
   x: X,

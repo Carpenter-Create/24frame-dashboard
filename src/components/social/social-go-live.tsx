@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { HouseLink } from "@/components/chrome/house-link";
+import { useHouseDesktop } from "@/components/chrome/house-overlay";
 import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadSocialPostMedia } from "@/lib/social-media-upload";
-import { HOUSE_VOICE_FIELD_HOST_CLASS } from "@/lib/form-control";
 import {
-  SOCIAL_ACTION_CLASS,
-  SOCIAL_ACTION_SECONDARY_CLASS,
+  SOCIAL_GO_LIVE_CAPTION_CLASS,
+  SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS,
+  SOCIAL_GO_LIVE_FRAME_OPTION_CLASS,
+  SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS,
+  SOCIAL_GO_LIVE_FULL_VIDEO_CLASS,
+  SOCIAL_GO_LIVE_POST_CLASS,
+  SOCIAL_GO_LIVE_PROGRESS_FILL_CLASS,
+  SOCIAL_GO_LIVE_PROGRESS_TRACK_CLASS,
+  SOCIAL_GO_LIVE_RETAKE_CLASS,
+  SOCIAL_GO_LIVE_REVIEW_ACTIONS_CLASS,
+  SOCIAL_GO_LIVE_REVIEW_CLASS,
+  SOCIAL_GO_LIVE_STAGE_FULL_CLASS,
   SOCIAL_STORY_REC_PILL_CLASS,
   SOCIAL_STORY_RECORD_CLASS,
   SOCIAL_STORY_STOP_CLASS,
@@ -21,7 +31,7 @@ import {
   SOCIAL_STORY_STUDIO_ICON_CLASS,
   SOCIAL_STORY_STUDIO_REVIEW_CLASS,
   SOCIAL_STORY_STUDIO_STAGE_CLASS,
-  socialStoryStudioPreviewClass,
+  socialGoLivePreviewClass,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_STORY_STUDIO } from "@/lib/social-icons";
 import {
@@ -31,12 +41,17 @@ import {
 } from "@/lib/social-media";
 import {
   formatGoLiveClock,
+  goLiveCameraAspect,
   goLiveFileName,
   goLiveFitsByteCap,
   goLiveReachedCap,
   goLiveRecorderOptions,
+  goLiveReelCrop,
   goLiveRemainingMs,
+  SOCIAL_GO_LIVE_DEFAULT_FRAME,
+  SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
+  type GoLiveFrame,
 } from "@/lib/social-go-live";
 import { clearSocialGoLiveOpener, takeSocialGoLiveExitHref } from "@/lib/social-go-live-nav";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
@@ -61,6 +76,7 @@ import {
   type StoryStudioFacing,
 } from "@/lib/social-story-recorder";
 import { SocialIcon } from "./social-icon";
+import { useSocialCompose } from "./social-compose-context";
 
 type LivePhase = "preview" | "recording" | "review";
 
@@ -74,8 +90,54 @@ function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
-async function uploadLiveVideo(file: File): Promise<{ item?: SocialMediaItem; error?: string }> {
-  const result = await uploadSocialPostMedia([file], [], 1, "posts", { intent: "live" });
+type ReelRecording = { stream: MediaStream; stop: () => void };
+
+/** Reel on desktop: draw the 9:16 center cut of each camera frame into a
+ *  canvas and record that, so the clip is the frame that was shown. The
+ *  camera's audio rides along. Null where a canvas cannot be captured
+ *  (the full frame records instead). */
+function reelRecording(source: MediaStream, video: HTMLVideoElement | null): ReelRecording | null {
+  if (!video || typeof document === "undefined") return null;
+  const crop = goLiveReelCrop(video.videoWidth, video.videoHeight);
+  if (!crop) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = crop.sw;
+  canvas.height = crop.sh;
+  const context = canvas.getContext("2d");
+  if (!context || typeof canvas.captureStream !== "function") return null;
+  let stopped = false;
+  let frame = 0;
+  const frameCallback = typeof video.requestVideoFrameCallback === "function";
+  const draw = () => {
+    if (stopped) return;
+    context.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh);
+    frame = frameCallback ? video.requestVideoFrameCallback(draw) : requestAnimationFrame(draw);
+  };
+  draw();
+  const stream = canvas.captureStream(30);
+  for (const track of source.getAudioTracks()) stream.addTrack(track);
+  return {
+    stream,
+    stop: () => {
+      stopped = true;
+      if (frameCallback) video.cancelVideoFrameCallback(frame);
+      else cancelAnimationFrame(frame);
+      // The audio tracks are the camera's: only the canvas track stops here.
+      for (const track of stream.getVideoTracks()) track.stop();
+    },
+  };
+}
+
+async function uploadLiveVideo(
+  file: File,
+  onPercent: (percent: number) => void,
+): Promise<{ item?: SocialMediaItem; error?: string }> {
+  const result = await uploadSocialPostMedia([file], [], 1, "posts", {
+    intent: "live",
+    onProgress: (progress) => {
+      if (progress.percent != null) onPercent(progress.percent);
+    },
+  });
   if (result.error || !result.items?.[0]) {
     return { error: result.error ?? SOCIAL.home.uploadFailed };
   }
@@ -96,6 +158,15 @@ export function SocialGoLive() {
   const liveRef = useRef(0);
   const aliveRef = useRef(true);
   const attachPromiseRef = useRef<Promise<boolean> | null>(null);
+  const reelRef = useRef<ReelRecording | null>(null);
+  const reviewRef = useRef<HTMLVideoElement>(null);
+  // The poster: the one author every Social post path uses (the shell's).
+  const author = useSocialCompose()?.author;
+  const desktop = useHouseDesktop();
+  const [frameChoice, setFrameChoice] = useState<GoLiveFrame>(SOCIAL_GO_LIVE_DEFAULT_FRAME);
+  // The frame switch is desktop only; the phone records its own portrait frame.
+  const frame: GoLiveFrame = desktop ? frameChoice : "full";
+  const [aspect, setAspect] = useState(goLiveCameraAspect());
 
   const [phase, setPhase] = useState<LivePhase>("preview");
   const [facing, setFacing] = useState<StoryStudioFacing>("user");
@@ -104,6 +175,9 @@ export function SocialGoLive() {
   const [clip, setClip] = useState<ReviewClip | null>(null);
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
+  // The blue bar: the upload's bytes; a sliver until the first report.
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const postPercent = Math.max(4, Math.min(100, Math.round(uploadPercent)));
 
   function clearClock() {
     if (clockTimerRef.current != null) {
@@ -113,10 +187,16 @@ export function SocialGoLive() {
     setClock(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS));
   }
 
+  function stopReel() {
+    reelRef.current?.stop();
+    reelRef.current = null;
+  }
+
   function releasePreview() {
     liveRef.current = nextStoryStudioLive(liveRef.current);
     recordingRef.current = false;
     clearClock();
+    stopReel();
     const recorder = recorderRef.current;
     if (recorder) {
       recorder.ondataavailable = null;
@@ -156,6 +236,18 @@ export function SocialGoLive() {
     // Unmount-only teardown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Play the review with its sound; where the browser holds sound back
+  // until a gesture, play it muted rather than not at all.
+  useEffect(() => {
+    if (phase !== "review") return;
+    const node = reviewRef.current;
+    if (!node) return;
+    void node.play().catch(() => {
+      node.muted = true;
+      void node.play().catch(() => undefined);
+    });
+  }, [phase, clip]);
 
   useEffect(() => {
     const node = videoRef.current;
@@ -272,7 +364,7 @@ export function SocialGoLive() {
     }, 250);
   }
 
-  function beginRecording(stream: MediaStream) {
+  function beginRecording(source: MediaStream) {
     const probed = probeStoryRecorderMimeType(
       typeof MediaRecorder !== "undefined" ? MediaRecorder.isTypeSupported.bind(MediaRecorder) : undefined,
     );
@@ -283,6 +375,9 @@ export function SocialGoLive() {
     mimeRef.current = probed.mimeType;
     chunksRef.current = [];
     const live = liveRef.current;
+    stopReel();
+    reelRef.current = frame === "reel" ? reelRecording(source, videoRef.current) : null;
+    const stream = reelRef.current?.stream ?? source;
     let recorder: MediaRecorder;
     try {
       recorder = new MediaRecorder(stream, goLiveRecorderOptions(probed.raw));
@@ -311,6 +406,7 @@ export function SocialGoLive() {
       chunksRef.current.push(event.data);
     };
     recorder.onstop = () => {
+      stopReel();
       if (!storyStudioIsLive(liveRef.current, live)) return;
       const contentType = resolveStoryRecorderBlobType(
         chunksRef.current[0] instanceof Blob ? chunksRef.current[0].type : recorder.mimeType,
@@ -375,9 +471,15 @@ export function SocialGoLive() {
 
   async function postClip() {
     if (!clip || posting) return;
+    // The caption as it stood at Post; nothing typed or spoken during the
+    // upload reaches the published post.
+    const caption = body;
     setError("");
+    setUploadPercent(0);
     setPosting(true);
-    const uploaded = await uploadLiveVideo(clip.file);
+    const uploaded = await uploadLiveVideo(clip.file, (percent) => {
+      if (aliveRef.current) setUploadPercent(percent);
+    });
     if (!aliveRef.current) return;
     if (uploaded.error || !uploaded.item) {
       setPosting(false);
@@ -385,12 +487,12 @@ export function SocialGoLive() {
       return;
     }
     ingestSpeechLearning({
-      text: body,
+      text: caption,
       source: "typed",
       workspace: "social",
     });
     const started = beginSocialPostPublish({
-      body,
+      body: caption,
       mediaItems: [uploaded.item],
       mediaPreview: [
         {
@@ -400,7 +502,8 @@ export function SocialGoLive() {
           ...(uploaded.item.playbackPolicy ? { playbackPolicy: uploaded.item.playbackPolicy } : {}),
         },
       ],
-      authorName: SOCIAL.home.you,
+      authorName: author?.name ?? SOCIAL.home.you,
+      authorPhotoUrl: author?.photoUrl ?? null,
     });
     if (!started.ok) {
       setPosting(false);
@@ -429,24 +532,43 @@ export function SocialGoLive() {
   }
 
   const mirrored = storyStudioMirrorsPreview(facing);
+  const stageStyle = { "--go-live-aspect": aspect } as CSSProperties;
 
   return (
     <div data-social-go-live="" className={SOCIAL_STORY_STUDIO_CLASS}>
-      <div data-social-go-live-stage="" className={SOCIAL_STORY_STUDIO_STAGE_CLASS}>
+      <div
+        data-social-go-live-stage=""
+        data-social-go-live-frame-stage={frame}
+        className={frame === "reel" ? SOCIAL_STORY_STUDIO_STAGE_CLASS : SOCIAL_GO_LIVE_STAGE_FULL_CLASS}
+        style={stageStyle}
+      >
         {phase === "review" && clip ? (
+          // The review loops on its own, like a story (no native control
+          // bar under the caption and the icons); a tap pauses or plays.
           <video
+            ref={reviewRef}
             src={clip.url}
-            className={SOCIAL_STORY_STUDIO_REVIEW_CLASS}
+            data-social-go-live-review-clip=""
+            className={frame === "reel" ? SOCIAL_STORY_STUDIO_REVIEW_CLASS : SOCIAL_GO_LIVE_FULL_VIDEO_CLASS}
             playsInline
-            controls
+            autoPlay
+            loop
+            onClick={(event) => {
+              const node = event.currentTarget;
+              if (node.paused) void node.play().catch(() => undefined);
+              else node.pause();
+            }}
           />
         ) : (
           <video
             ref={videoRef}
-            className={socialStoryStudioPreviewClass(mirrored)}
+            className={socialGoLivePreviewClass(frame, mirrored)}
             muted
             playsInline
             autoPlay
+            onLoadedMetadata={(event) =>
+              setAspect(goLiveCameraAspect(event.currentTarget.videoWidth, event.currentTarget.videoHeight))
+            }
           />
         )}
         <div className={SOCIAL_STORY_STUDIO_CHROME_CLASS}>
@@ -494,6 +616,28 @@ export function SocialGoLive() {
         ) : null}
         {phase === "preview" || phase === "recording" ? (
           <div className="absolute inset-x-0 bottom-8 z-10 flex flex-col items-center gap-3">
+            {phase === "preview" ? (
+              <div
+                role="radiogroup"
+                aria-label={SOCIAL.create.liveFrame}
+                data-social-go-live-frame=""
+                className={SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS}
+              >
+                {SOCIAL_GO_LIVE_FRAMES.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={frame === option}
+                    data-social-go-live-frame-option={option}
+                    className={SOCIAL_GO_LIVE_FRAME_OPTION_CLASS}
+                    onClick={() => setFrameChoice(option)}
+                  >
+                    {option === "full" ? SOCIAL.create.liveFrameFull : SOCIAL.create.liveFrameReel}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <button
               type="button"
               data-social-go-live-record=""
@@ -509,41 +653,64 @@ export function SocialGoLive() {
           </div>
         ) : null}
         {phase === "review" ? (
-          <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 bg-band/55 p-4">
-            <div data-social-go-live-caption="" className={HOUSE_VOICE_FIELD_HOST_CLASS}>
+          <div data-social-go-live-review="" className={SOCIAL_GO_LIVE_REVIEW_CLASS}>
+            <div data-social-go-live-caption="" className={SOCIAL_GO_LIVE_CAPTION_CLASS}>
+              <label className="sr-only" htmlFor="social-go-live-body">
+                {SOCIAL.create.caption}
+              </label>
               <Textarea
                 variant="bare"
                 id="social-go-live-body"
-                rows={2}
+                rows={1}
                 value={body}
+                disabled={posting}
                 onChange={(event) => setBody(event.target.value)}
                 placeholder={SOCIAL.home.captionPlaceholder}
-                className="min-h-[3rem] flex-1"
+                className={SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS}
               />
-              <HouseVoiceMic
-                surface="dictate"
-                workspace="social"
-                getValue={() => body}
-                onValue={setBody}
-              />
+              {/* Unmounting stops dictation, so the caption stays inert while posting. */}
+              {posting ? null : (
+                <HouseVoiceMic
+                  surface="dictate"
+                  workspace="social"
+                  getValue={() => body}
+                  onValue={setBody}
+                />
+              )}
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            {posting ? (
+              <div
+                data-social-go-live-progress=""
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={postPercent}
+                aria-label={SOCIAL.stories.posting}
+                className={SOCIAL_GO_LIVE_PROGRESS_TRACK_CLASS}
+              >
+                <div className={SOCIAL_GO_LIVE_PROGRESS_FILL_CLASS} style={{ width: `${postPercent}%` }} />
+              </div>
+            ) : null}
+            <div className={SOCIAL_GO_LIVE_REVIEW_ACTIONS_CLASS}>
               <button
                 type="button"
-                className={SOCIAL_ACTION_SECONDARY_CLASS}
+                data-social-go-live-retake=""
+                aria-label={SOCIAL.create.liveRetake}
+                className={SOCIAL_GO_LIVE_RETAKE_CLASS}
                 disabled={posting}
                 onClick={retake}
               >
-                {SOCIAL.create.liveRetake}
+                <SocialIcon weight="bold" name="arrow-counter-clockwise" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
               </button>
               <button
                 type="button"
                 data-social-go-live-post=""
-                className={SOCIAL_ACTION_CLASS}
+                aria-label={posting ? SOCIAL.stories.posting : SOCIAL.create.livePost}
+                className={SOCIAL_GO_LIVE_POST_CLASS}
                 disabled={posting}
                 onClick={() => void postClip()}
               >
-                {posting ? SOCIAL.stories.posting : SOCIAL.create.livePost}
+                <SocialIcon weight="bold" name="arrow-up" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
               </button>
             </div>
           </div>

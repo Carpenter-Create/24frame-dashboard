@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -29,7 +30,11 @@ vi.mock("next/link", async () => {
 });
 
 import { SocialCreateCompose } from "./social-create-compose";
+import { SocialAvatar } from "./social-avatar";
+import { SocialComposeContext } from "./social-compose-context";
 import { SocialHomeComposer } from "./social-home-composer";
+import { ACCOUNT_PHOTO_HREF } from "@/lib/account-avatar";
+import { isSessionGatedSocialSrc } from "@/lib/social-media-display";
 import { SocialWriteComposeSheet } from "./social-write-compose-sheet";
 import { SOCIAL } from "@/lib/social";
 import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
@@ -90,7 +95,7 @@ describe("Share something write compose sheet", () => {
 
   it("keeps the Home prompt a sheet trigger and leaves Photo, Camera, and Create + alone", () => {
     const html = renderToStaticMarkup(
-      createElement(SocialHomeComposer, { authorName: "Ada Lovelace", authorHandle: "ada" }),
+      createElement(SocialHomeComposer, { authorName: "Ada Lovelace" }),
     );
     expect(html).toContain("data-social-composer-prompt-row");
     expect(html).toContain('aria-haspopup="dialog"');
@@ -101,8 +106,10 @@ describe("Share something write compose sheet", () => {
     expect(html).not.toContain("data-social-create-form");
     expect(html).toContain('data-social-composer-affordance="photo"');
     expect(html).toContain('data-social-composer-affordance="camera"');
-    expect(composerSrc).toContain("setWriteOpen(true)");
-    expect(composerSrc).toContain("SocialWriteComposeSheet");
+    // It opens the shell's one window; it never mounts its own.
+    expect(composerSrc).toContain("onClick={compose?.onOpen}");
+    expect(composerSrc).toContain("useSocialCompose()");
+    expect(composerSrc).not.toContain("<SocialWriteComposeSheet");
     expect(composerSrc).not.toContain("socialCreateHref");
     expect(composerSrc).not.toContain("SocialCreateSheet");
     expect(composerSrc).not.toContain('data-social-create-sheet="composer"');
@@ -204,6 +211,50 @@ describe("Desktop composer window", () => {
     expect(shell).toContain("const createOpen = createAt.open;");
   });
 
+  // One source of truth (Adam 2026-10-08: "you are probably not coding the
+  // two from a single source of truth"): one window, one author.
+  it("is one window for Create and Share something, with one author: the shell's identity", () => {
+    const mounts = execSync("git ls-files 'src/**/*.tsx'", { encoding: "utf8" })
+      .split("\n")
+      .filter((file) => file && !file.includes(".test."))
+      .filter((file) => readFileSync(file, "utf8").includes("<SocialWriteComposeSheet"));
+    expect(mounts).toEqual(["src/components/chrome/app-shell.tsx"]);
+    const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
+    expect(shell).toContain("<SocialComposeContext.Provider value={compose}>");
+    expect(shell).toContain("const composeAuthorName = identity.name || SOCIAL.home.you;");
+    expect(shell).toContain("const composeAuthorPhoto = identity.photoUrl;");
+    expect(shell).toContain("authorName={compose.author.name}");
+    expect(shell).toContain("authorPhotoUrl={compose.author.photoUrl}");
+    const open = renderToStaticMarkup(
+      createElement(
+        SocialComposeContext.Provider,
+        {
+          value: {
+            open: true,
+            onOpen: () => undefined,
+            controls: "compose-title",
+            author: { name: "Ada Lovelace", photoUrl: null },
+          },
+        },
+        createElement(SocialHomeComposer, { authorName: "Ada Lovelace" }),
+      ),
+    );
+    expect(open).toContain('aria-expanded="true"');
+    expect(open).toContain('aria-controls="compose-title"');
+  });
+
+  // The shell's face is the same-origin photo route: the avatar loads it
+  // with the session, never through the image optimizer (which has none).
+  it("shows the shell's face in the window: the account photo route loads directly", () => {
+    expect(isSessionGatedSocialSrc(ACCOUNT_PHOTO_HREF)).toBe(true);
+    const face = renderToStaticMarkup(
+      createElement(SocialAvatar, { name: "Ada Lovelace", photoUrl: ACCOUNT_PHOTO_HREF, size: "sm" }),
+    );
+    expect(face).toContain(`src="${ACCOUNT_PHOTO_HREF}"`);
+    expect(face).not.toContain("/_next/image");
+    expect(face).not.toContain(">AL<");
+  });
+
   it("is the house dialog at the card grammar: 600, radius 24, no edge", () => {
     expect(SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS).toBe(
       "w-[min(92vw,600px)] rounded-[var(--radius-xl)] border-0 p-[var(--space-4)]",
@@ -216,7 +267,8 @@ describe("Desktop composer window", () => {
     const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
     const nav = readFileSync("src/components/chrome/side-nav.tsx", "utf8");
     expect(shell).toContain("<SocialWriteComposeSheet");
-    expect(shell).toContain("compose={{ open: createOpen, onOpen: openCreate, controls: createTitleId }}");
+    expect(shell).toMatch(/open: createOpen,\s*onOpen: openCreate,\s*controls: createTitleId,\s*author: \{ name: composeAuthorName, photoUrl: composeAuthorPhoto \}/);
+    expect(shell).toContain("compose={compose}");
     const slot = shell.slice(shell.indexOf("function SideNavSlot("));
     expect(slot).not.toContain("SocialWriteComposeSheet");
     expect(slot).not.toContain("useState");
