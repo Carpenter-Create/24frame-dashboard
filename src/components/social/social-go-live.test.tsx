@@ -195,7 +195,7 @@ describe("Social Go live recorder", () => {
     // The Feed composer's shipped word "Camera", no new copy.
     expect(picker).toContain("aria-label={SOCIAL.home.composerCamera}");
     expect(picker).toContain('name="video-camera"');
-    expect(picker).toContain('disabled={phase !== "preview" || switching || cameras.length === 0}');
+    expect(picker).toContain('disabled={phase !== "preview" || opening || cameras.length === 0}');
     expect(picker).toContain("<MenuSurfaceContent align=\"end\" className={SOCIAL_GO_LIVE_CAMERA_MENU_CLASS}>");
     expect(picker).toContain("<DropdownMenuRadioGroup value={activeCamera} onValueChange={(id) => void chooseCamera(id)}>");
     expect(picker).toContain("<MenuSurfaceRadioItem");
@@ -234,7 +234,9 @@ describe("Social Go live recorder", () => {
     // camera, not the default (Codex #791: the default fallback is for the
     // remembered camera only).
     const choose = src.slice(src.indexOf("async function chooseCamera("), src.indexOf("function startClock()"));
-    expect(choose).toContain('if (phase !== "preview" || recordingRef.current || switching || id === activeCamera) return;');
+    expect(choose).toContain(
+      'if (phase !== "preview" || recordingRef.current || attachPromiseRef.current || id === activeCamera) return;',
+    );
     expect(choose).toContain("const opened = await attachPreview(facing, live, id, false);");
     expect(choose).toContain("if (opened && camera) rememberGoLiveCamera(camera);");
     expect(choose).toContain("cameraIdRef.current = previous;");
@@ -245,22 +247,35 @@ describe("Social Go live recorder", () => {
     expect(src).toContain('return () => media.removeEventListener("devicechange", onChange);');
   });
 
-  // Codex #791: a pick followed at once by Record (or a second pick) must not
-  // open two cameras, nor leave a superseded one running.
-  it("serializes camera switches: only the latest open attaches, record waits for it", () => {
-    const attach = src.slice(src.indexOf("async function attachPreview("), src.indexOf("function ensurePreview("));
+  // Codex and Bugbot #791: a pick followed at once by Record (or a second
+  // pick, or a pick while the camera reopens after Record again) must not
+  // open two cameras, leave a superseded one running, or fail a waiting Record.
+  it("one camera open at a time: every open is tracked, the controls wait, a late open is stopped", () => {
+    const attach = src.slice(src.indexOf("async function attachPreview("), src.indexOf("function trackOpen("));
     expect(attach).toContain("const attach = ++attachSeqRef.current;");
     expect(attach).toMatch(
       /if \(attach !== attachSeqRef\.current \|\| !storyStudioIsLive\(liveRef\.current, live\)\) \{\s*stopStream\(stream\);\s*return false;/,
     );
+    // The one tracker: the pending open, and the opening state.
+    const track = src.slice(src.indexOf("function trackOpen("), src.indexOf("function ensurePreview("));
+    expect(track).toContain("attachPromiseRef.current = pending;");
+    expect(track).toContain("setOpening(true);");
+    expect(track).toMatch(/if \(attachPromiseRef\.current !== pending\) return;\s*attachPromiseRef\.current = null;\s*if \(aliveRef\.current\) setOpening\(false\);/);
+    expect(track).toContain("void pending.then(settle, settle);");
+    // Every open goes through it: the first open and reopen, a pick, a flip.
+    const ensure = src.slice(src.indexOf("function ensurePreview("), src.indexOf("useEffect(", src.indexOf("function ensurePreview(")));
+    expect(ensure).toContain("if (attachPromiseRef.current) return attachPromiseRef.current;");
+    expect(ensure).toContain("return trackOpen(");
     const choose = src.slice(src.indexOf("async function chooseCamera("), src.indexOf("function startClock()"));
-    expect(choose).toContain("setSwitching(true);");
-    expect(choose).toContain("attachPromiseRef.current = pending;");
-    expect(choose).toMatch(/finally \{\s*if \(attachPromiseRef\.current === pending\) attachPromiseRef\.current = null;\s*if \(aliveRef\.current\) setSwitching\(false\);/);
-    // ensurePreview (the path Record takes without a stream) joins the switch.
-    expect(src).toContain("if (attachPromiseRef.current) return attachPromiseRef.current;");
-    const record = src.slice(src.indexOf('data-social-go-live-record=""'), src.indexOf("data-social-go-live-record=\"\"") + 400);
-    expect(record).toContain("disabled={switching}");
+    expect(choose).toContain("await trackOpen(");
+    const flip = src.slice(src.indexOf("async function flipCamera("), src.indexOf("// An iPhone coming in reach"));
+    expect(flip).toContain('if (phase !== "preview" || recordingRef.current || attachPromiseRef.current) return;');
+    expect(flip).toContain("await trackOpen(");
+    // The controls wait while any open is in flight.
+    const record = src.slice(src.indexOf('data-social-go-live-record=""'), src.indexOf('data-social-go-live-record=""') + 400);
+    expect(record).toContain("disabled={opening}");
+    expect(src).toContain('disabled={phase !== "preview" || opening}\n              onClick={() => void flipCamera()}');
+    expect(src).not.toContain("switching");
   });
 
   it("posts as the one author every Social path uses (the shell's), not \"You\"", () => {

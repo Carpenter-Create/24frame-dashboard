@@ -190,8 +190,9 @@ export function SocialGoLive() {
 
   const [cameras, setCameras] = useState<GoLiveCamera[]>([]);
   const [activeCamera, setActiveCamera] = useState("");
-  // A camera switch in flight: the picker and record wait for it.
-  const [switching, setSwitching] = useState(false);
+  // A camera opening (first open, reopen, pick, or flip): one at a time;
+  // the picker, flip, and record wait for it.
+  const [opening, setOpening] = useState(false);
 
   const [phase, setPhase] = useState<LivePhase>("preview");
   const [facing, setFacing] = useState<StoryStudioFacing>("user");
@@ -361,24 +362,35 @@ export function SocialGoLive() {
     return true;
   }
 
+  // Every camera open is the one pending open (Record waits on it through
+  // ensurePreview), and holds the controls until it settles.
+  function trackOpen(pending: Promise<boolean>): Promise<boolean> {
+    attachPromiseRef.current = pending;
+    setOpening(true);
+    const settle = () => {
+      if (attachPromiseRef.current !== pending) return;
+      attachPromiseRef.current = null;
+      if (aliveRef.current) setOpening(false);
+    };
+    void pending.then(settle, settle);
+    return pending;
+  }
+
   function ensurePreview(nextFacing: StoryStudioFacing = facing): Promise<boolean> {
     if (streamRef.current) return Promise.resolve(true);
     if (attachPromiseRef.current) return attachPromiseRef.current;
     const live = liveRef.current;
-    const pending = attachPreview(nextFacing, live)
-      .then((ready) => ready && Boolean(streamRef.current))
-      .catch(() => {
-        if (storyStudioIsLive(liveRef.current, live)) {
-          releasePreview();
-          setError(SOCIAL.stories.permission);
-        }
-        return false;
-      })
-      .finally(() => {
-        if (attachPromiseRef.current === pending) attachPromiseRef.current = null;
-      });
-    attachPromiseRef.current = pending;
-    return pending;
+    return trackOpen(
+      attachPreview(nextFacing, live)
+        .then((ready) => ready && Boolean(streamRef.current))
+        .catch(() => {
+          if (storyStudioIsLive(liveRef.current, live)) {
+            releasePreview();
+            setError(SOCIAL.stories.permission);
+          }
+          return false;
+        }),
+    );
   }
 
   useEffect(() => {
@@ -410,20 +422,26 @@ export function SocialGoLive() {
   }, []);
 
   async function flipCamera() {
-    if (phase !== "preview" || recordingRef.current) return;
+    if (phase !== "preview" || recordingRef.current || attachPromiseRef.current) return;
     const next = facing === "user" ? "environment" : "user";
     const live = liveRef.current;
-    try {
-      const flipped = await attachPreview(next, live);
-      if (flipped) setFacing(next);
-    } catch {
-      if (!storyStudioIsLive(liveRef.current, live)) return;
-      try {
-        await attachPreview(facing, live);
-      } catch {
-        setError(SOCIAL.stories.permission);
-      }
-    }
+    await trackOpen(
+      (async () => {
+        try {
+          const flipped = await attachPreview(next, live);
+          if (flipped) setFacing(next);
+          return flipped;
+        } catch {
+          if (!storyStudioIsLive(liveRef.current, live)) return false;
+          try {
+            return await attachPreview(facing, live);
+          } catch {
+            setError(SOCIAL.stories.permission);
+            return false;
+          }
+        }
+      })(),
+    );
   }
 
   // An iPhone coming in reach, or a webcam plugged in, joins the list.
@@ -440,37 +458,30 @@ export function SocialGoLive() {
   }, []);
 
   async function chooseCamera(id: string) {
-    if (phase !== "preview" || recordingRef.current || switching || id === activeCamera) return;
+    if (phase !== "preview" || recordingRef.current || attachPromiseRef.current || id === activeCamera) return;
     const previous = cameraIdRef.current;
     const live = liveRef.current;
     const camera = cameras.find((item) => item.id === id);
     cameraIdRef.current = id;
-    setSwitching(true);
-    const pending = (async () => {
-      try {
-        const opened = await attachPreview(facing, live, id, false);
-        if (opened && camera) rememberGoLiveCamera(camera);
-        return opened;
-      } catch {
-        // That camera did not open: the last one comes back.
-        cameraIdRef.current = previous;
-        if (!storyStudioIsLive(liveRef.current, live)) return false;
+    await trackOpen(
+      (async () => {
         try {
-          return await attachPreview(facing, live, previous);
+          const opened = await attachPreview(facing, live, id, false);
+          if (opened && camera) rememberGoLiveCamera(camera);
+          return opened;
         } catch {
-          setError(SOCIAL.stories.permission);
-          return false;
+          // That camera did not open: the last one comes back.
+          cameraIdRef.current = previous;
+          if (!storyStudioIsLive(liveRef.current, live)) return false;
+          try {
+            return await attachPreview(facing, live, previous);
+          } catch {
+            setError(SOCIAL.stories.permission);
+            return false;
+          }
         }
-      }
-    })();
-    // Record (through ensurePreview) waits on the switch, not a second open.
-    attachPromiseRef.current = pending;
-    try {
-      await pending;
-    } finally {
-      if (attachPromiseRef.current === pending) attachPromiseRef.current = null;
-      if (aliveRef.current) setSwitching(false);
-    }
+      })(),
+    );
   }
 
   function startClock() {
@@ -723,7 +734,7 @@ export function SocialGoLive() {
             // A computer chooses among its cameras (built in, an iPhone, a
             // webcam); there is no back camera to flip to.
             <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={phase !== "preview" || switching || cameras.length === 0}>
+              <DropdownMenuTrigger asChild disabled={phase !== "preview" || opening || cameras.length === 0}>
                 <button
                   type="button"
                   aria-label={SOCIAL.home.composerCamera}
@@ -756,7 +767,7 @@ export function SocialGoLive() {
               type="button"
               aria-label={SOCIAL.stories.flipCamera}
               className={SOCIAL_STORY_STUDIO_ICON_CLASS}
-              disabled={phase !== "preview"}
+              disabled={phase !== "preview" || opening}
               onClick={() => void flipCamera()}
             >
               <SocialIcon weight="bold" name="camera-rotate" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
@@ -797,7 +808,7 @@ export function SocialGoLive() {
               data-social-go-live-record=""
               aria-label={phase === "recording" ? SOCIAL.create.liveStop : SOCIAL.create.liveStart}
               className={SOCIAL_STORY_RECORD_CLASS}
-              disabled={switching}
+              disabled={opening}
               onClick={() => {
                 if (recordingRef.current) stopRecording();
                 else startRecording();
