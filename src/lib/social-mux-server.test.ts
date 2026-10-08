@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SocialMuxUploadNotBoundError } from "./social-mux";
 import {
+  createSocialMuxAudioRendition,
   createSocialMuxDirectUpload,
   fetchSocialMuxFrame,
   finalizeSocialMuxDirectUpload,
   mintSocialMuxPlaybackTokens,
+  signSocialMuxStaticAudioUrl,
   retrieveSocialMuxAsset,
   signedPlaybackIdFromAsset,
   socialMuxSettingsFromUploadInput,
@@ -194,6 +196,28 @@ describe("social Mux server client", () => {
     expect(claims.map((claim) => claim.aud)).toEqual(["v", "t", "s"]);
     expect(claims.every((claim) => claim.sub === PLAYBACK_ID && claim.kid === "signing-key-id")).toBe(true);
     expect(claims.map((claim) => claim.time)).toEqual([undefined, "0", undefined]);
+  });
+
+  it("requests an audio-only static rendition", async () => {
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    const fetchMock = vi.fn().mockResolvedValue(muxJson({}));
+    vi.stubGlobal("fetch", fetchMock);
+    await createSocialMuxAudioRendition(ASSET_ID);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://api.mux.com/video/v1/assets/${ASSET_ID}/static-renditions`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ resolution: "audio-only" });
+  });
+
+  it("signs the static audio.m4a URL for the worker", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const pem = privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+    vi.stubEnv("MUX_SIGNING_KEY", "signing-key-id");
+    vi.stubEnv("MUX_PRIVATE_KEY", Buffer.from(pem).toString("base64"));
+    const url = await signSocialMuxStaticAudioUrl(PLAYBACK_ID);
+    expect(url.startsWith(`https://stream.mux.com/${PLAYBACK_ID}/audio.m4a?token=`)).toBe(true);
   });
 
   it("maps live and video intents without client pixel fields", () => {

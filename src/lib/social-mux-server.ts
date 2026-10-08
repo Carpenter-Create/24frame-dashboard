@@ -58,6 +58,12 @@ export type MuxAssetData = {
   duration?: number;
   passthrough?: string | null;
   playback_ids?: Array<{ id?: string; policy?: string }>;
+  static_renditions?:
+    | {
+        status?: string;
+        files?: Array<{ name?: string; ext?: string; status?: string; resolution?: string }>;
+      }
+    | Array<{ name?: string; ext?: string; status?: string; resolution?: string }>;
 };
 
 function requireMuxEnv(name: (typeof SOCIAL_MUX_ENV)[number]): string {
@@ -242,6 +248,25 @@ export async function finalizeSocialMuxDirectUpload(
     await wait(delay);
   }
   throw new Error("Mux playback id is still preparing");
+}
+
+/** Audio-only static rendition. Idempotent callers treat a second POST as "already requested". */
+export async function createSocialMuxAudioRendition(assetId: string): Promise<void> {
+  if (!isSocialMuxId(assetId)) throw new Error("Mux asset id is invalid");
+  await muxRequest(`/video/v1/assets/${assetId}/static-renditions`, {
+    method: "POST",
+    body: JSON.stringify({ resolution: "audio-only" }),
+  });
+}
+
+/** Signed audio.m4a for the music worker. The token never goes to a browser. */
+export async function signSocialMuxStaticAudioUrl(playbackId: string): Promise<string> {
+  if (!isSocialMuxId(playbackId)) throw new Error("Mux playback id is invalid");
+  const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
+    type: "video",
+    expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
+  });
+  return `https://stream.mux.com/${playbackId}/audio.m4a?token=${encodeURIComponent(token)}`;
 }
 
 export function socialMuxSettingsFromUploadInput(input: {

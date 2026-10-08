@@ -140,6 +140,28 @@ Runbook: [`docs/infra/social-topic-tagging.md`](../infra/social-topic-tagging.md
 
 ---
 
+## Social music detect-and-block (authorized; not applied)
+
+CoS CLEAR 2026-10-08: Phase 0 on Social Mux video (Stories, posts, Create).
+ACRCloud identify is primary. Decision is allow or block. No mute. No AudD.
+Policy 2026-10-08 2:24pm CT: no music is allowed until Content ID is sorted
+out. Any `metadata.music` score at or above 25 blocks immediately. Under 25,
+or no music match, passes. `metadata.custom_files` is ignored and cannot
+allow a clip. No allowlist in this phase. Adam's own CFN tracks block too,
+because they match ACRCloud Music at score 100. That is accepted.
+Staff Music review lists blocked rows for spot-checks and appeals. The
+queue does not gate going live. End users never see the matched title or
+artist. Blocked copy is a placeholder pending a design lock. Vendor error
+retries with backoff and does not publish.
+
+The migration, the Lambda, its role, and its schedule are founder-applied
+and **not created**. Adam applies
+`supabase/migrations/20261008180000_social_music_scans.sql`. There is no
+Mux webhook in this repo; the worker polls pending scans. Runbook:
+[`docs/infra/social-music-detect.md`](../infra/social-music-detect.md).
+
+---
+
 ## Social profile cover original (authorized; not applied)
 
 Founder decision: keep the uncropped original of each new profile cover

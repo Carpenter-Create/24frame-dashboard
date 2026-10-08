@@ -1,4 +1,5 @@
 import type { SocialPostMediaItem } from "@/lib/social-author-post-card";
+import type { SocialMusicNotice } from "@/lib/social";
 
 /** A short release is a tap. A longer press resumes and does not advance. */
 export const SOCIAL_STORY_HOLD_TAP_MS = 200;
@@ -10,6 +11,7 @@ export type SocialStoryTrayItem = {
   createdAt: string;
   body: string | null;
   media: readonly SocialPostMediaItem[];
+  musicNotice?: SocialMusicNotice;
 };
 
 export type SocialStoryTrayAuthor = {

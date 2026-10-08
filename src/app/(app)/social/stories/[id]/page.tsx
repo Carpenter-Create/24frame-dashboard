@@ -19,6 +19,7 @@ import {
   loadViewedStoryIds,
   type SocialStoryRailCard,
 } from "@/lib/social-feed";
+import { loadOwnMusicNotices } from "@/lib/social-music-scan";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import type { SocialStoryLikeState } from "@/lib/social-story-actions";
 import { sortStoryTrayOldestFirst, type SocialStoryTrayAuthor } from "@/lib/social-story-tray";
@@ -121,6 +122,7 @@ export default async function SocialStoryPage({
     loadLikedStoryIds(supabase, ctx.user.id, storyIds),
     loadStoryLikeCounts(supabase, storyIds),
   ]);
+  const music = await loadOwnMusicNotices(supabase, ctx.user.id, { storyIds });
   const likes: Record<string, SocialStoryLikeState> = Object.fromEntries(
     storyIds.map((storyItemId) => [
       storyItemId,
@@ -157,6 +159,9 @@ export default async function SocialStoryPage({
             createdAt: row.created_at,
             body: row.body,
             media: mediaById.get(row.id) ?? [],
+            ...(row.author_id === ctx.user.id && music.stories.get(row.id)
+              ? { musicNotice: music.stories.get(row.id) }
+              : {}),
           })),
         ),
       },
@@ -208,6 +213,7 @@ export default async function SocialStoryPage({
         tray={tray}
         selfId={ctx.user.id}
         likes={likes}
+        musicNotice={story.author_id === ctx.user.id ? (music.stories.get(story.id) ?? null) : null}
       />
     </div>
   );

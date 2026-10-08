@@ -853,6 +853,115 @@ export type Database = {
           },
         ]
       }
+      social_music_scans: {
+        Row: {
+          id: string
+          surface: Database["public"]["Enums"]["social_music_scan_surface"]
+          post_id: string | null
+          story_id: string | null
+          author_id: string
+          asset_id: string
+          playback_id: string
+          upload_id: string | null
+          status: Database["public"]["Enums"]["social_music_scan_status"]
+          attempt_count: number
+          next_attempt_at: string | null
+          last_error: string | null
+          vendor: string | null
+          vendor_status_code: number | null
+          vendor_score: number | null
+          vendor_title: string | null
+          vendor_artist: string | null
+          vendor_album: string | null
+          vendor_acrid: string | null
+          vendor_isrc: string | null
+          vendor_label: string | null
+          mux_ready_at: string | null
+          scan_started_at: string | null
+          decided_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          surface: Database["public"]["Enums"]["social_music_scan_surface"]
+          post_id?: string | null
+          story_id?: string | null
+          author_id: string
+          asset_id: string
+          playback_id: string
+          upload_id?: string | null
+          status?: Database["public"]["Enums"]["social_music_scan_status"]
+          attempt_count?: number
+          next_attempt_at?: string | null
+          last_error?: string | null
+          vendor?: string | null
+          vendor_status_code?: number | null
+          vendor_score?: number | null
+          vendor_title?: string | null
+          vendor_artist?: string | null
+          vendor_album?: string | null
+          vendor_acrid?: string | null
+          vendor_isrc?: string | null
+          vendor_label?: string | null
+          mux_ready_at?: string | null
+          scan_started_at?: string | null
+          decided_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          surface?: Database["public"]["Enums"]["social_music_scan_surface"]
+          post_id?: string | null
+          story_id?: string | null
+          author_id?: string
+          asset_id?: string
+          playback_id?: string
+          upload_id?: string | null
+          status?: Database["public"]["Enums"]["social_music_scan_status"]
+          attempt_count?: number
+          next_attempt_at?: string | null
+          last_error?: string | null
+          vendor?: string | null
+          vendor_status_code?: number | null
+          vendor_score?: number | null
+          vendor_title?: string | null
+          vendor_artist?: string | null
+          vendor_album?: string | null
+          vendor_acrid?: string | null
+          vendor_isrc?: string | null
+          vendor_label?: string | null
+          mux_ready_at?: string | null
+          scan_started_at?: string | null
+          decided_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_music_scans_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_music_scans_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_music_scans_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stories: {
         Row: {
           author_id: string
@@ -4143,6 +4252,8 @@ export type Database = {
         | "post_created"
       portal_link_purpose: "master_download" | "screener_view"
       post_status: "active" | "hidden" | "removed"
+      social_music_scan_status: "pending" | "allowed" | "blocked"
+      social_music_scan_surface: "post" | "story"
       release_type: "new_release" | "re_release"
       review_decision: "approve" | "reject"
       sales_import_status: "queued" | "received" | "mapped"
@@ -4441,6 +4552,8 @@ export const Constants = {
       ],
       portal_link_purpose: ["master_download", "screener_view"],
       post_status: ["active", "hidden", "removed"],
+      social_music_scan_status: ["pending", "allowed", "blocked"],
+      social_music_scan_surface: ["post", "story"],
       release_type: ["new_release", "re_release"],
       review_decision: ["approve", "reject"],
       sales_import_status: ["queued", "received", "mapped"],

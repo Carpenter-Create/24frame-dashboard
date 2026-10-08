@@ -60,7 +60,7 @@ import {
   STORY_SEND_TOAST_MS,
   type SocialStoryLikeState,
 } from "@/lib/social-story-actions";
-import { SOCIAL, SOCIAL_ROUTES, socialRelativeTime, socialStoryHref } from "@/lib/social";
+import { SOCIAL, SOCIAL_ROUTES, socialRelativeTime, socialStoryHref, type SocialMusicNotice } from "@/lib/social";
 import {
   storyHoldRelease,
   storyTrayCursor,
@@ -230,6 +230,7 @@ export function SocialStoryViewer({
   tray,
   selfId,
   likes = {},
+  musicNotice = null,
 }: {
   storyId: string;
   authorId: string;
@@ -248,6 +249,7 @@ export function SocialStoryViewer({
   tray?: readonly SocialStoryTrayAuthor[];
   selfId?: string;
   likes?: Readonly<Record<string, SocialStoryLikeState>>;
+  musicNotice?: SocialMusicNotice | null;
 }) {
   const router = useRouter();
   const authors = useMemo(() => {
@@ -259,7 +261,13 @@ export function SocialStoryViewer({
       unseen: false,
       coverUrl: null,
       coverKind: null,
-      items: [{ id: storyId, createdAt, body, media }],
+      items: [{
+        id: storyId,
+        createdAt,
+        body,
+        media,
+        ...(musicNotice ? { musicNotice } : {}),
+      }],
     };
     return [
       ...(prevAuthor ? [authorFromNeighbor(prevAuthor)] : []),
@@ -273,6 +281,7 @@ export function SocialStoryViewer({
     body,
     createdAt,
     media,
+    musicNotice,
     nextAuthor,
     prevAuthor,
     storyId,
@@ -710,6 +719,14 @@ export function SocialStoryViewer({
               </Link>
             </div>
           </div>
+          {ownStory && item.musicNotice ? (
+            <p
+              data-social-story-music=""
+              className="relative z-30 w-full whitespace-normal break-words px-4 pb-2 t-body-sm text-band-ink"
+            >
+              {SOCIAL.music[item.musicNotice]}
+            </p>
+          ) : null}
           <div
             data-social-story-actions=""
             className={cn(SOCIAL_STORY_ACTIONS_ROW_CLASS, sayExpanded && "items-end")}

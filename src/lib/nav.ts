@@ -16,6 +16,7 @@ import {
   Storefront,
   Users,
   BookOpen,
+  MusicNotes,
 } from "@phosphor-icons/react";
 
 import type { PhosphorIcon } from "@/lib/phosphor-icon";
@@ -31,6 +32,7 @@ import {
 import { ATTENTION_HREF } from "@/lib/findings";
 import { GC_DELIVERIES_HREF, GC_LICENSING_STATUS } from "@/lib/gc-deliveries";
 import { QUEUE_HREF } from "@/lib/queue";
+import { SOCIAL_MUSIC_REVIEW, SOCIAL_MUSIC_REVIEW_HREF } from "@/lib/social-music-review";
 import { REPORTS_HREF, REPORTS_PAGE } from "@/lib/reports";
 import { isSocialGoLivePath, SOCIAL_ROUTES } from "@/lib/social";
 import { TITLES_HREF } from "@/lib/title-public-id";
@@ -172,6 +174,7 @@ export const GC_NAV: PhosphorNavItem[] = [
     icon: Wallet,
     ariaLabel: FINANCE_PAGE.navAria,
   },
+  { label: SOCIAL_MUSIC_REVIEW.title, href: SOCIAL_MUSIC_REVIEW_HREF, family: "phosphor", icon: MusicNotes },
   { label: "Clients", href: staffPath("gc/clients"), family: "phosphor", icon: Users },
 ];
 

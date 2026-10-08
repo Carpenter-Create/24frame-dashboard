@@ -8,6 +8,7 @@ import {
   SquaresFour,
   ChartBar,
   House,
+  MusicNotes,
   Rows,
   Storefront,
   Tray,
@@ -124,6 +125,7 @@ describe("client NAV", () => {
       PaperPlaneTilt,
       Storefront,
       Wallet,
+      MusicNotes,
       Users,
     ]);
     expect(NAV.every((item) => item.family === "phosphor")).toBe(true);
@@ -155,6 +157,7 @@ describe("GC_NAV", () => {
       { label: "Licensing Status", href: "/staff/gc/deliveries" },
       { label: "Channels", href: "/staff/channels" },
       { label: "Finance", href: "/staff/gc/finance" },
+      { label: "Music review", href: "/staff/music" },
       { label: "Clients", href: "/staff/gc/clients" },
     ]);
     expect(GC_NAV.map((item) => item.href).every((href) => href.startsWith("/staff/"))).toBe(true);
@@ -173,6 +176,7 @@ describe("GC_NAV", () => {
       "Licensing Status",
       "Channels",
       "Finance",
+      "Music review",
       "Clients",
     ]);
     expect(GC_NAV.map((item) => item.label)).not.toContain("Ask 24Frame AI");
@@ -227,6 +231,7 @@ describe("mobileNavDestinations", () => {
       "Licensing Status",
       "Channels",
       "Finance",
+      "Music review",
       "Clients",
     ]);
     expect(mobileNavDestinations(false, "staff").map((item) => item.label)).toEqual([
@@ -256,6 +261,7 @@ describe("mobileNavDestinations", () => {
       "/staff/gc/deliveries",
       "/staff/channels",
       "/staff/gc/finance",
+      "/staff/music",
       "/staff/gc/clients",
     ]);
     expect(railDestinations(true, "staff").staffItems).toEqual([]);

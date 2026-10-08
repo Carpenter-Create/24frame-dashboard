@@ -13,6 +13,7 @@ import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot
 import { SocialForYouSkeleton, SocialProfileCenterSkeleton } from "@/components/social/social-skeletons";
 import { SocialOwnProfileFace } from "@/components/social/social-own-profile";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
+import { loadOwnMusicNotices } from "@/lib/social-music-scan";
 import {
   SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_PAGE_CLASS,
@@ -161,6 +162,9 @@ async function SocialProfileMain({
       : Promise.resolve(new Map<string, string | null>()),
   ]);
   const mediaIds = socialActivityMediaPostIds(activityFeedPosts);
+  const music = await loadOwnMusicNotices(supabase, ctx.user.id, {
+    postIds: cardPosts.map((post) => post.id),
+  });
 
   const highlightCards = liveStories.map((story) => ({
     id: story.id,
@@ -220,6 +224,7 @@ async function SocialProfileMain({
               canLike: true,
               media: media.get(post.id) ?? [],
               owned: true,
+              musicNotice: music.posts.get(post.id) ?? null,
             }),
           ),
           imageIds: mediaIds.imageIds,
@@ -244,6 +249,8 @@ async function SocialProfileMain({
                 canLike: true,
                 media: media.get(item.post.id) ?? [],
                 owned: item.post.author_id === profile.id,
+                musicNotice:
+                  item.post.author_id === profile.id ? (music.posts.get(item.post.id) ?? null) : null,
               }),
             };
           }),
