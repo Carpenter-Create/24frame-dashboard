@@ -1682,11 +1682,15 @@ export const SOCIAL_STORY_STUDIO_STAGE_CLASS =
 
 // Go live, desktop frame (social-go-live-camera-chrome-lock-v1 §Desktop
 // frame, Adam 2026-10-08: "shouldn't full camera on computer be full screen
-// like zoom"). Full: the camera fills the whole window edge to edge (cover),
-// the phone's full-screen stage at window size; no card, edge, or radius.
-// Reel: the 9:16 studio stage above.
+// like zoom", then "the camera should be that, look like that"). Each frame
+// is its exact shape: 16:9 as large as the window allows, edge to edge on
+// the band (no card, edge, or radius); 9:16 at the studio's height (746,
+// 90dvh cap) with its width following. The phone keeps the full-screen stage.
 export const SOCIAL_GO_LIVE_STAGE_FULL_CLASS =
-  "relative flex h-full w-full flex-col overflow-hidden bg-band";
+  "relative flex h-full w-full flex-col overflow-hidden bg-band md:aspect-video md:h-auto md:w-[min(100vw,calc(100dvh*16/9))]";
+
+export const SOCIAL_GO_LIVE_STAGE_REEL_CLASS =
+  "relative flex h-full w-full flex-col overflow-hidden bg-band md:aspect-[9/16] md:h-[min(746px,90dvh)] md:w-auto md:rounded-[16px] md:border md:border-band-ink/20";
 
 export const SOCIAL_GO_LIVE_FULL_VIDEO_CLASS = "absolute inset-0 size-full object-cover";
 

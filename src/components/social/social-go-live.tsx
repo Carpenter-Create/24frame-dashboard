@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { HouseLink } from "@/components/chrome/house-link";
-import { useHouseDesktop } from "@/components/chrome/house-overlay";
+import { isHouseDesktop, useHouseDesktop } from "@/components/chrome/house-overlay";
 import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,7 @@ import {
   SOCIAL_GO_LIVE_REVIEW_ACTIONS_CLASS,
   SOCIAL_GO_LIVE_REVIEW_CLASS,
   SOCIAL_GO_LIVE_STAGE_FULL_CLASS,
+  SOCIAL_GO_LIVE_STAGE_REEL_CLASS,
   SOCIAL_STORY_REC_PILL_CLASS,
   SOCIAL_STORY_RECORD_CLASS,
   SOCIAL_STORY_STOP_CLASS,
@@ -30,7 +31,6 @@ import {
   SOCIAL_STORY_STUDIO_CLASS,
   SOCIAL_STORY_STUDIO_ICON_CLASS,
   SOCIAL_STORY_STUDIO_REVIEW_CLASS,
-  SOCIAL_STORY_STUDIO_STAGE_CLASS,
   socialGoLivePreviewClass,
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_STORY_STUDIO } from "@/lib/social-icons";
@@ -45,9 +45,11 @@ import {
   goLiveFitsByteCap,
   goLiveReachedCap,
   goLiveRecorderOptions,
-  goLiveReelCrop,
+  goLiveFrameCut,
+  goLiveVideoConstraints,
   goLiveRemainingMs,
   SOCIAL_GO_LIVE_DEFAULT_FRAME,
+  SOCIAL_GO_LIVE_FRAME_ASPECT,
   SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
   type GoLiveFrame,
@@ -69,7 +71,6 @@ import {
   nextStoryStudioLive,
   probeStoryRecorderMimeType,
   resolveStoryRecorderBlobType,
-  storyRecorderVideoConstraints,
   storyStudioIsLive,
   storyStudioMirrorsPreview,
   type StoryStudioFacing,
@@ -89,15 +90,19 @@ function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
-type ReelRecording = { stream: MediaStream; stop: () => void };
+type FrameRecording = { stream: MediaStream; stop: () => void };
 
-/** Reel on desktop: draw the 9:16 center cut of each camera frame into a
- *  canvas and record that, so the clip is the frame that was shown. The
- *  camera's audio rides along. Null where a canvas cannot be captured
- *  (the full frame records instead). */
-function reelRecording(source: MediaStream, video: HTMLVideoElement | null): ReelRecording | null {
+/** On a computer the clip is the shape the switch names (16:9 or 9:16):
+ *  draw that centre cut of each camera frame into a canvas and record it.
+ *  The camera's audio rides along. Null when the camera already has the
+ *  shape, or where a canvas cannot be captured: the camera records as is. */
+function frameRecording(
+  source: MediaStream,
+  video: HTMLVideoElement | null,
+  aspect: number,
+): FrameRecording | null {
   if (!video || typeof document === "undefined") return null;
-  const crop = goLiveReelCrop(video.videoWidth, video.videoHeight);
+  const crop = goLiveFrameCut(video.videoWidth, video.videoHeight, aspect);
   if (!crop) return null;
   const canvas = document.createElement("canvas");
   canvas.width = crop.sw;
@@ -157,7 +162,7 @@ export function SocialGoLive() {
   const liveRef = useRef(0);
   const aliveRef = useRef(true);
   const attachPromiseRef = useRef<Promise<boolean> | null>(null);
-  const reelRef = useRef<ReelRecording | null>(null);
+  const cutRef = useRef<FrameRecording | null>(null);
   const reviewRef = useRef<HTMLVideoElement>(null);
   // The poster: the one author every Social post path uses (the shell's).
   const author = useSocialCompose()?.author;
@@ -185,16 +190,16 @@ export function SocialGoLive() {
     setClock(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS));
   }
 
-  function stopReel() {
-    reelRef.current?.stop();
-    reelRef.current = null;
+  function stopCut() {
+    cutRef.current?.stop();
+    cutRef.current = null;
   }
 
   function releasePreview() {
     liveRef.current = nextStoryStudioLive(liveRef.current);
     recordingRef.current = false;
     clearClock();
-    stopReel();
+    stopCut();
     const recorder = recorderRef.current;
     if (recorder) {
       recorder.ondataavailable = null;
@@ -262,7 +267,8 @@ export function SocialGoLive() {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error(SOCIAL.stories.unavailable);
     }
-    const video = storyRecorderVideoConstraints(nextFacing);
+    // Read at call time: the first client render does not know the host yet.
+    const video = goLiveVideoConstraints(nextFacing, isHouseDesktop());
     try {
       return await navigator.mediaDevices.getUserMedia({ video, audio: true });
     } catch {
@@ -373,9 +379,12 @@ export function SocialGoLive() {
     mimeRef.current = probed.mimeType;
     chunksRef.current = [];
     const live = liveRef.current;
-    stopReel();
-    reelRef.current = frame === "reel" ? reelRecording(source, videoRef.current) : null;
-    const stream = reelRef.current?.stream ?? source;
+    stopCut();
+    // The phone records its own frame; a computer records the switch's shape.
+    cutRef.current = desktop
+      ? frameRecording(source, videoRef.current, SOCIAL_GO_LIVE_FRAME_ASPECT[frame])
+      : null;
+    const stream = cutRef.current?.stream ?? source;
     let recorder: MediaRecorder;
     try {
       recorder = new MediaRecorder(stream, goLiveRecorderOptions(probed.raw));
@@ -404,7 +413,7 @@ export function SocialGoLive() {
       chunksRef.current.push(event.data);
     };
     recorder.onstop = () => {
-      stopReel();
+      stopCut();
       if (!storyStudioIsLive(liveRef.current, live)) return;
       const contentType = resolveStoryRecorderBlobType(
         chunksRef.current[0] instanceof Blob ? chunksRef.current[0].type : recorder.mimeType,
@@ -536,7 +545,7 @@ export function SocialGoLive() {
       <div
         data-social-go-live-stage=""
         data-social-go-live-frame-stage={frame}
-        className={frame === "reel" ? SOCIAL_STORY_STUDIO_STAGE_CLASS : SOCIAL_GO_LIVE_STAGE_FULL_CLASS}
+        className={frame === "reel" ? SOCIAL_GO_LIVE_STAGE_REEL_CLASS : SOCIAL_GO_LIVE_STAGE_FULL_CLASS}
       >
         {phase === "review" && clip ? (
           // The review loops on its own, like a story (no native control

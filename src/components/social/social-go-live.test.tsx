@@ -24,7 +24,7 @@ import {
   SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS,
   SOCIAL_GO_LIVE_FULL_VIDEO_CLASS,
   SOCIAL_GO_LIVE_STAGE_FULL_CLASS,
-  SOCIAL_STORY_STUDIO_STAGE_CLASS,
+  SOCIAL_GO_LIVE_STAGE_REEL_CLASS,
 } from "@/lib/social-chrome";
 
 const src = readFileSync("src/components/social/social-go-live.tsx", "utf8");
@@ -90,7 +90,7 @@ describe("Social Go live recorder", () => {
   // (Adam 2026-10-08): "default to the normal view that opens on the device
   // (full width on computer) but provide a simple option/switch to do reel
   // sized camera (on computer)".
-  it("opens on the full frame with a Full | Reel switch above record, desktop only", () => {
+  it("opens on 16:9 with a 16:9 | 9:16 switch above record, desktop only", () => {
     const html = renderToStaticMarkup(createElement(SocialGoLive));
     expect(html).toContain('data-social-go-live-frame-stage="full"');
     expect(html).toContain(`class="${SOCIAL_GO_LIVE_STAGE_FULL_CLASS}"`);
@@ -100,37 +100,44 @@ describe("Social Go live recorder", () => {
     expect(group).toContain(`class="${SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS}"`);
     expect(SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS).toContain("hidden");
     expect(SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS).toContain("md:inline-flex");
-    expect(group).toMatch(/role="radio" aria-checked="true" data-social-go-live-frame-option="full"[^>]*>Full</);
-    expect(group).toMatch(/role="radio" aria-checked="false" data-social-go-live-frame-option="reel"[^>]*>Reel</);
+    expect(group).toMatch(/role="radio" aria-checked="true" data-social-go-live-frame-option="full"[^>]*>16:9</);
+    expect(group).toMatch(/role="radio" aria-checked="false" data-social-go-live-frame-option="reel"[^>]*>9:16</);
     expect(html.indexOf("data-social-go-live-frame=")).toBeLessThan(html.indexOf("data-social-go-live-record"));
     // Adam 2026-10-08: "shouldn't full camera on computer be full screen
-    // like zoom". Full fills the window edge to edge on every screen: no
-    // card size, edge, or radius at md, and the video covers. Reel is the
-    // 9:16 studio stage.
+    // like zoom", then "the camera should be that, look like that". Each
+    // frame is its exact shape on a computer: 16:9 as large as the window
+    // allows (no edge or radius), 9:16 at the studio height with its width
+    // following. The video covers each; the phone keeps the full screen.
     expect(SOCIAL_GO_LIVE_STAGE_FULL_CLASS).toContain("h-full w-full");
-    expect(SOCIAL_GO_LIVE_STAGE_FULL_CLASS).not.toMatch(/\bmd:/);
+    expect(SOCIAL_GO_LIVE_STAGE_FULL_CLASS).toContain("md:aspect-video md:h-auto md:w-[min(100vw,calc(100dvh*16/9))]");
+    expect(SOCIAL_GO_LIVE_STAGE_FULL_CLASS).not.toMatch(/rounded|border/);
+    expect(SOCIAL_GO_LIVE_STAGE_REEL_CLASS).toContain("md:aspect-[9/16] md:h-[min(746px,90dvh)] md:w-auto");
+    expect(src).toContain('className={frame === "reel" ? SOCIAL_GO_LIVE_STAGE_REEL_CLASS : SOCIAL_GO_LIVE_STAGE_FULL_CLASS}');
     expect(SOCIAL_GO_LIVE_FULL_VIDEO_CLASS).toBe("absolute inset-0 size-full object-cover");
     expect(src).not.toContain("--go-live-aspect");
-    expect(SOCIAL_STORY_STUDIO_STAGE_CLASS).toContain("md:w-[420px]");
     // The phone always records its own frame; the switch is desktop only.
     expect(src).toContain('const frame: GoLiveFrame = desktop ? frameChoice : "full";');
     // Only before recording.
     expect(src).toMatch(/\{phase === "preview" \? \(\s*<div\s+role="radiogroup"/);
   });
 
-  it("records the reel as the 9:16 cut it shows, and stops the cut with the recorder", () => {
-    expect(src).toContain('reelRef.current = frame === "reel" ? reelRecording(source, videoRef.current) : null;');
-    expect(src).toContain("const stream = reelRef.current?.stream ?? source;");
-    expect(src).toContain("goLiveReelCrop(video.videoWidth, video.videoHeight)");
+  it("records the switch's shape on a computer (16:9 or 9:16), the phone's own frame on a phone", () => {
+    expect(src).toMatch(
+      /cutRef\.current = desktop\s*\?\s*frameRecording\(source, videoRef\.current, SOCIAL_GO_LIVE_FRAME_ASPECT\[frame\]\)\s*:\s*null;/,
+    );
+    expect(src).toContain("const stream = cutRef.current?.stream ?? source;");
+    expect(src).toContain("goLiveFrameCut(video.videoWidth, video.videoHeight, aspect)");
+    // The camera is asked for 16:9 HD on a computer, read at call time.
+    expect(src).toContain("const video = goLiveVideoConstraints(nextFacing, isHouseDesktop());");
     expect(src).toContain("context.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh)");
     expect(src).toContain("canvas.captureStream(30)");
     expect(src).toContain("for (const track of source.getAudioTracks()) stream.addTrack(track);");
     const onstop = src.slice(src.indexOf("recorder.onstop = () => {"), src.indexOf("recorder.start(1000)"));
-    expect(onstop.indexOf("stopReel();")).toBeGreaterThan(-1);
+    expect(onstop.indexOf("stopCut();")).toBeGreaterThan(-1);
     const release = src.slice(src.indexOf("function releasePreview()"), src.indexOf("function releaseClip()"));
-    expect(release).toContain("stopReel();");
+    expect(release).toContain("stopCut();");
     // The camera's audio is not stopped by the cut.
-    const reel = src.slice(src.indexOf("function reelRecording("), src.indexOf("async function uploadLiveVideo("));
+    const reel = src.slice(src.indexOf("function frameRecording("), src.indexOf("async function uploadLiveVideo("));
     expect(reel).toContain("for (const track of stream.getVideoTracks()) track.stop();");
     expect(reel).not.toContain("getAudioTracks()) track.stop");
   });
