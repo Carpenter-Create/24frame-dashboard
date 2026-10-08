@@ -190,6 +190,7 @@ function stubClient({
     if (table === "stories") return chain(stories);
     if (table === "story_views") return chain([]);
     if (table === "courses") return chain(courses);
+    if (table === "social_music_scans") return chain([]);
     throw new Error(`unexpected from(${table})`);
   });
   const rpc = vi.fn().mockResolvedValue({ data: [], error: null });

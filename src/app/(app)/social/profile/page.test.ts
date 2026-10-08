@@ -127,6 +127,7 @@ function stubClient({
     if (table === "stories") return chain([]);
     if (table === "comments") return chain([]);
     if (table === "courses") return chain([]);
+    if (table === "social_music_scans") return chain([]);
     throw new Error(`unexpected from(${table})`);
   });
   vi.mocked(createClient).mockResolvedValue({ from } as never);
