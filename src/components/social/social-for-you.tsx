@@ -151,8 +151,9 @@ export function SocialForYouRail({
 }
 
 // Feed For you rail (H register §5.5; founder 2026-10-05, decision 5:
-// "For you" stays both as the slider option and as this rail's heading —
-// "sure"). The "For you" heading level with the slider, the latest
+// "For you" stays this rail's heading — "sure"; the Feed's slider is gone,
+// founder 2026-10-08). The "For you" heading level with the stories card
+// that leads the Feed, the latest
 // course as one card, then Suggested people as one card of 56 rows with
 // Follow on the in-card fill (cards lock). No hairlines, no border.
 // Profile, Messages and Create keep the framed rail above.

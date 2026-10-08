@@ -1062,8 +1062,9 @@ export const SOCIAL_FEED_REEL_CAPTION_CLASS =
 export const SOCIAL_FEED_WALL_CLASS = "mt-2 flex min-w-0 flex-col gap-2 md:mt-4 md:gap-4";
 
 // For you rail (H §5.5; founder decision 5, "sure": "For you" stays the
-// rail's heading as well as the slider option). The heading (20 / 480,
-// 44 tall, level with the slider) on the canvas, 16, the latest course
+// rail's heading; the Feed's slider is gone, founder 2026-10-08). The
+// heading (20 / 480, 44 tall, level with the stories card that leads the
+// Feed) on the canvas, 16, the latest course
 // as one card (CourseCard "feature": the card fill, radius 24, pad 16, a
 // 16:9 cover at radius 16, "Latest course · Education" 13 / 500 ink-2,
 // the title 15 / 600), 16, then Suggested people as one card (pad 16,
