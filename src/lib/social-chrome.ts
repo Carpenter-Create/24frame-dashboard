@@ -1680,6 +1680,49 @@ export const SOCIAL_STORY_STUDIO_CLASS =
 export const SOCIAL_STORY_STUDIO_STAGE_CLASS =
   "relative flex h-full w-full flex-col overflow-hidden bg-band md:h-[746px] md:max-h-[90dvh] md:w-[420px] md:rounded-[16px] md:border md:border-band-ink/20";
 
+// Go live, desktop frame (social-go-live-camera-chrome-lock-v1 §Desktop
+// frame, Adam 2026-10-08). Full: the camera's own frame, as wide as the
+// screen allows (92vw, 1280, or 90dvh at the camera's aspect), the whole
+// image shown (contain). Phone keeps the full-screen stage with cover.
+// Reel: the 9:16 studio stage above.
+export const SOCIAL_GO_LIVE_STAGE_FULL_CLASS =
+  "relative flex h-full w-full flex-col overflow-hidden bg-band md:aspect-[var(--go-live-aspect)] md:h-auto md:w-[min(92vw,1280px,calc(90dvh*var(--go-live-aspect)))] md:rounded-[16px] md:border md:border-band-ink/20";
+
+export const SOCIAL_GO_LIVE_FULL_VIDEO_CLASS = "absolute inset-0 size-full object-cover md:object-contain";
+
+// The frame switch: two segments above the record button, desktop only,
+// on the camera's band wash (no blur). The current one is band-ink.
+export const SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS = "hidden rounded-full bg-band/55 p-1 md:inline-flex";
+
+export const SOCIAL_GO_LIVE_FRAME_OPTION_CLASS =
+  "inline-flex h-8 min-w-14 items-center justify-center rounded-full px-3 t-label font-semibold text-band-ink/80 transition-colors aria-checked:bg-band-ink aria-checked:text-band focus-visible:rounded-full!";
+
+// Go live review (social-go-live-camera-chrome-lock-v1 §Review, Adam
+// 2026-10-08: "a clear experience like IG"): the caption sits on the clip,
+// not in a box: band-ink type on a wash that fades up from the bottom.
+// Record again and Post are round glyph buttons; posting shows the upload
+// as a blue bar. The house dictate mic stays, tinted for the clip.
+export const SOCIAL_GO_LIVE_REVIEW_CLASS =
+  "absolute inset-x-0 bottom-0 z-10 flex flex-col gap-4 bg-linear-to-t from-band/85 via-band/45 to-transparent px-4 pb-6 pt-24";
+
+export const SOCIAL_GO_LIVE_CAPTION_CLASS =
+  "flex items-end gap-2 [&_[data-house-voice-mic]]:text-band-ink";
+
+export const SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS =
+  "max-h-[30vh] min-h-7 flex-1 resize-none overflow-y-auto border-0 bg-transparent p-0 text-[length:var(--text-base)] font-medium leading-snug text-band-ink caret-band-ink outline-none placeholder:text-band-ink/70";
+
+export const SOCIAL_GO_LIVE_REVIEW_ACTIONS_CLASS = "flex items-center justify-between";
+
+export const SOCIAL_GO_LIVE_RETAKE_CLASS =
+  "inline-flex size-14 items-center justify-center rounded-full bg-band/55 text-band-ink transition-opacity disabled:opacity-40";
+
+export const SOCIAL_GO_LIVE_POST_CLASS =
+  "inline-flex size-14 items-center justify-center rounded-full bg-accent text-accent-contrast transition-opacity disabled:opacity-60";
+
+export const SOCIAL_GO_LIVE_PROGRESS_TRACK_CLASS = "h-1.5 w-full overflow-hidden rounded-full bg-band-ink/25";
+
+export const SOCIAL_GO_LIVE_PROGRESS_FILL_CLASS = "h-full rounded-full bg-accent transition-[width] duration-200";
+
 // Lock v1.4: rectangular full-bleed viewfinder. Cover fills the stage pane.
 // No face ring and no oval crop. Review stays cover as well.
 export const SOCIAL_STORY_STUDIO_PREVIEW_CLASS =
@@ -1694,6 +1737,15 @@ export function socialStoryStudioPreviewClass(mirrored: boolean): string {
   return mirrored
     ? `${SOCIAL_STORY_STUDIO_PREVIEW_CLASS} ${SOCIAL_STORY_STUDIO_PREVIEW_MIRROR_CLASS}`
     : SOCIAL_STORY_STUDIO_PREVIEW_CLASS;
+}
+
+/** Go live's live video: the reel stage cuts to cover (the studio's);
+ *  the full stage shows the camera's whole frame. Front camera mirrored. */
+export function socialGoLivePreviewClass(frame: "full" | "reel", mirrored: boolean): string {
+  if (frame === "reel") return socialStoryStudioPreviewClass(mirrored);
+  return mirrored
+    ? `${SOCIAL_GO_LIVE_FULL_VIDEO_CLASS} ${SOCIAL_STORY_STUDIO_PREVIEW_MIRROR_CLASS}`
+    : SOCIAL_GO_LIVE_FULL_VIDEO_CLASS;
 }
 
 export const SOCIAL_STORY_STUDIO_CHROME_CLASS =

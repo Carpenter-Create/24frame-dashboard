@@ -253,9 +253,16 @@ export function AppShell({
   const createOpen = createAt.open;
   const openCreate = useCallback(() => setCreateWindow((current) => ({ ...current, open: true })), []);
   const closeCreate = useCallback(() => setCreateWindow((current) => ({ ...current, open: false })), []);
+  const composeAuthorName = identity.name || SOCIAL.home.you;
+  const composeAuthorPhoto = identity.photoUrl;
   const compose = useMemo(
-    () => ({ open: createOpen, onOpen: openCreate, controls: createTitleId }),
-    [createOpen, openCreate, createTitleId],
+    () => ({
+      open: createOpen,
+      onOpen: openCreate,
+      controls: createTitleId,
+      author: { name: composeAuthorName, photoUrl: composeAuthorPhoto },
+    }),
+    [createOpen, openCreate, createTitleId, composeAuthorName, composeAuthorPhoto],
   );
   const accountChrome = settingsPage || helpPage || activityPage;
   const phoneDestDock =
@@ -366,8 +373,8 @@ export function AppShell({
         open={createOpen}
         onClose={closeCreate}
         titleId={createTitleId}
-        authorName={identity.name || SOCIAL.home.you}
-        authorPhotoUrl={identity.photoUrl}
+        authorName={compose.author.name}
+        authorPhotoUrl={compose.author.photoUrl}
       />
     ) : null}
     <HousePhoneAppShell

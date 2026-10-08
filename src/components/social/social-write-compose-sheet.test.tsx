@@ -221,12 +221,21 @@ describe("Desktop composer window", () => {
     expect(mounts).toEqual(["src/components/chrome/app-shell.tsx"]);
     const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
     expect(shell).toContain("<SocialComposeContext.Provider value={compose}>");
-    expect(shell).toContain("authorName={identity.name || SOCIAL.home.you}");
-    expect(shell).toContain("authorPhotoUrl={identity.photoUrl}");
+    expect(shell).toContain("const composeAuthorName = identity.name || SOCIAL.home.you;");
+    expect(shell).toContain("const composeAuthorPhoto = identity.photoUrl;");
+    expect(shell).toContain("authorName={compose.author.name}");
+    expect(shell).toContain("authorPhotoUrl={compose.author.photoUrl}");
     const open = renderToStaticMarkup(
       createElement(
         SocialComposeContext.Provider,
-        { value: { open: true, onOpen: () => undefined, controls: "compose-title" } },
+        {
+          value: {
+            open: true,
+            onOpen: () => undefined,
+            controls: "compose-title",
+            author: { name: "Ada Lovelace", photoUrl: null },
+          },
+        },
         createElement(SocialHomeComposer, { authorName: "Ada Lovelace" }),
       ),
     );
@@ -258,7 +267,7 @@ describe("Desktop composer window", () => {
     const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
     const nav = readFileSync("src/components/chrome/side-nav.tsx", "utf8");
     expect(shell).toContain("<SocialWriteComposeSheet");
-    expect(shell).toContain("() => ({ open: createOpen, onOpen: openCreate, controls: createTitleId })");
+    expect(shell).toMatch(/open: createOpen,\s*onOpen: openCreate,\s*controls: createTitleId,\s*author: \{ name: composeAuthorName, photoUrl: composeAuthorPhoto \}/);
     expect(shell).toContain("compose={compose}");
     const slot = shell.slice(shell.indexOf("function SideNavSlot("));
     expect(slot).not.toContain("SocialWriteComposeSheet");

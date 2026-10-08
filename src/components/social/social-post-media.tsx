@@ -20,6 +20,7 @@ import {
   socialFeedVideoPosterSrc,
   socialPostPhotoAspect,
   type SocialFeedVideoFrame,
+  isLocalMediaPreviewSrc,
 } from "@/lib/social-media-display";
 import {
   loadSocialMuxPlaybackTokens,
@@ -169,6 +170,10 @@ function SocialFeedVideoFrame({
   open: ReactNode;
 }) {
   const stored = socialFeedVideoFrame(item);
+  // The poster's own clip, just recorded or picked (an optimistic post's
+  // blob): Mux is still preparing it, so it plays from the device until
+  // the next load brings the server card.
+  const local = typeof item.url === "string" && isLocalMediaPreviewSrc(item.url);
   const [probed, setProbed] = useState<SocialFeedVideoFrame | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const onScreen = useSocialFollowingMuxOnScreen(muxBandId);
@@ -196,7 +201,7 @@ function SocialFeedVideoFrame({
   }, [muxBandId, markOnScreen]);
 
   useEffect(() => {
-    if (!signed || !onScreen || !item.playbackId) return undefined;
+    if (local || !signed || !onScreen || !item.playbackId) return undefined;
     if (readSocialMuxPlaybackTokenCache(item.playbackId)) return undefined;
     const controller = new AbortController();
     void loadSocialMuxPlaybackTokens(item.playbackId, controller.signal).then((next) => {
@@ -204,7 +209,7 @@ function SocialFeedVideoFrame({
       setMintedToken(next.thumbnail);
     });
     return () => controller.abort();
-  }, [signed, onScreen, item.playbackId]);
+  }, [local, signed, onScreen, item.playbackId]);
 
   function onPosterLoad(event: SyntheticEvent<HTMLImageElement>) {
     if (stored) return;
@@ -213,6 +218,35 @@ function SocialFeedVideoFrame({
       height: event.currentTarget.naturalHeight,
     });
     if (next) setProbed(next);
+  }
+
+  if (local) {
+    return (
+      <div
+        ref={frameRef}
+        data-social-feed-media-frame=""
+        data-social-feed-video-frame={videoFrame?.orientation}
+        data-social-feed-video-local=""
+        className={videoFrame?.className ?? SOCIAL_FEED_VIDEO_PENDING_CLASS}
+        style={videoFrame?.style}
+      >
+        <video
+          src={item.url}
+          playsInline
+          controls
+          preload="metadata"
+          className={videoFrame ? "absolute inset-0 size-full object-cover" : "relative block h-auto w-full object-contain"}
+          onLoadedMetadata={(event) => {
+            if (stored) return;
+            const next = socialFeedVideoFrame({
+              width: event.currentTarget.videoWidth,
+              height: event.currentTarget.videoHeight,
+            });
+            if (next) setProbed(next);
+          }}
+        />
+      </div>
+    );
   }
 
   return (

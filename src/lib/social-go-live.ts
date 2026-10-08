@@ -48,3 +48,40 @@ export function goLiveFitsByteCap(
 ): boolean {
   return Number.isFinite(byteLength) && byteLength > 0 && byteLength <= cap;
 }
+
+// Desktop frame (docs/design-locks/social-go-live-camera-chrome-lock-v1.md
+// §Desktop frame, Adam 2026-10-08): "full" is the camera's own frame, as the
+// device opens it (what you see is what records); "reel" is a 9:16 cut of
+// it, recorded as 9:16. Phone is always the camera's own (portrait) frame.
+export type GoLiveFrame = "full" | "reel";
+
+export const SOCIAL_GO_LIVE_FRAMES = ["full", "reel"] as const satisfies readonly GoLiveFrame[];
+
+export const SOCIAL_GO_LIVE_DEFAULT_FRAME: GoLiveFrame = "full";
+
+export const SOCIAL_GO_LIVE_REEL_ASPECT = 9 / 16;
+
+/** The camera's aspect for the full stage; 16:9 until the track reports. */
+export function goLiveCameraAspect(width?: number, height?: number): number {
+  if (!width || !height || !Number.isFinite(width / height)) return 16 / 9;
+  return width / height;
+}
+
+const even = (n: number) => Math.max(2, Math.floor(n / 2) * 2);
+
+/** The reel's center cut of a camera frame (source pixels, even sizes, no
+ *  upscale): a landscape webcam keeps its height and loses its sides. */
+export function goLiveReelCrop(
+  width: number,
+  height: number,
+): { sx: number; sy: number; sw: number; sh: number } | null {
+  if (!(width > 0 && height > 0)) return null;
+  if (width / height > SOCIAL_GO_LIVE_REEL_ASPECT) {
+    const sw = even(height * SOCIAL_GO_LIVE_REEL_ASPECT);
+    const sh = even(height);
+    return { sx: Math.floor((width - sw) / 2), sy: Math.floor((height - sh) / 2), sw, sh };
+  }
+  const sw = even(width);
+  const sh = even(width / SOCIAL_GO_LIVE_REEL_ASPECT);
+  return { sx: Math.floor((width - sw) / 2), sy: Math.floor((height - sh) / 2), sw, sh };
+}
