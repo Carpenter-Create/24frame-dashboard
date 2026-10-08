@@ -1,6 +1,7 @@
 "use client";
 
 import { HouseLink } from "./house-link";
+import type { SocialCompose } from "@/components/social/social-compose-context";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import {
@@ -53,7 +54,7 @@ import { NavGlyph } from "./nav-glyph";
 // (house Phosphor).
 /** Social's Create row opens the composer window, which AppShell owns
  *  (docs/design-locks/social-desktop-create-composer-lock-v1.md). */
-export type SideNavCreate = { open: boolean; onOpen: () => void; controls: string };
+export type SideNavCreate = SocialCompose;
 
 export function SideNav({
   isGcStaff = false,

@@ -47,7 +47,11 @@ describe("social media display", () => {
     expect(isSessionGatedSocialSrc("/api/social/media?key=posts/u/x.jpg")).toBe(true);
     expect(isSessionGatedSocialSrc("/api/social/media?key=posts/u/x.jpg#still")).toBe(true);
     expect(isSessionGatedSocialSrc("https://cf.example/posts/u/x.jpg")).toBe(false);
-    expect(isSessionGatedSocialSrc("/api/account/photo")).toBe(false);
+    // The account face is session-gated too: the composer window's author is
+    // the shell's identity (social-desktop-create-composer-lock-v1, one author),
+    // and the image optimizer would fetch it without the session.
+    expect(isSessionGatedSocialSrc("/api/account/photo")).toBe(true);
+    expect(isSessionGatedSocialSrc("/api/account/photo-other")).toBe(false);
   });
 
   // H · Posts (founder 2026-10-05): a feed photo keeps its true shape,

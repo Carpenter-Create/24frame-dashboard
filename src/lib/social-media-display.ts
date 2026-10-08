@@ -1,4 +1,5 @@
 import { SOCIAL_DESKTOP_MEASURE } from "@/lib/social-chrome";
+import { ACCOUNT_PHOTO_HREF } from "@/lib/account-avatar";
 import { SOCIAL_AVATAR_ROUTE, SOCIAL_MEDIA_ROUTE } from "@/lib/social-edge";
 import {
   isSocialMuxId,
@@ -44,7 +45,14 @@ export function isAnimatedRasterSrc(src: string): boolean {
  */
 export function isSessionGatedSocialSrc(src: string): boolean {
   const path = src.split("#")[0]?.split("?")[0] ?? "";
-  return path === SOCIAL_MEDIA_ROUTE || path.startsWith(`${SOCIAL_AVATAR_ROUTE}/`);
+  // The account face (the shell's identity, e.g. the composer window's
+  // author) is the same-origin, session-gated route: the browser loads it
+  // with the session; the image optimizer would fetch it without one.
+  return (
+    path === SOCIAL_MEDIA_ROUTE ||
+    path.startsWith(`${SOCIAL_AVATAR_ROUTE}/`) ||
+    path === ACCOUNT_PHOTO_HREF
+  );
 }
 
 /** Local capture preview. Not published Social playback. */

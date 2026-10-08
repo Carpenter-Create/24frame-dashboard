@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
-
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { useSocialCreateMediaPick } from "@/components/social/social-create-media";
 import { SocialIcon } from "@/components/social/social-icon";
-import { SocialWriteComposeSheet } from "@/components/social/social-write-compose-sheet";
+import { useSocialCompose } from "@/components/social/social-compose-context";
 import {
   SOCIAL_COMPOSER_AFFORDANCE_CLASS,
   SOCIAL_COMPOSER_AFFORDANCE_GLYPH,
@@ -26,7 +24,9 @@ import { SOCIAL, socialComposerPrompt } from "@/lib/social";
 // in its own card, the pill and rounds on the in-card fill (cards lock,
 // docs/design-locks/social-feed-cards-lock-v1.md). Supersedes the G
 // composer bar (52, radius 16).
-// Prompt and avatar open write compose in the house sheet. No Create sheet hop.
+// Prompt and avatar open the one write composer window, which the shell
+// owns (useSocialCompose; the side menu's Create opens the same one). No
+// Create sheet hop, no second window here.
 // docs/design-locks/social-feed-register-lock-v1.md
 // docs/design-locks/share-something-write-compose-sheet-lock-v1.md
 // Photo reuses the Create media library pick. Camera reuses that pick
@@ -71,16 +71,12 @@ function ComposerAffordance({
 
 export function SocialHomeComposer({
   authorName,
-  authorHandle = null,
   authorPhotoUrl,
 }: {
   authorName: string;
-  authorHandle?: string | null;
   authorPhotoUrl?: string | null;
 }) {
-  const titleId = useId();
-  const [writeOpen, setWriteOpen] = useState(false);
-  const closeWrite = useCallback(() => setWriteOpen(false), []);
+  const compose = useSocialCompose();
   return (
     <div data-social-home-composer="" className={SOCIAL_COMPOSER_CLASS}>
       <button
@@ -89,10 +85,10 @@ export function SocialHomeComposer({
         data-social-composer-write=""
         aria-label={SOCIAL.create.title}
         aria-haspopup="dialog"
-        aria-expanded={writeOpen}
-        aria-controls={writeOpen ? titleId : undefined}
+        aria-expanded={compose?.open ?? false}
+        aria-controls={compose?.open ? compose.controls : undefined}
         className={SOCIAL_COMPOSER_ROW_CLASS}
-        onClick={() => setWriteOpen(true)}
+        onClick={compose?.onOpen}
       >
         <SocialAvatar
           name={authorName}
@@ -113,14 +109,6 @@ export function SocialHomeComposer({
           capture="environment"
         />
       </div>
-      <SocialWriteComposeSheet
-        open={writeOpen}
-        onClose={closeWrite}
-        titleId={titleId}
-        authorName={authorName}
-        authorHandle={authorHandle}
-        authorPhotoUrl={authorPhotoUrl}
-      />
     </div>
   );
 }

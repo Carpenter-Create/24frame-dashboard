@@ -224,7 +224,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).toContain("<SocialHomeTopics active={topic} lane={lane}");
     expect(home).not.toContain("SocialHomeTabs");
     expect(composer).toContain("data-social-home-composer");
-    expect(composer).toContain("SocialWriteComposeSheet");
+    expect(composer).toContain("useSocialCompose()");
+    expect(composer).not.toContain("<SocialWriteComposeSheet");
     expect(composer).not.toContain('socialCreateHref("text")');
     expect(composer).toContain("data-social-composer-write");
     expect(composer).toContain("aria-label={SOCIAL.create.title}");
