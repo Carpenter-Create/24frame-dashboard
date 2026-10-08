@@ -492,19 +492,31 @@ export function SocialGoLive() {
   // switch reopens the camera through the one tracked open.
   async function chooseFrame(next: GoLiveFrame) {
     if (next === frameChoice || phase !== "preview" || recordingRef.current || attachPromiseRef.current) return;
+    const previous = frameChoice;
     setFrameChoice(next);
     frameRef.current = next;
     // No camera yet (access pending or refused): the next open asks for it.
     if (!streamRef.current) return;
     const live = liveRef.current;
     await trackOpen(
-      attachPreview(facing, live).catch(() => {
-        if (storyStudioIsLive(liveRef.current, live)) {
-          releasePreview();
-          setError(SOCIAL.stories.permission);
+      (async () => {
+        try {
+          return await attachPreview(facing, live);
+        } catch {
+          // The camera did not reopen with that ask: the last frame and its
+          // ask come back, so the viewfinder is never left dark.
+          setFrameChoice(previous);
+          frameRef.current = previous;
+          if (!storyStudioIsLive(liveRef.current, live)) return false;
+          try {
+            return await attachPreview(facing, live);
+          } catch {
+            releasePreview();
+            setError(SOCIAL.stories.permission);
+            return false;
+          }
         }
-        return false;
-      }),
+      })(),
     );
   }
 

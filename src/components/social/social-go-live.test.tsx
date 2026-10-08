@@ -292,7 +292,12 @@ describe("Social Go live recorder", () => {
     );
     expect(choose.indexOf("frameRef.current = next;")).toBeLessThan(choose.indexOf("await trackOpen("));
     expect(choose).toContain("if (!streamRef.current) return;");
-    expect(choose).toContain("attachPreview(facing, live).catch(");
+    // Bugbot #792: a reopen that fails restores the last frame and its ask,
+    // and reopens with it; the viewfinder is never left dark.
+    expect(choose).toMatch(
+      /catch \{(\s*\/\/[^\n]*\n)+\s*setFrameChoice\(previous\);\s*frameRef\.current = previous;\s*if \(!storyStudioIsLive\(liveRef\.current, live\)\) return false;\s*try \{\s*return await attachPreview\(facing, live\);/,
+    );
+    expect(choose).toContain("const previous = frameChoice;");
     const options = src.slice(src.indexOf("data-social-go-live-frame-option={option}"), src.indexOf("data-social-go-live-record"));
     expect(options).toContain("disabled={opening}");
     expect(options).toContain("onClick={() => void chooseFrame(option)}");
