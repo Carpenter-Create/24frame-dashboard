@@ -853,6 +853,41 @@ export type Database = {
           },
         ]
       }
+      social_mux_bindings: {
+        Row: {
+          id: string
+          author_id: string
+          upload_id: string
+          asset_id: string
+          playback_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          author_id: string
+          upload_id: string
+          asset_id: string
+          playback_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          author_id?: string
+          upload_id?: string
+          asset_id?: string
+          playback_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_mux_bindings_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_music_scans: {
         Row: {
           id: string

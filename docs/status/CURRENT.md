@@ -149,11 +149,18 @@ out. Any `metadata.music` score at or above 25 blocks immediately. Under 25,
 or no music match, passes. `metadata.custom_files` is ignored and cannot
 allow a clip. No allowlist in this phase. Adam's own CFN tracks block too,
 because they match ACRCloud Music at score 100. That is accepted.
-A Mux video stays hidden from other people until that post or story has
-an allowed scan. No scan row is not a release. Stills and text stay
-visible. Staff Music review lists blocked rows for spot-checks and
-appeals. The queue does not gate going live. End users never see the
-matched title or artist. End-user and staff copy follow
+A video of any kind stays hidden from other people until that post or
+story has an allowed scan. No scan row is not a release. Stills and text
+stay visible. A verdict is copied only when the asset id and the playback
+id both match. The server records the Mux upload it verified. A member
+session cannot store a crossed asset and playback pair. Clips are scanned
+in full, in twelve-second windows, up to eight minutes. A longer clip or
+an unknown duration stays unfinished for staff. Playback for someone else
+is minted per playback id. A pending scan on another post does not block
+an allowed one, and any blocked row for that playback id denies the mint.
+Staff Music review lists blocked rows and unfinished pending rows for
+spot-checks and appeals. The queue does not gate going live. End users
+never see the matched title or artist. End-user and staff copy follow
 [`docs/design-locks/social-music-block-copy-lock-v1.md`](../design-locks/social-music-block-copy-lock-v1.md).
 Vendor error
 retries with backoff and does not publish.

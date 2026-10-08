@@ -188,6 +188,18 @@ describe("socialMediaJsonContains", () => {
 describe("viewerMaySignSocialMedia", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
+    vi.mocked(createAdminClient).mockReset();
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: () => {
+        const query = {
+          select: () => query,
+          eq: () => query,
+          in: () => query,
+          limit: async () => ({ data: [], error: { code: "42P01", message: "relation does not exist" } }),
+        };
+        return query;
+      },
+    } as never);
   });
 
   it("denies an owned key when no selectable row stores it", async () => {
@@ -222,16 +234,19 @@ describe("viewerMaySignSocialMedia", () => {
       from: vi.fn((table: string) => {
         if (table === "follows") return chain({ data: null });
         return chain({
-          data: [{ author_id: USER, status: "active", expires_at: LIVE, media: storyMedia(own) }],
+          data: [{ id: "own-story", author_id: USER, status: "active", expires_at: LIVE, media: storyMedia(own) }],
         });
       }),
     } as never);
+    await expect(viewerMaySignSocialMedia(USER, own, NOW)).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue(allowedScan() as never);
     await expect(viewerMaySignSocialMedia(USER, own, NOW)).resolves.toBe(true);
   });
 
   it("signs a followed live story and refuses when the queries fail or return nothing", async () => {
     const stories = chain({
-      data: [{ author_id: OTHER, status: "active", expires_at: LIVE, media: storyMedia() }],
+      data: [{ id: "followed-story", author_id: OTHER, status: "active", expires_at: LIVE, media: storyMedia() }],
     });
     const from = vi.fn((table: string) => {
       if (table === "follows") return chain({ data: { followee_id: OTHER } });
@@ -239,6 +254,8 @@ describe("viewerMaySignSocialMedia", () => {
       return chain({ data: [] });
     });
     vi.mocked(createClient).mockResolvedValue({ from } as never);
+    await expect(viewerMaySignSocialMedia(USER, STORY_KEY, NOW)).resolves.toBe(false);
+    vi.mocked(createAdminClient).mockReturnValue(allowedScan() as never);
     await expect(viewerMaySignSocialMedia(USER, STORY_KEY, NOW)).resolves.toBe(true);
     expect(stories.contains).toHaveBeenCalledWith("media", JSON.stringify([{ key: STORY_KEY }]));
 
@@ -452,11 +469,48 @@ describe("socialMuxPlaybackReadGrant", () => {
   });
 });
 
-function scansQuery(result: { data: unknown; error: { code?: string; message?: string } | null }) {
+function allowedScan() {
   const query = {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
-    limit: vi.fn(async () => result),
+    in: vi.fn(() => query),
+    limit: vi.fn(async () => ({ data: [{ id: "scan-allowed" }], error: null })),
+  };
+  return { from: vi.fn(() => query) };
+}
+
+const STORY_ID = "44444444-4444-4444-8444-444444444444";
+
+function scansQuery(result: { data: unknown; error: { code?: string; message?: string } | null }) {
+  const filters: Record<string, string> = {};
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn((column: string, value: string) => {
+      filters[column] = value;
+      return query;
+    }),
+    in: vi.fn(() => query),
+    limit: vi.fn(async () => {
+      if (result.error) return result;
+      if (filters.status === "blocked") {
+        const blocked = Array.isArray(result.data)
+          ? result.data.filter((row) => (row as { status?: string }).status === "blocked")
+          : [];
+        return { data: blocked, error: null };
+      }
+      if (filters.status === "allowed" && filters.story_id === STORY_ID) {
+        const allowed =
+          Array.isArray(result.data) &&
+          result.data.some((row) => (row as { status?: string }).status === "allowed");
+        return {
+          data: allowed
+            ? [{ id: "ok", playback_id: PLAYBACK, status: "allowed", post_id: null, story_id: STORY_ID }]
+            : [],
+          error: null,
+        };
+      }
+      return { data: [], error: null };
+    }),
   };
   return query;
 }
@@ -483,7 +537,7 @@ describe("viewerMayMintSocialMuxPlayback", () => {
         return follows;
       }),
     } as never);
-    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
     expect(stories.contains).toHaveBeenCalledWith("media", socialMuxPlaybackJsonContains(PLAYBACK));
     expect(posts.contains).toHaveBeenCalledWith("media", socialMuxPlaybackJsonContains(PLAYBACK));
 
@@ -497,9 +551,9 @@ describe("viewerMayMintSocialMuxPlayback", () => {
     await expect(viewerMayMintSocialMuxPlayback(USER, "short", NOW)).resolves.toBe(false);
   });
 
-  it("refuses someone else's playback until an allowed music scan exists", async () => {
+  it("refuses someone else's playback until that story has an allowed music scan", async () => {
     const stories = chain({
-      data: [{ author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
+      data: [{ id: STORY_ID, author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
     });
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => {
@@ -535,14 +589,14 @@ describe("viewerMayMintSocialMuxPlayback", () => {
       if (table === "posts") return chain({ data: [] });
       if (table === "stories") {
         return chain({
-          data: [{ author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
+          data: [{ id: STORY_ID, author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
         });
       }
       if (table === "follows") return chain({ data: [{ followee_id: OTHER }] });
       return chain({ data: [{ id: "not-a-grant" }] });
     });
     vi.mocked(createClient).mockResolvedValue({ from } as never);
-    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
     expect(tables).toEqual(["posts", "stories", "follows"]);
     expect(tables).not.toContain("messages");
 

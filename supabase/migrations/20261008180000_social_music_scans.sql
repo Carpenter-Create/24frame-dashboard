@@ -7,16 +7,20 @@
 --
 -- A new Mux video on posts.media or stories.media gets its own
 -- social_music_scans row in the same transaction as the insert or media
--- update. The row is keyed to that post or story. A later parent that
--- reuses the asset gets its own row. A prior blocked decision is copied
--- onto the new row, and a prior allowed decision is copied too, so the
--- new parent does not start a second fingerprint. A prior pending scan
--- does not copy: the new row stays pending. Other people cannot see a
--- Mux video until that parent has an allowed scan for the asset and
--- playback id. No scan row is not a release. Stills and text with no Mux
--- item stay visible. The author still sees their own post or story.
--- Existing Mux videos are backfilled as pending in this migration, so
--- they leave the feed until a scan allows them.
+-- update. The row is keyed to that post or story. A later parent reuses a
+-- verdict only when asset_id and playback_id both match. A prior blocked
+-- decision is copied before a prior allowed decision. A prior pending scan
+-- is not copied. The server writes social_mux_bindings when Mux confirms
+-- the upload. The trigger requires that author + asset + playback triple.
+-- Clients cannot insert the binding. A non-Mux video is rejected.
+-- Other people cannot see any video until that parent has an allowed scan.
+-- No scan row is not a release. Stills and text stay visible. The author
+-- still sees their own post or story.
+-- Existing Mux videos are backfilled as pending. Existing S3 videos are
+-- backfilled pending and hidden (last_error s3_video_needs_mux). Mux items
+-- whose ids cannot be scanned are backfilled pending with next_attempt_at
+-- null (last_error mux_id_malformed) so staff see them as Unfinished.
+-- Expired stories are not backfilled.
 --
 -- Vendor title, artist, and the other match fields are staff-review columns.
 -- authenticated may select status columns on their own rows only. The
@@ -39,19 +43,53 @@
 -- REVOKE. No UPDATE, DELETE, or DROP of existing rows.
 -- Adam applies this SQL on prod. Do not apply from CI.
 --
--- ROLLBACK:
+-- ROLLBACK: restore the policies that call the private function BEFORE
+-- dropping it, then drop the private schema. Policy text is the pre-music
+-- posts_select (20260912120000_groups_posts.sql) and stories_select
+-- (20260914120000_social_home_stories.sql). Nothing between those files
+-- and this one replaced either policy.
 --   drop trigger if exists posts_enqueue_social_music_scan on public.posts;
 --   drop trigger if exists stories_enqueue_social_music_scan on public.stories;
 --   drop trigger if exists social_music_scans_touch on public.social_music_scans;
 --   drop function if exists public.enqueue_social_music_scan();
 --   drop function if exists public.touch_social_music_scan();
+--   drop policy if exists posts_select on public.posts;
+--   create policy posts_select on public.posts
+--     for select to authenticated
+--     using (
+--       public.has_capability((select auth.uid()), 'create_group')
+--       or (
+--         status = 'active'
+--         and (
+--           group_id is null
+--           or public.can_access_group_content(group_id, (select auth.uid()))
+--         )
+--       )
+--     );
+--   drop policy if exists stories_select on public.stories;
+--   create policy stories_select on public.stories
+--     for select to authenticated
+--     using (
+--       status = 'active'
+--       and expires_at > now()
+--       and public.is_active_profile(author_id)
+--       and (
+--         author_id = (select auth.uid())
+--         or exists (
+--           select 1
+--           from public.follows f
+--           where f.follower_id = (select auth.uid())
+--             and f.followee_id = author_id
+--         )
+--       )
+--     );
 --   drop function if exists private.social_video_released(text, uuid);
 --   drop function if exists public.social_video_released(text, uuid);
 --   drop table if exists public.social_music_scans;
+--   drop table if exists public.social_mux_bindings;
 --   drop type if exists public.social_music_scan_status;
 --   drop type if exists public.social_music_scan_surface;
---   then restore posts_select and stories_select from
---   20260912120000_groups_posts.sql and 20260914120000_social_home_stories.sql.
+--   drop schema if exists private;
 -- ============================================================================
 
 do $$ begin
@@ -160,6 +198,31 @@ create unique index if not exists social_music_scans_story_playback_key
   on public.social_music_scans (story_id, playback_id)
   where story_id is not null;
 
+-- Server-written Mux triple. No authenticated policy: a member JWT cannot
+-- insert a binding. The trigger (security definer) reads it.
+create table if not exists public.social_mux_bindings (
+  id uuid primary key default gen_random_uuid(),
+  author_id uuid not null references public.profiles (id),
+  upload_id text not null,
+  asset_id text not null,
+  playback_id text not null,
+  created_at timestamptz not null default now(),
+  constraint social_mux_bindings_ids check (
+    upload_id ~ '^[A-Za-z0-9_-]{8,120}$'
+    and asset_id ~ '^[A-Za-z0-9_-]{8,120}$'
+    and playback_id ~ '^[A-Za-z0-9_-]{8,120}$'
+  ),
+  constraint social_mux_bindings_triple unique (author_id, asset_id, playback_id)
+);
+
+comment on table public.social_mux_bindings is
+  'Mux upload the server verified for this member. The music trigger requires this author, asset, and playback triple.';
+
+alter table public.social_mux_bindings enable row level security;
+
+revoke all on public.social_mux_bindings from anon, authenticated;
+grant select, insert on public.social_mux_bindings to service_role;
+
 -- Not in the Data API schema list (public, graphql_public). RLS can call it.
 -- authenticated keeps execute so the policy runs. anon does not.
 create schema if not exists private;
@@ -168,9 +231,10 @@ grant usage on schema private to authenticated, service_role;
 
 drop function if exists public.social_video_released(text, uuid);
 
--- A Mux video is released only when this parent has an allowed scan for
--- that asset id and playback id. No row is not a release. A still or a
--- text post has no Mux item, so it stays visible.
+-- A video is released only when this parent has an allowed scan for it.
+-- Mux matches asset id and playback id. Any other video matches md5(key).
+-- No row is not a release. A still or a text post has no video, so it stays
+-- visible.
 create or replace function private.social_video_released(p_surface text, p_id uuid)
 returns boolean
 language sql
@@ -198,16 +262,26 @@ as $$
         and st.id = p_id
     ) mux
     where coalesce(mux.item->>'kind', '') = 'video'
-      and coalesce(mux.item->>'provider', '') = 'mux'
       and not exists (
         select 1
         from public.social_music_scans s
         where s.status = 'allowed'
-          and s.asset_id = mux.item->>'assetId'
-          and s.playback_id = mux.item->>'playbackId'
           and (
             (p_surface = 'post' and s.post_id = p_id)
             or (p_surface = 'story' and s.story_id = p_id)
+          )
+          and (
+            (
+              coalesce(mux.item->>'provider', '') = 'mux'
+              and s.asset_id = mux.item->>'assetId'
+              and s.playback_id = mux.item->>'playbackId'
+            )
+            or (
+              coalesce(mux.item->>'provider', '') is distinct from 'mux'
+              and coalesce(mux.item->>'key', '') <> ''
+              and s.asset_id = md5(mux.item->>'key')
+              and s.playback_id = md5(mux.item->>'key')
+            )
           )
       )
   );
@@ -258,15 +332,27 @@ begin
   end if;
   for item in select value from jsonb_array_elements(new.media)
   loop
-    if coalesce(item->>'kind', '') is distinct from 'video'
-       or coalesce(item->>'provider', '') is distinct from 'mux' then
+    if coalesce(item->>'kind', '') is distinct from 'video' then
       continue;
+    end if;
+    -- Social video is Mux-only. A stored S3 video cannot be scanned here.
+    if coalesce(item->>'provider', '') is distinct from 'mux' then
+      raise exception 'social video must be a Mux video';
     end if;
     v_asset := coalesce(item->>'assetId', '');
     v_playback := coalesce(item->>'playbackId', '');
     -- A Mux video that cannot be scanned must not be stored.
     if v_asset !~ '^[A-Za-z0-9_-]{8,120}$' or v_playback !~ '^[A-Za-z0-9_-]{8,120}$' then
       raise exception 'social music scan requires a Mux asset id and playback id';
+    end if;
+    if not exists (
+      select 1
+      from public.social_mux_bindings b
+      where b.author_id = new.author_id
+        and b.asset_id = v_asset
+        and b.playback_id = v_playback
+    ) then
+      raise exception 'social mux video is not bound to this member';
     end if;
     v_upload := item->>'uploadId';
     if v_upload is null or v_upload !~ '^[A-Za-z0-9_-]{8,120}$' then
@@ -291,6 +377,7 @@ begin
            v_title, v_artist, v_album, v_acrid, v_isrc, v_label
     from public.social_music_scans s
     where s.asset_id = v_asset
+      and s.playback_id = v_playback
       and s.status in ('blocked', 'allowed')
     order by case when s.status = 'blocked' then 0 else 1 end, s.decided_at desc nulls last
     limit 1;
@@ -441,8 +528,10 @@ create policy stories_select on public.stories
   );
 
 -- Existing Mux videos become pending scans. They stay hidden from other
--- people until a worker allows them. Ids that cannot be scanned are not
--- inserted; the release function still hides those items.
+-- people until a worker allows them. Expired stories are left alone.
+-- S3 videos are pending and hidden, with no retry, until they are
+-- re-ingested through Mux. Malformed Mux ids get an Unfinished staff row
+-- and stay hidden because the release lookup uses the raw ids.
 insert into public.social_music_scans (
   surface, post_id, story_id, author_id, asset_id, playback_id, upload_id
 )
@@ -485,16 +574,114 @@ from public.stories st
 cross join lateral jsonb_array_elements(
   case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
 ) as item
-where coalesce(item->>'kind', '') = 'video'
+where st.expires_at > now()
+  and coalesce(item->>'kind', '') = 'video'
   and coalesce(item->>'provider', '') = 'mux'
   and coalesce(item->>'assetId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
   and coalesce(item->>'playbackId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
+on conflict do nothing;
+
+-- S3 (and any non-Mux) video: pending, not retried, hidden until a Mux re-ingest.
+insert into public.social_music_scans (
+  surface, post_id, story_id, author_id, asset_id, playback_id, next_attempt_at, last_error
+)
+select
+  'post'::public.social_music_scan_surface,
+  p.id,
+  null,
+  p.author_id,
+  md5(item->>'key'),
+  md5(item->>'key'),
+  null,
+  's3_video_needs_mux'
+from public.posts p
+cross join lateral jsonb_array_elements(
+  case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
+) as item
+where coalesce(item->>'kind', '') = 'video'
+  and coalesce(item->>'provider', '') is distinct from 'mux'
+  and coalesce(item->>'key', '') <> ''
+on conflict do nothing;
+
+insert into public.social_music_scans (
+  surface, post_id, story_id, author_id, asset_id, playback_id, next_attempt_at, last_error
+)
+select
+  'story'::public.social_music_scan_surface,
+  null,
+  st.id,
+  st.author_id,
+  md5(item->>'key'),
+  md5(item->>'key'),
+  null,
+  's3_video_needs_mux'
+from public.stories st
+cross join lateral jsonb_array_elements(
+  case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
+) as item
+where st.expires_at > now()
+  and coalesce(item->>'kind', '') = 'video'
+  and coalesce(item->>'provider', '') is distinct from 'mux'
+  and coalesce(item->>'key', '') <> ''
+on conflict do nothing;
+
+-- Malformed Mux ids stay hidden and show up as Unfinished for staff.
+insert into public.social_music_scans (
+  surface, post_id, story_id, author_id, asset_id, playback_id, next_attempt_at, last_error
+)
+select
+  'post'::public.social_music_scan_surface,
+  p.id,
+  null,
+  p.author_id,
+  md5(p.id::text || '|' || coalesce(item->>'assetId', '') || '|' || coalesce(item->>'playbackId', '')),
+  md5(p.id::text || '|' || coalesce(item->>'assetId', '') || '|' || coalesce(item->>'playbackId', '')),
+  null,
+  'mux_id_malformed'
+from public.posts p
+cross join lateral jsonb_array_elements(
+  case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
+) as item
+where coalesce(item->>'kind', '') = 'video'
+  and coalesce(item->>'provider', '') = 'mux'
+  and (
+    coalesce(item->>'assetId', '') !~ '^[A-Za-z0-9_-]{8,120}$'
+    or coalesce(item->>'playbackId', '') !~ '^[A-Za-z0-9_-]{8,120}$'
+  )
+on conflict do nothing;
+
+insert into public.social_music_scans (
+  surface, post_id, story_id, author_id, asset_id, playback_id, next_attempt_at, last_error
+)
+select
+  'story'::public.social_music_scan_surface,
+  null,
+  st.id,
+  st.author_id,
+  md5(st.id::text || '|' || coalesce(item->>'assetId', '') || '|' || coalesce(item->>'playbackId', '')),
+  md5(st.id::text || '|' || coalesce(item->>'assetId', '') || '|' || coalesce(item->>'playbackId', '')),
+  null,
+  'mux_id_malformed'
+from public.stories st
+cross join lateral jsonb_array_elements(
+  case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
+) as item
+where st.expires_at > now()
+  and coalesce(item->>'kind', '') = 'video'
+  and coalesce(item->>'provider', '') = 'mux'
+  and (
+    coalesce(item->>'assetId', '') !~ '^[A-Za-z0-9_-]{8,120}$'
+    or coalesce(item->>'playbackId', '') !~ '^[A-Za-z0-9_-]{8,120}$'
+  )
 on conflict do nothing;
 
 do $$
 begin
   if to_regclass('public.social_music_scans') is null then
     raise exception 'social_music_scans missing after create';
+  end if;
+  if to_regclass('public.social_mux_bindings') is null then
+    raise exception 'social_mux_bindings missing after create';
   end if;
   if to_regprocedure('private.social_video_released(text, uuid)') is null then
     raise exception 'social_video_released missing';

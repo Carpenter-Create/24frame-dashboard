@@ -65,6 +65,7 @@ import {
   createSocialMuxDirectUpload,
   finalizeSocialMuxDirectUpload,
   socialMuxSettingsFromUploadInput,
+  verifySocialMuxPublishedItems,
 } from "@/lib/social-mux-server";
 
 vi.mock("next/navigation", () => ({
@@ -809,21 +810,10 @@ describe("social actions", () => {
     const upload = `posts/upload/${author}/${object}.mp4`;
     const form = new FormData();
     form.set("media", JSON.stringify([{ kind: "video", key: upload, contentType: "video/mp4" }]));
-    expect(await saveSocialWelcomeVideo(form)).toEqual({});
+    expect(await saveSocialWelcomeVideo(form)).toEqual({ error: SOCIAL.stories.mediaType });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     expect(await clearSocialWelcomeVideo()).toEqual({});
-    const published = publishedCopyKey();
-    expect(isOwnedSocialMediaKey(published, author, "posts")).toBe(true);
-    expect(published.endsWith(".mp4")).toBe(true);
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
-      contentType: "video/mp4",
-    });
-    expect(updates).toEqual([
-      { table: "profiles", row: { welcome_video_key: published } },
-      { table: "profiles", row: { welcome_video_key: null } },
-    ]);
+    expect(updates).toEqual([{ table: "profiles", row: { welcome_video_key: null } }]);
   });
 
   it("rejects a blank handle after stripping @", async () => {
@@ -1832,6 +1822,33 @@ describe("social actions", () => {
     ]);
     expect(logged.mock.calls.some(([line]) => String(line).includes("storage.example"))).toBe(false);
     logged.mockRestore();
+  });
+
+  it("rejects a Mux post or story when publish cannot verify the member owns the upload", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    const object = "22222222-2222-4222-8222-222222222222";
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    const { inserts } = stub({ profile: { id: author } });
+    vi.mocked(verifySocialMuxPublishedItems).mockResolvedValue(false);
+    const mux = {
+      kind: "video",
+      contentType: "video/mp4",
+      provider: "mux",
+      playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+      uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+      assetId: "SqQnqz6s5MBuXGvJaUWdXu",
+      playbackPolicy: "signed",
+    };
+    const post = new FormData();
+    post.set("body", "clip");
+    post.set("media", JSON.stringify([{ ...mux, key: `posts/${author}/${object}.mp4` }]));
+    expect(await createSocialPost(post)).toEqual({ error: SOCIAL.home.mediaForbidden });
+    const story = new FormData();
+    story.set("media", JSON.stringify([{ ...mux, key: `stories/${author}/${object}.mp4` }]));
+    expect(await createSocialStory(story)).toEqual({ error: SOCIAL.home.mediaForbidden });
+    expect(inserts).toEqual([]);
+    expect(verifySocialMuxPublishedItems).toHaveBeenCalled();
+    vi.mocked(verifySocialMuxPublishedItems).mockResolvedValue(true);
   });
 
   it("opens a Mux upload on the stories lane and finalizes that key", async () => {

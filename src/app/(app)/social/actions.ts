@@ -192,22 +192,13 @@ export async function createSocialProfile(formData: FormData): Promise<ActionRes
 }
 
 export async function saveSocialWelcomeVideo(formData: FormData): Promise<ActionResult> {
-  const { user, supabase, profile, profileId } = await ownProfile();
+  const { user, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
+  // The public band is presence only and does not play a file. A stored
+  // S3 video has no Mux playback id, so it cannot be scanned. Refuse it.
   const item = welcomeVideoItemFromMedia(formData.get("media"), user.id);
   if (!item) return { error: SOCIAL.stories.mediaType };
-  const published = await publishSocialMediaItems([item], user.id, "posts");
-  if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
-  const { error } = await supabase
-    .from("profiles")
-    .update({ welcome_video_key: published.items[0].key })
-    .eq("id", user.id);
-  if (error) return { error: error.message };
-  await bustSocialProfileHotCache(user.id, [profile?.handle]);
-  revalidatePath(SOCIAL_ROUTES.profile);
-  revalidatePath(SOCIAL_ROUTES.profileEdit);
-  if (profile?.handle) revalidatePath(socialProfileHref(profile.handle));
-  return {};
+  return { error: SOCIAL.stories.mediaType };
 }
 
 export async function clearSocialWelcomeVideo(): Promise<ActionResult> {

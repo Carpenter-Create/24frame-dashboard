@@ -1,6 +1,12 @@
 import "server-only";
 
-import { socialMuxPlaybackMusicReleased } from "@/lib/social-music-scan";
+import { createHash } from "node:crypto";
+
+import {
+  socialMuxPlaybackMusicReleased,
+  type SocialPlaybackParent,
+  type SocialPlaybackScan,
+} from "@/lib/social-music-scan";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -25,6 +31,7 @@ import { isStoryLive } from "@/lib/social-stories";
 // again so a returned row that fails them is still denied. Fail closed.
 
 export type SocialMediaStoryGrant = {
+  id?: string;
   author_id: string;
   status?: string;
   expires_at: string;
@@ -32,10 +39,13 @@ export type SocialMediaStoryGrant = {
 };
 
 export type SocialMediaPostGrant = {
+  id?: string;
   author_id: string;
   status?: string;
   media: unknown;
 };
+
+const SOCIAL_VIDEO_FILE = /\.(mp4|mov|webm|m4v)$/i;
 
 function mediaStoresKey(media: unknown, key: string): boolean {
   return parsePostMedia(media).some((item) => item.key === key);
@@ -170,7 +180,7 @@ export async function viewerMaySignSocialMedia(userId: string, key: string, now 
           .maybeSingle(),
         supabase
           .from("stories")
-          .select("author_id, status, expires_at, media")
+          .select("id, author_id, status, expires_at, media")
           .eq("author_id", parsed.userId)
           .eq("status", "active")
           .gt("expires_at", now.toISOString())
@@ -178,23 +188,42 @@ export async function viewerMaySignSocialMedia(userId: string, key: string, now 
           .limit(8),
       ]);
       if (followError || storyError) return false;
-      return socialMediaReadGrant({
-        userId,
+      const storyRows = stories ?? [];
+      if (
+        !socialMediaReadGrant({
+          userId,
+          key,
+          now,
+          followeeIds: follow?.followee_id ? [follow.followee_id] : [],
+          stories: storyRows,
+        })
+      ) {
+        return false;
+      }
+      if (!SOCIAL_VIDEO_FILE.test(key)) return true;
+      return videoKeyHasAllowedScan(
+        storyRows.flatMap((row) => (row.id ? [row.id] : [])),
         key,
-        now,
-        followeeIds: follow?.followee_id ? [follow.followee_id] : [],
-        stories: stories ?? [],
-      });
+        "story",
+      );
     }
     const { data: posts, error } = await supabase
       .from("posts")
-      .select("author_id, status, media")
+      .select("id, author_id, status, media")
       .eq("author_id", parsed.userId)
       .eq("status", "active")
       .contains("media", socialMediaJsonContains(key))
       .limit(8);
     if (error) return false;
-    if (socialMediaReadGrant({ userId, key, now, posts: posts ?? [] })) return true;
+    const postRows = posts ?? [];
+    if (socialMediaReadGrant({ userId, key, now, posts: postRows })) {
+      if (!SOCIAL_VIDEO_FILE.test(key)) return true;
+      return videoKeyHasAllowedScan(
+        postRows.flatMap((row) => (row.id ? [row.id] : [])),
+        key,
+        "post",
+      );
+    }
     // Not post media: maybe the author's current cover, under profiles_select.
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -221,13 +250,13 @@ export async function viewerMayMintSocialMuxPlayback(
     const [{ data: posts, error: postError }, { data: stories, error: storyError }] = await Promise.all([
       supabase
         .from("posts")
-        .select("author_id, status, media")
+        .select("id, author_id, status, media")
         .eq("status", "active")
         .contains("media", needle)
         .limit(8),
       supabase
         .from("stories")
-        .select("author_id, status, expires_at, media")
+        .select("id, author_id, status, expires_at, media")
         .eq("status", "active")
         .gt("expires_at", now.toISOString())
         .contains("media", needle)
@@ -268,43 +297,106 @@ export async function viewerMayMintSocialMuxPlayback(
           mediaStoresPlaybackId(post.media, playbackId, post.author_id, "posts"),
       );
     if (!sharesWithSomeoneElse) return true;
-    const release = await nonAuthorMuxPlaybackRelease(playbackId);
-    if (release === "uninstalled") return true;
-    return release === "allowed";
+    const parents = muxParentsForPlayback(userId, playbackId, followeeIds, postRows, storyRows, now);
+    return muxPlaybackReleased(playbackId, parents);
   } catch {
     return false;
   }
 }
 
-function musicScanTableMissing(error: { code?: string; message?: string }): boolean {
-  if (error.code === "42P01" || error.code === "PGRST205") return true;
-  const message = error.message ?? "";
-  return /social_music_scans/.test(message) && /does not exist|schema cache/i.test(message);
+function muxParentsForPlayback(
+  userId: string,
+  playbackId: string,
+  followeeIds: readonly string[],
+  posts: readonly (SocialMediaPostGrant & { id?: string })[],
+  stories: readonly (SocialMediaStoryGrant & { id?: string })[],
+  now: Date,
+): SocialPlaybackParent[] {
+  const parents: SocialPlaybackParent[] = [];
+  for (const post of posts) {
+    if (!post.id || post.status !== "active") continue;
+    if (post.author_id === userId) continue;
+    if (!mediaStoresPlaybackId(post.media, playbackId, post.author_id, "posts")) continue;
+    parents.push({ id: post.id, surface: "post" });
+  }
+  for (const story of stories) {
+    if (!story.id || story.author_id === userId) continue;
+    if (story.status !== "active" || !isStoryLive(story.expires_at, now)) continue;
+    if (!followeeIds.includes(story.author_id)) continue;
+    if (!mediaStoresPlaybackId(story.media, playbackId, story.author_id, "stories")) continue;
+    parents.push({ id: story.id, surface: "story" });
+  }
+  return parents;
 }
 
 /**
- * Before the music migration, the scan table is absent and existing Mux
- * playback keeps the selectability grant. After it exists, someone else's
- * playback needs an allowed scan.
+ * Any blocked row for this playback id denies. The parent being played
+ * needs its own allowed scan. A missing table or a read error denies.
+ * A pending row on a different parent does not.
  */
-async function nonAuthorMuxPlaybackRelease(
+async function muxPlaybackReleased(
   playbackId: string,
-): Promise<"allowed" | "held" | "uninstalled"> {
+  parents: readonly SocialPlaybackParent[],
+): Promise<boolean> {
+  if (parents.length === 0) return false;
   try {
     const admin = createAdminClient();
+    const blocked = await admin
+      .from("social_music_scans")
+      .select("id")
+      .eq("playback_id", playbackId)
+      .eq("status", "blocked")
+      .limit(1);
+    if (blocked.error || (blocked.data?.length ?? 0) > 0) return false;
+    const scans: SocialPlaybackScan[] = [];
+    for (const parent of parents) {
+      const column = parent.surface === "post" ? "post_id" : "story_id";
+      const allowed = await admin
+        .from("social_music_scans")
+        .select("id, playback_id, status, post_id, story_id")
+        .eq("playback_id", playbackId)
+        .eq("status", "allowed")
+        .eq(column, parent.id)
+        .limit(1);
+      if (allowed.error) return false;
+      for (const row of allowed.data ?? []) {
+        if (row.status !== "allowed") continue;
+        scans.push({
+          playbackId: row.playback_id,
+          status: "allowed",
+          postId: row.post_id,
+          storyId: row.story_id,
+        });
+      }
+    }
+    return socialMuxPlaybackMusicReleased(playbackId, parents, scans);
+  } catch {
+    return false;
+  }
+}
+
+/** A video object is signed only when that post or story has an allowed scan. */
+async function videoKeyHasAllowedScan(
+  parentIds: readonly string[],
+  key: string,
+  surface: "post" | "story",
+): Promise<boolean> {
+  if (parentIds.length === 0) return false;
+  const digest = createHash("md5").update(key).digest("hex");
+  try {
+    const admin = createAdminClient();
+    const column = surface === "post" ? "post_id" : "story_id";
     const { data, error } = await admin
       .from("social_music_scans")
-      .select("playback_id, status")
-      .eq("playback_id", playbackId)
-      .limit(8);
-    if (error) return musicScanTableMissing(error) ? "uninstalled" : "held";
-    const scans = (data ?? []).flatMap((row) =>
-      row.status === "pending" || row.status === "allowed" || row.status === "blocked"
-        ? [{ playbackId: row.playback_id, status: row.status }]
-        : [],
-    );
-    return socialMuxPlaybackMusicReleased(playbackId, scans) ? "allowed" : "held";
+      .select("id")
+      .eq("playback_id", digest)
+      .eq("asset_id", digest)
+      .eq("status", "allowed")
+      .in(column, [...parentIds])
+      .limit(1);
+    if (error || !data || data.length === 0) return false;
+    return true;
   } catch {
-    return "held";
+    return false;
   }
 }

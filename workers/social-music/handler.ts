@@ -13,8 +13,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { classifyAcrProbe, createAcrCloudAdapter, silenceWav } from "../../src/lib/social-music-acrcloud";
-import { readBoundedBody, SOCIAL_MUSIC_AUDIO_MAX_BYTES } from "../../src/lib/social-music-audio";
-import type { MusicScanWindow } from "../../src/lib/social-music-scan";
+import { readBoundedBody, SOCIAL_MUSIC_FULL_AUDIO_MAX_BYTES } from "../../src/lib/social-music-audio";
+import { sliceSocialMusicAudio } from "../../src/lib/social-music-m4a";
 import {
   runSocialMusicBatch,
   type MusicScanPatch,
@@ -83,7 +83,7 @@ function patchToRow(patch: MusicScanPatch): Database["public"]["Tables"]["social
 async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]> {
   const { data, error } = await admin
     .from("social_music_scans")
-    .select("id, surface, asset_id, playback_id, attempt_count, mux_ready_at, scan_started_at")
+    .select("id, surface, asset_id, playback_id, attempt_count, created_at, mux_ready_at, scan_started_at")
     .eq("status", "pending")
     .not("next_attempt_at", "is", null)
     .lte("next_attempt_at", now.toISOString())
@@ -96,6 +96,7 @@ async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]>
     assetId: row.asset_id,
     playbackId: row.playback_id,
     attemptCount: row.attempt_count,
+    createdAt: row.created_at,
     muxReadyAt: row.mux_ready_at,
     scanStartedAt: row.scan_started_at,
   }));
@@ -110,13 +111,47 @@ async function saveScan(admin: Admin, id: string, patch: MusicScanPatch): Promis
   if (error) throw new Error(`Music scan write failed: ${error.message}`);
 }
 
-async function downloadMuxAudio(playbackId: string, window: MusicScanWindow): Promise<Uint8Array> {
-  const url = await signSocialMuxStaticAudioUrl(playbackId, window);
+async function downloadMuxAudio(playbackId: string): Promise<Uint8Array> {
+  const url = await signSocialMuxStaticAudioUrl(playbackId);
   const response = await fetch(url, {
     cache: "no-store",
     signal: AbortSignal.timeout(20_000),
   });
-  return readBoundedBody(response, SOCIAL_MUSIC_AUDIO_MAX_BYTES);
+  return readBoundedBody(response, SOCIAL_MUSIC_FULL_AUDIO_MAX_BYTES);
+}
+
+async function blockSiblingScans(
+  admin: Admin,
+  block: {
+    assetId: string;
+    playbackId: string;
+    exceptId: string;
+    patch: MusicScanPatch;
+  },
+): Promise<void> {
+  const row = patchToRow(block.patch);
+  const { error } = await admin
+    .from("social_music_scans")
+    .update({
+      status: "blocked",
+      next_attempt_at: null,
+      decided_at: block.patch.decidedAt ?? null,
+      last_error: null,
+      vendor: row.vendor ?? null,
+      vendor_status_code: row.vendor_status_code ?? null,
+      vendor_score: row.vendor_score ?? null,
+      vendor_title: row.vendor_title ?? null,
+      vendor_artist: row.vendor_artist ?? null,
+      vendor_album: row.vendor_album ?? null,
+      vendor_acrid: row.vendor_acrid ?? null,
+      vendor_isrc: row.vendor_isrc ?? null,
+      vendor_label: row.vendor_label ?? null,
+    })
+    .eq("asset_id", block.assetId)
+    .eq("playback_id", block.playbackId)
+    .eq("status", "allowed")
+    .neq("id", block.exceptId);
+  if (error) throw new Error(`Music scan sibling block failed: ${error.message}`);
 }
 
 export async function socialMusicDryRun(admin: Admin): Promise<SocialMusicDryRun> {
@@ -178,6 +213,8 @@ export async function handler(
     loadAsset: (assetId) => retrieveSocialMuxAsset(assetId),
     requestAudioRendition: (assetId) => createSocialMuxAudioRendition(assetId),
     downloadAudio: downloadMuxAudio,
+    sliceWindow: (audio, window) => sliceSocialMusicAudio(audio, window),
+    blockSiblings: (block) => blockSiblingScans(admin, block),
     identify: (audio) =>
       createAcrCloudAdapter({
         host: process.env.ACRCLOUD_HOST!.trim(),

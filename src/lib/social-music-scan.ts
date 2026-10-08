@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { SocialMusicNotice } from "@/lib/social";
@@ -25,6 +27,8 @@ export const musicScanConfig = {
 } as const;
 export const MUSIC_SCAN_MAX_ATTEMPTS = 8;
 export const MUSIC_SCAN_PREP_DELAY_MS = 20_000;
+/** A preparing asset or rendition that is still not ready after this is held. */
+export const MUSIC_SCAN_PREP_MAX_MS = 6 * 60 * 60 * 1000;
 /** First failure waits 30s, then 1m, 2m, 5m, 10m, 30m, 1h. */
 export const MUSIC_SCAN_BACKOFF_MS = [
   30_000, 60_000, 120_000, 300_000, 600_000, 1_800_000, 3_600_000,
@@ -49,39 +53,65 @@ export type MusicIdentifyResult =
 
 export type MusicScanDecision = "allow" | "block" | "retry";
 
-/** Each identify call is one 12s window. Eight windows is the Phase 0 cap. */
+/**
+ * Each identify call is one contiguous 12s window. Forty windows is eight
+ * minutes, the longest clip Phase 0 fingerprints. One ACRCloud identify
+ * per window, at most forty per clip. A longer clip is not sampled.
+ */
 export const MUSIC_SCAN_WINDOW_SECONDS = 12;
-export const MUSIC_SCAN_MAX_WINDOWS = 8;
+export const MUSIC_SCAN_MAX_WINDOWS = 40;
+export const MUSIC_SCAN_COVERED_SECONDS = MUSIC_SCAN_WINDOW_SECONDS * MUSIC_SCAN_MAX_WINDOWS;
 
 export type MusicScanWindow = { startSeconds: number; endSeconds: number };
 
-/** Evenly spaced windows across the asset. Unknown duration is the first window only. */
-export function musicScanWindows(durationSeconds: number | null | undefined): MusicScanWindow[] {
-  const span = MUSIC_SCAN_WINDOW_SECONDS;
+export type MusicScanCoverage =
+  | { kind: "cover"; windows: MusicScanWindow[] }
+  | { kind: "unknown" }
+  | { kind: "over_cap" };
+
+/**
+ * Full contiguous coverage from the start of the asset. Unknown, non-finite,
+ * or non-positive duration is not a window. Over the cap is not a sample.
+ */
+export function planMusicScanCoverage(durationSeconds: number | null | undefined): MusicScanCoverage {
   if (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-    return [{ startSeconds: 0, endSeconds: span }];
+    return { kind: "unknown" };
   }
-  if (durationSeconds <= span) return [{ startSeconds: 0, endSeconds: durationSeconds }];
-  const count = Math.min(MUSIC_SCAN_MAX_WINDOWS, Math.ceil(durationSeconds / span));
-  const lastStart = durationSeconds - span;
+  if (durationSeconds > MUSIC_SCAN_COVERED_SECONDS) return { kind: "over_cap" };
+  const span = MUSIC_SCAN_WINDOW_SECONDS;
+  const count = Math.ceil(durationSeconds / span);
   const windows: MusicScanWindow[] = [];
   for (let index = 0; index < count; index += 1) {
-    const start = count === 1 ? 0 : (index * lastStart) / (count - 1);
-    const startSeconds = Math.round(start * 1000) / 1000;
+    const startSeconds = index * span;
+    const endSeconds = Math.min(durationSeconds, startSeconds + span);
     windows.push({
-      startSeconds,
-      endSeconds: Math.round((startSeconds + span) * 1000) / 1000,
+      startSeconds: Math.round(startSeconds * 1000) / 1000,
+      endSeconds: Math.round(endSeconds * 1000) / 1000,
     });
   }
-  return windows;
+  return { kind: "cover", windows };
 }
 
-/** Block on the highest finite music score. Any window error retries the scan. */
+/** Windows for a duration this phase can cover. Unknown and over-cap are empty. */
+export function musicScanWindows(durationSeconds: number | null | undefined): MusicScanWindow[] {
+  const plan = planMusicScanCoverage(durationSeconds);
+  return plan.kind === "cover" ? plan.windows : [];
+}
+
+/**
+ * A music score at or above blockScore blocks even when another window
+ * errored. Under the block line, a window error retries the scan.
+ */
 export function combineMusicWindowResults(results: readonly MusicIdentifyResult[]): MusicIdentifyResult {
   if (results.length === 0) return { kind: "error", code: "missing_score", retryable: true };
+  const matches = results.filter(
+    (result): result is Extract<MusicIdentifyResult, { kind: "match" }> =>
+      result.kind === "match" && Number.isFinite(result.score),
+  );
+  const blocking = matches.filter((row) => row.score >= musicScanConfig.blockScore);
+  if (blocking.length > 0) return blocking.reduce((best, row) => (row.score > best.score ? row : best));
   const error = results.find((result) => result.kind === "error");
   if (error) return error;
-  const matches = results.filter((result) => result.kind === "match");
   if (matches.length === 0) {
     return results.find((result) => result.kind === "no_match") ?? { kind: "no_match", code: 1001 };
   }
@@ -129,9 +159,15 @@ export function decideMusicScan(input: {
 export type SocialMuxMediaRef = {
   kind?: string;
   provider?: string;
+  key?: string | null;
   assetId?: string | null;
   playbackId?: string | null;
 };
+
+/** Postgres md5(text) of a stored video key. Release and signing use the same digest. */
+export function socialVideoKeyDigest(key: string): string {
+  return createHash("md5").update(key).digest("hex");
+}
 
 export type SocialMusicScanRef = {
   assetId: string;
@@ -142,16 +178,24 @@ export type SocialMusicScanRef = {
 const SOCIAL_MUSIC_MUX_ID = /^[A-Za-z0-9_-]{8,120}$/;
 
 /**
- * A Mux video is visible to other people only when this parent has an
- * allowed scan for that asset and playback id. No row, a pending row, a
- * blocked row, or an id that cannot be scanned stays hidden. Stills and
- * text do not need a scan. Same rule as private.social_video_released.
+ * A video is visible to other people only when this parent has an allowed
+ * scan for it. Mux matches asset id and playback id. Any other video matches
+ * the md5 of its storage key. No row, a pending row, a blocked row, or an
+ * id that cannot be scanned stays hidden. Stills and text do not need a
+ * scan. Same rule as private.social_video_released.
  */
 export function muxItemReleasedToOthers(
   item: SocialMuxMediaRef,
   scans: readonly SocialMusicScanRef[],
 ): boolean {
-  if (item.kind !== "video" || item.provider !== "mux") return true;
+  if (item.kind !== "video") return true;
+  if (item.provider !== "mux") {
+    const key = item.key?.trim() ?? "";
+    if (!key) return false;
+    const digest = socialVideoKeyDigest(key);
+    const rows = scans.filter((scan) => scan.assetId === digest && scan.playbackId === digest);
+    return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
+  }
   const assetId = item.assetId?.trim() ?? "";
   const playbackId = item.playbackId?.trim() ?? "";
   if (!SOCIAL_MUSIC_MUX_ID.test(assetId) || !SOCIAL_MUSIC_MUX_ID.test(playbackId)) return false;
@@ -159,16 +203,35 @@ export function muxItemReleasedToOthers(
   return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
 }
 
+export type SocialPlaybackParent = { id: string; surface: "post" | "story" };
+
+export type SocialPlaybackScan = {
+  playbackId: string;
+  status: MusicScanVisibility;
+  postId: string | null;
+  storyId: string | null;
+};
+
 /**
- * Playback mint for someone else's video. Allowed only when every scan for
- * this playback id is allowed. No row is not a release.
+ * Mint for one playback id. Any blocked row for that id denies. The parent
+ * being played needs its own allowed scan. A pending row on a different
+ * parent does not deny. No row is not a release.
  */
 export function socialMuxPlaybackMusicReleased(
   playbackId: string,
-  scans: readonly { playbackId: string; status: MusicScanVisibility }[],
+  parents: readonly SocialPlaybackParent[],
+  scans: readonly SocialPlaybackScan[],
 ): boolean {
   const rows = scans.filter((scan) => scan.playbackId === playbackId);
-  return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
+  if (rows.length === 0 || parents.length === 0) return false;
+  if (rows.some((scan) => scan.status === "blocked")) return false;
+  return parents.some((parent) =>
+    rows.some(
+      (scan) =>
+        scan.status === "allowed" &&
+        (parent.surface === "post" ? scan.postId === parent.id : scan.storyId === parent.id),
+    ),
+  );
 }
 
 /** Other viewers see the parent only when every Mux video on it is allowed. */

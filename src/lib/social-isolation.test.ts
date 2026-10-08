@@ -208,19 +208,21 @@ describe("social isolation lock", () => {
     const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
     expect(actions).toContain("mediaItemsForPublish(formData.get(\"media\"), user.id)");
     expect(actions).toContain("mediaItemsForPublish(formData.get(\"media\"), user.id, \"stories\")");
-    // Every save stores only the server's published copy, never the upload key.
-    for (const action of [
-      "writeSocialPost",
-      "createSocialStory",
-      "saveSocialProfileCover",
-      "saveSocialWelcomeVideo",
-    ]) {
+    // Every save that stores a file uses only the server's published copy.
+    for (const action of ["writeSocialPost", "createSocialStory", "saveSocialProfileCover"]) {
       const start = actions.indexOf(`export async function ${action}(`);
       const body = actions.slice(start, actions.indexOf("\nexport ", start + 1));
       expect(start, action).toBeGreaterThan(-1);
       expect(body, action).toContain("await publishSocialMediaItems(");
       expect(body, action).toContain("published.items");
     }
+    const welcomeStart = actions.indexOf("export async function saveSocialWelcomeVideo(");
+    const welcomeBody = actions.slice(welcomeStart, actions.indexOf("\nexport ", welcomeStart + 1));
+    expect(welcomeStart).toBeGreaterThan(-1);
+    expect(welcomeBody).toContain("welcomeVideoItemFromMedia");
+    expect(welcomeBody).toContain("SOCIAL.stories.mediaType");
+    expect(welcomeBody).not.toContain("await publishSocialMediaItems(");
+    expect(welcomeBody).not.toContain("welcome_video_key");
     const sign = readFileSync("src/lib/s3-social-media.ts", "utf8");
     expect(sign).toContain("socialMediaProxies(media, authorId, lane)");
     expect(sign).toContain("socialMediaProxiesByPostId(posts)");
