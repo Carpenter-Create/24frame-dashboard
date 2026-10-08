@@ -13,11 +13,14 @@
 // chosen segment, labels 17 / 600 (ink idle, the page colour on the
 // thumb), segments 44 tall with 16 side pads, aria-current="page" on
 // the lit one. Supersedes the screening chrome's text lanes.
-// Phone and md to lg: the grey workspace pill right after the emblem
-// (or first in the bar from md), a filled grid and the current
-// workspace's name (15 / 600, ink); it opens the sheet (phone) or the
-// popover (md to lg). Below 360 the pill is the grid alone. Waffle
-// tiles use the slider's order: Aggregation · Social · Education.
+// Phone (max-md): the Sporty Blue workspace band above the bar (Adam
+// 2026-10-08, docs/design-locks/shell-phone-workspace-band-lock-v1.md):
+// the slider's segments as icon + word pills on one row that slides
+// sideways (no arrow, no fade); the current pill takes the page colour.
+// The bar under it is a sheet (rounded top) with no workspace control.
+// md to lg: the grey workspace pill first in the bar, a filled grid and
+// the current workspace's name (15 / 600, ink); it opens the popover.
+// Waffle tiles use the slider's order: Aggregation · Social · Education.
 // Hide lanes the caller omits. No dead tiles. Social Layer 2
 // dests stay out of the tiles and the slider (Feed / Explore /
 // Create / Messages / Profile). Account / Settings / Help stay on
@@ -207,9 +210,48 @@ export const WORKSPACE_SWITCHER_HOST_CLASS = "relative min-w-0 overflow-visible"
 // slider is a leading-slot flex item from lg up.
 export const APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS = "hidden lg:contents";
 
-// The grey workspace pill is the phone and md–lg face, in the leading
-// row (after the emblem on phone). Hidden from lg up.
-export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "shrink-0 lg:hidden";
+// The grey workspace pill is the md–lg face, first in the leading row.
+// Hidden on phone (the workspace band replaces it) and from lg up.
+export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "hidden shrink-0 md:block lg:hidden";
+
+// Phone workspace band (Adam 2026-10-08,
+// docs/design-locks/shell-phone-workspace-band-lock-v1.md). Sporty Blue
+// in both themes (--workspace-band), flush to the top: the status bar's
+// safe area pads it, so the pills sit right under the status bar. One
+// row of icon + word pills that slides sideways — no arrow, no fade, and
+// a pill cut at the screen edge is the scroll cue (the founder's
+// exception to phone never-truncate for this row). Phone only.
+export const WORKSPACE_BAND_CLASS =
+  "bg-workspace-band pt-[env(safe-area-inset-top)] md:hidden";
+
+export const WORKSPACE_BAND_ROW_CLASS =
+  "no-scrollbar flex h-14 items-center gap-[var(--space-1)] overflow-x-auto overscroll-x-contain whitespace-nowrap px-[var(--space-4)]";
+
+// The hit is 44 tall; the pill face inside it is 36. Keyboard focus: the
+// house ring (globals.css, unlayered: 2px, the accent, radius 4) would
+// vanish on the blue, so the band overrides its colour to white, hugs the
+// pill's shape, and draws it inside the hit (the social cover's `!` form).
+export const WORKSPACE_BAND_PILL_HIT_CLASS =
+  "flex h-11 shrink-0 items-center rounded-full focus-visible:rounded-full! focus-visible:outline-workspace-band-ink! focus-visible:outline-offset-[-2px]!";
+
+const WORKSPACE_BAND_PILL_FACE_CLASS =
+  "inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[length:var(--text-sm)] font-medium leading-none";
+
+/** Idle: white icon and word on the blue. */
+export const WORKSPACE_BAND_PILL_CLASS = `${WORKSPACE_BAND_PILL_FACE_CLASS} text-workspace-band-ink`;
+
+/** Current: the pill takes the page colour; accent-ink (light), white (dark). */
+export const WORKSPACE_BAND_PILL_CURRENT_CLASS = `${WORKSPACE_BAND_PILL_FACE_CLASS} bg-bg text-workspace-band-pill-ink`;
+
+export function workspaceBandPillClass(current: boolean): string {
+  return current ? WORKSPACE_BAND_PILL_CURRENT_CLASS : WORKSPACE_BAND_PILL_CLASS;
+}
+
+export const WORKSPACE_BAND_ICON_CLASS = "size-[18px] shrink-0";
+
+/** Idle glyph weight; the current pill's glyph is filled. */
+export const WORKSPACE_BAND_ICON_WEIGHT = "regular" as const;
+export const WORKSPACE_BAND_ICON_CURRENT_WEIGHT = "fill" as const;
 
 // Primary pill slider (H register §3.1; founder 2026-10-05).
 // The house SegmentedTrack: muted track, radius full, NO inset (the
@@ -398,13 +440,16 @@ export function workspaceSwitcherNextSegmentIndex(
   return (index + direction + count) % count;
 }
 
+/** A slider segment or band pill: Home or a switcher lane. */
+export type WorkspaceSegment = OverviewLeadPill & { id: "home" | WorkspaceLaneMode };
+
 /**
- * Desktop slider segments: Home first, then the waffle lanes in the
- * same order and gate (Aggregation · Social · Education).
+ * Desktop slider segments and phone band pills: Home first, then the
+ * waffle lanes in the same order and gate (Aggregation · Social · Education).
  */
 export function workspaceSliderSegments(
   options: readonly WorkspaceMenuOption[] = availableWorkspaceOptions(),
-): OverviewLeadPill[] {
+): WorkspaceSegment[] {
   return [
     { ...WORKSPACE_WAFFLE_HOME },
     ...workspaceWaffleTiles(options).map((tile) => ({

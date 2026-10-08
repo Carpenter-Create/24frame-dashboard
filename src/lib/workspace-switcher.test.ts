@@ -125,7 +125,8 @@ describe("workspace switcher lock", () => {
     // (phone and md to lg, where the slider cannot fit beside the 240
     // side menu and the trailing controls).
     expect(APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS).toBe("hidden lg:contents");
-    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("shrink-0 lg:hidden");
+    // The grey pill is md to lg only; the phone face is the workspace band.
+    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).toBe("hidden shrink-0 md:block lg:hidden");
     expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS).not.toContain("lg:contents");
     // The slider is the house muted track. The lit segment's label takes
     // the ON class and the idle ones the OFF class (the wash thumb with

@@ -93,7 +93,10 @@ export const HOUSE_LEAD_SCROLL_CLASS =
 // overflow-hidden on this row (#412). md+ it starts at the side menu's
 // right edge (--sidebar-width: 240, 80 collapsed, 0 where the page has
 // no side menu), so the full-height side menu is never crossed.
-export const HOUSE_LEAD_STACK_CLASS = "sticky top-0 z-40 shrink-0 md:ml-[var(--sidebar-width)]";
+// Phone: the stack leads with the workspace band and is Sporty Blue
+// behind the bar's rounded top corners (shell-phone-workspace-band-lock-v1).
+export const HOUSE_LEAD_STACK_CLASS =
+  "sticky top-0 z-40 shrink-0 max-md:bg-workspace-band md:ml-[var(--sidebar-width)]";
 
 // Phone bar: --chrome-gutter (16) lead · --space-3 (12) trail (the
 // board's 0 12 0 16). Do not put overflow-hidden on this row (#412).
@@ -115,8 +118,10 @@ export const HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS = HOUSE_SHELL_GUTTER_X_CLASS;
 // the lead (the slider) and the trailing cluster. Height is
 // --header-height: 56 on desktop and phone. One hairline under it. The bar
 // sits on the page canvas (--bg glass), like the side menu, so dark
-// mode reads as one surface.
-export const HOUSE_LEAD_CHROME_CLASS = `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`;
+// mode reads as one surface. Phone: the bar is a sheet over the workspace
+// band — the opaque page colour (no glass, so no blue shows through) with
+// a 24 top radius (--radius-xl), no drag handle.
+export const HOUSE_LEAD_CHROME_CLASS = `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`;
 
 // Phone emblem link (md:hidden at the call site): a 44 × 44 hit, so the
 // tap target matches the other bar targets (H register: phone targets
@@ -150,8 +155,9 @@ export const HOUSE_LEAD_SEARCH_DESKTOP_CLASS =
 export const HOUSE_LEAD_SEARCH_PHONE_CLASS = "w-full min-w-0 md:hidden";
 
 // Phone Education search row under the bar: 16 both sides, so the
-// field starts on the emblem's edge.
-export const HOUSE_LEAD_UNDER_NAV_CLASS = `flex w-full items-center md:hidden border-b border-hairline bg-bg/85 backdrop-blur max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--chrome-gutter)] ${HOUSE_SHELL_GUTTER_X_CLASS} py-[var(--space-3)]`;
+// field starts on the emblem's edge. Opaque page colour: the stack
+// behind it is the Sporty Blue workspace band (no glass tint).
+export const HOUSE_LEAD_UNDER_NAV_CLASS = `flex w-full items-center md:hidden border-b border-hairline bg-bg max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--chrome-gutter)] ${HOUSE_SHELL_GUTTER_X_CLASS} py-[var(--space-3)]`;
 
 export const HOUSE_LEAD_SEARCH_PILL_CLASS =
   "flex h-[var(--header-search-height)] w-full min-w-0 items-center gap-2 px-3";

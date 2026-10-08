@@ -47,6 +47,10 @@ import {
   WORKSPACE_WAFFLE_TRIGGER_OPEN_CLASS,
   workspaceSwitcherSegmentTabIndex,
   workspaceWaffleTiles,
+  WORKSPACE_BAND_CLASS,
+  WORKSPACE_BAND_PILL_CLASS,
+  WORKSPACE_BAND_PILL_CURRENT_CLASS,
+  WORKSPACE_BAND_ROW_CLASS,
 } from "@/lib/workspace-switcher";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
@@ -122,7 +126,9 @@ describe("workspace waffle header control", () => {
     expect(html).not.toContain("data-workspace-switcher-slider");
     expect(html).not.toContain('data-workspace-switcher-tone="pill"');
     expect(html).not.toContain("bg-accent");
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    // Band (phone), waffle (md to lg), slider (lg+): one face per width.
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(3);
+    expect(leadSrc).toContain('presentation="band"');
     expect(leadSrc).toContain('presentation="slider"');
     expect(leadSrc).not.toContain('presentation="lanes"');
     expect(leadSrc).toContain('presentation="waffle"');
@@ -377,10 +383,12 @@ describe("workspace waffle header control", () => {
 });
 
 describe("workspace waffle placement", () => {
-  it("leads with the phone emblem, then the grey pill (below lg) and the slider (lg+); trailing has no switcher", () => {
+  it("puts the band above the bar on phone, the grey pill (md to lg) and the slider (lg+) in the lead; trailing has no switcher", () => {
     expect(leadSrc).toContain("data-brand-emblem");
     expect(leadSrc).toContain("data-app-header-trailing");
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(3);
+    // The band is the stack's first child, before the bar (not in the lead).
+    expect(leadSrc.indexOf('presentation="band"')).toBeLessThan(leadSrc.indexOf("<header"));
     expect(shellSrc).toContain("<HouseLeadChrome");
     const leading = leadSrc.slice(
       leadSrc.indexOf("data-app-header-leading"),
@@ -574,5 +582,92 @@ describe("workspace switcher account-menu absence", () => {
     expect(sheetSrc).not.toContain('data-user-menu-item="workspace"');
     expect(sheetSrc).not.toContain('data-sheet-group-item="workspace"');
     expect(sheetSrc).not.toContain("data-account-menu-workspace");
+  });
+});
+
+// Phone workspace band (Adam 2026-10-08,
+// docs/design-locks/shell-phone-workspace-band-lock-v1.md): the
+// slider's segments as icon + word pills on Sporty Blue; one lit pill at
+// most; the row slides (no arrow, no fade); never a Staff pill.
+describe("workspace band (phone)", () => {
+  const pillIds = (html: string) =>
+    [...html.matchAll(/data-workspace-band-pill="([^"]+)"/g)].map((row) => row[1] ?? "");
+  const litIds = (html: string) =>
+    [...html.matchAll(/<a[^>]*data-workspace-band-pill="([^"]+)"[^>]*aria-current="page"/g)].map(
+      (row) => row[1] ?? "",
+    );
+  const band = (path: string, current: "aggregation" | "social" | "education" | "staff", isGcStaff = false) => {
+    navigation.pathname = path;
+    try {
+      return renderToStaticMarkup(
+        <WorkspaceSwitcher presentation="band" current={current} isGcStaff={isGcStaff} />,
+      );
+    } finally {
+      navigation.pathname = "/";
+    }
+  };
+
+  it("draws Home · Aggregation · Social · Education as icon + word pills on the band", () => {
+    const html = band("/social", "social");
+    expect(html).toContain('data-workspace-switcher-presentation="band"');
+    expect(html).toContain(`class="${WORKSPACE_BAND_CLASS}"`);
+    expect(html).toContain(`class="${WORKSPACE_BAND_ROW_CLASS}"`);
+    expect(pillIds(html)).toEqual(["home", "aggregation", "social", "education"]);
+    for (const [id, href, label] of [
+      ["home", "/home", "Home"],
+      ["aggregation", "/aggregation/dashboard", "Aggregation"],
+      ["social", "/social", "Social"],
+      ["education", "/education", "Education"],
+    ] as const) {
+      const at = html.indexOf(`data-workspace-band-pill="${id}"`);
+      const tag = html.slice(html.lastIndexOf("<a", at), html.indexOf(">", at) + 1);
+      expect(tag, id).toContain(`href="${href}"`);
+      const pill = html.slice(at, html.indexOf("</a>", at));
+      // An icon, then the word — both inside the pill face.
+      expect(pill, id).toContain("<svg");
+      expect(pill.indexOf("<svg"), id).toBeLessThan(pill.indexOf(`>${label}<`));
+    }
+    // The row slides: no arrow, no fade, no control but the pills.
+    expect(html).not.toContain("<button");
+    expect(html).not.toMatch(/fade|gradient|More/);
+  });
+
+  it("lights the route's workspace in the page colour — at most one, none off a workspace", () => {
+    const social = band("/social", "social");
+    expect(litIds(social)).toEqual(["social"]);
+    expect(social).toContain(`class="${WORKSPACE_BAND_PILL_CURRENT_CLASS}"`);
+    expect(social.split(`class="${WORKSPACE_BAND_PILL_CLASS}"`).length - 1).toBe(3);
+    expect(litIds(band("/home", "aggregation"))).toEqual(["home"]);
+    expect(litIds(band("/aggregation/titles", "aggregation"))).toEqual(["aggregation"]);
+    expect(litIds(band("/education", "education"))).toEqual(["education"]);
+    for (const path of ["/settings", "/activity", "/help", "/co-productions"]) {
+      expect(litIds(band(path, "social")), path).toEqual([]);
+    }
+    // Staff is not a lane: a Staff page lights none and draws no Staff pill.
+    const staff = band("/staff/queue", "staff", true);
+    expect(litIds(staff)).toEqual([]);
+    expect(pillIds(staff)).not.toContain("staff");
+    expect(staff).not.toContain(">Staff<");
+  });
+
+  it("never draws a Staff pill, even from a forged option", () => {
+    navigation.pathname = "/social";
+    try {
+      const html = renderToStaticMarkup(
+        <WorkspaceSwitcher
+          presentation="band"
+          current="social"
+          isGcStaff
+          options={[
+            ...availableWorkspaceOptions(),
+            { mode: "staff" as const, label: "Staff", href: "/staff/queue" },
+          ]}
+        />,
+      );
+      expect(pillIds(html)).toEqual(["home", "aggregation", "social", "education"]);
+      expect(html).not.toContain('href="/staff/queue"');
+    } finally {
+      navigation.pathname = "/";
+    }
   });
 });

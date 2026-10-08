@@ -317,8 +317,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(social).toContain(HOUSE_LEAD_CHROME_CLASS);
     expect(aggregation).toContain(HOUSE_LEAD_LOGO_CLASS);
     expect(social).toContain(HOUSE_LEAD_LOGO_CLASS);
+    // Phone: a sheet over the workspace band — opaque page colour, 24
+    // top radius (shell-phone-workspace-band-lock-v1). md+ keeps the glass.
     expect(HOUSE_LEAD_CHROME_CLASS).toBe(
-      `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`,
+      `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`,
     );
     expect(HOUSE_LEAD_LOGO_CLASS).toBe(
       "inline-flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center -ml-[11px] pl-[11px]",
@@ -365,7 +367,9 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
       expect(html).not.toContain('stroke-width="1.33"');
       expect(html).toContain('data-house-ai-mark-register="stroke"');
     }
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    // Band (phone), waffle (md to lg), slider (lg+): one face per width.
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(3);
+    expect(leadSrc).toContain('presentation="band"');
     expect(leadSrc).toContain("<AskAssistantHeaderLink />");
     expect(leadSrc).not.toContain("ThemeToggle");
     expect(leadSrc).not.toContain('from "@/components/theme-toggle"');
@@ -484,7 +488,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
 
   it("G9 pins the shared lead to the viewport — page scroll lives on main", () => {
     // md+ the stack starts at the full-height side menu's edge.
-    expect(HOUSE_LEAD_STACK_CLASS).toBe("sticky top-0 z-40 shrink-0 md:ml-[var(--sidebar-width)]");
+    // Phone: Sporty Blue behind the bar's rounded corners (the band).
+    expect(HOUSE_LEAD_STACK_CLASS).toBe(
+      "sticky top-0 z-40 shrink-0 max-md:bg-workspace-band md:ml-[var(--sidebar-width)]",
+    );
     expect(HOUSE_LEAD_STACK_CLASS).toContain("sticky");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("top-0");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("shrink-0");

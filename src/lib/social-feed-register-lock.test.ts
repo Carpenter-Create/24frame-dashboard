@@ -221,7 +221,10 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     // The 96 fade carries the round grey More topics; the scroll padding
     // equals the fade, and the ring pad is taken back in margin.
     expect(hasClass(SOCIAL_HOME_TOPIC_FADE_CLASS, "w-24")).toBe(true);
-    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "scroll-pe-24")).toBe(true);
+    // Desktop only: on phone the row slides with no fade and no More
+    // topics (shell-phone-workspace-band-lock-v1, Adam 2026-10-08).
+    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "md:scroll-pe-24")).toBe(true);
+    expect(hasClass(SOCIAL_HOME_TOPIC_FADE_CLASS, "max-md:hidden")).toBe(true);
     const reach = focusRingReach();
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `py-[${reach}px]`)).toBe(true);
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `-my-[${reach}px]`)).toBe(true);

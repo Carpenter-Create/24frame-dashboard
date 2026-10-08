@@ -40,6 +40,15 @@
      second accent: fills, buttons, links, focus rings and accent text
      on white stay --accent. .dark maps it back to --accent. */
   --accent-ink: #0a5ff5;
+  /* Phone workspace band (Adam 2026-10-08, "Use the sport blue background
+     on mobile. but, in dark mode, don't use the light blue since that is
+     not a brand color."): Sporty Blue in BOTH themes, never --accent
+     (which .dark maps to the lighter dark accent). White labels on it are 4.67:1. The
+     current pill takes the page colour (--bg) with this ink: accent-ink
+     on white (5.29:1); .dark maps it to white. */
+  --workspace-band: #1769ff;
+  --workspace-band-ink: #ffffff;
+  --workspace-band-pill-ink: var(--accent-ink);
   /* Home Education glance plates — Figma Home module SoT. Deterministic
      course-id cycle. Not a product accent; Sporty Blue stays --accent. */
   --course-plate-1: #1f3873;
@@ -214,6 +223,9 @@
   /* Founder pick 2026-10-04: dark text on the wash is the dark accent
      itself; #70b5f9 on the dark wash is 6.17:1. */
   --accent-ink: var(--accent);
+  /* The workspace band stays Sporty Blue (:root); its current pill is
+     the #0f0f0f page with white ink, not the light blue. */
+  --workspace-band-pill-ink: #ffffff;
 
   /* Adam lock 2026-09-22. YouTube near-black canvas. Retires the navy
      #050835 trial. Surfaces stay: #1e2126 on #0f0f0f is 1.19:1, the

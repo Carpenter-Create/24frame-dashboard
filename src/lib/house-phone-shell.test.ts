@@ -80,7 +80,10 @@ import {
 import { HOUSE_SHELL_QUIET_INK_CLASS } from "@/lib/house-shell";
 import { PHOSPHOR_CHROME_ICON_CLASS } from "@/lib/phosphor-icon";
 import { SOCIAL_ROUTES } from "@/lib/social";
-import { APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS } from "@/lib/workspace-switcher";
+import {
+  APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
+  APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
+} from "@/lib/workspace-switcher";
 
 const leadSrc = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
 const shellSrc = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
@@ -106,7 +109,9 @@ function renderLead(workspace: "aggregation" | "social" | "education") {
 }
 
 describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
-  it("shows the grey workspace pill in the header (below lg) and the slider from lg", () => {
+  // Phone workspace band (Adam 2026-10-08, shell-phone-workspace-band-lock-v1):
+  // the band on phone, the grey pill from md to lg, the slider from lg.
+  it("shows the workspace band on phone, the grey pill from md to lg, and the slider from lg", () => {
     expect(leadSrc).toContain("<WorkspaceSwitcher");
     expect(leadSrc).not.toContain("data-app-header-workspace-pill");
     expect(leadSrc).not.toContain('tone="pill"');
@@ -115,7 +120,11 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(leadSrc).toContain("data-app-header-workspace-desktop");
     expect(leadSrc).toContain("APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS");
     expect(leadSrc).toContain("APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS");
-    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    expect(leadSrc).toContain('presentation="band"');
+    expect(leadSrc.match(/<WorkspaceSwitcher/g)?.length).toBe(3);
+    expect(APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS.split(" ")).toEqual(
+      expect.arrayContaining(["hidden", "md:block", "lg:hidden"]),
+    );
 
     const aggregation = renderToStaticMarkup(
       createElement(HouseLeadChrome, {
@@ -124,6 +133,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       }),
     );
     expect(aggregation).toContain("data-workspace-waffle");
+    expect(aggregation).toContain('data-workspace-switcher-presentation="band"');
+    expect(aggregation.indexOf("data-workspace-band")).toBeLessThan(
+      aggregation.indexOf("data-house-lead-chrome"),
+    );
     expect(aggregation).toContain('data-workspace-switcher-presentation="waffle"');
     expect(aggregation).toContain('data-workspace-switcher-presentation="slider"');
     expect(aggregation).not.toContain("data-app-header-workspace-pill");

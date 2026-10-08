@@ -9,7 +9,15 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, BookOpen, DotsNine, FilmStrip, Users, type Icon } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  BookOpen,
+  DotsNine,
+  FilmStrip,
+  House,
+  Users,
+  type Icon,
+} from "@phosphor-icons/react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
@@ -82,6 +90,13 @@ import {
   workspaceSwitcherTriggerName,
   workspaceSliderSegments,
   workspaceWaffleTiles,
+  WORKSPACE_BAND_CLASS,
+  WORKSPACE_BAND_ICON_CLASS,
+  WORKSPACE_BAND_ICON_CURRENT_WEIGHT,
+  WORKSPACE_BAND_ICON_WEIGHT,
+  WORKSPACE_BAND_PILL_HIT_CLASS,
+  WORKSPACE_BAND_ROW_CLASS,
+  workspaceBandPillClass,
   type WorkspaceLaneMode,
   type WorkspaceLaneOption,
 } from "@/lib/workspace-switcher";
@@ -321,6 +336,86 @@ function WorkspaceWaffleTiles({
   );
 }
 
+// Phone workspace band (Adam 2026-10-08,
+// docs/design-locks/shell-phone-workspace-band-lock-v1.md): the
+// slider's segments as icon + word pills on the Sporty Blue band. Same
+// lit test (overviewLeadActiveIndex on the optimistic activePath) and
+// the same hop (selectWorkspaceTile: Home writes no cookie, a lane
+// writes it) as the slider; links, so a long-press and prefetch work.
+// The row slides sideways; no arrow, no fade.
+function WorkspaceBand({
+  current,
+  options,
+  isGcStaff = false,
+}: {
+  current: WorkspaceMode;
+  options: readonly WorkspaceMenuOption[];
+  isGcStaff?: boolean;
+}) {
+  const router = useRouter();
+  const shellPath = useHousePathname();
+  const house = useHouseClient();
+  const { activePath, markPending } = useHouseNavPending();
+  const pills = workspaceSliderSegments(options);
+  const routeWorkspace = resolveWorkspaceMode(activePath, current);
+  const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
+
+  return (
+    <nav
+      aria-label={WORKSPACE_SWITCHER.label}
+      data-workspace-switcher=""
+      data-workspace-switcher-presentation="band"
+      data-workspace-band=""
+      className={WORKSPACE_BAND_CLASS}
+    >
+      <div data-workspace-band-row="" className={WORKSPACE_BAND_ROW_CLASS}>
+        {pills.map((pill, index) => {
+          const lit = index === routeIndex;
+          const Glyph = pill.id === "home" ? House : WORKSPACE_WAFFLE_ICON[pill.id];
+          return (
+            <HouseLink
+              key={pill.id}
+              href={pill.href}
+              prefetch={!lit}
+              data-workspace-band-pill={pill.id}
+              data-workspace-band-current={lit ? "" : undefined}
+              aria-current={lit ? "page" : undefined}
+              className={WORKSPACE_BAND_PILL_HIT_CLASS}
+              onClick={(event) => {
+                // Modified clicks stay on the anchor; a plain tap owns
+                // the hop (cookie, pending, soft swap) like the slider.
+                if (houseNavIgnorePendingClick(event)) return;
+                event.preventDefault();
+                selectWorkspaceTile(
+                  current,
+                  pill,
+                  options,
+                  router,
+                  shellPath,
+                  isGcStaff,
+                  markPending,
+                  event,
+                  house?.navigateOwned,
+                );
+              }}
+            >
+              {lit ? null : <HouseNavPendingProbe href={pill.href} onPending={markPending} />}
+              <span className={workspaceBandPillClass(lit)}>
+                <Glyph
+                  className={WORKSPACE_BAND_ICON_CLASS}
+                  weight={lit ? WORKSPACE_BAND_ICON_CURRENT_WEIGHT : WORKSPACE_BAND_ICON_WEIGHT}
+                  aria-hidden="true"
+                />
+                {pill.label}
+              </span>
+            </HouseLink>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 // Desktop slider (H register): the house SegmentedTrack with an
 // ink thumb. The thumb and the label ink follow the optimistic
 // activePath (and the track's own click intent), so they move on click.
@@ -424,7 +519,7 @@ export function WorkspaceSwitcher({
   isGcStaff?: boolean;
   options?: readonly WorkspaceMenuOption[];
   defaultOpen?: boolean;
-  presentation?: "waffle" | "slider";
+  presentation?: "waffle" | "slider" | "band";
 }) {
   // Staff is not a lane, so the gate is the caller's isGcStaff alone.
   const staffGate = isGcStaff;
@@ -505,6 +600,10 @@ export function WorkspaceSwitcher({
 
   if (presentation === "slider") {
     return <WorkspaceSlider current={current} options={options} isGcStaff={staffGate} />;
+  }
+
+  if (presentation === "band") {
+    return <WorkspaceBand current={current} options={options} isGcStaff={staffGate} />;
   }
 
   // The grey workspace pill names where you are: the segment the

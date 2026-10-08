@@ -235,7 +235,9 @@ describe("AppShell header", () => {
     expect(html).toContain("overflow-hidden");
     expect(html).toContain("overflow-y-auto");
     expect(html).toContain("data-workspace-waffle");
-    expect((html.match(/data-workspace-switcher=""/g) ?? []).length).toBe(2);
+    // Band (phone), waffle (md to lg), slider (lg+).
+    expect((html.match(/data-workspace-switcher=""/g) ?? []).length).toBe(3);
+    expect(html).toContain('data-workspace-switcher-presentation="band"');
     expect(html).toContain('data-workspace-switcher-presentation="waffle"');
     expect(html).toContain('data-workspace-switcher-presentation="slider"');
     expect(html).toContain("data-workspace-switcher-slider");
