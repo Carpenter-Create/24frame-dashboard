@@ -1,5 +1,6 @@
 import { ASK_ASSISTANT } from "@/lib/product";
 import { isAskFrameAiThreadId } from "@/lib/ask-frame-ai";
+import { HOUSE_PHONE_WRAP_CLASS } from "@/lib/house-phone-stack";
 
 // Mercury Command overlay — 24Frame AI is never a workspace destination.
 // Universal header access on every house chrome path. Open state lives
@@ -93,6 +94,11 @@ export const ASK_AI_OVERLAY_PHONE_HISTORY_CLASS =
 
 export const ASK_AI_OVERLAY_PHONE_HISTORY_LIST_CLASS =
   "flex flex-col gap-[var(--space-6)] max-md:min-h-0 max-md:flex-1 max-md:overflow-y-scroll max-md:overscroll-contain max-md:[touch-action:pan-y] max-md:[-webkit-overflow-scrolling:touch]";
+
+/** History row title (phone list and desktop popover): the house phone wrap,
+ *  never an ellipsis; the time stays on the right. Not the thread title in
+ *  the Messages header or the overlay heading. */
+export const ASK_AI_HISTORY_ROW_TITLE_CLASS = `${HOUSE_PHONE_WRAP_CLASS} t-body text-ink`;
 
 /** Phone clock sits in sheet pad. The retired /messages -24px dock clips off-screen. */
 export const ASK_AI_OVERLAY_PHONE_CLOCK_DOCK_CLASS =

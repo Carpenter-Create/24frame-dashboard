@@ -8,8 +8,11 @@ import {
   HOUSE_FORM_SELECT_OPTION_HOVER_CLASS,
   HOUSE_FORM_SELECT_PANEL_CLASS,
   HOUSE_FORM_SELECT_TRIGGER_CLASS,
+  HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS,
   houseFormSelectOptionClass,
 } from "./house-form-select";
+import { housePhoneForbidsTruncate } from "./house-phone-stack";
+import { stripSourceComments } from "@/test/strip-source-comments";
 import {
   HOUSE_PAGE_SELECT_CHEVRON_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS,
@@ -58,5 +61,18 @@ describe("house form Select SoT", () => {
     expect(entities).toContain('id="entity-type"');
     expect(entities).not.toContain("<select");
     expect(entities).not.toContain("formControlClass");
+  });
+});
+
+describe("house form Select: phone never-truncate (house gospel 2026-09-19)", () => {
+  it("pins the closed field's chosen value to the house wrap, never an ellipsis", () => {
+    expect(HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS).toBe(
+      "flex-1 min-w-0 max-w-full whitespace-normal break-words",
+    );
+    expect(housePhoneForbidsTruncate(HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS)).toBe(true);
+    // Built from the house wrap itself, not a hand-typed copy of its value.
+    expect(stripSourceComments(readFileSync("src/lib/house-form-select.ts", "utf8"))).toMatch(
+      /^export const HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS = `flex-1 \$\{HOUSE_PHONE_WRAP_CLASS\}`;$/m,
+    );
   });
 });

@@ -9,6 +9,7 @@ import { HouseLink } from "@/components/chrome/house-link";
 import { Input } from "@/components/ui/input";
 import { ASK_FRAME_AI, askFrameAiThreadHref } from "@/lib/ask-frame-ai";
 import {
+  ASK_AI_HISTORY_ROW_TITLE_CLASS,
   ASK_AI_OVERLAY_PHONE_HISTORY_CLASS,
   ASK_AI_OVERLAY_PHONE_HISTORY_LIST_CLASS,
   askAiOverlayHref,
@@ -136,7 +137,7 @@ function HistoryGroup({
                   current ? "border border-hairline bg-transparent" : null,
                 )}
               >
-                <span className="min-w-0 truncate t-body text-ink">{row.title}</span>
+                <span className={ASK_AI_HISTORY_ROW_TITLE_CLASS}>{row.title}</span>
                 <span className="shrink-0 t-body-sm text-ink-3">
                   {formatAskFrameAiHistoryTime(row.updated_at, now)}
                 </span>

@@ -11,11 +11,16 @@ import {
   APP_SHEET_SURFACE_CLASS,
   CLOSE_44_CLASS,
   HOUSE_EMPTY_CLASS,
+  IDENTITY_EMAIL_CLASS,
+  IDENTITY_NAME_CLASS,
+  IDENTITY_WHO_CLASS,
   SHEET_GROUP_INSET_CLASS,
   SHEET_GROUP_INSET_ITEM_CLASS,
   TEXT_ACTION_CLASS,
 } from "@/lib/house-sheet";
 import { ACCOUNT_PHOTO_HREF } from "@/lib/account-avatar";
+import { housePhoneForbidsTruncate } from "@/lib/house-phone-stack";
+import { stripSourceComments } from "@/test/strip-source-comments";
 import {
   AppSheetSurface,
   Close44,
@@ -191,5 +196,26 @@ describe("house primitives", () => {
     expect(paired.match(/data-sheet-group-rule/g)).toHaveLength(1);
     expect(alone).not.toContain("data-sheet-group-rule");
     expect(alone).toContain('data-sheet-group-id="help"');
+  });
+});
+
+describe("IdentityBlock: a long name and email wrap (house gospel 2026-09-19)", () => {
+  const NAME = "Maximilian Alexander Featherstonehaugh-Smythe";
+  const EMAIL = "maximilian.featherstonehaugh@globalcontentholdings.com";
+
+  it("renders the name over a 54-character email in the house wrap, in a column that can shrink", () => {
+    expect(EMAIL).toHaveLength(54);
+    const html = renderToStaticMarkup(<IdentityBlock avatarInitial="M" name={NAME} email={EMAIL} />);
+    expect(html).toContain(
+      `<div data-identity-who="" class="${IDENTITY_WHO_CLASS}"><p data-identity-name="" class="${IDENTITY_NAME_CLASS}">${NAME}</p><p data-identity-email="" class="${IDENTITY_EMAIL_CLASS}">${EMAIL}</p></div>`,
+    );
+    expect(housePhoneForbidsTruncate(html)).toBe(true);
+  });
+
+  it("keeps the identity column and lines on the shared constants in the source", () => {
+    const code = stripSourceComments(houseSrc);
+    expect(code).toMatch(/^\s*<div data-identity-who="" className=\{IDENTITY_WHO_CLASS\}>$/m);
+    expect(code).toMatch(/^\s*<p data-identity-name="" className=\{IDENTITY_NAME_CLASS\}>$/m);
+    expect(code).toMatch(/^\s*<p data-identity-email="" className=\{IDENTITY_EMAIL_CLASS\}>$/m);
   });
 });
