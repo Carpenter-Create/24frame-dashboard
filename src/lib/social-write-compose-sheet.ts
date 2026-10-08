@@ -82,3 +82,13 @@ export const SOCIAL_WRITE_COMPOSE_DIALOG_TOOLS_CLASS =
   "flex shrink-0 items-center gap-[var(--space-2)] border-t border-hairline pt-[var(--space-3)]";
 
 export const SOCIAL_WRITE_COMPOSE_DIALOG_POST_CLASS = "ml-auto min-h-10 px-5 focus-visible:rounded-full!";
+
+/** Desktop Create's window and the screen it opened on. */
+export type SocialCreateWindow = { open: boolean; path: string };
+
+/** The window belongs to the screen it opened on: any navigation closes it
+ *  (a hop that hides the side menu unmounts the window and its draft, so it
+ *  must not reopen empty on the way back). */
+export function socialCreateWindowAt(state: SocialCreateWindow, pathname: string): SocialCreateWindow {
+  return state.path === pathname ? state : { open: false, path: pathname };
+}

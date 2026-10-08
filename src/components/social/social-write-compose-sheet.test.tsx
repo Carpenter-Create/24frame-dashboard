@@ -40,6 +40,7 @@ import {
   SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS,
   SOCIAL_WRITE_COMPOSE_DIALOG_TOOLS_CLASS,
   SOCIAL_WRITE_COMPOSE_SHEET_HOST_CLASS,
+  socialCreateWindowAt,
 } from "@/lib/social-write-compose-sheet";
 
 const composerSrc = readFileSync("src/components/social/social-home-composer.tsx", "utf8");
@@ -187,6 +188,20 @@ describe("Desktop composer window", () => {
     const pin = composeSrc.indexOf("bindSocialWriteComposeViewport(form");
     const effect = composeSrc.slice(composeSrc.lastIndexOf("useEffect(", pin), pin);
     expect(effect).toContain('if (presentation !== "page") return undefined;');
+  });
+
+  // A hop that hides the side menu unmounts the window (and its draft):
+  // it must not reopen, empty, on the way back.
+  it("closes on any navigation, and stays open on its own screen", () => {
+    const open = { open: true, path: "/social" };
+    expect(socialCreateWindowAt(open, "/social")).toBe(open);
+    expect(socialCreateWindowAt(open, "/social/explore")).toEqual({ open: false, path: "/social/explore" });
+    const away = socialCreateWindowAt(open, "/social/explore");
+    expect(socialCreateWindowAt(away, "/social")).toEqual({ open: false, path: "/social" });
+    const shell = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
+    expect(shell).toContain("const createAt = socialCreateWindowAt(createWindow, pathname);");
+    expect(shell).toContain("if (createAt !== createWindow) setCreateWindow(createAt);");
+    expect(shell).toContain("const createOpen = createAt.open;");
   });
 
   it("is the house dialog at the card grammar: 600, radius 24, no edge", () => {
