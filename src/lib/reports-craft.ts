@@ -49,7 +49,7 @@ export const REPORTS_CHART_FRAME_CLASS = "relative h-[240px] w-full md:h-[280px]
 export const REPORTS_CHART_EMPTY_CLASS =
   "relative flex h-[var(--space-12)] w-full items-center px-[var(--space-4)]";
 export const REPORTS_FIXTURE_BANNER_CLASS =
-  "rounded-[var(--radius)] border border-hairline bg-surface px-[var(--space-4)] py-[var(--space-2)] t-label text-ink-3 shadow-none max-md:sticky max-md:top-0 max-md:z-20";
+  "rounded-[var(--radius)] border border-hairline bg-surface px-[var(--space-4)] py-[var(--space-2)] t-label text-ink-3 shadow-none max-md:sticky max-md:top-[var(--house-phone-chrome-visible,0px)] max-md:z-20";
 export const REPORTS_TABLE_CLASS = "w-full border-t border-hairline text-left";
 export const REPORTS_TABLE_HEAD_CLASS = "t-label text-ink-3";
 export const REPORTS_TABLE_CELL_CLASS = "t-body-sm text-ink";

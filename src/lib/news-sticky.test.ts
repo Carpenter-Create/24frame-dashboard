@@ -19,7 +19,11 @@ const moduleSrc = readFileSync("src/components/overview/overview-module.tsx", "u
 
 describe("News sticky header SoT", () => {
   it("pins under chrome with one shared class and host surface tokens", () => {
-    expect(NEWS_STICKY_PIN_CLASS).toBe("sticky top-0 z-10 shrink-0 backdrop-blur");
+    // Phone: the pin stops at the floating chrome's visible bottom
+    // (shell-phone-workspace-band-lock-v1 §5 v1.3); md+ under the header.
+    expect(NEWS_STICKY_PIN_CLASS).toBe(
+      "sticky top-0 z-10 shrink-0 backdrop-blur max-md:top-[var(--house-phone-chrome-visible,0px)]",
+    );
     expect(NEWS_STICKY_PIN_CLASS).toContain("sticky");
     expect(NEWS_STICKY_PIN_CLASS).toContain("top-0");
     expect(NEWS_STICKY_PIN_CLASS).toContain("z-10");

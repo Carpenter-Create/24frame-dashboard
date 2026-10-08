@@ -22,7 +22,7 @@
 
 export type NewsStickySurface = "rail" | "page";
 
-export const NEWS_STICKY_PIN_CLASS = "sticky top-0 z-10 shrink-0 backdrop-blur";
+export const NEWS_STICKY_PIN_CLASS = "sticky top-0 z-10 shrink-0 backdrop-blur max-md:top-[var(--house-phone-chrome-visible,0px)]";
 
 export const NEWS_STICKY_RAIL_SURFACE_CLASS =
   "rounded-t-[var(--radius-lg)] bg-surface-muted/85";

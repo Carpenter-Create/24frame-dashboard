@@ -276,7 +276,7 @@ export const DASHBOARD_CHART_EMPTY_CLASS =
   "relative flex h-[var(--space-12)] w-full items-center px-[var(--space-4)]";
 
 export const DASHBOARD_FIXTURE_BANNER_CLASS =
-  "rounded-[var(--radius)] border border-hairline bg-surface px-[var(--space-4)] py-[var(--space-2)] t-label text-ink-3 shadow-none max-md:sticky max-md:top-0 max-md:z-20";
+  "rounded-[var(--radius)] border border-hairline bg-surface px-[var(--space-4)] py-[var(--space-2)] t-label text-ink-3 shadow-none max-md:sticky max-md:top-[var(--house-phone-chrome-visible,0px)] max-md:z-20";
 
 export const DASHBOARD_PERIOD_SHEET_HOST_CLASS = HOUSE_PAGE_SELECT_SHEET_HOST_CLASS;
 

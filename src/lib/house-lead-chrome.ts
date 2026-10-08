@@ -84,19 +84,48 @@ export const HOUSE_LEAD_SEARCH_MIN_WIDTH_PX = 240;
 export const HOUSE_LEAD_SEARCH_MAX_WIDTH_PX = 360;
 
 export const HOUSE_LEAD_SHELL_CLASS =
-  "flex h-dvh flex-col overflow-hidden overscroll-none";
+  "flex h-dvh flex-col overflow-hidden overscroll-none max-md:relative";
 
+// Phone: the chrome floats over the top of this scroller, so in-page
+// scroll-into-view stops at the chrome's visible bottom.
 export const HOUSE_LEAD_SCROLL_CLASS =
-  "min-h-0 flex-1 overflow-y-auto overscroll-contain";
+  "min-h-0 flex-1 overflow-y-auto overscroll-contain max-md:scroll-pt-[var(--house-phone-chrome-visible,0px)]";
 
 // Stack pins header + Education under-nav as one unit. Do not put
 // overflow-hidden on this row (#412). md+ it starts at the side menu's
 // right edge (--sidebar-width: 240, 80 collapsed, 0 where the page has
 // no side menu), so the full-height side menu is never crossed.
-// Phone: the stack leads with the workspace band and is Sporty Blue
-// behind the bar's rounded top corners (shell-phone-workspace-band-lock-v1).
+// Phone: the stack leads with the workspace band and floats over the top
+// of the page scroller (out of flow), so the bar can slide over the band
+// with the finger while the page scrolls under it, at the finger's speed
+// (shell-phone-workspace-band-lock-v1 §5). Page scroll stays on main (G9).
 export const HOUSE_LEAD_STACK_CLASS =
-  "sticky top-0 z-40 shrink-0 max-md:bg-workspace-band md:ml-[var(--sidebar-width)]";
+  "sticky top-0 z-40 shrink-0 max-md:absolute max-md:inset-x-0 max-md:top-0 md:ml-[var(--sidebar-width)]";
+
+// The phone chrome's motion, written by the shell's tracker on the shell
+// element (house-phone-chrome-state): the chrome's height, its visible
+// height (less the bar's cover), and the bar's cover (0–56).
+export const HOUSE_PHONE_CHROME_HEIGHT_VAR = "--house-phone-chrome-h";
+export const HOUSE_PHONE_CHROME_VISIBLE_VAR = "--house-phone-chrome-visible";
+export const HOUSE_PHONE_SHEET_Y_VAR = "--house-phone-sheet-y";
+/** On the shell while the bar eases to rest (open or covered). */
+export const HOUSE_PHONE_SHEET_SETTLE_ATTR = "data-house-phone-sheet-settle";
+
+/** The bar, its corner fill, and the Education search row move together:
+ *  up by the cover, 1:1 with the scroll (no easing), eased only while
+ *  settling. Phone only. */
+export const HOUSE_PHONE_SHEET_MOTION_CLASS =
+  "max-md:translate-y-[calc(var(--house-phone-sheet-y,0px)*-1)] max-md:transition-[translate] max-md:duration-0 max-md:ease-out max-md:in-data-house-phone-sheet-settle:duration-[180ms]";
+
+/** Sporty Blue behind the bar's rounded top corners: a 24 strip that rides
+ *  just under the bar's top edge, so the corners show blue at rest and as
+ *  the bar slides. */
+export const HOUSE_LEAD_CORNER_FILL_CLASS = `pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+3.5rem)] h-6 bg-workspace-band md:hidden ${HOUSE_PHONE_SHEET_MOTION_CLASS}`;
+
+/** Phone: the page's first box, as tall as the floating chrome, so the
+ *  page starts under it. The fallback is band + bar until it is measured. */
+export const HOUSE_PHONE_CHROME_SPACER_CLASS =
+  "shrink-0 md:hidden h-[var(--house-phone-chrome-h,calc(env(safe-area-inset-top)+7.5rem))]";
 
 // Phone bar: --chrome-gutter (16) lead · --space-3 (12) trail (the
 // board's 0 12 0 16). Do not put overflow-hidden on this row (#412).

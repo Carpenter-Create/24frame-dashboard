@@ -51,8 +51,6 @@ import {
   WORKSPACE_BAND_PILL_CLASS,
   WORKSPACE_BAND_PILL_CURRENT_CLASS,
   WORKSPACE_BAND_ROW_CLASS,
-  WORKSPACE_BAND_FOLD_OPEN_CLASS,
-  WORKSPACE_BAND_FOLD_TUCKED_CLASS,
   WORKSPACE_BAND_ICON_CLASS,
   WORKSPACE_BAND_THUMB_CLASS,
 } from "@/lib/workspace-switcher";
@@ -726,26 +724,25 @@ describe("the sheet rides over the band (lock §5)", () => {
   const open = { dockHidden: false, bandTucked: false };
   const tucked = { dockHidden: true, bandTucked: true };
 
-  it("folds the band row under the bar when the shell says tucked, and opens it otherwise", () => {
+  it("marks the band covered when the shell says so; it never folds and stays in the accessibility tree", () => {
     navigation.pathname = "/social";
     try {
       const shown = renderToStaticMarkup(
         withChrome(<WorkspaceSwitcher presentation="band" current="social" />, open),
       );
-      expect(shown).toContain(`data-workspace-band-fold="" class="${WORKSPACE_BAND_FOLD_OPEN_CLASS}"`);
       expect(shown).not.toContain("data-workspace-band-tucked");
-      // The row sits inside the fold, so the fold's height is what moves.
-      expect(shown.indexOf("data-workspace-band-fold")).toBeLessThan(shown.indexOf("data-workspace-band-row"));
+      expect(shown).not.toContain("data-workspace-band-fold");
 
-      const folded = renderToStaticMarkup(
+      const covered = renderToStaticMarkup(
         withChrome(<WorkspaceSwitcher presentation="band" current="social" />, tucked),
       );
-      expect(folded).toContain(`data-workspace-band-fold="" class="${WORKSPACE_BAND_FOLD_TUCKED_CLASS}"`);
-      expect(folded).toContain('data-workspace-band-tucked=""');
-      // Still in the accessibility tree: four pills, the current one marked.
-      expect(folded).not.toContain("aria-hidden=\"true\" data-workspace-band");
-      expect([...folded.matchAll(/data-workspace-band-pill=/g)]).toHaveLength(4);
-      expect(folded).toContain('aria-current="page"');
+      expect(covered).toContain('data-workspace-band-tucked=""');
+      expect(covered).not.toContain("data-workspace-band-fold");
+      // Same row, same height: the bar slides over it instead.
+      expect(covered).toContain(`class="${WORKSPACE_BAND_ROW_CLASS}"`);
+      expect(covered).not.toContain('aria-hidden="true" data-workspace-band');
+      expect([...covered.matchAll(/data-workspace-band-pill=/g)]).toHaveLength(4);
+      expect(covered).toContain('aria-current="page"');
     } finally {
       navigation.pathname = "/";
     }

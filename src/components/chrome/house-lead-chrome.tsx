@@ -9,6 +9,7 @@ import type { ActivityItem } from "@/lib/activity";
 import {
   HOUSE_HEADER_TRAILING_SLOT_CLASS,
   HOUSE_LEAD_CHROME_CLASS,
+  HOUSE_LEAD_CORNER_FILL_CLASS,
   HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS,
   HOUSE_LEAD_DESKTOP_PAD_CLASS,
   HOUSE_LEAD_GRIP_CLASS,
@@ -17,6 +18,7 @@ import {
   HOUSE_LEAD_SLOT_CLASS,
   HOUSE_LEAD_STACK_CLASS,
   HOUSE_LEAD_UNDER_NAV_CLASS,
+  HOUSE_PHONE_SHEET_MOTION_CLASS,
 } from "@/lib/house-lead-chrome";
 import { PRODUCT_NAME } from "@/lib/product";
 import { OVERVIEW_HREF } from "@/lib/overview";
@@ -102,14 +104,15 @@ export function HouseLeadChrome({
   return (
     <div data-house-lead-stack="" className={HOUSE_LEAD_STACK_CLASS}>
       {/* Phone: the Sporty Blue workspace band, flush to the top; the
-          bar below is a sheet over it that rides up as the page scrolls
-          down (shell-phone-workspace-band-lock-v1 §5). */}
+          bar below is a sheet that slides over it with the finger as the
+          page scrolls (shell-phone-workspace-band-lock-v1 §5). */}
       <WorkspaceSwitcher
         presentation="band"
         current={workspace}
         options={workspaceOptions}
         isGcStaff={isGcStaff}
       />
+      <span aria-hidden="true" data-house-lead-corner-fill="" className={HOUSE_LEAD_CORNER_FILL_CLASS} />
       <header
         data-app-header=""
         data-house-lead-chrome=""
@@ -119,6 +122,7 @@ export function HouseLeadChrome({
         className={cn(
           HOUSE_LEAD_CHROME_CLASS,
           brandInHeader ? HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS : HOUSE_LEAD_DESKTOP_PAD_CLASS,
+          HOUSE_PHONE_SHEET_MOTION_CLASS,
         )}
         style={{ minHeight: "var(--header-height)" }}
       >
@@ -212,7 +216,7 @@ export function HouseLeadChrome({
         <div
           data-house-under-nav=""
           data-education-header-search-host={education ? "phone" : undefined}
-          className={HOUSE_LEAD_UNDER_NAV_CLASS}
+          className={cn(HOUSE_LEAD_UNDER_NAV_CLASS, HOUSE_PHONE_SHEET_MOTION_CLASS)}
         >
           {underNav}
         </div>

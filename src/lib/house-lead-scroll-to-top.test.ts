@@ -158,7 +158,7 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
       'querySelector<HTMLElement>("[data-house-lead-scroll]")',
     );
     expect(tracker).toContain(
-      "readY: () => (scroller ? scroller.scrollTop : window.scrollY)",
+      "const readY = () => (scroller ? scroller.scrollTop : window.scrollY);",
     );
   });
 });
