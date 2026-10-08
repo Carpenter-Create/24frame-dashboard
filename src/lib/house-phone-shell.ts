@@ -75,6 +75,10 @@ import {
   HOUSE_PHONE_DOCK_CLEARANCE,
 } from "@/lib/house-phone-dock";
 import { HOUSE_SHELL_QUIET_INK_CLASS } from "@/lib/house-shell";
+import {
+  HOUSE_PHONE_NAV_PRESS_GROUP_CLASS,
+  HOUSE_PHONE_NAV_THUMB_MOTION_CLASS,
+} from "@/lib/house-phone-nav-motion";
 import { workspaceHome, type WorkspaceMode } from "@/lib/workspace";
 
 export { HOUSE_PHONE_DOCK_CLEARANCE };
@@ -133,17 +137,24 @@ export const HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS =
   "flex h-14 w-full max-w-[420px] items-center rounded-full bg-surface shadow-[var(--elevation-float)]";
 
 // The row fills the pill, so every dock target is 56 tall and at least
-// 44 wide at 320.
-export const HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS = "flex h-full w-full items-center";
+// 44 wide at 320. It is the dock's SegmentedTrack: the current dest's
+// soft pill is its thumb (shell-phone-nav-motion-lock-v1).
+export const HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS = "relative flex h-full w-full items-center";
+
+/** The current dest's pill: 64 × 48, the muted surface, centred in the
+ *  dest's slot, sliding to the tapped dest and settling. The thumb spans
+ *  the slot; the pill is its ::after, so it keeps 64 on a two-dest dock. */
+export const HOUSE_PHONE_BOTTOM_NAV_THUMB_CLASS = `pointer-events-none absolute inset-y-1 after:absolute after:inset-y-0 after:left-1/2 after:w-16 after:-translate-x-1/2 after:rounded-full after:bg-surface-muted after:content-[''] ${HOUSE_PHONE_NAV_THUMB_MOTION_CLASS}`;
 
 // Five equal slots, as on the board (each link flex:1, no pad). The
 // Create slot is the fan's anchor (SOCIAL_CREATE_FAN_ANCHOR_CLASS),
 // which carries no pad either: a pad on the links alone floors their
 // flex base at the pad and leaves Create's slot narrower.
 export const HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS =
-  "relative flex h-full min-w-0 flex-1 items-center justify-center";
+  `relative flex h-full min-w-0 flex-1 items-center justify-center ${HOUSE_PHONE_NAV_PRESS_GROUP_CLASS}`;
 
-/** Current dest: the filled glyph in accent (no dot, no chip). */
+/** Current dest: the filled glyph in accent, on the sliding pill
+ *  (HOUSE_PHONE_BOTTOM_NAV_THUMB_CLASS). No dot. */
 export const HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS = "text-accent";
 
 /** Phone dock glyph — 24px box.
@@ -320,6 +331,19 @@ export function housePhoneDestActive(
 ): boolean {
   if (workspace === "social") return isSocialTabActive(pathname, item);
   return isClientNavActive(pathname, item);
+}
+
+/** The dock thumb's index: the current dest among the dests that can be
+ *  current (Create is an action, so it never carries the pill). -1 hides
+ *  the pill. */
+export function housePhoneDockThumbIndex(
+  pathname: string,
+  items: readonly NavItem[],
+  workspace: WorkspaceMode,
+): number {
+  return items
+    .filter((item) => !housePhoneDestIsCreate(item))
+    .findIndex((item) => housePhoneDestActive(pathname, item, workspace));
 }
 
 export function housePhoneDestActiveIndex(

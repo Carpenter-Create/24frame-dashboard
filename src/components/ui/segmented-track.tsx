@@ -48,6 +48,10 @@ export interface SegmentedTrackProps
   /** Thumb slide duration for the remount flight. Match the thumb
    *  class's CSS duration. Defaults to the house 320ms. */
   durationMs?: number;
+  /** Scroll the lit item into view when it changes (a sideways rail).
+   *  Off for a track that can sit off screen, such as the phone dock
+   *  while it hides: scrolling to it would move the page. */
+  revealActive?: boolean;
   children: (selection: SegmentedTrackSelection) => ReactNode;
 }
 
@@ -104,6 +108,7 @@ export function SegmentedTrack({
   trackClass = HOUSE_SEGMENTED_TRACK_CLASS,
   thumbClass = HOUSE_SEGMENTED_THUMB_CLASS,
   durationMs = HOUSE_SEGMENTED_THUMB_DURATION_MS,
+  revealActive = true,
   children,
   onClickCapture,
   ...rest
@@ -152,7 +157,7 @@ export function SegmentedTrack({
     }
 
     const next = measureSegmentedBox(track, active);
-    active.scrollIntoView({ block: "nearest", inline: "nearest" });
+    if (revealActive) active.scrollIntoView({ block: "nearest", inline: "nearest" });
     const now = typeof performance === "undefined" ? 0 : performance.now();
     const apply = (box: SegmentedThumbBox, snap = false, durationMs?: number) => {
       lastBoxRef.current = box;
@@ -193,7 +198,7 @@ export function SegmentedTrack({
     return () => {
       cancelRestore?.();
     };
-  }, [visualIndex, persistKey, durationMs]);
+  }, [visualIndex, persistKey, durationMs, revealActive]);
 
   useLayoutEffect(() => {
     const track = trackRef.current;

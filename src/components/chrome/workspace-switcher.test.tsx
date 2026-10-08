@@ -53,7 +53,10 @@ import {
   WORKSPACE_BAND_ROW_CLASS,
   WORKSPACE_BAND_FOLD_OPEN_CLASS,
   WORKSPACE_BAND_FOLD_TUCKED_CLASS,
+  WORKSPACE_BAND_ICON_CLASS,
+  WORKSPACE_BAND_THUMB_CLASS,
 } from "@/lib/workspace-switcher";
+import { FilmStrip, House, Users } from "@phosphor-icons/react";
 import { HOUSE_LEAD_GRIP_CLASS } from "@/lib/house-lead-chrome";
 import { HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS } from "@/lib/house-phone-shell";
 import { HouseLeadChrome } from "./house-lead-chrome";
@@ -673,6 +676,43 @@ describe("workspace band (phone)", () => {
       );
       expect(pillIds(html)).toEqual(["home", "aggregation", "social", "education"]);
       expect(html).not.toContain('href="/staff/queue"');
+    } finally {
+      navigation.pathname = "/";
+    }
+  });
+});
+
+describe("band motion (shell-phone-nav-motion-lock-v1)", () => {
+  // The glyph's paths, which differ by weight.
+  const paths = (svg: string) => svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
+  const shown = (slot: string) => {
+    const svgs = [...slot.matchAll(/<svg[^>]*class="([^"]*)"[^>]*>[\s\S]*?<\/svg>/g)];
+    expect(svgs).toHaveLength(2);
+    const on = svgs.filter((svg) => (svg[1] ?? "").split(" ").includes("opacity-100"));
+    expect(on).toHaveLength(1);
+    return paths(on[0]![0]);
+  };
+  const glyph = (Glyph: typeof House, weight: "fill" | "regular") =>
+    paths(renderToStaticMarkup(<Glyph className={WORKSPACE_BAND_ICON_CLASS} weight={weight} />));
+
+  it("slides the current pill's page colour as one thumb; the current glyph shows Fill", () => {
+    navigation.pathname = "/social";
+    try {
+      const html = renderToStaticMarkup(<WorkspaceSwitcher presentation="band" current="social" />);
+      expect(html.match(/data-segmented-thumb=""/g)).toHaveLength(1);
+      expect(html).toContain(`class="${WORKSPACE_BAND_THUMB_CLASS}"`);
+      expect(html.match(/data-segmented-item=""/g)).toHaveLength(4);
+      // The track sits inside the sliding row; the thumb leads the track.
+      expect(html.indexOf("data-workspace-band-row")).toBeLessThan(html.indexOf("data-workspace-band-track"));
+      expect(html.indexOf("data-workspace-band-track")).toBeLessThan(html.indexOf("data-segmented-thumb"));
+      const slot = (id: string) => {
+        const at = html.indexOf(`data-workspace-band-pill="${id}"`);
+        return html.slice(at, html.indexOf("</a>", at));
+      };
+      expect(shown(slot("social"))).toBe(glyph(Users, "fill"));
+      expect(shown(slot("home"))).toBe(glyph(House, "regular"));
+      expect(shown(slot("aggregation"))).toBe(glyph(FilmStrip, "regular"));
+      expect(slot("social")).toContain(`class="${WORKSPACE_BAND_PILL_CURRENT_CLASS}"`);
     } finally {
       navigation.pathname = "/";
     }

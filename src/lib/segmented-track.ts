@@ -50,6 +50,7 @@ export const SEGMENTED_TRACK_PERSIST = {
   phoneDest: "phone-dest",
   newsSource: "news-source",
   socialActivity: "social-activity",
+  workspaceBand: "workspace-band",
 } as const;
 
 export type SegmentedVisualPersist = {

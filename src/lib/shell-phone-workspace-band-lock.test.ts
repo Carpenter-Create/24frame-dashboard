@@ -29,6 +29,7 @@ import {
   WORKSPACE_BAND_PILL_CURRENT_CLASS,
   WORKSPACE_BAND_PILL_HIT_CLASS,
   WORKSPACE_BAND_ROW_CLASS,
+  WORKSPACE_BAND_THUMB_CLASS,
   workspaceBandFoldClass,
   workspaceBandPillClass,
   workspaceSliderSegments,
@@ -110,9 +111,14 @@ describe("phone workspace band lock v1", () => {
     );
     expect(WORKSPACE_BAND_PILL_CLASS).not.toContain("bg-");
     expect(WORKSPACE_BAND_PILL_CLASS).not.toContain("truncate");
-    // Current: the page colour with the pill ink; a filled glyph.
+    // Current: the page colour with the pill ink; a filled glyph. The
+    // colour is the sliding thumb (shell-phone-nav-motion-lock-v1); the
+    // face paints it only until the thumb is placed.
     expect(classes(WORKSPACE_BAND_PILL_CURRENT_CLASS)).toEqual(
-      expect.arrayContaining(["bg-bg", "text-workspace-band-pill-ink"]),
+      expect.arrayContaining(["in-data-segmented-pending:bg-bg", "text-workspace-band-pill-ink"]),
+    );
+    expect(classes(WORKSPACE_BAND_THUMB_CLASS)).toEqual(
+      expect.arrayContaining(["bg-bg", "h-9", "rounded-full"]),
     );
     expect(workspaceBandPillClass(true)).toBe(WORKSPACE_BAND_PILL_CURRENT_CLASS);
     expect(workspaceBandPillClass(false)).toBe(WORKSPACE_BAND_PILL_CLASS);
@@ -145,7 +151,9 @@ describe("phone workspace band lock v1", () => {
     for (const fold of [WORKSPACE_BAND_FOLD_OPEN_CLASS, WORKSPACE_BAND_FOLD_TUCKED_CLASS]) {
       expect(classes(fold)).toEqual(
         expect.arrayContaining([
-          "overflow-hidden",
+          // clip, not hidden: never a scroll container (the pill track's
+          // scroll-into-view must not shift the row inside the fold).
+          "overflow-clip",
           "transition-[height]",
           "duration-200",
           "ease-out",

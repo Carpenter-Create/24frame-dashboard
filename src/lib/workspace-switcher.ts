@@ -84,6 +84,11 @@ import {
   APP_SHEET_SCRIM_CLASS,
   APP_SHEET_SURFACE_CLASS,
 } from "@/lib/house-sheet";
+import {
+  HOUSE_PHONE_NAV_PRESS_FACE_CLASS,
+  HOUSE_PHONE_NAV_PRESS_GROUP_CLASS,
+  HOUSE_PHONE_NAV_THUMB_MOTION_CLASS,
+} from "@/lib/house-phone-nav-motion";
 import { USER_MENU } from "@/lib/user-menu";
 import {
   availableWorkspaceOptions,
@@ -225,14 +230,26 @@ export const WORKSPACE_BAND_CLASS =
   "bg-workspace-band pt-[env(safe-area-inset-top)] md:hidden";
 
 export const WORKSPACE_BAND_ROW_CLASS =
-  "no-scrollbar flex h-14 items-center gap-[var(--space-1)] overflow-x-auto overscroll-x-contain whitespace-nowrap px-[var(--space-4)]";
+  "no-scrollbar flex h-14 items-center overflow-x-auto overscroll-x-contain whitespace-nowrap px-[var(--space-4)]";
+
+// The pills sit on a SegmentedTrack inside the sliding row (the track is
+// as wide as its pills, so the row scrolls it). The current pill's page
+// colour is the track's thumb: it slides to the tapped pill and settles
+// (shell-phone-nav-motion-lock-v1). Until the thumb is placed (the server
+// paint), the current face paints the colour itself.
+export const WORKSPACE_BAND_TRACK_CLASS =
+  "relative flex h-full w-max shrink-0 items-center gap-[var(--space-1)]";
+
+export const WORKSPACE_BAND_THUMB_CLASS = `pointer-events-none absolute top-1/2 h-9 -translate-y-1/2 rounded-full bg-bg ${HOUSE_PHONE_NAV_THUMB_MOTION_CLASS}`;
 
 // The sheet rides over the band (lock §5): scroll down and the row folds
 // 56 → 0 under the bar while the dock hides; scroll up, or pull the bar
 // down, and it opens. The row stays pinned to the fold's top, so the bar
 // reads as sliding over the pills. 56 is HOUSE_PHONE_BAND_ROW_PX.
+// overflow-clip, not hidden: a hidden box is still a scroll container, and
+// the pill track's scroll-into-view would shift the row inside the fold.
 const WORKSPACE_BAND_FOLD_BASE_CLASS =
-  "overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none";
+  "overflow-clip transition-[height] duration-200 ease-out motion-reduce:transition-none";
 export const WORKSPACE_BAND_FOLD_OPEN_CLASS = `${WORKSPACE_BAND_FOLD_BASE_CLASS} h-14`;
 export const WORKSPACE_BAND_FOLD_TUCKED_CLASS = `${WORKSPACE_BAND_FOLD_BASE_CLASS} h-0`;
 
@@ -245,16 +262,18 @@ export function workspaceBandFoldClass(tucked: boolean): string {
 // vanish on the blue, so the band overrides its colour to white, hugs the
 // pill's shape, and draws it inside the hit (the social cover's `!` form).
 export const WORKSPACE_BAND_PILL_HIT_CLASS =
-  "flex h-11 shrink-0 items-center rounded-full focus-visible:rounded-full! focus-visible:outline-workspace-band-ink! focus-visible:outline-offset-[-2px]!";
+  `relative flex h-11 shrink-0 items-center rounded-full focus-visible:rounded-full! focus-visible:outline-workspace-band-ink! focus-visible:outline-offset-[-2px]! ${HOUSE_PHONE_NAV_PRESS_GROUP_CLASS}`;
 
+// The face eases to 96% under the finger (shell-phone-nav-motion-lock-v1).
 const WORKSPACE_BAND_PILL_FACE_CLASS =
-  "inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[length:var(--text-sm)] font-medium leading-none";
+  `inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[length:var(--text-sm)] font-medium leading-none ${HOUSE_PHONE_NAV_PRESS_FACE_CLASS}`;
 
 /** Idle: white icon and word on the blue. */
 export const WORKSPACE_BAND_PILL_CLASS = `${WORKSPACE_BAND_PILL_FACE_CLASS} text-workspace-band-ink`;
 
-/** Current: the pill takes the page colour; accent-ink (light), white (dark). */
-export const WORKSPACE_BAND_PILL_CURRENT_CLASS = `${WORKSPACE_BAND_PILL_FACE_CLASS} bg-bg text-workspace-band-pill-ink`;
+/** Current: the page colour (the sliding thumb; the face paints it only
+ *  until the thumb is placed); accent-ink (light), white (dark). */
+export const WORKSPACE_BAND_PILL_CURRENT_CLASS = `${WORKSPACE_BAND_PILL_FACE_CLASS} in-data-segmented-pending:bg-bg text-workspace-band-pill-ink`;
 
 export function workspaceBandPillClass(current: boolean): string {
   return current ? WORKSPACE_BAND_PILL_CURRENT_CLASS : WORKSPACE_BAND_PILL_CLASS;

@@ -59,6 +59,7 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_UNREAD_DOT_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_THUMB_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS,
   HOUSE_PHONE_DEST_CHIPS,
@@ -414,14 +415,16 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
   // marks the current dest with the FILLED glyph painted accent — no dot,
   // no chip. The filled shape is the non-colour cue. Create (and its
   // ring) stays Social-only: a 44 accent circle, never the current mark.
-  it("marks the current glyph filled and accent in every dock — no dot, no chip; Social rings an active Create", () => {
+  it("marks the current glyph filled and accent on the sliding pill in every dock — no dot; Social rings an active Create", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS).toBe("text-accent");
     expect(phoneShellSrc).not.toContain("HOUSE_PHONE_BOTTOM_NAV_MARK_CLASS");
     expect(bottomNavSrc).not.toContain("data-house-phone-bottom-nav-mark");
-    // Every target fills the pill's 56 row (≥ 44).
-    expect(HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS).toBe("flex h-full w-full items-center");
+    // Every target fills the pill's 56 row (≥ 44). The row is the dock's
+    // SegmentedTrack; each dest is the press group
+    // (shell-phone-nav-motion-lock-v1).
+    expect(HOUSE_PHONE_BOTTOM_NAV_ROW_CLASS).toBe("relative flex h-full w-full items-center");
     expect(HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS).toBe(
-      "relative flex h-full min-w-0 flex-1 items-center justify-center",
+      "relative flex h-full min-w-0 flex-1 items-center justify-center group/nav",
     );
     expect(HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS).toBe(
       "flex size-11 items-center justify-center rounded-full bg-accent text-accent-contrast",
@@ -429,10 +432,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS).toBe(
       "ring-2 ring-accent ring-offset-1 ring-offset-surface",
     );
-    // The per-workspace scoping and the chip are gone, not parked.
+    // The per-workspace scoping and the old static chip are gone, not
+    // parked. The current dest's pill is the track's sliding thumb.
     expect(phoneShellSrc).not.toContain("housePhoneDockActiveStyle");
     expect(phoneShellSrc).not.toContain("HOUSE_PHONE_BOTTOM_NAV_CHIP_CLASS");
-    expect(phoneShellSrc).not.toContain("bg-surface-muted");
     expect(bottomNavSrc).not.toContain("housePhoneDockActiveStyle");
     expect(bottomNavSrc).not.toContain("data-house-phone-bottom-nav-chip");
 
@@ -443,16 +446,29 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       ...housePhoneDockDestinations({ isGcStaff: true, workspace: "staff" }),
       ...housePhoneDockDestinations({ isGcStaff: false, workspace: "social" }),
     ];
+    // The glyph's paths for a weight (Phosphor paths differ by weight).
+    const paths = (svg: string) => svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
     function glyphHtml(label: string, weight: "fill" | "regular") {
       const item = [...dockItems].find((row) => row.label === label);
       expect(item, label).toBeDefined();
       const Glyph = housePhoneDestGlyph(item!);
-      return renderToStaticMarkup(createElement(Glyph, { className: HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS, weight }));
+      return paths(renderToStaticMarkup(createElement(Glyph, { className: HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS, weight })));
+    }
+    // Both weights are drawn and crossfade; the shown one is opacity-100.
+    function shownGlyph(slot: string) {
+      const svgs = [...slot.matchAll(/<svg[^>]*class="([^"]*)"[^>]*>[\s\S]*?<\/svg>/g)];
+      expect(svgs).toHaveLength(2);
+      const shown = svgs.filter((svg) => (svg[1] ?? "").split(" ").includes("opacity-100"));
+      expect(shown).toHaveLength(1);
+      return paths(shown[0]![0]);
     }
     function expectMarkedDock(html: string, activeDest: string, idleDest: string) {
       expect(html).not.toContain("data-house-phone-bottom-nav-chip");
       expect(html).not.toContain("data-house-phone-bottom-nav-mark");
-      expect(html).not.toContain("bg-surface-muted");
+      // One sliding pill: the track's thumb.
+      expect(html.match(/data-segmented-thumb=""/g)?.length).toBe(1);
+      // React escapes the ' in after:content-[''].
+      expect(html).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_THUMB_CLASS.replaceAll("'", "&#x27;")}"`);
       expect(html.match(/data-house-phone-bottom-nav-item-active=""/g)?.length).toBe(1);
       expect(html.match(/aria-current="page"/g)?.length).toBe(1);
       const destAt = (label: string) => html.indexOf(`data-house-phone-dest="${label}"`);
@@ -460,13 +476,12 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       expect(on).toContain('aria-current="page"');
       expect(on).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS} ${HOUSE_PHONE_BOTTOM_NAV_ITEM_ON_CLASS}"`);
       expect(on).toContain("size-6");
-      // The current glyph renders Fill; idle Regular (Phosphor paths differ by weight).
-      expect(on).toContain(glyphHtml(activeDest, "fill"));
-      expect(on).not.toContain(glyphHtml(activeDest, "regular"));
+      // The current glyph shows Fill; idle shows Regular.
+      expect(shownGlyph(on)).toBe(glyphHtml(activeDest, "fill"));
       const off = html.slice(html.lastIndexOf("<a ", destAt(idleDest)), html.indexOf("</a>", destAt(idleDest)));
       expect(off).not.toContain('aria-current="page"');
       expect(off).toContain(`class="${HOUSE_PHONE_BOTTOM_NAV_ITEM_CLASS} ${HOUSE_PHONE_BOTTOM_NAV_ITEM_OFF_CLASS}"`);
-      expect(off).toContain(glyphHtml(idleDest, "regular"));
+      expect(shownGlyph(off)).toBe(glyphHtml(idleDest, "regular"));
       expect(off).not.toContain("text-accent");
       // Create is Social-only.
       expect(html).not.toContain("data-house-phone-bottom-nav-create");
