@@ -20,6 +20,7 @@ import {
   SOCIAL_GO_LIVE_CAMERA_KEY,
   SOCIAL_GO_LIVE_DEFAULT_FRAME,
   SOCIAL_GO_LIVE_FRAME_ASPECT,
+  SOCIAL_GO_LIVE_FRAME_SIZE,
   SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
   SOCIAL_GO_LIVE_VIDEO_BITS_PER_SECOND,
@@ -80,6 +81,25 @@ describe("Go live duration cap", () => {
   });
 
   // §Camera picker (Adam 2026-10-08: "yes, build the camera picker").
+  it("asks a computer for up to 4K at 30 fps on 9:16 (the cut keeps only the height), HD on 16:9", () => {
+    expect(goLiveVideoConstraints("user", true, null, "reel")).toEqual({
+      facingMode: { ideal: "user" },
+      width: { ideal: 3840 },
+      height: { ideal: 2160 },
+      frameRate: { ideal: 30 },
+    });
+    expect(goLiveVideoConstraints("user", true, "cam-2", "reel")).toEqual({
+      deviceId: { exact: "cam-2" },
+      width: { ideal: 3840 },
+      height: { ideal: 2160 },
+      frameRate: { ideal: 30 },
+    });
+    expect(goLiveVideoConstraints("user", true, null, "full")).toEqual(goLiveVideoConstraints("user", true));
+    // The phone asks for nothing on either.
+    expect(goLiveVideoConstraints("user", false, null, "reel")).toEqual({ facingMode: { ideal: "user" } });
+    expect(JSON.stringify(goLiveVideoConstraints("user", true, null, "reel"))).not.toContain("exact");
+  });
+
   it("asks a computer for the chosen camera by id (exact), still in HD; the phone by facing only", () => {
     expect(goLiveVideoConstraints("user", true, "cam-2")).toEqual({
       deviceId: { exact: "cam-2" },
@@ -149,36 +169,48 @@ describe("Go live duration cap", () => {
     expect(findGoLiveCamera(null, here)).toBeNull();
   });
 
-  it("cuts 9:16 from the centre of the camera frame, no upscale, even sizes", () => {
-    const reel = SOCIAL_GO_LIVE_FRAME_ASPECT.reel;
-    // 1080p webcam: keeps the height, loses the sides.
-    expect(goLiveFrameCut(1920, 1080, reel)).toEqual({ sx: 657, sy: 0, sw: 606, sh: 1080 });
-    expect(goLiveFrameCut(1280, 720, reel)).toEqual({ sx: 438, sy: 0, sw: 404, sh: 720 });
-    // 4:3 (the fake camera in the browser check): 640×480 → 270×480.
-    expect(goLiveFrameCut(640, 480, reel)).toEqual({ sx: 185, sy: 0, sw: 270, sh: 480 });
+  // Adam 2026-10-08: "build the upgrade": standard sizes when the camera has
+  // the detail, its own pixels when not; scaled down, never up.
+  it("records 9:16 at 1080 × 1920 when the camera has the detail, else its own pixels", () => {
+    // A 4K camera: the centre cut (1214 × 2160) drawn down to the standard reel.
+    expect(goLiveFrameCut(3840, 2160, "reel")).toEqual({ sx: 1313, sy: 0, sw: 1214, sh: 2160, dw: 1080, dh: 1920 });
+    // A 1080p webcam keeps its height: 606 × 1080, not stretched to 1080 × 1920.
+    expect(goLiveFrameCut(1920, 1080, "reel")).toEqual({ sx: 657, sy: 0, sw: 606, sh: 1080, dw: 606, dh: 1080 });
+    expect(goLiveFrameCut(1280, 720, "reel")).toEqual({ sx: 438, sy: 0, sw: 404, sh: 720, dw: 404, dh: 720 });
+    // 4:3 (the fake camera at its default): 640×480 → 270×480.
+    expect(goLiveFrameCut(640, 480, "reel")).toEqual({ sx: 185, sy: 0, sw: 270, sh: 480, dw: 270, dh: 480 });
     // Taller than 9:16: keeps the width, loses top and bottom.
-    expect(goLiveFrameCut(720, 1600, reel)).toEqual({ sx: 0, sy: 160, sw: 720, sh: 1280 });
-    // Already 9:16: no cut, the camera records as it is.
-    expect(goLiveFrameCut(1080, 1920, reel)).toBeNull();
-    for (const [w, h] of [[1280, 720], [640, 480], [1366, 768]] as const) {
-      const crop = goLiveFrameCut(w, h, reel)!;
-      expect(crop.sw % 2).toBe(0);
-      expect(crop.sh % 2).toBe(0);
-      expect(crop.sw / crop.sh).toBeCloseTo(9 / 16, 1);
-      expect(crop.sx + crop.sw).toBeLessThanOrEqual(w);
+    expect(goLiveFrameCut(720, 1600, "reel")).toEqual({ sx: 0, sy: 160, sw: 720, sh: 1280, dw: 720, dh: 1280 });
+    // Already 9:16 at or under the standard: no cut. Over it: drawn down.
+    expect(goLiveFrameCut(1080, 1920, "reel")).toBeNull();
+    expect(goLiveFrameCut(720, 1280, "reel")).toBeNull();
+    expect(goLiveFrameCut(2160, 3840, "reel")).toEqual({ sx: 0, sy: 0, sw: 2160, sh: 3840, dw: 1080, dh: 1920 });
+    for (const [w, h] of [[3840, 2160], [2560, 1440], [1280, 720], [640, 480], [1366, 768]] as const) {
+      const cut = goLiveFrameCut(w, h, "reel")!;
+      for (const n of [cut.sw, cut.sh, cut.dw, cut.dh]) expect(n % 2).toBe(0);
+      expect(cut.dw / cut.dh).toBeCloseTo(9 / 16, 2);
+      // Never scaled up.
+      expect(cut.dw).toBeLessThanOrEqual(cut.sw);
+      expect(cut.dh).toBeLessThanOrEqual(cut.sh);
+      expect(cut.dh).toBeLessThanOrEqual(1920);
+      expect(cut.sx + cut.sw).toBeLessThanOrEqual(w);
     }
-    expect(goLiveFrameCut(0, 720, reel)).toBeNull();
+    // 1440p: a 810 × 1440 cut, under the standard: its own pixels.
+    expect(goLiveFrameCut(2560, 1440, "reel")).toMatchObject({ dw: 810, dh: 1440 });
+    expect(goLiveFrameCut(0, 720, "reel")).toBeNull();
   });
 
-  it("records 16:9 as the camera gives it, and cuts a camera of another shape to 16:9", () => {
-    const landscape = SOCIAL_GO_LIVE_FRAME_ASPECT.full;
-    // 16:9 webcams (1080p, 720p, and 1366×768 within 1%): no cut.
-    expect(goLiveFrameCut(1920, 1080, landscape)).toBeNull();
-    expect(goLiveFrameCut(1280, 720, landscape)).toBeNull();
-    expect(goLiveFrameCut(1366, 768, landscape)).toBeNull();
+  it("records 16:9 as the camera gives it up to 1920 × 1080, and cuts a camera of another shape to 16:9", () => {
+    // 16:9 webcams at or under HD (1080p, 720p, and 1366×768 within 1%): no cut.
+    expect(goLiveFrameCut(1920, 1080, "full")).toBeNull();
+    expect(goLiveFrameCut(1280, 720, "full")).toBeNull();
+    expect(goLiveFrameCut(1366, 768, "full")).toBeNull();
+    // A 4K camera that ignores the HD ask: drawn down to 1920 × 1080.
+    expect(goLiveFrameCut(3840, 2160, "full")).toEqual({ sx: 0, sy: 0, sw: 3840, sh: 2160, dw: 1920, dh: 1080 });
     // 4:3 (a browser's default 640×480): keeps the width, loses top and bottom.
-    expect(goLiveFrameCut(640, 480, landscape)).toEqual({ sx: 0, sy: 60, sw: 640, sh: 360 });
+    expect(goLiveFrameCut(640, 480, "full")).toEqual({ sx: 0, sy: 60, sw: 640, sh: 360, dw: 640, dh: 360 });
     // 16:10: 1920×1200 → 1920×1080.
-    expect(goLiveFrameCut(1920, 1200, landscape)).toEqual({ sx: 0, sy: 60, sw: 1920, sh: 1080 });
+    expect(goLiveFrameCut(1920, 1200, "full")).toEqual({ sx: 0, sy: 60, sw: 1920, sh: 1080, dw: 1920, dh: 1080 });
+    expect(SOCIAL_GO_LIVE_FRAME_SIZE).toEqual({ full: { width: 1920, height: 1080 }, reel: { width: 1080, height: 1920 } });
   });
 });

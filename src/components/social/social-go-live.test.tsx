@@ -124,14 +124,18 @@ describe("Social Go live recorder", () => {
 
   it("records the switch's shape on a computer (16:9 or 9:16), the phone's own frame on a phone", () => {
     expect(src).toMatch(
-      /cutRef\.current = desktop\s*\?\s*frameRecording\(source, videoRef\.current, SOCIAL_GO_LIVE_FRAME_ASPECT\[frame\]\)\s*:\s*null;/,
+      /cutRef\.current = desktop\s*\?\s*frameRecording\(source, videoRef\.current, frame\)\s*:\s*null;/,
     );
     expect(src).toContain("const stream = cutRef.current?.stream ?? source;");
-    expect(src).toContain("goLiveFrameCut(video.videoWidth, video.videoHeight, aspect)");
+    expect(src).toContain("goLiveFrameCut(video.videoWidth, video.videoHeight, shape)");
     // The camera is asked for 16:9 HD on a computer, read at call time.
     expect(src).toContain("const desktopNow = isHouseDesktop();");
-    expect(src).toContain("openCamera(goLiveVideoConstraints(nextFacing, desktopNow, deviceId))");
-    expect(src).toContain("context.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh)");
+    expect(src).toContain("openCamera(goLiveVideoConstraints(nextFacing, desktopNow, deviceId, frameRef.current))");
+    // Drawn at the standard size when the camera has the detail (down, never up).
+    expect(src).toContain("canvas.width = crop.dw;");
+    expect(src).toContain("canvas.height = crop.dh;");
+    expect(src).toContain("context.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.dw, crop.dh)");
+    expect(src).toContain('context.imageSmoothingQuality = "high";');
     expect(src).toContain("canvas.captureStream(30)");
     expect(src).toContain("for (const track of source.getAudioTracks()) stream.addTrack(track);");
     const onstop = src.slice(src.indexOf("recorder.onstop = () => {"), src.indexOf("recorder.start(1000)"));
@@ -223,7 +227,7 @@ describe("Social Go live recorder", () => {
     // A chosen camera that cannot open (an iPhone out of reach) gives way to the default.
     const acquire = src.slice(src.indexOf("async function acquireStream("), src.indexOf("async function openCamera("));
     expect(acquire).toMatch(
-      /catch \(failure\) \{\s*if \(!desktopNow \|\| !deviceId \|\| !orDefault\) throw failure;(\s*\/\/[^\n]*\n)+\s*return openCamera\(goLiveVideoConstraints\(nextFacing, desktopNow\)\);/,
+      /catch \(failure\) \{\s*if \(!desktopNow \|\| !deviceId \|\| !orDefault\) throw failure;(\s*\/\/[^\n]*\n)+\s*return openCamera\(goLiveVideoConstraints\(nextFacing, desktopNow, null, frameRef\.current\)\);/,
     );
     // The check marks the camera actually streaming, not the one asked for.
     expect(src).toContain('setActiveCamera(track?.getSettings().deviceId ?? "");');
@@ -276,6 +280,23 @@ describe("Social Go live recorder", () => {
     expect(record).toContain("disabled={opening}");
     expect(src).toContain('disabled={phase !== "preview" || opening}\n              onClick={() => void flipCamera()}');
     expect(src).not.toContain("switching");
+  });
+
+  // Adam 2026-10-08: "build the upgrade". 9:16 asks the camera for up to 4K
+  // (16:9 for HD), so switching frames reopens the camera, through the one
+  // tracked open, with the switch held while it opens.
+  it("a frame switch asks the camera again for that frame's size, through the tracked open", () => {
+    const choose = src.slice(src.indexOf("async function chooseFrame("), src.indexOf("function startClock()"));
+    expect(choose).toContain(
+      'if (next === frameChoice || phase !== "preview" || recordingRef.current || attachPromiseRef.current) return;',
+    );
+    expect(choose.indexOf("frameRef.current = next;")).toBeLessThan(choose.indexOf("await trackOpen("));
+    expect(choose).toContain("if (!streamRef.current) return;");
+    expect(choose).toContain("attachPreview(facing, live).catch(");
+    const options = src.slice(src.indexOf("data-social-go-live-frame-option={option}"), src.indexOf("data-social-go-live-record"));
+    expect(options).toContain("disabled={opening}");
+    expect(options).toContain("onClick={() => void chooseFrame(option)}");
+    expect(src).not.toContain("onClick={() => setFrameChoice(option)}");
   });
 
   it("posts as the one author every Social path uses (the shell's), not \"You\"", () => {

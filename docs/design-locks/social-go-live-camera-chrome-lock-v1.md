@@ -69,10 +69,22 @@ Before this, Full showed the window's shape (16:10 on most laptops) and recorded
 | Switch | **16:9 · 9:16**, the ratios, no words. The radio group is named "Aspect ratio" |
 | 16:9 stage | Exactly 16:9, as large as the window allows (`min(100vw, 100dvh × 16/9)` wide), centred on the band, edge to edge on the long side: no edge or radius. Chrome floats on it as before |
 | 9:16 stage | Exactly 9:16 at the studio's height (746, 90dvh cap), its width following; the studio's radius 16 and band-ink 20% edge |
-| Camera | A computer asks for 16:9 HD (1920 × 1080, ideal: the nearest mode the camera has). The phone asks for nothing, as before |
-| Recording | Always the switch's shape. A 16:9 camera records as it is (1080p: 1920 × 1080, the standard landscape upload); a camera of any other shape is cut to the centre 16:9 (4:3 640 × 480 → 640 × 360). 9:16 is the centre cut as before (1080p: 606 × 1080). No upscale |
+| Camera | A computer asks for 16:9 HD (1920 × 1080, ideal: the nearest mode the camera has); on 9:16, for up to 4K (amended below). The phone asks for nothing, as before |
+| Recording | Always the switch's shape. A 16:9 camera records as it is (1080p: 1920 × 1080, the standard landscape upload); a camera of any other shape is cut to the centre 16:9 (4:3 640 × 480 → 640 × 360). 9:16 is the centre cut (1080p: 606 × 1080; 4K: 1080 × 1920, amended below). No upscale |
 | Preview = clip | Each stage covers with the camera; its shape is the clip's, so the frame shown is the frame recorded |
 | Copy | "16:9", "9:16", "Aspect ratio" (replacing "Full", "Reel", "Camera frame") |
+
+**Amended 2026-10-08 (true full-HD vertical).** Asked whether 9:16 clips should be stretched to 1080 × 1920, the founder asked "what's the best product decision and professional thing?". The answer given: never stretch (it adds no detail and costs upload, storage and bandwidth); instead ask the camera for more and draw down. Then:
+
+> build the upgrade
+
+| Token | Lock |
+|-------|------|
+| Standard sizes | 16:9 records at most 1920 × 1080; 9:16 at most 1080 × 1920 |
+| 9:16 camera | A computer asks for up to 4K (3840 × 2160) at 30 fps, ideal, since the 9:16 cut keeps only the camera's height. 16:9 keeps the HD ask |
+| Drawn down, never up | When the centre cut has at least the standard's height, it is drawn at the standard size (4K → exactly 1080 × 1920; a 4K camera ignoring the 16:9 ask → 1920 × 1080). Otherwise the clip keeps the camera's own pixels (1080p → 606 × 1080; 1440p → 810 × 1440). High-quality scaling |
+| Switching | A frame switch asks the camera again for that frame's size: the camera reopens through the one tracked open (the switch, picker, flip and record wait while it opens) |
+| Phone | Unchanged: the phone's own vertical frame |
 
 ## Review (Adam, 2026-10-08)
 
