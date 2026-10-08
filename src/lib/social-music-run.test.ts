@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { MusicIdentifyResult } from "@/lib/social-music-scan";
 import { MUSIC_SCAN_MAX_ATTEMPTS, socialVideoVisibleToOthers } from "@/lib/social-music-scan";

@@ -142,9 +142,9 @@ Runbook: [`docs/infra/social-topic-tagging.md`](../infra/social-topic-tagging.md
 
 ## Social music detect-and-block (authorized; not applied)
 
-CoS CLEAR 2026-10-08: Phase 0 on Social Mux video (Stories, posts, Create).
+CoS CLEAR: Phase 0 on Social Mux video (Stories, posts, Create).
 ACRCloud identify is primary. Decision is allow or block. No mute. No AudD.
-Policy 2026-10-08 2:24pm CT: no music is allowed until Content ID is sorted
+No music is allowed until Content ID is sorted
 out. Any `metadata.music` score at or above 25 blocks immediately. Under 25,
 or no music match, passes. `metadata.custom_files` is ignored and cannot
 allow a clip. No allowlist in this phase. Adam's own CFN tracks block too,
