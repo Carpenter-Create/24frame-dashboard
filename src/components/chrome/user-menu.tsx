@@ -57,20 +57,28 @@ export function UserMenuIdentity({
   );
 }
 
+// isGcStaff is the server's gc_staff answer (getOrgContext), never a
+// cookie. Off by default: a member's menu has no Staff row.
 export function UserMenu({
   email,
   name,
   photoUrl,
+  isGcStaff = false,
 }: {
   email: string;
   name?: string | null;
   photoUrl?: string | null;
+  isGcStaff?: boolean;
 }) {
   return (
     <MenuDualHost
       shape="slot"
-      phone={<PhoneAccountMenu email={email} name={name} photoUrl={photoUrl} />}
-      desktop={<DesktopAccountMenu email={email} name={name} photoUrl={photoUrl} />}
+      phone={
+        <PhoneAccountMenu email={email} name={name} photoUrl={photoUrl} isGcStaff={isGcStaff} />
+      }
+      desktop={
+        <DesktopAccountMenu email={email} name={name} photoUrl={photoUrl} isGcStaff={isGcStaff} />
+      }
     />
   );
 }

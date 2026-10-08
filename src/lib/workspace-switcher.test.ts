@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import { USER_MENU } from "./user-menu";
-import { availableWorkspaceOptions } from "./workspace-menu";
+import { availableWorkspaceOptions, type WorkspaceMenuOption } from "./workspace-menu";
 import { housePhoneForbidsTruncate } from "./house-phone-stack";
 import {
   APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS,
@@ -68,6 +68,14 @@ import { HOUSE_SEGMENTED_TRACK_CLASS } from "./house-shell";
 
 const src = readFileSync("src/lib/workspace-switcher.ts", "utf8");
 
+// Staff is never a lane (Adam 2026-10-08,
+// docs/design-locks/staff-account-menu-lock-v1.md): even a caller that
+// passes a "staff" option must not get a Staff tile, segment, or prefetch.
+const withForgedStaff: readonly WorkspaceMenuOption[] = [
+  ...availableWorkspaceOptions(),
+  { mode: "staff", label: "Staff", href: "/staff/queue" },
+];
+
 const RETIRED_PILL_GRAMMAR = [
   "APP_HEADER_WORKSPACE_PILL_HOST_CLASS",
   "WORKSPACE_SWITCHER_PILL_TRIGGER_CLASS",
@@ -98,12 +106,8 @@ describe("workspace switcher lock", () => {
       "/social",
       "/education",
     ]);
-    expect(workspaceSwitcherOptions(availableWorkspaceOptions({ isGcStaff: true })).map(
-      (option) => option.label,
-    )).toEqual(["Aggregation", "Social", "Education", "Staff"]);
-    expect(workspaceSwitcherOptions(availableWorkspaceOptions({ isGcStaff: true })).map(
-      (option) => option.href,
-    )).toEqual(["/aggregation/dashboard", "/social", "/education", "/staff/queue"]);
+    expect(workspaceSwitcherOptions().map((option) => option.mode)).not.toContain("staff");
+    expect(workspaceSwitcherOptions().map((option) => option.href)).not.toContain("/staff/queue");
     expect(availableWorkspaceOptions().map((option) => option.href)).toEqual(
       workspaceSwitcherOptions().map((option) => option.href),
     );
@@ -229,8 +233,8 @@ describe("workspace switcher lock", () => {
     ).toEqual({ top: 104, right: 30 });
   });
 
-  it("keeps waffle tiles on Layer 1 in the desktop lane order — no Home, no Staff unless entitled", () => {
-    expect(WORKSPACE_WAFFLE_ORDER).toEqual(["aggregation", "social", "education", "staff"]);
+  it("keeps waffle tiles on Layer 1 in the desktop lane order — no Home, never Staff", () => {
+    expect(WORKSPACE_WAFFLE_ORDER).toEqual(["aggregation", "social", "education"]);
     expect(workspaceWaffleTiles().map((tile) => tile.mode)).toEqual([
       "aggregation",
       "social",
@@ -243,12 +247,14 @@ describe("workspace switcher lock", () => {
     ]);
     expect(workspaceWaffleTiles().map((tile) => tile.mode)).not.toContain("staff");
     expect(workspaceWaffleTiles().map((tile) => tile.label)).not.toContain("Home");
-    expect(
-      workspaceWaffleTiles(availableWorkspaceOptions({ isGcStaff: true })).map((tile) => tile.mode),
-    ).toEqual(["aggregation", "social", "education", "staff"]);
-    expect(
-      workspaceWaffleTiles(availableWorkspaceOptions({ isGcStaff: true })).map((tile) => tile.label),
-    ).toEqual(["Aggregation", "Social", "Education", "Staff"]);
+    // Even a forged "staff" option never becomes a tile (Adam 2026-10-08:
+    // Staff is the account menu's row for GC staff, not a workspace).
+    expect(workspaceWaffleTiles(withForgedStaff).map((tile) => tile.mode)).toEqual([
+      "aggregation",
+      "social",
+      "education",
+    ]);
+    expect(workspaceWaffleTiles(withForgedStaff).map((tile) => tile.label)).not.toContain("Staff");
     expect(workspaceWaffleTiles(availableWorkspaceOptions().slice(0, 1)).map((tile) => tile.mode)).toEqual([
       "aggregation",
     ]);
@@ -261,12 +267,15 @@ describe("workspace switcher lock", () => {
       "/social",
       "/education",
     ]);
-    expect(
-      workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true })),
-    ).toEqual(["/aggregation/dashboard", "/social", "/education", "/staff/queue"]);
-    expect(
-      workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions({ isGcStaff: true }), "social"),
-    ).toEqual(["/aggregation/dashboard", "/education", "/staff/queue"]);
+    expect(workspaceWaffleIntentPrefetchHrefs(withForgedStaff)).toEqual([
+      "/aggregation/dashboard",
+      "/social",
+      "/education",
+    ]);
+    expect(workspaceWaffleIntentPrefetchHrefs(withForgedStaff, "social")).toEqual([
+      "/aggregation/dashboard",
+      "/education",
+    ]);
     expect(workspaceWaffleIntentPrefetchHrefs(availableWorkspaceOptions(), "aggregation")).toEqual([
       "/social",
       "/education",
@@ -327,9 +336,12 @@ describe("workspace switcher lock", () => {
       "Education",
     ]);
     expect(workspaceSliderSegments()[0]).toEqual({ id: "home", label: "Home", href: "/home" });
-    expect(
-      workspaceSliderSegments(availableWorkspaceOptions({ isGcStaff: true })).map((pill) => pill.id),
-    ).toEqual(["home", "aggregation", "social", "education", "staff"]);
+    expect(workspaceSliderSegments(withForgedStaff).map((pill) => pill.id)).toEqual([
+      "home",
+      "aggregation",
+      "social",
+      "education",
+    ]);
     expect(workspaceSliderSegments().map((pill) => pill.id)).not.toContain("co-productions");
     expect(WORKSPACE_WAFFLE_FORBIDDEN_LABELS).toContain("Feed");
     for (const label of WORKSPACE_WAFFLE_FORBIDDEN_LABELS) {
@@ -342,9 +354,7 @@ describe("workspace switcher lock", () => {
 
   it("keeps full workspace names — no Agg/Edu", () => {
     expect(WORKSPACE_SWITCHER_SHORT_LABELS).toEqual(["Agg", "Edu"]);
-    for (const label of workspaceWaffleTiles(availableWorkspaceOptions({ isGcStaff: true })).map(
-      (tile) => tile.label,
-    )) {
+    for (const label of workspaceWaffleTiles(withForgedStaff).map((tile) => tile.label)) {
       expect(WORKSPACE_SWITCHER_SHORT_LABELS).not.toContain(label);
       expect(label).not.toBe("Team");
     }
@@ -361,14 +371,16 @@ describe("workspace switcher lock", () => {
   // segment the desktop slider lights — and is the grid alone where none
   // is lit. Accessible name starts with the visible name.
   it("names the grey workspace pill with the lit segment, or nothing where none is lit", () => {
-    const staff = availableWorkspaceOptions({ isGcStaff: true });
+    const staff = withForgedStaff;
     expect(workspaceSwitcherTriggerName("/home", "aggregation")).toBe("Home");
     expect(workspaceSwitcherTriggerName("/home/news", "social")).toBe("Home");
     expect(workspaceSwitcherTriggerName("/aggregation/dashboard", "aggregation")).toBe("Aggregation");
     expect(workspaceSwitcherTriggerName("/social", "social")).toBe("Social");
     expect(workspaceSwitcherTriggerName("/social/u/ada", "aggregation")).toBe("Social");
     expect(workspaceSwitcherTriggerName("/education", "education")).toBe("Education");
-    expect(workspaceSwitcherTriggerName("/staff/queue", "staff", staff)).toBe("Staff");
+    // Staff is not a lane: a Staff page lights none, like Settings.
+    expect(workspaceSwitcherTriggerName("/staff/queue", "staff")).toBeNull();
+    expect(workspaceSwitcherTriggerName("/staff/queue", "staff", staff)).toBeNull();
     for (const path of ["/settings", "/activity", "/help", "/co-productions"]) {
       expect(workspaceSwitcherTriggerName(path, "social", staff), path).toBeNull();
     }

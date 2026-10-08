@@ -89,7 +89,9 @@ export function HouseLeadChrome({
   accountMenu: React.ReactNode;
 }) {
   const workspace = clampWorkspaceMode(requestedWorkspace, isGcStaff);
-  const workspaceOptions = availableWorkspaceOptions({ isGcStaff });
+  // The same three lanes for everyone; GC staff reach Staff from the
+  // account menu (docs/design-locks/staff-account-menu-lock-v1.md).
+  const workspaceOptions = availableWorkspaceOptions();
   const social = workspace === "social";
   // Settings, Get Help, and Activity are account chrome —
   // Education search stays off even if the cookie still says
@@ -150,7 +152,7 @@ export function HouseLeadChrome({
             />
           </div>
           {/* lg+: the pill slider Home · Aggregation · Social ·
-              Education · Staff. Same row on every workspace. */}
+              Education. Same row on every workspace. */}
           <div
             data-app-header-workspace-desktop=""
             className={APP_HEADER_WORKSPACE_DESKTOP_HOST_CLASS}

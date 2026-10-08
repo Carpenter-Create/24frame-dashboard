@@ -17,3 +17,7 @@ export const COMPANY_AGGREGATION_WORKSPACE = "company aggregation workspace";
 export const SOCIAL_WORKSPACE = "Social workspace";
 export const WORKSPACE_AGGREGATION_LABEL = "Aggregation";
 export const WORKSPACE_SOCIAL_LABEL = "Social";
+/** Adam 2026-09-20 — Staff label. Not Team. Not Ops. Since 2026-10-08
+ *  an account-menu row for GC staff, not a switcher lane
+ *  (docs/design-locks/staff-account-menu-lock-v1.md). */
+export const WORKSPACE_STAFF_LABEL = "Staff";

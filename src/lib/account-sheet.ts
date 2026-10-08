@@ -47,6 +47,7 @@ import { ASK_ASSISTANT, ASSISTANT_NAME } from "@/lib/product";
 import {
   USER_MENU_ACTIONS,
   USER_MENU_PHONE_ACTIONS,
+  USER_MENU_STAFF_ACTIONS,
   userMenuAvatarInitial,
   userMenuName,
   type UserMenuAction,
@@ -84,10 +85,26 @@ export const ACCOUNT_SHEET_ITEMS = USER_MENU_ACTIONS;
 
 export const ACCOUNT_SHEET_PHONE_ITEMS = USER_MENU_PHONE_ACTIONS;
 
+/**
+ * One face's rows for this viewer: the shared list, with Staff first for
+ * GC staff only (Adam 2026-10-08, docs/design-locks/staff-account-menu-lock-v1.md).
+ * `isGcStaff` is the server's gc_staff answer; a member gets the list
+ * untouched. The row is a door, not a grant — /staff/* stays gated.
+ */
+export function accountSheetRows(
+  items: readonly UserMenuAction[],
+  isGcStaff: boolean,
+): readonly UserMenuAction[] {
+  return isGcStaff ? [...USER_MENU_STAFF_ACTIONS, ...items] : items;
+}
+
 // Phone inset grouping SoT. Desktop does not render these cards.
+// Staff (GC staff only; Adam 2026-10-08) is its own card, first — a
+// member's sheet has no Staff card at all (an empty group draws nothing).
 // Settings + Theme share a card. Get Help is its own card.
 // Phone Log out uses the same inset card in the pin. It is not a nav group.
 export const ACCOUNT_SHEET_GROUPS = [
+  { id: "staff", kinds: ["staff"] },
   { id: "preferences", kinds: ["settings", "theme"] },
   { id: "help", kinds: ["help"] },
 ] as const;

@@ -87,7 +87,9 @@ describe("shared menu surface instances", () => {
     expect(hairline).toBeGreaterThan(pin);
     expect(del).toBeGreaterThan(hairline);
 
-    const actions = sheetSrc.indexOf("ACCOUNT_SHEET_ITEMS.map");
+    // The phone item groups (the Staff card, when drawn, is one of them).
+    const actions = sheetSrc.indexOf("accountSheetGroupedRows(items).map");
+    expect(actions).toBeGreaterThan(-1);
     const groupClose = sheetSrc.indexOf("</SheetGroup>", actions);
     const pinAfterItems = sheetSrc.indexOf("<AccountMenuPin", groupClose);
     const logOutLabel = sheetSrc.indexOf("{USER_MENU.logOut}");

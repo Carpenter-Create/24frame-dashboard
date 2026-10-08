@@ -91,11 +91,13 @@ describe("workspace waffle header control", () => {
         );
         expect(html, path).toContain(`aria-label="${name}, ${WORKSPACE_SWITCHER.heading}"`);
       }
+      // Staff is not a lane (staff-account-menu-lock-v1): on a Staff page
+      // the pill names no workspace — the grid alone, as on Settings.
       navigation.pathname = "/staff/queue";
-      const staff = renderToStaticMarkup(
-        <WorkspaceSwitcher current="staff" isGcStaff options={availableWorkspaceOptions({ isGcStaff: true })} />,
-      );
-      expect(staff).toContain(`data-workspace-waffle-name="" class="${WORKSPACE_WAFFLE_TRIGGER_NAME_CLASS}">Staff</span>`);
+      const staff = renderToStaticMarkup(<WorkspaceSwitcher current="staff" isGcStaff />);
+      expect(staff).not.toContain("data-workspace-waffle-name");
+      expect(staff).not.toContain(">Staff<");
+      expect(staff).toContain(`aria-label="${WORKSPACE_SWITCHER.heading}"`);
       for (const path of ["/settings", "/activity", "/help", "/co-productions"]) {
         navigation.pathname = path;
         const html = renderToStaticMarkup(<WorkspaceSwitcher current="social" />);
@@ -293,46 +295,51 @@ describe("workspace waffle header control", () => {
 
       navigation.pathname = "/staff/queue";
       const staff = renderToStaticMarkup(
-        <WorkspaceSwitcher
-          current="staff"
-          isGcStaff
-          options={availableWorkspaceOptions({ isGcStaff: true })}
-          defaultOpen
-        />,
+        <WorkspaceSwitcher current="staff" isGcStaff defaultOpen />,
       );
       const staffSheet = staff.slice(staff.indexOf("data-workspace-switcher-sheet"));
       expect(staffSheet).toContain('href="/home"');
-      expect(staffSheet).toContain('data-workspace-waffle-tile="staff"');
+      expect(staffSheet).not.toContain('data-workspace-waffle-tile="staff"');
     } finally {
       navigation.pathname = "/";
     }
   });
 
-  it("shows Staff only when the existing staff gate includes it", () => {
-    const staffOptions = availableWorkspaceOptions({ isGcStaff: true });
+  // Adam 2026-10-08 (staff-account-menu-lock-v1): Staff left the
+  // switcher for the account menu. No face draws a Staff tile — not for
+  // GC staff, not from a forged "staff" option.
+  it("never shows a Staff tile — not for GC staff, not from a forged option", () => {
+    const forgedOptions = [
+      ...availableWorkspaceOptions(),
+      { mode: "staff" as const, label: "Staff", href: "/staff/queue" },
+    ];
     const memberHtml = renderToStaticMarkup(
       <WorkspaceSwitcher current="aggregation" defaultOpen />,
     );
     const staffHtml = renderToStaticMarkup(
-      <WorkspaceSwitcher current="staff" isGcStaff options={staffOptions} defaultOpen />,
+      <WorkspaceSwitcher current="staff" isGcStaff defaultOpen />,
+    );
+    const forgedOption = renderToStaticMarkup(
+      <WorkspaceSwitcher current="staff" isGcStaff options={forgedOptions} defaultOpen />,
     );
     const forged = renderToStaticMarkup(
       <WorkspaceSwitcher current="staff" defaultOpen />,
     );
-    expect(tileIds(memberHtml)).not.toContain("staff");
-    expect(memberHtml).not.toContain(">Staff<");
+    for (const html of [memberHtml, staffHtml, forgedOption, forged]) {
+      expect(tileIds(html)).not.toContain("staff");
+      expect(html).not.toContain(">Staff<");
+      expect(html).not.toContain('href="/staff/queue"');
+    }
     const staffPopover = staffHtml.slice(
       staffHtml.indexOf("data-workspace-switcher-popover"),
       staffHtml.indexOf("data-workspace-switcher-sheet"),
     );
-    expect(tileIds(staffPopover)).toEqual(["aggregation", "social", "education", "staff"]);
-    expect(staffHtml).toContain(">Staff<");
-    expect(staffHtml).not.toContain("Team");
-    expect(staffHtml).not.toContain("Ops");
-    expect(tileIds(forged)).not.toContain("staff");
+    expect(tileIds(staffPopover)).toEqual(["aggregation", "social", "education"]);
+    // A forged staff workspace without the gate still clamps to Aggregation.
     expect(forged).toContain('data-workspace-waffle-tile="aggregation"');
     expect(forged).toContain('data-workspace-waffle-current=""');
-    expect(leadSrc).toContain("availableWorkspaceOptions({ isGcStaff })");
+    expect(leadSrc).toContain("availableWorkspaceOptions()");
+    expect(leadSrc).not.toContain("availableWorkspaceOptions({ isGcStaff })");
   });
 
   it("hides a missing lane instead of a dead tile", () => {
@@ -449,16 +456,18 @@ describe("desktop workspace slider", () => {
     expect(html).not.toContain(">Messages<");
     expect(html).not.toContain(">Profile<");
     expect(html).not.toContain("Co-Productions");
-    const staff = renderToStaticMarkup(
-      <WorkspaceSwitcher
-        presentation="slider"
-        current="staff"
-        isGcStaff
-        options={availableWorkspaceOptions({ isGcStaff: true })}
-      />,
-    );
-    expect(segmentIds(staff)).toEqual(["home", "aggregation", "social", "education", "staff"]);
-    expect(staff).toContain(">Staff<");
+    // GC staff get the same four segments; Staff is the account menu's row.
+    navigation.pathname = "/staff/queue";
+    try {
+      const staff = renderToStaticMarkup(
+        <WorkspaceSwitcher presentation="slider" current="staff" isGcStaff />,
+      );
+      expect(segmentIds(staff)).toEqual(["home", "aggregation", "social", "education"]);
+      expect(staff).not.toContain(">Staff<");
+      expect(selectedSegment(staff)).toBeNull();
+    } finally {
+      navigation.pathname = "/";
+    }
   });
 
   it("lights Home on /home and /home/news and the workspace elsewhere — one current segment on the thumb", () => {
@@ -508,12 +517,7 @@ describe("desktop workspace slider", () => {
       for (const path of ["/settings", "/activity", "/help", "/co-productions"]) {
         navigation.pathname = path;
         const html = renderToStaticMarkup(
-          <WorkspaceSwitcher
-            presentation="slider"
-            current="aggregation"
-            isGcStaff
-            options={availableWorkspaceOptions({ isGcStaff: true })}
-          />,
+          <WorkspaceSwitcher presentation="slider" current="aggregation" isGcStaff />,
         );
         expect(html, path).not.toContain('aria-selected="true"');
         expect(html.match(/tabindex="0"/g)?.length, path).toBe(1);

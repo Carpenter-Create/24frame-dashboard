@@ -926,3 +926,74 @@ describe("AccountMenuDropdown Coinbase grammar", () => {
     expect(surface).not.toContain("--content-inset");
   });
 });
+
+// Adam 2026-10-08 (docs/design-locks/staff-account-menu-lock-v1.md):
+// Staff left the workspace switcher for this menu. The row draws only
+// for GC staff — the server's gc_staff answer — never for a member and
+// never by default. /staff/* stays gated by the (operator) layout.
+describe("Staff row — GC staff only", () => {
+  const sheetFor = (isGcStaff?: boolean) =>
+    renderToStaticMarkup(
+      <AccountSheet email="ada@example.com" pathname="/" onClose={() => undefined} isGcStaff={isGcStaff} />,
+    );
+  const dropdownFor = (isGcStaff?: boolean) =>
+    renderToStaticMarkup(
+      <AccountMenuDropdown
+        email="ada@example.com"
+        pathname="/"
+        onClose={() => undefined}
+        isGcStaff={isGcStaff}
+      />,
+    );
+
+  it("never draws for a member — phone sheet or desktop menu, unset or false", () => {
+    for (const html of [renderSheet(), renderDropdown(), sheetFor(false), dropdownFor(false)]) {
+      expect(html).not.toContain('data-user-menu-item="staff"');
+      expect(html).not.toContain('data-sheet-group-id="staff"');
+      expect(html).not.toContain('data-account-menu-row="staff"');
+      expect(html).not.toContain('href="/staff/queue"');
+      expect(html).not.toContain(">Staff<");
+    }
+  });
+
+  it("puts Staff first on the phone sheet for GC staff — its own inset card, /staff/queue", () => {
+    const html = sheetFor(true);
+    expect(html).toContain('data-sheet-group-id="staff"');
+    expect(html).toContain('data-sheet-group-item="staff"');
+    expect(html).toContain('href="/staff/queue"');
+    expect(html).toContain(">Staff<");
+    expect(html.indexOf('data-sheet-group-id="staff"')).toBeLessThan(
+      html.indexOf('data-sheet-group-id="preferences"'),
+    );
+    // The same inset row grammar as Settings; the rest of the sheet stays.
+    expect(attrClass(html, 'data-sheet-group-item="staff"')).toBe(
+      attrClass(html, 'data-sheet-group-item="settings"'),
+    );
+    for (const item of ["settings", "theme", "help", "logOut"]) {
+      expect(html).toContain(`data-sheet-group-item="${item}"`);
+    }
+  });
+
+  it("puts Staff first in the desktop menu for GC staff — a flat row above Settings", () => {
+    const html = dropdownFor(true);
+    const staff = html.indexOf('data-account-menu-row="staff"');
+    expect(staff).toBeGreaterThan(html.indexOf("data-account-menu-head-rule"));
+    expect(staff).toBeLessThan(html.indexOf('data-account-menu-row="settings"'));
+    expect(attrClass(html, 'data-account-menu-row="staff"')).toBe(ACCOUNT_MENU_DROPDOWN_ROW_CLASS);
+    expect(html).toContain('href="/staff/queue"');
+    expect(html).toContain(">Staff<");
+  });
+
+  it("takes the gate from the server's chrome, off by default", () => {
+    const shellSrc = readFileSync(join(here, "app-shell.tsx"), "utf8");
+    expect(menuSrc).toContain("isGcStaff = false");
+    expect(menuSrc.match(/isGcStaff=\{isGcStaff\}/g)?.length).toBe(2);
+    // Bounded to the UserMenu element ([^>]*): the resolved chrome passes
+    // data.isGcStaff; the pending fallback passes the shell's own prop.
+    expect(shellSrc).toMatch(/<UserMenu\s+email=\{data\.email\}[^>]*isGcStaff=\{data\.isGcStaff\}/);
+    // Both pre-chrome paths (no chrome; chrome pending) pass the prop.
+    expect(shellSrc.match(/<UserMenu email=\{face\.email\}[^>]*isGcStaff=\{isGcStaff\}/g)?.length).toBe(2);
+    expect(src).toContain("accountSheetRows(ACCOUNT_SHEET_ITEMS, isGcStaff)");
+    expect(src).toContain("accountSheetRows(ACCOUNT_SHEET_PHONE_ITEMS, isGcStaff)");
+  });
+});
