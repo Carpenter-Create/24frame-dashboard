@@ -55,8 +55,6 @@ import {
   SOCIAL_FEED_REELS_CLASS,
   SOCIAL_FEED_REELS_HEAD_CLASS,
   SOCIAL_FEED_REELS_TRACK_CLASS,
-  SOCIAL_FEED_SCOPE_CLASS,
-  SOCIAL_FEED_SCOPE_THUMB_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOLLOW_QUIET_CLASS,
   SOCIAL_FOR_YOU_LANE_CARD_CLASS,
@@ -450,7 +448,8 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
   });
 
   it("C2: stories stay at the top — the first module, in their own card, in both lanes, also with Create story alone", () => {
-    expect(SOCIAL_HOME_STORIES_CARD_CLASS).toBe(`mt-4 overflow-hidden py-2 ${SOCIAL_FEED_CARD_CLASS}`);
+    // No top margin: it leads the Feed (no slider, founder 2026-10-08).
+    expect(SOCIAL_HOME_STORIES_CARD_CLASS).toBe(`overflow-hidden py-2 ${SOCIAL_FEED_CARD_CLASS}`);
     expect(SOCIAL_HOME_STORIES_RAIL_CLASS).toBe(
       "no-scrollbar -my-[5px] flex gap-2 overflow-x-auto overscroll-x-contain px-2 py-[5px] scroll-px-2",
     );
@@ -606,9 +605,10 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
     expect(HOUSE_LEAD_SEARCH_HEADER_INPUT_CLASS).toBe(
       "h-full min-w-0 flex-1 text-[length:var(--text-sm)] text-ink placeholder:text-ink-2",
     );
-    // One ink fill on Social: the Feed's Following / For you thumb; the
-    // header's thumb and its pending paint are the wash.
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
+    // Social's one ink fill was the Feed's Following / For you thumb; the
+    // slider is gone (founder 2026-10-08), so no ink thumb is left. The
+    // header's thumb and its pending paint stay the wash.
+    expect(page).not.toContain("SocialHomeLaneTabs");
     expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).not.toMatch(/\bbg-ink\b/);
     expect(WORKSPACE_SWITCHER_SEGMENT_CLASS).not.toMatch(/\bbg-ink\b/);
     // The rail's type steps down a weight.
@@ -919,17 +919,18 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
     }
   });
 
-  it("§8: the slider and the rail's heading start 16 under the header", () => {
+  it("§8: the stories card and the rail's heading start 16 under the header", () => {
     // The shared header inset (8) plus the Feed row's own md:pt-2 (8).
     const rem = Number(/--space-2:\s*([\d.]+)rem/.exec(tokens)?.[1]) * 16;
     expect(SOCIAL_DESKTOP_HEADER_INSET_CLASS).toBe("md:pt-[var(--space-2)]");
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toContain(SOCIAL_DESKTOP_HEADER_INSET_CLASS);
     const rowPad = 4 * Number(/(?:^|\s)md:pt-(\d+)(?:\s|$)/.exec(SOCIAL_FEED_LAYOUT_CLASS)?.[1]);
     expect(rem + rowPad).toBe(16);
-    // Nothing above them pushes them down: the slider leads the column and
-    // the heading leads the rail, neither with a top margin.
+    // Nothing above them pushes them down: the stories card leads the
+    // column (no slider, founder 2026-10-08) and the heading leads the
+    // rail, neither with a top margin.
     const topMargin = /(?:^|\s)-?m[ty]?-(?!0(?:\s|$))/;
-    expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(topMargin);
+    expect(SOCIAL_HOME_STORIES_CARD_CLASS).not.toMatch(topMargin);
     expect(SOCIAL_FEED_ASIDE_HEADING_CLASS).not.toMatch(topMargin);
     expect(SOCIAL_FEED_CENTER_CLASS).not.toMatch(/(?:^|\s)(?:md:)?(?:p[ty]?|m[ty]?)-/);
   });

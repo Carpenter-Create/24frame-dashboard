@@ -20,13 +20,13 @@ import {
 } from "./social-stories";
 
 describe("Social Home stack lock", () => {
-  // H · Feed (founder 2026-10-05; replaces G's tabs → topic words → story
-  // tiles → composer bar → wall and its 52 muted bar): the pill slider →
-  // story cards → composer row → topic chips → wall, as the H board draws it.
-  // docs/design-locks/social-feed-register-lock-v1.md
-  it("locks slider → stories → composer → topics → wall on phone and desktop", () => {
-    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_slider_stories_composer_topics_wall");
-    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["slider", "stories", "composer", "topics", "wall"]);
+  // Founder 2026-10-08 ("on social, remove the Following and For You above
+  // the feed", "only the slider"; replaces H · Feed's pill slider → story
+  // cards → composer row → topic chips → wall): story cards → composer row
+  // → topic chips → wall. docs/design-locks/social-feed-register-lock-v1.md
+  it("locks stories → composer → topics → wall on phone and desktop, with no slider", () => {
+    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_stories_composer_topics_wall");
+    expect(SOCIAL_HOME_STACK_ORDER).toEqual(["stories", "composer", "topics", "wall"]);
     // Cards lock: the composer is a card (the card face), no rule of its own.
     expect(SOCIAL_COMPOSER_CLASS).toContain(SOCIAL_FEED_CARD_SURFACE_CLASS);
     expect(SOCIAL_COMPOSER_CLASS).not.toMatch(/(?:^|\s)border-[by]?(?:\s|$)/);

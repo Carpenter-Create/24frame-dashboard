@@ -23,7 +23,6 @@ import {
   SOCIAL_FEED_ASIDE_SECTION_CLASS,
   SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
-  SOCIAL_FEED_SCOPE_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOR_YOU_RAIL_CLASS,
   SOCIAL_HOME_STORIES_CARD_CLASS,
@@ -86,13 +85,13 @@ describe("Social loading skeletons", () => {
     const follows = renderToStaticMarkup(<SocialFollowsSkeleton />);
 
     expect(home).toContain("data-social-home-skeleton");
-    // H · Feed (founder 2026-10-05; replaces the G stack pins): the
-    // skeleton follows the live stack — slider → story cards → composer →
-    // topic chips → wall — on the same row classes, so nothing moves when
-    // the center mounts.
-    expect(home).toContain('data-social-home-stack="lock_slider_stories_composer_topics_wall"');
+    // Founder 2026-10-08 ("only the slider"; replaces H's slider-led
+    // stack): the skeleton follows the live stack — story cards → composer
+    // → topic chips → wall — on the same row classes, so nothing moves when
+    // the center mounts. No slider placeholder.
+    expect(home).toContain('data-social-home-stack="lock_stories_composer_topics_wall"');
+    expect(home).not.toContain("data-social-home-lanes-skeleton");
     const order = [
-      "data-social-home-lanes-skeleton",
       "data-social-stories-skeleton",
       "data-social-home-composer-skeleton",
       "data-social-home-topics-skeleton",
@@ -104,9 +103,7 @@ describe("Social loading skeletons", () => {
     }
     expect(home).toContain(`class="${SOCIAL_FEED_LAYOUT_CLASS}"`);
     expect(home).toContain(`class="${SOCIAL_FEED_CENTER_CLASS}"`);
-    expect(home).toContain(`data-social-home-lanes-skeleton="" class="${SOCIAL_FEED_SCOPE_CLASS}"`);
-    // The slider's 44 track, as one pill (its w-max yields to the 221).
-    expect(home).toContain(`animate-pulse ${HOUSE_PILL_SLIDER_TRACK_CLASS} h-11 w-[221px]`);
+    expect(home).not.toContain(`${HOUSE_PILL_SLIDER_TRACK_CLASS} h-11 w-[221px]`);
     expect(home).toContain(`class="${SOCIAL_HOME_TOPIC_ROW_CLASS}"`);
     expect(home).toContain(`class="${SOCIAL_COMPOSER_CLASS}"`);
     expect(home).toContain(SOCIAL_COMPOSER_FIELD_CLASS);

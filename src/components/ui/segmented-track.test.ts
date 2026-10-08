@@ -22,9 +22,6 @@ const CONSUMERS = [
   "src/components/reports/reports-ranked.tsx",
   "src/components/reports/reports-controls.tsx",
   "src/components/news/news-sources-filter.tsx",
-  // The Feed's Following / For you is the primary pill slider (H register,
-  // founder 2026-10-05): this SegmentedTrack with the shared ink thumb.
-  "src/components/social/social-home-lane-tabs.tsx",
 ] as const;
 
 const CHOICE_MENUS = CONSUMERS;
