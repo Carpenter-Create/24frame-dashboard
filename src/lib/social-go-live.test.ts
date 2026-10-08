@@ -4,7 +4,6 @@ import { SOCIAL_VIDEO_MAX_BYTES } from "./social-media";
 import { formatStoryRecorderClock } from "./social-story-recorder";
 import {
   formatGoLiveClock,
-  goLiveCameraAspect,
   goLiveFileName,
   goLiveFitsByteCap,
   goLiveReachedCap,
@@ -44,14 +43,11 @@ describe("Go live duration cap", () => {
     expect(goLiveFitsByteCap(0)).toBe(false);
   });
 
-  // Desktop frame (Adam 2026-10-08): the camera's own frame by default,
-  // a switch to a reel cut that records as 9:16.
-  it("opens on the camera's own frame, with Reel the one alternative", () => {
+  // Desktop frame (Adam 2026-10-08): the full camera by default, a switch
+  // to a reel cut that records as 9:16.
+  it("opens on the full camera, with Reel the one alternative", () => {
     expect(SOCIAL_GO_LIVE_DEFAULT_FRAME).toBe("full");
     expect(SOCIAL_GO_LIVE_FRAMES).toEqual(["full", "reel"]);
-    expect(goLiveCameraAspect()).toBeCloseTo(16 / 9);
-    expect(goLiveCameraAspect(640, 480)).toBeCloseTo(4 / 3);
-    expect(goLiveCameraAspect(1280, 0)).toBeCloseTo(16 / 9);
   });
 
   it("cuts the reel from the centre of the camera frame at 9:16, no upscale, even sizes", () => {

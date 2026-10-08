@@ -61,12 +61,6 @@ export const SOCIAL_GO_LIVE_DEFAULT_FRAME: GoLiveFrame = "full";
 
 export const SOCIAL_GO_LIVE_REEL_ASPECT = 9 / 16;
 
-/** The camera's aspect for the full stage; 16:9 until the track reports. */
-export function goLiveCameraAspect(width?: number, height?: number): number {
-  if (!width || !height || !Number.isFinite(width / height)) return 16 / 9;
-  return width / height;
-}
-
 const even = (n: number) => Math.max(2, Math.floor(n / 2) * 2);
 
 /** The reel's center cut of a camera frame (source pixels, even sizes, no

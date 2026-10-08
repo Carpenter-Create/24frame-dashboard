@@ -103,9 +103,14 @@ describe("Social Go live recorder", () => {
     expect(group).toMatch(/role="radio" aria-checked="true" data-social-go-live-frame-option="full"[^>]*>Full</);
     expect(group).toMatch(/role="radio" aria-checked="false" data-social-go-live-frame-option="reel"[^>]*>Reel</);
     expect(html.indexOf("data-social-go-live-frame=")).toBeLessThan(html.indexOf("data-social-go-live-record"));
-    // Full keeps the camera's shape; Reel is the 9:16 studio stage.
-    expect(SOCIAL_GO_LIVE_STAGE_FULL_CLASS).toContain("md:aspect-[var(--go-live-aspect)]");
-    expect(SOCIAL_GO_LIVE_FULL_VIDEO_CLASS).toContain("md:object-contain");
+    // Adam 2026-10-08: "shouldn't full camera on computer be full screen
+    // like zoom". Full fills the window edge to edge on every screen: no
+    // card size, edge, or radius at md, and the video covers. Reel is the
+    // 9:16 studio stage.
+    expect(SOCIAL_GO_LIVE_STAGE_FULL_CLASS).toContain("h-full w-full");
+    expect(SOCIAL_GO_LIVE_STAGE_FULL_CLASS).not.toMatch(/\bmd:/);
+    expect(SOCIAL_GO_LIVE_FULL_VIDEO_CLASS).toBe("absolute inset-0 size-full object-cover");
+    expect(src).not.toContain("--go-live-aspect");
     expect(SOCIAL_STORY_STUDIO_STAGE_CLASS).toContain("md:w-[420px]");
     // The phone always records its own frame; the switch is desktop only.
     expect(src).toContain('const frame: GoLiveFrame = desktop ? frameChoice : "full";');

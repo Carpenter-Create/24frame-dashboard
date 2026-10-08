@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -41,7 +41,6 @@ import {
 } from "@/lib/social-media";
 import {
   formatGoLiveClock,
-  goLiveCameraAspect,
   goLiveFileName,
   goLiveFitsByteCap,
   goLiveReachedCap,
@@ -166,7 +165,6 @@ export function SocialGoLive() {
   const [frameChoice, setFrameChoice] = useState<GoLiveFrame>(SOCIAL_GO_LIVE_DEFAULT_FRAME);
   // The frame switch is desktop only; the phone records its own portrait frame.
   const frame: GoLiveFrame = desktop ? frameChoice : "full";
-  const [aspect, setAspect] = useState(goLiveCameraAspect());
 
   const [phase, setPhase] = useState<LivePhase>("preview");
   const [facing, setFacing] = useState<StoryStudioFacing>("user");
@@ -532,7 +530,6 @@ export function SocialGoLive() {
   }
 
   const mirrored = storyStudioMirrorsPreview(facing);
-  const stageStyle = { "--go-live-aspect": aspect } as CSSProperties;
 
   return (
     <div data-social-go-live="" className={SOCIAL_STORY_STUDIO_CLASS}>
@@ -540,7 +537,6 @@ export function SocialGoLive() {
         data-social-go-live-stage=""
         data-social-go-live-frame-stage={frame}
         className={frame === "reel" ? SOCIAL_STORY_STUDIO_STAGE_CLASS : SOCIAL_GO_LIVE_STAGE_FULL_CLASS}
-        style={stageStyle}
       >
         {phase === "review" && clip ? (
           // The review loops on its own, like a story (no native control
@@ -566,9 +562,6 @@ export function SocialGoLive() {
             muted
             playsInline
             autoPlay
-            onLoadedMetadata={(event) =>
-              setAspect(goLiveCameraAspect(event.currentTarget.videoWidth, event.currentTarget.videoHeight))
-            }
           />
         )}
         <div className={SOCIAL_STORY_STUDIO_CHROME_CLASS}>
