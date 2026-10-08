@@ -16,9 +16,10 @@ vi.mock("next/navigation", () => ({
 import { SocialCreateCompose } from "./social-create-compose";
 import {
   fitSocialWriteComposeField,
-  SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS,
   SOCIAL_STORY_STAGE_IN_CLASS,
+  SOCIAL_WRITE_COMPOSE_HOST_CLASS,
 } from "@/lib/social-chrome";
+import { SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS } from "@/lib/social-write-compose-sheet";
 import { SEGMENTED_TRACK_PERSIST } from "@/lib/segmented-track";
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_CREATE_MEDIA_ACCEPT } from "@/lib/social-create-media";
@@ -41,8 +42,6 @@ describe("Social create kinds", () => {
     expect(write).toContain("data-social-create-author");
     expect(write).not.toContain("data-social-create-kinds");
     expect(write).not.toContain("data-social-create-well");
-    expect(write).not.toContain(SOCIAL.create.media);
-    expect(write).not.toContain(SOCIAL.create.goLive);
     expect(write).toContain("data-social-create-dismiss");
     expect(write).toContain(`aria-label="${SOCIAL.create.close}"`);
     expect(write).toContain('data-social-create-attach="library"');
@@ -51,104 +50,63 @@ describe("Social create kinds", () => {
     expect(write).toContain(`aria-label="${SOCIAL.home.attach}"`);
     expect(write).not.toContain('data-social-create-attach="photo"');
     expect(write).not.toContain('data-social-create-attach="video"');
-    expect(write).not.toContain(`aria-label="${SOCIAL.create.photo}"`);
-    expect(write).not.toContain(`aria-label="${SOCIAL.create.video}"`);
     expect(write).not.toContain(`>${SOCIAL.home.attach}<`);
-    expect(write).toContain("size-10");
-    expect(write).toContain('width="24"');
-    expect(write).toContain('width="22"');
-    expect(write).toContain("size-11");
-    expect(write).not.toContain("size-[220px]");
-    expect(write).not.toContain("size-14");
-    expect(write).toContain("max-h-[40vh]");
-    expect(write).not.toContain("rounded-[16px]");
-    expect(write).not.toContain("bg-[#EEEEF0]");
-    expect(write).toContain("bg-transparent");
-    expect(write).toContain("data-social-write-stage");
-    expect(write).toContain("items-end");
-    expect(write).toContain("border-t");
-    expect(write).toContain("h-dvh");
-    expect(write).toContain("max-h-dvh");
-    expect(write).toContain("overflow-hidden");
-    expect(write).toContain("text-[16px]");
-    expect(write).not.toContain("text-[length:var(--text-sm)]");
-    expect(SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS).toContain("text-[16px]");
-    expect(SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS).not.toContain("truncate");
-    expect(SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS).not.toContain("ellipsis");
-    expect(SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS).not.toContain("line-clamp");
-    expect(src).toContain("fitSocialWriteComposeField");
-    expect(write).toContain("max-w-[680px]");
-    expect(write).toContain("h-12");
-    expect(write).not.toContain("rounded-[24px]");
     expect(write).toContain(`placeholder="${SOCIAL.home.composerPrompt}"`);
     expect(write).not.toContain(SOCIAL.create.caption);
     expect(write).not.toContain("data-house-voice-mic");
-    expect(write).not.toContain('aria-label="Dictate"');
-    expect(write).not.toContain('aria-label="Voice"');
-    expect(write).toContain("data-social-write-voice");
-    expect(write).not.toContain(`>${SOCIAL.home.photoKind}<`);
     expect(write).not.toContain(SOCIAL.home.audienceFollowing);
     expect(write).not.toContain("@acarpcreate");
-    expect(write).toContain(SOCIAL_STORY_STAGE_IN_CLASS);
     expect(write).toContain(SOCIAL.home.submit);
     expect(write).not.toContain("autofocus");
-    // The sheet and the page (the desktop window sets the field first, its own lock).
-    const sheetSrc = src.slice(src.indexOf('data-social-write-voice=""'));
-    expect(sheetSrc.indexOf("data-social-create-preview")).toBeLessThan(sheetSrc.indexOf('id="social-create-body"'));
-    expect(sheetSrc.indexOf("data-social-write-compose-row")).toBeLessThan(sheetSrc.indexOf('id="social-create-body"'));
+    expect(src).toContain("fitSocialWriteComposeField");
+    expect(src).toContain("fileRef.current?.click()");
+
+    // Adam 2026-10-08, "Match the fan": the page (the + fan's Write) and the
+    // phone sheet take the desktop window's layout. Close, then the avatar
+    // beside the field, the media under it, and the tool row (Media, Record,
+    // Post) at the bottom, above the keyboard. The page fills the viewport.
+    expect(write).toContain('data-social-write-compose-presentation="page"');
+    expect(write).toContain(SOCIAL_WRITE_COMPOSE_HOST_CLASS);
+    expect(SOCIAL_WRITE_COMPOSE_HOST_CLASS).toContain("h-dvh max-h-dvh");
+    expect(write).toContain(SOCIAL_STORY_STAGE_IN_CLASS);
+    expect(write).toContain(SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS);
+    // 17px: iOS Safari zooms the page on a field under 16px.
+    expect(SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS).toContain("text-[length:var(--text-base)]");
+    expect(SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS).not.toMatch(/truncate|ellipsis|line-clamp/);
+    const close = write.indexOf("data-social-create-dismiss");
+    const author = write.indexOf("data-social-create-author");
+    const field = write.indexOf("data-social-write-compose-field");
+    const tools = write.indexOf("data-social-write-compose-tools");
+    expect(close).toBeLessThan(author);
+    expect(author).toBeLessThan(field);
+    expect(field).toBeLessThan(tools);
+    const row = write.slice(tools);
+    expect(row.indexOf('data-social-create-attach="library"')).toBeLessThan(row.indexOf("data-social-create-live"));
+    expect(row.indexOf("data-social-create-live")).toBeLessThan(row.indexOf(`>${SOCIAL.home.submit}<`));
+    expect(row).toContain(`aria-label="${SOCIAL.create.goLive}"`);
+    expect(row).toContain('data-social-icon="image"');
+    expect(row).toContain('data-social-icon="broadcast"');
+    // The old phone layout is gone: no top Post bar, no bottom caption row.
+    expect(write).not.toContain("data-social-write-compose-row");
+    expect(write).not.toContain("data-social-write-stage");
+    expect(write).not.toContain('data-social-icon="camera"');
+    expect(src).not.toContain("SOCIAL_WRITE_COMPOSE_ROW_CLASS");
+    expect(src).not.toContain("SOCIAL_WRITE_COMPOSE_SHEET_ROW_CLASS");
     expect(src).not.toContain('presentation="footer"');
     expect(src).not.toContain('presentation="hero"');
     expect(src).not.toContain("data-social-write-voice-stage");
     expect(src).not.toContain("data-social-write-footer");
-    expect(src).toContain("size={20}");
     expect(src).toContain("unoptimized");
     expect(chrome).toContain(
       "relative h-[50vh] max-h-[50vh] w-full overflow-hidden rounded-[16px] bg-surface-muted",
     );
-    expect(chrome).toContain(
-      "-mx-[var(--space-4)] flex h-12 items-center justify-between gap-[var(--space-4)] border-b border-hairline px-[var(--space-4)]",
-    );
-    expect(chrome).toContain(
-      "inline-flex h-10 shrink-0 items-center justify-center rounded-[8px] bg-accent px-[var(--space-4)] t-body-sm font-medium text-accent-contrast",
-    );
-    expect(chrome).toContain(
-      "flex size-[220px] shrink-0 items-center justify-center rounded-full border border-hairline bg-[#EEEEF0] text-ink",
-    );
-    expect(chrome).toContain(
-      "-mx-[var(--space-4)] -mb-[max(var(--space-4),env(safe-area-inset-bottom))] mt-auto flex min-h-12 items-end gap-[var(--space-2)] border-t border-hairline bg-transparent px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))]",
-    );
-    expect(chrome).toContain("max-h-[40vh] min-h-12 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent");
-    expect(chrome).not.toContain("rounded-[16px] bg-[#EEEEF0]");
-    expect(chrome).not.toContain("size-48 shrink-0");
-    expect(chrome).toContain(
-      "inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink",
-    );
-    expect(write).toContain("data-social-write-compose-row");
-    expect(write).not.toContain("data-social-write-mode");
-    expect(write).not.toContain("data-social-write-voice-stage");
-    expect(write).not.toContain("data-social-write-footer");
-    const row = write.slice(write.indexOf("data-social-write-compose-row"));
-    expect(row.indexOf('id="social-create-body"')).toBeLessThan(
-      row.indexOf('data-social-create-attach="library"'),
-    );
-    expect(row).toContain('data-social-icon="camera"');
-    expect(src).toContain("fileRef.current?.click()");
-    expect(row).not.toContain("data-house-voice-mic");
-    expect(row).not.toContain("Dictate");
-    expect(row).not.toContain('data-social-create-attach="photo"');
-    expect(row).not.toContain("bg-[#EEEEF0]");
-    const voice = readFileSync("src/components/chrome/house-voice-mic.tsx", "utf8");
-    expect(voice).toContain('weight={hero ? "fill"');
-    expect(voice).toContain('className={hero ? "size-14"');
     const css = readFileSync("src/app/globals.css", "utf8");
     expect(css).toContain("body:has([data-social-write-compose])");
     expect(css).toContain("#vercel-toolbar");
-    // The page's close (the desktop window's close only closes the window).
-    const pageSrc = src.slice(src.indexOf('data-social-write-voice=""'));
-    const dismiss = pageSrc.slice(
-      pageSrc.indexOf("data-social-create-dismiss"),
-      pageSrc.indexOf("data-social-create-author"),
-    );
+    // The page's close leaves to Home; the sheet's and the window's close
+    // only close them (onDismiss).
+    const dismiss = src.slice(src.indexOf("data-social-create-dismiss"), src.indexOf("data-social-create-author"));
+    expect(dismiss).toMatch(/if \(onDismiss\) \{\s*onDismiss\(\);\s*return;\s*\}/);
     expect(dismiss).toContain("leaveSocialWriteCompose");
     expect(dismiss).toContain("navigateOwned(SOCIAL_ROUTES.home)");
     expect(dismiss).toContain("router.push(SOCIAL_ROUTES.home)");

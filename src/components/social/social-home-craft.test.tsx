@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -69,7 +70,10 @@ const authors = new Map([["u2", { display_name: "Maya Chen", handle: "maya" }]])
 const faces = new Map([["u2", "https://s3.example/signed-avatar"]]);
 
 describe("Social Home craft (Figma 160:482 / 160:964)", () => {
-  it("renders the one-row share stage: prompt opens write compose, icon-only Photo and Camera reuse the media pick", () => {
+  // Adam 2026-10-08, "Match the fan": the row's rounds are the + fan's Media
+  // and Record tiles (same list, glyphs, names, acts). Record opens the
+  // 24Frame camera, never the phone's own camera app.
+  it("renders the one-row share stage: prompt opens write compose, icon-only Media and Record are the fan's tiles", () => {
     const html = renderToStaticMarkup(
       <SocialHomeComposer authorName="Adam Carpenter" />,
     );
@@ -93,43 +97,52 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html.split(SOCIAL.home.composerPromptNamed).length - 1).toBe(1);
     expect(html).toContain(`aria-label="${SOCIAL.create.title}"`);
     expect(html).not.toContain('data-social-icon="plus"');
-    expect(html).not.toContain('data-social-icon="broadcast"');
+    expect(html.split('data-social-icon="broadcast"').length - 1).toBe(1);
     expect(html).toContain("text-ink-2");
     expect(html).not.toContain("data-social-composer-media");
     expect(html).not.toContain("data-social-composer-action");
     expect(html).not.toContain("Feeling");
     expect(html).not.toContain("Go live");
+    expect(SOCIAL.create.goLive).toBe("Record");
     expect(html).not.toContain(SOCIAL.home.attach);
     expect(html).not.toContain(`>${SOCIAL.create.text}<`);
     expect(html).toContain("data-social-avatar");
     expect(html).toContain("AC");
     expect(html).not.toContain("<img");
-    expect(html).toContain('data-social-composer-affordance="photo"');
-    expect(html).toContain('data-social-composer-affordance="camera"');
+    expect(html).toContain('data-social-composer-affordance="media"');
+    expect(html).toContain('data-social-composer-affordance="live"');
     expect(html).toContain('data-social-icon="image"');
-    expect(html).toContain('data-social-icon="camera"');
+    expect(html).not.toContain('data-social-icon="camera"');
     expect(html).not.toContain("t-label");
-    expect(html).toContain(`aria-label="${SOCIAL.home.composerPhoto}"`);
-    expect(html).toContain(`aria-label="${SOCIAL.home.composerCamera}"`);
-    expect(html).not.toContain(`>${SOCIAL.home.composerPhoto}<`);
-    expect(html).not.toContain(`>${SOCIAL.home.composerCamera}<`);
+    expect(html).toContain(`aria-label="${SOCIAL.create.media}"`);
+    expect(html).toContain(`aria-label="${SOCIAL.create.goLive}"`);
+    expect(html).not.toContain(`>${SOCIAL.create.media}<`);
+    expect(html).not.toContain(`>${SOCIAL.create.goLive}<`);
     expect(html).toContain(`accept="${SOCIAL_CREATE_MEDIA_ACCEPT}"`);
-    expect(html).toContain(`accept="${SOCIAL_CREATE_CAMERA_ACCEPT}"`);
-    expect(html).toContain('capture="environment"');
-    expect(html).toContain('data-social-create-media-capture="environment"');
-    // The visible Photo / Camera buttons open the pickers. The file inputs
-    // are no tab stop (no 1px focus ring) and hidden from assistive tech
-    // (no second "Photo" / "Camera").
+    // No phone camera app: no capture input anywhere in the row.
+    expect(html).not.toContain(`accept="${SOCIAL_CREATE_CAMERA_ACCEPT}"`);
+    expect(html).not.toContain("capture=");
+    expect(html).not.toContain("data-social-create-media-capture");
+    // The visible Media button opens the picker. Its file input is no tab
+    // stop (no 1px focus ring) and hidden from assistive tech (no second
+    // "Media").
     const pickers = html.match(/<input[^>]*data-social-create-media-input[^>]*>/g) ?? [];
-    expect(pickers).toHaveLength(2);
+    expect(pickers).toHaveLength(1);
     for (const picker of pickers) {
       expect(picker).toContain('tabindex="-1"');
       expect(picker).toContain('aria-hidden="true"');
     }
-    const photoAt = html.indexOf('data-social-composer-affordance="photo"');
-    const cameraAt = html.indexOf('data-social-composer-affordance="camera"');
-    expect(photoAt).toBeGreaterThan(html.indexOf("data-social-composer-prompt"));
-    expect(cameraAt).toBeGreaterThan(photoAt);
+    const mediaAt = html.indexOf('data-social-composer-affordance="media"');
+    const recordAt = html.indexOf('data-social-composer-affordance="live"');
+    expect(mediaAt).toBeGreaterThan(html.indexOf("data-social-composer-prompt"));
+    expect(recordAt).toBeGreaterThan(mediaAt);
+    // Record is a link to the 24Frame camera, remembering where it opened.
+    const record = html.slice(html.lastIndexOf("<a", recordAt), html.indexOf("</a>", recordAt));
+    expect(record).toContain(`href="${SOCIAL_ROUTES.createLive}"`);
+    const composerSrc = readFileSync("src/components/social/social-home-composer.tsx", "utf8");
+    expect(composerSrc).toContain("rememberSocialGoLiveOpener(");
+    expect(composerSrc).toContain('socialCreateTile("media")');
+    expect(composerSrc).toContain('socialCreateTile("live")');
     // Cards (founder 2026-10-06; replaces the H bare 44 row): the composer
     // is its own card on the shared surface — the 44 avatar, 12, the
     // "Share something" pill, then round 44 Photo and Camera (8 apart on

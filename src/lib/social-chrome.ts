@@ -1511,22 +1511,7 @@ export const SOCIAL_WRITE_COMPOSE_HOST_CLASS =
 export const SOCIAL_WRITE_COMPOSE_SHEET_FORM_CLASS =
   "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-transparent";
 
-export const SOCIAL_WRITE_COMPOSE_SHEET_CHROME_CLASS =
-  "flex h-12 shrink-0 items-center justify-between gap-[var(--space-4)] border-b border-hairline";
-
-export const SOCIAL_WRITE_COMPOSE_SHEET_ROW_CLASS =
-  "mt-auto flex min-h-12 w-full min-w-0 items-end gap-[var(--space-2)] border-t border-hairline bg-transparent";
-
 // §0. Row 48. Hairline on the bottom edge only. Pad H 16.
-export const SOCIAL_WRITE_COMPOSE_CHROME_CLASS =
-  "-mx-[var(--space-4)] flex h-12 items-center justify-between gap-[var(--space-4)] border-b border-hairline px-[var(--space-4)]";
-
-export const SOCIAL_WRITE_COMPOSE_POST_CLASS =
-  "inline-flex h-10 shrink-0 items-center justify-center rounded-[8px] bg-accent px-[var(--space-4)] t-body-sm font-medium text-accent-contrast disabled:opacity-70";
-
-export const SOCIAL_WRITE_COMPOSE_X_CLASS =
-  "inline-flex size-11 shrink-0 items-center justify-center text-ink active:opacity-70";
-
 // §0.2. Diameter 220. #EEEEF0 is denser than --surface-muted. The 1px hairline sits inside the face.
 export const SOCIAL_WRITE_VOICE_HERO_CLASS =
   "flex size-[220px] shrink-0 items-center justify-center rounded-full border border-hairline bg-[#EEEEF0] text-ink";
@@ -1540,14 +1525,8 @@ export const SOCIAL_WRITE_VOICE_HERO_RECORDING_CLASS = "bg-accent/10 text-accent
 
 // §0.4. iMessage compose row. Type is transparent on white. Feed write has no mic.
 // Hairline is the top edge only. No gray fill. Bottom pad is 16 above the safe area.
-export const SOCIAL_WRITE_COMPOSE_ROW_CLASS =
-  "-mx-[var(--space-4)] -mb-[max(var(--space-4),env(safe-area-inset-bottom))] mt-auto flex min-h-12 items-end gap-[var(--space-2)] border-t border-hairline bg-transparent px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))]";
-
 // 16px floor. text-sm (15px) makes iOS Safari zoom the page on focus.
 // Flat caption. No elevation on the field.
-export const SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS =
-  "max-h-[40vh] min-h-12 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-3 text-[16px] leading-normal text-ink caret-ink outline-none placeholder:text-ink-2";
-
 /** Grow the caption up to 40vh. Past that, scroll so the caret line stays inside the field. */
 export function fitSocialWriteComposeField(field: HTMLTextAreaElement): void {
   const view = field.ownerDocument.documentElement.clientHeight || 0;
