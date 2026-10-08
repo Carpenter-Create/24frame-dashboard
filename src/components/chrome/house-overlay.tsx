@@ -97,6 +97,7 @@ export function HouseDialogFrame({
   titleId,
   onClose,
   closeLabel = "Close",
+  panelClassName,
   children,
 }: {
   size?: "confirm" | "form";
@@ -104,6 +105,8 @@ export function HouseDialogFrame({
   titleId?: string;
   onClose?: () => void;
   closeLabel?: string;
+  /** An instance's own panel geometry, merged over the house panel. */
+  panelClassName?: string;
   children: ReactNode;
 }) {
   return (
@@ -118,6 +121,7 @@ export function HouseDialogFrame({
           "relative z-10",
           HOUSE_DIALOG_PANEL_CLASS,
           size === "confirm" ? HOUSE_DIALOG_CONFIRM_CLASS : HOUSE_DIALOG_FORM_CLASS,
+          panelClassName,
         )}
       >
         {children}

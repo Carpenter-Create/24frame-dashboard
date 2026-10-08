@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { useHouseClient } from "@/components/chrome/house-client-shell";
+import { HouseLink } from "@/components/chrome/house-link";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,7 +83,20 @@ import {
   runSocialOptimisticMutation,
 } from "@/lib/social-optimistic";
 import { cn } from "@/lib/cn";
-import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
+import { SOCIAL_ICON_SIZE_HEADER, SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
+import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
+import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
+import {
+  SOCIAL_WRITE_COMPOSE_DIALOG_AVATAR_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_BODY_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_COLUMN_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_FORM_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_HEAD_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_POST_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_PREVIEW_CLASS,
+  SOCIAL_WRITE_COMPOSE_DIALOG_TOOLS_CLASS,
+} from "@/lib/social-write-compose-sheet";
 import { SocialAvatar } from "./social-avatar";
 import { SocialIcon } from "./social-icon";
 import { FormError } from "./social-form-error";
@@ -477,7 +491,8 @@ export function SocialCreateCompose({
   authorPhotoUrl?: string | null;
   initialKind?: SocialCreateKind | null;
   initialStep?: SocialCreateMediaStep | null;
-  presentation?: "page" | "sheet";
+  /** "dialog": the desktop window (social-desktop-create-composer-lock-v1). */
+  presentation?: "page" | "sheet" | "dialog";
   autoFocusBody?: boolean;
   onDismiss?: () => void;
 }) {
@@ -547,7 +562,8 @@ export function SocialCreateCompose({
   }
 
   useEffect(() => {
-    if (presentation === "sheet") return undefined;
+    // The page alone fills the viewport; the sheet and the window size themselves.
+    if (presentation !== "page") return undefined;
     const form = writeFormRef.current;
     if (!form) return undefined;
     return bindSocialWriteComposeViewport(form, () => {
@@ -895,6 +911,170 @@ export function SocialCreateCompose({
               });
             },
           }));
+    const submitWrite = (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (uploading) return;
+      ingestSpeechLearning({
+        text: body,
+        source: "typed",
+        workspace: "social",
+      });
+      publishOptimisticPost({
+        body,
+        media,
+        previews,
+        authorName,
+        authorHandle,
+        authorPhotoUrl,
+        onNavigate: () => {
+          if (onDismiss) {
+            onDismiss();
+            return;
+          }
+          router.push(SOCIAL_ROUTES.home);
+        },
+        setError,
+      });
+    };
+    const attachInput = (
+      <input
+        ref={fileRef}
+        type="file"
+        accept={SOCIAL_MEDIA_ACCEPT}
+        multiple
+        className="sr-only"
+        data-social-create-attach-input=""
+        aria-label={SOCIAL.home.attach}
+        onChange={(event) => void onPick(event.target.files)}
+      />
+    );
+
+    // Desktop window (docs/design-locks/social-desktop-create-composer-lock-v1.md,
+    // Adam 2026-10-08, "Open the composer"): close, then the avatar beside
+    // the field, the media under it, and the tool row (Media, Go live, Post).
+    if (presentation === "dialog") {
+      return (
+        <form
+          ref={writeFormRef}
+          data-social-create-form=""
+          data-social-create-kind="text"
+          data-social-write-compose-presentation="dialog"
+          className={SOCIAL_WRITE_COMPOSE_DIALOG_FORM_CLASS}
+          onSubmit={submitWrite}
+        >
+          <div className={SOCIAL_WRITE_COMPOSE_DIALOG_HEAD_CLASS}>
+            <button
+              type="button"
+              data-social-create-dismiss=""
+              aria-label={SOCIAL.create.close}
+              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
+              onClick={() => onDismiss?.()}
+            >
+              <SocialIcon name="x" size={SOCIAL_ICON_SIZE_HEADER} />
+            </button>
+          </div>
+          <div className={SOCIAL_WRITE_COMPOSE_DIALOG_BODY_CLASS} data-social-create-author="">
+            <SocialAvatar
+              name={authorName}
+              photoUrl={authorPhotoUrl}
+              size="sm"
+              className={SOCIAL_WRITE_COMPOSE_DIALOG_AVATAR_CLASS}
+            />
+            <div className={SOCIAL_WRITE_COMPOSE_DIALOG_COLUMN_CLASS}>
+              <label className="sr-only" htmlFor="social-create-body">
+                {SOCIAL.home.composerPrompt}
+              </label>
+              <Textarea
+                ref={writeBodyRef}
+                variant="bare"
+                id="social-create-body"
+                name="body"
+                rows={1}
+                value={body}
+                onChange={(e) => {
+                  setBody(e.target.value);
+                  fitSocialWriteComposeField(e.currentTarget);
+                }}
+                placeholder={SOCIAL.home.composerPrompt}
+                autoFocus={autoFocusBody}
+                className={SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS}
+              />
+              {previewSlots.length > 0 ? (
+                <ul data-social-create-preview="" className="flex flex-col gap-[var(--space-2)]">
+                  {previewSlots.map((slot) => (
+                    <li key={slot.id}>
+                      <div className={SOCIAL_WRITE_COMPOSE_DIALOG_PREVIEW_CLASS}>
+                        {slot.url && slot.kind === "video" ? (
+                          <SocialComposeVideoPreview
+                            src={slot.url}
+                            onPixels={
+                              locals.length > 0 ? (pixels) => publishComposePixels(slot.id, pixels) : undefined
+                            }
+                          />
+                        ) : slot.url ? (
+                          <Image
+                            src={slot.url}
+                            alt={SOCIAL.home.photoKind}
+                            fill
+                            unoptimized
+                            sizes="600px"
+                            className="object-cover"
+                          />
+                        ) : null}
+                        {slot.progress !== null ? (
+                          <SocialComposeUploadProgress percent={slot.progress} />
+                        ) : null}
+                        <button
+                          type="button"
+                          aria-label={SOCIAL.home.removeAttach}
+                          className={cn(
+                            HOUSE_HEADER_ROUND_BUTTON_CLASS,
+                            "absolute right-[var(--space-2)] top-[var(--space-2)] z-10",
+                          )}
+                          onClick={slot.onRemove}
+                        >
+                          <SocialIcon name="x" size={SOCIAL_ICON_SIZE_HEADER} />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </div>
+          <div className={SOCIAL_WRITE_COMPOSE_DIALOG_TOOLS_CLASS} data-social-write-compose-tools="">
+            <button
+              type="button"
+              data-social-create-attach="library"
+              aria-label={SOCIAL.home.attach}
+              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
+              disabled={media.length >= SOCIAL_MEDIA_MAX_ITEMS || uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              <SocialIcon name="image" size={SOCIAL_ICON_SIZE_HEADER} />
+            </button>
+            <HouseLink
+              href={SOCIAL_ROUTES.createLive}
+              data-social-create-live=""
+              aria-label={SOCIAL.create.goLive}
+              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
+              onClick={() => {
+                rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+                onDismiss?.();
+              }}
+            >
+              <SocialIcon name="broadcast" size={SOCIAL_ICON_SIZE_HEADER} />
+            </HouseLink>
+            <Button type="submit" disabled={uploading} className={SOCIAL_WRITE_COMPOSE_DIALOG_POST_CLASS}>
+              {SOCIAL.home.submit}
+            </Button>
+          </div>
+          {attachInput}
+          <FormError error={formError} />
+        </form>
+      );
+    }
+
     return (
       <form
         ref={writeFormRef}
@@ -906,31 +1086,7 @@ export function SocialCreateCompose({
           presentation === "sheet" ? SOCIAL_WRITE_COMPOSE_SHEET_FORM_CLASS : SOCIAL_WRITE_COMPOSE_HOST_CLASS,
           presentation === "sheet" ? undefined : SOCIAL_STORY_STAGE_IN_CLASS,
         )}
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (uploading) return;
-          ingestSpeechLearning({
-            text: body,
-            source: "typed",
-            workspace: "social",
-          });
-          publishOptimisticPost({
-            body,
-            media,
-            previews,
-            authorName,
-            authorHandle,
-            authorPhotoUrl,
-            onNavigate: () => {
-              if (onDismiss) {
-                onDismiss();
-                return;
-              }
-              router.push(SOCIAL_ROUTES.home);
-            },
-            setError,
-          });
-        }}
+        onSubmit={submitWrite}
       >
         <div className={presentation === "sheet" ? SOCIAL_WRITE_COMPOSE_SHEET_CHROME_CLASS : SOCIAL_WRITE_COMPOSE_CHROME_CLASS}>
           <button

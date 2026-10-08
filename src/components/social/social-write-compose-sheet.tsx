@@ -13,6 +13,7 @@ import { SocialCreateCompose } from "@/components/social/social-create-compose";
 import { SOCIAL } from "@/lib/social";
 import {
   bindSocialWriteComposeSheetViewport,
+  SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS,
   SOCIAL_WRITE_COMPOSE_SHEET_DESKTOP_BODY_CLASS,
   SOCIAL_WRITE_COMPOSE_SHEET_HOST_CLASS,
   SOCIAL_WRITE_COMPOSE_SHEET_PRESENTATION,
@@ -68,7 +69,7 @@ export function SocialWriteComposeSheet({
       authorHandle={authorHandle}
       authorPhotoUrl={authorPhotoUrl}
       initialKind="text"
-      presentation="sheet"
+      presentation={desktop ? "dialog" : "sheet"}
       autoFocusBody
       onDismiss={onClose}
     />
@@ -86,6 +87,7 @@ export function SocialWriteComposeSheet({
       label={SOCIAL.create.title}
       onClose={onClose}
       closeLabel={SOCIAL.create.close}
+      panelClassName={SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS}
     >
       <div
         data-social-write-compose-sheet=""

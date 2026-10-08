@@ -724,6 +724,8 @@ function SideNavFromChrome({
       workspace={clampWorkspaceMode(workspace, data.isGcStaff)}
       homeOwned={homeOwned}
       messagesUnread={messagesUnread}
+      composerName={data.name}
+      composerPhotoUrl={data.photoUrl}
     />
   );
 }

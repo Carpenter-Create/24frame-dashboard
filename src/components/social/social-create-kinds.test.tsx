@@ -92,8 +92,10 @@ describe("Social create kinds", () => {
     expect(write).toContain(SOCIAL_STORY_STAGE_IN_CLASS);
     expect(write).toContain(SOCIAL.home.submit);
     expect(write).not.toContain("autofocus");
-    expect(src.indexOf("data-social-create-preview")).toBeLessThan(src.indexOf('id="social-create-body"'));
-    expect(src.indexOf("data-social-write-compose-row")).toBeLessThan(src.indexOf('id="social-create-body"'));
+    // The sheet and the page (the desktop window sets the field first, its own lock).
+    const sheetSrc = src.slice(src.indexOf('data-social-write-voice=""'));
+    expect(sheetSrc.indexOf("data-social-create-preview")).toBeLessThan(sheetSrc.indexOf('id="social-create-body"'));
+    expect(sheetSrc.indexOf("data-social-write-compose-row")).toBeLessThan(sheetSrc.indexOf('id="social-create-body"'));
     expect(src).not.toContain('presentation="footer"');
     expect(src).not.toContain('presentation="hero"');
     expect(src).not.toContain("data-social-write-voice-stage");
@@ -141,9 +143,11 @@ describe("Social create kinds", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     expect(css).toContain("body:has([data-social-write-compose])");
     expect(css).toContain("#vercel-toolbar");
-    const dismiss = src.slice(
-      src.indexOf("data-social-create-dismiss"),
-      src.indexOf("data-social-create-author"),
+    // The page's close (the desktop window's close only closes the window).
+    const pageSrc = src.slice(src.indexOf('data-social-write-voice=""'));
+    const dismiss = pageSrc.slice(
+      pageSrc.indexOf("data-social-create-dismiss"),
+      pageSrc.indexOf("data-social-create-author"),
     );
     expect(dismiss).toContain("leaveSocialWriteCompose");
     expect(dismiss).toContain("navigateOwned(SOCIAL_ROUTES.home)");

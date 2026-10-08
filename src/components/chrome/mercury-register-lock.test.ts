@@ -118,7 +118,7 @@ describe("Adam Mercury register lock", () => {
     expect(composer).toContain('icon="image"');
     expect(composer).toContain('icon="camera"');
     expect(composer).not.toContain('icon="broadcast"');
-    expect(src("src/components/social/social-create-sheet.tsx")).toContain("SocialIcon");
+    expect(src("src/components/social/social-create-compose.tsx")).toContain("SocialIcon");
     expect(src("src/components/chrome/house-lead-search.tsx")).toContain("MagnifyingGlass");
     expect(src("src/components/chrome/house-lead-search.tsx")).not.toContain("lucide-react");
     expect(src("src/components/chrome/house-lead-search.tsx")).not.toContain("SocialIcon");

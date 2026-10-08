@@ -172,11 +172,14 @@ describe("SideNav — one rail pattern on every workspace (Coinbase register)", 
       const html = render("/social", "social", { collapsed });
       expect(html).not.toContain("data-side-nav-create-tile");
       expect(html).not.toMatch(ACCENT_FILL);
-      const create = html.slice(html.indexOf('data-social-create-sheet="dest"'));
-      const button = html.slice(html.lastIndexOf("<button", html.indexOf('data-social-create-sheet="dest"')), html.indexOf("</button>", html.indexOf('data-social-create-sheet="dest"')));
+      const create = html.slice(html.indexOf('data-social-create-compose="dest"'));
+      const button = html.slice(html.lastIndexOf("<button", html.indexOf('data-social-create-compose="dest"')), html.indexOf("</button>", html.indexOf('data-social-create-compose="dest"')));
       expect(create.length).toBeGreaterThan(0);
       expect(button).toContain(collapsed ? HOUSE_DEST_RAIL_ROW_COLLAPSED_CLASS : HOUSE_DEST_RAIL_ROW_CLASS);
       expect(button).toContain(HOUSE_DEST_RAIL_IDLE_CLASS);
+      // It opens the composer window (a dialog), not a chooser.
+      expect(button).toContain('aria-haspopup="dialog"');
+      expect(button).toContain('aria-expanded="false"');
     }
     const agg = render("/aggregation/dashboard", "aggregation");
     expect(agg).not.toMatch(ACCENT_FILL);

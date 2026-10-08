@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-01
 **Status:** **LOCKED** · Adam course-correct · phone dock + drops the Create sheet
+**Amended 2026-10-08:** [`social-desktop-create-composer-lock-v1.md`](social-desktop-create-composer-lock-v1.md) (Adam, "Open the composer"). Desktop Create no longer opens the Create dialog: it opens the composer window, with Media and Go live in its tool row. The phone fan is unchanged.
 **Arc:** 2026-10-01 tighten · Adam PASS · 90° cluster over the +, scrim and label pills stay
 **Route:** 2026-10-01 Go live opens `/social/live` directly. It is not a child of write compose.
 **Supersedes:** the bottom-nav + row in `share-something-text-write-direct-lock-v1.md`, `share-something-write-compose-sheet-lock-v1.md`, and `write-compose-immersive-icons-lock-v1.md`. Share something, Photo, and Camera stay on those locks.
@@ -21,7 +22,7 @@ Tapping the floating dock **+** fans **Media · Write · Go live** in a tight ar
 | Motion | Scale out from the + and back. The scrim fades with the fan. Reduced motion skips the transition |
 | Other dock items | Feed (was Home), Explore, Messages, Profile stay |
 | Dock + face | Accent circle (`bg-accent text-accent-contrast`) inside the pill — [`shell-unified-chrome-lock-v1.md`](shell-unified-chrome-lock-v1.md), Adam 2026-10-04. A 2px accent ring marks it on its own route. The fan circles stay surface |
-| Desktop rail Create | Existing Create dialog stays. This lock is the phone dock |
+| Desktop rail Create | *(Superseded 2026-10-08: opens the composer window, [`social-desktop-create-composer-lock-v1.md`](social-desktop-create-composer-lock-v1.md).)* This lock is the phone dock |
 | Home composer | Share something, Photo, and Camera stay. They do not open this fan |
 
 ## Explicit OUT

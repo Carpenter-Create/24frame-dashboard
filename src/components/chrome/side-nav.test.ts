@@ -80,9 +80,9 @@ describe("SideNav Access rail", () => {
     expect(navSrc).toContain("Aggregation: VIEWPORT prefetch off, HOVER prefetch on");
     expect(navSrc).toContain("Social: VIEWPORT prefetch on");
     expect(navSrc).toContain("same five");
-    expect(navSrc).toContain("SocialCreateSheet");
+    expect(navSrc).toContain("SocialRailCreate");
     expect(navSrc).toContain("isSocialCreateDest");
-    expect(navSrc).toContain('data-social-create-sheet="dest"');
+    expect(navSrc).toContain('data-social-create-compose="dest"');
     expect(navSrc).toContain("useSocialNavPending");
     expect(navSrc).toContain("SocialNavPendingProbe");
     expect(navSrc).toContain("data-social-rail-pending");
@@ -101,7 +101,7 @@ describe("SideNav Access rail", () => {
     expect(navSrc).toContain("HOUSE_DEST_RAIL_LABEL_CLASS");
     expect(navSrc).toContain("data-side-nav-icon");
     expect(navSrc).toContain("className={rowClass}");
-    expect(navSrc).toContain('data-social-create-sheet="dest"');
+    expect(navSrc).toContain('data-social-create-compose="dest"');
     // No accent fill on any row; the current row is the wash.
     expect(HOUSE_DEST_RAIL_ROW_CLASS).not.toMatch(/(?:^|[\s"])bg-accent(?:[\s"]|$)/);
     expect(HOUSE_DEST_RAIL_IDLE_CLASS).not.toContain("accent");

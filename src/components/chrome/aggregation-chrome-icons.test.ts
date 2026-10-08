@@ -87,7 +87,7 @@ describe("Aggregation chrome Phosphor lock + Design miss list", () => {
     expect(socialComposer).toContain('icon="camera"');
     expect(socialComposer).not.toContain('icon="broadcast"');
     expect(socialComposer).not.toContain('from "lucide-react"');
-    expect(readFileSync("src/components/social/social-create-sheet.tsx", "utf8")).toContain("SocialIcon");
+    expect(readFileSync("src/components/social/social-create-compose.tsx", "utf8")).toContain("SocialIcon");
     expect(leadSearch).toContain("MagnifyingGlass");
     expect(leadSearch).not.toContain('from "lucide-react"');
     expect(leadSearch).not.toContain("SocialIcon");

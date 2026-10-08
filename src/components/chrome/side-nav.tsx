@@ -3,7 +3,7 @@
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
-import { SocialCreateSheet } from "@/components/social/social-create-sheet";
+import { SocialRailCreate } from "@/components/social/social-rail-create";
 import {
   isSocialCreateDest,
   isSocialMessagesDest,
@@ -58,6 +58,8 @@ export function SideNav({
   workspace: requestedWorkspace = "aggregation",
   homeOwned = false,
   messagesUnread = 0,
+  composerName = null,
+  composerPhotoUrl = null,
 }: {
   isGcStaff?: boolean;
   collapsed?: boolean;
@@ -66,6 +68,9 @@ export function SideNav({
   homeOwned?: boolean;
   /** Social DM unread total: the Messages row's dot and accessible name. */
   messagesUnread?: number;
+  /** Social Create's composer author: the shell's account name and photo. */
+  composerName?: string | null;
+  composerPhotoUrl?: string | null;
 }) {
   const workspace = clampWorkspaceMode(requestedWorkspace, isGcStaff);
   const social = workspace === "social";
@@ -118,15 +123,17 @@ export function SideNav({
     const name = unread ? socialMessagesNavLabel(item.label, messagesUnread) : undefined;
     if (create) {
       return (
-        <SocialCreateSheet
+        <SocialRailCreate
           key={item.href}
+          authorName={composerName}
+          authorPhotoUrl={composerPhotoUrl}
           trigger={
             <button
               type="button"
               title={collapsed ? item.label : undefined}
               aria-label={item.ariaLabel ?? item.label}
               aria-current={active ? "page" : undefined}
-              data-social-create-sheet="dest"
+              data-social-create-compose="dest"
               className={rowClass}
             >
               {glyph}
@@ -147,7 +154,7 @@ export function SideNav({
         // about to click. Deduped per href so re-hovering does not re-fire.
         // Social: VIEWPORT prefetch on. Desktop rail is the same five
         // SOCIAL_NAV dests plus local loading.tsx — not the Aggregation
-        // dashboard skeleton. Create opens the equal-tile sheet.
+        // dashboard skeleton. Create opens the composer window.
         prefetch={social}
         onMouseEnter={social ? undefined : () => warm(item.href)}
         onFocus={social ? undefined : () => warm(item.href)}

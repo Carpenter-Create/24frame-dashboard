@@ -258,7 +258,9 @@ export const MENU_PARKED_SURFACES: readonly MenuParkedSurface[] = [
   },
   {
     id: "social-odd-menus",
-    file: "src/components/social/social-create-sheet.tsx",
+    // The desktop Create chooser is gone (Create opens the composer); the
+    // phone dock's fan is the Create chooser left.
+    file: "src/components/social/social-create-fan.tsx",
     plan: "Park until found. Same rule when classified: A action, B settings nav, C single choice, D destinations.",
   },
 ];
