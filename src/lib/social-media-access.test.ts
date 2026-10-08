@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   socialMediaJsonContains,
@@ -450,9 +452,22 @@ describe("socialMuxPlaybackReadGrant", () => {
   });
 });
 
+function scansQuery(result: { data: unknown; error: { code?: string; message?: string } | null }) {
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    limit: vi.fn(async () => result),
+  };
+  return query;
+}
+
 describe("viewerMayMintSocialMuxPlayback", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
+    vi.mocked(createAdminClient).mockReset();
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() => scansQuery({ data: [], error: { code: "42P01", message: "relation does not exist" } })),
+    } as never);
   });
 
   it("mints only when a selectable row stores the playback id", async () => {
@@ -480,6 +495,37 @@ describe("viewerMayMintSocialMuxPlayback", () => {
     } as never);
     await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
     await expect(viewerMayMintSocialMuxPlayback(USER, "short", NOW)).resolves.toBe(false);
+  });
+
+  it("refuses someone else's playback until an allowed music scan exists", async () => {
+    const stories = chain({
+      data: [{ author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
+    });
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "posts") return chain({ data: [] });
+        if (table === "stories") return stories;
+        return chain({ data: [{ followee_id: OTHER }] });
+      }),
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() => scansQuery({ data: [], error: null })),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({ data: [{ playback_id: PLAYBACK, status: "blocked" }], error: null }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({ data: [{ playback_id: PLAYBACK, status: "allowed" }], error: null }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
   });
 
   it("never queries messages while deciding a mux playback grant", async () => {

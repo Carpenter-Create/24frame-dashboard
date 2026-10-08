@@ -49,6 +49,45 @@ export type MusicIdentifyResult =
 
 export type MusicScanDecision = "allow" | "block" | "retry";
 
+/** Each identify call is one 12s window. Eight windows is the Phase 0 cap. */
+export const MUSIC_SCAN_WINDOW_SECONDS = 12;
+export const MUSIC_SCAN_MAX_WINDOWS = 8;
+
+export type MusicScanWindow = { startSeconds: number; endSeconds: number };
+
+/** Evenly spaced windows across the asset. Unknown duration is the first window only. */
+export function musicScanWindows(durationSeconds: number | null | undefined): MusicScanWindow[] {
+  const span = MUSIC_SCAN_WINDOW_SECONDS;
+  if (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    return [{ startSeconds: 0, endSeconds: span }];
+  }
+  if (durationSeconds <= span) return [{ startSeconds: 0, endSeconds: durationSeconds }];
+  const count = Math.min(MUSIC_SCAN_MAX_WINDOWS, Math.ceil(durationSeconds / span));
+  const lastStart = durationSeconds - span;
+  const windows: MusicScanWindow[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const start = count === 1 ? 0 : (index * lastStart) / (count - 1);
+    const startSeconds = Math.round(start * 1000) / 1000;
+    windows.push({
+      startSeconds,
+      endSeconds: Math.round((startSeconds + span) * 1000) / 1000,
+    });
+  }
+  return windows;
+}
+
+/** Block on the highest finite music score. Any window error retries the scan. */
+export function combineMusicWindowResults(results: readonly MusicIdentifyResult[]): MusicIdentifyResult {
+  if (results.length === 0) return { kind: "error", code: "missing_score", retryable: true };
+  const error = results.find((result) => result.kind === "error");
+  if (error) return error;
+  const matches = results.filter((result) => result.kind === "match");
+  if (matches.length === 0) {
+    return results.find((result) => result.kind === "no_match") ?? { kind: "no_match", code: 1001 };
+  }
+  return matches.reduce((best, row) => (row.score > best.score ? row : best));
+}
+
 export type MusicStaffPriority = "confident" | "spot_check";
 
 export interface MusicFingerprintAdapter {
@@ -82,13 +121,68 @@ export function decideMusicScan(input: {
   const blockScore = input.config?.blockScore ?? musicScanConfig.blockScore;
   if (input.result.kind === "error") return "retry";
   if (input.result.kind === "no_match") return "allow";
+  if (!Number.isFinite(input.result.score)) return "retry";
   if (input.result.score >= blockScore) return "block";
   return "allow";
 }
 
+export type SocialMuxMediaRef = {
+  kind?: string;
+  provider?: string;
+  assetId?: string | null;
+  playbackId?: string | null;
+};
+
+export type SocialMusicScanRef = {
+  assetId: string;
+  playbackId: string;
+  status: MusicScanVisibility;
+};
+
+const SOCIAL_MUSIC_MUX_ID = /^[A-Za-z0-9_-]{8,120}$/;
+
 /**
- * Other viewers see the video only when every scan is allowed.
- * No scan (legacy upload, still, or text) is visible.
+ * A Mux video is visible to other people only when this parent has an
+ * allowed scan for that asset and playback id. No row, a pending row, a
+ * blocked row, or an id that cannot be scanned stays hidden. Stills and
+ * text do not need a scan. Same rule as private.social_video_released.
+ */
+export function muxItemReleasedToOthers(
+  item: SocialMuxMediaRef,
+  scans: readonly SocialMusicScanRef[],
+): boolean {
+  if (item.kind !== "video" || item.provider !== "mux") return true;
+  const assetId = item.assetId?.trim() ?? "";
+  const playbackId = item.playbackId?.trim() ?? "";
+  if (!SOCIAL_MUSIC_MUX_ID.test(assetId) || !SOCIAL_MUSIC_MUX_ID.test(playbackId)) return false;
+  const rows = scans.filter((scan) => scan.assetId === assetId && scan.playbackId === playbackId);
+  return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
+}
+
+/**
+ * Playback mint for someone else's video. Allowed only when every scan for
+ * this playback id is allowed. No row is not a release.
+ */
+export function socialMuxPlaybackMusicReleased(
+  playbackId: string,
+  scans: readonly { playbackId: string; status: MusicScanVisibility }[],
+): boolean {
+  const rows = scans.filter((scan) => scan.playbackId === playbackId);
+  return rows.length > 0 && rows.every((scan) => scan.status === "allowed");
+}
+
+/** Other viewers see the parent only when every Mux video on it is allowed. */
+export function socialParentVisibleToOthers(
+  media: readonly SocialMuxMediaRef[],
+  scans: readonly SocialMusicScanRef[],
+): boolean {
+  return media.every((item) => muxItemReleasedToOthers(item, scans));
+}
+
+/**
+ * True when every scan already loaded for this parent is allowed.
+ * An empty list means the caller found no row. Mux release is
+ * socialParentVisibleToOthers: a Mux video with no allowed scan stays hidden.
  */
 export function socialVideoVisibleToOthers(
   scans: readonly { status: MusicScanVisibility }[],

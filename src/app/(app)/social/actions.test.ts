@@ -52,6 +52,7 @@ vi.mock("@/lib/s3-social-media", () => ({
 vi.mock("@/lib/social-mux-server", () => ({
   createSocialMuxDirectUpload: vi.fn(),
   finalizeSocialMuxDirectUpload: vi.fn(),
+  verifySocialMuxPublishedItems: vi.fn(async () => true),
   socialMuxSettingsFromUploadInput: vi.fn(() => ({
     intent: "video",
     settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
@@ -939,6 +940,8 @@ describe("social actions", () => {
         contentType: "video/mp4" as const,
         provider: "mux" as const,
         playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+        uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+        assetId: "SqQnqz6s5MBuXGvJaUWdXu",
         playbackPolicy: "signed" as const,
       },
     ];
@@ -1386,6 +1389,8 @@ describe("social actions", () => {
         contentType: "video/mp4" as const,
         provider: "mux" as const,
         playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+        uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+        assetId: "SqQnqz6s5MBuXGvJaUWdXu",
         playbackPolicy: "signed" as const,
       },
     ];

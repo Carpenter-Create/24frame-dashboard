@@ -218,6 +218,40 @@ describe("processMusicScan", () => {
     });
   });
 
+  it("polls when the rendition request says it already exists", async () => {
+    const run = deps({
+      loadAsset: async () => ({ status: "ready", static_renditions: { files: [] } }),
+      requestAudioRendition: async () => {
+        throw Object.assign(new Error("Static rendition already exists"), { status: 400 });
+      },
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("waiting");
+    expect(run.saves[0]).toMatchObject({ status: "pending" });
+    expect(run.saves[0]?.attemptCount).toBeUndefined();
+  });
+
+  it("retries a transient rendition request error", async () => {
+    const run = deps({
+      loadAsset: async () => ({ status: "ready", static_renditions: { files: [] } }),
+      requestAudioRendition: async () => {
+        throw Object.assign(new Error("Mux request failed (503)"), { status: 503 });
+      },
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("retried");
+    expect(run.saves[0]).toMatchObject({ status: "pending", attemptCount: 1, lastError: "mux_rendition_request" });
+  });
+
+  it("holds a skipped audio rendition instead of allowing it", async () => {
+    const run = deps({
+      loadAsset: async () => ({
+        status: "ready",
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("retried");
+    expect(run.saves[0]).toMatchObject({ status: "pending", lastError: "mux_audio_errored", attemptCount: 1 });
+  });
+
   it("retries a download failure and an identify throw", async () => {
     const download = deps({
       downloadAudio: async () => {
@@ -235,21 +269,116 @@ describe("processMusicScan", () => {
     await expect(processMusicScan(scan(), thrown)).resolves.toBe("retried");
     expect(thrown.saves[0]?.lastError).toBe("identify_threw");
   });
+
+  it("keeps empty audio pending", async () => {
+    const run = deps({ downloadAudio: async () => new Uint8Array() });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("retried");
+    expect(run.saves[0]).toMatchObject({ status: "pending", lastError: "empty_audio", attemptCount: 1 });
+  });
+
+  it("blocks on the highest score across windows", async () => {
+    const scores = [10, 40, 24];
+    const run = deps({
+      loadAsset: async () => ({ ...READY, duration: 30 }),
+      identify: async () => {
+        const score = scores.shift() ?? 0;
+        return {
+          kind: "match",
+          code: 0,
+          score,
+          title: "Fixture Track",
+          artist: "Fixture Artist",
+          album: null,
+          acrid: null,
+          isrc: null,
+          label: null,
+        };
+      },
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("blocked");
+    expect(run.saves[0]).toMatchObject({ status: "blocked", vendorScore: 40 });
+  });
 });
 
 describe("runSocialMusicBatch", () => {
   it("continues after a thrown save", async () => {
     const pending = [scan({ id: "a" }), scan({ id: "b" })];
+    const patches: MusicScanPatch[] = [];
     let calls = 0;
     const run = deps({
       now: new Date(),
       listPending: async () => pending,
-      save: async () => {
+      save: async (_id, patch) => {
         calls += 1;
+        patches.push(patch);
         if (calls === 1) throw new Error("write failed");
       },
     });
     const summary = await runSocialMusicBatch(run);
-    expect(summary).toMatchObject({ checked: 2, failed: 1, allowed: 1 });
+    expect(summary).toMatchObject({ checked: 2, failed: 0, retried: 1, allowed: 1 });
+    expect(patches.some((patch) => patch.lastError === "scan_threw" && patch.attemptCount === 1)).toBe(true);
+  });
+
+  it("advances eight throwing asset reads and still scans a healthy row", async () => {
+    const pending = [
+      ...Array.from({ length: 8 }, (_, index) => scan({ id: `bad-${index}`, assetId: `poison${index}123456` })),
+      scan({ id: "ok", assetId: "asset12345678" }),
+    ];
+    const run = deps({
+      now: new Date(),
+      listPending: async () => pending,
+      loadAsset: async (assetId) => {
+        if (assetId.startsWith("poison")) throw new Error("mux down");
+        return READY;
+      },
+    });
+    const summary = await runSocialMusicBatch(run);
+    expect(summary).toMatchObject({ checked: 9, retried: 8, allowed: 1, failed: 0 });
+    expect(run.saves.filter((patch) => patch.lastError === "mux_asset_read")).toHaveLength(8);
+  });
+
+  it("does not scan again or flip a blocked decision on a second pass", async () => {
+    const stored = { status: "pending" as "pending" | "allowed" | "blocked" };
+    let identifies = 0;
+    const identify = async (): Promise<MusicIdentifyResult> => {
+      identifies += 1;
+      return {
+        kind: "match",
+        code: 0,
+        score: 100,
+        title: "Fixture Track",
+        artist: "Fixture Artist",
+        album: null,
+        acrid: null,
+        isrc: null,
+        label: null,
+      };
+    };
+    const save = async (_id: string, patch: MusicScanPatch) => {
+      if (stored.status !== "pending") return;
+      if (patch.status) stored.status = patch.status;
+    };
+    const first = deps({ now: new Date(), listPending: async () => [scan()], identify, save });
+    const blocked = await runSocialMusicBatch(first);
+    expect(blocked.blocked).toBe(1);
+    expect(stored.status).toBe("blocked");
+    expect(identifies).toBe(1);
+
+    const second = deps({
+      now: new Date(),
+      listPending: async () => (stored.status === "pending" ? [scan()] : []),
+      identify: async () => {
+        identifies += 1;
+        return { kind: "no_match", code: 1001 };
+      },
+      save,
+    });
+    const again = await runSocialMusicBatch(second);
+    expect(again.checked).toBe(0);
+    expect(identifies).toBe(1);
+    expect(stored.status).toBe("blocked");
+
+    await processMusicScan(scan(), second);
+    expect(stored.status).toBe("blocked");
   });
 });

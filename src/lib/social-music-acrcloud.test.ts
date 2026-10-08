@@ -141,6 +141,17 @@ describe("normalizeAcrCloudBody", () => {
     });
   });
 
+  it("does not treat a string or NaN score as a pass under 25", () => {
+    for (const score of ["24", "100", Number.NaN]) {
+      const result = normalizeAcrCloudBody({
+        status: { code: 0, msg: "Success" },
+        metadata: { music: [{ title: "Fixture", score: score as unknown as number }] },
+      });
+      expect(result).toEqual({ kind: "error", code: "missing_score", retryable: true });
+      expect(decideMusicScan({ result })).toBe("retry");
+    }
+  });
+
   it("retries known ACRCloud error codes", () => {
     for (const code of [2004, 2005, 3001, 3014]) {
       expect(normalizeAcrCloudBody({ status: { code, msg: "error" } })).toEqual({

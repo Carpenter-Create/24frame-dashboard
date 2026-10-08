@@ -1,15 +1,19 @@
 import {
+  combineMusicWindowResults,
   decideMusicScan,
   MUSIC_SCAN_MAX_ATTEMPTS,
   MUSIC_SCAN_PREP_DELAY_MS,
   musicScanBackoff,
   musicScanLatencyLine,
+  musicScanWindows,
   musicStaffPriority,
   type MusicIdentifyResult,
   type MusicMatchFields,
+  type MusicScanWindow,
   type MusicStaffPriority,
 } from "@/lib/social-music-scan";
 import {
+  muxAudioRenditionRequestSettled,
   muxAudioRenditionState,
   type MuxAudioAsset,
 } from "@/lib/social-music-audio";
@@ -59,7 +63,7 @@ export type SocialMusicRunDeps = {
   listPending: () => Promise<PendingMusicScan[]>;
   loadAsset: (assetId: string) => Promise<MuxAudioAsset>;
   requestAudioRendition: (assetId: string) => Promise<void>;
-  downloadAudio: (playbackId: string) => Promise<Uint8Array>;
+  downloadAudio: (playbackId: string, window: MusicScanWindow) => Promise<Uint8Array>;
   identify: (audio: Uint8Array) => Promise<MusicIdentifyResult>;
   save: (id: string, patch: MusicScanPatch) => Promise<void>;
   log?: (line: ReturnType<typeof musicScanLatencyLine>) => void;
@@ -129,7 +133,12 @@ export async function processMusicScan(
   const nowIso = deps.now.toISOString();
   let muxReadyAt = scan.muxReadyAt;
 
-  const asset = await deps.loadAsset(scan.assetId);
+  let asset: MuxAudioAsset;
+  try {
+    asset = await deps.loadAsset(scan.assetId);
+  } catch {
+    return fail(scan, deps, "mux_asset_read", muxReadyAt);
+  }
   const state = muxAudioRenditionState(asset);
   if (asset.status === "ready" && !muxReadyAt) muxReadyAt = nowIso;
 
@@ -170,8 +179,11 @@ export async function processMusicScan(
   if (state === "rendition_missing") {
     try {
       await deps.requestAudioRendition(scan.assetId);
-    } catch {
-      return fail(scan, deps, "mux_rendition_request", muxReadyAt);
+    } catch (error) {
+      // Already exists or in progress: poll. Transient errors retry.
+      if (!muxAudioRenditionRequestSettled(error)) {
+        return fail(scan, deps, "mux_rendition_request", muxReadyAt);
+      }
     }
     await deps.save(scan.id, {
       status: "pending",
@@ -204,27 +216,33 @@ export async function processMusicScan(
     return "waiting";
   }
 
+  // Skipped or missing audio stays pending. Phase 0 does not allow it.
+  // After the attempt cap the staff queue shows Unfinished.
   if (state === "rendition_errored") {
     return fail(scan, deps, "mux_audio_errored", muxReadyAt);
   }
 
   const scanStartedAt = scan.scanStartedAt ?? nowIso;
-  let audio: Uint8Array;
-  try {
-    audio = await deps.downloadAudio(scan.playbackId);
-  } catch {
-    return fail(scan, deps, "mux_audio_read", muxReadyAt, scanStartedAt);
+  const windows = musicScanWindows(asset.duration);
+  const windowResults: MusicIdentifyResult[] = [];
+  for (const window of windows) {
+    let audio: Uint8Array;
+    try {
+      audio = await deps.downloadAudio(scan.playbackId, window);
+    } catch {
+      return fail(scan, deps, "mux_audio_read", muxReadyAt, scanStartedAt);
+    }
+    // Empty audio stays pending. A later window must not allow the clip.
+    if (audio.byteLength === 0) {
+      return fail(scan, deps, "empty_audio", muxReadyAt, scanStartedAt);
+    }
+    try {
+      windowResults.push(await deps.identify(audio));
+    } catch {
+      windowResults.push({ kind: "error", code: "identify_threw", retryable: true });
+    }
   }
-  if (audio.byteLength === 0) {
-    return fail(scan, deps, "empty_audio", muxReadyAt, scanStartedAt);
-  }
-
-  let result: MusicIdentifyResult;
-  try {
-    result = await deps.identify(audio);
-  } catch {
-    result = { kind: "error", code: "identify_threw", retryable: true };
-  }
+  const result = combineMusicWindowResults(windowResults);
   const decision = decideMusicScan({ result });
   if (decision === "retry") {
     const code = result.kind === "error" ? result.code : "retry";
@@ -300,7 +318,13 @@ export async function runSocialMusicBatch(deps: SocialMusicRunDeps): Promise<Soc
       else if (outcome === "retried") summary.retried += 1;
       else summary.held += 1;
     } catch (error) {
-      summary.failed += 1;
+      try {
+        const outcome = await fail(scan, deps, "scan_threw", scan.muxReadyAt);
+        if (outcome === "retried") summary.retried += 1;
+        else summary.held += 1;
+      } catch {
+        summary.failed += 1;
+      }
       console.error(
         `[social-music] scan ${scan.id} failed: ${error instanceof Error ? error.message : "unknown"}`,
       );

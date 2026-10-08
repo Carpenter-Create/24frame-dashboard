@@ -1157,10 +1157,10 @@ export const SOCIAL = {
     profileHrefLabel: "Create a creator profile",
   },
   // Phase 0 music check. Generic. No song title, no artist, no clearance language.
-  // blocked is a placeholder. PENDING DESIGN LOCK before this PR leaves draft.
+  // docs/design-locks/social-music-block-copy-lock-v1.md
   music: {
     pending: "This video is not visible to others yet.",
-    blocked: "This video can't be posted because it contains music.",
+    blocked: "This video can't be shared because it includes music.",
   },
 } as const;
 

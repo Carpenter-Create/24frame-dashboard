@@ -11,6 +11,7 @@ import {
   signSocialMuxStaticAudioUrl,
   retrieveSocialMuxAsset,
   signedPlaybackIdFromAsset,
+  socialMuxPublishedVideoBound,
   socialMuxSettingsFromUploadInput,
 } from "./social-mux-server";
 
@@ -209,6 +210,46 @@ describe("social Mux server client", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ resolution: "audio-only" });
+  });
+
+  it("treats an existing or in-progress audio rendition as already requested", async () => {
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { messages: ["Static rendition already exists"] } }), { status: 400 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(createSocialMuxAudioRendition(ASSET_ID)).resolves.toBeUndefined();
+  });
+
+  it("rethrows a transient audio rendition error", async () => {
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { messages: ["unavailable"] } }), { status: 503 })),
+    );
+    await expect(createSocialMuxAudioRendition(ASSET_ID)).rejects.toThrow(/unavailable/);
+  });
+
+  it("accepts a published Mux video only when the member owns the upload and playback id", () => {
+    const bound = {
+      userId: USER,
+      uploadId: UPLOAD_ID,
+      assetId: ASSET_ID,
+      playbackId: PLAYBACK_ID,
+      upload: { asset_id: ASSET_ID, new_asset_settings: { passthrough: `${USER}:clip` } },
+      asset: { playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }] },
+    };
+    expect(socialMuxPublishedVideoBound(bound)).toBe(true);
+    expect(socialMuxPublishedVideoBound({ ...bound, assetId: "short" })).toBe(false);
+    expect(socialMuxPublishedVideoBound({ ...bound, userId: "someone-else" })).toBe(false);
+    expect(
+      socialMuxPublishedVideoBound({
+        ...bound,
+        upload: { asset_id: "otherasset1", new_asset_settings: { passthrough: `${USER}:clip` } },
+      }),
+    ).toBe(false);
   });
 
   it("signs the static audio.m4a URL for the worker", async () => {

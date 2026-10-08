@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { classifyAcrProbe, createAcrCloudAdapter, silenceWav } from "../../src/lib/social-music-acrcloud";
 import { readBoundedBody, SOCIAL_MUSIC_AUDIO_MAX_BYTES } from "../../src/lib/social-music-audio";
+import type { MusicScanWindow } from "../../src/lib/social-music-scan";
 import {
   runSocialMusicBatch,
   type MusicScanPatch,
@@ -109,8 +110,8 @@ async function saveScan(admin: Admin, id: string, patch: MusicScanPatch): Promis
   if (error) throw new Error(`Music scan write failed: ${error.message}`);
 }
 
-async function downloadMuxAudio(playbackId: string): Promise<Uint8Array> {
-  const url = await signSocialMuxStaticAudioUrl(playbackId);
+async function downloadMuxAudio(playbackId: string, window: MusicScanWindow): Promise<Uint8Array> {
+  const url = await signSocialMuxStaticAudioUrl(playbackId, window);
   const response = await fetch(url, {
     cache: "no-store",
     signal: AbortSignal.timeout(20_000),

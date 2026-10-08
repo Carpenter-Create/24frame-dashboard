@@ -27,6 +27,7 @@ import {
   createSocialMuxDirectUpload,
   finalizeSocialMuxDirectUpload,
   socialMuxSettingsFromUploadInput,
+  verifySocialMuxPublishedItems,
 } from "@/lib/social-mux-server";
 import { storyInsertRow, storyViewInsertRow } from "@/lib/social-stories";
 import { parseSocialProfileCoverSave } from "@/lib/social-profile-cover-save";
@@ -434,6 +435,21 @@ export async function finalizeSocialMuxUpload(formData: FormData): Promise<{
   }
 }
 
+/** Mux must confirm this member owns the upload, asset, and playback id. */
+async function rejectUnboundSocialMux(
+  items: readonly SocialMediaItem[],
+  userId: string,
+): Promise<string | null> {
+  try {
+    const bound = await verifySocialMuxPublishedItems(items, userId);
+    if (!bound) return SOCIAL.home.mediaForbidden;
+    return null;
+  } catch (error) {
+    if (error instanceof SocialMuxUploadNotBoundError) return SOCIAL.home.mediaForbidden;
+    return SOCIAL.home.videoPreparing;
+  }
+}
+
 export async function writeSocialPost(
   formData: FormData,
 ): Promise<ActionResult & { groupId?: string | null }> {
@@ -452,6 +468,8 @@ export async function writeSocialPost(
   // Match createSocialStory: check each upload, then store only its published copy.
   const published = await publishSocialMediaItems(media.items, user.id, "posts");
   if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
+  const muxError = await rejectUnboundSocialMux(published.items, user.id);
+  if (muxError) return { error: muxError };
 
   const { error } = await supabase.from("posts").insert(
     postInsertRow({ authorId: user.id, body, groupId, media: published.items }),
@@ -486,6 +504,8 @@ export async function createSocialStory(formData: FormData): Promise<ActionResul
 
   const published = await publishSocialMediaItems(media.items, user.id, "stories");
   if (!published.ok) return { error: socialMediaRuleMessage(published.error, "stories", published.kind) };
+  const muxError = await rejectUnboundSocialMux(published.items, user.id);
+  if (muxError) return { error: muxError };
 
   const { error } = await supabase.from("stories").insert(
     storyInsertRow({ authorId: user.id, body, media: published.items }),
