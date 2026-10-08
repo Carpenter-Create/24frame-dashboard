@@ -3,9 +3,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   HOUSE_LEAD_CHROME_CLASS,
+  HOUSE_LEAD_GRIP_CLASS,
   HOUSE_LEAD_STACK_CLASS,
   HOUSE_LEAD_UNDER_NAV_CLASS,
 } from "./house-lead-chrome";
+import {
+  HOUSE_PHONE_BAND_ROW_PX,
+  HOUSE_PHONE_CHROME_SETTLE_MS,
+  HOUSE_PHONE_CHROME_SWIPE_PX,
+  HOUSE_PHONE_CHROME_SWIPE_ZONE,
+} from "./house-phone-chrome";
 import {
   SOCIAL_HOME_TOPIC_CHIP_CUT_CLASS,
   SOCIAL_HOME_TOPIC_FADE_CLASS,
@@ -14,12 +21,15 @@ import {
 import {
   APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS,
   WORKSPACE_BAND_CLASS,
+  WORKSPACE_BAND_FOLD_OPEN_CLASS,
+  WORKSPACE_BAND_FOLD_TUCKED_CLASS,
   WORKSPACE_BAND_ICON_CURRENT_WEIGHT,
   WORKSPACE_BAND_ICON_WEIGHT,
   WORKSPACE_BAND_PILL_CLASS,
   WORKSPACE_BAND_PILL_CURRENT_CLASS,
   WORKSPACE_BAND_PILL_HIT_CLASS,
   WORKSPACE_BAND_ROW_CLASS,
+  workspaceBandFoldClass,
   workspaceBandPillClass,
   workspaceSliderSegments,
 } from "./workspace-switcher";
@@ -29,6 +39,10 @@ const lock = readFileSync("docs/design-locks/shell-phone-workspace-band-lock-v1.
 const tokens = readFileSync("src/app/tokens.css", "utf8");
 const globals = readFileSync("src/app/globals.css", "utf8");
 const leadSrc = readFileSync("src/components/chrome/house-lead-chrome.tsx", "utf8");
+const switcherSrc = readFileSync("src/components/chrome/workspace-switcher.tsx", "utf8");
+const dockSrc = readFileSync("src/components/chrome/house-phone-bottom-nav.tsx", "utf8");
+const phoneShellSrc = readFileSync("src/components/chrome/house-phone-app-shell.tsx", "utf8");
+const trackerSrc = readFileSync("src/components/chrome/house-phone-chrome-state.tsx", "utf8");
 
 const classes = (value: string) => value.split(/\s+/).filter(Boolean);
 const block = (selector: string) => {
@@ -47,6 +61,9 @@ describe("phone workspace band lock v1", () => {
       "I think remove the arrow and let the rows slide",
       "it must be aligned like the screenshot I gave you",
       "build the band next",
+      "can we add that thing so the user can push the page up to cover the top navigation section, or pull it back down?",
+      "leave that off for now. merge 781",
+      "also I've decided...let's do this now.",
     ]) {
       expect(lock, quote).toContain(quote);
     }
@@ -123,5 +140,72 @@ describe("phone workspace band lock v1", () => {
     expect(classes(SOCIAL_HOME_TOPIC_CHIP_CUT_CLASS)).toEqual(["md:pointer-events-none", "md:opacity-0"]);
     expect(classes(SOCIAL_HOME_TOPIC_TRACK_CLASS)).toContain("md:scroll-pe-24");
     expect(classes(SOCIAL_HOME_TOPIC_TRACK_CLASS)).not.toContain("scroll-pe-24");
+  });
+  it("G7: the band row folds 56 → 0 under the bar; reduced motion folds without the slide", () => {
+    for (const fold of [WORKSPACE_BAND_FOLD_OPEN_CLASS, WORKSPACE_BAND_FOLD_TUCKED_CLASS]) {
+      expect(classes(fold)).toEqual(
+        expect.arrayContaining([
+          "overflow-hidden",
+          "transition-[height]",
+          "duration-200",
+          "ease-out",
+          "motion-reduce:transition-none",
+        ]),
+      );
+    }
+    expect(classes(WORKSPACE_BAND_FOLD_OPEN_CLASS)).toContain("h-14");
+    expect(classes(WORKSPACE_BAND_FOLD_TUCKED_CLASS)).toContain("h-0");
+    expect(classes(WORKSPACE_BAND_ROW_CLASS)).toContain("h-14");
+    expect(HOUSE_PHONE_BAND_ROW_PX).toBe(56);
+    expect(workspaceBandFoldClass(true)).toBe(WORKSPACE_BAND_FOLD_TUCKED_CLASS);
+    expect(workspaceBandFoldClass(false)).toBe(WORKSPACE_BAND_FOLD_OPEN_CLASS);
+    // The settle outlasts the 200ms fold.
+    expect(HOUSE_PHONE_CHROME_SETTLE_MS).toBeGreaterThan(200);
+    // The safe-area pad stays on the band, not on the fold.
+    expect(WORKSPACE_BAND_FOLD_TUCKED_CLASS).not.toContain("safe-area");
+    // Folded, the band stays in the accessibility tree; focus opens it.
+    expect(switcherSrc).toContain("onFocus={bandTucked ? open : undefined}");
+    expect(switcherSrc).not.toMatch(/aria-hidden=\{bandTucked/);
+  });
+
+  it("G8: one tracker hides the dock and folds the band", () => {
+    expect(phoneShellSrc).toContain("<HousePhoneChromeContext.Provider value={phoneChrome}>");
+    expect(dockSrc).toContain("useHousePhoneChrome()");
+    expect(switcherSrc).toContain("useHousePhoneChrome()");
+    expect(dockSrc).not.toContain("addEventListener");
+    expect(trackerSrc.match(/addEventListener\("scroll"/g)).toHaveLength(1);
+  });
+
+  it("G9: the bar carries the grab handle in an 8 phone strip", () => {
+    expect(classes(HOUSE_LEAD_GRIP_CLASS)).toEqual(
+      expect.arrayContaining([
+        "pointer-events-none",
+        "absolute",
+        "inset-x-0",
+        "mx-auto",
+        "top-[var(--space-1)]",
+        "h-1",
+        "w-9",
+        "rounded-full",
+        "bg-ink-3/40",
+        "md:hidden",
+      ]),
+    );
+    expect(classes(HOUSE_LEAD_CHROME_CLASS)).toEqual(
+      expect.arrayContaining([
+        "max-md:h-[calc(var(--header-height)+var(--space-2))]",
+        "max-md:pt-[var(--space-2)]",
+        "h-[var(--header-height)]",
+      ]),
+    );
+    expect(leadSrc).toContain('<span aria-hidden="true" data-house-lead-grip="" className={HOUSE_LEAD_GRIP_CLASS} />');
+  });
+
+  it("G10: the pull is a 24 vertical drag on the lead stack", () => {
+    expect(HOUSE_PHONE_CHROME_SWIPE_PX).toBe(24);
+    expect(HOUSE_PHONE_CHROME_SWIPE_ZONE).toBe("[data-house-lead-stack]");
+    expect(leadSrc).toContain('data-house-lead-stack=""');
+    expect(trackerSrc).toContain("closest(HOUSE_PHONE_CHROME_SWIPE_ZONE)");
+    expect(lock).toContain("more than two rows (112)");
   });
 });

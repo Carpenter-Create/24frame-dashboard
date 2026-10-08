@@ -32,11 +32,19 @@ export const HOUSE_LEAD_SCROLL_TO_TOP_MEDIA = "(pointer: coarse)";
 /** Extra html headroom holding the 1px window-scroll bridge. */
 export const HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT = "calc(100dvh + 1px)";
 
+/** html's overflow-anchor while the bridge holds window at 1. The phone
+ *  workspace band folds its row (shell-phone-workspace-band-lock-v1 §5);
+ *  with scroll anchoring on (Chromium, so Android), that layout shift
+ *  pulls the window from 1 to 0, which reads as a status-bar tap and
+ *  sends the page to the top. */
+export const HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR = "none";
+
 export const HOUSE_LEAD_SCROLL_TO_TOP = {
   selector: HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR,
   offset: HOUSE_LEAD_SCROLL_TO_TOP_OFFSET,
   media: HOUSE_LEAD_SCROLL_TO_TOP_MEDIA,
   minHeight: HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT,
+  overflowAnchor: HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR,
 } as const;
 
 /** Pure predicate — returns `true` when a scroll event indicates iOS

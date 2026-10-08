@@ -30,6 +30,7 @@ import {
   HOUSE_LEAD_SCROLL_TO_TOP_MEDIA,
   HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT,
   HOUSE_LEAD_SCROLL_TO_TOP_OFFSET,
+  HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR,
   HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR,
   houseLeadScrollToTopIsTap,
 } from "./house-lead-scroll-to-top";
@@ -67,7 +68,18 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
       offset: HOUSE_LEAD_SCROLL_TO_TOP_OFFSET,
       media: HOUSE_LEAD_SCROLL_TO_TOP_MEDIA,
       minHeight: HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT,
+      overflowAnchor: HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR,
     });
+  });
+
+  it("turns off html scroll anchoring while it holds the window at 1", () => {
+    // The phone workspace band folds its row (shell-phone-workspace-band-
+    // lock-v1 §5). With anchoring on, that shift pulls the window to 0,
+    // which reads as a status-bar tap and scrolls the page to the top.
+    expect(HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR).toBe("none");
+    const bridge = readFileSync("src/components/chrome/house-lead-scroll-to-top.tsx", "utf8");
+    expect(bridge).toContain("root.style.overflowAnchor = HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR;");
+    expect(bridge).toContain("root.style.overflowAnchor = previousOverflowAnchor;");
   });
 
   it("only treats a window scroll to 0 as a status-bar tap", () => {
@@ -133,18 +145,20 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
   });
 
   it("keeps the bottom-nav scroll-hide reading the same nested scroller", () => {
-    // Bottom nav hides on scroll-down of `[data-house-lead-scroll]`.
-    // The bridge must not change that read path — a workspace fork
-    // there would drop the hide behavior on Home.
-    const bottomNav = readFileSync(
-      "src/components/chrome/house-phone-bottom-nav.tsx",
+    // Bottom nav hides (and the workspace band folds) on scroll-down of
+    // `[data-house-lead-scroll]`. The shell's one tracker reads it
+    // (shell-phone-workspace-band-lock-v1 §5). The bridge must not change
+    // that read path — a workspace fork there would drop the hide
+    // behavior on Home.
+    const tracker = readFileSync(
+      "src/components/chrome/house-phone-chrome-state.tsx",
       "utf8",
     );
-    expect(bottomNav).toContain(
-      'document.querySelector<HTMLElement>("[data-house-lead-scroll]")',
+    expect(tracker).toContain(
+      'querySelector<HTMLElement>("[data-house-lead-scroll]")',
     );
-    expect(bottomNav).toContain(
-      "readY = () => (scroller ? scroller.scrollTop : window.scrollY)",
+    expect(tracker).toContain(
+      "readY: () => (scroller ? scroller.scrollTop : window.scrollY)",
     );
   });
 });

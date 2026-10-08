@@ -227,6 +227,19 @@ export const WORKSPACE_BAND_CLASS =
 export const WORKSPACE_BAND_ROW_CLASS =
   "no-scrollbar flex h-14 items-center gap-[var(--space-1)] overflow-x-auto overscroll-x-contain whitespace-nowrap px-[var(--space-4)]";
 
+// The sheet rides over the band (lock §5): scroll down and the row folds
+// 56 → 0 under the bar while the dock hides; scroll up, or pull the bar
+// down, and it opens. The row stays pinned to the fold's top, so the bar
+// reads as sliding over the pills. 56 is HOUSE_PHONE_BAND_ROW_PX.
+const WORKSPACE_BAND_FOLD_BASE_CLASS =
+  "overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none";
+export const WORKSPACE_BAND_FOLD_OPEN_CLASS = `${WORKSPACE_BAND_FOLD_BASE_CLASS} h-14`;
+export const WORKSPACE_BAND_FOLD_TUCKED_CLASS = `${WORKSPACE_BAND_FOLD_BASE_CLASS} h-0`;
+
+export function workspaceBandFoldClass(tucked: boolean): string {
+  return tucked ? WORKSPACE_BAND_FOLD_TUCKED_CLASS : WORKSPACE_BAND_FOLD_OPEN_CLASS;
+}
+
 // The hit is 44 tall; the pill face inside it is 36. Keyboard focus: the
 // house ring (globals.css, unlayered: 2px, the accent, radius 4) would
 // vanish on the blue, so the band overrides its colour to white, hugs the

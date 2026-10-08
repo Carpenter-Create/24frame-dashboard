@@ -11,6 +11,7 @@ import {
   HOUSE_LEAD_CHROME_CLASS,
   HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS,
   HOUSE_LEAD_DESKTOP_PAD_CLASS,
+  HOUSE_LEAD_GRIP_CLASS,
   HOUSE_LEAD_LOGO_CLASS,
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_SLOT_CLASS,
@@ -101,7 +102,8 @@ export function HouseLeadChrome({
   return (
     <div data-house-lead-stack="" className={HOUSE_LEAD_STACK_CLASS}>
       {/* Phone: the Sporty Blue workspace band, flush to the top; the
-          bar below is a sheet over it (shell-phone-workspace-band-lock-v1). */}
+          bar below is a sheet over it that rides up as the page scrolls
+          down (shell-phone-workspace-band-lock-v1 §5). */}
       <WorkspaceSwitcher
         presentation="band"
         current={workspace}
@@ -120,6 +122,9 @@ export function HouseLeadChrome({
         )}
         style={{ minHeight: "var(--header-height)" }}
       >
+        {/* Phone: the sheet's grab handle. Pull the bar down to bring the
+            band back; push it up to fold it (lock §5). */}
+        <span aria-hidden="true" data-house-lead-grip="" className={HOUSE_LEAD_GRIP_CLASS} />
         <div data-app-header-leading="" className={APP_HEADER_LEADING_CLASS}>
           {leadingNav}
           <div
