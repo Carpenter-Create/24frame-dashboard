@@ -471,6 +471,9 @@ export function SocialGoLive() {
 
   async function postClip() {
     if (!clip || posting) return;
+    // The caption as it stood at Post; nothing typed or spoken during the
+    // upload reaches the published post.
+    const caption = body;
     setError("");
     setUploadPercent(0);
     setPosting(true);
@@ -484,12 +487,12 @@ export function SocialGoLive() {
       return;
     }
     ingestSpeechLearning({
-      text: body,
+      text: caption,
       source: "typed",
       workspace: "social",
     });
     const started = beginSocialPostPublish({
-      body,
+      body: caption,
       mediaItems: [uploaded.item],
       mediaPreview: [
         {
@@ -665,12 +668,15 @@ export function SocialGoLive() {
                 placeholder={SOCIAL.home.captionPlaceholder}
                 className={SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS}
               />
-              <HouseVoiceMic
-                surface="dictate"
-                workspace="social"
-                getValue={() => body}
-                onValue={setBody}
-              />
+              {/* Unmounting stops dictation, so the caption stays inert while posting. */}
+              {posting ? null : (
+                <HouseVoiceMic
+                  surface="dictate"
+                  workspace="social"
+                  getValue={() => body}
+                  onValue={setBody}
+                />
+              )}
             </div>
             {posting ? (
               <div

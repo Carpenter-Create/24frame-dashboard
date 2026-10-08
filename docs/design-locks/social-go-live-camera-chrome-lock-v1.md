@@ -51,7 +51,7 @@ Before this, the desktop stage was the 9:16 studio pane, but the clip recorded t
 | Caption | On the clip, not in a box: band-ink 17 / 500 type on a band wash that fades up from the bottom (85% → 45% → 0), placeholder band-ink at 70%. The dictate mic stays, tinted band-ink |
 | Record again | A round 56 on the band wash, the 20 bold counter-clockwise arrow; the accessible name "Record again" |
 | Post | A round 56 accent circle, the 20 bold up arrow; the accessible name "Post video" ("Posting…" while posting) |
-| Posting | A blue (accent) progress bar across the panel above the two buttons: the upload's bytes, from a sliver to full. Both buttons and the caption are inert while posting |
+| Posting | A blue (accent) progress bar across the panel above the two buttons: the upload's bytes, from a sliver to full. Both buttons and the caption are inert while posting: the dictate mic steps away, and the post carries the caption as it stood at Post |
 
 ## Posted clip (Adam, 2026-10-08)
 

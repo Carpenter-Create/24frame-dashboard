@@ -159,6 +159,19 @@ describe("Social Go live recorder", () => {
     expect(src).toContain("if (aliveRef.current) setUploadPercent(percent);");
   });
 
+  // Lock §Review: "Both buttons and the caption are inert while posting."
+  it("keeps the caption inert while posting: no dictation, and Post's words are what publish", () => {
+    const review = src.slice(src.indexOf('{phase === "review" ? ('), src.indexOf("{error ? ("));
+    expect(review).toMatch(/\{posting \? null : \(\s*<HouseVoiceMic/);
+    const post = src.slice(src.indexOf("async function postClip()"), src.indexOf("runSocialOptimisticMutation({", src.indexOf("async function postClip()")));
+    expect(post.indexOf("const caption = body;")).toBeGreaterThan(-1);
+    expect(post.indexOf("const caption = body;")).toBeLessThan(post.indexOf("await uploadLiveVideo("));
+    expect(post).toContain("text: caption,");
+    expect(post).toContain("body: caption,");
+    // Nothing after the snapshot reads the live field.
+    expect(post.replace("const caption = body;", "").replace("body: caption,", "")).not.toMatch(/\bbody\b/);
+  });
+
   it("posts as the one author every Social path uses (the shell's), not \"You\"", () => {
     expect(src).toContain("const author = useSocialCompose()?.author;");
     expect(src).toContain("authorName: author?.name ?? SOCIAL.home.you,");
