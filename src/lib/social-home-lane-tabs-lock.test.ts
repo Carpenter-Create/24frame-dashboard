@@ -163,8 +163,11 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
     const fade = SOCIAL_HOME_TOPIC_FADE_CLASS.split(/\s+/).find((cls) => cls.startsWith("w-"))?.slice(2);
     expect(fade).toBe("24");
     expect(SOCIAL_HOME_TOPIC_FADE_CLASS.split(/\s+/).some((cls) => cls.startsWith("md:w-"))).toBe(false);
-    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `scroll-pe-${fade}`)).toBe(true);
-    expect(SOCIAL_HOME_TOPIC_TRACK_CLASS).not.toMatch(/md:scroll-pe-/);
+    // Desktop only since 2026-10-08 (shell-phone-workspace-band-lock-v1):
+    // phone has no fade, so no end padding either — the row slides.
+    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `md:scroll-pe-${fade}`)).toBe(true);
+    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `scroll-pe-${fade}`)).toBe(false);
+    expect(hasClass(SOCIAL_HOME_TOPIC_FADE_CLASS, "max-md:hidden")).toBe(true);
     // Scroll padding only acts on the scroll container: the track is it.
     expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, "overflow-x-auto")).toBe(true);
     // overflow-x:auto clips overflow-y too. The track pads the ring's

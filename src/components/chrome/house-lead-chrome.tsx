@@ -100,6 +100,14 @@ export function HouseLeadChrome({
 
   return (
     <div data-house-lead-stack="" className={HOUSE_LEAD_STACK_CLASS}>
+      {/* Phone: the Sporty Blue workspace band, flush to the top; the
+          bar below is a sheet over it (shell-phone-workspace-band-lock-v1). */}
+      <WorkspaceSwitcher
+        presentation="band"
+        current={workspace}
+        options={workspaceOptions}
+        isGcStaff={isGcStaff}
+      />
       <header
         data-app-header=""
         data-house-lead-chrome=""
@@ -138,8 +146,8 @@ export function HouseLeadChrome({
               />
             ) : null}
           </div>
-          {/* Phone and md to lg: the grey workspace pill (filled grid +
-              the workspace's name). Hidden from lg. */}
+          {/* md to lg: the grey workspace pill (filled grid + the
+              workspace's name). Hidden on phone (the band) and from lg. */}
           <div
             data-app-header-workspace-waffle=""
             className={APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS}

@@ -403,8 +403,10 @@ export function AppShell({
       )}
 
       {/* Header + dest side nav — same HouseLeadChrome as Social.
-          Phone IA: Asset 8 emblem on every workspace, then the grey
-          workspace pill naming the current workspace. No hamburger.
+          Phone IA: the Sporty Blue workspace band on top (Home ·
+          Aggregation · Social · Education pills that slide), then the
+          bar as a sheet with the Asset 8 emblem on every workspace
+          (shell-phone-workspace-band-lock-v1). No hamburger.
           Local dests live in HousePhoneBottomNav. Home dests are Home +
           Industry news. Trailing is search (if needed) · 24Frame AI ·
           bell · avatar, round grey 44s and the 44 photo. Theme is the

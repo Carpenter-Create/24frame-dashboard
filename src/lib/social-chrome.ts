@@ -924,7 +924,7 @@ export const SOCIAL_FEED_HEADING_CLASS =
 // 16, gap 4. Phone: a 44 hit holding a 36 pill (pad 14); the row meets
 // the viewport and pads 16. Labels never truncate; the row scrolls
 // sideways. A 96 page-colour fade over the trailing edge holds a round
-// grey "More topics" (desktop 40, phone 44 at 16 in) that scrolls the
+// grey "More topics" (desktop 40; none on phone) that scrolls the
 // row on; both leave at the end of the row. Supersedes G's plain words
 // over an ink underline. Stack: 24 under the composer, 16 above the wall.
 // Keyboard: the track's inline-end scroll padding equals the fade width
@@ -934,10 +934,15 @@ export const SOCIAL_FEED_HEADING_CLASS =
 // pads 5 top and bottom and takes it back in margin: the focus ring
 // (2 + 3 offset) draws whole inside the scrollport and the row keeps its
 // 44 / 40 height.
+// Phone (Adam 2026-10-08, shell-phone-workspace-band-lock-v1, "remove
+// the arrow and let the rows slide"): no fade, no More topics, and no
+// chip hides — the row slides, and a chip cut at the screen edge is the
+// scroll cue, the same rule as the workspace band. Desktop keeps the fade
+// and More topics (a mouse wheel does not scroll sideways).
 export const SOCIAL_HOME_TOPIC_ROW_CLASS =
   "relative mt-4 min-w-0 max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))]";
 export const SOCIAL_HOME_TOPIC_TRACK_CLASS =
-  "no-scrollbar -my-[5px] flex gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap py-[5px] scroll-pe-24 max-md:px-4";
+  "no-scrollbar -my-[5px] flex gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap py-[5px] md:scroll-pe-24 max-md:px-4";
 // The hit: 44 on phone, 40 on desktop (where the hit is the pill).
 const SOCIAL_HOME_TOPIC_BASE_CLASS =
   "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full md:h-10";
@@ -957,12 +962,13 @@ export function socialHomeTopicChipClass(current: boolean): string {
 }
 // A chip under the fade: not drawn and not a pointer target (a keyboard
 // still reaches it; the focus handler scrolls it clear and it shows).
-export const SOCIAL_HOME_TOPIC_CHIP_CUT_CLASS = "pointer-events-none opacity-0";
+// Desktop only: on phone there is no fade, so no chip hides.
+export const SOCIAL_HOME_TOPIC_CHIP_CUT_CLASS = "md:pointer-events-none md:opacity-0";
 // The fade's width (w-24) and the track's inline-end scroll padding
-// (scroll-pe-24): 96.
+// (md:scroll-pe-24): 96. Desktop only (max-md:hidden).
 export const SOCIAL_HOME_TOPIC_FADE_PX = 96;
 export const SOCIAL_HOME_TOPIC_FADE_CLASS =
-  "pointer-events-none absolute inset-y-0 right-0 flex w-24 items-center justify-end bg-[linear-gradient(90deg,transparent,var(--bg)_55%)] max-md:pr-4";
+  "pointer-events-none absolute inset-y-0 right-0 flex w-24 items-center justify-end bg-[linear-gradient(90deg,transparent,var(--bg)_55%)] max-md:hidden";
 export const SOCIAL_HOME_TOPIC_MORE_CLASS =
   "pointer-events-auto grid size-11 place-items-center rounded-full bg-surface-muted text-ink transition-colors hover:bg-hairline md:size-10";
 

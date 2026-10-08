@@ -571,11 +571,14 @@ describe("Feed cards lock v1 (founder 2026-10-06, Direction B)", () => {
     expect(SOCIAL_HOME_TOPIC_ROW_CLASS).toBe(
       "relative mt-4 min-w-0 max-md:-mx-[var(--chrome-gutter)] max-md:w-[calc(100%+2*var(--chrome-gutter))]",
     );
-    expect(SOCIAL_HOME_TOPIC_CHIP_CUT_CLASS).toBe("pointer-events-none opacity-0");
+    // Desktop only (shell-phone-workspace-band-lock-v1): on phone there is
+    // no fade, so a chip at the edge stays drawn — the row slides.
+    expect(SOCIAL_HOME_TOPIC_CHIP_CUT_CLASS).toBe("md:pointer-events-none md:opacity-0");
     expect(SOCIAL_HOME_TOPIC_FADE_PX).toBe(96);
     // The fade's width and the track's end scroll padding are the same 96.
     expect(hasClass(SOCIAL_HOME_TOPIC_FADE_CLASS, `w-${SOCIAL_HOME_TOPIC_FADE_PX / 4}`)).toBe(true);
-    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `scroll-pe-${SOCIAL_HOME_TOPIC_FADE_PX / 4}`)).toBe(true);
+    expect(hasClass(SOCIAL_HOME_TOPIC_TRACK_CLASS, `md:scroll-pe-${SOCIAL_HOME_TOPIC_FADE_PX / 4}`)).toBe(true);
+    expect(hasClass(SOCIAL_HOME_TOPIC_FADE_CLASS, "max-md:hidden")).toBe(true);
     // The row applies the lib rule with the fade's width and hides (not
     // removes) a cut chip, so Tab still reaches it.
     expect(topics).toContain("socialRowItemUnderFade({");

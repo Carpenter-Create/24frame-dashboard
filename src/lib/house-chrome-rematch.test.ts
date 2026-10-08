@@ -204,7 +204,9 @@ describe("house chrome rematch miss list v1.1", () => {
   });
 
   it("keeps one phone workspace switcher, Staff as its own workspace, one Sporty Blue pill", () => {
-    expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(2);
+    // Band (phone), waffle (md to lg), slider (lg+): one face per width.
+    expect(lead.match(/<WorkspaceSwitcher/g)?.length).toBe(3);
+    expect(lead).toContain('presentation="band"');
     expect(shell).toContain("<HouseLeadChrome");
     expect(existsSync("src/components/social/social-top-bar.tsx")).toBe(false);
     expect(lead).toContain('presentation="slider"');
