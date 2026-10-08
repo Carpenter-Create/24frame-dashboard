@@ -18,12 +18,6 @@ import {
   HOUSE_FILTER_ON_CLASS,
   HOUSE_MODULE_CLASS,
   HOUSE_PILL_SELECTED_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS,
-  HOUSE_PILL_SLIDER_THUMB_CLASS,
-  HOUSE_PILL_SLIDER_THUMB_DURATION_MS,
-  HOUSE_PILL_SLIDER_TRACK_CLASS,
   HOUSE_RAIL_PANEL_CLASS,
   HOUSE_SCROLL_ROW_CLASS,
 } from "@/lib/house-shell";
@@ -878,8 +872,9 @@ export const SOCIAL_PROFILE_ROLE_PILL_CLASS =
 // centred. The lead reads the container, not whether the rail is drawn, so
 // the column does not move between Following and For you. Phone: the full
 // frame, unchanged. Desktop top: 8 under the shared header inset (8), so
-// the slider and the rail's heading start 16 under the header, as
-// Facebook's first card does under its bar.
+// the stories card and the rail's heading start 16 under the header, as
+// Facebook's first card does under its bar (no slider over the Feed,
+// founder 2026-10-08).
 // Complete class strings — Tailwind does not see interpolations.
 // docs/design-locks/social-feed-cards-lock-v1.md §8
 export const SOCIAL_FEED_MEASURE = { center: 680, gutter: 48, right: 296 } as const;
@@ -919,26 +914,6 @@ export const SOCIAL_FEED_QUIET_INK_CLASS = "text-ink-3 dark:text-ink-2";
 // normal case. Supersedes G's 13px uppercase eyebrow.
 export const SOCIAL_FEED_HEADING_CLASS =
   "m-0 text-[length:var(--text-lg)] leading-[1.4] [font-weight:var(--type-title-weight)] tracking-[-0.02em] text-ink";
-
-// Following / For you: the primary pill slider (H §3.1), the house
-// SegmentedTrack with the shared pill-slider track, ink thumb (220 ms
-// ease-out; Social's one ink element, cards lock) and 15 / 500 labels
-// (idle ink-2); segments pad 20 on a page switch. It
-// hugs its labels (about 221 wide) and leads the Feed, left-aligned, on
-// phone and desktop (the frame's 16 on phone; 16 under the header on
-// desktop, Feed placement). Supersedes G's text tabs with an ink underline.
-export const SOCIAL_FEED_SCOPE_CLASS = "flex shrink-0";
-export const SOCIAL_FEED_SCOPE_TRACK_CLASS = `${HOUSE_PILL_SLIDER_TRACK_CLASS} w-max`;
-export const SOCIAL_FEED_SCOPE_THUMB_CLASS = HOUSE_PILL_SLIDER_THUMB_CLASS;
-export const SOCIAL_FEED_SCOPE_THUMB_DURATION_MS = HOUSE_PILL_SLIDER_THUMB_DURATION_MS;
-const SOCIAL_FEED_SCOPE_SEGMENT_BASE_CLASS = `${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5`;
-export const SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS =
-  `${SOCIAL_FEED_SCOPE_SEGMENT_BASE_CLASS} ${HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS}`;
-export const SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS =
-  `${SOCIAL_FEED_SCOPE_SEGMENT_BASE_CLASS} ${HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS}`;
-export function socialFeedScopeSegmentClass(on: boolean): string {
-  return on ? SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS : SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS;
-}
 
 // Topics: secondary chips (H §3.2). All first, then the 15 topics A to
 // Z. Idle: no fill, 15 / 500 ink-2 (cards lock, lighter ink). Current:
@@ -1009,8 +984,11 @@ export const SOCIAL_HOME_TOPIC_MORE_CLASS =
 // 24, concentric, as the media); the track runs to the card's edge, so a
 // tile scrolls under the card's rounded clip, and pads 8 at rest. The
 // track pads 5 top and bottom (taken back in margin) so a tile's focus
-// ring draws whole. 16 under the slider.
-export const SOCIAL_HOME_STORIES_CARD_CLASS = `mt-4 overflow-hidden py-2 ${SOCIAL_FEED_CARD_CLASS}`;
+// ring draws whole. It leads the column with no top margin: the 16 it
+// kept under the Following / For you slider went with the slider
+// (founder 2026-10-08), so the card starts where the slider did, 16 under
+// the bar or header (Feed placement, cards lock §8).
+export const SOCIAL_HOME_STORIES_CARD_CLASS = `overflow-hidden py-2 ${SOCIAL_FEED_CARD_CLASS}`;
 export const SOCIAL_HOME_STORIES_RAIL_CLASS =
   "no-scrollbar -my-[5px] flex gap-2 overflow-x-auto overscroll-x-contain px-2 py-[5px] scroll-px-2";
 export const SOCIAL_HOME_STORY_CARD_CLASS =
@@ -1084,8 +1062,9 @@ export const SOCIAL_FEED_REEL_CAPTION_CLASS =
 export const SOCIAL_FEED_WALL_CLASS = "mt-2 flex min-w-0 flex-col gap-2 md:mt-4 md:gap-4";
 
 // For you rail (H §5.5; founder decision 5, "sure": "For you" stays the
-// rail's heading as well as the slider option). The heading (20 / 480,
-// 44 tall, level with the slider) on the canvas, 16, the latest course
+// rail's heading; the Feed's slider is gone, founder 2026-10-08). The
+// heading (20 / 480, 44 tall, level with the stories card that leads the
+// Feed) on the canvas, 16, the latest course
 // as one card (CourseCard "feature": the card fill, radius 24, pad 16, a
 // 16:9 cover at radius 16, "Latest course · Education" 13 / 500 ink-2,
 // the title 15 / 600), 16, then Suggested people as one card (pad 16,

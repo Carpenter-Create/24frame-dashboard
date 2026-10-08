@@ -1,11 +1,10 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
   SOCIAL_FEED_ASIDE_CLASS,
   SOCIAL_FEED_QUIET_INK_CLASS,
-  SOCIAL_FEED_SCOPE_CLASS,
-  SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS,
+  SOCIAL_HOME_STORIES_CARD_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
   SOCIAL_HOME_TOPIC_FADE_CLASS,
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
@@ -105,12 +104,13 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
       expect(row).toMatch(/lane-tabs lock|G · Feed locks/);
     }
     // The inset lock's G2 named the topic row's phone pull; G moved it to
-    // the tabs. Superseded 2026-10-05 (H · Feed): the slider takes no
-    // pull, and the inset lock says so in its head.
+    // the tabs. Superseded 2026-10-05 (H · Feed): the slider took no
+    // pull, and the inset lock says so in its head. The slider is gone
+    // (founder 2026-10-08); the stories card that leads now takes none.
     const inset = readFileSync("docs/design-locks/shell-desktop-header-content-inset-lock-v1.md", "utf8");
     expect(inset.split("\n").slice(0, 12).join("\n")).toContain("`max-md:-mt-3`");
     expect(inset.split("\n").slice(0, 12).join("\n")).toContain("`max-md:-mt-3` is gone");
-    expect(SOCIAL_FEED_SCOPE_CLASS).not.toContain("-mt-");
+    expect(SOCIAL_HOME_STORIES_CARD_CLASS).not.toContain("-mt-");
     // The index no longer tells readers the old stack still stands.
     const spineV1 = readme.split("\n").find((row) => row.startsWith("- [`social-home-spine-density-lock-v1.md`]")) ?? "";
     expect(spineV1).not.toBe("");
@@ -131,9 +131,9 @@ describe("Feed lane tabs + stack lock v1 (G · Feed, Adam 2026-10-04)", () => {
     // The host and its name stay.
     expect(lock).toContain('`nav aria-label="Feed scope"`');
     // Text tabs (20 / 480, ink underline) → the pill slider on the ink
-    // thumb (its labels 15 / 500 since the cards lock, pinned there).
+    // thumb → no lane control over the Feed at all (founder 2026-10-08).
     expect(lock).toContain("20 / 480 / -0.02em");
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).not.toContain("border-b-2");
+    expect(existsSync("src/components/social/social-home-lane-tabs.tsx")).toBe(false);
     expect(lock).toContain("`text-ink-3 dark:text-ink-2`");
     expect(SOCIAL_FEED_QUIET_INK_CLASS).toBe("text-ink-3 dark:text-ink-2");
     // Topic words (no pill, no fill, no accent) → chips; the current one

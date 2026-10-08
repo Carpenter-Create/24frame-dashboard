@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -10,41 +10,25 @@ import {
   sortTopicsAlpha,
 } from "@/lib/social-categories";
 import {
-  SOCIAL_FEED_SCOPE_CLASS,
-  SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS,
-  SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS,
-  SOCIAL_FEED_SCOPE_THUMB_CLASS,
-  SOCIAL_FEED_SCOPE_TRACK_CLASS,
   SOCIAL_HOME_TOPIC_CHIP_CLASS,
   SOCIAL_HOME_TOPIC_CHIP_CURRENT_CLASS,
   SOCIAL_HOME_TOPIC_CLASS,
   SOCIAL_HOME_TOPIC_CURRENT_CLASS,
-  socialFeedScopeSegmentClass,
   socialHomeTopicChipClass,
   socialHomeTopicClass,
 } from "@/lib/social-chrome";
-import {
-  HOUSE_PILL_SELECTED_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS,
-  HOUSE_PILL_SLIDER_THUMB_BASE_CLASS,
-  HOUSE_PILL_SLIDER_THUMB_CLASS,
-  HOUSE_PILL_SLIDER_TRACK_CLASS,
-} from "@/lib/house-shell";
-import { WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS } from "@/lib/workspace-switcher";
+import { HOUSE_PILL_SELECTED_CLASS } from "@/lib/house-shell";
 import { SOCIAL } from "@/lib/social";
 import { socialHomeAxisHref } from "@/lib/social-home-location";
-import { SocialHomeLaneTabs } from "./social-home-lane-tabs";
 import { SocialHomeTopics } from "./social-home-topics";
 
 // H · Feed (founder 2026-10-05, "I like the designs. Let's use them."):
-// Following / For you is the primary pill slider; topics are secondary
-// chips, the current one the accent wash with accent-ink type.
+// topics are secondary chips, the current one the accent wash with
+// accent-ink type. (H's Following / For you slider is gone, founder
+// 2026-10-08.)
 // docs/design-locks/social-feed-register-lock-v1.md
 
 const src = readFileSync("src/components/social/social-home-topics.tsx", "utf8");
-const tabsSrc = readFileSync("src/components/social/social-home-lane-tabs.tsx", "utf8");
 
 function topicChips(html: string): string[] {
   return [...html.matchAll(/data-social-home-topic="([^"]+)"/g)].map((match) => match[1]);
@@ -52,11 +36,6 @@ function topicChips(html: string): string[] {
 
 function chipMarkup(html: string, label: string): string {
   const match = html.match(new RegExp(`<a[^>]*data-social-home-topic="${label}"[^>]*>`));
-  return match?.[0] ?? "";
-}
-
-function laneMarkup(html: string, lane: string): string {
-  const match = html.match(new RegExp(`<a[^>]*data-social-home-lane="${lane}"[^>]*>`));
   return match?.[0] ?? "";
 }
 
@@ -157,85 +136,12 @@ describe("SocialHomeTopics chips", () => {
   });
 });
 
-// Replaces "SocialHomeLaneTabs (E text tabs)": the lanes are the primary
-// pill slider, the same SegmentedTrack and ink thumb as the header's
-// workspace slider.
-describe("SocialHomeLaneTabs (the primary pill slider)", () => {
-  it("renders Following then For you as a pill slider in a Feed scope nav", () => {
-    const html = renderToStaticMarkup(<SocialHomeLaneTabs topic={SOCIAL_CATEGORY_ALL} />);
-    expect(html).toContain(`<nav aria-label="${SOCIAL.home.lanesLabel}" data-social-home-lanes="" class="${SOCIAL_FEED_SCOPE_CLASS}"`);
-    expect(html).toContain(`class="${SOCIAL_FEED_SCOPE_TRACK_CLASS}"`);
-    expect(html).toContain(`data-segmented-thumb="" class="${SOCIAL_FEED_SCOPE_THUMB_CLASS}"`);
-    expect(html.indexOf('data-social-home-lane="following"')).toBeLessThan(
-      html.indexOf('data-social-home-lane="for-you"'),
-    );
-    expect(html).toContain(`>${SOCIAL.home.followingTab}<`);
-    expect(html).toContain(`>${SOCIAL.home.forYouTab}<`);
-    expect(tabsSrc).toContain("SOCIAL.home.followingTab");
-    expect(tabsSrc).toContain("SOCIAL.home.forYouTab");
-    expect(tabsSrc).toContain("useSocialHomeLive");
-    expect(tabsSrc).toContain("HouseLink");
-    // One component per pattern: the house SegmentedTrack, the shared
-    // pill-slider track and thumb (the workspace slider's), a persist key.
-    expect(tabsSrc).toContain("<SegmentedTrack");
-    expect(tabsSrc).toContain("persistKey={SEGMENTED_TRACK_PERSIST.socialFeedScope}");
-    expect(tabsSrc).toContain("durationMs={SOCIAL_FEED_SCOPE_THUMB_DURATION_MS}");
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
-    // Cards lock (founder 2026-10-06): the header's thumb shares the
-    // geometry and motion but is the wash; the Feed's keeps the ink.
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS.startsWith(HOUSE_PILL_SLIDER_THUMB_BASE_CLASS)).toBe(true);
-    expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS.startsWith(HOUSE_PILL_SLIDER_THUMB_BASE_CLASS)).toBe(true);
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).not.toBe(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS);
-    expect(SOCIAL_FEED_SCOPE_TRACK_CLASS.startsWith(HOUSE_PILL_SLIDER_TRACK_CLASS)).toBe(true);
-    // Left-aligned: the track hugs its labels; no pull, no underline row.
-    expect(SOCIAL_FEED_SCOPE_TRACK_CLASS).toContain("w-max");
-    expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/justify-(center|end|between)|-mt-/);
-  });
-
-  it("lights the current lane: aria-current and the ink thumb's page-colour label; idle is ink-2", () => {
-    const html = renderToStaticMarkup(<SocialHomeLaneTabs topic={SOCIAL_CATEGORY_ALL} />);
-    const following = laneMarkup(html, "following");
-    const forYou = laneMarkup(html, "for-you");
-    expect(following).toContain('data-social-home-lane-active=""');
-    expect(following).toContain('aria-current="page"');
-    expect(following).toContain(`class="${SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS}"`);
-    expect(following).toContain('data-segmented-selected=""');
-    expect(following).toContain('href="/social"');
-    expect(forYou).not.toContain("data-social-home-lane-active");
-    expect(forYou).not.toContain("aria-current");
-    expect(forYou).not.toContain("aria-pressed");
-    // The attribute, not the class: every segment's class names the
-    // server-paint fill variant (data-segmented-selected:bg-ink).
-    expect(forYou).not.toContain('data-segmented-selected=""');
-    expect(forYou).toContain("in-data-segmented-pending:data-segmented-selected:bg-ink");
-    expect(forYou).toContain(`class="${SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS}"`);
-    expect(forYou).toContain('href="/social?lane=for-you"');
-    // Ink thumb with the page-colour label (the one ink element on the
-    // Feed); the house slider's segment (its size and weight are owned by
-    // the cards lock test), pad 20; no underline, no accent.
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toContain("bg-ink");
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toContain("duration-[220ms] ease-out");
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS.endsWith(` ${HOUSE_PILL_SLIDER_SEGMENT_ON_CLASS}`)).toBe(true);
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS.endsWith(` ${HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS}`)).toBe(true);
-    for (const cls of [SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS, SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS]) {
-      expect(cls.startsWith(HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS)).toBe(true);
-      expect(cls).toContain("h-11");
-      expect(cls).toContain("px-5");
-      expect(cls).toContain("rounded-full");
-      expect(cls).not.toMatch(/accent|border|shadow|transition-colors/);
-    }
-    expect(socialFeedScopeSegmentClass(true)).toBe(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS);
-    expect(socialFeedScopeSegmentClass(false)).toBe(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS);
-  });
-
-  it("keeps the topic when switching lanes", () => {
-    const html = renderToStaticMarkup(<SocialHomeLaneTabs lane="for-you" topic="Music" />);
-    const forYou = laneMarkup(html, "for-you");
-    const following = laneMarkup(html, "following");
-    expect(forYou).toContain('aria-current="page"');
-    expect(forYou).toContain(`class="${SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS}"`);
-    expect(forYou).toContain('href="/social?topic=music&amp;lane=for-you"');
-    expect(following).not.toContain("aria-current");
-    expect(following).toContain('href="/social?topic=music"');
+// The Following / For you slider is gone (founder 2026-10-08, "on social,
+// remove the Following and For You above the feed", "only the slider").
+// The lane stays in the address (?lane=for-you); the topic row keeps it.
+describe("Feed lanes without a slider", () => {
+  it("has no slider component left to render over the Feed", () => {
+    expect(existsSync("src/components/social/social-home-lane-tabs.tsx")).toBe(false);
+    expect(src).not.toContain("SocialHomeLaneTabs");
   });
 });

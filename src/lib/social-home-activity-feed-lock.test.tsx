@@ -20,10 +20,10 @@ describe("Social Home activity feed lock v1", () => {
     expect(SOCIAL.member.goHome).toBe("Go to Feed");
     expect(Object.values(SOCIAL_ROUTES)).not.toContain("/social/home");
     expect(home).toContain("data-social-home-stack={SOCIAL_HOME_STACK_LOCK}");
-    // H · Feed (founder 2026-10-05; replaces G's tabs → topics → stories →
-    // composer → wall): slider → stories → composer → topics → wall.
-    expect(home.indexOf("<SocialHomeLaneTabs")).toBeGreaterThan(-1);
-    expect(home.indexOf("<SocialHomeLaneTabs")).toBeLessThan(home.indexOf("<SocialStoriesRail"));
+    // Founder 2026-10-08 ("only the slider"; replaces H's slider → stories
+    // → composer → topics → wall): stories → composer → topics → wall.
+    expect(home).not.toContain("SocialHomeLaneTabs");
+    expect(home.indexOf("<SocialStoriesRail")).toBeGreaterThan(-1);
     expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialHomeComposer"));
     expect(home.indexOf("<SocialHomeComposer")).toBeLessThan(home.indexOf("<SocialHomeTopics"));
     expect(home.indexOf("<SocialHomeTopics")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));

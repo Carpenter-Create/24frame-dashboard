@@ -7,7 +7,6 @@ import { SocialForYouRail } from "@/components/social/social-for-you";
 import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot";
 import { SocialHomeComposer } from "@/components/social/social-home-composer";
 import { SocialHomeColdSlot, SocialHomeFollowingRail } from "@/components/social/social-home-cold-slot";
-import { SocialHomeLaneTabs } from "@/components/social/social-home-lane-tabs";
 import { SocialHomeTopics } from "@/components/social/social-home-topics";
 import {
   SocialForYouSkeleton,
@@ -167,7 +166,10 @@ async function SocialHomeCenter({
         <h1>{SOCIAL.home.title}</h1>
         <p>{SOCIAL.home.subtitle}</p>
       </div>
-      <SocialHomeLaneTabs lane={lane} topic={topic} />
+      {/* No Following / For you slider over the Feed (founder 2026-10-08,
+          "only the slider"): the stories card leads the Feed. The For you
+          rail on the right stays as it is.
+          docs/design-locks/social-home-lane-tabs-lock-v1.md (retired) */}
       <SocialHomeColdSlot seedLane={lane} seedTopic={topic}>
         {/* Stories stay at the top of the Feed (founder 2026-10-06), in
             their own card, in both lanes, also when the one tile is the
@@ -189,8 +191,8 @@ async function SocialHomeCenter({
             authorPhotoUrl={photoUrl}
           />
         ) : null}
-        {/* Topics sit over the wall they filter (H board: slider →
-            stories → composer → topics → wall). */}
+        {/* Topics sit over the wall they filter (stories → composer →
+            topics → wall). */}
         <SocialHomeTopics active={topic} lane={lane} />
         <div data-social-home-wall="" className={SOCIAL_FEED_WALL_CLASS}>
           {storiesPage.truncated ? (
