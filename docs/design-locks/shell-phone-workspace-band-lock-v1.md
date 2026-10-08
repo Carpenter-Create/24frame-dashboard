@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-08 (CT)  
 **Status:** **LOCKED** (Adam, 2026-10-08, in chat — recorded from the founder-authorized task brief) · Design Own→READY  
+**Amended v1.1:** 2026-10-08 (Adam, in chat) — §5, the sheet rides over the band: scroll down folds the band under the bar with the dock; scroll up or pull the bar down brings both back; a grab handle on the bar. Supersedes Departure 1 and the Explicit OUT drag handle.  
 **Scope:** The phone shell (`max-md`) in every workspace: where the workspace switch lives (a band above the bar), the bar as a sheet over it, and the Feed's topic row on phone. Desktop and `md` to `lg` are unchanged.  
 **Entity:** Global Content / 24Frame only  
 **Reference:** the founder's screenshot of a phone app — a coloured top band of icon + word product tabs, under it a dark sheet with the logo row.  
@@ -37,6 +38,16 @@
 
 > build the band next
 
+**v1.1 (2026-10-08),** on a second screenshot (a sheet with a grab handle at its top edge, over a coloured band):
+
+> can we add that thing so the user can push the page up to cover the top navigation section, or pull it back down? am I misreading what's in this image?
+
+> leave that off for now. merge 781
+
+> also I've decided...let's do this now.
+
+Recommendation adopted: scroll down, the sheet rides up and covers the band as the dock hides; scroll up, or pull the handle down, and the band comes back with the dock; the small grey handle on the bar is the cue.
+
 ---
 
 ## 1) The band (phone)
@@ -57,11 +68,11 @@
 
 | Token | Lock |
 |-------|------|
-| Shape | 24 top radius (`--radius-xl`); the stack behind it is the band's blue, so the corners show it. No drag handle |
+| Shape | 24 top radius (`--radius-xl`); the stack behind it is the band's blue, so the corners show it. The grab handle at its top edge (§5) |
 | Fill | The opaque page colour (`--bg`), not the glass, so no blue shows through. The Education search row under it is opaque too |
 | Leading | The emblem only (founder: "use emblem on mobile"). The grey workspace pill is gone on phone |
 | Trailing | Unchanged: search (Social) · Ask · bell · avatar |
-| Height | 56, the shared `--header-height` |
+| Height | 64 on phone: an 8 strip that holds the grab handle, then the 56 row (`--header-height`). md+ stays 56 |
 
 ## 3) Feed topic row (phone)
 
@@ -71,11 +82,25 @@ The row slides like the band: no fade, no More topics, and no chip hides (`SOCIA
 
 The band row and the Feed topic row may draw a pill cut at the screen edge: the cut is the scroll cue. No other phone surface changes; labels inside a pill never truncate.
 
+## 5) The sheet rides over the band (v1.1)
+
+| Token | Lock |
+|-------|------|
+| Fold | Scroll the page down and the band's 56 row folds to 0 under the bar (200ms, ease-out; instant under reduced motion). The row stays pinned to the top, so the bar reads as sliding over the pills. The safe-area pad stays. Folded, the blue shows only in the bar's top corners |
+| Together | One tracker for the band and the dock (`house-phone-chrome`, owned by the phone shell): the same scroll that hides the dock folds the band; the same scroll up brings both back. The top of the page always shows both |
+| Pull | A mostly vertical drag of 24 or more that starts on the lead stack (band, bar, or the Education search row): down brings the band and dock back, up folds them. Works on any page, short ones included. Sideways slides of the band row never fold it |
+| Handle | 36 × 4, radius full, the tertiary ink at 40%, centred 4 below the bar's top edge, in the bar's 8 phone strip. Decorative (`aria-hidden`); the drag is the control, so no target smaller than 44 is added |
+| Short pages | A scroll folds the band only when the page can still scroll more than two rows (112) after the fold (the fold adds a row, so more than 168 open). Otherwise the dock hides alone and the band stays, so the page never jumps between folded and open |
+| Settle | For 280ms after the band folds or opens, scroll events only re-base the tracker: the fold's own clamp near the bottom of a page is not a scroll up |
+| Access | The folded band stays in the accessibility tree. Keyboard focus into it opens it |
+| Status-bar tap | While the tap bridge holds the window at 1, html's scroll anchoring is off (`house-lead-scroll-to-top`): otherwise the fold's layout shift pulls the window to 0 in Chromium (Android), which reads as a tap and sends the page to the top |
+| Reset | Every navigation starts open |
+
 ---
 
 ## Departures
 
-1. **The band stays pinned with the bar.** The mockup's scrolled boards show the page sliding up over the band. The phone header sits outside the page's scroller (`[data-house-lead-scroll]`), so that needs a change to the shell's scroll model; collapsing the band on scroll instead makes short pages jump at the bottom. Pinned now; the scroll behaviour is a follow-up.
+1. ~~**The band stays pinned with the bar.**~~ Superseded by §5 (v1.1, Adam 2026-10-08: "let's do this now"). The band folds its row instead of the page scrolling under the header (the header stays outside `[data-house-lead-scroll]`); §5's short-page rule and settle keep the page from jumping.
 2. **Safari's status bar strip is Safari's.** In a Safari tab the page cannot paint behind the status bar; the band starts at the page's top edge. Without `viewport-fit=cover` the safe-area pad is 0. No `theme-color` is set in this lock; check the tint on a device.
 3. **`md` to `lg` keeps the grey workspace pill and its popover** (tablets), unchanged.
 
@@ -84,7 +109,8 @@ The band row and the Feed topic row may draw a pill cut at the screen edge: the 
 - An arrow, a fade, or a "More" control on the phone band or the phone topic row
 - `--accent` (or any light blue) as the band's fill in dark mode
 - A Staff pill
-- A drag handle on the bar
+- A tappable handle target smaller than 44 (the pull is a drag on the lead stack)
+- Folding the band on scroll where the page could not scroll after the fold
 - Changes to desktop, the docks, or the side menu
 
 ---
@@ -96,7 +122,11 @@ The band row and the Feed topic row may draw a pill cut at the screen edge: the 
 **G3.** `--workspace-band` is `#1769ff`; `.dark` does not redefine it; `.dark` maps `--workspace-band-pill-ink` to white.  
 **G4.** The row is `overflow-x-auto`; the band has no fade and no button.  
 **G5.** Phone bar: `max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg`; the grey pill host is `hidden md:block lg:hidden`.  
-**G6.** Topic row: the fade is `max-md:hidden`; the cut class and the end scroll padding are `md:` only.
+**G6.** Topic row: the fade is `max-md:hidden`; the cut class and the end scroll padding are `md:` only.  
+**G7.** The band row sits in `data-workspace-band-fold`: `h-14` open, `h-0` folded, `overflow-hidden`, `transition-[height] duration-200`, `motion-reduce:transition-none`; folded adds `data-workspace-band-tucked`.  
+**G8.** One tracker: the phone shell provides `HousePhoneChromeContext`; the dock's hidden state and the band's fold both read it; no other scroll listener hides the dock.  
+**G9.** The bar's first child is `data-house-lead-grip` (`aria-hidden`, `md:hidden`, 36 × 4); the phone bar is 64 with an 8 top strip.  
+**G10.** A scroll folds the band only with more than 112 of travel left after the fold (more than 168 open); a 24 vertical drag on `[data-house-lead-stack]` opens (down) or folds (up).
 
 ## Verify-on-ship
 
@@ -105,3 +135,6 @@ The band row and the Feed topic row may draw a pill cut at the screen edge: the 
 3. Feed: the topic row slides with no arrow; a chip shows cut at the edge.
 4. Settings and a Staff page: no pill lit.
 5. Desktop and tablet (`md` to `lg`): unchanged.
+6. (v1.1) Scroll down a long page: the bar slides over the band as the dock hides. Scroll up a little: both return. At the top: both shown.
+7. (v1.1) With the band folded, drag the bar down: the band returns. Drag it up: it folds. On a short page the band stays while you scroll.
+8. (v1.1) Scroll to the very bottom of a long page: no flicker between folded and open.

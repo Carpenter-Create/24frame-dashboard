@@ -1,19 +1,23 @@
 "use client";
 
-import { Suspense, use, type HTMLAttributes } from "react";
+import { Suspense, use, useRef, type HTMLAttributes } from "react";
 
 import { cn } from "@/lib/cn";
 import type { AppShellChrome } from "@/lib/app-shell-chrome";
 import { HOUSE_LEAD_SHELL_CLASS } from "@/lib/house-lead-chrome";
 import { HOUSE_PAGE_CANVAS_CLASS } from "@/lib/house-shell";
 import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
+import { useHousePathname } from "./house-client-shell";
 import { HouseLeadScrollToTop } from "./house-lead-scroll-to-top";
 import { HousePhoneBottomNav } from "./house-phone-bottom-nav";
+import { HousePhoneChromeContext, useHousePhoneChromeTracker } from "./house-phone-chrome-state";
 
 // One phone shell primitive. Both Social and Access trees mount this
 // so dest docks cannot fork. Desktop is unchanged — the bottom
-// nav is md:hidden. Hide-on-scroll lives on HousePhoneBottomNav
-// (social-tab-bar-scroll) for every workspace that uses this shell.
+// nav is md:hidden. Hide-on-scroll is owned here (house-phone-chrome):
+// one tracker hides the dock and folds the workspace band together, for
+// every workspace that uses this shell (shell-phone-workspace-band-lock-v1
+// §5).
 // HouseLeadScrollToTop bridges the iOS status-bar tap to the nested
 // `[data-house-lead-scroll]` scroller so every workspace answers a
 // tap the same way (Adam 2026-09-19). Coarse-pointer devices only.
@@ -41,25 +45,31 @@ export function HousePhoneAppShell({
   /** Social DM unread total — the dock's Messages dot. */
   messagesUnread?: number;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pathname = useHousePathname();
+  const phoneChrome = useHousePhoneChromeTracker(rootRef, pathname);
   return (
-    <div
-      data-house-phone-app-shell=""
-      className={cn(HOUSE_LEAD_SHELL_CLASS, HOUSE_PAGE_CANVAS_CLASS, className)}
-      style={style}
-      {...rest}
-    >
-      <HouseLeadScrollToTop />
-      {children}
-      <PhoneDockSlot
-        chrome={chrome}
-        workspace={workspace}
-        isGcStaff={isGcStaff}
-        homeOwned={homeOwned}
-        accountChrome={accountChrome}
-        coProductions={coProductions}
-        messagesUnread={messagesUnread}
-      />
-    </div>
+    <HousePhoneChromeContext.Provider value={phoneChrome}>
+      <div
+        ref={rootRef}
+        data-house-phone-app-shell=""
+        className={cn(HOUSE_LEAD_SHELL_CLASS, HOUSE_PAGE_CANVAS_CLASS, className)}
+        style={style}
+        {...rest}
+      >
+        <HouseLeadScrollToTop />
+        {children}
+        <PhoneDockSlot
+          chrome={chrome}
+          workspace={workspace}
+          isGcStaff={isGcStaff}
+          homeOwned={homeOwned}
+          accountChrome={accountChrome}
+          coProductions={coProductions}
+          messagesUnread={messagesUnread}
+        />
+      </div>
+    </HousePhoneChromeContext.Provider>
   );
 }
 

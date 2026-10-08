@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHousePathname } from "./house-client-shell";
+import { useHousePhoneChrome } from "./house-phone-chrome-state";
 
 import {
   HouseNavPendingProbe,
@@ -40,10 +41,6 @@ import {
   housePhoneShowsBottomDests,
 } from "@/lib/house-phone-shell";
 import {
-  createSocialTabBarScrollTracker,
-  stepSocialTabBarScroll,
-} from "@/lib/social-tab-bar-scroll";
-import {
   isSocialDmImmersivePath,
   isSocialStoryCreatePath,
   isSocialStoryOpenPath,
@@ -53,9 +50,9 @@ import {
 import { isSocialMessagesDest } from "@/lib/nav";
 import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 
-// Prior Social float: hide on scroll-down, show on scroll-up.
-// G9 page scroll lives on main (`[data-house-lead-scroll]`), not window.
-// Shared across every workspace that mounts this bar.
+// Prior Social float: hide on scroll-down, show on scroll-up. The state
+// comes from HousePhoneAppShell (useHousePhoneChrome), shared with the
+// workspace band so both leave and return together.
 // IA A: dests inside the current workspace only. No workspace item.
 // Icons only, with accessible names. Every dock: the current dest is
 // the FILLED glyph painted accent — no dot, no chip (H register,
@@ -64,38 +61,6 @@ import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 // accent circle inside the pill. Messages shows an 8 accent unread dot
 // (2px dock-surface ring) at the glyph's top-right; the count stays in
 // the accessible name.
-
-function useHousePhoneBottomNavHidden(pathname: string) {
-  const [nav, setNav] = useState({ path: pathname, hidden: false });
-  if (nav.path !== pathname) {
-    setNav({ path: pathname, hidden: false });
-  }
-
-  useEffect(() => {
-    const scroller = document.querySelector<HTMLElement>("[data-house-lead-scroll]");
-    const readY = () => (scroller ? scroller.scrollTop : window.scrollY);
-    const target: EventTarget = scroller ?? window;
-    let tracker = createSocialTabBarScrollTracker(readY());
-
-    const onScroll = () => {
-      const next = stepSocialTabBarScroll(tracker, readY());
-      const changed = next.state !== tracker.state;
-      tracker = next;
-      if (changed) {
-        setNav((current) =>
-          current.path !== pathname
-            ? current
-            : { path: pathname, hidden: next.state === "hidden" },
-        );
-      }
-    };
-
-    target.addEventListener("scroll", onScroll, { passive: true });
-    return () => target.removeEventListener("scroll", onScroll);
-  }, [pathname]);
-
-  return nav.path === pathname ? nav.hidden : false;
-}
 
 export function HousePhoneBottomNav({
   workspace: requestedWorkspace,
@@ -117,7 +82,7 @@ export function HousePhoneBottomNav({
   const pathname = useHousePathname();
   const router = useRouter();
   const { activePath, markPending } = useHouseNavPending();
-  const hidden = useHousePhoneBottomNavHidden(pathname);
+  const { dockHidden: hidden } = useHousePhoneChrome();
   const visible =
     !isSocialStoryCreatePath(pathname) &&
     !isSocialStoryOpenPath(pathname) &&

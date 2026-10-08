@@ -120,8 +120,16 @@ export const HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS = HOUSE_SHELL_GUTTER_X_CLASS;
 // sits on the page canvas (--bg glass), like the side menu, so dark
 // mode reads as one surface. Phone: the bar is a sheet over the workspace
 // band — the opaque page colour (no glass, so no blue shows through) with
-// a 24 top radius (--radius-xl), no drag handle.
-export const HOUSE_LEAD_CHROME_CLASS = `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`;
+// a 24 top radius (--radius-xl) and the grab handle in an 8 strip above
+// the 56 row (64 in all), so the handle clears the bar's round controls.
+export const HOUSE_LEAD_CHROME_CLASS = `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] max-md:h-[calc(var(--header-height)+var(--space-2))] max-md:pt-[var(--space-2)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`;
+
+// Phone grab handle (Adam 2026-10-08, lock §5): the cue that the sheet
+// moves. 36 × 4, centred 4 below the sheet's top edge, the tertiary ink
+// at 40%. Drawn only; the pull itself is a vertical drag anywhere on the
+// lead stack (house-phone-chrome), so no small touch target is added.
+export const HOUSE_LEAD_GRIP_CLASS =
+  "pointer-events-none absolute inset-x-0 top-[var(--space-1)] mx-auto h-1 w-9 rounded-full bg-ink-3/40 md:hidden";
 
 // Phone emblem link (md:hidden at the call site): a 44 × 44 hit, so the
 // tap target matches the other bar targets (H register: phone targets

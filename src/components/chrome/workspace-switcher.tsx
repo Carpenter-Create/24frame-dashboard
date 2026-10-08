@@ -21,6 +21,7 @@ import {
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
+import { useHousePhoneChrome } from "./house-phone-chrome-state";
 
 import { AppearanceCheck } from "./appearance-check";
 import { SegmentedTrack } from "@/components/ui/segmented-track";
@@ -96,6 +97,7 @@ import {
   WORKSPACE_BAND_ICON_WEIGHT,
   WORKSPACE_BAND_PILL_HIT_CLASS,
   WORKSPACE_BAND_ROW_CLASS,
+  workspaceBandFoldClass,
   workspaceBandPillClass,
   type WorkspaceLaneMode,
   type WorkspaceLaneOption,
@@ -359,6 +361,9 @@ function WorkspaceBand({
   const pills = workspaceSliderSegments(options);
   const routeWorkspace = resolveWorkspaceMode(activePath, current);
   const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
+  // Folded under the bar while the page scrolls down (lock §5). It stays
+  // in the accessibility tree; keyboard focus into it opens it.
+  const { bandTucked, open } = useHousePhoneChrome();
 
   return (
     <nav
@@ -366,51 +371,55 @@ function WorkspaceBand({
       data-workspace-switcher=""
       data-workspace-switcher-presentation="band"
       data-workspace-band=""
+      data-workspace-band-tucked={bandTucked ? "" : undefined}
       className={WORKSPACE_BAND_CLASS}
+      onFocus={bandTucked ? open : undefined}
     >
-      <div data-workspace-band-row="" className={WORKSPACE_BAND_ROW_CLASS}>
-        {pills.map((pill, index) => {
-          const lit = index === routeIndex;
-          const Glyph = pill.id === "home" ? House : WORKSPACE_WAFFLE_ICON[pill.id];
-          return (
-            <HouseLink
-              key={pill.id}
-              href={pill.href}
-              prefetch={!lit}
-              data-workspace-band-pill={pill.id}
-              data-workspace-band-current={lit ? "" : undefined}
-              aria-current={lit ? "page" : undefined}
-              className={WORKSPACE_BAND_PILL_HIT_CLASS}
-              onClick={(event) => {
-                // Modified clicks stay on the anchor; a plain tap owns
-                // the hop (cookie, pending, soft swap) like the slider.
-                if (houseNavIgnorePendingClick(event)) return;
-                event.preventDefault();
-                selectWorkspaceTile(
-                  current,
-                  pill,
-                  options,
-                  router,
-                  shellPath,
-                  isGcStaff,
-                  markPending,
-                  event,
-                  house?.navigateOwned,
-                );
-              }}
-            >
-              {lit ? null : <HouseNavPendingProbe href={pill.href} onPending={markPending} />}
-              <span className={workspaceBandPillClass(lit)}>
-                <Glyph
-                  className={WORKSPACE_BAND_ICON_CLASS}
-                  weight={lit ? WORKSPACE_BAND_ICON_CURRENT_WEIGHT : WORKSPACE_BAND_ICON_WEIGHT}
-                  aria-hidden="true"
-                />
-                {pill.label}
-              </span>
-            </HouseLink>
-          );
-        })}
+      <div data-workspace-band-fold="" className={workspaceBandFoldClass(bandTucked)}>
+        <div data-workspace-band-row="" className={WORKSPACE_BAND_ROW_CLASS}>
+          {pills.map((pill, index) => {
+            const lit = index === routeIndex;
+            const Glyph = pill.id === "home" ? House : WORKSPACE_WAFFLE_ICON[pill.id];
+            return (
+              <HouseLink
+                key={pill.id}
+                href={pill.href}
+                prefetch={!lit}
+                data-workspace-band-pill={pill.id}
+                data-workspace-band-current={lit ? "" : undefined}
+                aria-current={lit ? "page" : undefined}
+                className={WORKSPACE_BAND_PILL_HIT_CLASS}
+                onClick={(event) => {
+                  // Modified clicks stay on the anchor; a plain tap owns
+                  // the hop (cookie, pending, soft swap) like the slider.
+                  if (houseNavIgnorePendingClick(event)) return;
+                  event.preventDefault();
+                  selectWorkspaceTile(
+                    current,
+                    pill,
+                    options,
+                    router,
+                    shellPath,
+                    isGcStaff,
+                    markPending,
+                    event,
+                    house?.navigateOwned,
+                  );
+                }}
+              >
+                {lit ? null : <HouseNavPendingProbe href={pill.href} onPending={markPending} />}
+                <span className={workspaceBandPillClass(lit)}>
+                  <Glyph
+                    className={WORKSPACE_BAND_ICON_CLASS}
+                    weight={lit ? WORKSPACE_BAND_ICON_CURRENT_WEIGHT : WORKSPACE_BAND_ICON_WEIGHT}
+                    aria-hidden="true"
+                  />
+                  {pill.label}
+                </span>
+              </HouseLink>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

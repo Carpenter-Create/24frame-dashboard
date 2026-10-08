@@ -6,6 +6,7 @@ import {
   HOUSE_LEAD_SCROLL_TO_TOP_MEDIA,
   HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT,
   HOUSE_LEAD_SCROLL_TO_TOP_OFFSET,
+  HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR,
   HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR,
   houseLeadScrollToTopIsTap,
 } from "@/lib/house-lead-scroll-to-top";
@@ -20,7 +21,9 @@ export function HouseLeadScrollToTop() {
 
     const root = document.documentElement;
     const previousMinHeight = root.style.minHeight;
+    const previousOverflowAnchor = root.style.overflowAnchor;
     root.style.minHeight = HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT;
+    root.style.overflowAnchor = HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR;
     window.scrollTo(0, HOUSE_LEAD_SCROLL_TO_TOP_OFFSET);
 
     const onScroll = () => {
@@ -37,6 +40,7 @@ export function HouseLeadScrollToTop() {
     return () => {
       window.removeEventListener("scroll", onScroll);
       root.style.minHeight = previousMinHeight;
+      root.style.overflowAnchor = previousOverflowAnchor;
     };
   }, []);
   return null;

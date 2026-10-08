@@ -51,7 +51,14 @@ import {
   WORKSPACE_BAND_PILL_CLASS,
   WORKSPACE_BAND_PILL_CURRENT_CLASS,
   WORKSPACE_BAND_ROW_CLASS,
+  WORKSPACE_BAND_FOLD_OPEN_CLASS,
+  WORKSPACE_BAND_FOLD_TUCKED_CLASS,
 } from "@/lib/workspace-switcher";
+import { HOUSE_LEAD_GRIP_CLASS } from "@/lib/house-lead-chrome";
+import { HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS } from "@/lib/house-phone-shell";
+import { HouseLeadChrome } from "./house-lead-chrome";
+import { HousePhoneBottomNav } from "./house-phone-bottom-nav";
+import { HousePhoneChromeContext } from "./house-phone-chrome-state";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -666,6 +673,67 @@ describe("workspace band (phone)", () => {
       );
       expect(pillIds(html)).toEqual(["home", "aggregation", "social", "education"]);
       expect(html).not.toContain('href="/staff/queue"');
+    } finally {
+      navigation.pathname = "/";
+    }
+  });
+});
+
+describe("the sheet rides over the band (lock §5)", () => {
+  const withChrome = (node: React.ReactNode, state: { dockHidden: boolean; bandTucked: boolean }) => (
+    <HousePhoneChromeContext.Provider value={{ ...state, open: () => {} }}>{node}</HousePhoneChromeContext.Provider>
+  );
+  const open = { dockHidden: false, bandTucked: false };
+  const tucked = { dockHidden: true, bandTucked: true };
+
+  it("folds the band row under the bar when the shell says tucked, and opens it otherwise", () => {
+    navigation.pathname = "/social";
+    try {
+      const shown = renderToStaticMarkup(
+        withChrome(<WorkspaceSwitcher presentation="band" current="social" />, open),
+      );
+      expect(shown).toContain(`data-workspace-band-fold="" class="${WORKSPACE_BAND_FOLD_OPEN_CLASS}"`);
+      expect(shown).not.toContain("data-workspace-band-tucked");
+      // The row sits inside the fold, so the fold's height is what moves.
+      expect(shown.indexOf("data-workspace-band-fold")).toBeLessThan(shown.indexOf("data-workspace-band-row"));
+
+      const folded = renderToStaticMarkup(
+        withChrome(<WorkspaceSwitcher presentation="band" current="social" />, tucked),
+      );
+      expect(folded).toContain(`data-workspace-band-fold="" class="${WORKSPACE_BAND_FOLD_TUCKED_CLASS}"`);
+      expect(folded).toContain('data-workspace-band-tucked=""');
+      // Still in the accessibility tree: four pills, the current one marked.
+      expect(folded).not.toContain("aria-hidden=\"true\" data-workspace-band");
+      expect([...folded.matchAll(/data-workspace-band-pill=/g)]).toHaveLength(4);
+      expect(folded).toContain('aria-current="page"');
+    } finally {
+      navigation.pathname = "/";
+    }
+  });
+
+  it("draws the grab handle on the bar, decorative only", () => {
+    navigation.pathname = "/aggregation/dashboard";
+    try {
+      const html = renderToStaticMarkup(
+        <HouseLeadChrome workspace="aggregation" accountMenu={null} />,
+      );
+      const header = html.slice(html.indexOf("<header"));
+      expect(header).toContain(`<span aria-hidden="true" data-house-lead-grip="" class="${HOUSE_LEAD_GRIP_CLASS}"></span>`);
+      // The handle is the bar's first child, above the 56 row.
+      expect(header.indexOf("data-house-lead-grip")).toBeLessThan(header.indexOf("data-app-header-leading"));
+    } finally {
+      navigation.pathname = "/";
+    }
+  });
+
+  it("hides the dock from the same state", () => {
+    navigation.pathname = "/aggregation/dashboard";
+    try {
+      const shown = renderToStaticMarkup(withChrome(<HousePhoneBottomNav workspace="aggregation" />, open));
+      const hidden = renderToStaticMarkup(withChrome(<HousePhoneBottomNav workspace="aggregation" />, tucked));
+      expect(shown).not.toContain("data-house-phone-bottom-nav-hidden");
+      expect(hidden).toContain('data-house-phone-bottom-nav-hidden=""');
+      expect(hidden).toContain(HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS);
     } finally {
       navigation.pathname = "/";
     }

@@ -318,9 +318,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     expect(aggregation).toContain(HOUSE_LEAD_LOGO_CLASS);
     expect(social).toContain(HOUSE_LEAD_LOGO_CLASS);
     // Phone: a sheet over the workspace band — opaque page colour, 24
-    // top radius (shell-phone-workspace-band-lock-v1). md+ keeps the glass.
+    // top radius, and an 8 strip above the 56 row for the grab handle
+    // (shell-phone-workspace-band-lock-v1 §2, §5). md+ keeps the glass.
     expect(HOUSE_LEAD_CHROME_CLASS).toBe(
-      `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`,
+      `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] max-md:h-[calc(var(--header-height)+var(--space-2))] max-md:pt-[var(--space-2)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`,
     );
     expect(HOUSE_LEAD_LOGO_CLASS).toBe(
       "inline-flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center -ml-[11px] pl-[11px]",

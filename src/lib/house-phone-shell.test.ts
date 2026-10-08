@@ -566,8 +566,15 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
   });
 
   it("hides the shared phone bottom bar with social-tab-bar-scroll", () => {
-    expect(bottomNavSrc).toContain('from "@/lib/social-tab-bar-scroll"');
-    expect(bottomNavSrc).toContain("useHousePhoneBottomNavHidden(pathname)");
+    // One tracker for the dock and the workspace band (lock §5): the
+    // shell owns it, the dock reads it.
+    const tuckLib = readFileSync("src/lib/house-phone-chrome.ts", "utf8");
+    expect(tuckLib).toContain('from "./social-tab-bar-scroll"');
+    expect(tuckLib).toContain("stepSocialTabBarScroll(tracker, y)");
+    expect(phoneAppShellSrc).toContain("useHousePhoneChromeTracker(rootRef, pathname)");
+    expect(phoneAppShellSrc).toContain("<HousePhoneChromeContext.Provider value={phoneChrome}>");
+    expect(bottomNavSrc).toContain("const { dockHidden: hidden } = useHousePhoneChrome();");
+    expect(bottomNavSrc).not.toContain("addEventListener(\"scroll\"");
     expect(phoneAppShellSrc).toContain("HousePhoneBottomNav");
     expect(HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS).toBe("pointer-events-none translate-y-full");
 
