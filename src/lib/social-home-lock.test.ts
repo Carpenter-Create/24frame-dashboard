@@ -181,7 +181,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(postCard).toContain("data-social-post-time");
     expect(postCard).toContain("SocialLikeCount");
     expect(postCard).toContain("SocialCommentTrigger");
-    expect(pkg).toContain('"next": "16.3.6"');
+    expect(pkg).toContain('"next": "16.3.8"');
     expect(existsSync("src/components/social/social-mobile-dock.tsx")).toBe(false);
     // Feed Reels rail (Adam 2026-10-04) rides the post wall on Home; Explore
     // itself stays a video For You with no Reels section.
