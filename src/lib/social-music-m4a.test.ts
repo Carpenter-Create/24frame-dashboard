@@ -1,7 +1,4 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { sliceSocialMusicAudio, socialMusicAudioDurationSeconds } from "@/lib/social-music-m4a";
@@ -92,48 +89,31 @@ describe("sliceSocialMusicAudio", () => {
   });
 
   it("cuts a real AAC m4a into byte-distinct windows of the measured length", () => {
-    const dir = mkdtempSync(join(tmpdir(), "music-m4a-"));
-    try {
-      const tone = join(dir, "tone.m4a");
-      const tail = join(dir, "tail.m4a");
-      execFileSync(
-        "ffmpeg",
-        ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=12.3", "-c:a", "aac", "-b:a", "64k", tone],
-        { stdio: "ignore" },
-      );
-      execFileSync(
-        "ffmpeg",
-        ["-y", "-f", "lavfi", "-i", "sine=frequency=880:duration=12.033", "-c:a", "aac", "-b:a", "64k", tail],
-        { stdio: "ignore" },
-      );
-      const toneBytes = new Uint8Array(readFileSync(tone));
-      const duration = socialMusicAudioDurationSeconds(toneBytes);
-      expect(duration).toBeGreaterThan(12.2);
-      expect(duration).toBeLessThan(12.5);
-      const first = sliceSocialMusicAudio(toneBytes, { startSeconds: 0, endSeconds: 12 });
-      const last = sliceSocialMusicAudio(toneBytes, {
-        startSeconds: Math.max(0, duration - 12),
-        endSeconds: duration,
-      });
-      expect(Buffer.from(first).equals(Buffer.from(last))).toBe(false);
-      expect(socialMusicAudioDurationSeconds(first)).toBeGreaterThan(11.5);
-      expect(socialMusicAudioDurationSeconds(first)).toBeLessThan(12.5);
-      expect(socialMusicAudioDurationSeconds(last)).toBeGreaterThan(11.5);
-      expect(socialMusicAudioDurationSeconds(last)).toBeLessThan(12.5);
+    const toneBytes = new Uint8Array(readFileSync("src/lib/social-music-fixtures/tone-12.3.m4a"));
+    const duration = socialMusicAudioDurationSeconds(toneBytes);
+    expect(duration).toBeGreaterThan(12.2);
+    expect(duration).toBeLessThan(12.5);
+    const first = sliceSocialMusicAudio(toneBytes, { startSeconds: 0, endSeconds: 12 });
+    const last = sliceSocialMusicAudio(toneBytes, {
+      startSeconds: Math.max(0, duration - 12),
+      endSeconds: duration,
+    });
+    expect(Buffer.from(first).equals(Buffer.from(last))).toBe(false);
+    expect(socialMusicAudioDurationSeconds(first)).toBeGreaterThan(11.5);
+    expect(socialMusicAudioDurationSeconds(first)).toBeLessThan(12.5);
+    expect(socialMusicAudioDurationSeconds(last)).toBeGreaterThan(11.5);
+    expect(socialMusicAudioDurationSeconds(last)).toBeLessThan(12.5);
 
-      const tailBytes = new Uint8Array(readFileSync(tail));
-      const tailDuration = socialMusicAudioDurationSeconds(tailBytes);
-      expect(tailDuration).toBeGreaterThan(12);
-      expect(tailDuration).toBeLessThan(12.2);
-      const anchored = sliceSocialMusicAudio(tailBytes, {
-        startSeconds: Math.max(0, tailDuration - 12),
-        endSeconds: tailDuration,
-      });
-      const anchoredDuration = socialMusicAudioDurationSeconds(anchored);
-      expect(anchoredDuration).toBeGreaterThan(11.5);
-      expect(anchoredDuration).toBeLessThan(12.5);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    const tailBytes = new Uint8Array(readFileSync("src/lib/social-music-fixtures/tail-12.033.m4a"));
+    const tailDuration = socialMusicAudioDurationSeconds(tailBytes);
+    expect(tailDuration).toBeGreaterThan(12);
+    expect(tailDuration).toBeLessThan(12.2);
+    const anchored = sliceSocialMusicAudio(tailBytes, {
+      startSeconds: Math.max(0, tailDuration - 12),
+      endSeconds: tailDuration,
+    });
+    const anchoredDuration = socialMusicAudioDurationSeconds(anchored);
+    expect(anchoredDuration).toBeGreaterThan(11.5);
+    expect(anchoredDuration).toBeLessThan(12.5);
   });
 });

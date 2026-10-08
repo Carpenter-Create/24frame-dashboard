@@ -297,7 +297,8 @@ Hot feeds for other people can lag up to 60 seconds after an allow
 
 After the function is live, confirm one real Mux `audio.m4a` cuts into
 the planned windows and that those windows are not identical bytes.
-This step waits on deploy. Local coverage generates a tone with ffmpeg
-and checks the same cutter. The Lambda does not decode AAC. An
+This step waits on deploy. The unit test reads two committed AAC
+files, a 12.3 second tone and a one-frame tail, and checks the same
+cutter. CI does not need ffmpeg. The Lambda does not decode AAC. An
 ACRCloud `2004` on AAC stays an error. A `2004` is treated as silence
 only when the window is little-endian PCM (`sowt`) under the RMS line.
