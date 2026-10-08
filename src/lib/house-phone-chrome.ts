@@ -102,15 +102,23 @@ export type HousePhoneChromeController = {
   state: () => HousePhoneChromeState;
 };
 
-/** Near the top the page itself carries the bar (it can scroll a full
- *  band, and the bar has not covered more than the page has scrolled). */
+/** Near the top the page itself carries the bar: the bar has not covered
+ *  more than the page has scrolled, and the page can scroll the rest of
+ *  the cover. */
 export function housePhoneSheetMovesPage(
   y: number,
   offset: number,
   range: number,
   band = HOUSE_PHONE_BAND_ROW_PX,
 ): boolean {
-  return y <= band && range >= band && offset <= Math.max(0, y);
+  return y <= band && offset <= Math.max(0, y) && range >= y + (band - offset);
+}
+
+/** Where the page scrolls so the cover changes from `offset` to `target`:
+ *  by the same amount, so the bar and the content move together. The
+ *  cover and the page position can differ (after opening deeper down). */
+export function housePhoneSheetPageTarget(y: number, offset: number, target: number): number {
+  return Math.max(0, y + (target - offset));
 }
 
 export function createHousePhoneChrome({
@@ -137,6 +145,7 @@ export function createHousePhoneChrome({
   let dock: SocialTabBarScrollTracker = createSocialTabBarScrollTracker(lastY);
   let state = HOUSE_PHONE_CHROME_OPEN;
   let dragOrigin = 0;
+  let dragPageOrigin = 0;
   let dragPage = false;
   let lastDragDy = 0;
 
@@ -173,7 +182,7 @@ export function createHousePhoneChrome({
       const y = readY();
       // Near the top, scroll the page so the content travels with the bar.
       if (y > 0 && housePhoneSheetMovesPage(y, offset, readRange(), band)) {
-        scrollPage(target, true);
+        scrollPage(housePhoneSheetPageTarget(y, offset, target), true);
         return;
       }
       moveTo(target, true);
@@ -182,7 +191,8 @@ export function createHousePhoneChrome({
     dragStart() {
       const y = Math.max(0, readY());
       dragPage = housePhoneSheetMovesPage(y, offset, readRange(), band);
-      dragOrigin = dragPage ? y : offset;
+      dragOrigin = offset;
+      dragPageOrigin = y;
       lastDragDy = 0;
     },
     drag(dy) {
@@ -193,7 +203,7 @@ export function createHousePhoneChrome({
       // Near the top the drag scrolls the page, and the bar follows it now
       // rather than a frame later.
       if (dragPage) {
-        scrollPage(next, false);
+        scrollPage(housePhoneSheetPageTarget(dragPageOrigin, dragOrigin, next), false);
         const drift = direction;
         track();
         direction = drift;
@@ -204,10 +214,10 @@ export function createHousePhoneChrome({
     },
     dragEnd() {
       if (dragPage) {
-        // Decide from where the page is, not the last tracked frame.
+        // The drag tracked the page at once, so the cover is current.
         const y = Math.max(0, readY());
-        const target = housePhoneSheetSnapTarget(Math.min(y, band), direction, band);
-        if (target !== y) scrollPage(target, true);
+        const target = housePhoneSheetSnapTarget(offset, direction, band);
+        if (target !== offset) scrollPage(housePhoneSheetPageTarget(y, offset, target), true);
         dragPage = false;
         return;
       }

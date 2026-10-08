@@ -8,6 +8,7 @@ import {
   housePhoneSheetDragAxis,
   housePhoneSheetMovesPage,
   housePhoneSheetOffset,
+  housePhoneSheetPageTarget,
   housePhoneSheetSnapTarget,
   type HousePhoneChromeState,
 } from "./house-phone-chrome";
@@ -125,6 +126,38 @@ describe("phone bar over the band (lock §5)", () => {
     back.chrome.settle();
     expect(back.pageScrolls).toEqual([[0, true]]);
     expect(back.chrome.offset()).toBe(0);
+  });
+
+  it("near the top, moves the page by the cover still needed when the two differ", () => {
+    // Opened deeper down, then back near the top: page 30, cover 0.
+    const p = page();
+    p.scrollTo(300);
+    p.scrollTo(30);
+    expect(p.chrome.offset()).toBe(0);
+    p.scrollTo(40);
+    expect(p.chrome.offset()).toBe(10);
+    // Going down: the page scrolls the 46 the cover still needs, not to 56.
+    p.chrome.settle();
+    expect(p.pageScrolls).toEqual([[86, true]]);
+    expect(p.chrome.offset()).toBe(BAND);
+    // At rest there is nothing left to settle.
+    p.chrome.settle();
+    expect(p.pageScrolls).toHaveLength(1);
+    expect(housePhoneSheetPageTarget(40, 10, 0)).toBe(30);
+    expect(housePhoneSheetPageTarget(5, 0, 0)).toBe(5);
+
+    // A drag from the same state moves the page by the finger, cover with it.
+    const d = page();
+    d.scrollTo(300);
+    d.scrollTo(30);
+    d.scrollTo(40);
+    d.chrome.dragStart();
+    d.chrome.drag(-20);
+    expect(d.y()).toBe(60);
+    expect(d.chrome.offset()).toBe(30);
+    d.chrome.dragEnd();
+    expect(d.pageScrolls.at(-1)).toEqual([86, true]);
+    expect(d.chrome.offset()).toBe(BAND);
   });
 
   it("near the top, a drag on the bar pushes the page up with it; deeper, it moves the bar under the finger", () => {

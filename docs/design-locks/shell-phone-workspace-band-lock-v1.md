@@ -95,6 +95,7 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 | Settle | When the scroll rests (120ms without a scroll event, no finger down) between open and covered, the bar eases 180ms the way it was moving: covered if the page was going down, open if up |
 | Drag | A vertical drag that starts on the band, the bar, or the Education search row moves the bar under the finger (it reads as vertical after 6 of travel, more up/down than sideways), and settles the same way on release. Sideways slides of the band row never move it |
 | Top | The top of the page always shows the band |
+| Near the top | Within the first 56 of scroll, a settle or a drag scrolls the page by the change in cover (not to a fixed position), so the bar and the content move together and no gap opens between them. Deeper down the content is already under the bar, so only the bar moves |
 | Dock | Keeps its own hide-on-scroll rule from the same scroll (hides on 8 down, returns on 8 up). A drag that covers the band hides the dock with it; a drag that opens brings it back |
 | Corners | A 24 Sporty Blue strip rides just under the bar's top edge, so the rounded corners show blue at rest and while the bar slides |
 | Handle | 36 × 4, radius full, the tertiary ink at 40%, centred 4 below the bar's top edge, in the bar's 8 phone strip. Decorative (`aria-hidden`); the drag is the control, so no target smaller than 44 is added |
@@ -133,7 +134,7 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 **G7.** Phone: the lead stack is `max-md:absolute` over `main`; `main`'s first child is `data-house-phone-chrome-spacer` (`md:hidden`, the chrome's height); the band never changes height.  
 **G8.** One tracker: the phone shell provides `HousePhoneChromeContext` and writes `--house-phone-sheet-y` (the cover, 0–56) on the shell each scroll; the bar, the corner strip, and the Education search row translate by it; no other scroll listener hides the dock.  
 **G9.** The bar's first child is `data-house-lead-grip` (`aria-hidden`, `md:hidden`, 36 × 4); the phone bar is 64 with an 8 top strip.  
-**G10.** The cover follows the scroll 1:1, clamped 0–56, 0 at the top; it settles only at rest, the way it was moving (180ms); a vertical drag on `[data-house-lead-stack]` moves it 1:1.
+**G10.** The cover follows the scroll 1:1, clamped 0–56, 0 at the top; it settles only at rest, the way it was moving (180ms); a vertical drag on `[data-house-lead-stack]` moves it 1:1; near the top both scroll the page by the change in cover.
 
 ## Verify-on-ship
 
