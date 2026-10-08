@@ -48,9 +48,11 @@
 -- posts_select (20260912120000_groups_posts.sql) and stories_select
 -- (20260914120000_social_home_stories.sql). Nothing between those files
 -- and this one replaced either policy.
+--   drop trigger if exists profiles_enqueue_welcome_music_scan on public.profiles;
 --   drop trigger if exists posts_enqueue_social_music_scan on public.posts;
 --   drop trigger if exists stories_enqueue_social_music_scan on public.stories;
 --   drop trigger if exists social_music_scans_touch on public.social_music_scans;
+--   drop function if exists public.enqueue_welcome_music_scan();
 --   drop function if exists public.enqueue_social_music_scan();
 --   drop function if exists public.touch_social_music_scan();
 --   drop policy if exists posts_select on public.posts;
@@ -87,13 +89,29 @@
 --   drop function if exists public.social_video_released(text, uuid);
 --   drop table if exists public.social_music_scans;
 --   drop table if exists public.social_mux_bindings;
+--   alter table public.profiles drop constraint if exists profiles_welcome_mux_ids;
+--   alter table public.profiles drop column if exists welcome_mux_asset_id;
+--   alter table public.profiles drop column if exists welcome_mux_playback_id;
+--   alter table public.profiles drop column if exists welcome_mux_upload_id;
 --   drop type if exists public.social_music_scan_status;
 --   drop type if exists public.social_music_scan_surface;
 --   drop schema if exists private;
+--
+-- ROLLBACK CONSEQUENCES: dropping the tables deletes every verdict and
+-- every Mux binding. Posts and stories policies go back to the pre-music
+-- text, so a blocked video is visible again. The app must be reverted in
+-- the same window. Leaving the new app on the old database denies Mux
+-- playback and video signing for everyone except the author. Welcome Mux
+-- columns go away with the profile alters above. Account deletion cascades
+-- scan and binding rows with the profile, post, or story.
+--
+-- APPLY: run this in a low-traffic window. The policy swap takes an
+-- exclusive lock on posts and stories and holds it through the backfill.
+-- Count video rows first. Do not apply from CI.
 -- ============================================================================
 
 do $$ begin
-  create type public.social_music_scan_surface as enum ('post', 'story');
+  create type public.social_music_scan_surface as enum ('post', 'story', 'welcome');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -103,9 +121,10 @@ exception when duplicate_object then null; end $$;
 create table if not exists public.social_music_scans (
   id uuid primary key default gen_random_uuid(),
   surface public.social_music_scan_surface not null,
-  post_id uuid references public.posts (id),
-  story_id uuid references public.stories (id),
-  author_id uuid not null references public.profiles (id),
+  post_id uuid references public.posts (id) on delete cascade,
+  story_id uuid references public.stories (id) on delete cascade,
+  profile_id uuid references public.profiles (id) on delete cascade,
+  author_id uuid not null references public.profiles (id) on delete cascade,
   asset_id text not null,
   playback_id text not null,
   upload_id text,
@@ -125,11 +144,17 @@ create table if not exists public.social_music_scans (
   mux_ready_at timestamptz,
   scan_started_at timestamptz,
   decided_at timestamptz,
+  duration_seconds numeric(8, 3),
+  window_results jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint social_music_scans_parent check (
-    (surface = 'post' and post_id is not null and story_id is null)
-    or (surface = 'story' and story_id is not null and post_id is null)
+    (surface = 'post' and post_id is not null and story_id is null and profile_id is null)
+    or (surface = 'story' and story_id is not null and post_id is null and profile_id is null)
+    or (surface = 'welcome' and profile_id is not null and post_id is null and story_id is null)
+  ),
+  constraint social_music_scans_duration check (
+    duration_seconds is null or (duration_seconds > 0 and duration_seconds <= 480)
   ),
   constraint social_music_scans_attempt_nonneg check (attempt_count >= 0),
   constraint social_music_scans_score check (
@@ -198,11 +223,15 @@ create unique index if not exists social_music_scans_story_playback_key
   on public.social_music_scans (story_id, playback_id)
   where story_id is not null;
 
+create unique index if not exists social_music_scans_profile_playback_key
+  on public.social_music_scans (profile_id, playback_id)
+  where profile_id is not null;
+
 -- Server-written Mux triple. No authenticated policy: a member JWT cannot
 -- insert a binding. The trigger (security definer) reads it.
 create table if not exists public.social_mux_bindings (
   id uuid primary key default gen_random_uuid(),
-  author_id uuid not null references public.profiles (id),
+  author_id uuid not null references public.profiles (id) on delete cascade,
   upload_id text not null,
   asset_id text not null,
   playback_id text not null,
@@ -242,7 +271,21 @@ stable
 security definer
 set search_path to 'public'
 as $$
-  select not exists (
+  select
+    case
+      when p_surface = 'post' and exists (
+        select 1 from public.posts p
+        where p.id = p_id
+          and p.media is not null
+          and jsonb_typeof(p.media) is distinct from 'array'
+      ) then false
+      when p_surface = 'story' and exists (
+        select 1 from public.stories st
+        where st.id = p_id
+          and st.media is not null
+          and jsonb_typeof(st.media) is distinct from 'array'
+      ) then false
+      else not exists (
     select 1
     from (
       select item
@@ -261,7 +304,11 @@ as $$
       where p_surface = 'story'
         and st.id = p_id
     ) mux
-    where coalesce(mux.item->>'kind', '') = 'video'
+    where (
+        jsonb_typeof(mux.item) is distinct from 'object'
+        or lower(btrim(coalesce(mux.item->>'kind', ''))) = 'video'
+        or lower(btrim(split_part(coalesce(mux.item->>'contentType', ''), ';', 1))) like 'video/%'
+      )
       and not exists (
         select 1
         from public.social_music_scans s
@@ -284,7 +331,8 @@ as $$
             )
           )
       )
-  );
+  )
+    end;
 $$;
 
 revoke all on function private.social_video_released(text, uuid) from public, anon;
@@ -327,12 +375,23 @@ begin
   if tg_op = 'UPDATE' and new.media is not distinct from old.media then
     return new;
   end if;
-  if jsonb_typeof(new.media) is distinct from 'array' then
+  if new.media is null or jsonb_typeof(new.media) = 'null' then
     return new;
+  end if;
+  if jsonb_typeof(new.media) is distinct from 'array' then
+    raise exception 'social media must be a list';
   end if;
   for item in select value from jsonb_array_elements(new.media)
   loop
-    if coalesce(item->>'kind', '') is distinct from 'video' then
+    if jsonb_typeof(item) is distinct from 'object' then
+      raise exception 'social media item must be an object';
+    end if;
+    if position(';' in coalesce(item->>'kind', '')) > 0
+       or position(';' in coalesce(item->>'contentType', '')) > 0 then
+      raise exception 'social media type variant is not accepted';
+    end if;
+    if lower(btrim(coalesce(item->>'kind', ''))) is distinct from 'video'
+       and lower(btrim(coalesce(item->>'contentType', ''))) not like 'video/%' then
       continue;
     end if;
     -- Social video is Mux-only. A stored S3 video cannot be scanned here.
@@ -452,6 +511,136 @@ create trigger stories_enqueue_social_music_scan
   after insert or update of media on public.stories
   for each row execute function public.enqueue_social_music_scan();
 
+-- Welcome video uses the same scan and the same binding. All three Mux ids
+-- are set together, or none are. The S3 key stays a legacy source until re-ingest.
+alter table public.profiles
+  add column if not exists welcome_mux_asset_id text,
+  add column if not exists welcome_mux_playback_id text,
+  add column if not exists welcome_mux_upload_id text;
+
+alter table public.profiles drop constraint if exists profiles_welcome_mux_ids;
+alter table public.profiles
+  add constraint profiles_welcome_mux_ids check (
+    (
+      welcome_mux_asset_id is null
+      and welcome_mux_playback_id is null
+      and welcome_mux_upload_id is null
+    )
+    or (
+      welcome_mux_asset_id ~ '^[A-Za-z0-9_-]{8,120}$'
+      and welcome_mux_playback_id ~ '^[A-Za-z0-9_-]{8,120}$'
+      and welcome_mux_upload_id ~ '^[A-Za-z0-9_-]{8,120}$'
+    )
+  );
+
+create or replace function public.enqueue_welcome_music_scan()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_upload text;
+  v_status public.social_music_scan_status;
+  v_decided timestamptz;
+  v_vendor text;
+  v_vendor_code integer;
+  v_score numeric(5, 2);
+  v_title text;
+  v_artist text;
+  v_album text;
+  v_acrid text;
+  v_isrc text;
+  v_label text;
+begin
+  if new.welcome_mux_asset_id is not distinct from old.welcome_mux_asset_id
+     and new.welcome_mux_playback_id is not distinct from old.welcome_mux_playback_id
+     and new.welcome_mux_upload_id is not distinct from old.welcome_mux_upload_id then
+    return new;
+  end if;
+  if new.welcome_mux_asset_id is null
+     and new.welcome_mux_playback_id is null
+     and new.welcome_mux_upload_id is null then
+    return new;
+  end if;
+  if not exists (
+    select 1
+    from public.social_mux_bindings b
+    where b.author_id = new.id
+      and b.asset_id = new.welcome_mux_asset_id
+      and b.playback_id = new.welcome_mux_playback_id
+  ) then
+    raise exception 'social mux video is not bound to this member';
+  end if;
+  v_upload := new.welcome_mux_upload_id;
+  v_status := 'pending';
+  v_decided := null;
+  v_vendor := null;
+  v_vendor_code := null;
+  v_score := null;
+  v_title := null;
+  v_artist := null;
+  v_album := null;
+  v_acrid := null;
+  v_isrc := null;
+  v_label := null;
+  select s.status, s.decided_at, s.vendor, s.vendor_status_code, s.vendor_score,
+         s.vendor_title, s.vendor_artist, s.vendor_album, s.vendor_acrid,
+         s.vendor_isrc, s.vendor_label
+    into v_status, v_decided, v_vendor, v_vendor_code, v_score,
+         v_title, v_artist, v_album, v_acrid, v_isrc, v_label
+  from public.social_music_scans s
+  where s.asset_id = new.welcome_mux_asset_id
+    and s.playback_id = new.welcome_mux_playback_id
+    and s.status in ('blocked', 'allowed')
+  order by case when s.status = 'blocked' then 0 else 1 end, s.decided_at desc nulls last
+  limit 1;
+  if not found then
+    v_status := 'pending';
+    v_decided := null;
+  elsif v_decided is null then
+    v_decided := now();
+  end if;
+  insert into public.social_music_scans (
+    surface, post_id, story_id, profile_id, author_id,
+    asset_id, playback_id, upload_id, status, decided_at, next_attempt_at,
+    vendor, vendor_status_code, vendor_score, vendor_title, vendor_artist,
+    vendor_album, vendor_acrid, vendor_isrc, vendor_label
+  ) values (
+    'welcome',
+    null,
+    null,
+    new.id,
+    new.id,
+    new.welcome_mux_asset_id,
+    new.welcome_mux_playback_id,
+    v_upload,
+    v_status,
+    case when v_status = 'pending' then null else v_decided end,
+    case when v_status = 'pending' then now() else null end,
+    case when v_status = 'pending' then null else v_vendor end,
+    case when v_status = 'pending' then null else v_vendor_code end,
+    case when v_status = 'pending' then null else v_score end,
+    case when v_status = 'pending' then null else v_title end,
+    case when v_status = 'pending' then null else v_artist end,
+    case when v_status = 'pending' then null else v_album end,
+    case when v_status = 'pending' then null else v_acrid end,
+    case when v_status = 'pending' then null else v_isrc end,
+    case when v_status = 'pending' then null else v_label end
+  )
+  on conflict do nothing;
+  return new;
+end;
+$$;
+
+revoke all on function public.enqueue_welcome_music_scan() from public;
+
+drop trigger if exists profiles_enqueue_welcome_music_scan on public.profiles;
+create trigger profiles_enqueue_welcome_music_scan
+  after update of welcome_mux_asset_id, welcome_mux_playback_id, welcome_mux_upload_id
+  on public.profiles
+  for each row execute function public.enqueue_welcome_music_scan();
+
 alter table public.social_music_scans enable row level security;
 
 drop policy if exists social_music_scans_select_author on public.social_music_scans;
@@ -550,7 +739,10 @@ from public.posts p
 cross join lateral jsonb_array_elements(
   case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
 ) as item
-where coalesce(item->>'kind', '') = 'video'
+where (
+    lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+    or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+  )
   and coalesce(item->>'provider', '') = 'mux'
   and coalesce(item->>'assetId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
   and coalesce(item->>'playbackId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
@@ -575,7 +767,10 @@ cross join lateral jsonb_array_elements(
   case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
 ) as item
 where st.expires_at > now()
-  and coalesce(item->>'kind', '') = 'video'
+  and (
+    lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+    or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+  )
   and coalesce(item->>'provider', '') = 'mux'
   and coalesce(item->>'assetId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
   and coalesce(item->>'playbackId', '') ~ '^[A-Za-z0-9_-]{8,120}$'
@@ -598,7 +793,10 @@ from public.posts p
 cross join lateral jsonb_array_elements(
   case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
 ) as item
-where coalesce(item->>'kind', '') = 'video'
+where (
+    lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+    or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+  )
   and coalesce(item->>'provider', '') is distinct from 'mux'
   and coalesce(item->>'key', '') <> ''
 on conflict do nothing;
@@ -620,7 +818,10 @@ cross join lateral jsonb_array_elements(
   case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
 ) as item
 where st.expires_at > now()
-  and coalesce(item->>'kind', '') = 'video'
+  and (
+    lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+    or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+  )
   and coalesce(item->>'provider', '') is distinct from 'mux'
   and coalesce(item->>'key', '') <> ''
 on conflict do nothing;
@@ -642,7 +843,10 @@ from public.posts p
 cross join lateral jsonb_array_elements(
   case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
 ) as item
-where coalesce(item->>'kind', '') = 'video'
+where (
+    lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+    or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+  )
   and coalesce(item->>'provider', '') = 'mux'
   and (
     coalesce(item->>'assetId', '') !~ '^[A-Za-z0-9_-]{8,120}$'
@@ -667,7 +871,10 @@ cross join lateral jsonb_array_elements(
   case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
 ) as item
 where st.expires_at > now()
-  and coalesce(item->>'kind', '') = 'video'
+  and (
+    lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+    or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+  )
   and coalesce(item->>'provider', '') = 'mux'
   and (
     coalesce(item->>'assetId', '') !~ '^[A-Za-z0-9_-]{8,120}$'

@@ -35,7 +35,7 @@ const fan = readFileSync("src/components/social/social-create-fan.tsx", "utf8");
 const sheet = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
 
 describe("Social Go live recorder", () => {
-  it("records in-app then posts on the normal video path with a 10:00 cap", () => {
+  it("records in-app then posts on the normal video path with an 8:00 cap", () => {
     expect(page).toContain("SocialGoLive");
     expect(page).toContain("data-social-go-live-page");
     expect(src).toContain("data-social-go-live");

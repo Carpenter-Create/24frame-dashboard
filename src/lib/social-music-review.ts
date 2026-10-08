@@ -12,6 +12,7 @@ export const SOCIAL_MUSIC_REVIEW = {
   unfinished: "Unfinished",
   post: "Social post",
   story: "Social story",
+  welcome: "Welcome video",
   matchFallback: "Music match",
   unfinishedDetail: "The check did not finish. The video stays hidden.",
 } as const;
@@ -20,7 +21,7 @@ export const SOCIAL_MUSIC_REVIEW_HREF = "/staff/music";
 
 export type MusicReviewScan = {
   id: string;
-  surface: "post" | "story";
+  surface: "post" | "story" | "welcome";
   authorName: string | null;
   status: "blocked" | "pending";
   vendorTitle: string | null;
@@ -30,7 +31,12 @@ export type MusicReviewScan = {
 };
 
 function reviewName(scan: MusicReviewScan): string {
-  const label = scan.surface === "story" ? SOCIAL_MUSIC_REVIEW.story : SOCIAL_MUSIC_REVIEW.post;
+  const label =
+    scan.surface === "story"
+      ? SOCIAL_MUSIC_REVIEW.story
+      : scan.surface === "welcome"
+        ? SOCIAL_MUSIC_REVIEW.welcome
+        : SOCIAL_MUSIC_REVIEW.post;
   const author = scan.authorName?.trim();
   return author ? `${label} · ${author}` : label;
 }

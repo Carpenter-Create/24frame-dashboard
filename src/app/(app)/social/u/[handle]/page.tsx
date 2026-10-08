@@ -12,6 +12,7 @@ import { SocialProfileTabPanels } from "@/components/social/social-profile-tab-p
 import { SocialShareButton } from "@/components/social/social-share-button";
 import { SocialProfileIdentity } from "@/components/social/social-profile-identity";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
+import { welcomeVideoVisible } from "@/lib/social-media-access";
 import { loadOwnMusicNotices } from "@/lib/social-music-scan";
 import { SocialWelcomeVideo } from "@/components/social/social-welcome-video";
 import { SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PAGE_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
@@ -137,7 +138,13 @@ export default async function SocialPublicProfilePage({
 
   const isSelf = member.id === ctx.user.id;
   const photoUrl = socialAvatarHref(member.id);
-  const welcomeSet = Boolean(member.welcome_video_key);
+  const welcomeSet = await welcomeVideoVisible({
+    viewerId: ctx.user.id,
+    profileId: member.id,
+    welcomeVideoKey: member.welcome_video_key ?? null,
+    assetId: member.welcome_mux_asset_id ?? null,
+    playbackId: member.welcome_mux_playback_id ?? null,
+  });
   const coverUrl = member.cover_key ? socialMediaHref(member.cover_key) : null;
   const liveStories = (await loadLiveStories(supabase, [member.id])).stories;
   const following = own && !isSelf ? await loadCachedIsFollowing(supabase, ctx.user.id, member.id) : false;

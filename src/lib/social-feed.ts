@@ -44,6 +44,9 @@ export type SocialProfileRow = {
   status: string;
   bio?: string | null;
   welcome_video_key?: string | null;
+  welcome_mux_asset_id?: string | null;
+  welcome_mux_playback_id?: string | null;
+  welcome_mux_upload_id?: string | null;
   cover_key?: string | null;
   crafts?: string[] | null;
   topics?: string[] | null;

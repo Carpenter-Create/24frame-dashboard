@@ -27,8 +27,11 @@ describe("social music Lambda handler", () => {
     const source = readFileSync("workers/social-music/handler.ts", "utf8");
     expect(source).toContain("runSocialMusicBatch");
     expect(source).toContain('.eq("status", "pending")');
-    expect(source).toContain("sliceSocialMusicAudio");
     expect(source).toContain("blockSiblings");
+    expect(source).toContain("sliceWindow: (audio, window) => sliceSocialMusicAudio(audio, window)");
+    expect(source).toContain("SOCIAL_MUSIC_SIBLING_BLOCK_STATUSES");
+    expect(source).toContain('.in("status", [...SOCIAL_MUSIC_SIBLING_BLOCK_STATUSES])');
+    expect(source).not.toContain('.eq("status", "allowed")');
     expect(source).toContain("created_at");
     expect(source).not.toContain("asset_start_time");
     expect(source).not.toContain("phase0MusicAllowlist");

@@ -137,7 +137,8 @@ beforeAll(async () => {
     create policy posts_update_author on public.posts for update to authenticated
       using (author_id = auth.uid()) with check (author_id = auth.uid());
     grant select, insert, update on public.posts, public.stories to authenticated;
-    grant select on public.follows, public.profiles to authenticated;
+    grant select, update on public.profiles to authenticated;
+    grant select on public.follows to authenticated;
     grant all on all tables in schema public to service_role;
     insert into public.profiles values ('${A}'), ('${B}');
     insert into public.follows values ('${B}', '${A}');
@@ -154,9 +155,13 @@ beforeAll(async () => {
   malformedStory = bad.rows[0]!.id;
   const expired = await db.query<{ id: string }>(
     `insert into public.stories (author_id, expires_at, media) values ($1, now() - interval '1 hour', $2::jsonb) returning id`,
-    [A, JSON.stringify([{ kind: "video", provider: "mux", assetId: "x", playbackId: "y" }])],
+    [A, JSON.stringify([{ kind: "video", provider: "mux", assetId: "assetEXP00001", playbackId: "playEXP000001" }])],
   );
   expiredStory = expired.rows[0]!.id;
+  await db.query(
+    `insert into public.stories (author_id, expires_at, media) values ($1, now() - interval '1 hour', $2::jsonb)`,
+    [A, JSON.stringify([{ kind: "video", key: `stories/${A}/expired.mp4`, contentType: "video/mp4" }])],
+  );
   await db.exec(MIGRATION);
 }, 120_000);
 
@@ -290,5 +295,96 @@ describe("social music scan migration", () => {
         ),
       ),
     ).rejects.toThrow();
+  });
+
+  it("stores a duration at the cap and rejects one second past it", async () => {
+    await bind("assetDUR000001", "playDUR000001");
+    const id = await insertPost(vid("assetDUR000001", "playDUR000001"));
+    await db.query(`update public.social_music_scans set duration_seconds = 480 where post_id = $1`, [id]);
+    await expect(
+      db.query(`update public.social_music_scans set duration_seconds = 481 where post_id = $1`, [id]),
+    ).rejects.toThrow(/duration/);
+  });
+
+  it("rejects another member using a bound pair and cascades a profile delete", async () => {
+    await db.query(
+      `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+       values ($1, 'upload00000B', 'assetOWNER001', 'playOWNER0001')`,
+      [A],
+    );
+    await expect(
+      asUser(B, () =>
+        db.query(`insert into public.posts (author_id, media) values ($1, $2::jsonb)`, [
+          B,
+          vid("assetOWNER001", "playOWNER0001"),
+        ]),
+      ),
+    ).rejects.toThrow(/not bound/);
+    const owner = "33333333-3333-4333-8333-333333333333";
+    await db.query(`insert into public.profiles (id) values ($1)`, [owner]);
+    await db.query(
+      `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+       values ($1, 'upload00000C', 'assetCASC0001', 'playCASC00001')`,
+      [owner],
+    );
+    await db.query(
+      `insert into public.social_music_scans (surface, profile_id, author_id, asset_id, playback_id)
+       values ('welcome', $1, $1, 'assetCASC0001', 'playCASC00001')`,
+      [owner],
+    );
+    await db.query(`delete from public.profiles where id = $1`, [owner]);
+    const left = await db.query(`select 1 from public.social_mux_bindings where author_id = $1`, [owner]);
+    expect(left.rows).toEqual([]);
+    const scans = await db.query(`select 1 from public.social_music_scans where author_id = $1`, [owner]);
+    expect(scans.rows).toEqual([]);
+  });
+
+  it("enqueues a welcome scan only when the profile mux pair is bound", async () => {
+    await expect(
+      asUser(A, () =>
+        db.query(
+          `update public.profiles
+           set welcome_mux_asset_id = 'assetWEL00001',
+               welcome_mux_playback_id = 'playWEL000001',
+               welcome_mux_upload_id = 'uploadWEL0001'
+           where id = $1`,
+          [A],
+        ),
+      ),
+    ).rejects.toThrow(/not bound/);
+    await db.query(
+      `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+       values ($1, 'uploadWEL0001', 'assetWEL00001', 'playWEL000001')`,
+      [A],
+    );
+    await asUser(A, () =>
+      db.query(
+        `update public.profiles
+         set welcome_mux_asset_id = 'assetWEL00001',
+             welcome_mux_playback_id = 'playWEL000001',
+             welcome_mux_upload_id = 'uploadWEL0001'
+         where id = $1`,
+        [A],
+      ),
+    );
+    const welcome = await db.query<{ status: string }>(
+      `select status::text as status from public.social_music_scans where profile_id = $1`,
+      [A],
+    );
+    expect(welcome.rows).toMatchObject([{ status: "pending" }]);
+  });
+
+  it("does not backfill an expired story on either video path", async () => {
+    const expired = await db.query(
+      `select last_error from public.social_music_scans where story_id = $1`,
+      [expiredStory],
+    );
+    expect(expired.rows).toEqual([]);
+    const s3 = await db.query(
+      `select 1 from public.social_music_scans where last_error = 's3_video_needs_mux' and story_id in (
+         select id from public.stories where expires_at <= now()
+       )`,
+    );
+    expect(s3.rows).toEqual([]);
   });
 });

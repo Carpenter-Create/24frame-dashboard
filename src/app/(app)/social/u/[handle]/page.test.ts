@@ -33,7 +33,7 @@ vi.mock("@/lib/s3-social-media", () => ({
 vi.mock("@/lib/social-profile", () => ({
   ensureOwnSocialProfile: vi.fn(),
   SOCIAL_PROFILE_COLUMNS:
-    "id, handle, display_name, status, bio, welcome_video_key, cover_key, crafts, topics, imdb_url, website_url",
+    "id, handle, display_name, status, bio, welcome_video_key, welcome_mux_asset_id, welcome_mux_playback_id, welcome_mux_upload_id, cover_key, crafts, topics, imdb_url, website_url",
 }));
 vi.mock("@/app/(app)/social/actions", () => ({
   toggleSocialFollow: vi.fn(),

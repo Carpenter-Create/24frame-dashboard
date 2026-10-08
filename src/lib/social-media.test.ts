@@ -201,28 +201,37 @@ describe("posts.media persist shape", () => {
     );
   });
 
-  it("accepts one video upload as the welcome item", () => {
-    const video = {
+  it("accepts one Mux video as the welcome item", () => {
+    const s3 = {
       kind: "video" as const,
       key: `posts/upload/${USER}/${OBJECT}.mp4`,
       contentType: "video/mp4" as const,
+    };
+    const mux = {
+      kind: "video" as const,
+      key: `posts/${USER}/${OBJECT}.mp4`,
+      contentType: "video/mp4" as const,
+      provider: "mux" as const,
+      playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+      uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+      assetId: "SqQnqz6s5MBuXGvJaUWdXu",
     };
     const image = {
       kind: "image" as const,
       key: `posts/upload/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
-    expect(welcomeVideoItemFromMedia([video], USER)).toEqual(video);
+    expect(welcomeVideoItemFromMedia([mux], USER)).toMatchObject({
+      assetId: mux.assetId,
+      playbackId: mux.playbackId,
+      uploadId: mux.uploadId,
+    });
+    expect(welcomeVideoItemFromMedia([s3], USER)).toBeNull();
     expect(welcomeVideoItemFromMedia([image], USER)).toBeNull();
-    expect(welcomeVideoItemFromMedia([video, image], USER)).toBeNull();
-    expect(welcomeVideoItemFromMedia([{ ...video, key: `posts/${USER}/${OBJECT}.mp4` }], USER)).toBeNull();
-    expect(welcomeVideoItemFromMedia([{ ...video, key: `posts/upload/${OTHER}/${OBJECT}.mp4` }], USER)).toBeNull();
-    expect(
-      welcomeVideoItemFromMedia(
-        [{ ...video, key: `posts/${USER}/${OBJECT}.mp4`, provider: "mux", playbackId: "uNbxnGLKJ00yfbijDO8COxT" }],
-        USER,
-      ),
-    ).toBeNull();
+    expect(welcomeVideoItemFromMedia([mux, image], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...mux, key: `posts/upload/${USER}/${OBJECT}.mp4` }], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...mux, key: `posts/${OTHER}/${OBJECT}.mp4` }], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...mux, playbackId: "short" }], USER)).toBeNull();
   });
 
   it("accepts one still upload as the profile cover item", () => {

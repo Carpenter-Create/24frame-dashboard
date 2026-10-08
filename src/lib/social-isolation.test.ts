@@ -220,9 +220,11 @@ describe("social isolation lock", () => {
     const welcomeBody = actions.slice(welcomeStart, actions.indexOf("\nexport ", welcomeStart + 1));
     expect(welcomeStart).toBeGreaterThan(-1);
     expect(welcomeBody).toContain("welcomeVideoItemFromMedia");
+    expect(welcomeBody).toContain("rejectUnboundSocialMux");
+    expect(welcomeBody).toContain("welcome_mux_asset_id");
     expect(welcomeBody).toContain("SOCIAL.stories.mediaType");
     expect(welcomeBody).not.toContain("await publishSocialMediaItems(");
-    expect(welcomeBody).not.toContain("welcome_video_key");
+    expect(welcomeBody).toContain("welcome_video_key: null");
     const sign = readFileSync("src/lib/s3-social-media.ts", "utf8");
     expect(sign).toContain("socialMediaProxies(media, authorId, lane)");
     expect(sign).toContain("socialMediaProxiesByPostId(posts)");

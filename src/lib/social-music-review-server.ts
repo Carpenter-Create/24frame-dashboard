@@ -13,7 +13,7 @@ const REVIEW_COLUMNS =
 
 type ReviewRow = {
   id: string;
-  surface: "post" | "story";
+  surface: "post" | "story" | "welcome";
   author_id: string;
   status: "pending" | "allowed" | "blocked";
   vendor_title: string | null;

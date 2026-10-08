@@ -8,7 +8,7 @@ import {
 } from "@/lib/social-cache-keys";
 import { socialAvatarHref, socialMediaHref } from "@/lib/social-edge";
 
-/** Presence only. Not a media URL — welcome has no Mux playback id. */
+/** Presence only. The band is not a player and not a media URL. */
 export const SOCIAL_WELCOME_VIDEO_PRESENT = "present";
 import type { SocialProfileCounts } from "@/lib/social-feed";
 import type { SocialProfileRow } from "@/lib/social-feed";
@@ -21,6 +21,9 @@ export type SocialProfileQueryRow = Pick<
   | "status"
   | "bio"
   | "welcome_video_key"
+  | "welcome_mux_asset_id"
+  | "welcome_mux_playback_id"
+  | "welcome_mux_upload_id"
   | "cover_key"
   | "crafts"
   | "topics"
@@ -50,7 +53,8 @@ export function socialProfileFaceFromRow(row: SocialProfileQueryRow): SocialProf
     bio: row.bio ?? "",
     photoUrl: socialAvatarHref(row.id),
     coverUrl: row.cover_key ? socialMediaHref(row.cover_key) : null,
-    welcomeVideoUrl: row.welcome_video_key ? SOCIAL_WELCOME_VIDEO_PRESENT : null,
+    welcomeVideoUrl:
+      row.welcome_video_key || row.welcome_mux_playback_id ? SOCIAL_WELCOME_VIDEO_PRESENT : null,
     crafts: row.crafts ?? [],
     topics: row.topics ?? [],
     imdbUrl: row.imdb_url ?? null,

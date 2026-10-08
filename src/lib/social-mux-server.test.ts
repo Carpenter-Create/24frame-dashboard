@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-import { SocialMuxUploadNotBoundError } from "./social-mux";
+import { SOCIAL_MUX_PROVIDER, SocialMuxUploadNotBoundError, SocialMuxVideoTooLongError } from "./social-mux";
 import {
   createSocialMuxAudioRendition,
   createSocialMuxDirectUpload,
@@ -24,6 +24,7 @@ import {
   signedPlaybackIdFromAsset,
   socialMuxPublishedVideoBound,
   socialMuxSettingsFromUploadInput,
+  verifySocialMuxPublishedItems,
 } from "./social-mux-server";
 
 const UPLOAD_ID = "zd01Pe2bNpYhxbrwYABgFE";
@@ -105,6 +106,7 @@ describe("social Mux server client", () => {
         muxJson({
           id: ASSET_ID,
           status: "preparing",
+          duration: 8,
           playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }],
         }),
       );
@@ -124,6 +126,37 @@ describe("social Mux server client", () => {
       },
       { onConflict: "author_id,asset_id,playback_id", ignoreDuplicates: true },
     );
+  });
+
+  it("deletes a ready asset longer than eight minutes and does not bind it", async () => {
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    bindingUpsert.mockClear();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        muxJson({
+          id: UPLOAD_ID,
+          status: "asset_created",
+          asset_id: ASSET_ID,
+          new_asset_settings: { passthrough: `${USER}:object` },
+        }),
+      )
+      .mockResolvedValueOnce(
+        muxJson({
+          id: ASSET_ID,
+          status: "ready",
+          duration: 481,
+          playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }],
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(finalizeSocialMuxDirectUpload(UPLOAD_ID, USER)).rejects.toBeInstanceOf(SocialMuxVideoTooLongError);
+    expect(String(fetchMock.mock.calls[2]?.[0])).toBe(`https://api.mux.com/video/v1/assets/${ASSET_ID}`);
+    expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ method: "DELETE" });
+    expect(bindingUpsert).not.toHaveBeenCalled();
   });
 
   it("rejects finalize when the passthrough only shares a user id prefix", async () => {
@@ -270,6 +303,95 @@ describe("social Mux server client", () => {
         upload: { asset_id: "otherasset1", new_asset_settings: { passthrough: `${USER}:clip` } },
       }),
     ).toBe(false);
+    expect(socialMuxPublishedVideoBound({ ...bound, playbackId: SIGNED_PLAYBACK_ID })).toBe(false);
+    expect(
+      socialMuxPublishedVideoBound({
+        ...bound,
+        asset: { playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }], duration: 481 },
+      }),
+    ).toBe(false);
+  });
+
+  it("writes the binding when publish confirms the playback belongs to the asset", async () => {
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    bindingUpsert.mockClear();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        muxJson({
+          id: UPLOAD_ID,
+          asset_id: ASSET_ID,
+          new_asset_settings: { passthrough: `${USER}:clip` },
+        }),
+      )
+      .mockResolvedValueOnce(
+        muxJson({
+          id: ASSET_ID,
+          duration: 8,
+          playback_ids: [{ id: PLAYBACK_ID, policy: "signed" }],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      verifySocialMuxPublishedItems(
+        [
+          {
+            kind: "video",
+            provider: SOCIAL_MUX_PROVIDER,
+            uploadId: UPLOAD_ID,
+            assetId: ASSET_ID,
+            playbackId: PLAYBACK_ID,
+          },
+        ],
+        USER,
+      ),
+    ).resolves.toBe(true);
+    expect(bindingUpsert).toHaveBeenCalledWith(
+      {
+        author_id: USER,
+        upload_id: UPLOAD_ID,
+        asset_id: ASSET_ID,
+        playback_id: PLAYBACK_ID,
+      },
+      { onConflict: "author_id,asset_id,playback_id", ignoreDuplicates: true },
+    );
+
+    bindingUpsert.mockClear();
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          muxJson({
+            id: UPLOAD_ID,
+            asset_id: ASSET_ID,
+            new_asset_settings: { passthrough: `${USER}:clip` },
+          }),
+        )
+        .mockResolvedValueOnce(
+          muxJson({
+            id: ASSET_ID,
+            duration: 8,
+            playback_ids: [{ id: SIGNED_PLAYBACK_ID, policy: "signed" }],
+          }),
+        ),
+    );
+    await expect(
+      verifySocialMuxPublishedItems(
+        [
+          {
+            kind: "video",
+            provider: SOCIAL_MUX_PROVIDER,
+            uploadId: UPLOAD_ID,
+            assetId: ASSET_ID,
+            playbackId: PLAYBACK_ID,
+          },
+        ],
+        USER,
+      ),
+    ).resolves.toBe(false);
+    expect(bindingUpsert).not.toHaveBeenCalled();
   });
 
   it("signs the static audio.m4a URL for the worker", async () => {

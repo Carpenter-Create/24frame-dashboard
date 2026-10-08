@@ -11,7 +11,9 @@ import {
   SOCIAL_MUX_THUMBNAIL_TIME,
   socialMuxAssetSettings,
   socialMuxPassthroughBoundToUser,
+  socialVideoDurationExceedsCap,
   SocialMuxUploadNotBoundError,
+  SocialMuxVideoTooLongError,
   type SocialMuxAssetSettings,
   type SocialMuxIntent,
   type SocialMuxPlaybackTokens,
@@ -246,7 +248,15 @@ export async function finalizeSocialMuxDirectUpload(
   for (const delay of FINALIZE_DELAYS_MS) {
     const asset = await retrieveSocialMuxAsset(assetId);
     playbackId = signedPlaybackIdFromAsset(asset);
-    if (playbackId) {
+    if (playbackId && socialVideoDurationExceedsCap(asset.duration)) {
+      try {
+        await deleteSocialMuxAsset(assetId);
+      } catch {
+        // The asset is still too long. Do not bind it or return ids.
+      }
+      throw new SocialMuxVideoTooLongError();
+    }
+    if (playbackId && typeof asset.duration === "number" && Number.isFinite(asset.duration) && asset.duration > 0) {
       await recordSocialMuxBinding({
         authorId: callerUserId,
         uploadId,
@@ -258,6 +268,34 @@ export async function finalizeSocialMuxDirectUpload(
     await wait(delay);
   }
   throw new Error("Mux playback id is still preparing");
+}
+
+/** Delete a Mux asset that must not be published. 404 is already gone. */
+export async function deleteSocialMuxAsset(assetId: string): Promise<void> {
+  if (!isSocialMuxId(assetId)) throw new Error("Mux asset id is invalid");
+  const response = await fetch(`${MUX_API}/video/v1/assets/${assetId}`, {
+    method: "DELETE",
+    headers: { Authorization: muxAuthHeader(), Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (response.status === 200 || response.status === 204 || response.status === 404) return;
+  throw new Error(`Mux asset delete failed (${response.status})`);
+}
+
+/** Create a Mux asset from a short-lived URL. Used by the re-ingest script. */
+export async function createSocialMuxAssetFromUrl(url: string): Promise<{ assetId: string }> {
+  const settings = socialMuxAssetSettings({ intent: "video" });
+  const data = await muxRequest<MuxAssetData>("/video/v1/assets", {
+    method: "POST",
+    body: JSON.stringify({
+      input: [{ url }],
+      playback_policies: ["signed"],
+      video_quality: settings.videoQuality,
+      max_resolution_tier: settings.maxResolutionTier,
+    }),
+  });
+  if (!data.id || !isSocialMuxId(data.id)) throw new Error("Mux asset was not created");
+  return { assetId: data.id };
 }
 
 /**
@@ -327,6 +365,7 @@ export function socialMuxPublishedVideoBound(input: {
   }
   if (!socialMuxPassthroughBoundToUser(muxUploadPassthrough(input.upload), input.userId)) return false;
   if (input.upload.asset_id !== input.assetId) return false;
+  if (socialVideoDurationExceedsCap(input.asset.duration)) return false;
   return signedPlaybackIdFromAsset(input.asset) === input.playbackId;
 }
 

@@ -1,10 +1,17 @@
+import { socialMusicAudioDurationSeconds, socialMusicWindowRms } from "@/lib/social-music-m4a";
+import { socialVideoDurationExceedsCap } from "@/lib/social-mux";
 import {
   combineMusicWindowResults,
   decideMusicScan,
+  MUSIC_SCAN_DURATION_MISMATCH_SECONDS,
   MUSIC_SCAN_MAX_ATTEMPTS,
   MUSIC_SCAN_PREP_DELAY_MS,
   MUSIC_SCAN_PREP_MAX_MS,
+  MUSIC_SCAN_SILENCE_RMS,
+  musicIdentifyIsNoFingerprint,
+  musicIdentifyIsRateLimit,
   musicScanBackoff,
+  musicScanConfig,
   musicScanLatencyLine,
   musicStaffPriority,
   planMusicScanCoverage,
@@ -12,6 +19,7 @@ import {
   type MusicMatchFields,
   type MusicScanWindow,
   type MusicStaffPriority,
+  type MusicWindowRecord,
 } from "@/lib/social-music-scan";
 import {
   MUSIC_SCAN_WINDOW_MAX_BYTES,
@@ -23,13 +31,15 @@ import {
 
 export type PendingMusicScan = {
   id: string;
-  surface: "post" | "story";
+  surface: "post" | "story" | "welcome";
   assetId: string;
   playbackId: string;
   attemptCount: number;
   createdAt: string;
   muxReadyAt: string | null;
   scanStartedAt: string | null;
+  /** Windows already fingerprinted on an earlier invocation. Not scanned again. */
+  windows?: MusicWindowRecord[];
 };
 
 export type SiblingMusicBlock = {
@@ -56,6 +66,9 @@ export type MusicScanPatch = {
   muxReadyAt?: string | null;
   scanStartedAt?: string | null;
   decidedAt?: string | null;
+  /** Written only when finite and within the upload cap. */
+  durationSeconds?: number | null;
+  windowResults?: MusicWindowRecord[];
 };
 
 export type SocialMusicRunSummary = {
@@ -79,8 +92,14 @@ export type SocialMusicRunDeps = {
   sliceWindow: (audio: Uint8Array, window: MusicScanWindow) => Uint8Array;
   identify: (audio: Uint8Array) => Promise<MusicIdentifyResult>;
   save: (id: string, patch: MusicScanPatch) => Promise<void>;
-  /** A block on this asset and playback pulls sibling allowed rows back to blocked. */
+  /** A block on this asset and playback pulls sibling allowed and pending rows back to blocked. */
   blockSiblings?: (block: SiblingMusicBlock) => Promise<void>;
+  /** Seconds of audio in the downloaded m4a. Defaults to the sample table. */
+  measureAudioDuration?: (audio: Uint8Array) => number;
+  /** PCM RMS for an ACRCloud 2004 window. Null means the window cannot be decoded. */
+  windowRms?: (audio: Uint8Array) => number | null;
+  /** Invocation clock. The budget is this run, not each scan. */
+  clock?: () => number;
   log?: (line: ReturnType<typeof musicScanLatencyLine>) => void;
 };
 
@@ -248,16 +267,16 @@ async function scanOne(
     return hold(scan, deps, "mux_playback_mismatch", muxReadyAt);
   }
 
-  const coverage = planMusicScanCoverage(asset.duration);
-  if (coverage.kind === "over_cap") return hold(scan, deps, "duration_over_cap", muxReadyAt);
-  if (coverage.kind === "unknown") {
+  if (socialVideoDurationExceedsCap(asset.duration)) {
+    return recordFailure(scan, deps, book, "duration_over_cap", muxReadyAt, scan.scanStartedAt);
+  }
+  if (planMusicScanCoverage(asset.duration).kind === "unknown") {
     return recordFailure(scan, deps, book, "unknown_duration", muxReadyAt, scan.scanStartedAt);
   }
 
   const scanStartedAt = scan.scanStartedAt ?? nowIso;
-  const startedMs = Date.now();
   await lease(scan, deps, book, muxReadyAt, scanStartedAt);
-  if (Date.now() - startedMs >= deps.budgetMs) {
+  if (budgetExhausted(deps)) {
     return recordFailure(scan, deps, book, "scan_budget", muxReadyAt, scanStartedAt);
   }
 
@@ -271,10 +290,50 @@ async function scanOne(
     return recordFailure(scan, deps, book, "empty_audio", muxReadyAt, scanStartedAt);
   }
 
+  let audioSeconds: number;
+  try {
+    audioSeconds = (deps.measureAudioDuration ?? socialMusicAudioDurationSeconds)(full);
+  } catch {
+    return recordFailure(scan, deps, book, "m4a_unreadable", muxReadyAt, scanStartedAt);
+  }
+  if (!Number.isFinite(audioSeconds) || audioSeconds <= 0) {
+    return recordFailure(scan, deps, book, "m4a_unreadable", muxReadyAt, scan.scanStartedAt);
+  }
+  const muxSeconds = asset.duration;
+  if (
+    typeof muxSeconds === "number" &&
+    Number.isFinite(muxSeconds) &&
+    Math.abs(audioSeconds - muxSeconds) > MUSIC_SCAN_DURATION_MISMATCH_SECONDS
+  ) {
+    return hold(scan, deps, "mux_audio_duration_mismatch", muxReadyAt);
+  }
+  if (socialVideoDurationExceedsCap(audioSeconds)) {
+    return recordFailure(scan, deps, book, "duration_over_cap", muxReadyAt, scanStartedAt);
+  }
+  const coverage = planMusicScanCoverage(audioSeconds);
+  if (coverage.kind === "unknown") {
+    return recordFailure(scan, deps, book, "unknown_duration", muxReadyAt, scan.scanStartedAt);
+  }
+
+  const stored = scan.windows ?? [];
   const windowResults: MusicIdentifyResult[] = [];
+  const records: MusicWindowRecord[] = [];
   const seen: Uint8Array[] = [];
+  const rmsOf = deps.windowRms ?? socialMusicWindowRms;
   for (const window of coverage.windows) {
-    if (Date.now() - startedMs >= deps.budgetMs) {
+    const prior = stored.find(
+      (row) => row.startSeconds === window.startSeconds && row.endSeconds === window.endSeconds,
+    );
+    if (prior) {
+      windowResults.push(prior.result);
+      records.push(prior);
+      if (isBlockingMatch(prior.result)) {
+        return writeDecision(scan, deps, prior.result, records, audioSeconds, muxReadyAt, scanStartedAt);
+      }
+      continue;
+    }
+    if (budgetExhausted(deps)) {
+      await deps.save(scan.id, { windowResults: records, muxReadyAt, scanStartedAt });
       return recordFailure(scan, deps, book, "scan_budget", muxReadyAt, scanStartedAt);
     }
     let audio: Uint8Array;
@@ -289,14 +348,31 @@ async function scanOne(
     if (audio.byteLength > MUSIC_SCAN_WINDOW_MAX_BYTES) {
       return recordFailure(scan, deps, book, "window_implausible", muxReadyAt, scanStartedAt);
     }
-    if (seen.some((prior) => sameBytes(prior, audio))) {
+    if (seen.some((row) => sameBytes(row, audio))) {
       return recordFailure(scan, deps, book, "window_not_distinct", muxReadyAt, scanStartedAt);
     }
     seen.push(audio);
+    let identified: MusicIdentifyResult;
     try {
-      windowResults.push(await deps.identify(audio));
+      identified = await deps.identify(audio);
     } catch {
-      windowResults.push({ kind: "error", code: "identify_threw", retryable: true });
+      identified = { kind: "error", code: "identify_threw", retryable: true };
+    }
+    if (musicIdentifyIsRateLimit(identified)) {
+      await deps.save(scan.id, { windowResults: records, muxReadyAt, scanStartedAt });
+      return backoffRateLimit(scan, deps, book, muxReadyAt, scanStartedAt);
+    }
+    if (musicIdentifyIsNoFingerprint(identified)) {
+      const rms = rmsOf(audio);
+      if (rms !== null && rms < MUSIC_SCAN_SILENCE_RMS) {
+        identified = { kind: "no_match", code: 2004 };
+      }
+    }
+    windowResults.push(identified);
+    records.push({ startSeconds: window.startSeconds, endSeconds: window.endSeconds, result: identified });
+    await deps.save(scan.id, { windowResults: records, muxReadyAt, scanStartedAt });
+    if (isBlockingMatch(identified)) {
+      return writeDecision(scan, deps, identified, records, audioSeconds, muxReadyAt, scanStartedAt);
     }
   }
   const result = combineMusicWindowResults(windowResults);
@@ -305,11 +381,48 @@ async function scanOne(
     const code = result.kind === "error" ? result.code : "retry";
     return recordFailure(scan, deps, book, code.slice(0, 80), muxReadyAt, scanStartedAt);
   }
+  return writeDecision(scan, deps, result, records, audioSeconds, muxReadyAt, scanStartedAt);
+}
 
+function budgetExhausted(deps: SocialMusicRunDeps): boolean {
+  const clock = deps.clock ?? Date.now;
+  return clock() - deps.now.getTime() >= deps.budgetMs;
+}
+
+function isBlockingMatch(result: MusicIdentifyResult): boolean {
+  return result.kind === "match" && Number.isFinite(result.score) && result.score >= musicScanConfig.blockScore;
+}
+
+async function writeDecision(
+  scan: PendingMusicScan,
+  deps: SocialMusicRunDeps,
+  result: MusicIdentifyResult,
+  records: MusicWindowRecord[],
+  audioSeconds: number,
+  muxReadyAt: string | null,
+  scanStartedAt: string,
+): Promise<"allowed" | "blocked" | "retried" | "held"> {
+  const log = deps.log ?? (() => undefined);
+  const decision = decideMusicScan({ result });
+  if (decision === "retry") {
+    const code = result.kind === "error" ? result.code : "retry";
+    return recordFailure(
+      scan,
+      deps,
+      { leased: true, attemptCount: scan.attemptCount + 1 },
+      code.slice(0, 80),
+      muxReadyAt,
+      scanStartedAt,
+    );
+  }
   const decidedAt = deps.now.toISOString();
   const match = result.kind === "match" ? result : null;
   const blocked = decision === "block" && match !== null;
   const staffPriority: MusicStaffPriority | null = blocked && match ? musicStaffPriority(match.score) : null;
+  const durationSeconds =
+    Number.isFinite(audioSeconds) && !socialVideoDurationExceedsCap(audioSeconds)
+      ? Math.round(audioSeconds * 1000) / 1000
+      : null;
   const patch: MusicScanPatch = {
     status: blocked ? "blocked" : "allowed",
     nextAttemptAt: null,
@@ -317,6 +430,8 @@ async function scanOne(
     muxReadyAt,
     scanStartedAt,
     decidedAt,
+    durationSeconds,
+    windowResults: records,
     vendor: "acrcloud",
     vendorStatusCode: result.kind === "error" ? null : result.code,
     ...(blocked && match ? vendorPatch(match, match.code) : clearVendor()),
@@ -393,6 +508,36 @@ async function lease(
   });
 }
 
+/** A vendor rate limit is not an attempt. Put the leased count back and wait. */
+async function backoffRateLimit(
+  scan: PendingMusicScan,
+  deps: SocialMusicRunDeps,
+  book: AttemptBook,
+  muxReadyAt: string | null,
+  scanStartedAt: string | null,
+): Promise<"retried"> {
+  const log = deps.log ?? (() => undefined);
+  book.leased = true;
+  book.attemptCount = scan.attemptCount;
+  const next = new Date(deps.now.getTime() + MUSIC_SCAN_PREP_DELAY_MS);
+  await deps.save(scan.id, {
+    status: "pending",
+    attemptCount: scan.attemptCount,
+    nextAttemptAt: next.toISOString(),
+    lastError: "acr_rate_limit",
+    muxReadyAt,
+    scanStartedAt,
+  });
+  log(musicScanLatencyLine({
+    scanId: scan.id,
+    decision: "retry",
+    muxReadyAt,
+    scanStartedAt,
+    decidedAt: null,
+  }));
+  return "retried";
+}
+
 async function recordFailure(
   scan: PendingMusicScan,
   deps: SocialMusicRunDeps,
@@ -436,9 +581,10 @@ function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
 export async function runSocialMusicBatch(deps: SocialMusicRunDeps): Promise<SocialMusicRunSummary> {
   const summary = EMPTY_SUMMARY();
   const started = deps.now.getTime();
+  const clock = deps.clock ?? Date.now;
   const pending = await deps.listPending();
   for (const scan of pending) {
-    if (Date.now() - started > deps.budgetMs) break;
+    if (clock() - started > deps.budgetMs) break;
     summary.checked += 1;
     try {
       const outcome = await processMusicScan(scan, deps);

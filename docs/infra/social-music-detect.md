@@ -1,4 +1,4 @@
-# Social music detect-and-block — founder runbook
+# Social music detect-and-block: founder runbook
 
 CoS CLEAR 2026-10-08: Phase 0 commercial-music check on Social video
 (Stories, posts, Create). ACRCloud identify is the primary vendor.
@@ -60,13 +60,17 @@ from CI. Adam applies the SQL on prod.
   `/api/social/media` does not sign an `mp4`, `mov`, `webm`, or `m4v` key
   on a visible post or story unless that item has an allowed scan,
   including when the viewer is the author.
-- A new profile welcome video is refused with the existing media-type
-  error. The public band is presence only and does not play a file.
-  Clearing a stored key still works. Existing welcome keys stay stored
-  and are not signed.
-- When a scan blocks, other allowed rows for the same asset id and
-  playback id are set to blocked in the same decision, so they enter
-  Music review. The current row is saved blocked after that.
+- A new profile welcome video uses the same Mux upload, binding, scan,
+  and eight-minute cap as a post or story. S3 does not accept a new
+  video in any lane. The public band stays presence only. Other people
+  see a welcome video only after that profile has an allowed scan. The
+  owner still sees their own marker. A legacy S3 key stays hidden from
+  other people. Clearing the welcome video clears the key and the Mux
+  ids. The stored object is not deleted.
+- When a scan blocks, other allowed and pending rows for the same
+  asset id and playback id are set to blocked in the same decision, so
+  they enter Music review. The current row is saved blocked after that.
+  A playback id with any blocked row cannot be minted as allowed.
 - Every minute the Lambda takes due pending rows (at most 8):
   - Mux asset not ready, rendition missing, or rendition still preparing:
     wait 20 seconds and do not burn an attempt. A rendition request that
@@ -78,12 +82,18 @@ from CI. Adam applies the SQL on prod.
   - After the rendition is ready, the signed playback id on the asset
     must equal the scan's playback id. A mismatch holds
     (`mux_playback_mismatch`) and does not call identify.
-  - Coverage is contiguous 12-second windows from the start of the asset,
-    up to 40 windows (8 minutes). One ACRCloud identify per window, at
-    most 40 identifies per clip. Unknown, non-finite, or non-positive
-    duration retries (`unknown_duration`) and then holds. It is never
-    allowed and never sent to identify. A clip longer than 8 minutes
-    holds immediately (`duration_over_cap`) for staff. It is not sampled.
+  - Coverage is contiguous 12-second windows, up to 40 windows (eight
+    minutes). The last window is `[end - 12, end]`, and `end` is the
+    length of the downloaded `audio.m4a`, not Mux `asset.duration`.
+    One ACRCloud identify per window. Unknown, non-finite, or
+    non-positive duration retries (`unknown_duration`) and then holds.
+    It is never allowed and never sent to identify. A stored duration
+    over eight minutes is a backstop only (`duration_over_cap`): one
+    attempt, then retry, then hold. It is not an immediate staff hold
+    and it is not sampled. Upload creation, Mux asset ready, and
+    publish verify already refuse a clip over 480 seconds. If the m4a
+    length and Mux duration differ by more than one second, the scan
+    holds (`mux_audio_duration_mismatch`).
   - The worker downloads `audio.m4a` once (signed, no Mux time range, cap
     20 MB) and cuts the windows inside the Lambda. Mux
     `asset_start_time` and `asset_end_time` are not used. An empty cut,
@@ -116,11 +126,17 @@ from CI. Adam applies the SQL on prod.
 
 ## S3 video already stored
 
-On apply, those items fail closed: pending, hidden, Unfinished. This
-change does not re-ingest them. A later founder step can create a Mux
-asset from the stored object, record a binding for that member, replace
-the media item with the Mux ids, and let the worker scan the new pair.
-Until that exists, the hidden rows stay in Music review.
+On apply, those items fail closed: pending, hidden, Unfinished. The
+re-ingest script creates a Mux asset from a short-lived presigned S3
+URL, records a binding, and leaves the scan pending until an allowed
+verdict. It covers post, story, and welcome videos. Expired stories
+and missing objects are Unfinished and are not retried. Default is a
+dry run that prints counts. `--execute` writes. Do not run it from CI.
+
+```sh
+pnpm exec tsx --conditions=react-server scripts/social/reingest-welcome-video.ts
+pnpm exec tsx --conditions=react-server scripts/social/reingest-welcome-video.ts --execute
+```
 
 ## Rollback
 
@@ -130,6 +146,17 @@ before `drop function private.social_video_released`. Then drop
 `social_music_scans`, `social_mux_bindings`, the two enum types, and
 `drop schema if exists private`. The header of the migration is the
 exact order. `private` is not added to the Data API schemas.
+
+Dropping the tables deletes verdicts and bindings. The restored
+policies make blocked videos visible again. Revert the app in the same
+window. Leaving the new app on the old database denies Mux playback
+and video signing except for the author. Welcome Mux columns go away.
+Deleting an account cascades scan and binding rows.
+
+## Apply window
+
+Apply during low traffic. The migration takes an exclusive lock through
+the backfill of existing video rows. Do not reorder that SQL.
 
 ## Allowlist
 
@@ -265,3 +292,12 @@ Rollback is the previous commit's image.
 
 Hot feeds for other people can lag up to 60 seconds after an allow
 (`SOCIAL_HOT_TTL_SECONDS`). The row was never in their cache while pending.
+
+## Slicer smoke (pending deploy)
+
+After the function is live, confirm one real Mux `audio.m4a` cuts into
+the planned windows and that those windows are not identical bytes.
+This step waits on deploy. Local coverage generates a tone with ffmpeg
+and checks the same cutter. The Lambda does not decode AAC. An
+ACRCloud `2004` on AAC stays an error. A `2004` is treated as silence
+only when the window is little-endian PCM (`sowt`) under the RMS line.

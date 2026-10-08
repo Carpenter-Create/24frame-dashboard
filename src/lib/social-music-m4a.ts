@@ -389,3 +389,44 @@ function readU32(file: Uint8Array, offset: number): number {
 function readU64(file: Uint8Array, offset: number): number {
   return Number(new DataView(file.buffer, file.byteOffset, file.byteLength).getBigUint64(offset));
 }
+
+/** Seconds of audio in the file, from the sample table. Not a Mux duration. */
+export function socialMusicAudioDurationSeconds(file: Uint8Array): number {
+  const parsed = parseAudio(file);
+  const ticks = parsed.samples.reduce((sum, sample) => sum + sample.duration, 0);
+  if (!parsed.timescale) throw new Error("m4a_unreadable");
+  return ticks / parsed.timescale;
+}
+
+function bytesInclude(haystack: Uint8Array, needle: Uint8Array): boolean {
+  for (let index = 0; index + needle.byteLength <= haystack.byteLength; index += 1) {
+    let match = true;
+    for (let cursor = 0; cursor < needle.byteLength; cursor += 1) {
+      if (haystack[index + cursor] !== needle[cursor]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return true;
+  }
+  return false;
+}
+
+/**
+ * RMS of little-endian 16-bit PCM stored in the m4a (`sowt`). AAC windows
+ * return null. This worker does not decode AAC, so 2004 on AAC stays an error.
+ */
+export function socialMusicWindowRms(file: Uint8Array): number | null {
+  const parsed = parseAudio(file);
+  if (!bytesInclude(parsed.stsd, fourcc("sowt"))) return null;
+  const payload = concat(parsed.samples.map((sample) => copyBytes(file, sample.offset, sample.size)));
+  if (payload.byteLength < 2 || payload.byteLength % 2 !== 0) return null;
+  const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+  let sum = 0;
+  const count = payload.byteLength / 2;
+  for (let index = 0; index < count; index += 1) {
+    const sample = view.getInt16(index * 2, true) / 32768;
+    sum += sample * sample;
+  }
+  return Math.sqrt(sum / count);
+}

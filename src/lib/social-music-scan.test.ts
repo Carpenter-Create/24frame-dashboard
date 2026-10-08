@@ -228,10 +228,21 @@ describe("music scan windows", () => {
     expect(musicScanWindows(30)).toEqual([
       { startSeconds: 0, endSeconds: 12 },
       { startSeconds: 12, endSeconds: 24 },
-      { startSeconds: 24, endSeconds: 30 },
+      { startSeconds: 18, endSeconds: 30 },
     ]);
-    expect(musicScanWindows(400)).toHaveLength(Math.ceil(400 / 12));
-    expect(planMusicScanCoverage(MUSIC_SCAN_COVERED_SECONDS + 1)).toEqual({ kind: "over_cap" });
+    expect(musicScanWindows(12.3)).toEqual([
+      { startSeconds: 0, endSeconds: 12 },
+      { startSeconds: 0.3, endSeconds: 12.3 },
+    ]);
+    const frame = 24 + 1 / 30;
+    const framed = musicScanWindows(frame);
+    expect(framed.at(-1)).toEqual({
+      startSeconds: Math.round((frame - 12) * 1000) / 1000,
+      endSeconds: Math.round(frame * 1000) / 1000,
+    });
+    expect(framed.some((window) => window.endSeconds - window.startSeconds < 1)).toBe(false);
+    expect(musicScanWindows(400)).toHaveLength(34);
+    expect(planMusicScanCoverage(MUSIC_SCAN_COVERED_SECONDS + 1)).toEqual({ kind: "unknown" });
     expect(musicScanWindows(MUSIC_SCAN_COVERED_SECONDS)).toHaveLength(MUSIC_SCAN_MAX_WINDOWS);
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(40), match(24)]) })).toBe("block");
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(24)]) })).toBe("allow");
@@ -246,6 +257,21 @@ describe("music scan windows", () => {
       }),
     ).toBe("retry");
     expect(combineMusicWindowResults([match(40), match(100)])).toMatchObject({ kind: "match", score: 100 });
+    expect(
+      decideMusicScan({
+        result: combineMusicWindowResults([match(25), { kind: "error", code: "timeout", retryable: true }]),
+      }),
+    ).toBe("block");
+    expect(combineMusicWindowResults([match(Number.NaN)])).toMatchObject({ kind: "error", code: "invalid_score" });
+    expect(combineMusicWindowResults([match(Number.POSITIVE_INFINITY)])).toMatchObject({
+      kind: "error",
+      code: "invalid_score",
+    });
+    expect(
+      decideMusicScan({
+        result: combineMusicWindowResults([match(Number.NaN), { kind: "no_match", code: 1001 }]),
+      }),
+    ).toBe("retry");
   });
 });
 

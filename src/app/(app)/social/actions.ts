@@ -22,7 +22,13 @@ import {
 } from "@/lib/social-media";
 import { presignSocialMediaPut } from "@/lib/s3-social-media";
 import { logSocialMediaUploadFailure, publishSocialMediaItems } from "@/lib/social-media-publish";
-import { isSocialMuxId, SOCIAL_MUX_PROVIDER, SocialMuxUploadNotBoundError } from "@/lib/social-mux";
+import {
+  isSocialMuxId,
+  SOCIAL_MUX_PROVIDER,
+  socialVideoDurationExceedsCap,
+  SocialMuxUploadNotBoundError,
+  SocialMuxVideoTooLongError,
+} from "@/lib/social-mux";
 import {
   createSocialMuxDirectUpload,
   finalizeSocialMuxDirectUpload,
@@ -192,19 +198,41 @@ export async function createSocialProfile(formData: FormData): Promise<ActionRes
 }
 
 export async function saveSocialWelcomeVideo(formData: FormData): Promise<ActionResult> {
-  const { user, profileId } = await ownProfile();
+  const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
-  // The public band is presence only and does not play a file. A stored
-  // S3 video has no Mux playback id, so it cannot be scanned. Refuse it.
   const item = welcomeVideoItemFromMedia(formData.get("media"), user.id);
-  if (!item) return { error: SOCIAL.stories.mediaType };
-  return { error: SOCIAL.stories.mediaType };
+  if (!item || !item.assetId || !item.playbackId || !item.uploadId) return { error: SOCIAL.stories.mediaType };
+  const unbound = await rejectUnboundSocialMux([item], user.id);
+  if (unbound) return { error: unbound };
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      welcome_mux_asset_id: item.assetId,
+      welcome_mux_playback_id: item.playbackId,
+      welcome_mux_upload_id: item.uploadId,
+      welcome_video_key: null,
+    })
+    .eq("id", user.id);
+  if (error) return { error: error.message };
+  await bustSocialProfileHotCache(user.id, [profile?.handle]);
+  revalidatePath(SOCIAL_ROUTES.profile);
+  revalidatePath(SOCIAL_ROUTES.profileEdit);
+  if (profile?.handle) revalidatePath(socialProfileHref(profile.handle));
+  return {};
 }
 
 export async function clearSocialWelcomeVideo(): Promise<ActionResult> {
   const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
-  const { error } = await supabase.from("profiles").update({ welcome_video_key: null }).eq("id", user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      welcome_video_key: null,
+      welcome_mux_asset_id: null,
+      welcome_mux_playback_id: null,
+      welcome_mux_upload_id: null,
+    })
+    .eq("id", user.id);
   if (error) return { error: error.message };
   await bustSocialProfileHotCache(user.id, [profile?.handle]);
   revalidatePath(SOCIAL_ROUTES.profile);
@@ -310,6 +338,7 @@ export async function presignSocialMediaUpload(formData: FormData): Promise<{
     lane,
   });
   if (!checked.ok) return { error: socialMediaRuleMessage(checked.error, lane) };
+  if (checked.kind === "video") return { error: SOCIAL.home.mediaType };
   const key = socialMediaStagingKey(user.id, crypto.randomUUID(), checked.contentType, lane);
   try {
     const url = await presignSocialMediaPut(key, checked.contentType, byteLength);
@@ -356,6 +385,13 @@ export async function createSocialMuxUpload(formData: FormData): Promise<{
   });
   if (!checked.ok) return { error: socialMediaRuleMessage(checked.error, lane) };
   if (checked.kind !== "video") return { error: SOCIAL.home.mediaType };
+  const claimed = formData.get("duration_seconds");
+  if (claimed != null && String(claimed).trim() !== "") {
+    const seconds = Number(claimed);
+    if (!Number.isFinite(seconds) || seconds <= 0 || socialVideoDurationExceedsCap(seconds)) {
+      return { error: SOCIAL.music.tooLong };
+    }
+  }
 
   const objectId = crypto.randomUUID();
   const key = socialMediaObjectKey(user.id, objectId, checked.contentType, lane);
@@ -416,6 +452,9 @@ export async function finalizeSocialMuxUpload(formData: FormData): Promise<{
   } catch (error) {
     if (error instanceof SocialMuxUploadNotBoundError) {
       return { error: SOCIAL.home.mediaForbidden };
+    }
+    if (error instanceof SocialMuxVideoTooLongError) {
+      return { error: SOCIAL.music.tooLong };
     }
     logSocialMediaUploadFailure(
       isOwnedSocialMediaKey(key, user.id, "stories") ? "stories" : "posts",

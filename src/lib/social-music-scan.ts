@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { SOCIAL_VIDEO_MAX_SECONDS } from "@/lib/social-mux";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { SocialMusicNotice } from "@/lib/social";
@@ -60,35 +62,67 @@ export type MusicScanDecision = "allow" | "block" | "retry";
  */
 export const MUSIC_SCAN_WINDOW_SECONDS = 12;
 export const MUSIC_SCAN_MAX_WINDOWS = 40;
-export const MUSIC_SCAN_COVERED_SECONDS = MUSIC_SCAN_WINDOW_SECONDS * MUSIC_SCAN_MAX_WINDOWS;
+/** Same cap as upload. A longer Social video is refused before a scan row exists. */
+export const MUSIC_SCAN_COVERED_SECONDS = SOCIAL_VIDEO_MAX_SECONDS;
+/**
+ * Hold when the downloaded audio.m4a and Mux asset.duration disagree by more
+ * than this. Windows are planned from the m4a, not from Mux.
+ */
+export const MUSIC_SCAN_DURATION_MISMATCH_SECONDS = 1;
+/**
+ * Linear full-scale RMS. ACRCloud 2004 (no fingerprint) is clean silence only
+ * under this line. A quiet tone stays an error. 0.01 is about -40 dBFS.
+ */
+export const MUSIC_SCAN_SILENCE_RMS = 0.01;
 
 export type MusicScanWindow = { startSeconds: number; endSeconds: number };
 
 export type MusicScanCoverage =
   | { kind: "cover"; windows: MusicScanWindow[] }
-  | { kind: "unknown" }
-  | { kind: "over_cap" };
+  | { kind: "unknown" };
+
+function roundWindowSeconds(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
 
 /**
- * Full contiguous coverage from the start of the asset. Unknown, non-finite,
- * or non-positive duration is not a window. Over the cap is not a sample.
+ * Contiguous 12s windows from the start of the audio. The last window is
+ * [end - 12, end], with end taken from the m4a itself. A short tail is not
+ * its own window. Unknown, non-finite, non-positive, or past the upload cap
+ * is not a window.
  */
 export function planMusicScanCoverage(durationSeconds: number | null | undefined): MusicScanCoverage {
-  if (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+  if (
+    durationSeconds == null ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds <= 0 ||
+    durationSeconds > MUSIC_SCAN_COVERED_SECONDS
+  ) {
     return { kind: "unknown" };
   }
-  if (durationSeconds > MUSIC_SCAN_COVERED_SECONDS) return { kind: "over_cap" };
   const span = MUSIC_SCAN_WINDOW_SECONDS;
-  const count = Math.ceil(durationSeconds / span);
-  const windows: MusicScanWindow[] = [];
-  for (let index = 0; index < count; index += 1) {
-    const startSeconds = index * span;
-    const endSeconds = Math.min(durationSeconds, startSeconds + span);
-    windows.push({
-      startSeconds: Math.round(startSeconds * 1000) / 1000,
-      endSeconds: Math.round(endSeconds * 1000) / 1000,
-    });
+  const end = durationSeconds;
+  if (end <= span) {
+    const endSeconds = roundWindowSeconds(end);
+    if (endSeconds <= 0) return { kind: "unknown" };
+    return { kind: "cover", windows: [{ startSeconds: 0, endSeconds }] };
   }
+  const windows: MusicScanWindow[] = [];
+  let cursor = 0;
+  while (cursor + span < end - 1e-6 && windows.length < MUSIC_SCAN_MAX_WINDOWS - 1) {
+    const startSeconds = roundWindowSeconds(cursor);
+    const endSeconds = roundWindowSeconds(cursor + span);
+    if (endSeconds > startSeconds) windows.push({ startSeconds, endSeconds });
+    cursor += span;
+  }
+  const lastStart = roundWindowSeconds(Math.max(0, end - span));
+  const lastEnd = roundWindowSeconds(end);
+  if (lastEnd <= lastStart) return windows.length > 0 ? { kind: "cover", windows } : { kind: "unknown" };
+  const previous = windows[windows.length - 1];
+  if (!previous || previous.startSeconds !== lastStart || previous.endSeconds !== lastEnd) {
+    windows.push({ startSeconds: lastStart, endSeconds: lastEnd });
+  }
+  if (windows.length === 0 || windows.length > MUSIC_SCAN_MAX_WINDOWS) return { kind: "unknown" };
   return { kind: "cover", windows };
 }
 
@@ -102,14 +136,31 @@ export function musicScanWindows(durationSeconds: number | null | undefined): Mu
  * A music score at or above blockScore blocks even when another window
  * errored. Under the block line, a window error retries the scan.
  */
+export function musicIdentifyIsRateLimit(result: MusicIdentifyResult): boolean {
+  return result.kind === "error" && (result.code === "3003" || result.code === "http_429");
+}
+
+/** ACRCloud 2004: the sample produced no fingerprint. Silence may still be clean. */
+export function musicIdentifyIsNoFingerprint(result: MusicIdentifyResult): boolean {
+  return result.kind === "error" && result.code === "2004";
+}
+
+export type MusicWindowRecord = {
+  startSeconds: number;
+  endSeconds: number;
+  result: MusicIdentifyResult;
+};
+
 export function combineMusicWindowResults(results: readonly MusicIdentifyResult[]): MusicIdentifyResult {
   if (results.length === 0) return { kind: "error", code: "missing_score", retryable: true };
+  const nonFinite = results.some((result) => result.kind === "match" && !Number.isFinite(result.score));
   const matches = results.filter(
     (result): result is Extract<MusicIdentifyResult, { kind: "match" }> =>
       result.kind === "match" && Number.isFinite(result.score),
   );
   const blocking = matches.filter((row) => row.score >= musicScanConfig.blockScore);
   if (blocking.length > 0) return blocking.reduce((best, row) => (row.score > best.score ? row : best));
+  if (nonFinite) return { kind: "error", code: "invalid_score", retryable: true };
   const error = results.find((result) => result.kind === "error");
   if (error) return error;
   if (matches.length === 0) {

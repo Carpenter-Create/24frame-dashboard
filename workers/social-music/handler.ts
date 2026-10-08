@@ -15,6 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyAcrProbe, createAcrCloudAdapter, silenceWav } from "../../src/lib/social-music-acrcloud";
 import { readBoundedBody, SOCIAL_MUSIC_FULL_AUDIO_MAX_BYTES } from "../../src/lib/social-music-audio";
 import { sliceSocialMusicAudio } from "../../src/lib/social-music-m4a";
+import type { MusicWindowRecord } from "../../src/lib/social-music-scan";
 import {
   runSocialMusicBatch,
   type MusicScanPatch,
@@ -30,7 +31,10 @@ import { createAdminClient } from "../../src/lib/supabase/admin";
 import type { Database } from "../../src/lib/supabase/database.types";
 
 const BATCH_LIMIT = 8;
-export const SOCIAL_MUSIC_RUN_BUDGET_MS = 4 * 60 * 1000;
+/** One invocation, under the 300s Lambda timeout. Not reset per scan. */
+export const SOCIAL_MUSIC_RUN_BUDGET_MS = 270_000;
+/** A block pulls allowed and still-pending siblings of the same pair. */
+export const SOCIAL_MUSIC_SIBLING_BLOCK_STATUSES = ["allowed", "pending"] as const;
 
 export const SOCIAL_MUSIC_REQUIRED_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
@@ -77,13 +81,17 @@ function patchToRow(patch: MusicScanPatch): Database["public"]["Tables"]["social
   if (patch.muxReadyAt !== undefined) row.mux_ready_at = patch.muxReadyAt;
   if (patch.scanStartedAt !== undefined) row.scan_started_at = patch.scanStartedAt;
   if (patch.decidedAt !== undefined) row.decided_at = patch.decidedAt;
+  if (patch.durationSeconds !== undefined) row.duration_seconds = patch.durationSeconds;
+  if (patch.windowResults !== undefined) row.window_results = patch.windowResults;
   return row;
 }
 
 async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]> {
   const { data, error } = await admin
     .from("social_music_scans")
-    .select("id, surface, asset_id, playback_id, attempt_count, created_at, mux_ready_at, scan_started_at")
+    .select(
+      "id, surface, asset_id, playback_id, attempt_count, created_at, mux_ready_at, scan_started_at, window_results",
+    )
     .eq("status", "pending")
     .not("next_attempt_at", "is", null)
     .lte("next_attempt_at", now.toISOString())
@@ -99,7 +107,19 @@ async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]>
     createdAt: row.created_at,
     muxReadyAt: row.mux_ready_at,
     scanStartedAt: row.scan_started_at,
+    windows: parseWindowResults(row.window_results),
   }));
+}
+
+function parseWindowResults(value: unknown): MusicWindowRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const record = row as MusicWindowRecord;
+    if (typeof record.startSeconds !== "number" || typeof record.endSeconds !== "number") return [];
+    if (!record.result || typeof record.result !== "object" || !("kind" in record.result)) return [];
+    return [record];
+  });
 }
 
 async function saveScan(admin: Admin, id: string, patch: MusicScanPatch): Promise<void> {
@@ -149,7 +169,7 @@ async function blockSiblingScans(
     })
     .eq("asset_id", block.assetId)
     .eq("playback_id", block.playbackId)
-    .eq("status", "allowed")
+    .in("status", [...SOCIAL_MUSIC_SIBLING_BLOCK_STATUSES])
     .neq("id", block.exceptId);
   if (error) throw new Error(`Music scan sibling block failed: ${error.message}`);
 }

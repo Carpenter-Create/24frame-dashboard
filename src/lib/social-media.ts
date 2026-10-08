@@ -30,10 +30,11 @@ export type SocialMediaLane = (typeof SOCIAL_MEDIA_LANES)[number];
 export const SOCIAL_MEDIA_MAX_ITEMS = 4;
 export const SOCIAL_STORY_MAX_ITEMS = 1;
 export const SOCIAL_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-// 250MB covers a ~10 min Go live recording at the house bitrate.
+// 250MB covers an eight-minute Go live recording at the house bitrate.
 export const SOCIAL_VIDEO_MAX_BYTES = 250 * 1024 * 1024;
 // Design 144:1218 copy mentioned “up to 15 seconds”. Not an Adam lock.
-// Do not add a story duration cap. Size/type bounds stay.
+// Social video is capped at eight minutes. The check lives on the Mux upload
+// path (client metadata, mint, asset ready, and publish). Size and type bounds stay.
 export const SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS = 300;
 export const SOCIAL_MEDIA_PUT_TTL_SECONDS = 900;
 
@@ -363,12 +364,12 @@ export function ownedMediaItems(
   return parsePostMedia(value).filter((item) => isOwnedSocialMediaKey(item.key, authorId, lane));
 }
 
-/** One welcome-video upload, or null. Reuses the posts media lane. Publish it before storing. */
+/** One welcome-video Mux upload, or null. Reuses the posts media lane. */
 export function welcomeVideoItemFromMedia(raw: unknown, userId: string): SocialMediaItem | null {
   const items = mediaItemsForPublish(raw, userId, "posts");
   if (!items.ok || items.items.length !== 1) return null;
   const only = items.items[0];
-  return only.kind === "video" && !isSocialMuxMediaItem(only) ? only : null;
+  return only.kind === "video" && isSocialMuxMediaItem(only) ? only : null;
 }
 
 /** One profile-cover still upload, or null. Posts lane, image only. Publish it before storing. */

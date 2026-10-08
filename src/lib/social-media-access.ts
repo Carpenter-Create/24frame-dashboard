@@ -375,6 +375,40 @@ async function muxPlaybackReleased(
   }
 }
 
+/**
+ * Other people see a welcome video only after that profile's Mux pair is allowed.
+ * The owner still sees their own marker. A legacy S3 key stays hidden from others.
+ * A missing scan table or a read error hides it.
+ */
+export async function welcomeVideoVisible(input: {
+  viewerId: string;
+  profileId: string;
+  welcomeVideoKey: string | null;
+  assetId: string | null;
+  playbackId: string | null;
+}): Promise<boolean> {
+  const hasMarker = Boolean(input.welcomeVideoKey || (input.assetId && input.playbackId));
+  if (!input.viewerId || !input.profileId || !hasMarker) return false;
+  if (input.viewerId === input.profileId) return true;
+  if (!input.assetId || !input.playbackId) return false;
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("social_music_scans")
+      .select("id")
+      .eq("surface", "welcome")
+      .eq("profile_id", input.profileId)
+      .eq("asset_id", input.assetId)
+      .eq("playback_id", input.playbackId)
+      .eq("status", "allowed")
+      .limit(1);
+    if (error || !data || data.length === 0) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** A video object is signed only when that post or story has an allowed scan. */
 async function videoKeyHasAllowedScan(
   parentIds: readonly string[],

@@ -7,11 +7,7 @@ import { flushSync } from "react-dom";
 import { removeAccountPhoto, uploadAccountPhoto } from "@/app/(app)/account/actions";
 import { HouseDrawerFrame, useHouseDesktop } from "@/components/chrome/house-overlay";
 import { HouseLink } from "@/components/chrome/house-link";
-import {
-  clearSocialWelcomeVideo,
-  presignSocialMediaUpload,
-  saveSocialWelcomeVideo,
-} from "@/app/(app)/social/actions";
+import { clearSocialWelcomeVideo, saveSocialWelcomeVideo } from "@/app/(app)/social/actions";
 import { AccountAvatarCrop } from "@/components/account/account-avatar-crop";
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { SettingsDrillRow } from "@/components/settings/settings-drill";
@@ -34,6 +30,8 @@ import {
 } from "@/lib/account-avatar-crop";
 import { cn } from "@/lib/cn";
 import { SOCIAL_VIDEO_CONTENT_TYPES } from "@/lib/social-media";
+import { uploadSocialMuxVideoFile } from "@/lib/social-media-upload";
+import { SOCIAL_WELCOME_VIDEO_PRESENT } from "@/lib/social-query";
 import {
   SOCIAL_PROFILE_EDIT_AVATAR_CLASS,
   SOCIAL_PROFILE_EDIT_AVATAR_DROPPING_CLASS,
@@ -258,53 +256,28 @@ export function SocialProfileEditForm({
   async function onWelcomePick(file: File | undefined) {
     if (!file || uploading) return;
     setError("");
-    const previewUrl = URL.createObjectURL(file);
     const previous = welcomePreview;
-    setWelcomePreview(previewUrl);
-    patchSocialProfileOptimistic({ welcomeVideoUrl: previewUrl });
     setUploading(true);
-    const body = new FormData();
-    body.set("content_type", file.type);
-    body.set("byte_length", String(file.size));
-    body.set("lane", "posts");
-    const signed = await presignSocialMediaUpload(body);
-    if (signed.error || !signed.url || !signed.key || !signed.kind || !signed.contentType) {
+    const uploaded = await uploadSocialMuxVideoFile(file, { lane: "posts" });
+    if (uploaded.error || uploaded.aborted || !uploaded.item) {
       setUploading(false);
-      setWelcomePreview(previous);
-      patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
-      URL.revokeObjectURL(previewUrl);
       if (welcomeRef.current) welcomeRef.current.value = "";
-      setError(signed.error ?? SOCIAL.home.uploadFailed);
-      return;
-    }
-    const put = await fetch(signed.url, {
-      method: "PUT",
-      headers: { "Content-Type": signed.contentType },
-      body: file,
-    });
-    if (!put.ok) {
-      setUploading(false);
-      setWelcomePreview(previous);
-      patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
-      URL.revokeObjectURL(previewUrl);
-      if (welcomeRef.current) welcomeRef.current.value = "";
-      setError(SOCIAL.home.uploadFailed);
+      if (!uploaded.aborted) setError(uploaded.error ?? SOCIAL.home.uploadFailed);
       return;
     }
     const save = new FormData();
-    save.set(
-      "media",
-      JSON.stringify([{ kind: signed.kind, key: signed.key, contentType: signed.contentType }]),
-    );
+    save.set("media", JSON.stringify([uploaded.item]));
     const result = await saveSocialWelcomeVideo(save);
     setUploading(false);
     if (welcomeRef.current) welcomeRef.current.value = "";
     if (result.error) {
       setWelcomePreview(previous);
       patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
-      URL.revokeObjectURL(previewUrl);
       setError(result.error);
+      return;
     }
+    setWelcomePreview(SOCIAL_WELCOME_VIDEO_PRESENT);
+    patchSocialProfileOptimistic({ welcomeVideoUrl: SOCIAL_WELCOME_VIDEO_PRESENT });
   }
 
   async function onWelcomeRemove() {

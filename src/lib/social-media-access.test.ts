@@ -339,6 +339,27 @@ describe("viewerMaySignSocialMedia", () => {
     await expect(viewerMaySignSocialMedia(USER, POST_KEY, NOW)).resolves.toBe(false);
   });
 
+  it("does not sign the author's own post video without an allowed scan", async () => {
+    const ownVideo = `posts/${USER}/${OBJECT}.mp4`;
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn(() =>
+        chain({
+          data: [
+            {
+              id: "own-post",
+              author_id: USER,
+              status: "active",
+              media: [{ kind: "video", key: ownVideo, contentType: "video/mp4" }],
+            },
+          ],
+        }),
+      ),
+    } as never);
+    await expect(viewerMaySignSocialMedia(USER, ownVideo, NOW)).resolves.toBe(false);
+    vi.mocked(createAdminClient).mockReturnValue(allowedScan() as never);
+    await expect(viewerMaySignSocialMedia(USER, ownVideo, NOW)).resolves.toBe(true);
+  });
+
   it("does not read profiles when post media already grants the key", async () => {
     const from = vi.fn(() => chain({ data: [{ author_id: OTHER, status: "active", media: postMedia() }] }));
     vi.mocked(createClient).mockResolvedValue({ from } as never);
@@ -580,6 +601,19 @@ describe("viewerMayMintSocialMuxPlayback", () => {
       ),
     } as never);
     await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({
+          data: [
+            { playback_id: PLAYBACK, status: "allowed" },
+            { playback_id: PLAYBACK, status: "blocked" },
+          ],
+          error: null,
+        }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
   });
 
   it("never queries messages while deciding a mux playback grant", async () => {

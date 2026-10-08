@@ -568,6 +568,9 @@ export type Database = {
           trust_state: Database["public"]["Enums"]["trust_state"]
           website_url: string | null
           welcome_video_key: string | null
+          welcome_mux_asset_id: string | null
+          welcome_mux_playback_id: string | null
+          welcome_mux_upload_id: string | null
         }
         Insert: {
           app_role?: Database["public"]["Enums"]["app_role"]
@@ -609,6 +612,9 @@ export type Database = {
           trust_state?: Database["public"]["Enums"]["trust_state"]
           website_url?: string | null
           welcome_video_key?: string | null
+          welcome_mux_asset_id?: string | null
+          welcome_mux_playback_id?: string | null
+          welcome_mux_upload_id?: string | null
         }
         Update: {
           app_role?: Database["public"]["Enums"]["app_role"]
@@ -650,6 +656,9 @@ export type Database = {
           trust_state?: Database["public"]["Enums"]["trust_state"]
           website_url?: string | null
           welcome_video_key?: string | null
+          welcome_mux_asset_id?: string | null
+          welcome_mux_playback_id?: string | null
+          welcome_mux_upload_id?: string | null
         }
         Relationships: []
       }
@@ -894,6 +903,7 @@ export type Database = {
           surface: Database["public"]["Enums"]["social_music_scan_surface"]
           post_id: string | null
           story_id: string | null
+          profile_id: string | null
           author_id: string
           asset_id: string
           playback_id: string
@@ -914,6 +924,8 @@ export type Database = {
           mux_ready_at: string | null
           scan_started_at: string | null
           decided_at: string | null
+          duration_seconds: number | null
+          window_results: Json
           created_at: string
           updated_at: string
         }
@@ -922,6 +934,7 @@ export type Database = {
           surface: Database["public"]["Enums"]["social_music_scan_surface"]
           post_id?: string | null
           story_id?: string | null
+          profile_id?: string | null
           author_id: string
           asset_id: string
           playback_id: string
@@ -942,6 +955,8 @@ export type Database = {
           mux_ready_at?: string | null
           scan_started_at?: string | null
           decided_at?: string | null
+          duration_seconds?: number | null
+          window_results?: Json
           created_at?: string
           updated_at?: string
         }
@@ -950,6 +965,7 @@ export type Database = {
           surface?: Database["public"]["Enums"]["social_music_scan_surface"]
           post_id?: string | null
           story_id?: string | null
+          profile_id?: string | null
           author_id?: string
           asset_id?: string
           playback_id?: string
@@ -970,10 +986,19 @@ export type Database = {
           mux_ready_at?: string | null
           scan_started_at?: string | null
           decided_at?: string | null
+          duration_seconds?: number | null
+          window_results?: Json
           created_at?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "social_music_scans_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "social_music_scans_author_id_fkey"
             columns: ["author_id"]
@@ -4288,7 +4313,7 @@ export type Database = {
       portal_link_purpose: "master_download" | "screener_view"
       post_status: "active" | "hidden" | "removed"
       social_music_scan_status: "pending" | "allowed" | "blocked"
-      social_music_scan_surface: "post" | "story"
+      social_music_scan_surface: "post" | "story" | "welcome"
       release_type: "new_release" | "re_release"
       review_decision: "approve" | "reject"
       sales_import_status: "queued" | "received" | "mapped"
@@ -4588,7 +4613,7 @@ export const Constants = {
       portal_link_purpose: ["master_download", "screener_view"],
       post_status: ["active", "hidden", "removed"],
       social_music_scan_status: ["pending", "allowed", "blocked"],
-      social_music_scan_surface: ["post", "story"],
+      social_music_scan_surface: ["post", "story", "welcome"],
       release_type: ["new_release", "re_release"],
       review_decision: ["approve", "reject"],
       sales_import_status: ["queued", "received", "mapped"],

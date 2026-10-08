@@ -12,7 +12,7 @@ import {
   type SocialMediaKind,
   type SocialMediaLane,
 } from "@/lib/social-media";
-import { SOCIAL_MUX_PROVIDER, type SocialMuxIntent } from "@/lib/social-mux";
+import { SOCIAL_MUX_PROVIDER, socialVideoDurationExceedsCap, type SocialMuxIntent } from "@/lib/social-mux";
 
 // One client upload helper for Social posts and story video.
 // Images stay on the media S3 lane. Video goes to Mux.
@@ -28,6 +28,8 @@ export type SocialPostUploadOptions = {
   intent?: SocialMuxIntent;
   signal?: AbortSignal;
   onProgress?: (progress: SocialUploadProgress) => void;
+  /** Test seam. Production reads the file's own metadata. */
+  durationSeconds?: number | null;
 };
 
 export type SocialMediaUploadResult = {
@@ -227,16 +229,42 @@ async function uploadSocialS3Media(
   };
 }
 
+/** Seconds from the file's video metadata. Null when the browser cannot read it. */
+export function readSocialVideoDurationSeconds(file: File): Promise<number | null> {
+  if (typeof document === "undefined") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const finish = (value: number | null) => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      resolve(value);
+    };
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      finish(Number.isFinite(video.duration) ? video.duration : null);
+    };
+    video.onerror = () => finish(null);
+    video.src = url;
+  });
+}
+
 export async function uploadSocialMuxVideoFile(
   file: File,
   options: SocialPostUploadOptions & { lane?: SocialMediaLane } = {},
 ): Promise<{ item?: SocialMediaItem; error?: string; aborted?: boolean }> {
   const lane = options.lane ?? "posts";
+  const duration =
+    options.durationSeconds !== undefined ? options.durationSeconds : await readSocialVideoDurationSeconds(file);
+  if (socialVideoDurationExceedsCap(duration)) return { error: SOCIAL.music.tooLong };
   const body = new FormData();
   body.set("content_type", file.type);
   body.set("byte_length", String(file.size));
   body.set("lane", lane);
   body.set("intent", options.intent ?? "video");
+  if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
+    body.set("duration_seconds", String(duration));
+  }
   let created: Awaited<ReturnType<typeof createSocialMuxUpload>>;
   try {
     created = await createSocialMuxUpload(body);

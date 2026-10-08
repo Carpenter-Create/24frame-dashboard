@@ -51,6 +51,12 @@ describe("musicReviewDirectoryRows", () => {
   it("pins the locked end-user and staff sentences", () => {
     expect(SOCIAL.music.pending).toBe("This video is not visible to others yet.");
     expect(SOCIAL.music.blocked).toBe("This video can't be shared because it includes music.");
+    expect(SOCIAL.music.tooLong).toBe("PENDING DESIGN LOCK: This video is longer than 8 minutes.");
+    expect(SOCIAL.music.welcomePending).toBe(
+      "PENDING DESIGN LOCK: This welcome video is not visible to others yet.",
+    );
+    expect(SOCIAL.music.legacyHeld).toBe("PENDING DESIGN LOCK: This video is held until it can be checked.");
+    expect(SOCIAL.music.malformed).toBe("PENDING DESIGN LOCK: This video can't be checked.");
     expect(SOCIAL_MUSIC_REVIEW).toMatchObject({
       title: "Music review",
       subtitle: "Social videos held after a music check.",

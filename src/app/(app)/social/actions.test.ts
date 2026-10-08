@@ -807,13 +807,48 @@ describe("social actions", () => {
     const { updates } = stub({
       profile: { id: author, handle: "ada", display_name: "Ada Lovelace", status: "active" },
     });
-    const upload = `posts/upload/${author}/${object}.mp4`;
-    const form = new FormData();
-    form.set("media", JSON.stringify([{ kind: "video", key: upload, contentType: "video/mp4" }]));
-    expect(await saveSocialWelcomeVideo(form)).toEqual({ error: SOCIAL.stories.mediaType });
+    const s3 = new FormData();
+    s3.set(
+      "media",
+      JSON.stringify([{ kind: "video", key: `posts/upload/${author}/${object}.mp4`, contentType: "video/mp4" }]),
+    );
+    expect(await saveSocialWelcomeVideo(s3)).toEqual({ error: SOCIAL.stories.mediaType });
     expect(copySocialMediaObject).not.toHaveBeenCalled();
+    const mux = {
+      kind: "video",
+      key: `posts/${author}/${object}.mp4`,
+      contentType: "video/mp4",
+      provider: "mux",
+      playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+      uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+      assetId: "SqQnqz6s5MBuXGvJaUWdXu",
+      playbackPolicy: "signed",
+    };
+    const form = new FormData();
+    form.set("media", JSON.stringify([mux]));
+    expect(await saveSocialWelcomeVideo(form)).toEqual({});
+    expect(verifySocialMuxPublishedItems).toHaveBeenCalled();
     expect(await clearSocialWelcomeVideo()).toEqual({});
-    expect(updates).toEqual([{ table: "profiles", row: { welcome_video_key: null } }]);
+    expect(updates).toEqual([
+      {
+        table: "profiles",
+        row: {
+          welcome_mux_asset_id: mux.assetId,
+          welcome_mux_playback_id: mux.playbackId,
+          welcome_mux_upload_id: mux.uploadId,
+          welcome_video_key: null,
+        },
+      },
+      {
+        table: "profiles",
+        row: {
+          welcome_video_key: null,
+          welcome_mux_asset_id: null,
+          welcome_mux_playback_id: null,
+          welcome_mux_upload_id: null,
+        },
+      },
+    ]);
   });
 
   it("rejects a blank handle after stripping @", async () => {
@@ -1607,18 +1642,13 @@ describe("social actions", () => {
       1200,
     );
 
-    vi.mocked(presignSocialMediaPut).mockResolvedValue("https://s3.example/put");
+    vi.mocked(presignSocialMediaPut).mockClear();
     const videoSign = new FormData();
     videoSign.set("content_type", "video/mp4");
     videoSign.set("byte_length", "1200");
     videoSign.set("lane", "stories");
-    expect(await presignSocialMediaUpload(videoSign)).toEqual({
-      key: `stories/upload/${author}/${object}.mp4`,
-      url: "https://s3.example/put",
-      kind: "video",
-      contentType: "video/mp4",
-    });
-    expect(presignSocialMediaPut).toHaveBeenCalledWith(`stories/upload/${author}/${object}.mp4`, "video/mp4", 1200);
+    expect(await presignSocialMediaUpload(videoSign)).toEqual({ error: SOCIAL.home.mediaType });
+    expect(presignSocialMediaPut).not.toHaveBeenCalled();
   });
 
   it("rejects a story when the stored object is missing, oversized, or a different type", async () => {
@@ -1683,6 +1713,19 @@ describe("social actions", () => {
       settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
       passthrough: `${author}:${object}`,
     });
+
+    vi.mocked(createSocialMuxDirectUpload).mockClear();
+    const tooLong = new FormData();
+    tooLong.set("content_type", "video/mp4");
+    tooLong.set("byte_length", "1200");
+    tooLong.set("duration_seconds", "481");
+    expect(await createSocialMuxUpload(tooLong)).toEqual({ error: SOCIAL.music.tooLong });
+    expect(createSocialMuxDirectUpload).not.toHaveBeenCalled();
+    const allowed = new FormData();
+    allowed.set("content_type", "video/mp4");
+    allowed.set("byte_length", "1200");
+    allowed.set("duration_seconds", "480");
+    expect(await createSocialMuxUpload(allowed)).toMatchObject({ uploadId: "zd01Pe2bNpYhxbrwYABgFE" });
 
     vi.mocked(finalizeSocialMuxDirectUpload).mockResolvedValue({
       uploadId: "zd01Pe2bNpYhxbrwYABgFE",

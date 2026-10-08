@@ -139,7 +139,8 @@ async function SocialProfileMain({
       topics: profile.topics ?? [],
       websiteUrl: profile.website_url ?? null,
       imdbUrl: profile.imdb_url ?? null,
-      welcomeVideoUrl: profile.welcome_video_key ? SOCIAL_WELCOME_VIDEO_PRESENT : null,
+      welcomeVideoUrl:
+        profile.welcome_video_key || profile.welcome_mux_playback_id ? SOCIAL_WELCOME_VIDEO_PRESENT : null,
     },
     readSocialProfileOptimisticCookie((name) => jar.get(name)?.value),
   );

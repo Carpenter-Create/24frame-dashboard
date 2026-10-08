@@ -23,7 +23,8 @@ export default async function SocialProfileEditPage({
     signedAvatarUrl(ctx.user.id),
   ]);
   if (!profile) redirect(SOCIAL_ROUTES.profile);
-  const welcomeVideoUrl = profile.welcome_video_key ? SOCIAL_WELCOME_VIDEO_PRESENT : null;
+  const welcomeVideoUrl =
+    profile.welcome_video_key || profile.welcome_mux_playback_id ? SOCIAL_WELCOME_VIDEO_PRESENT : null;
 
   return (
     <SocialProfileEditForm

@@ -2,7 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/(app)/social/actions", () => ({
   createSocialMuxUpload: vi.fn(),
-  finalizeSocialMuxUpload: vi.fn(),
+  finalizeSocialMuxUpload: vi.fn(async () => ({
+    item: {
+      kind: "video",
+      key: "stories/a/b.mp4",
+      contentType: "video/mp4",
+      provider: "mux",
+      playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+      uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+      assetId: "SqQnqz6s5MBuXGvJaUWdXu",
+    },
+  })),
   presignSocialMediaUpload: vi.fn(),
   reportSocialMediaUploadFailure: vi.fn(async () => undefined),
 }));
@@ -128,6 +138,17 @@ describe("browser upload failure report", () => {
     });
     await settle();
     expect(reports()).toEqual([{ step: "mux-put", lane: "posts", status: "413" }]);
+  });
+
+  it("refuses a clip longer than eight minutes before the mint", async () => {
+    expect(await uploadSocialMuxVideoFile(clip(), { durationSeconds: 481 })).toEqual({
+      error: SOCIAL.music.tooLong,
+    });
+    expect(createSocialMuxUpload).not.toHaveBeenCalled();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 200 })));
+    await uploadSocialMuxVideoFile(clip(), { durationSeconds: 480 });
+    const sent = vi.mocked(createSocialMuxUpload).mock.calls[0]?.[0] as FormData;
+    expect(sent.get("duration_seconds")).toBe("480");
   });
 
   it("never lets a failed report surface", async () => {
