@@ -13,7 +13,10 @@ import {
   omitHeldPosts,
   combineMusicWindowResults,
   musicScanWindows,
+  planMusicScanCoverage,
+  MUSIC_SCAN_COVERED_SECONDS,
   MUSIC_SCAN_MAX_WINDOWS,
+  socialVideoKeyDigest,
   muxItemReleasedToOthers,
   socialMuxPlaybackMusicReleased,
   socialParentVisibleToOthers,
@@ -176,32 +179,70 @@ describe("reused Mux asset release", () => {
       ),
     ).toBe(false);
     expect(socialParentVisibleToOthers([{ kind: "image" }], [])).toBe(true);
+    const key = "posts/author/clip.mp4";
+    const digest = socialVideoKeyDigest(key);
+    expect(socialParentVisibleToOthers([{ kind: "video", key }], [])).toBe(false);
+    expect(
+      socialParentVisibleToOthers([{ kind: "video", key }], [{ assetId: digest, playbackId: digest, status: "pending" }]),
+    ).toBe(false);
+    expect(
+      socialParentVisibleToOthers([{ kind: "video", key }], [{ assetId: digest, playbackId: digest, status: "allowed" }]),
+    ).toBe(true);
   });
 
-  it("mints someone else's playback only when every scan for that id is allowed", () => {
-    expect(socialMuxPlaybackMusicReleased("play12345678", [])).toBe(false);
-    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("pending")])).toBe(false);
-    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("blocked")])).toBe(false);
-    expect(socialMuxPlaybackMusicReleased("play12345678", [scan("allowed")])).toBe(true);
+  it("mints per playback id: pending elsewhere does not deny, any block does", () => {
+    const parent = { id: "post-1", surface: "post" as const };
+    const other = { id: "post-2", surface: "post" as const };
+    const row = (
+      status: "pending" | "blocked" | "allowed",
+      postId = "post-1",
+    ) => ({
+      playbackId: "play12345678",
+      status,
+      postId,
+      storyId: null,
+    });
+    expect(socialMuxPlaybackMusicReleased("play12345678", [parent], [])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [parent], [row("pending")])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [parent], [row("blocked")])).toBe(false);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [parent], [row("allowed")])).toBe(true);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [parent], [row("allowed"), row("blocked", "post-2")])).toBe(
+      false,
+    );
     expect(
-      socialMuxPlaybackMusicReleased("play12345678", [scan("allowed"), scan("blocked")]),
-    ).toBe(false);
+      socialMuxPlaybackMusicReleased("play12345678", [parent], [row("allowed"), row("pending", "post-2")]),
+    ).toBe(true);
+    expect(socialMuxPlaybackMusicReleased("play12345678", [other], [row("allowed"), row("pending", "post-2")])).toBe(
+      false,
+    );
   });
 });
 
 describe("music scan windows", () => {
   const match = (score: number): MusicIdentifyResult => MATCH(score);
 
-  it("caps the windows and blocks on the highest score", () => {
-    expect(musicScanWindows(null)).toEqual([{ startSeconds: 0, endSeconds: 12 }]);
-    expect(musicScanWindows(30)).toHaveLength(3);
-    expect(musicScanWindows(30)[0]).toEqual({ startSeconds: 0, endSeconds: 12 });
-    expect(musicScanWindows(400)).toHaveLength(MUSIC_SCAN_MAX_WINDOWS);
+  it("covers the whole clip up to the cap, and a block wins over an error", () => {
+    expect(planMusicScanCoverage(null)).toEqual({ kind: "unknown" });
+    expect(planMusicScanCoverage(0)).toEqual({ kind: "unknown" });
+    expect(planMusicScanCoverage(Number.NaN)).toEqual({ kind: "unknown" });
+    expect(musicScanWindows(30)).toEqual([
+      { startSeconds: 0, endSeconds: 12 },
+      { startSeconds: 12, endSeconds: 24 },
+      { startSeconds: 24, endSeconds: 30 },
+    ]);
+    expect(musicScanWindows(400)).toHaveLength(Math.ceil(400 / 12));
+    expect(planMusicScanCoverage(MUSIC_SCAN_COVERED_SECONDS + 1)).toEqual({ kind: "over_cap" });
+    expect(musicScanWindows(MUSIC_SCAN_COVERED_SECONDS)).toHaveLength(MUSIC_SCAN_MAX_WINDOWS);
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(40), match(24)]) })).toBe("block");
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(24)]) })).toBe("allow");
     expect(
       decideMusicScan({
         result: combineMusicWindowResults([match(100), { kind: "error", code: "timeout", retryable: true }]),
+      }),
+    ).toBe("block");
+    expect(
+      decideMusicScan({
+        result: combineMusicWindowResults([match(10), { kind: "error", code: "timeout", retryable: true }]),
       }),
     ).toBe("retry");
     expect(combineMusicWindowResults([match(40), match(100)])).toMatchObject({ kind: "match", score: 100 });
@@ -236,6 +277,20 @@ describe("social music scan migration", () => {
     expect(sql).not.toContain("on conflict (asset_id)");
     expect(sql).not.toContain("grant execute on function public.social_video_released");
     expect(sql).toContain("revoke all on function private.social_video_released(text, uuid) from public, anon");
+    expect(sql).toContain("s.playback_id = v_playback");
+    expect(sql).toContain("social_mux_bindings");
+    expect(sql).toContain("social mux video is not bound to this member");
+    expect(sql).toContain("social video must be a Mux video");
+    expect(sql).toContain("s3_video_needs_mux");
+    expect(sql).toContain("mux_id_malformed");
+    expect(sql).toContain("st.expires_at > now()");
+    expect(sql).toContain("drop schema if exists private");
+    const rollback = sql.slice(0, sql.indexOf("do $$ begin"));
+    const restore = rollback.indexOf("create policy posts_select");
+    const dropPrivate = rollback.indexOf("drop function if exists private.social_video_released");
+    expect(restore).toBeGreaterThan(-1);
+    expect(dropPrivate).toBeGreaterThan(restore);
+    expect(rollback.indexOf("drop schema if exists private")).toBeGreaterThan(dropPrivate);
     expect(sql).not.toContain("is_gc_staff(");
     expect(sql).toContain("Staff review only");
     expect(sql).not.toMatch(/grant select \([\s\S]*vendor_title/);

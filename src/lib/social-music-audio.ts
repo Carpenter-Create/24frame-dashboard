@@ -3,6 +3,13 @@
 
 /** One identify window stays under ACRCloud's 5 MB sample cap. */
 export const SOCIAL_MUSIC_AUDIO_MAX_BYTES = 5 * 1024 * 1024;
+/** The worker downloads the whole rendition once, then cuts windows locally. */
+export const SOCIAL_MUSIC_FULL_AUDIO_MAX_BYTES = 20 * 1024 * 1024;
+/**
+ * Twelve seconds of AAC at 256 kbps is about 384 KB. A larger slice is not
+ * a 12-second window. The scan retries and does not allow it.
+ */
+export const MUSIC_SCAN_WINDOW_MAX_BYTES = 512 * 1024;
 
 export type MuxAudioFile = {
   name?: string;
@@ -14,8 +21,19 @@ export type MuxAudioFile = {
 export type MuxAudioAsset = {
   status?: string | null;
   duration?: number | null;
+  playback_ids?: Array<{ id?: string; policy?: string }> | null;
   static_renditions?: { files?: MuxAudioFile[] } | MuxAudioFile[] | null;
 };
+
+const SOCIAL_MUSIC_MUX_ID = /^[A-Za-z0-9_-]{8,120}$/;
+
+/** Signed playback id on a Mux asset, when the worker can compare it to the scan. */
+export function signedPlaybackIdFromMuxAsset(asset: MuxAudioAsset): string | null {
+  const match = asset.playback_ids?.find(
+    (item) => item.policy === "signed" && typeof item.id === "string" && SOCIAL_MUSIC_MUX_ID.test(item.id),
+  );
+  return match?.id ?? null;
+}
 
 export type MuxAudioRenditionState =
   | "asset_preparing"

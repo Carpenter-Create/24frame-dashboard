@@ -1,5 +1,16 @@
 import { generateKeyPairSync, verify } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const { bindingUpsert } = vi.hoisted(() => ({
+  bindingUpsert: vi.fn(async () => ({ error: null })),
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    from: () => ({ upsert: bindingUpsert }),
+  }),
+}));
 
 import { SocialMuxUploadNotBoundError } from "./social-mux";
 import {
@@ -104,6 +115,15 @@ describe("social Mux server client", () => {
       assetId: ASSET_ID,
       playbackId: PLAYBACK_ID,
     });
+    expect(bindingUpsert).toHaveBeenCalledWith(
+      {
+        author_id: USER,
+        upload_id: UPLOAD_ID,
+        asset_id: ASSET_ID,
+        playback_id: PLAYBACK_ID,
+      },
+      { onConflict: "author_id,asset_id,playback_id", ignoreDuplicates: true },
+    );
   });
 
   it("rejects finalize when the passthrough only shares a user id prefix", async () => {
@@ -259,6 +279,11 @@ describe("social Mux server client", () => {
     vi.stubEnv("MUX_PRIVATE_KEY", Buffer.from(pem).toString("base64"));
     const url = await signSocialMuxStaticAudioUrl(PLAYBACK_ID);
     expect(url.startsWith(`https://stream.mux.com/${PLAYBACK_ID}/audio.m4a?token=`)).toBe(true);
+    const token = new URL(url).searchParams.get("token") ?? "";
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString());
+    expect(JSON.stringify(payload)).not.toContain("asset_start_time");
+    expect(JSON.stringify(payload)).not.toContain("asset_end_time");
+    expect(readFileSync("src/lib/social-mux-server.ts", "utf8")).not.toContain("asset_start_time");
   });
 
   it("maps live and video intents without client pixel fields", () => {

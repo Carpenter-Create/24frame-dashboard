@@ -3,6 +3,7 @@ import "server-only";
 import Mux from "@mux/mux-node";
 
 import { muxAudioRenditionRequestSettled } from "@/lib/social-music-audio";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 import {
   isSocialMuxId,
@@ -246,6 +247,12 @@ export async function finalizeSocialMuxDirectUpload(
     const asset = await retrieveSocialMuxAsset(assetId);
     playbackId = signedPlaybackIdFromAsset(asset);
     if (playbackId) {
+      await recordSocialMuxBinding({
+        authorId: callerUserId,
+        uploadId,
+        assetId,
+        playbackId,
+      });
       return { uploadId, assetId, playbackId };
     }
     await wait(delay);
@@ -271,25 +278,38 @@ export async function createSocialMuxAudioRendition(assetId: string): Promise<vo
   }
 }
 
-/** Signed audio.m4a for the music worker. The token never goes to a browser. */
-export async function signSocialMuxStaticAudioUrl(
-  playbackId: string,
-  window?: { startSeconds: number; endSeconds: number },
-): Promise<string> {
+/**
+ * Signed audio.m4a for the music worker. The whole rendition, not a Mux
+ * time slice. The token never goes to a browser. Windows are cut after
+ * the download.
+ */
+export async function signSocialMuxStaticAudioUrl(playbackId: string): Promise<string> {
   if (!isSocialMuxId(playbackId)) throw new Error("Mux playback id is invalid");
-  const clipped =
-    window && Number.isFinite(window.startSeconds) && Number.isFinite(window.endSeconds)
-      ? {
-          asset_start_time: String(window.startSeconds),
-          asset_end_time: String(window.endSeconds),
-        }
-      : undefined;
   const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
     type: "video",
     expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
-    ...(clipped ? { params: clipped } : {}),
   });
   return `https://stream.mux.com/${playbackId}/audio.m4a?token=${encodeURIComponent(token)}`;
+}
+
+/** Service-role only. The scan trigger requires this exact triple. */
+export async function recordSocialMuxBinding(input: {
+  authorId: string;
+  uploadId: string;
+  assetId: string;
+  playbackId: string;
+}): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin.from("social_mux_bindings").upsert(
+    {
+      author_id: input.authorId,
+      upload_id: input.uploadId,
+      asset_id: input.assetId,
+      playback_id: input.playbackId,
+    },
+    { onConflict: "author_id,asset_id,playback_id", ignoreDuplicates: true },
+  );
+  if (error) throw new Error("Mux binding was not recorded");
 }
 
 /** Upload, asset, and signed playback id all belong to this member. */
@@ -327,6 +347,7 @@ export async function verifySocialMuxPublishedItems(
     const upload = await retrieveSocialMuxUpload(uploadId);
     const asset = await retrieveSocialMuxAsset(assetId);
     if (!socialMuxPublishedVideoBound({ userId, uploadId, assetId, playbackId, upload, asset })) return false;
+    await recordSocialMuxBinding({ authorId: userId, uploadId, assetId, playbackId });
   }
   return true;
 }

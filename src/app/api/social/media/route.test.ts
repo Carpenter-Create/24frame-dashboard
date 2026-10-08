@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/supabase/auth", () => ({ getAuthUser: vi.fn() }));
 vi.mock("@/lib/s3-social-media", () => ({ signedSocialMediaUrl: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 import { getAuthUser } from "@/lib/supabase/auth";
 import { signedSocialMediaUrl } from "@/lib/s3-social-media";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { GET } from "./route";
 
@@ -44,10 +46,21 @@ function mockRows(rows: Record<string, { data: unknown; error?: { message: strin
   } as never);
 }
 
+function videoScan(released: boolean) {
+  const query = {
+    select: () => query,
+    eq: () => query,
+    in: () => query,
+    limit: async () => ({ data: released ? [{ id: "scan-allowed" }] : [], error: null }),
+  };
+  vi.mocked(createAdminClient).mockReturnValue({ from: () => query } as never);
+}
+
 describe("GET /api/social/media", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRows({});
+    videoScan(false);
   });
 
   it("is 401 without a session and does not sign", async () => {
@@ -100,19 +113,22 @@ describe("GET /api/social/media", () => {
   it("302s the caller's own live story and refuses that key once it has expired", async () => {
     vi.mocked(getAuthUser).mockResolvedValue({ id: UID, email: "ada@example.com" });
     vi.mocked(signedSocialMediaUrl).mockResolvedValue("https://media.example/story");
+    const ownStory = {
+      id: "55555555-5555-4555-8555-555555555555",
+      author_id: UID,
+      status: "active",
+      expires_at: LIVE,
+      media: [{ kind: "video", key: OWN_STORY, contentType: "video/mp4" }],
+    };
     mockRows({
       follows: { data: null },
-      stories: {
-        data: [
-          {
-            author_id: UID,
-            status: "active",
-            expires_at: LIVE,
-            media: [{ kind: "video", key: OWN_STORY, contentType: "video/mp4" }],
-          },
-        ],
-      },
+      stories: { data: [ownStory] },
     });
+    const unscanned = await GET(mediaRequest(OWN_STORY));
+    expect(unscanned.status).toBe(403);
+    expect(signedSocialMediaUrl).not.toHaveBeenCalled();
+
+    videoScan(true);
     const live = await GET(mediaRequest(OWN_STORY));
     expect(live.status).toBe(302);
     expect(signedSocialMediaUrl).toHaveBeenCalledWith(OWN_STORY);
@@ -146,6 +162,7 @@ describe("GET /api/social/media", () => {
       stories: {
         data: [
           {
+            id: "66666666-6666-4666-8666-666666666666",
             author_id: OTHER,
             status: "active",
             expires_at: LIVE,
@@ -154,6 +171,11 @@ describe("GET /api/social/media", () => {
         ],
       },
     });
+    const held = await GET(mediaRequest(FOREIGN_STORY));
+    expect(held.status).toBe(403);
+    expect(signedSocialMediaUrl).not.toHaveBeenCalled();
+
+    videoScan(true);
     const story = await GET(mediaRequest(FOREIGN_STORY));
     expect(story.status).toBe(302);
     expect(signedSocialMediaUrl).toHaveBeenCalledWith(FOREIGN_STORY);

@@ -21,52 +21,115 @@ from CI. Adam applies the SQL on prod.
 ## What it does
 
 - A Mux video saved on `posts.media` or `stories.media` inserts one
-  `social_music_scans` row for that post or story in the same transaction.
-  A later parent that reuses the asset gets its own row. A prior blocked
-  decision is copied onto the new row, and a prior allowed decision is
-  copied too. A prior pending scan is not copied: the new row stays
-  pending. Other people cannot see a Mux video until that parent has an
-  allowed scan for the asset id and playback id. No scan row is not a
-  release. Stills and text stay visible. The author still sees their own
-  post or story. Applying this SQL backfills existing Mux videos as
-  pending, so they leave other people's feeds until a scan allows them.
-- Publish checks the upload, asset, and playback id with Mux and requires
-  the upload passthrough to name the member. A Mux video with a missing
-  or short asset id is rejected. The database trigger raises if a Mux
-  video is stored without a scannable asset id and playback id.
+  `social_music_scans` row for that post or story in the same transaction
+  (insert, and a story or post media update). A later parent that reuses
+  the same asset gets its own row. A prior verdict is copied only when
+  `asset_id` and `playback_id` both match. A prior blocked decision is
+  copied before a prior allowed decision. A prior pending scan is not
+  copied. A different playback id on the same asset stays pending and is
+  scanned on its own. No scan row is not a release.
+- Every video stays hidden from other people until that parent has an
+  allowed scan. Mux matches the asset id and the playback id. A non-Mux
+  video matches `md5` of its storage key. The trigger rejects a new
+  non-Mux video (`social video must be a Mux video`). Stills and text
+  stay visible. The author still sees their own post or story.
+- The server writes `social_mux_bindings` only after Mux confirms the
+  upload, the asset, the playback id, and a passthrough that names the
+  member. The row is keyed by author, asset, and playback. The trigger
+  raises unless that triple exists (`social mux video is not bound to
+  this member`). There is no authenticated insert policy. Posts and
+  stories still insert on the member session; the binding is what stops
+  a crossed pair. A direct insert of a mixed pair fails even when each
+  id was finalized on its own. A missing or short Mux id raises
+  (`social music scan requires a Mux asset id and playback id`).
+- Applying this SQL backfills existing Mux videos as pending, so they
+  leave other people's feeds until a scan allows them. Existing S3
+  videos on posts and non-expired stories are backfilled pending,
+  `next_attempt_at` null, `last_error` `s3_video_needs_mux`, and hidden.
+  They are not retried into a Mux 404. Legacy Mux items whose ids cannot
+  be scanned are backfilled the same way with `last_error`
+  `mux_id_malformed`, so Music review lists them as Unfinished. They stay
+  hidden because release looks up the raw ids and finds no allowed row.
+  Expired stories are not backfilled.
+- Playback for someone else is minted per playback id, not per parent. The
+  parent being played needs its own allowed scan. A pending scan on a
+  different post or story does not make an allowed post unplayable. Any
+  blocked row for that playback id denies the mint. A missing scan table,
+  a missing relation, or any scan read error denies the mint for someone
+  else. The author can still preview a video that only they can see.
+  `/api/social/media` does not sign an `mp4`, `mov`, `webm`, or `m4v` key
+  on a visible post or story unless that item has an allowed scan,
+  including when the viewer is the author.
+- A new profile welcome video is refused with the existing media-type
+  error. The public band is presence only and does not play a file.
+  Clearing a stored key still works. Existing welcome keys stay stored
+  and are not signed.
+- When a scan blocks, other allowed rows for the same asset id and
+  playback id are set to blocked in the same decision, so they enter
+  Music review. The current row is saved blocked after that.
 - Every minute the Lambda takes due pending rows (at most 8):
-  - Mux asset not ready: wait 20 seconds. `mux_ready_at` stays empty.
-  - Asset ready: stamp `mux_ready_at`, request an audio-only static
-    rendition if it is missing, then download up to eight 12-second
-    windows of `audio.m4a` (signed; each window capped at 5 MB) and call
-    ACRCloud identify on each. The highest finite `metadata.music` score
-    decides. One window error retries the scan. A read of the Mux asset
-    that throws records an attempt and moves on, so one bad row does not
-    stall the batch.
-  - No music match, or a highest `metadata.music` score under 25: `allowed`.
+  - Mux asset not ready, rendition missing, or rendition still preparing:
+    wait 20 seconds and do not burn an attempt. A rendition request that
+    reports the audio file already exists does not burn an attempt.
+  - If that wait has already lasted 6 hours from `created_at`, hold
+    immediately (`mux_prep_expired`). `attempt_count` is at the cap and
+    `next_attempt_at` is null. Music review lists it as Unfinished. Do
+    not request another rendition after that hold.
+  - After the rendition is ready, the signed playback id on the asset
+    must equal the scan's playback id. A mismatch holds
+    (`mux_playback_mismatch`) and does not call identify.
+  - Coverage is contiguous 12-second windows from the start of the asset,
+    up to 40 windows (8 minutes). One ACRCloud identify per window, at
+    most 40 identifies per clip. Unknown, non-finite, or non-positive
+    duration retries (`unknown_duration`) and then holds. It is never
+    allowed and never sent to identify. A clip longer than 8 minutes
+    holds immediately (`duration_over_cap`) for staff. It is not sampled.
+  - The worker downloads `audio.m4a` once (signed, no Mux time range, cap
+    20 MB) and cuts the windows inside the Lambda. Mux
+    `asset_start_time` and `asset_end_time` are not used. An empty cut,
+    a window over 512 KB, a window whose bytes match an earlier window,
+    or a file the cutter cannot parse fails closed and counts an attempt.
+  - A music score at or above 25 on any window blocks, even when another
+    window errored. Under that line, a window error retries the scan.
     `metadata.custom_files` is ignored. A bucket hit cannot allow a clip.
-  - Score 25 or higher: `blocked` immediately. Vendor title and artist are
-    stored for staff only. The block does not wait on the review queue.
-  - Vendor error, timeout, or a bad sample: stay `pending`, increment
-    `attempt_count`, set `next_attempt_at` (30s, 1m, 2m, 5m, 10m, 30m, 1h).
-    After 8 attempts, `next_attempt_at` is null and the video stays hidden.
-    A Mux asset error holds immediately. Nothing is published on error.
-  - A rendition request that reports the audio file already exists or is
-    in progress does not burn an attempt. The worker polls. Other Mux
-    errors retry.
-  - A skipped or missing audio rendition stays pending. Phase 0 does not
-    allow a silent clip. After the attempt cap, Music review lists it as
-    Unfinished and the video stays hidden.
+    No music match, or a highest score under 25: `allowed`.
+  - The worker leases the row (increments `attempt_count` and pushes
+    `next_attempt_at`) before the download. A timeout or crash mid-scan
+    counts that attempt and does not count it twice if the failure path
+    also runs. A throw before the lease still counts once, from the
+    batch. Preparing and rendition polls do not lease.
+  - Vendor error, timeout, or a bad sample: stay `pending`. Backoff is
+    30s, 1m, 2m, 5m, 10m, 30m, 1h. After 8 attempts, `next_attempt_at` is
+    null and the video stays hidden. A Mux asset error holds immediately.
+    Nothing is published on error. A skipped or missing audio rendition
+    stays pending. Phase 0 does not allow a silent clip.
 - Each decision logs `social music scan` with `mux_ready_at`,
   `scan_started_at`, `decided_at`, and `mux_ready_to_decision_ms`. The log
   line does not include the song title or artist.
 - Staff open **Music review** (`/staff/music`) for blocked rows and for
-  pending rows that will not be retried. That page uses the service role
-  after a `gc_staff` check. The queue is a spot-check and appeal list.
-  Opening it does not change `blocked` and does not publish the video.
-  End-user copy stays generic. The blocked line is one constant,
-  `SOCIAL.music.blocked`: "This video can't be shared because it includes music."
+  pending rows that will not be retried (`next_attempt_at` null). That
+  page uses the service role after a `gc_staff` check. The queue is a
+  spot-check and appeal list. Opening it does not change `blocked` and
+  does not publish the video. End-user copy stays generic. The blocked
+  line is one constant, `SOCIAL.music.blocked`: "This video can't be shared because it includes music."
   Lock: `docs/design-locks/social-music-block-copy-lock-v1.md`.
+
+## S3 video already stored
+
+On apply, those items fail closed: pending, hidden, Unfinished. This
+change does not re-ingest them. A later founder step can create a Mux
+asset from the stored object, record a binding for that member, replace
+the media item with the Mux ids, and let the worker scan the new pair.
+Until that exists, the hidden rows stay in Music review.
+
+## Rollback
+
+Restore `posts_select` and `stories_select` (the policies from
+`20260912120000_groups_posts.sql` and `20260914120000_social_home_stories.sql`)
+before `drop function private.social_video_released`. Then drop
+`social_music_scans`, `social_mux_bindings`, the two enum types, and
+`drop schema if exists private`. The header of the migration is the
+exact order. `private` is not added to the Data API schemas.
 
 ## Allowlist
 
@@ -125,10 +188,11 @@ scan table is a follow-up. It is not part of this change.
 3. Build and create the Lambda, set env, then the disabled schedule.
 4. Dry run. Enable the rule when the dry run is `ok`.
 
-Deploying the app before the migration is safe: the notice read fails
-closed to an empty map, and the old policies stay until the SQL lands.
-Applying the SQL first hides new videos from other people even before the
-worker exists. They stay pending, which is the fail-closed state.
+Apply the SQL before the app. A missing scan table denies playback and
+video-key signing for anyone who is not previewing only their own row.
+The author notice still fails closed to an empty map. Applying the SQL
+first hides videos from other people even before the worker exists. They
+stay pending, which is the fail-closed state.
 
 ## Build and deploy
 
