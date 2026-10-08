@@ -16,6 +16,7 @@ import {
   SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS,
   SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS,
   SOCIAL_FEED_IMMERSIVE_DOCK_CLASS,
+  SOCIAL_FEED_IMMERSIVE_MEDIA_CLASS,
   SOCIAL_FEED_IMMERSIVE_MUTE_CLASS,
   SOCIAL_FEED_IMMERSIVE_STAGE_CLASS,
   SOCIAL_POST_ACTION_GLYPH,
@@ -134,7 +135,7 @@ export function SocialFeedImmersive({
       data-social-feed-immersive=""
       className={SOCIAL_FEED_IMMERSIVE_STAGE_CLASS}
     >
-      <div className="absolute inset-0">
+      <div data-social-feed-immersive-media="" className={SOCIAL_FEED_IMMERSIVE_MEDIA_CLASS}>
         {item.kind === "video" ? (
           <SocialFeedVideo
             item={item}

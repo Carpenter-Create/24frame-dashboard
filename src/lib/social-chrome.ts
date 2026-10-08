@@ -439,8 +439,16 @@ export const SOCIAL_POST_ACTIONS_ROW_CLASS =
 // z-[45] is the stage on document.body. The comment host (z-50) mounts
 // inside this stage and paints above the dock. The Share sheet is a
 // separate body portal at z-[60], above the stage. Do not raise this.
+// Desktop (md+) stacks the stage: the media above, the dock below it. A
+// video's player bar (play, time, volume, PiP, fullscreen) sits at the
+// bottom of the media, so laid under the dock it lost those controls to
+// the caption and Like / Comment / Share (Adam 2026-10-08: "on desktop, the
+// icons are covering the player options at the bottom"). The phone keeps
+// the media full-bleed under the dock.
 export const SOCIAL_FEED_IMMERSIVE_STAGE_CLASS =
-  "fixed inset-0 z-[45] bg-[#0A0A0B] text-band-ink social-feed-immersive-in";
+  "fixed inset-0 z-[45] bg-[#0A0A0B] text-band-ink social-feed-immersive-in md:flex md:flex-col";
+
+export const SOCIAL_FEED_IMMERSIVE_MEDIA_CLASS = "absolute inset-0 md:relative md:inset-auto md:min-h-0 md:flex-1";
 
 export const SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS =
   "absolute left-0 top-[env(safe-area-inset-top)] z-30 flex size-[44px] min-h-[44px] min-w-[44px] items-center justify-center text-band-ink";
@@ -453,7 +461,7 @@ export const SOCIAL_FEED_IMMERSIVE_MUTE_CLASS =
   "absolute right-0 top-[env(safe-area-inset-top)] z-30 flex size-[44px] min-h-[44px] min-w-[44px] items-center justify-center text-band-ink md:hidden";
 
 export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
-  "absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pt-[var(--space-4)]";
+  "absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pt-[var(--space-4)] md:relative md:inset-auto md:shrink-0 md:bg-none";
 
 export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-words";
 
