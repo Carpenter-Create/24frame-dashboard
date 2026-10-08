@@ -677,9 +677,9 @@ export const SOCIAL = {
     liveTitle: "Go live",
     // Desktop camera frame switch (Adam 2026-10-08: "normal view" by
     // default, a simple switch to "reel sized").
-    liveFrame: "Camera frame",
-    liveFrameFull: "Full",
-    liveFrameReel: "Reel",
+    liveFrame: "Aspect ratio",
+    liveFrameFull: "16:9",
+    liveFrameReel: "9:16",
     liveStart: "Start",
     liveStop: "Stop",
     livePost: "Post video",

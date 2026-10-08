@@ -27,6 +27,12 @@ function desktopSnapshot() {
   return window.matchMedia("(min-width: 768px)").matches;
 }
 
+/** The host right now, for event and effect code that runs before the
+ *  first client render settles (`useHouseDesktop` reads false until then). */
+export function isHouseDesktop(): boolean {
+  return typeof window !== "undefined" && desktopSnapshot();
+}
+
 /** Client-opened overlays. The first client render already knows the host. */
 export function useHouseDesktop(): boolean {
   return useSyncExternalStore(subscribeDesktop, desktopSnapshot, () => false);

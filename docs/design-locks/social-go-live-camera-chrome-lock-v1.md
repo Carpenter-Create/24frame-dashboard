@@ -3,7 +3,7 @@
 **Date:** 2026-10-01
 **Status:** **LOCKED** · Adam PASS
 **Surface:** `/social/live` camera face
-**Amended 2026-10-08:** §Desktop frame, §Review and §Posted clip below (Adam, in chat). The camera face above is unchanged.
+**Amended 2026-10-08:** §Desktop frame (twice more: Full fills the window; then the shapes, 16:9 · 9:16), §Review and §Posted clip below (Adam, in chat). The camera face above is unchanged.
 
 ## One lock
 
@@ -35,11 +35,10 @@ Before this, the desktop stage was the 9:16 studio pane, but the clip recorded t
 
 | Token | Lock |
 |-------|------|
-| Default | **Full**: the camera fills the whole window, edge to edge, like a video call (amended below). The recording is the camera's whole frame |
-| Switch | **Full · Reel**, a two-segment pill centred above the record button, on the camera's band wash; the current segment band-ink. Desktop only (`md+`), before recording only (hidden while recording and in review). A radio group named "Camera frame" |
-| Reel | The 9:16 studio stage (420 × 746). The recording is the same 9:16 centre cut, drawn into a canvas and recorded (the camera's audio rides along), so the clip is the frame that was shown. No upscale: a 720p camera records 404 × 720 |
+| Default | **16:9** (amended twice below) |
+| Switch | Two segments, **16:9 · 9:16** (amended below), a pill centred above the record button, on the camera's band wash; the current segment band-ink. Desktop only (`md+`), before recording only (hidden while recording and in review) |
+| Reel | **9:16** (amended below). The recording is the 9:16 centre cut, drawn into a canvas and recorded (the camera's audio rides along), so the clip is the frame that was shown. No upscale: a 1080p camera records 606 × 1080 |
 | Phone | Unchanged: the full-screen stage records the phone's own (portrait) frame. No switch |
-| Copy | "Full", "Reel", "Camera frame" (new, founder to confirm) |
 
 **Amended 2026-10-08 (Full fills the window).** Adam, in chat, on the first Full (a card at the camera's aspect, centred on the dark page):
 
@@ -52,6 +51,28 @@ Before this, the desktop stage was the 9:16 studio pane, but the clip recorded t
 | Recording | The camera's whole frame (a 16:9 webcam records 16:9). The preview's trim is never cut from the clip |
 | Review | The clip fills the window the same way |
 | Not | The browser's own full-screen mode (the tab and the menu bar stay) |
+
+**Amended 2026-10-08 (the shapes, by name).** Adam, in chat:
+
+> instead of the language "Full" and "Reel" – use the aspect ratio
+
+> It needs to be standard youtube video/landscape video dimensions
+
+> and then vertical reel dimensions
+
+> the camera should be that, look like that, and the aspect ratio options should say the aspect ratio instead of words
+
+Before this, Full showed the window's shape (16:10 on most laptops) and recorded the camera's (640 × 480, 4:3, on a webcam a browser opens with no size asked); Reel was 420 wide at any height, so a short window showed it near square.
+
+| Token | Lock |
+|-------|------|
+| Switch | **16:9 · 9:16**, the ratios, no words. The radio group is named "Aspect ratio" |
+| 16:9 stage | Exactly 16:9, as large as the window allows (`min(100vw, 100dvh × 16/9)` wide), centred on the band, edge to edge on the long side: no edge or radius. Chrome floats on it as before |
+| 9:16 stage | Exactly 9:16 at the studio's height (746, 90dvh cap), its width following; the studio's radius 16 and band-ink 20% edge |
+| Camera | A computer asks for 16:9 HD (1920 × 1080, ideal: the nearest mode the camera has). The phone asks for nothing, as before |
+| Recording | Always the switch's shape. A 16:9 camera records as it is (1080p: 1920 × 1080, the standard landscape upload); a camera of any other shape is cut to the centre 16:9 (4:3 640 × 480 → 640 × 360). 9:16 is the centre cut as before (1080p: 606 × 1080). No upscale |
+| Preview = clip | Each stage covers with the camera; its shape is the clip's, so the frame shown is the frame recorded |
+| Copy | "16:9", "9:16", "Aspect ratio" (replacing "Full", "Reel", "Camera frame") |
 
 ## Review (Adam, 2026-10-08)
 

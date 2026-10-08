@@ -1,5 +1,9 @@
 import { SOCIAL_VIDEO_MAX_BYTES, type SocialVideoContentType } from "@/lib/social-media";
-import { formatStoryRecorderClock } from "@/lib/social-story-recorder";
+import {
+  formatStoryRecorderClock,
+  storyRecorderVideoConstraints,
+  type StoryStudioFacing,
+} from "@/lib/social-story-recorder";
 
 // In-app camera record, then a normal Social video post. Hard ~10 min
 // cap. No livestream backend.
@@ -50,32 +54,53 @@ export function goLiveFitsByteCap(
 }
 
 // Desktop frame (docs/design-locks/social-go-live-camera-chrome-lock-v1.md
-// §Desktop frame, Adam 2026-10-08): "full" is the camera's own frame, as the
-// device opens it (what you see is what records); "reel" is a 9:16 cut of
-// it, recorded as 9:16. Phone is always the camera's own (portrait) frame.
+// §Desktop frame, Adam 2026-10-08): "full" fills the window and records
+// 16:9; "reel" is the 9:16 stage and records 9:16. Phone is always the
+// camera's own (portrait) frame.
 export type GoLiveFrame = "full" | "reel";
 
 export const SOCIAL_GO_LIVE_FRAMES = ["full", "reel"] as const satisfies readonly GoLiveFrame[];
 
 export const SOCIAL_GO_LIVE_DEFAULT_FRAME: GoLiveFrame = "full";
 
-export const SOCIAL_GO_LIVE_REEL_ASPECT = 9 / 16;
+/** Each frame's recorded shape on a computer, named on the switch (Adam
+ *  2026-10-08: "instead of the language "Full" and "Reel" – use the aspect
+ *  ratio"). */
+export const SOCIAL_GO_LIVE_FRAME_ASPECT = {
+  full: 16 / 9,
+  reel: 9 / 16,
+} as const satisfies Record<GoLiveFrame, number>;
+
+/** The camera a computer asks for: 16:9 HD. With no size, browsers open a
+ *  webcam at 640 × 480 (4:3). Ideal, not exact: the nearest mode wins and
+ *  the recording is cut to the frame's shape. The phone asks for nothing. */
+export function goLiveVideoConstraints(
+  facing: StoryStudioFacing,
+  desktop: boolean,
+): MediaTrackConstraints {
+  const base = storyRecorderVideoConstraints(facing);
+  return desktop ? { ...base, width: { ideal: 1920 }, height: { ideal: 1080 } } : base;
+}
 
 const even = (n: number) => Math.max(2, Math.floor(n / 2) * 2);
 
-/** The reel's center cut of a camera frame (source pixels, even sizes, no
- *  upscale): a landscape webcam keeps its height and loses its sides. */
-export function goLiveReelCrop(
+/** The centre cut of a camera frame at an aspect (source pixels, even sizes,
+ *  no upscale), or null when the camera already has that shape (within 1%)
+ *  or has not reported its size: record the camera as it is. A 720p webcam
+ *  keeps its height for 9:16; a 4:3 webcam keeps its width for 16:9. */
+export function goLiveFrameCut(
   width: number,
   height: number,
+  aspect: number,
 ): { sx: number; sy: number; sw: number; sh: number } | null {
   if (!(width > 0 && height > 0)) return null;
-  if (width / height > SOCIAL_GO_LIVE_REEL_ASPECT) {
-    const sw = even(height * SOCIAL_GO_LIVE_REEL_ASPECT);
+  if (Math.abs(width / height - aspect) / aspect < 0.01) return null;
+  if (width / height > aspect) {
+    const sw = even(height * aspect);
     const sh = even(height);
     return { sx: Math.floor((width - sw) / 2), sy: Math.floor((height - sh) / 2), sw, sh };
   }
   const sw = even(width);
-  const sh = even(width / SOCIAL_GO_LIVE_REEL_ASPECT);
+  const sh = even(width / aspect);
   return { sx: Math.floor((width - sw) / 2), sy: Math.floor((height - sh) / 2), sw, sh };
 }
