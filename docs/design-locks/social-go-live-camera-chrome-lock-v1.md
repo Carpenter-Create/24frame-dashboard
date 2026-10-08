@@ -3,7 +3,7 @@
 **Date:** 2026-10-01
 **Status:** **LOCKED** · Adam PASS
 **Surface:** `/social/live` camera face
-**Amended 2026-10-08:** §Desktop frame (twice more: Full fills the window; then the shapes, 16:9 · 9:16), §Review and §Posted clip below (Adam, in chat). The camera face above is unchanged.
+**Amended 2026-10-08:** §Desktop frame (twice more: Full fills the window; then the shapes, 16:9 · 9:16), §Review, §Posted clip and §Camera picker below (Adam, in chat). The camera face above is unchanged, except that on a computer the picker takes flip's place.
 
 ## One lock
 
@@ -15,7 +15,7 @@ The Go live camera has no duration hint over the viewfinder. Header, flip, recor
 |---------|------|
 | Header | Go live |
 | Exit | Leading X. Returns to the opener |
-| Flip | Trailing camera flip. Preview only |
+| Flip | Trailing camera flip. Preview only. On a computer, the camera picker takes this place (§Camera picker) |
 | Record | Centered record control. Starts and stops the clip |
 | Overlay | No “Record up to 10 minutes, then post as a video.” No other bottom hint |
 
@@ -92,3 +92,20 @@ Before this, Full showed the window's shape (16:10 on most laptops) and recorded
 
 Mux is still preparing a just-uploaded clip, so its player has nothing to draw. The poster's own feed card plays the clip from the device (the optimistic post's local file) until the next load brings the server card. Every post path gets this (the write composer too). Go live posts as the one Social author, the shell's identity ([`social-desktop-create-composer-lock-v1.md`](social-desktop-create-composer-lock-v1.md)), not "You".
 
+## Camera picker (Adam, 2026-10-08)
+
+The founder's Mac camera read 1280 × 720 (its most): the app asks for 1920 × 1080, and a camera gives what it has. A sharper camera (an iPhone through Continuity Camera, a USB webcam) is the remedy, and the browser opens only its default. Proposed in chat: "add a small camera picker to Go live, listing the built-in camera, your iPhone and any external camera". Then:
+
+> yes, build the camera picker
+
+| Token | Lock |
+|-------|------|
+| Where | Computer (`md+`) only: the trailing control of the top bar, where flip sits on the phone (a computer has no back camera to flip to). The same round 40 band-ink 12% button, the 20 bold video-camera glyph, the accessible name "Camera". Phone unchanged: flip |
+| Menu | The house menu (MenuSurface: radius 12, hairline, surface, 44 rows), right-aligned under the button. One row per camera, by the device's own name (as the browser reports it, without the USB id Chrome appends); "Camera 1", "Camera 2" if the browser gives no name. Names wrap, never truncate. The current camera carries the 20 check at the row's end (a radio group) |
+| Current | The camera actually streaming, read from the open track, not the one asked for |
+| When | Preview only, as flip: disabled while recording and in review, and until the browser lists the cameras (after camera access) |
+| Choosing | Opens that camera at once, still asked for 16:9 HD. If it cannot open, the last camera returns (never the default) and it is not remembered |
+| One open at a time | Every camera open (the first, the reopen after Record again, a pick, a flip) is the one pending open: Record waits on it, and the picker, flip, and record button are disabled until it settles. Only the latest open stays; any earlier one still opening is stopped |
+| Remembered | On this browser only (local storage, by id and name). The next Go live opens it; found by name if the browser has issued new ids; if it is not here (an iPhone out of reach), the default camera opens, with no message |
+| Live list | A camera that arrives (an iPhone in reach, a webcam plugged in) joins the list while the camera is open |
+| Copy | Existing only: "Camera", the Feed composer's shipped camera label, names the button and the "Camera 1" fallback. Device names are the hardware's own, shown as the browser gives them; 24Frame names no vendor |

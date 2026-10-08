@@ -40,6 +40,24 @@ export function DropdownMenuItem({
   );
 }
 
+export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
+export const DropdownMenuItemIndicator = DropdownMenuPrimitive.ItemIndicator;
+
+export function DropdownMenuRadioItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+  return (
+    <DropdownMenuPrimitive.RadioItem
+      className={cn(
+        "flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-1.5 t-body-sm text-ink-2 outline-none transition-colors data-[highlighted]:bg-surface-muted data-[highlighted]:text-ink",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export function DropdownMenuLabel({
   className,
   ...props

@@ -1698,6 +1698,13 @@ export const SOCIAL_GO_LIVE_FULL_VIDEO_CLASS = "absolute inset-0 size-full objec
 // on the camera's band wash (no blur). The current one is band-ink.
 export const SOCIAL_GO_LIVE_FRAME_SWITCH_CLASS = "hidden rounded-full bg-band/55 p-1 md:inline-flex";
 
+// The camera picker (desktop): the house menu, wide enough for a device's
+// own name, which wraps rather than truncates. The current camera carries
+// the check at the row's end.
+export const SOCIAL_GO_LIVE_CAMERA_MENU_CLASS = "max-w-[min(22rem,calc(100vw-2rem))]";
+
+export const SOCIAL_GO_LIVE_CAMERA_OPTION_CLASS = "justify-between gap-[var(--space-3)]";
+
 export const SOCIAL_GO_LIVE_FRAME_OPTION_CLASS =
   "inline-flex h-8 min-w-14 items-center justify-center rounded-full px-3 t-label font-semibold text-band-ink/80 transition-colors aria-checked:bg-band-ink aria-checked:text-band focus-visible:rounded-full!";
 

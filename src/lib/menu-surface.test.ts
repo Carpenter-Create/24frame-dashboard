@@ -113,12 +113,13 @@ describe("menu surface chrome lock", () => {
 
   // The menu moves focus to the row under the pointer, so the house ring
   // would follow the mouse (and its 4 radius would square the 12 panel).
-  // Menus mark the active row with the highlight wash instead.
+  // Menus mark the active row with the highlight wash instead. Radio and
+  // checkbox rows (the Go live camera picker) are rows too (Bugbot #791).
   it("keeps the house focus ring off menu rows and the panel, and the panel's own radius", () => {
     const globals = readFileSync("src/app/globals.css", "utf8");
     const menuFocus = globals.slice(globals.indexOf("[data-radix-menu-content]:focus-visible,"));
     expect(menuFocus).toMatch(
-      /^\[data-radix-menu-content\]:focus-visible,\s*\[data-radix-menu-content\] \[role="menuitem"\]:focus-visible \{\s*outline: none;\s*border-radius: revert-layer;\s*\}/,
+      /^\[data-radix-menu-content\]:focus-visible,\s*\[data-radix-menu-content\] \[role="menuitem"\]:focus-visible,\s*\[data-radix-menu-content\] \[role="menuitemradio"\]:focus-visible,\s*\[data-radix-menu-content\] \[role="menuitemcheckbox"\]:focus-visible \{\s*outline: none;\s*border-radius: revert-layer;\s*\}/,
     );
     expect(globals.indexOf("[data-radix-menu-content]:focus-visible")).toBeGreaterThan(
       globals.indexOf(":focus-visible:not(input)"),
