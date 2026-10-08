@@ -7,10 +7,13 @@
 --
 -- A new Mux video on posts.media or stories.media gets one
 -- social_music_scans row at status pending, in the same transaction as the
--- insert or media update. Pending and blocked rows are not visible to other
--- users. The author still sees their own post or story. Legacy videos with
--- no scan row stay visible: this gate applies to uploads after this
--- migration.
+-- insert or media update. The row is unique on asset_id, so a second post
+-- or story that reuses the asset does not insert another row. Pending and
+-- blocked rows are not visible to other users, including that second parent:
+-- the gate matches the asset id or playback id still on the media, not only
+-- the scan's own post or story. The author still sees their own post or
+-- story. Legacy videos with no scan row stay visible: this gate applies to
+-- uploads after this migration.
 --
 -- Vendor title, artist, and the other match fields are staff-review columns.
 -- authenticated may select status columns on their own rows only. The
@@ -142,9 +145,15 @@ create index if not exists social_music_scans_story_idx
   on public.social_music_scans (story_id)
   where story_id is not null;
 
--- True when no still-attached scan is pending or blocked.
--- No scan row (legacy video, still, or text) is released.
--- A scan whose playback id is no longer on the media jsonb does not gate.
+create index if not exists social_music_scans_playback_idx
+  on public.social_music_scans (playback_id);
+
+-- True when every Mux video still on this row is allowed.
+-- A scan gates every post or story whose media still carries that scan's
+-- asset id or playback id, including a second parent that reused the asset
+-- and therefore has no scan row of its own. No matching scan (legacy video,
+-- still, or text) is released. A scan whose ids are no longer on the media
+-- jsonb does not gate.
 create or replace function public.social_video_released(p_surface text, p_id uuid)
 returns boolean
 language sql
@@ -154,26 +163,35 @@ set search_path to 'public'
 as $$
   select not exists (
     select 1
-    from public.social_music_scans s
-    where s.status is distinct from 'allowed'
-      and (
-        (p_surface = 'post' and s.post_id = p_id)
-        or (p_surface = 'story' and s.story_id = p_id)
-      )
-      and (
-        (p_surface = 'post' and exists (
-          select 1
-          from public.posts p
-          where p.id = p_id
-            and p.media @> jsonb_build_array(jsonb_build_object('playbackId', s.playback_id))
-        ))
-        or (p_surface = 'story' and exists (
-          select 1
-          from public.stories st
-          where st.id = p_id
-            and st.media @> jsonb_build_array(jsonb_build_object('playbackId', s.playback_id))
-        ))
-      )
+    from (
+      select p.media
+      from public.posts p
+      where p_surface = 'post'
+        and p.id = p_id
+      union all
+      select st.media
+      from public.stories st
+      where p_surface = 'story'
+        and st.id = p_id
+    ) parent
+    cross join lateral jsonb_array_elements(
+      case
+        when jsonb_typeof(parent.media) = 'array' then parent.media
+        else '[]'::jsonb
+      end
+    ) as item
+    where exists (
+      select 1
+      from public.social_music_scans s
+      where s.status is distinct from 'allowed'
+        and s.asset_id = item->>'assetId'
+    )
+    or exists (
+      select 1
+      from public.social_music_scans s
+      where s.status is distinct from 'allowed'
+        and s.playback_id = item->>'playbackId'
+    )
   );
 $$;
 
@@ -235,6 +253,8 @@ begin
         item->>'playbackId',
         v_upload
       )
+      -- One row per asset. Reuse does not insert a second scan; the release
+      -- function holds every parent that still carries this asset or playback id.
       on conflict (asset_id) do nothing;
     end if;
   end loop;

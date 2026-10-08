@@ -126,4 +126,15 @@ describe("social music scan migration", () => {
     expect(sql).toContain("Staff review only");
     expect(sql).not.toMatch(/grant select \([\s\S]*vendor_title/);
   });
+
+  it("holds a reused asset that has no scan row on the second post or story", () => {
+    const start = sql.indexOf("create or replace function public.social_video_released");
+    const end = sql.indexOf("revoke all on function public.social_video_released");
+    const fn = sql.slice(start, end);
+    expect(fn).toContain("s.asset_id = item->>'assetId'");
+    expect(fn).toContain("s.playback_id = item->>'playbackId'");
+    expect(fn).not.toMatch(/s\.post_id = p_id/);
+    expect(fn).not.toMatch(/s\.story_id = p_id/);
+    expect(sql).toContain("on conflict (asset_id) do nothing");
+  });
 });

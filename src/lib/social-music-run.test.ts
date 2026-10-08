@@ -218,6 +218,31 @@ describe("processMusicScan", () => {
     });
   });
 
+  it("retries a rendition request failure and does not count a request that already exists", async () => {
+    const failed = deps({
+      loadAsset: async () => ({ status: "ready", static_renditions: { files: [] } }),
+      requestAudioRendition: async () => {
+        throw Object.assign(new Error("unavailable"), { status: 500 });
+      },
+    });
+    await expect(processMusicScan(scan(), failed)).resolves.toBe("retried");
+    expect(failed.saves[0]).toMatchObject({
+      status: "pending",
+      attemptCount: 1,
+      lastError: "mux_rendition_request",
+    });
+
+    const already = deps({
+      loadAsset: async () => ({ status: "ready", static_renditions: { files: [] } }),
+      requestAudioRendition: async () => undefined,
+    });
+    await expect(processMusicScan(scan({ attemptCount: MUSIC_SCAN_MAX_ATTEMPTS - 1 }), already)).resolves.toBe(
+      "waiting",
+    );
+    expect(already.saves[0]?.attemptCount).toBeUndefined();
+    expect(already.saves[0]?.nextAttemptAt).toBe("2026-10-08T18:00:20.000Z");
+  });
+
   it("retries a download failure and an identify throw", async () => {
     const download = deps({
       downloadAudio: async () => {

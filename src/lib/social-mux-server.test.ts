@@ -211,6 +211,40 @@ describe("social Mux server client", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ resolution: "audio-only" });
   });
 
+  it("treats a rendition conflict as already requested and still throws other failures", async () => {
+    vi.stubEnv("MUX_TOKEN_ID", "tid");
+    vi.stubEnv("MUX_TOKEN_SECRET", "tsecret");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { messages: ["static rendition 'audio-only' already exists"] } }), {
+        status: 400,
+      }),
+    );
+    await expect(createSocialMuxAudioRendition(ASSET_ID)).resolves.toBeUndefined();
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { messages: ["conflict"] } }), { status: 409 }),
+    );
+    await expect(createSocialMuxAudioRendition(ASSET_ID)).resolves.toBeUndefined();
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: { messages: ["resolution conflicts with the asset attributes"] } }),
+        { status: 400 },
+      ),
+    );
+    await expect(createSocialMuxAudioRendition(ASSET_ID)).rejects.toThrow(
+      "resolution conflicts with the asset attributes",
+    );
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { messages: ["unavailable"] } }), { status: 500 }),
+    );
+    await expect(createSocialMuxAudioRendition(ASSET_ID)).rejects.toThrow("unavailable");
+  });
+
   it("signs the static audio.m4a URL for the worker", async () => {
     const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
     const pem = privateKey.export({ type: "pkcs1", format: "pem" }).toString();

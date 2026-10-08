@@ -250,13 +250,27 @@ export async function finalizeSocialMuxDirectUpload(
   throw new Error("Mux playback id is still preparing");
 }
 
-/** Audio-only static rendition. Idempotent callers treat a second POST as "already requested". */
+const MUX_RENDITION_ALREADY_REQUESTED =
+  /\balready (?:exists|exist|requested|been requested|has|have)\b/i;
+
+function muxAudioRenditionAlreadyRequested(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  if ("status" in error && error.status === 409) return true;
+  return error instanceof Error && MUX_RENDITION_ALREADY_REQUESTED.test(error.message);
+}
+
+/** Audio-only static rendition. A second POST that reports the rendition already exists resolves. */
 export async function createSocialMuxAudioRendition(assetId: string): Promise<void> {
   if (!isSocialMuxId(assetId)) throw new Error("Mux asset id is invalid");
-  await muxRequest(`/video/v1/assets/${assetId}/static-renditions`, {
-    method: "POST",
-    body: JSON.stringify({ resolution: "audio-only" }),
-  });
+  try {
+    await muxRequest(`/video/v1/assets/${assetId}/static-renditions`, {
+      method: "POST",
+      body: JSON.stringify({ resolution: "audio-only" }),
+    });
+  } catch (error) {
+    if (muxAudioRenditionAlreadyRequested(error)) return;
+    throw error;
+  }
 }
 
 /** Signed audio.m4a for the music worker. The token never goes to a browser. */
