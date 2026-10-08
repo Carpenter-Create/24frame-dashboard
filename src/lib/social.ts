@@ -436,11 +436,6 @@ export function parseSocialHomeLane(raw: string | string[] | undefined | null): 
   return value === "for-you" ? "for-you" : "following";
 }
 
-/** The Feed slider's lit segment: Following 0, For you 1. */
-export function socialHomeLaneIndex(lane: SocialHomeLane): number {
-  return SOCIAL_HOME_LANES.indexOf(lane);
-}
-
 export const SOCIAL_PROFILE_TAB_PARAM = "tab";
 export const SOCIAL_PROFILE_TABS = ["activity", "highlights", "credits", "interests"] as const;
 export type SocialProfileTab = (typeof SOCIAL_PROFILE_TABS)[number];
@@ -599,12 +594,8 @@ export const SOCIAL = {
     composerPromptNamed: "Share something",
     composerPhoto: "Photo",
     composerCamera: "Camera",
-    followingTab: "Following",
-    forYouTab: "For you",
-    // G board (Adam pick 2026-10-04): Following / For you text tabs sit in
-    // a nav of this name; the topic words are a group of this name; the
-    // chevron over the topic fade scrolls the row.
-    lanesLabel: "Feed scope",
+    // The topic words are a group of this name; the chevron over the
+    // topic fade scrolls the row.
     topicsLabel: "Topics",
     moreTopics: "More topics",
     storiesLabel: "Stories",

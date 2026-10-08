@@ -45,8 +45,8 @@ function socialFocusIsKeyboard(node: Element): boolean {
 // with accent-ink type. The row scrolls sideways; every label shows
 // whole, and a chip under the fade hides until it scrolls clear (cards
 // lock). A fade over the trailing edge carries the round grey "More
-// topics" (scrolls the row on); both leave at the end. Lane state is the
-// slider above (same hook).
+// topics" (scrolls the row on); both leave at the end. The lane comes
+// from the address (same hook); there is no slider over the Feed.
 // docs/design-locks/social-feed-register-lock-v1.md
 // docs/design-locks/social-feed-cards-lock-v1.md
 export function SocialHomeTopics({

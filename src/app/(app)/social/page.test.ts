@@ -223,14 +223,17 @@ describe("Social home", () => {
     expect(html).toContain(SOCIAL.home.subtitle);
     expect(html).not.toContain("Posts from people you follow");
     expect(html).toContain("data-social-home-composer");
-    // H · Feed (founder 2026-10-05; replaces G's tabs → topic words → story
-    // tiles → composer bar → wall in the 620 column): slider → story cards
-    // → composer → topic chips → wall, in the Feed column (680 since the
-    // Feed placement, founder 2026-10-07).
-    expect(html).toContain('data-social-home-stack="lock_slider_stories_composer_topics_wall"');
+    // Founder 2026-10-08 ("only the slider"; replaces H's slider → story
+    // cards → composer → topic chips → wall): story cards → composer →
+    // topic chips → wall, in the Feed column (680 since the Feed placement,
+    // founder 2026-10-07), with no Following / For you slider.
+    expect(html).toContain('data-social-home-stack="lock_stories_composer_topics_wall"');
+    expect(html).not.toContain("lock_slider_stories_composer_topics_wall");
     expect(html).not.toContain("lock_topics_composer_stories_wall");
     expect(html).not.toContain("lock_tabs_topics_stories_composer_wall");
-    const stackClass = html.match(/data-social-home-stack="lock_slider_stories_composer_topics_wall"[^>]*class="([^"]+)"/)?.[1];
+    expect(html).not.toContain("data-social-home-lanes");
+    expect(html).not.toContain(">Following<");
+    const stackClass = html.match(/data-social-home-stack="lock_stories_composer_topics_wall"[^>]*class="([^"]+)"/)?.[1];
     expect(stackClass).toBe(SOCIAL_FEED_CENTER_CLASS);
     expect(stackClass).not.toContain("lg:max-w-[720px]");
     expect(stackClass).not.toContain("gap-[var(--space-2)]");
@@ -248,23 +251,19 @@ describe("Social home", () => {
     expect(composer).not.toContain("h-[52px]");
     expect(composer).not.toContain("border-y");
     expect(html).toContain(`data-social-composer-prompt="" class="${SOCIAL_COMPOSER_FIELD_CLASS} shadow-none"`);
-    const order = ["data-social-home-lanes", "data-social-stories", "data-social-home-composer", "data-social-home-topics", "data-social-home-wall"];
+    const order = ["data-social-stories", "data-social-home-composer", "data-social-home-topics", "data-social-home-wall"];
     for (let i = 1; i < order.length; i += 1) {
       expect(html.indexOf(order[i - 1]!)).toBeGreaterThan(-1);
       expect(html.indexOf(order[i - 1]!)).toBeLessThan(html.indexOf(order[i]!));
     }
-    expect(html).toContain('<nav aria-label="Feed scope" data-social-home-lanes=""');
-    // The slider: the shared SegmentedTrack with the remount persist key.
-    expect(html).toContain('data-segmented-persist="social-feed-scope"');
-    expect(html.indexOf('data-social-home-lane="following"')).toBeLessThan(
-      html.indexOf('data-social-home-lane="for-you"'),
-    );
-    expect(html.indexOf('data-social-home-lane="for-you"')).toBeLessThan(
-      html.indexOf('data-social-home-topic="All"'),
-    );
-    expect(html).toMatch(/data-social-home-lane="following"[^>]*data-segmented-selected=""/);
-    expect(html).toMatch(/data-social-home-lane="following"[^>]*aria-current="page"/);
-    expect(html).not.toMatch(/data-social-home-lane="for-you"[^>]*aria-current/);
+    // No Following / For you slider (founder 2026-10-08): the stories card
+    // is the column's first module.
+    expect(html).not.toContain('aria-label="Feed scope"');
+    expect(html).not.toContain('data-segmented-persist="social-feed-scope"');
+    expect(html).not.toContain("data-social-home-lane=");
+    const center = html.slice(html.indexOf('data-social-home-stack="lock_stories_composer_topics_wall"'));
+    expect(center.indexOf("<div", 1)).toBe(center.indexOf('<div class="sr-only">'));
+    expect(center.indexOf("data-social-stories-card")).toBeLessThan(center.indexOf("data-social-home-composer"));
     expect(html).not.toMatch(/>Topics</);
     expect(html).toContain("Share something");
     expect(html).not.toContain("Write something");
@@ -278,11 +277,7 @@ describe("Social home", () => {
     expect(html).toContain(`aria-label="${SOCIAL.stories.yourStoryCreate}"`);
     expect(html).toContain(`>${SOCIAL.stories.create}<`);
     expect(html).not.toContain("data-social-home-tabs");
-    expect(html).toContain('data-social-home-lane="following"');
-    expect(html).toContain('data-social-home-lane="for-you"');
-    expect(html).toMatch(/data-social-home-lane="following"[^>]*data-social-home-lane-active=""/);
-    expect(html).toContain(SOCIAL.home.followingTab);
-    expect(html).toContain(SOCIAL.home.forYouTab);
+    expect(html).not.toContain("data-social-home-lane-active");
     expect(html).toContain("data-social-stories");
     expect(html).toContain("data-social-following-empty");
     expect(html).toContain("data-social-for-you");
@@ -609,7 +604,8 @@ describe("Social home", () => {
     expect(html).toContain(SOCIAL.forYou.people);
     expect(html).not.toMatch(/>Topics</);
     expect(html.indexOf("data-social-home-topics")).toBeLessThan(html.indexOf("data-social-for-you-lane"));
-    expect(html).toMatch(/data-social-home-lane="for-you"[^>]*data-social-home-lane-active=""/);
+    // The lane is reached by address only: no slider (founder 2026-10-08).
+    expect(html).not.toContain("data-social-home-lanes");
     expect(html).toMatch(/data-social-home-topic="All"[^>]*data-social-home-topic-active=""/);
     expect(html).not.toContain("data-social-home-tabs");
     expect(html).not.toContain("data-social-for-you-topics");

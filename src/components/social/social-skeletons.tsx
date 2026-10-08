@@ -62,8 +62,6 @@ import {
   SOCIAL_FEED_ASIDE_SUBHEAD_CLASS,
   SOCIAL_FEED_CENTER_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
-  SOCIAL_FEED_SCOPE_CLASS,
-  SOCIAL_FEED_SCOPE_TRACK_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
   SOCIAL_HOME_STORY_CARD_CLASS,
@@ -162,15 +160,11 @@ export function SocialPostWallSkeleton() {
 }
 
 // Feed center (H; cards lock): the same row classes in the live order —
-// the slider, the stories card, the composer card, topic chips, the wall
-// of cards — so nothing moves when it mounts.
+// the stories card, the composer card, topic chips, the wall of cards —
+// so nothing moves when it mounts. No slider (founder 2026-10-08).
 export function SocialHomeCenterSkeleton() {
   return (
     <div data-social-home-stack={SOCIAL_HOME_STACK_LOCK} className={SOCIAL_FEED_CENTER_CLASS}>
-      <div data-social-home-lanes-skeleton="" className={SOCIAL_FEED_SCOPE_CLASS}>
-        {/* The slider's track: two 44 segments, about 221 wide. */}
-        <Skeleton className={cn(SOCIAL_FEED_SCOPE_TRACK_CLASS, "h-11 w-[221px]")} />
-      </div>
       <SocialStoriesRailSkeleton tall />
       <div data-social-home-composer-skeleton="" className={SOCIAL_COMPOSER_CLASS}>
         <div className={SOCIAL_COMPOSER_ROW_CLASS}>

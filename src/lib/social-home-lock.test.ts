@@ -15,7 +15,6 @@ import {
   SOCIAL_FEED_GUTTER_CLASS,
   SOCIAL_FEED_LAYOUT_CLASS,
   SOCIAL_FEED_MEASURE,
-  SOCIAL_FEED_SCOPE_CLASS,
   SOCIAL_HOME_TOPIC_ROW_CLASS,
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
@@ -88,11 +87,14 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).toContain("SocialHomeTopics");
     expect(home).toContain("data-social-home-stack={SOCIAL_HOME_STACK_LOCK}");
     expect(homeSkeleton).toContain("data-social-home-stack={SOCIAL_HOME_STACK_LOCK}");
-    // H · Feed (founder 2026-10-05; replaces G's tabs → topics → stories →
-    // composer → wall): slider → stories → composer → topics → wall, as the
-    // H board draws it (the topics sit over the wall they filter).
+    // Founder 2026-10-08 ("only the slider"; replaces H's slider → stories
+    // → composer → topics → wall): stories → composer → topics → wall, with
+    // no Following / For you slider over the Feed (the topics sit over the
+    // wall they filter).
     // docs/design-locks/social-feed-register-lock-v1.md
-    expect(home.indexOf("<SocialHomeLaneTabs")).toBeLessThan(home.indexOf("<SocialStoriesRail"));
+    expect(home).not.toContain("SocialHomeLaneTabs");
+    expect(home).not.toContain("data-social-home-lanes");
+    expect(existsSync("src/components/social/social-home-lane-tabs.tsx")).toBe(false);
     expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialHomeComposer"));
     expect(home.indexOf("<SocialHomeComposer")).toBeLessThan(home.indexOf("<SocialHomeTopics"));
     expect(home.indexOf("<SocialHomeTopics")).toBeLessThan(home.indexOf('data-social-home-wall=""'));
@@ -103,9 +105,7 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home.indexOf("<SocialStoriesRail")).toBeLessThan(home.indexOf("<SocialFollowingWallBound"));
     expect(home).not.toContain("SocialHomeTabs");
     expect(home).not.toContain("data-social-home-tabs");
-    expect(homeSkeleton.indexOf("data-social-home-lanes-skeleton")).toBeLessThan(
-      homeSkeleton.indexOf("SocialStoriesRailSkeleton"),
-    );
+    expect(homeSkeleton).not.toContain("data-social-home-lanes-skeleton");
     expect(homeSkeleton.indexOf("SocialStoriesRailSkeleton")).toBeLessThan(
       homeSkeleton.indexOf("data-social-home-composer-skeleton"),
     );
@@ -141,7 +141,8 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(home).not.toContain("loadVisiblePosts");
     expect(home).not.toContain("SOCIAL.courses");
     expect(home).not.toContain('"/education"');
-    expect(SOCIAL.home.followingTab).toBe("Following");
+    expect(SOCIAL.home).not.toHaveProperty("followingTab");
+    expect(SOCIAL.home).not.toHaveProperty("forYouTab");
     expect(SOCIAL.checklist.photo).toBe("Add a profile photo");
     expect(SOCIAL.checklist.bio).toBe("Write a short bio");
     expect(SOCIAL.checklist.introduce).toBe("Introduce yourself");
@@ -978,12 +979,11 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(SOCIAL_DESKTOP_FRAME_PAD_CLASS).toBe(
       "w-full pt-4 pb-4 md:pt-[var(--space-2)] max-md:px-[var(--chrome-gutter)] md:pl-[var(--chrome-gutter)] md:pr-[var(--shell-gutter-inline-end)]",
     );
-    // H · Feed (founder 2026-10-05; replaces G's 12 phone pull): the pill
-    // slider leads the column with no pull — 16 under the phone bar (the
-    // frame's 16) and, since the Feed placement (founder 2026-10-07), 16
-    // under the desktop header (the shared 8 inset plus the Feed row's 8;
-    // the cards lock §8 pins it).
-    expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/-mt-|(?:^|\s)mt-/);
+    // The stories card leads the column with no pull (no slider over the
+    // Feed, founder 2026-10-08) — 16 under the phone bar (the frame's 16)
+    // and, since the Feed placement (founder 2026-10-07), 16 under the
+    // desktop header (the shared 8 inset plus the Feed row's 8; the cards
+    // lock §8 pins it).
     expect(SOCIAL_FEED_LAYOUT_CLASS).not.toMatch(/(?:^|\s)pt-|max-md:/);
     for (const page of [
       "src/app/(app)/social/page.tsx",

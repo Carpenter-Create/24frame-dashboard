@@ -73,16 +73,13 @@ describe("soft-nav pending selection", () => {
 
   it("reads Home lane and topic from the owned href without swapping the center", () => {
     const topics = readFileSync("src/components/social/social-home-topics.tsx", "utf8");
-    const tabs = readFileSync("src/components/social/social-home-lane-tabs.tsx", "utf8");
     const slot = readFileSync("src/components/social/social-home-cold-slot.tsx", "utf8");
     const home = readFileSync("src/app/(app)/social/page.tsx", "utf8");
-    // G · Feed: the lane moved to E text tabs on their own row; both rows
-    // read the same owned href (docs/design-locks/social-home-lane-tabs-lock-v1.md).
+    // The topic row reads the owned href. The lane stays in the address
+    // (?lane=for-you); its slider is gone (founder 2026-10-08).
     expect(topics).toContain("useSocialHomeLive");
     expect(topics).toContain("data-social-home-topic");
-    expect(tabs).toContain("useSocialHomeLive");
-    expect(tabs).toContain("data-social-home-lane");
-    expect(home).toContain("<SocialHomeLaneTabs lane={lane} topic={topic}");
+    expect(home).not.toContain("SocialHomeLaneTabs");
     expect(slot).toContain("return children");
     expect(slot).toContain("router.push(house.href, { scroll: false })");
     expect(slot).toContain("pushed.current = null");

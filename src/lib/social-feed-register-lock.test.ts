@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,15 +7,13 @@ import {
   COURSE_FEATURE_META_CLASS,
 } from "./courses";
 import {
-  HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS,
-  HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
   HOUSE_PILL_SLIDER_THUMB_CLASS,
   HOUSE_PILL_SLIDER_TRACK_CLASS,
   HOUSE_SEGMENTED_TRACK_CLASS,
 } from "./house-shell";
 import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "./house-lead-chrome";
 import { SEGMENTED_TRACK_PERSIST } from "./segmented-track";
-import { SOCIAL, SOCIAL_HOME_LANES, socialHomeLaneIndex, socialStoryCardName } from "./social";
+import { SOCIAL, SOCIAL_HOME_LANES, socialStoryCardName } from "./social";
 import {
   SOCIAL_COMPOSER_AFFORDANCE_CLASS,
   SOCIAL_COMPOSER_AFFORDANCE_GLYPH,
@@ -37,14 +35,9 @@ import {
   SOCIAL_FEED_REELS_ARROWS_CLASS,
   SOCIAL_FEED_REELS_CLASS,
   SOCIAL_FEED_REELS_HEAD_CLASS,
-  SOCIAL_FEED_SCOPE_CLASS,
-  SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS,
-  SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS,
-  SOCIAL_FEED_SCOPE_THUMB_CLASS,
-  SOCIAL_FEED_SCOPE_THUMB_DURATION_MS,
-  SOCIAL_FEED_SCOPE_TRACK_CLASS,
   SOCIAL_FEED_WALL_CLASS,
   SOCIAL_FOLLOW_QUIET_CLASS,
+  SOCIAL_HOME_STORIES_CARD_CLASS,
   SOCIAL_HOME_STORIES_RAIL_CLASS,
   SOCIAL_HOME_STORY_CREATE_FACE_CLASS,
   SOCIAL_HOME_STORY_FACE_RING_SEEN_CLASS,
@@ -60,6 +53,7 @@ import {
   SOCIAL_HOME_TOPIC_TRACK_CLASS,
   SOCIAL_IN_CARD_FILL_CLASS,
 } from "./social-chrome";
+import { SOCIAL_HOME_STACK_LOCK } from "./social-home";
 import {
   WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS,
   WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS,
@@ -71,7 +65,6 @@ const current = readFileSync("docs/status/CURRENT.md", "utf8");
 const shellLock = readFileSync("docs/design-locks/shell-coinbase-register-lock-v1.md", "utf8");
 const chrome = readFileSync("src/lib/social-chrome.ts", "utf8");
 const page = readFileSync("src/app/(app)/social/page.tsx", "utf8");
-const slider = readFileSync("src/components/social/social-home-lane-tabs.tsx", "utf8");
 const stories = readFileSync("src/components/social/social-stories-rail.tsx", "utf8");
 const forYou = readFileSync("src/components/social/social-for-you.tsx", "utf8");
 const globals = readFileSync("src/app/globals.css", "utf8");
@@ -84,7 +77,6 @@ const FEED_BLOCK = chrome.slice(
 
 /** The Feed sources this lock touches. */
 const FEED_SOURCES = [
-  "src/components/social/social-home-lane-tabs.tsx",
   "src/components/social/social-home-topics.tsx",
   "src/components/social/social-stories-rail.tsx",
   "src/components/social/social-home-composer.tsx",
@@ -178,37 +170,29 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     }
   });
 
-  it("G1: Following / For you is the house pill slider — the workspace slider's track and motion, the ink thumb", () => {
-    // One component per pattern: SegmentedTrack, with the shared classes.
-    expect(slider).toContain("<SegmentedTrack");
-    expect(slider).toContain('aria-label={SOCIAL.home.lanesLabel}');
-    expect(slider).toContain("persistKey={SEGMENTED_TRACK_PERSIST.socialFeedScope}");
-    expect(SEGMENTED_TRACK_PERSIST.socialFeedScope).toBe("social-feed-scope");
-    // The Feed keeps the ink thumb (Social's one ink element); the header's
-    // thumb became the accent wash (cards lock, which pins both values).
-    expect(SOCIAL_FEED_SCOPE_THUMB_CLASS).toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
+  // G1 is out (founder 2026-10-08): the Following / For you slider is gone
+  // from the Feed; the lane, the topic chips and the For you rail stay.
+  it("G1 (retired): no Following / For you slider over the Feed; the founder words are on record", () => {
+    expect(lock).toContain("**Superseded in part (founder 2026-10-08, no Feed slider):**");
+    expect(lock).toContain('"on social, remove the "Following" and "For You" above the feed."');
+    expect(lock).toContain('"only the slider."');
+    expect(lock).toContain('"leave the right side of the page "For You" as is"');
+    expect(existsSync("src/components/social/social-home-lane-tabs.tsx")).toBe(false);
+    expect(page).not.toContain("SocialHomeLaneTabs");
+    expect(chrome).not.toContain("SOCIAL_FEED_SCOPE_");
+    expect(Object.keys(SEGMENTED_TRACK_PERSIST)).not.toContain("socialFeedScope");
+    expect(SOCIAL.home).not.toHaveProperty("followingTab");
+    expect(SOCIAL.home).not.toHaveProperty("forYouTab");
+    expect(SOCIAL.home).not.toHaveProperty("lanesLabel");
+    // The lane itself stays, reached by address (?lane=for-you).
+    expect(SOCIAL_HOME_LANES).toEqual(["following", "for-you"]);
+    expect(page).toContain("parseSocialHomeLane(sp[SOCIAL_HOME_LANE_PARAM])");
+    // The header's workspace slider is untouched: the shared track, the
+    // wash thumb (cards lock).
     expect(WORKSPACE_SWITCHER_SLIDER_THUMB_CLASS).not.toBe(HOUSE_PILL_SLIDER_THUMB_CLASS);
     expect(WORKSPACE_SWITCHER_SLIDER_TRACK_CLASS).toBe(HOUSE_PILL_SLIDER_TRACK_CLASS);
     expect(HOUSE_PILL_SLIDER_TRACK_CLASS).toBe(HOUSE_SEGMENTED_TRACK_CLASS);
-    expect(SOCIAL_FEED_SCOPE_TRACK_CLASS).toBe(`${HOUSE_PILL_SLIDER_TRACK_CLASS} w-max`);
-    // Muted track, no inset; the thumb's 220 ms ease-out (its classes and
-    // the 15 / 500 labels are pinned in the cards lock test).
-    expect(HOUSE_PILL_SLIDER_TRACK_CLASS).toContain("rounded-full bg-surface-muted");
-    expect(HOUSE_PILL_SLIDER_TRACK_CLASS).not.toMatch(/(?:^|\s)p[xy]?-/);
-    expect(SOCIAL_FEED_SCOPE_THUMB_DURATION_MS).toBe(220);
-    // Segments pad 20 on a page switch; the page colour on the thumb; idle
-    // takes the house idle ink (ink-2 since the cards lock).
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_ON_CLASS).toBe(`${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5 text-bg`);
-    expect(SOCIAL_FEED_SCOPE_SEGMENT_OFF_CLASS).toBe(
-      `${HOUSE_PILL_SLIDER_SEGMENT_BASE_CLASS} px-5 ${HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS}`,
-    );
-    // Left-aligned, its own row; aria-current on the lit lane; same URLs.
-    expect(SOCIAL_FEED_SCOPE_CLASS).toBe("flex shrink-0");
-    expect(slider).toContain('aria-current={current ? "page" : undefined}');
-    expect(slider).toContain("useSocialHomeLive(lane, topic)");
-    expect(slider).toContain("socialHomeAxisHref(item, live.topic)");
-    expect(SOCIAL_HOME_LANES.map(socialHomeLaneIndex)).toEqual([0, 1]);
-    // "For you" stays the slider option (decision 5).
+    // The rail keeps its "For you" heading (decision 5, "sure").
     expect(lock).toContain("(founder decision 5)");
   });
 
@@ -249,11 +233,11 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     );
   });
 
-  it("G3: the stack is slider → stories → composer → topics → wall (the air is the cards lock's)", () => {
-    expect(lock).toContain("`lock_slider_stories_composer_topics_wall`");
+  it("G3: the stack is stories → composer → topics → wall (no slider since 2026-10-08; the air is the cards lock's)", () => {
+    expect(lock).toContain("`lock_stories_composer_topics_wall`");
+    expect(SOCIAL_HOME_STACK_LOCK).toBe("lock_stories_composer_topics_wall");
     const at = (needle: string) => page.indexOf(needle);
-    expect(at("<SocialHomeLaneTabs")).toBeGreaterThan(-1);
-    expect(at("<SocialHomeLaneTabs")).toBeLessThan(at("<SocialStoriesRail"));
+    expect(at("<SocialStoriesRail")).toBeGreaterThan(-1);
     expect(at("<SocialStoriesRail")).toBeLessThan(at("<SocialHomeComposer"));
     expect(at("<SocialHomeComposer")).toBeLessThan(at("<SocialHomeTopics"));
     expect(at("<SocialHomeTopics")).toBeLessThan(at('data-social-home-wall=""'));
@@ -266,10 +250,10 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
     for (const cls of [SOCIAL_COMPOSER_CLASS, SOCIAL_HOME_TOPIC_ROW_CLASS, SOCIAL_FEED_WALL_CLASS]) {
       expect(cls).not.toMatch(/(?:^|\s)mt-6(?:\s|$)/);
     }
-    // The slider: 16 under the phone bar (the frame's 16, no pull). The
-    // desktop 24 is superseded by the Feed placement (founder 2026-10-07):
-    // 16 under the header, pinned in the cards lock §8.
-    expect(SOCIAL_FEED_SCOPE_CLASS).not.toMatch(/-?mt-/);
+    // The stories card leads the column: 16 under the phone bar (the
+    // frame's 16, no pull) and 16 under the header (cards lock §8), with no
+    // top margin of its own since the slider went (founder 2026-10-08).
+    expect(SOCIAL_HOME_STORIES_CARD_CLASS).not.toMatch(/(?:^|\s)-?mt-/);
   });
 
   it("G4: story cards at the locked 112×200 / 108×192 with the name on the picture and an accent unseen ring", () => {

@@ -105,8 +105,9 @@ describe("social copy lock", () => {
     expect(SOCIAL.home.composerPromptNamed).toBe("Share something");
     expect(SOCIAL.home.composerPhoto).toBe("Photo");
     expect(SOCIAL.home.composerCamera).toBe("Camera");
-    expect(SOCIAL.home.forYouTab).toBe("For you");
-    expect(SOCIAL.home.lanesLabel).toBe("Feed scope");
+    // No Following / For you slider over the Feed (founder 2026-10-08).
+    expect(SOCIAL.home).not.toHaveProperty("forYouTab");
+    expect(SOCIAL.home).not.toHaveProperty("lanesLabel");
     expect(SOCIAL.home.moreTopics).toBe("More topics");
     expect(SOCIAL.forYou).not.toHaveProperty("topics");
     expect(SOCIAL.forYou.latestCourse).toBe("Latest course");
