@@ -45,9 +45,11 @@ export function pushEditEntry(face: SocialProfileEditFace) {
   );
 }
 
+/** The profile without ?edit is not an edit entry: it carries no edit
+ *  flags, so a later ?edit on it is never taken for one Edit pushed. */
 function stripEditEntry() {
   window.history.replaceState(
-    EDIT_ENTRY_STATE,
+    {},
     "",
     socialProfileEditWindowClosedHref(window.location.pathname, window.location.search),
   );
@@ -55,11 +57,12 @@ function stripEditEntry() {
 
 /** ?edit arrived with the page (the Home prompt's Bio, a link): rewrite this
  *  entry as the profile without ?edit, then push the window's own on top.
- *  The rewrite keeps Next's own state (its marker passes the call straight
- *  through), so Next's address stays on ?edit and the window never blinks. */
+ *  The rewrite keeps Next's own state as it is (its marker passes the call
+ *  straight through), so Next's address stays on ?edit and the window never
+ *  blinks, and it adds no edit flags. */
 function installEditEntry(face: SocialProfileEditFace) {
   window.history.replaceState(
-    { ...(window.history.state as object | null), ...EDIT_ENTRY_STATE },
+    window.history.state,
     "",
     socialProfileEditWindowClosedHref(window.location.pathname, window.location.search),
   );

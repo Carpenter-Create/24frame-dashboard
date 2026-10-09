@@ -202,7 +202,10 @@ describe("Edit profile pill (social-profile-edit-entry)", () => {
     // The browser's own history calls, no __NA: Next keeps ?edit as its address.
     expect(entrySrc).toContain("const EDIT_ENTRY_STATE = { houseClient: true, socialProfileEdit: true } as const;");
     expect(entrySrc).toContain("window.history.pushState(\n    EDIT_ENTRY_STATE,");
-    expect(entrySrc).toContain("window.history.replaceState(\n    EDIT_ENTRY_STATE,");
+    // The profile without ?edit carries no edit flags (stripped or underneath).
+    const strip = entrySrc.slice(entrySrc.indexOf("function stripEditEntry()"), entrySrc.indexOf("function installEditEntry("));
+    expect(strip).toContain("window.history.replaceState(\n    {},");
+    expect(strip).not.toContain("EDIT_ENTRY_STATE");
     expect(entrySrc).not.toContain("__NA");
     expect(entrySrc).not.toContain("navigateOwned");
     expect(entrySrc).toContain("window.history.back();");
@@ -221,8 +224,10 @@ describe("Edit profile pill (social-profile-edit-entry)", () => {
       "isHouseDesktop()) {\n        if (!isEditEntry()) installEditEntry(editFace);\n        open(editFace, true);",
     );
     const install = entrySrc.slice(entrySrc.indexOf("function installEditEntry("), entrySrc.indexOf("function addressHasEdit()"));
-    // Next's own state rides the rewrite, so Next's address stays on ?edit.
-    expect(install).toContain("{ ...(window.history.state as object | null), ...EDIT_ENTRY_STATE }");
+    // Next's own state rides the rewrite as it is, so Next's address stays on
+    // ?edit, and the entry underneath is never taken for an edit entry.
+    expect(install).toContain("window.history.replaceState(\n    window.history.state,");
+    expect(install).not.toContain("EDIT_ENTRY_STATE");
     expect(install).toContain("socialProfileEditWindowClosedHref(");
     expect(install).toContain("pushEditEntry(face);");
     // Next leaving ?edit while the browser is still on it is not Back.
