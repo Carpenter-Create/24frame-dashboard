@@ -31,9 +31,10 @@ const windowSrc = readFileSync("src/components/social/social-profile-edit-window
 const entrySrc = readFileSync("src/components/social/social-profile-edit-entry.tsx", "utf8");
 const editSrc = readFileSync("src/components/social/social-profile-edit.tsx", "utf8");
 
-function render(initialFace?: "edit" | "name" | "topics") {
+function render(initialFace?: "edit" | "name" | "topics", waiting?: boolean) {
   return renderToStaticMarkup(
     <SocialProfileEditWindow
+      waiting={waiting}
       handle="ada"
       displayName="Ada Lovelace"
       bio="Writes engines."
@@ -93,7 +94,7 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
   it("closes the nearest layer on Esc: menu, crop, ask, face, then the window", () => {
     const escape = windowSrc.slice(windowSrc.indexOf("function onEscape()"), windowSrc.indexOf("// Latest handlers"));
     const order = [
-      "if (edit.pending) return;",
+      "if (busy) return;",
       "if (edit.avatarSheet)",
       "if (edit.cropOpen)",
       "if (asking)",
@@ -118,8 +119,8 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(close).toContain("if (!edit.dirty) {\n      onClose();\n      return true;\n    }");
     expect(close).toContain("setAsking(true);");
     // A changed username is with the server: nothing leaves until it answers.
-    expect(close).toContain("if (edit.pending) return false;\n    if (!edit.dirty) {");
-    expect(windowSrc).toContain("inert={asking || edit.pending}");
+    expect(close).toContain("if (busy) return false;\n    if (!edit.dirty) {");
+    expect(windowSrc).toContain("inert={asking || busy}");
     // X, the scrim and browser Back all take requestClose.
     expect(windowSrc).toContain("onClose={() => {\n        requestClose();\n      }}");
     expect(windowSrc).toContain('data-social-profile-edit-close=""');
@@ -137,8 +138,8 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(done).toContain("onPersistFailed");
     expect(editSrc).toContain("applySocialProfileOptimistic(snapshot, { hop: !host.stayOnPage });");
     expect(windowSrc).toContain('event.key === "Enter" && (event.metaKey || event.ctrlKey)');
-    expect(windowSrc).toContain("disabled={edit.pending || edit.cropOpen}");
-    expect(windowSrc).toContain("aria-busy={edit.pending}");
+    expect(windowSrc).toContain("disabled={busy || edit.cropOpen}");
+    expect(windowSrc).toContain("aria-busy={busy}");
   });
 
   it("merges the save into the cached row, puts it back on failure, and sends Bio only when changed", () => {
@@ -150,6 +151,25 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(save).toContain("queryClient.setQueryData(key, cached);");
     expect(save.match(/restoreCached\(\);/g)?.length).toBe(2);
     expect(save).toContain('if (!bioChanged) checked.form.delete("bio");');
+  });
+
+  it("holds while an earlier window's save is still with the server", () => {
+    // Opened during a background save: Done waits and the body is inert, so a
+    // failure reopens this window at the face with nothing typed lost.
+    const waiting = render("edit", true);
+    expect(waiting).toMatch(/<button[^>]*data-social-profile-edit-done=""[^>]*disabled=""[^>]*aria-busy="true"/);
+    expect(waiting).toMatch(/<div[^>]*inert=""[^>]*aria-busy="true"/);
+    const idle = render("edit");
+    expect(idle).not.toMatch(/<button[^>]*data-social-profile-edit-done=""[^>]*disabled=""/);
+    expect(idle).not.toContain('aria-busy="true"');
+    expect(windowSrc).toContain("const busy = edit.pending || waiting;");
+    const done = windowSrc.slice(windowSrc.indexOf("function done()"), windowSrc.indexOf("function discard()"));
+    expect(done).toContain("if (busy) return;");
+    expect(done).toContain("onPersisting,");
+    // The hook hands the island the persist once it is out.
+    const save = editSrc.slice(editSrc.indexOf("function save(host"), editSrc.indexOf("function discard()"));
+    expect(save).toContain("const settled = persistSocialProfileEdit(checked.form)");
+    expect(save).toContain("host.onPersisting?.(settled);");
   });
 
   it("focuses the first field when it opens straight on a face", () => {
@@ -188,11 +208,41 @@ describe("Edit profile pill (social-profile-edit-entry)", () => {
     expect(entrySrc).toContain("window.history.back();");
     // ?edit is read whatever the width; only opening needs a computer.
     expect(entrySrc).toContain('const editFace = parseSocialProfileEditWindow(house?.search ?? "");');
-    expect(entrySrc).toContain("isHouseDesktop()) open(editFace, isEditEntry());");
     // Late callbacks only touch the window they belong to.
     expect(entrySrc).toContain("if (winRef.current?.key !== key) return;");
     expect(entrySrc).toContain("onClose={() => closeWindow(win.key)}");
-    expect(entrySrc).toContain("function reopenAfterFailure(face: SocialProfileEditFace) {\n    if (winRef.current) return;");
     expect(entrySrc).toContain("router.replace(socialProfileEditWindowHref(face))");
+  });
+
+  it("always has the profile underneath a window, so Back reaches the ask", () => {
+    // Arrived with the page (the Home prompt's Bio, a link, the old route):
+    // the entry is rewritten as the profile, and the window's pushed on top.
+    expect(entrySrc).toContain(
+      "isHouseDesktop()) {\n        if (!isEditEntry()) installEditEntry(editFace);\n        open(editFace, true);",
+    );
+    const install = entrySrc.slice(entrySrc.indexOf("function installEditEntry("), entrySrc.indexOf("function addressHasEdit()"));
+    // Next's own state rides the rewrite, so Next's address stays on ?edit.
+    expect(install).toContain("{ ...(window.history.state as object | null), ...EDIT_ENTRY_STATE }");
+    expect(install).toContain("socialProfileEditWindowClosedHref(");
+    expect(install).toContain("pushEditEntry(face);");
+    // Next leaving ?edit while the browser is still on it is not Back.
+    const leaving = entrySrc.slice(entrySrc.indexOf("if (editFace === null && prev !== null)"));
+    expect(leaving.indexOf("if (addressHasEdit()) return;")).toBeGreaterThan(-1);
+    expect(leaving.indexOf("if (addressHasEdit()) return;")).toBeLessThan(leaving.indexOf("requestRef.current()"));
+  });
+
+  it("brings a failed save back into view, even over a window opened meanwhile", () => {
+    const reopen = entrySrc.slice(
+      entrySrc.indexOf("function reopenAfterFailure("),
+      entrySrc.indexOf("function onPersisting("),
+    );
+    // A window opened meanwhile waited (nothing typed): it reopens at the face.
+    expect(reopen).toContain("if (winRef.current) {\n      open(face, pushedRef.current);\n      return;\n    }");
+    // No window: reopen with its own entry, so Back asks.
+    expect(reopen).toContain("pushEditEntry(face);\n    open(face, true);");
+    expect(reopen).toContain("if (!mountedRef.current) return;");
+    expect(entrySrc).toContain("waiting={saving}");
+    expect(entrySrc).toContain("onPersisting={onPersisting}");
+    expect(entrySrc).toContain("setSaving(true);");
   });
 });

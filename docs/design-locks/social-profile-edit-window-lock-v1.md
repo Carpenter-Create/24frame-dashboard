@@ -43,9 +43,9 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Esc | Closes the nearest layer: the photo menu, the crop, the ask (Keep editing), a face (Back), then the window. A second Esc keeps editing: a double Esc never discards |
 | Keyboard | ⌘/Ctrl + Enter is Done from anywhere in the window. Tab stays inside the window |
 | Close | X, Esc on the index, a click on the scrim, and browser Back all take one path: with nothing changed the window closes; with changes it asks first (§3). Closing returns focus to the pill |
-| Done | Valid: the profile behind repaints under the scrim, the window closes, the write runs in the background; a failure rolls the paint back and reopens the window at the face at fault, with the draft. Invalid: the window goes to the face at fault with its error |
+| Done | Valid: the profile behind repaints under the scrim, the window closes, the write runs in the background; a failure rolls the paint back and reopens the window at the face at fault, with the draft and its error. A window opened while that write is still out waits for its answer (Done pending, nothing editable), so a failure reopens it at the face too and never hides behind it. Invalid: the window goes to the face at fault with its error |
 | Username | A changed username waits for the server (Done shows pending): it is the public address, and "taken" is a common answer. "Taken" stays on Username with its error. While it waits nothing leaves or changes: X, Esc, the scrim and Back do nothing, and the window is inert. Every other field stays optimistic |
-| Address | The `?edit` entry is written with the browser's own history calls (no shell-only marker), so Next keeps it as its address: a server action under the window (a new photo) never writes a stale address back. Closing pops the entry Edit pushed, or strips `?edit` in place when it came with the page |
+| Address | The `?edit` entry is written with the browser's own history calls (no shell-only marker), so Next keeps it as its address: a server action under the window (a new photo) never writes a stale address back. A window always has the profile without `?edit` underneath it: one that came with the page (the Home prompt's Bio, a link, the old Edit route) rewrites its entry as the profile, keeping Next's own state so Next's address stays on `?edit`, and pushes its own on top. So browser Back always reaches the ask and never leaves the page with the draft. Closing pops that entry |
 | Paint | The window paints the saved draft without the save-hop cover (that cover is for the phone's hop to the profile route; under the window it would remount the page). The cached profile row is merged, never replaced, so the cover and welcome video stay; a failed save puts the row back |
 | Width | Below md the window is hidden and holds no keys and no scroll lock; its draft is kept, and it shows again at md+. A resize is never "Back" |
 | Other entries | Interests' **Topics** (empty Interests, owner) opens the window at Topics, the Interests tab kept behind it. `/social/profile/edit[?face=]` and `/social/profile/edit/bio` on a computer hand over to the window (`?edit[=face]`) |
@@ -87,5 +87,6 @@ A design panel (five approaches, three judges: premium feel, user experience and
 3. Change Name, press Esc twice: the ask shows, then keeps editing. X → Discard closes; nothing saved.
 4. Change Topics, Done: the profile behind already shows the new topics as the window leaves.
 5. Change Username to a taken one: Done waits, then "That handle is already taken." on Username.
-6. Browser Back with changes asks; without changes closes.
-7. Phone: Name → type → Back keeps it; back ‹ on the index with changes asks Keep editing · Discard.
+6. Browser Back with changes asks; without changes closes. The same from the Home prompt's Add bio (the window came with the page).
+7. Done on a change that fails, then reopen Edit at once: it waits, then shows the face at fault with its error.
+8. Phone: Name → type → Back keeps it; back ‹ on the index with changes asks Keep editing · Discard.

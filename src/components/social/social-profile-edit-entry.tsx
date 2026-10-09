@@ -27,6 +27,8 @@ import {
 // The ?edit entry is written with the browser's own history calls and no
 // shell marker for Next to skip, so Next keeps it as its address: a server
 // action under the window (a new photo) never writes a stale address back.
+// A window always has this profile without ?edit underneath it, so browser
+// Back reaches the ask and never leaves the page with the draft.
 
 const EDIT_ENTRY_STATE = { houseClient: true, socialProfileEdit: true } as const;
 
@@ -51,6 +53,19 @@ function stripEditEntry() {
   );
 }
 
+/** ?edit arrived with the page (the Home prompt's Bio, a link): rewrite this
+ *  entry as the profile without ?edit, then push the window's own on top.
+ *  The rewrite keeps Next's own state (its marker passes the call straight
+ *  through), so Next's address stays on ?edit and the window never blinks. */
+function installEditEntry(face: SocialProfileEditFace) {
+  window.history.replaceState(
+    { ...(window.history.state as object | null), ...EDIT_ENTRY_STATE },
+    "",
+    socialProfileEditWindowClosedHref(window.location.pathname, window.location.search),
+  );
+  pushEditEntry(face);
+}
+
 function addressHasEdit(): boolean {
   return parseSocialProfileEditWindow(window.location.search) !== null;
 }
@@ -59,10 +74,13 @@ export function SocialProfileEditEntry() {
   const identity = useSocialOwnProfileIdentity();
   const house = useHouseClient();
   const [win, setWin] = useState<{ face: SocialProfileEditFace; key: number } | null>(null);
+  // A closed window's save still with the server.
+  const [saving, setSaving] = useState(false);
   const winRef = useRef(win);
+  const mountedRef = useRef(false);
   const keyRef = useRef(0);
-  // Did this window's ?edit entry come from a push on this screen (Back
-  // pops it) or arrive with the page (closing strips it in place)?
+  // Did this window push its ?edit entry (Back pops it), or was ?edit
+  // already in the address when the pill opened it (closing strips it)?
   const pushedRef = useRef(false);
   const closingRef = useRef(false);
   const requestRef = useRef<(() => boolean) | null>(null);
@@ -105,12 +123,32 @@ export function SocialProfileEditEntry() {
     window.requestAnimationFrame(() => pillRef.current?.focus());
   }
 
-  /** A save that failed after its window closed: reopen at the face, unless
-   *  a newer window is already open (the failed draft seeds the next one). */
+  /** A save that failed after its window closed: reopen at the face, seeded
+   *  with the failed draft and its error. A window opened meanwhile waited
+   *  for this answer (nothing typed in it), so it reopens at the face too. */
   function reopenAfterFailure(face: SocialProfileEditFace) {
-    if (winRef.current) return;
-    open(face, false);
+    if (!mountedRef.current) return;
+    if (winRef.current) {
+      open(face, pushedRef.current);
+      return;
+    }
+    pushEditEntry(face);
+    open(face, true);
   }
+
+  function onPersisting(settled: Promise<void>) {
+    setSaving(true);
+    void settled.finally(() => {
+      if (mountedRef.current) setSaving(false);
+    });
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // The address drives the window: ?edit arriving opens it (on a computer);
   // ?edit leaving (browser Back) asks the window to close. With changes it
@@ -119,7 +157,10 @@ export function SocialProfileEditEntry() {
     const prev = prevEdit.current;
     prevEdit.current = editFace;
     if (editFace !== null && prev === null) {
-      if (!winRef.current && !closingRef.current && isHouseDesktop()) open(editFace, isEditEntry());
+      if (!winRef.current && !closingRef.current && isHouseDesktop()) {
+        if (!isEditEntry()) installEditEntry(editFace);
+        open(editFace, true);
+      }
       return;
     }
     if (editFace === null && prev !== null) {
@@ -128,6 +169,8 @@ export function SocialProfileEditEntry() {
         return;
       }
       if (!winRef.current) return;
+      // Still on ?edit: the entry going in underneath, not Back.
+      if (addressHasEdit()) return;
       const closed = requestRef.current ? requestRef.current() : true;
       if (closed) return;
       pushEditEntry("edit");
@@ -171,8 +214,10 @@ export function SocialProfileEditEntry() {
           websiteUrl={identity.websiteUrl}
           initialFace={win.face}
           requestRef={requestRef}
+          waiting={saving}
           onClose={() => closeWindow(win.key)}
           onPersistFailed={reopenAfterFailure}
+          onPersisting={onPersisting}
         />
       ) : null}
     </>

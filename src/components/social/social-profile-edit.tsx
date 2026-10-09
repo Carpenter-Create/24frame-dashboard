@@ -153,6 +153,8 @@ export type SocialProfileEditSaveHost = {
   stayOnPage?: boolean;
   /** A background persist failed after Edit left: come back at that face. */
   onPersistFailed: (face: SocialProfileEditFace) => void;
+  /** The background persist is out; it settles after any onPersistFailed. */
+  onPersisting?: (settled: Promise<void>) => void;
 };
 
 export function useSocialProfileEditDraft({
@@ -474,7 +476,7 @@ export function useSocialProfileEditDraft({
     setPending(true);
     paint();
     host.leave();
-    void persistSocialProfileEdit(checked.form)
+    const settled = persistSocialProfileEdit(checked.form)
       .then((result) => {
         if (!result.error) return;
         restoreCached();
@@ -492,6 +494,7 @@ export function useSocialProfileEditDraft({
       .finally(() => {
         setPending(false);
       });
+    host.onPersisting?.(settled);
   }
 
   /** Leaving with changes, confirmed: the draft goes, saved media stays. */

@@ -200,7 +200,7 @@ describe("Social Profile Edit profile + Bio lock", () => {
     expect(edit).not.toContain("router.refresh()");
     expect(edit).toContain("flushSync");
     // Optimistic SoT: paint, leave, then persist in the background...
-    const optimistic = edit.indexOf("    setPending(true);\n    paint();\n    host.leave();\n    void persistSocialProfileEdit(checked.form)");
+    const optimistic = edit.indexOf("    setPending(true);\n    paint();\n    host.leave();\n    const settled = persistSocialProfileEdit(checked.form)");
     expect(optimistic).toBeGreaterThan(-1);
     expect(edit.indexOf("flushSync")).toBeLessThan(optimistic);
     // ...except a changed username, which waits for the server first.

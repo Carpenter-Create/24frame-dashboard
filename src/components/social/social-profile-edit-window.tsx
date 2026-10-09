@@ -62,18 +62,28 @@ export type SocialProfileEditWindowRequest = MutableRefObject<(() => boolean) | 
 
 export function SocialProfileEditWindow({
   requestRef,
+  waiting = false,
   onClose,
   onPersistFailed,
+  onPersisting,
   ...props
 }: SocialProfileEditProps & {
   /** The island asks the window to close (browser Back). True when it closed. */
   requestRef?: SocialProfileEditWindowRequest;
+  /** An earlier window's save is still with the server: hold until it
+   *  answers, so a failure reaches this window instead of hiding behind it. */
+  waiting?: boolean;
   /** Leave: after Done, after Discard, or a close with nothing changed. */
   onClose: () => void;
   /** The background save failed after the window left: reopen at that face. */
   onPersistFailed: (face: SocialProfileEditFace) => void;
+  /** The background save is out. */
+  onPersisting?: (settled: Promise<void>) => void;
 }) {
   const edit = useSocialProfileEditDraft(props);
+  // A changed username, or an earlier save, is with the server: nothing
+  // leaves or changes until it answers.
+  const busy = edit.pending || waiting;
   const [asking, setAsking] = useState(false);
   const [held, setHeld] = useState<number | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -97,8 +107,7 @@ export function SocialProfileEditWindow({
   }
 
   function requestClose(): boolean {
-    // A changed username is with the server: nothing leaves until it answers.
-    if (edit.pending) return false;
+    if (busy) return false;
     if (!edit.dirty) {
       onClose();
       return true;
@@ -109,11 +118,13 @@ export function SocialProfileEditWindow({
   }
 
   function done() {
+    if (busy) return;
     edit.save({
       leave: onClose,
       // The window stays on the mounted profile: no save-hop cover.
       stayOnPage: true,
       onPersistFailed,
+      onPersisting,
     });
   }
 
@@ -134,7 +145,7 @@ export function SocialProfileEditWindow({
   }
 
   function onEscape() {
-    if (edit.pending) return;
+    if (busy) return;
     if (edit.avatarSheet) {
       closeMenu();
       return;
@@ -264,7 +275,7 @@ export function SocialProfileEditWindow({
         <header
           data-social-profile-edit-header=""
           className={SOCIAL_PROFILE_EDIT_WINDOW_HEADER_CLASS}
-          inert={asking || edit.pending}
+          inert={asking || busy}
         >
           {atIndex ? (
             <button
@@ -294,8 +305,8 @@ export function SocialProfileEditWindow({
           </h2>
           <Button
             data-social-profile-edit-done=""
-            disabled={edit.pending || edit.cropOpen}
-            aria-busy={edit.pending}
+            disabled={busy || edit.cropOpen}
+            aria-busy={busy}
             className={SOCIAL_PROFILE_EDIT_WINDOW_DONE_CLASS}
             onClick={done}
           >
@@ -305,8 +316,8 @@ export function SocialProfileEditWindow({
         <div
           ref={bodyRef}
           className={SOCIAL_PROFILE_EDIT_WINDOW_BODY_CLASS}
-          inert={asking || edit.pending}
-          aria-busy={edit.pending || undefined}
+          inert={asking || busy}
+          aria-busy={busy || undefined}
         >
           <div key={edit.face} className={cn(SOCIAL_PROFILE_EDIT_WINDOW_FACE_CLASS, motionClass)}>
             {atIndex ? (
