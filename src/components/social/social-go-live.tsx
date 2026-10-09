@@ -16,7 +16,7 @@ import {
 import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadSocialPostMedia } from "@/lib/social-media-upload";
+import { uploadSocialPostMedia, uploadSocialWelcomeVideoFile } from "@/lib/social-media-upload";
 import {
   SOCIAL_GO_LIVE_CAPTION_CLASS,
   SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS,
@@ -66,9 +66,22 @@ import {
   SOCIAL_GO_LIVE_MAX_MS,
   type GoLiveCamera,
   type GoLiveFrame,
+  type GoLivePurpose,
 } from "@/lib/social-go-live";
-import { clearSocialGoLiveOpener, takeSocialGoLiveExitHref } from "@/lib/social-go-live-nav";
+import {
+  clearSocialGoLiveOpener,
+  takeSocialGoLiveExit,
+  takeSocialGoLiveExitHref,
+} from "@/lib/social-go-live-nav";
+import { saveSocialWelcomeClip } from "@/lib/social-go-live-welcome";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
+import { saveSocialWelcomeVideo } from "@/app/(app)/social/actions";
+import {
+  isSocialProfileEditAddress,
+  markSocialProfileEditWelcomeReturn,
+  patchSocialProfileOptimistic,
+  readSocialProfileOptimistic,
+} from "@/lib/social-profile-edit";
 import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "@/lib/social";
 import {
   applyOptimisticSocialPost,
@@ -164,8 +177,10 @@ async function uploadLiveVideo(
   return { item: result.items[0] };
 }
 
-export function SocialGoLive() {
+export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } = {}) {
   const router = useRouter();
+  // welcome: the clip becomes the profile's welcome video, not a post.
+  const welcome = purpose === "welcome";
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -175,6 +190,11 @@ export function SocialGoLive() {
   const mimeRef = useRef<SocialVideoContentType>("video/webm");
   const recordingRef = useRef(false);
   const clipUrlRef = useRef<string | null>(null);
+  // The welcome video's upload, cancelled if the camera closes under it.
+  const welcomeAbortRef = useRef<AbortController | null>(null);
+  // The camera leaves once: X and a save that lands as X is pressed both
+  // exit, and the second must not replace Edit's entry.
+  const leftRef = useRef(false);
   const liveRef = useRef(0);
   const aliveRef = useRef(true);
   const attachPromiseRef = useRef<Promise<boolean> | null>(null);
@@ -260,6 +280,7 @@ export function SocialGoLive() {
   useEffect(() => {
     return () => {
       aliveRef.current = false;
+      welcomeAbortRef.current?.abort();
       releasePreview();
       if (clipUrlRef.current) URL.revokeObjectURL(clipUrlRef.current);
     };
@@ -703,6 +724,60 @@ export function SocialGoLive() {
     });
   }
 
+  // Back to Edit, on its index (where the welcome card is). The camera was
+  // pushed on top of Edit, so going back reuses Edit's own history entry
+  // (no second ?edit or sheet entry under it). A cold visit lands on Edit.
+  function exitWelcome() {
+    if (leftRef.current) return;
+    leftRef.current = true;
+    markSocialProfileEditWelcomeReturn();
+    const exit = takeSocialGoLiveExit(SOCIAL_ROUTES.profileEdit);
+    if (exit.fromOpener && isSocialProfileEditAddress(exit.href)) router.back();
+    else router.replace(exit.fromOpener ? SOCIAL_ROUTES.profileEdit : exit.href);
+  }
+
+  // The welcome video: the same blue bar, then the profile keeps it. The
+  // profile shows the clip from this device until the next load, and the
+  // camera goes back to Edit profile where it opened.
+  async function saveWelcomeClip() {
+    if (!clip || posting) return;
+    setError("");
+    setUploadPercent(0);
+    setPosting(true);
+    const controller = new AbortController();
+    welcomeAbortRef.current = controller;
+    // The save owns the clip's URL from here: once saved, the profile plays
+    // it, so closing the camera must not revoke it.
+    clipUrlRef.current = null;
+    const outcome = await saveSocialWelcomeClip({
+      file: clip.file,
+      upload: uploadSocialWelcomeVideoFile,
+      save: saveSocialWelcomeVideo,
+      signal: controller.signal,
+      onProgress: (percent) => {
+        if (aliveRef.current) setUploadPercent(percent);
+      },
+    });
+    welcomeAbortRef.current = null;
+    if (!outcome.ok) {
+      if (!aliveRef.current) {
+        URL.revokeObjectURL(clip.url);
+        return;
+      }
+      // The camera keeps the clip for another try (and revokes it later).
+      clipUrlRef.current = clip.url;
+      setPosting(false);
+      if (!outcome.aborted) setError(outcome.error);
+      return;
+    }
+    // Saved: the profile shows it from this device, even if the camera has
+    // closed meanwhile. An earlier clip saved from here is let go.
+    const previous = readSocialProfileOptimistic()?.welcomeVideoUrl;
+    patchSocialProfileOptimistic({ welcomeVideoUrl: clip.url });
+    if (previous && previous !== clip.url && previous.startsWith("blob:")) URL.revokeObjectURL(previous);
+    if (aliveRef.current) exitWelcome();
+  }
+
   const mirrored = storyStudioMirrorsPreview(facing);
 
   return (
@@ -740,13 +815,15 @@ export function SocialGoLive() {
         )}
         <div className={SOCIAL_STORY_STUDIO_CHROME_CLASS}>
           <HouseLink
-            href={SOCIAL_ROUTES.home}
+            href={welcome ? SOCIAL_ROUTES.profileEdit : SOCIAL_ROUTES.home}
             aria-label={SOCIAL.stories.close}
-            aria-disabled={posting || undefined}
+            // A post waits for its upload; the welcome video does not:
+            // closing the camera mid-upload cancels it (the Edit window lock §4).
+            aria-disabled={(posting && !welcome) || undefined}
             data-social-go-live-close=""
             className={SOCIAL_STORY_STUDIO_ICON_CLASS}
             onClick={(event) => {
-              if (posting) {
+              if (posting && !welcome) {
                 event.preventDefault();
                 return;
               }
@@ -760,12 +837,19 @@ export function SocialGoLive() {
                 return;
               }
               event.preventDefault();
+              if (welcome) {
+                welcomeAbortRef.current?.abort();
+                exitWelcome();
+                return;
+              }
               router.replace(takeSocialGoLiveExitHref());
             }}
           >
             <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
           </HouseLink>
-          <span className="t-label font-semibold text-band-ink">{SOCIAL.create.goLive}</span>
+          <span className="t-label font-semibold text-band-ink">
+            {welcome ? SOCIAL.profile.welcomeVideo : SOCIAL.create.goLive}
+          </span>
           {desktop ? (
             // A computer chooses among its cameras (built in, an iPhone, a
             // webcam); there is no back camera to flip to.
@@ -857,6 +941,8 @@ export function SocialGoLive() {
         ) : null}
         {phase === "review" ? (
           <div data-social-go-live-review="" className={SOCIAL_GO_LIVE_REVIEW_CLASS}>
+            {/* A welcome video has no caption. */}
+            {welcome ? null : (
             <div data-social-go-live-caption="" className={SOCIAL_GO_LIVE_CAPTION_CLASS}>
               <label className="sr-only" htmlFor="social-go-live-body">
                 {SOCIAL.create.caption}
@@ -881,6 +967,7 @@ export function SocialGoLive() {
                 />
               )}
             </div>
+            )}
             {posting ? (
               <div
                 data-social-go-live-progress=""
@@ -888,7 +975,7 @@ export function SocialGoLive() {
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={postPercent}
-                aria-label={SOCIAL.stories.posting}
+                aria-label={welcome ? SOCIAL.profile.welcomeAdd : SOCIAL.stories.posting}
                 className={SOCIAL_GO_LIVE_PROGRESS_TRACK_CLASS}
               >
                 <div className={SOCIAL_GO_LIVE_PROGRESS_FILL_CLASS} style={{ width: `${postPercent}%` }} />
@@ -908,10 +995,15 @@ export function SocialGoLive() {
               <button
                 type="button"
                 data-social-go-live-post=""
-                aria-label={posting ? SOCIAL.stories.posting : SOCIAL.create.livePost}
+                data-social-go-live-purpose={purpose}
+                // A welcome video is saved, never posted: it keeps its name.
+                aria-label={
+                  welcome ? SOCIAL.profile.welcomeAdd : posting ? SOCIAL.stories.posting : SOCIAL.create.livePost
+                }
+                aria-busy={posting || undefined}
                 className={SOCIAL_GO_LIVE_POST_CLASS}
                 disabled={posting}
-                onClick={() => void postClip()}
+                onClick={() => void (welcome ? saveWelcomeClip() : postClip())}
               >
                 <SocialIcon weight="bold" name="arrow-up" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
               </button>
@@ -921,10 +1013,15 @@ export function SocialGoLive() {
         {error ? (
           <div className="absolute inset-x-4 top-16 z-20">
             <InlineNotice tone="error">
-              {error}{" "}
-              <Link href={socialCreateHref("media")} className="underline">
-                {SOCIAL.create.liveUseVideo}
-              </Link>
+              {error}
+              {welcome ? null : (
+                <>
+                  {" "}
+                  <Link href={socialCreateHref("media")} className="underline">
+                    {SOCIAL.create.liveUseVideo}
+                  </Link>
+                </>
+              )}
             </InlineNotice>
           </div>
         ) : null}

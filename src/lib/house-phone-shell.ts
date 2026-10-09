@@ -126,8 +126,11 @@ export const HOUSE_PHONE_DEST_CHIPS = {
  *  side (the board), or on the safe area when that is larger. Content
  *  pad is HOUSE_PHONE_BOTTOM_NAV_PAD_CLASS, whose clearance follows
  *  this float and the 56 pill. */
+// The dock takes sideways pans only, like the header (HOUSE_PHONE_CHROME_TOUCH_CLASS):
+// a vertical drag on it never scrolls the document or starts Safari's
+// pull-to-refresh.
 export const HOUSE_PHONE_BOTTOM_NAV_CLASS =
-  "fixed inset-x-0 bottom-0 z-40 flex justify-center px-[var(--space-4)] pb-[max(16px,env(safe-area-inset-bottom))] transition-transform duration-200 ease-out md:hidden";
+  "fixed inset-x-0 bottom-0 z-40 flex justify-center px-[var(--space-4)] pb-[max(16px,env(safe-area-inset-bottom))] transition-transform duration-200 ease-out touch-pan-x touch-pinch-zoom md:hidden";
 
 export const HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS = "pointer-events-none translate-y-full";
 

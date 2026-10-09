@@ -127,7 +127,7 @@ export function HouseLeadChrome({
         style={{ minHeight: "var(--header-height)" }}
       >
         {/* Phone: the sheet's grab handle. Pull the bar down to bring the
-            band back; push it up to fold it (lock §5). */}
+            band back; push it up to cover it (lock §5). */}
         <span aria-hidden="true" data-house-lead-grip="" className={HOUSE_LEAD_GRIP_CLASS} />
         <div data-app-header-leading="" className={APP_HEADER_LEADING_CLASS}>
           {leadingNav}

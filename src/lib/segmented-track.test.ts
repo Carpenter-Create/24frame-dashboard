@@ -8,6 +8,7 @@ import {
   measureSegmentedBox,
   mixSegmentedThumbBox,
   projectSegmentedThumbFlight,
+  readSegmentedRailScroll,
   readSegmentedThumbCache,
   scheduleSegmentedThumbRestore,
   SEGMENTED_ITEM_SELECTED_ATTR,
@@ -26,6 +27,7 @@ import {
   startSegmentedThumbFlight,
   writeSegmentedThumbCache,
   writeSegmentedVisualIndex,
+  writeSegmentedRailScroll,
 } from "./segmented-track";
 import { overviewLeadActiveIndex, overviewLeadPills } from "./overview";
 
@@ -254,5 +256,18 @@ describe("segmented track optimistic selection", () => {
       commitSegmentedVisualIntent(SEGMENTED_TRACK_PERSIST.workspace, 1, 1),
     ).toBe(1);
     expect(readSegmentedVisualIndex(SEGMENTED_TRACK_PERSIST.workspace)).toBeUndefined();
+  });
+});
+
+describe("sideways rail memory (band lock v1.4)", () => {
+  it("remembers where a rail was slid, per key, and ignores junk", () => {
+    expect(readSegmentedRailScroll("rail-test-a")).toBeUndefined();
+    writeSegmentedRailScroll("rail-test-a", 132);
+    writeSegmentedRailScroll("rail-test-b", 8);
+    expect(readSegmentedRailScroll("rail-test-a")).toBe(132);
+    expect(readSegmentedRailScroll("rail-test-b")).toBe(8);
+    writeSegmentedRailScroll("rail-test-a", Number.NaN);
+    writeSegmentedRailScroll("rail-test-a", -4);
+    expect(readSegmentedRailScroll("rail-test-a")).toBe(132);
   });
 });

@@ -24,6 +24,7 @@ import {
   commitSegmentedVisualIntent,
   measureSegmentedBox,
   projectSegmentedThumbFlight,
+  readSegmentedRailScroll,
   readSegmentedThumbFlight,
   resolveSegmentedVisualIndex,
   scheduleSegmentedThumbRestore,
@@ -33,6 +34,7 @@ import {
   segmentedThumbStyle,
   segmentedTrackSelection,
   startSegmentedThumbFlight,
+  writeSegmentedRailScroll,
   type SegmentedThumbBox,
   type SegmentedTrackSelection,
 } from "@/lib/segmented-track";
@@ -52,6 +54,11 @@ export interface SegmentedTrackProps
    *  Off for a track that can sit off screen, such as the phone dock
    *  while it hides: scrolling to it would move the page. */
   revealActive?: boolean;
+  /** The track's parent is a sideways rail (the phone workspace band):
+   *  remember where it was slid (per `persistKey`) and reopen it there on
+   *  a remount, before the lit item is revealed, so the row never jumps
+   *  back to its start. */
+  rememberRail?: boolean;
   children: (selection: SegmentedTrackSelection) => ReactNode;
 }
 
@@ -109,6 +116,7 @@ export function SegmentedTrack({
   thumbClass = HOUSE_SEGMENTED_THUMB_CLASS,
   durationMs = HOUSE_SEGMENTED_THUMB_DURATION_MS,
   revealActive = true,
+  rememberRail = false,
   children,
   onClickCapture,
   ...rest
@@ -138,6 +146,19 @@ export function SegmentedTrack({
   // places it before the browser paints again), the track says so and
   // the lit segment can paint the thumb's fill itself.
   const [pending, setPending] = useState(() => thumbStyle.opacity === 0);
+
+  // Before the reveal below (layout effects run in order): put the rail
+  // back where it was left, so "nearest" moves it only when the lit item
+  // is off screen.
+  useLayoutEffect(() => {
+    const rail = trackRef.current?.parentElement;
+    if (!rememberRail || !persistKey || !rail) return undefined;
+    const left = readSegmentedRailScroll(persistKey);
+    if (left !== undefined) rail.scrollLeft = left;
+    const onScroll = () => writeSegmentedRailScroll(persistKey, rail.scrollLeft);
+    rail.addEventListener("scroll", onScroll, { passive: true });
+    return () => rail.removeEventListener("scroll", onScroll);
+  }, [rememberRail, persistKey]);
 
   useLayoutEffect(() => {
     if (routeIndexRef.current === activeIndex) return;

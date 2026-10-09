@@ -18,7 +18,12 @@
 // The bar and the band float over the page scroller (they never change its
 // size), so the page scrolls at the finger's speed and nothing reflows
 // while it moves. The bottom dock keeps its own hide-on-scroll rule
-// (social-tab-bar-scroll) from the same scroll events.
+// (social-tab-bar-scroll) from the same scroll events while the page
+// moves; at rest it lands the way the bar did: hidden under a covered
+// band, back with an open one (Adam 2026-10-09, "Match bar at rest").
+//
+// The page position is read clamped to the page (0 to its range), so the
+// rubber band at the top or the bottom never moves the bar or the dock.
 
 import {
   createSocialTabBarScrollTracker,
@@ -114,6 +119,20 @@ export function housePhoneSheetMovesPage(
   return y <= band && offset <= Math.max(0, y) && range >= y + (band - offset);
 }
 
+/** The page position the chrome follows: clamped to the page, so an
+ *  overscroll bounce at either end reads as no scroll. */
+export function housePhoneSheetPageY(y: number, range: number): number {
+  return Math.min(Math.max(0, range), Math.max(0, y));
+}
+
+/** Where the dock lands when the bar comes to rest: hidden under a covered
+ *  band, shown with an open one, as it was otherwise. */
+export function housePhoneDockAtRest(offset: number, dockHidden: boolean, band = HOUSE_PHONE_BAND_ROW_PX): boolean {
+  if (offset >= band) return true;
+  if (offset <= 0) return false;
+  return dockHidden;
+}
+
 /** Where the page scrolls so the cover changes from `offset` to `target`:
  *  by the same amount, so the bar and the content move together. The
  *  cover and the page position can differ (after opening deeper down). */
@@ -139,7 +158,8 @@ export function createHousePhoneChrome({
   onChange: (next: HousePhoneChromeState) => void;
   band?: number;
 }): HousePhoneChromeController {
-  let lastY = Math.max(0, readY());
+  const pageY = () => housePhoneSheetPageY(readY(), readRange());
+  let lastY = pageY();
   let offset = 0;
   let direction = 0;
   let dock: SocialTabBarScrollTracker = createSocialTabBarScrollTracker(lastY);
@@ -156,6 +176,13 @@ export function createHousePhoneChrome({
     onChange(next);
   };
 
+  // At rest the dock lands the way the bar did; its own rule restarts here.
+  const landDock = () => {
+    const dockHidden = housePhoneDockAtRest(offset, state.dockHidden, band);
+    dock = { lastY: pageY(), acc: 0, state: dockHidden ? "hidden" : "visible" };
+    emit(dockHidden);
+  };
+
   const moveTo = (next: number, settle: boolean) => {
     if (next === offset && !settle) return;
     offset = next;
@@ -165,7 +192,7 @@ export function createHousePhoneChrome({
   // Follow the page's scroll position (from a scroll event, or at once
   // after the bar's own drag scrolled the page).
   const track = () => {
-    const y = readY();
+    const y = pageY();
     const dy = y - lastY;
     lastY = y;
     if (dy !== 0) direction = Math.sign(dy);
@@ -178,18 +205,18 @@ export function createHousePhoneChrome({
     scroll: track,
     settle() {
       const target = housePhoneSheetSnapTarget(offset, direction, band);
-      if (target === offset) return;
-      const y = readY();
-      // Near the top, scroll the page so the content travels with the bar.
-      if (y > 0 && housePhoneSheetMovesPage(y, offset, readRange(), band)) {
+      const y = pageY();
+      // Near the top, scroll the page so the content travels with the bar
+      // (the bar follows it; the next rest lands the dock).
+      if (target !== offset && y > 0 && housePhoneSheetMovesPage(y, offset, readRange(), band)) {
         scrollPage(housePhoneSheetPageTarget(y, offset, target), true);
         return;
       }
-      moveTo(target, true);
-      emit(state.dockHidden);
+      if (target !== offset) moveTo(target, true);
+      landDock();
     },
     dragStart() {
-      const y = Math.max(0, readY());
+      const y = pageY();
       dragPage = housePhoneSheetMovesPage(y, offset, readRange(), band);
       dragOrigin = offset;
       dragPageOrigin = y;
@@ -215,7 +242,7 @@ export function createHousePhoneChrome({
     dragEnd() {
       if (dragPage) {
         // The drag tracked the page at once, so the cover is current.
-        const y = Math.max(0, readY());
+        const y = pageY();
         const target = housePhoneSheetSnapTarget(offset, direction, band);
         if (target !== offset) scrollPage(housePhoneSheetPageTarget(y, offset, target), true);
         dragPage = false;
@@ -224,15 +251,12 @@ export function createHousePhoneChrome({
       const target = housePhoneSheetSnapTarget(offset, direction, band);
       if (target !== offset) moveTo(target, true);
       // A full cover from the bar hides the dock with it; opening brings it back.
-      const dockHidden = offset >= band ? true : offset <= 0 ? false : state.dockHidden;
-      dock = { lastY: Math.max(0, readY()), acc: 0, state: dockHidden ? "hidden" : "visible" };
-      emit(dockHidden);
+      landDock();
     },
     open() {
       direction = -1;
       moveTo(0, true);
-      dock = { lastY: Math.max(0, readY()), acc: 0, state: "visible" };
-      emit(false);
+      landDock();
     },
     offset: () => offset,
     state: () => state,

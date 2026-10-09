@@ -10,6 +10,7 @@ import { StatusChip } from "@/components/layout/status-chip";
 import { RIGHTS_META } from "@/lib/rights";
 import { describeTerritory } from "@/lib/territories";
 import { GENRES, METADATA_FIELDS, requiredComplete } from "@/lib/metadata";
+import { TITLE_DETAILS } from "@/lib/title-details";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { FindingsCard } from "@/components/findings/findings-card";
 import { titleArtworkUrls } from "@/lib/artwork";
@@ -17,6 +18,7 @@ import { screenerKindFor, isPostApprovalTitleStatus } from "@/lib/assets";
 import { RELEASE_TYPE_LABEL, formatReleaseDate, type ReleaseType } from "@/lib/releases";
 import { AddRightsForm } from "./add-rights-form";
 import { ReleaseInfoForm } from "./release-info-form";
+import { TitleDetailsEntry, TitleDetailsLink } from "./title-details-window";
 import { AssetUpload } from "./asset-upload";
 import { ScreenerSourceControl } from "./screener-source-control";
 import { BuyerShareControl } from "./buyer-share-control";
@@ -372,10 +374,10 @@ export default async function TitleDetailPage({ params }: { params: Promise<{ id
             <SubmitButton orgId={title.org_id} titleId={title.id} />
           ) : (
             <InlineNotice tone="info">
-              Complete the {complete.total} required metadata fields to submit this title for review.{" "}
-              <Link href={`${titleHref}/metadata`} className="text-accent">
-                Edit metadata
-              </Link>
+              {TITLE_DETAIL.requiredNotice(complete.total)}{" "}
+              <TitleDetailsLink face="required" className="text-accent">
+                {TITLE_DETAILS.editMetadata}
+              </TitleDetailsLink>
             </InlineNotice>
           )
         ) : null}
@@ -389,15 +391,27 @@ export default async function TitleDetailPage({ params }: { params: Promise<{ id
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="sr-only">{TITLE_DETAIL.sectionMetadata}</CardTitle>
-              <Link href={`${titleHref}/metadata`} className="t-body-sm text-accent">
-                {canOperate ? TITLE_DETAIL.editMetadata : TITLE_DETAIL.viewMetadata}
-              </Link>
+              {/* Operators edit in the Metadata window over this page; it
+                  lives here, never in the notice that Submit replaces. */}
+              {canOperate ? (
+                <TitleDetailsEntry
+                  titleId={title.id}
+                  metadata={meta}
+                  release={{
+                    releaseType: title.release_type as ReleaseType,
+                    originalReleaseDate: title.original_release_date,
+                  }}
+                  releaseDate={title.release_date}
+                />
+              ) : (
+                <Link href={`${titleHref}/metadata`} className="t-body-sm text-accent">
+                  {TITLE_DETAIL.viewMetadata}
+                </Link>
+              )}
             </CardHeader>
             <FieldList items={metadataItems} />
             <CardBody className="border-t border-hairline">
               <ReleaseInfoForm
-                orgId={title.org_id}
-                titleId={title.id}
                 releaseType={title.release_type as ReleaseType}
                 originalReleaseDate={title.original_release_date}
                 releaseDate={title.release_date}

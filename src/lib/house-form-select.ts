@@ -49,3 +49,32 @@ export type HouseFormSelectOption = {
   value: string;
   label: string;
 };
+
+// Keys on an open menu: arrows step (wrapping), Home and End jump.
+export function houseFormSelectStep(index: number, key: string, count: number): number | null {
+  if (count === 0) return null;
+  if (key === "ArrowDown") return index < 0 ? 0 : (index + 1) % count;
+  if (key === "ArrowUp") return index < 0 ? count - 1 : (index - 1 + count) % count;
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  return null;
+}
+
+/** Type-ahead: the first option after `from` whose label starts with what was
+ *  typed (a repeated letter cycles through that letter's options). */
+export function houseFormSelectMatch(
+  options: readonly HouseFormSelectOption[],
+  typed: string,
+  from: number,
+): number | null {
+  const query = typed.toLocaleLowerCase();
+  if (!query) return null;
+  const repeated = query.length > 1 && [...query].every((c) => c === query[0]);
+  const needle = repeated ? query[0] : query;
+  const start = repeated || query.length === 1 ? from + 1 : Math.max(from, 0);
+  for (let step = 0; step < options.length; step += 1) {
+    const at = (start + step) % options.length;
+    if (options[at].label.toLocaleLowerCase().startsWith(needle)) return at;
+  }
+  return null;
+}

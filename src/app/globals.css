@@ -70,6 +70,10 @@ html {
   height: 100%;
   scroll-behavior: smooth;
   color-scheme: light;
+  /* The page scrolls on main, never the document (G9): no rubber band and
+     no Safari pull-to-refresh from the document (shell-phone-workspace-
+     band-lock-v1 §5, Adam 2026-10-09). */
+  overscroll-behavior-y: none;
 }
 html.dark {
   color-scheme: dark;
@@ -77,6 +81,7 @@ html.dark {
 
 body {
   min-height: 100%;
+  overscroll-behavior-y: none;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-geist-sans), "Geist", ui-sans-serif, -apple-system, system-ui, sans-serif;
@@ -327,8 +332,8 @@ body {
   .social-story-open-settle,
   .social-story-activate,
   .social-story-activate-prev,
-  .social-profile-edit-push,
-  .social-profile-edit-pop {
+  .house-window-push,
+  .house-window-pop {
     animation: none !important;
   }
   .app-sheet-rise {
@@ -422,26 +427,27 @@ body:has([data-social-write-compose]) :is(#vercel-toolbar, vercel-live-feedback,
   animation: social-feed-immersive-in 180ms ease-out both;
 }
 
-/* Edit profile window (docs/design-locks/social-profile-edit-window-lock-v1.md).
+/* The house window (lib/house-window; first built as Edit profile,
+   docs/design-locks/social-profile-edit-window-lock-v1.md).
    A face pushes in from the right; Back returns the index from the left.
    220ms, ease-out, a 24px travel and a fade. Instant under reduced motion
    (the shared reduced-motion block above). */
-@keyframes social-profile-edit-push {
+@keyframes house-window-push {
   from { opacity: 0; transform: translateX(24px); }
   to { opacity: 1; transform: none; }
 }
 
-@keyframes social-profile-edit-pop {
+@keyframes house-window-pop {
   from { opacity: 0; transform: translateX(-24px); }
   to { opacity: 1; transform: none; }
 }
 
-.social-profile-edit-push {
-  animation: social-profile-edit-push 220ms ease-out both;
+.house-window-push {
+  animation: house-window-push 220ms ease-out both;
 }
 
-.social-profile-edit-pop {
-  animation: social-profile-edit-pop 220ms ease-out both;
+.house-window-pop {
+  animation: house-window-pop 220ms ease-out both;
 }
 
 .social-feed-immersive-media {

@@ -68,6 +68,7 @@ export const TITLE_DETAIL = {
   sectionDeliveries: "Deliveries",
   editMetadata: "Edit",
   viewMetadata: "View",
+  requiredNotice: (total: number) => `Complete the ${total} required metadata fields to submit this title for review.`,
 } as const;
 
 // Title-detail phone containment. One SoT: house phone stack tokens.

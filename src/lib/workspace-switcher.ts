@@ -72,6 +72,7 @@
 import {
   HOUSE_LEAD_SEARCH_DESKTOP_CLASS,
   HOUSE_LEAD_UNDER_NAV_CLASS,
+  HOUSE_PHONE_CHROME_TOUCH_CLASS,
 } from "@/lib/house-lead-chrome";
 import {
   HOUSE_PILL_SLIDER_SEGMENT_OFF_CLASS,
@@ -226,11 +227,14 @@ export const APP_HEADER_WORKSPACE_WAFFLE_HOST_CLASS = "hidden shrink-0 md:block 
 // row of icon + word pills that slides sideways — no arrow, no fade, and
 // a pill cut at the screen edge is the scroll cue (the founder's
 // exception to phone never-truncate for this row). Phone only.
-export const WORKSPACE_BAND_CLASS =
-  "bg-workspace-band pt-[env(safe-area-inset-top)] md:hidden";
+export const WORKSPACE_BAND_CLASS = `bg-workspace-band pt-[env(safe-area-inset-top)] md:hidden ${HOUSE_PHONE_CHROME_TOUCH_CLASS}`;
 
+// The row is its own sideways scroller, so it takes the sideways-only pan
+// itself (a scroller's own touch-action is the one that counts inside it).
+// Its scroll padding matches its side pad, so revealing a pill stops at
+// the 16 pad rather than flush against the edge.
 export const WORKSPACE_BAND_ROW_CLASS =
-  "no-scrollbar flex h-14 items-center overflow-x-auto overscroll-x-contain whitespace-nowrap px-[var(--space-4)]";
+  "no-scrollbar flex h-14 items-center overflow-x-auto overscroll-x-contain whitespace-nowrap px-[var(--space-4)] scroll-px-[var(--space-4)] touch-pan-x touch-pinch-zoom";
 
 // The pills sit on a SegmentedTrack inside the sliding row (the track is
 // as wide as its pills, so the row scrolls it). The current pill's page
