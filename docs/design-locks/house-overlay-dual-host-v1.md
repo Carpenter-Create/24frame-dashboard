@@ -20,6 +20,7 @@ The job picks the host. Phone and desktop are different hosts. A breakpoint does
 - A changed window asks before it closes, inside the window: Keep editing · Discard
 - Pad 24 (a window's header and body carry their own; the composer keeps its locked 16)
 - Button footer (a window's actions sit in its header)
+- One shell draws every window with faces: `lib/house-window` (classes, the query helpers) and `components/chrome/house-window` (`useHouseWindow`, `HouseWindowFrame`, `HouseWindowAsk`, `useHouseWindowEntry`). A new window brings its faces, copy and save; the header, Esc order, the ask, held height, focus and the history entry are the shell's
 
 ## HouseDrawer
 

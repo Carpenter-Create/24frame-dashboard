@@ -22,7 +22,6 @@ import {
   HOUSE_SCROLL_ROW_CLASS,
 } from "@/lib/house-shell";
 import { HOUSE_VOICE_FOCUS_HOST_CLASS } from "@/lib/form-control";
-import { HOUSE_DIALOG_WINDOW_CLASS } from "@/lib/house-overlay";
 import {
   HOUSE_PHONE_DOCK_CHROME_BOTTOM_CLASS,
   HOUSE_PHONE_DOCK_CHROME_PB_CLASS,
@@ -1406,42 +1405,8 @@ export const SOCIAL_PROFILE_EDIT_BODY_CLASS =
 // Welcome video: the + fan's Media and Live rounds, then Remove at the end.
 export const SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS = "flex flex-wrap items-center gap-[var(--space-2)]";
 
-// Desktop Edit profile window (docs/design-locks/social-profile-edit-window-lock-v1.md,
-// Adam 2026-10-09). The house window (HOUSE_DIALOG_WINDOW_CLASS: 600, radius 24,
-// no edge) with no pad of its own: the 64 header and the wash body carry it.
-export const SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS = `${HOUSE_DIALOG_WINDOW_CLASS} relative flex flex-col overflow-hidden p-0`;
-
-// close or back · title · Done, the composer's measures: round grey 44,
-// 17/600 title, the accent Done pill 40 tall.
-export const SOCIAL_PROFILE_EDIT_WINDOW_HEADER_CLASS =
-  "flex h-16 shrink-0 items-center gap-[var(--space-3)] border-b border-hairline bg-surface px-[var(--space-4)]";
-
-export const SOCIAL_PROFILE_EDIT_WINDOW_TITLE_CLASS =
-  "min-w-0 flex-1 text-center text-[17px] font-semibold text-ink";
-
-export const SOCIAL_PROFILE_EDIT_WINDOW_DONE_CLASS = "min-h-10 shrink-0 px-5 focus-visible:rounded-full!";
-
-// The body holds one height while open (the index's, up to 80vh less the
-// header); taller faces scroll inside it.
-export const SOCIAL_PROFILE_EDIT_WINDOW_BODY_CLASS = "relative min-h-0 flex-1 overflow-y-auto bg-bg";
-
-export const SOCIAL_PROFILE_EDIT_WINDOW_FACE_CLASS =
-  "flex flex-col gap-[var(--space-4)] p-[var(--space-6)]";
-
-// Leaving with changes: a strip rises at the foot, inside the window.
-export const SOCIAL_PROFILE_EDIT_DISCARD_STRIP_CLASS =
-  "absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-3)] border-t border-hairline bg-surface p-[var(--space-6)] app-sheet-rise";
-
-export const SOCIAL_PROFILE_EDIT_DISCARD_TITLE_CLASS = "t-body font-semibold text-ink";
-
-export const SOCIAL_PROFILE_EDIT_DISCARD_LINE_CLASS = "t-body-sm text-ink-2";
-
-export const SOCIAL_PROFILE_EDIT_DISCARD_ACTIONS_CLASS = "flex flex-wrap items-center justify-end gap-[var(--space-2)]";
-
-// Phone: the same ask as the house AppSheet card, actions stacked full width.
-export const SOCIAL_PROFILE_EDIT_DISCARD_SHEET_ACTIONS_CLASS = "flex flex-col gap-[var(--space-2)]";
-
-export const SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS = "min-h-11 px-5 focus-visible:rounded-full!";
+// The desktop Edit profile window is the house window shell
+// (lib/house-window: HOUSE_WINDOW_*), docs/design-locks/social-profile-edit-window-lock-v1.md.
 
 export const SOCIAL_WELCOME_VIDEO_CLASS =
   `overflow-hidden ${SOCIAL_SURFACE_RADIUS_CLASS} border border-hairline bg-surface`;
