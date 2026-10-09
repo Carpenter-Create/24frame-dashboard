@@ -285,9 +285,27 @@ describe("Deliver window source", () => {
     expect(commit).toContain("for (const batch of deliverBatches(items)) {");
     expect(commit).toContain("await actions.deliver({ vendorId, items: batch })");
     expect(commit).toContain("} catch {");
-    expect(commit).toContain("} finally {\n      if (mountedRef.current) setPending(false);\n    }");
+    expect(commit).toContain("} finally {\n      committingRef.current = false;\n      if (mountedRef.current) setPending(false);\n    }");
     expect(commit).toContain("if (answer.stop) break;");
     expect(windowSrc).not.toMatch(/orgId|org_id/);
+  });
+
+  it("starts one run at a time: a second press before `pending` renders sends nothing", () => {
+    const primary = windowSrc.slice(windowSrc.indexOf("async function primary()"), windowSrc.indexOf("async function commit("));
+    expect(primary).toContain("if (pending || committingRef.current) return;");
+    const commit = windowSrc.slice(windowSrc.indexOf("async function commit("), windowSrc.indexOf("async function download()"));
+    expect(commit.startsWith("async function commit(current: DeliverPlan) {\n    if (committingRef.current) return;")).toBe(true);
+    // Claimed before the first await, released only when the run ends.
+    const claim = commit.indexOf("committingRef.current = true;");
+    expect(claim).toBeGreaterThan(0);
+    expect(claim).toBeLessThan(commit.indexOf("await "));
+    expect(commit.match(/committingRef\.current = false;/g)).toHaveLength(1);
+  });
+
+  it("reports each batch's new rows to the list as it answers", () => {
+    const commit = windowSrc.slice(windowSrc.indexOf("async function commit("), windowSrc.indexOf("async function download()"));
+    expect(commit).toContain("onCreated?.(answer.created.map((row) => row.deliveryId));");
+    expect(commit.indexOf("onCreated?.(")).toBeGreaterThan(commit.indexOf("await actions.deliver("));
   });
 
   it("plans only inside the load, and imports no server code", () => {

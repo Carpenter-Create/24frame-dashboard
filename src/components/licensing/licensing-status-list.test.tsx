@@ -161,6 +161,22 @@ describe("LicensingStatusList hosts the Deliver window", () => {
     expect(close.indexOf("setSelected(licensingPruneSelection")).toBeLessThan(close.indexOf("entry.close("));
   });
 
+  it("keeps the rows a run creates out of sight until the window leaves, then fades them in", () => {
+    // Each batch's revalidate brings the new rows in behind the open window;
+    // drawn then, they would flicker when the paint starts them from 0.
+    expect(listSrc).toContain("const [held, setHeld] = useState<string[]>([]);");
+    expect(listSrc).toContain("onCreated={(created) => setHeld((before) => [...before, ...created])}");
+    expect(listSrc).toContain("{licensingDrawnVendors(group.vendors, held).map((row) => (");
+    expect(listSrc).not.toContain("{group.vendors.map(");
+    const close = listSrc.slice(listSrc.indexOf("onClose={(outcome) => {"), listSrc.indexOf("/>\n      ) : null}\n    </div>"));
+    const after = close.slice(close.indexOf("outcome.saved"));
+    // Shown and painted in one render, once Back has landed.
+    expect(after).toContain("setPainted(outcome.created);\n                    setHeld([]);");
+    expect(close).toContain("if (!outcome.saved) setHeld([]);");
+    // A new run starts with nothing held.
+    expect(listSrc.match(/setPainted\(\[\]\);\n\s+setHeld\(\[\]\);/g)).toHaveLength(3);
+  });
+
   it("returns focus to Deliver, or to the delivered title's tick, and reads refs only outside render", () => {
     expect(listSrc).toContain("deliverButtonRef.current ??");
     expect(listSrc).toContain('[data-gc-licensing-select="${lastDeliveredRef.current}"]');

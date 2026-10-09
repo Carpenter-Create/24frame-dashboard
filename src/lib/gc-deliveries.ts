@@ -56,6 +56,19 @@ export const LICENSING_VENDOR_INDENT_CLASS = "pl-[var(--space-6)]";
  *  (220ms; none under reduced motion). globals.css `licensing-row-paint`. */
 export const LICENSING_VENDOR_NEW_CLASS = "licensing-row-paint";
 
+/** A title's channel rows as the list draws them while Deliver is open: the
+ *  rows the window has just created stay out of sight (each batch's
+ *  revalidate already brings them in behind the window), so they appear only
+ *  once it leaves, and then fade in (LICENSING_VENDOR_NEW_CLASS). */
+export function licensingDrawnVendors<T extends { deliveryId: string }>(
+  vendors: readonly T[],
+  held: readonly string[],
+): readonly T[] {
+  if (held.length === 0) return vendors;
+  const out = new Set(held);
+  return vendors.filter((row) => !out.has(row.deliveryId));
+}
+
 /** The ticks once Deliver closes: delivered titles un-tick, and ids the list
  *  does not draw (a hand-over's) drop. Failed, unsent and set-aside titles
  *  stay ticked. */

@@ -22,6 +22,7 @@ import {
   licensingActivityDate,
   licensingDeliverLabel,
   licensingDeliverVisible,
+  licensingDrawnVendors,
   licensingPruneSelection,
   licensingShownSelection,
   licensingTitleMeta,
@@ -123,12 +124,14 @@ function TitleGroup({
   canSelect,
   selected,
   painted,
+  held,
   onToggle,
 }: {
   group: LicensingTitleGroup;
   canSelect: boolean;
   selected: boolean;
   painted: readonly string[];
+  held: readonly string[];
   onToggle: (id: string) => void;
 }) {
   return (
@@ -159,7 +162,7 @@ function TitleGroup({
           {canSelect ? <SelectMark titleId={group.id} selected={selected} onToggle={onToggle} /> : null}
         </span>
       </div>
-      {group.vendors.map((row) => (
+      {licensingDrawnVendors(group.vendors, held).map((row) => (
         <VendorSubRow
           key={row.deliveryId}
           deliveryId={row.deliveryId}
@@ -198,6 +201,8 @@ export function LicensingStatusList({
   const [windowIds, setWindowIds] = useState<string[]>([]);
   // Deliveries the window just created: they fade in after it leaves.
   const [painted, setPainted] = useState<string[]>([]);
+  // Deliveries created while the window is open: out of sight until it leaves.
+  const [held, setHeld] = useState<string[]>([]);
   const deliverButtonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const lastDeliveredRef = useRef<string | null>(null);
@@ -226,12 +231,14 @@ export function LicensingStatusList({
       setSelected(handed.filter((id) => shown.has(id)));
       setWindowIds(handed);
       setPainted([]);
+      setHeld([]);
       return true;
     }
     // Forward onto a bare ?deliver with the ticks still here.
     if (ticked.length > 0) {
       setWindowIds(ticked);
       setPainted([]);
+      setHeld([]);
       return true;
     }
     // A reload or a new tab on a bare ?deliver: the ticks are gone.
@@ -286,6 +293,7 @@ export function LicensingStatusList({
               canSelect={canDeliver}
               selected={selected.includes(group.id)}
               painted={painted}
+              held={held}
               onToggle={toggle}
             />
           ))}
@@ -305,6 +313,7 @@ export function LicensingStatusList({
             className="max-md:w-full"
             onClick={() => {
               setPainted([]);
+              setHeld([]);
               setWindowIds(ticked);
               entry.openFromPage("channel");
             }}
@@ -320,6 +329,7 @@ export function LicensingStatusList({
           vendors={vendors}
           actions={deliverActions}
           requestRef={entry.requestRef}
+          onCreated={(created) => setHeld((before) => [...before, ...created])}
           onClose={(outcome) => {
             // Delivered titles un-tick as the window closes; failed, unsent
             // and set-aside titles stay ticked.
@@ -333,10 +343,12 @@ export function LicensingStatusList({
               outcome.saved
                 ? () => {
                     setPainted(outcome.created);
+                    setHeld([]);
                     router.refresh();
                   }
                 : undefined,
             );
+            if (!outcome.saved) setHeld([]);
           }}
         />
       ) : null}

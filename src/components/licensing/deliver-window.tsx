@@ -88,12 +88,16 @@ export function DeliverWindow({
   vendors,
   actions,
   requestRef,
+  onCreated,
   onClose,
 }: {
   titleIds: readonly string[];
   vendors: readonly DeliverVendor[];
   actions: DeliverActions;
   requestRef: HouseWindowRequest;
+  /** Each batch's new delivery ids, as it answers: the list keeps those rows
+   *  out of sight until the window leaves, then fades them in. */
+  onCreated?: (deliveryIds: string[]) => void;
   onClose: (outcome: DeliverCloseOutcome) => void;
 }) {
   const desktop = useHouseDesktop();
@@ -110,6 +114,9 @@ export function DeliverWindow({
   const [exportError, setExportError] = useState("");
   // Something may be stored: the list refreshes when the window closes.
   const savedRef = useRef(false);
+  // Set before the first await: a second press or ⌘/Ctrl+Enter that lands
+  // before `pending` re-renders never starts a second run.
+  const committingRef = useRef(false);
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -179,7 +186,7 @@ export function DeliverWindow({
   }
 
   async function primary() {
-    if (pending) return;
+    if (pending || committingRef.current) return;
     if (face === "done") {
       onClose(closeOutcome());
       return;
@@ -195,8 +202,10 @@ export function DeliverWindow({
   }
 
   async function commit(current: DeliverPlan) {
+    if (committingRef.current) return;
     const items = deliverItems(current, draft);
     if (items.length === 0) return;
+    committingRef.current = true;
     const vendorId = draft.vendorId;
     let result = deliverEmptyOutcome(items.length);
     let sending: DeliverItem[] = [];
@@ -208,7 +217,10 @@ export function DeliverWindow({
         sending = batch;
         const answer = await actions.deliver({ vendorId, items: batch });
         result = deliverMergeOutcome(result, answer);
-        if (answer.created.length > 0) savedRef.current = true;
+        if (answer.created.length > 0) {
+          savedRef.current = true;
+          onCreated?.(answer.created.map((row) => row.deliveryId));
+        }
         if (mountedRef.current) setProgress(result);
         if (answer.stop) break;
       }
@@ -226,6 +238,7 @@ export function DeliverWindow({
         stop: "save_failed",
       });
     } finally {
+      committingRef.current = false;
       if (mountedRef.current) setPending(false);
     }
     if (!mountedRef.current) return;
