@@ -18,6 +18,7 @@ import {
   groupLicensingTitles,
   licensingDeliverLabel,
   licensingDeliverVisible,
+  licensingDrawnVendors,
   licensingTitleMeta,
   parseDeliveryStatusFilter,
   parseGcLicensingChannelFilter,
@@ -183,5 +184,19 @@ describe("licensing title groups", () => {
     expect(filterLicensingGroups(groups, { q: "northwind" }).map((g) => g.id)).toEqual([TITLE_B]);
     expect(filterLicensingGroups(groups, { status: "pending" }).map((g) => g.id)).toEqual([TITLE_A]);
     expect(filterLicensingGroups(groups, { vendor: VENDOR_B }).map((g) => g.id)).toEqual([TITLE_B]);
+  });
+});
+
+describe("licensingDrawnVendors", () => {
+  const rows = [{ deliveryId: "d1" }, { deliveryId: "d2" }, { deliveryId: "d3" }];
+
+  it("keeps every row when nothing is held", () => {
+    expect(licensingDrawnVendors(rows, [])).toBe(rows);
+  });
+
+  it("keeps rows Deliver just created out of sight while its window is open", () => {
+    expect(licensingDrawnVendors(rows, ["d2"])).toEqual([{ deliveryId: "d1" }, { deliveryId: "d3" }]);
+    expect(licensingDrawnVendors(rows, ["d1", "d2", "d3"])).toEqual([]);
+    expect(licensingDrawnVendors(rows, ["d9"])).toEqual(rows);
   });
 });

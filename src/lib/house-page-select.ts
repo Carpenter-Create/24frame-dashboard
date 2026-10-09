@@ -50,9 +50,32 @@ export function housePageSelectOptionClass(selected: boolean): string {
     : HOUSE_PAGE_SELECT_OPTION_CLASS;
 }
 
+// The form hover: the muted wash under the pointer and on keyboard focus.
+// The form Select (lib/house-form-select) re-exports it under its old name.
+export const HOUSE_PAGE_SELECT_OPTION_HOVER_CLASS =
+  "hover:bg-surface-muted focus-visible:bg-surface-muted focus-visible:outline-none";
+
+// Inline list (HousePageSelectOptions with `inline`): the same options list
+// laid flat in a page or window — the panel's surface without its float
+// (no absolute, no max-h, no own scroll). The window body scrolls it.
+export const HOUSE_PAGE_SELECT_INLINE_LIST_CLASS =
+  "flex w-full flex-col rounded-[12px] border border-hairline bg-surface py-[var(--space-2)] shadow-none";
+
+/** An inline row: the option, the form hover, and a 44 hit. */
+export function housePageSelectInlineOptionClass(selected: boolean): string {
+  return `${housePageSelectOptionClass(selected)} ${HOUSE_PAGE_SELECT_OPTION_HOVER_CLASS} min-h-11`;
+}
+
+// An option's detail line sits under its label in one column: the house
+// wrap, never cut.
+export const HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS =
+  `block t-body-sm text-ink-3 ${HOUSE_PHONE_WRAP_CLASS}`;
+
 export type HousePageSelectOption = {
   key: string;
   label: string;
+  /** A second line under the label (inline lists; e.g. a rights description). */
+  detail?: string;
 };
 
 export type HousePageSelectGroup = {
@@ -68,4 +91,31 @@ export function housePageSelectFlatGroup(
   options: readonly HousePageSelectOption[],
 ): HousePageSelectGroup[] {
   return [{ id: "options", label: "", options, hideLabel: true }];
+}
+
+/** Every option in the order the list draws them. */
+export function housePageSelectOptionsInOrder(
+  groups: readonly HousePageSelectGroup[],
+): HousePageSelectOption[] {
+  return groups.flatMap((group) => group.options);
+}
+
+/** The id of an inline group's label, for the group's aria-labelledby.
+ *  An id list is space separated, so anything but [A-Za-z0-9_-] in the
+ *  group id becomes "-". */
+export function housePageSelectGroupLabelId(listId: string, groupId: string): string {
+  return `${listId}-${groupId.replace(/[^A-Za-z0-9_-]/g, "-")}`;
+}
+
+/** The inline list's one Tab stop (roving tabindex): the option that last
+ *  had focus while it is still drawn, else the first chosen option in
+ *  order, else the first option. Null for an empty list. */
+export function housePageSelectTabStop(
+  groups: readonly HousePageSelectGroup[],
+  isSelected: (key: string) => boolean,
+  focused: string | null,
+): string | null {
+  const keys = housePageSelectOptionsInOrder(groups).map((option) => option.key);
+  if (focused !== null && keys.includes(focused)) return focused;
+  return keys.find(isSelected) ?? keys[0] ?? null;
 }
