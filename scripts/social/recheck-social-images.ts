@@ -22,7 +22,13 @@
 import { randomUUID } from "node:crypto";
 
 import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey, isAvatarRecheckKey } from "@/lib/account-avatar";
-import { headAvatarRecheck, putAvatarRecheckObject, quarantineAvatarObject, readAvatarObject } from "@/lib/s3-avatars";
+import {
+  headAvatarRecheck,
+  putAvatarRecheckObject,
+  quarantineAvatarObject,
+  readAvatarObject,
+  releaseAvatarHoldTag,
+} from "@/lib/s3-avatars";
 import { headSocialImageRecheck, putRecheckedSocialImage, readSocialMediaObject } from "@/lib/s3-social-media";
 import {
   pointSocialMediaAtRecheckedImage,
@@ -458,6 +464,12 @@ async function main(): Promise<void> {
             const { data, error } = await writeAvatarPointer(admin as never, item.parentId, readKey, nextKey);
             assertOk(error, "point avatar at rechecked image");
             if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey };
+            try {
+              await releaseAvatarHoldTag(item.parentId, nextKey);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : "hold tag remains";
+              logs.push(`avatar ${item.parentId} hold tag remains on ${nextKey}: ${message}`);
+            }
           } catch (error) {
             const failure = error instanceof Error ? error : new Error("recheck_failed");
             throw Object.assign(failure, { orphanKey: nextKey });

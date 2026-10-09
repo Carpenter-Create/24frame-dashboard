@@ -36,18 +36,33 @@ Do not attach a public bucket policy. Do not enable a website. Do not add this
 bucket as a CloudFront origin.
 
 2) Least-privilege on the **existing** app IAM user (`gc-assets-app`) — same
-credentials the title-asset path already uses. GetObject/PutObject on
-`avatars/*` only. No DeleteObject (nothing is deleted; re-upload overwrites
-the same key). Do not grant `/*` on this bucket. Do not grant this prefix on
+credentials the title-asset path already uses. Pre-deploy, before the image
+recheck: GetObject, PutObject, DeleteObject, and PutObjectTagging on
+`avatars/*`, plus ListBucket on this bucket only when the prefix is
+`avatars/`. Do not grant `/*` on this bucket. Do not grant this prefix on
 `S3_BUCKET`.
+
+Remove photo lists and deletes objects under `avatars/{id}/recheck/` and
+`avatars/{id}/quarantine/`. Recheck and quarantine copies are tagged
+`gc-hold=quarantine`. Apply the 30-day expiry rule in
+`docs/infra/social-music-detect.md` in the same pre-deploy step. A prefix
+of `avatars/` would expire live faces. The tag is the rule.
 
     aws iam put-user-policy --user-name gc-assets-app --policy-name gc-avatars-s3 --policy-document '{
       "Version": "2012-10-17",
-      "Statement": [{
-        "Effect": "Allow",
-        "Action": ["s3:GetObject","s3:PutObject"],
-        "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'/avatars/*"
-      }]
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:PutObjectTagging"],
+          "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'/avatars/*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": ["s3:ListBucket"],
+          "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'",
+          "Condition": { "StringLike": { "s3:prefix": ["avatars/*"] } }
+        }
+      ]
     }'
 
 The app PUTs server-side. Browser CORS on this bucket is not required.

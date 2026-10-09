@@ -12,7 +12,7 @@ function stripComments(source: string): string {
 }
 
 /** Value import / re-export specifiers. `import type` and `export type` are erased. */
-function valueSpecifiers(source: string): string[] {
+function valueSpecifiers(source: string, followDynamic = true): string[] {
   const text = stripComments(source);
   const specs: string[] = [];
   const fromRe = /\b(?:import|export)\s+(type\s+)?[^"'();]*?\sfrom\s+["']([^"']+)["']/g;
@@ -25,8 +25,10 @@ function valueSpecifiers(source: string): string[] {
   for (const match of text.matchAll(sideRe)) {
     if (match[1]) specs.push(match[1]);
   }
-  for (const match of text.matchAll(dynRe)) {
-    if (match[1]) specs.push(match[1]);
+  if (followDynamic) {
+    for (const match of text.matchAll(dynRe)) {
+      if (match[1]) specs.push(match[1]);
+    }
   }
   return specs;
 }
@@ -56,7 +58,7 @@ function resolveSpecifier(fromFile: string, spec: string): string | null {
 }
 
 /** Shortest value-import path from entry to target, or null. */
-function importPath(entry: string, target: string): string[] | null {
+function importPath(entry: string, target: string, followDynamic = true): string[] | null {
   const parents = new Map<string, string | null>();
   const queue = [entry];
   parents.set(entry, null);
@@ -78,7 +80,7 @@ function importPath(entry: string, target: string): string[] | null {
     } catch {
       continue;
     }
-    for (const spec of valueSpecifiers(source)) {
+    for (const spec of valueSpecifiers(source, followDynamic)) {
       const next = resolveSpecifier(file, spec);
       if (!next || parents.has(next)) continue;
       parents.set(next, file);
@@ -153,17 +155,20 @@ describe("social form surface boundary", () => {
   });
 
   it("keeps DM, profile-create, bio, group, and story-reply off the create and video-upload module", () => {
+    // Static graph only. Welcome upload is a dynamic import, so the profile
+    // page does not load that module up front. Story studio still follows
+    // dynamic imports in the test above.
     const leaks = LIGHT_SURFACES.flatMap((entry) =>
       HEAVY.flatMap((target) => {
-        const path = importPath(entry, target);
+        const path = importPath(entry, target, false);
         return path ? [path.join(" -> ")] : [];
       }),
     );
-    // The desktop Edit profile window sits on the profile page. Its welcome
-    // video uploads through Mux, so this one path reaches the upload module.
-    const welcomeOnProfile =
-      "src/app/(app)/social/profile/page.tsx -> src/components/social/social-profile-edit-entry.tsx -> src/components/social/social-profile-edit-window.tsx -> src/components/social/social-profile-edit.tsx -> src/lib/social-media-upload.ts";
-    expect(leaks).toEqual([welcomeOnProfile]);
+    expect(leaks).toEqual([]);
+    const welcome = readFileSync("src/components/social/social-profile-edit.tsx", "utf8");
+    const pick = welcome.slice(welcome.indexOf("async function onWelcomePick"), welcome.indexOf("async function onWelcomeRemove"));
+    expect(pick).toContain('import("@/lib/social-media-upload")');
+    expect(pick).not.toContain('from "@/lib/social-media-upload"');
     const dm = readFileSync("src/app/(app)/social/dms/[id]/page.tsx", "utf8");
     const profile = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
     expect(dm).toContain('from "@/components/social/social-dm-compose"');

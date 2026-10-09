@@ -79,6 +79,13 @@ export function avatarQuarantinePrefix(userId: string): string {
   return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/`;
 }
 
+/** Prefix for this member's recheck copies. Same shape as quarantine: list, then delete own keys only. */
+export function avatarRecheckPrefix(userId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  if (!user.success) throw new Error("Avatar key requires a UUID user id");
+  return `${AVATAR_KEY_PREFIX}/${user.data}/recheck/`;
+}
+
 export function isAvatarQuarantineKey(key: string, userId?: string): boolean {
   const match = AVATAR_QUARANTINE_KEY.exec(key);
   if (!match) return false;

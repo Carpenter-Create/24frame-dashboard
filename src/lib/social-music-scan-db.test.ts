@@ -2260,6 +2260,84 @@ describe("social music scan migration", () => {
       await db.exec(`reset role`);
     }
   });
+
+  it("includes a null avatar pointer on the recheck page and excludes a cleared one", async () => {
+    const { AVATAR_CLEARED: cleared } = await import("@/lib/account-avatar");
+    const { AVATAR_RECHECK_PAGE_OR } = await import("../../scripts/social/recheck-social-images");
+    expect(AVATAR_RECHECK_PAGE_OR).toContain("avatar_key.is.null");
+    const loader = readFileSync("scripts/social/recheck-social-images.ts", "utf8");
+    const page = loader.slice(loader.indexOf("async function loadAvatarPage"), loader.indexOf("async function mediaItem"));
+    expect(page).toContain(".or(AVATAR_RECHECK_PAGE_OR)");
+    expect(page).not.toMatch(/avatar_key\s*===?\s*null/);
+    const where = AVATAR_RECHECK_PAGE_OR.split(",")
+      .map((part) => {
+        if (part === "avatar_key.is.null") return "avatar_key is null";
+        const neq = /^avatar_key\.neq\.(.*)$/.exec(part);
+        if (!neq?.[1]) throw new Error(`unmapped avatar page filter: ${part}`);
+        return `avatar_key <> '${neq[1].replaceAll("'", "''")}'`;
+      })
+      .join(" or ");
+    expect(where).toContain("avatar_key is null");
+    const clearedId = "55555555-5555-4555-8555-555555555555";
+    const keyedId = "66666666-6666-4666-8666-666666666666";
+    await db.exec(`set role service_role`);
+    try {
+      await db.query(
+        `insert into public.profiles (id, avatar_key) values ($1, $2), ($3, $4)
+         on conflict (id) do update set avatar_key = excluded.avatar_key`,
+        [clearedId, cleared, keyedId, `avatars/${keyedId}/avatar`],
+      );
+    } finally {
+      await db.exec(`reset role`);
+    }
+    const rows = await db.query<{ id: string }>(
+      `select id::text as id from public.profiles where ${where}`,
+    );
+    const ids = rows.rows.map((row) => row.id);
+    expect(ids).toContain(A);
+    expect(ids).toContain(keyedId);
+    expect(ids).not.toContain(clearedId);
+  });
+
+  it("rolls the welcome migration back from the header SQL and applies it again", async () => {
+    const header = PROFILES.slice(0, PROFILES.indexOf("set lock_timeout"));
+    const start = header.indexOf("--   drop trigger if exists profiles_enqueue_welcome_music_scan");
+    expect(start).toBeGreaterThan(-1);
+    const rollback = header
+      .slice(start)
+      .split("\n")
+      .map((line) => line.replace(/^--\s?/, "").trim())
+      .filter((line) => /^(drop |alter )/i.test(line))
+      .join("\n");
+    expect(rollback.indexOf("drop trigger")).toBeGreaterThan(-1);
+    expect(rollback.indexOf("drop trigger")).toBeLessThan(rollback.indexOf("drop function"));
+    expect(rollback.indexOf("drop function")).toBeLessThan(rollback.indexOf("drop constraint"));
+    expect(rollback.indexOf("drop constraint")).toBeLessThan(rollback.indexOf("drop column"));
+    try {
+      await db.exec(rollback);
+      const columns = await db.query<{ column_name: string }>(
+        `select column_name from information_schema.columns
+         where table_schema = 'public' and table_name = 'profiles' and column_name like 'welcome_mux%'`,
+      );
+      expect(columns.rows).toEqual([]);
+      const trigger = await db.query<{ tgname: string }>(
+        `select tgname from pg_trigger where tgname = 'profiles_enqueue_welcome_music_scan' and not tgisinternal`,
+      );
+      expect(trigger.rows).toEqual([]);
+    } finally {
+      await db.exec(PROFILES);
+    }
+    const restored = await db.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+       where table_schema = 'public' and table_name = 'profiles' and column_name like 'welcome_mux%'
+       order by column_name`,
+    );
+    expect(restored.rows.map((row) => row.column_name)).toEqual([
+      "welcome_mux_asset_id",
+      "welcome_mux_playback_id",
+      "welcome_mux_upload_id",
+    ]);
+  });
 });
 
 function welcomeResting(state: WelcomeRowState): { notices: string[]; visible: boolean; due: boolean; later: boolean } {

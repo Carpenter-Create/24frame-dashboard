@@ -566,10 +566,20 @@ describe("reencodeSocialImage", () => {
   });
 
   it("repoints media with the JSON PostgREST filter and rejects a raw object", async () => {
-    const { pointParentAtRecheckedMedia } = await import("../../scripts/social/recheck-social-images");
+    const { pointParentAtRecheckedMedia, socialMediaEqualityFilter } = await import(
+      "../../scripts/social/recheck-social-images"
+    );
+    const source = readFileSync("scripts/social/recheck-social-images.ts", "utf8");
+    const fn = source.slice(
+      source.indexOf("export async function pointParentAtRecheckedMedia"),
+      source.indexOf("type AvatarPointerQuery"),
+    );
+    expect(fn).toContain('.eq("media", socialMediaEqualityFilter(current))');
+    expect(fn).not.toContain("socialMediaEqualityFilter(next)");
     const current = [{ kind: "image", key: "posts/a/old.jpg", contentType: "image/jpeg" }];
     const next = [{ kind: "image", key: "posts/a/new.jpg", contentType: "image/jpeg" }];
-    const fake = (passRaw: boolean) => {
+    const changed = [{ kind: "image", key: "posts/a/raced.jpg", contentType: "image/jpeg" }];
+    const writer = (stored: unknown) => {
       const params = new URLSearchParams();
       const chain = {
         from() {
@@ -590,24 +600,40 @@ describe("reencodeSocialImage", () => {
               error: { code: "22P02", message: "invalid input syntax for type json" },
             });
           }
+          const expected = `eq.${JSON.stringify(stored)}`;
+          const matched = media.some((entry) => {
+            if (entry !== expected) return false;
+            try {
+              return JSON.stringify(JSON.parse(entry.slice(3))) === JSON.stringify(stored);
+            } catch {
+              return false;
+            }
+          });
+          if (!matched) return Promise.resolve({ data: [], error: null });
           return Promise.resolve({ data: [{ id: "parent" }], error: null });
         },
       };
-      if (passRaw) {
-        return chain
-          .from()
-          .update()
-          .eq("id", "parent")
-          .eq("media", current)
-          .select();
-      }
-      return pointParentAtRecheckedMedia(chain, "posts", "parent", current, next);
+      return chain;
     };
-    const raw = await fake(true);
+    const raw = await writer(current)
+      .from()
+      .update()
+      .eq("id", "parent")
+      .eq("media", current)
+      .select();
     expect(raw.error).toMatchObject({ code: "22P02" });
-    const pointed = await fake(false);
+    const pointed = await pointParentAtRecheckedMedia(writer(current), "posts", "parent", current, next);
     expect(pointed.error).toBeNull();
     expect(pointed.data).toEqual([{ id: "parent" }]);
+    expect(socialMediaEqualityFilter(current)).toBe(JSON.stringify(current));
+    const stale = await pointParentAtRecheckedMedia(writer(changed), "posts", "parent", current, next);
+    expect(stale.error).toBeNull();
+    expect(stale.data).toEqual([]);
+    const avatarStore = source.slice(source.indexOf("point avatar at rechecked image"));
+    const landed = avatarStore.indexOf("if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey }");
+    const release = avatarStore.indexOf("await releaseAvatarHoldTag(item.parentId, nextKey)");
+    expect(landed).toBeGreaterThan(-1);
+    expect(release).toBeGreaterThan(landed);
   });
 
   it("quarantines a null legacy avatar and re-encodes a clean one onto a new pointer", async () => {
@@ -722,6 +748,7 @@ describe("reencodeSocialImage", () => {
         $metadata: { httpStatusCode: 404 },
       }),
       Object.assign(new Error("NotFound"), { name: "NotFound", $metadata: { httpStatusCode: 404 } }),
+      { name: "NoSuchKey" },
     ];
     for (const error of missing) {
       const report = await recheckParentPages({

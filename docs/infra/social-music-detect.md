@@ -394,8 +394,9 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    `avatars/{user-id}/quarantine/{object-id}` back to
    `avatars/{user-id}/avatar`, delete the quarantine object, then set
    `profiles.avatar_key` to null with the service role or the table owner.
-   Removing a photo clears the pointer, then deletes the canonical object
-   and this member's quarantine copies. Uploading a replacement stores a
+   Removing a photo clears the pointer, then deletes the canonical object,
+   every object under `avatars/{id}/recheck/`, and this member's quarantine
+   copies. Uploading a replacement stores a
    new object and confirms it (Put ETag, or Head ETag when the put omits
    one), then swaps `profiles.avatar_key` only when it still matches the
    value that was read, including a null pointer (`is null`, not `eq ''`).
@@ -425,16 +426,20 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
   --query "Contents[?ends_with(Key, '/avatar')].Key" --output text
 ```
 
-   A failed swap can leave a quarantine copy that the delete did not reach.
-   S3 lifecycle `Prefix` is a literal starts-with. `avatars/` would expire
-   live faces and recheck objects, and there is no prefix that means
-   `avatars/*/quarantine/`. Quarantine copies are tagged `gc-hold=quarantine`.
-   This bucket's lifecycle config is not in the repo. Adam applies this
-   rule. It replaces the whole lifecycle configuration: merge any rule
-   that is already on the avatars bucket before sending it. Do not run it
-   from CI. Do not point it at the title-asset bucket. The cleanup also
-   needs `s3:DeleteObject` and `s3:ListBucket` on this bucket.
-   `docs/infra/avatar-storage-setup.md` still grants only Get and Put.
+   A failed swap can leave a quarantine copy, or a recheck copy, that the
+   delete did not reach. S3 lifecycle `Prefix` is a literal starts-with.
+   `avatars/` would expire live faces, and there is no prefix that means
+   `avatars/*/quarantine/` or `avatars/*/recheck/`. Quarantine copies and
+   recheck copies are tagged `gc-hold=quarantine`. The tag is cleared on
+   the recheck object once `profiles.avatar_key` names it. This bucket's
+   lifecycle config is not in the repo. Adam's pre-deploy step, before the
+   recheck, is this 30-day rule plus the IAM policy in
+   `docs/infra/avatar-storage-setup.md`: `s3:DeleteObject` and
+   `s3:PutObjectTagging` on `avatars/*`, and `s3:ListBucket` only when the
+   prefix is `avatars/`. The rule replaces the whole lifecycle
+   configuration: merge any rule that is already on the avatars bucket
+   before sending it. Do not run it from CI. Do not point it at the
+   title-asset bucket.
 
 ```sh
 cat > /tmp/avatars-lifecycle.json <<'JSON'

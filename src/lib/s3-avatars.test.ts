@@ -19,10 +19,10 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
   getSignedUrl: mockGetSignedUrl,
 }));
 
-import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, PutObjectTaggingCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
-import { AVATAR_CLEARED, AVATAR_QUARANTINE_HOLD_TAG, avatarObjectKey, avatarQuarantineObjectKey, avatarRecheckObjectKey } from "./account-avatar";
+import { AVATAR_CLEARED, AVATAR_QUARANTINE_HOLD_TAG, avatarObjectKey, avatarQuarantineObjectKey, avatarQuarantinePrefix, avatarRecheckObjectKey, avatarRecheckPrefix } from "./account-avatar";
 import { SOCIAL_IMAGE_PREVIOUS_KEY_METADATA, SOCIAL_IMAGE_REENCODED_METADATA } from "./social-image-reencode";
 import {
   deleteAvatarObject,
@@ -33,6 +33,7 @@ import {
   putAvatarObject,
   putAvatarRecheckObject,
   quarantineAvatarObject,
+  releaseAvatarHoldTag,
   signedAvatarUrl,
   signedAvatarUrls,
   storeAvatarReplacement,
@@ -80,12 +81,17 @@ describe("s3-avatars dedicated bucket", () => {
   it("DELETEs the same avatars/{uid}/avatar key on the dedicated bucket", async () => {
     mockSend.mockResolvedValueOnce({});
     mockSend.mockResolvedValueOnce({ Contents: [], IsTruncated: false });
+    mockSend.mockResolvedValueOnce({ Contents: [], IsTruncated: false });
     await deleteAvatarObject(UID);
-    expect(mockSend).toHaveBeenCalledTimes(2);
+    expect(mockSend).toHaveBeenCalledTimes(3);
     const cmd = mockSend.mock.calls[0]?.[0] as DeleteObjectCommand;
     expect(cmd).toBeInstanceOf(DeleteObjectCommand);
     expect(cmd.input.Bucket).toBe("test-avatars-bucket");
     expect(cmd.input.Key).toBe(KEY);
+    const prefixes = mockSend.mock.calls
+      .filter((call) => call[0] instanceof ListObjectsV2Command)
+      .map((call) => (call[0] as ListObjectsV2Command).input.Prefix);
+    expect(prefixes).toEqual([avatarRecheckPrefix(UID), avatarQuarantinePrefix(UID)]);
   });
 
   it("HEADs the avatars bucket only — missing key is empty, not an invented photo", async () => {
@@ -297,8 +303,31 @@ describe("s3-avatars dedicated bucket", () => {
     const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
     expect(key).toBe(avatarRecheckObjectKey(UID, objectId));
     expect(cmd.input.IfNoneMatch).toBe("*");
+    expect(cmd.input.Tagging).toBe(AVATAR_QUARANTINE_HOLD_TAG);
     expect(cmd.input.Metadata?.[SOCIAL_IMAGE_REENCODED_METADATA]).toBe("1");
     expect(cmd.input.Metadata?.[SOCIAL_IMAGE_PREVIOUS_KEY_METADATA]).toBe(KEY);
+  });
+
+  it("tags a replacement face for the 30-day hold and clears that tag once the pointer names it", async () => {
+    const jpeg = new Uint8Array(
+      await sharp({ create: { width: 2, height: 2, channels: 3, background: { r: 1, g: 2, b: 3 } } }).jpeg().toBuffer(),
+    );
+    mockSend.mockResolvedValueOnce({ ETag: '"face"' });
+    const stored = await storeAvatarReplacement({
+      userId: UID,
+      objectId: "22222222-2222-4222-8222-222222222222",
+      body: jpeg,
+      contentType: "image/jpeg",
+    });
+    const put = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
+    expect(put.input.Tagging).toBe(AVATAR_QUARANTINE_HOLD_TAG);
+    mockSend.mockResolvedValueOnce({});
+    await releaseAvatarHoldTag(UID, stored.key);
+    const tagging = mockSend.mock.calls[1]?.[0] as PutObjectTaggingCommand;
+    expect(tagging).toBeInstanceOf(PutObjectTaggingCommand);
+    expect(tagging.input.Key).toBe(stored.key);
+    expect(tagging.input.Tagging?.TagSet).toEqual([]);
+    await expect(releaseAvatarHoldTag(UID, avatarObjectKey(UID))).rejects.toThrow(/recheck key/);
   });
 
   it("deletes the canonical face, this member's recheck copy, and quarantine copies, and leaves another member's key", async () => {
@@ -313,6 +342,10 @@ describe("s3-avatars dedicated bucket", () => {
       .filter((call) => call[0] instanceof DeleteObjectCommand)
       .map((call) => (call[0] as DeleteObjectCommand).input.Key);
     expect(keys).toEqual([KEY, own, quarantine]);
+    const prefixes = mockSend.mock.calls
+      .filter((call) => call[0] instanceof ListObjectsV2Command)
+      .map((call) => (call[0] as ListObjectsV2Command).input.Prefix);
+    expect(prefixes).toEqual([avatarRecheckPrefix(UID), avatarQuarantinePrefix(UID)]);
     mockSend.mockClear();
     mockSend.mockImplementation(async (command: unknown) => {
       if (command instanceof ListObjectsV2Command) return { Contents: [], IsTruncated: false };
@@ -325,6 +358,31 @@ describe("s3-avatars dedicated bucket", () => {
       .map((call) => (call[0] as DeleteObjectCommand).input.Key);
     expect(left).toEqual([KEY]);
     expect(left).not.toContain(avatarRecheckObjectKey(other, "22222222-2222-4222-8222-222222222222"));
+  });
+
+  it("deletes every own recheck object on remove and leaves another member's recheck key", async () => {
+    const pointed = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    const older = avatarRecheckObjectKey(UID, "66666666-6666-4666-8666-666666666666");
+    const foreign = avatarRecheckObjectKey(
+      "33333333-3333-4333-8333-333333333333",
+      "55555555-5555-4555-8555-555555555555",
+    );
+    const quarantine = avatarQuarantineObjectKey(UID, "44444444-4444-4444-8444-444444444444");
+    mockSend.mockImplementation(async (command: { constructor: { name: string }; input?: { Prefix?: string } }) => {
+      if (command instanceof ListObjectsV2Command) {
+        if (command.input.Prefix === avatarRecheckPrefix(UID)) {
+          return { Contents: [{ Key: older }, { Key: pointed }, { Key: foreign }, { Key: `${older}-note` }], IsTruncated: false };
+        }
+        return { Contents: [{ Key: quarantine }], IsTruncated: false };
+      }
+      return {};
+    });
+    await deleteAvatarObject(UID, pointed);
+    const keys = mockSend.mock.calls
+      .filter((call) => call[0] instanceof DeleteObjectCommand)
+      .map((call) => (call[0] as DeleteObjectCommand).input.Key);
+    expect(keys).toEqual([KEY, pointed, older, pointed, quarantine]);
+    expect(keys).not.toContain(foreign);
   });
 
   it("moves a canonical face into quarantine and never signs that key", async () => {

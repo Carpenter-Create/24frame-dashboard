@@ -7,6 +7,7 @@ import {
   HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
+  PutObjectTaggingCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -17,6 +18,7 @@ import {
   AVATAR_QUARANTINE_HOLD_TAG,
   avatarQuarantineObjectKey,
   avatarQuarantinePrefix,
+  avatarRecheckPrefix,
   avatarRecheckObjectKey,
   avatarServeKey,
   isAvatarContentType,
@@ -111,6 +113,7 @@ export async function storeAvatarReplacement(input: {
       ContentType: input.contentType,
       CacheControl: "private, max-age=300",
       IfNoneMatch: "*",
+      Tagging: AVATAR_QUARANTINE_HOLD_TAG,
       Metadata: {
         [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
       },
@@ -149,6 +152,7 @@ export async function putAvatarRecheckObject(input: {
       ContentType: input.contentType,
       CacheControl: "private, max-age=300",
       IfNoneMatch: "*",
+      Tagging: AVATAR_QUARANTINE_HOLD_TAG,
       Metadata: {
         [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
         [SOCIAL_IMAGE_PREVIOUS_KEY_METADATA]: input.previousKey,
@@ -156,6 +160,19 @@ export async function putAvatarRecheckObject(input: {
     }),
   );
   return key;
+}
+
+/** The pointer now names this recheck object, so the 30-day hold must not expire it. */
+export async function releaseAvatarHoldTag(userId: string, key: string): Promise<void> {
+  if (!isAvatarRecheckKey(key, userId)) throw new Error("Avatar hold tag is only cleared on this member's recheck key");
+  const { bucket, s3 } = avatarsClient();
+  await s3.send(
+    new PutObjectTaggingCommand({
+      Bucket: bucket,
+      Key: key,
+      Tagging: { TagSet: [] },
+    }),
+  );
 }
 
 export async function headAvatarRecheck(key: string): Promise<{ reencoded: boolean } | null> {
@@ -181,9 +198,11 @@ export async function readAvatarObject(
   return { bytes, contentType };
 }
 
-/** Delete this member's quarantine copies. A foreign key under the listing is left. */
-export async function deleteAvatarQuarantineCopies(userId: string): Promise<void> {
-  const prefix = avatarQuarantinePrefix(userId);
+async function deleteOwnedAvatarCopies(
+  userId: string,
+  prefix: string,
+  owns: (key: string, userId: string) => boolean,
+): Promise<void> {
   const { bucket, s3 } = avatarsClient();
   let token: string | undefined;
   do {
@@ -195,12 +214,24 @@ export async function deleteAvatarQuarantineCopies(userId: string): Promise<void
       }),
     );
     for (const object of page?.Contents ?? []) {
-      if (object.Key && isAvatarQuarantineKey(object.Key, userId)) {
+      if (object.Key && owns(object.Key, userId)) {
         await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: object.Key }));
       }
     }
     token = page?.IsTruncated ? page.NextContinuationToken : undefined;
   } while (token);
+}
+
+/** Delete this member's recheck copies. A foreign key under the listing is left. */
+export async function deleteAvatarRecheckCopies(userId: string): Promise<void> {
+  await deleteOwnedAvatarCopies(userId, avatarRecheckPrefix(userId), isAvatarRecheckKey);
+}
+
+/** Delete this member's quarantine copies. A foreign key under the listing is left. */
+export async function deleteAvatarQuarantineCopies(userId: string): Promise<void> {
+  await deleteOwnedAvatarCopies(userId, avatarQuarantinePrefix(userId), (key, ownerId) =>
+    isAvatarQuarantineKey(key, ownerId),
+  );
 }
 
 /** Delete the objects a successful replace left unreferenced, then this member's quarantine copies. */
@@ -227,6 +258,7 @@ export async function deleteAvatarObject(userId: string, storedKey?: string | nu
   ) {
     await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: storedKey }));
   }
+  await deleteAvatarRecheckCopies(userId);
   await deleteAvatarQuarantineCopies(userId);
 }
 

@@ -16,7 +16,12 @@ import {
   isAvatarContentType,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
-import { deleteAvatarObject, deleteReplacedAvatarObjects, storeAvatarReplacement } from "@/lib/s3-avatars";
+import {
+  deleteAvatarObject,
+  deleteReplacedAvatarObjects,
+  releaseAvatarHoldTag,
+  storeAvatarReplacement,
+} from "@/lib/s3-avatars";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
@@ -110,6 +115,11 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
       return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
     }
     try {
+      await releaseAvatarHoldTag(ctx.user.id, stored.key);
+    } catch (e) {
+      await reportAvatarOrphan([stored.key], e);
+    }
+    try {
       await deleteReplacedAvatarObjects(ctx.user.id, previousKey, stored.key);
     } catch (e) {
       await reportAvatarOrphan(replacedAvatarObjectKeys(ctx.user.id, previousKey, stored.key), e);
@@ -128,9 +138,9 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
 }
 
 // Inverse of uploadAccountPhoto. The clear matches the avatar_key that was
-// read. Only then are that key's canonical and recheck objects, and this
-// member's quarantine copies, deleted. Zero rows means a newer face was
-// kept: report it and delete nothing.
+// read. Only then are the canonical object, every object under
+// avatars/{id}/recheck/, and this member's quarantine copies deleted.
+// Zero rows means a newer face was kept: report it and delete nothing.
 export async function removeAccountPhoto(): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
@@ -149,7 +159,11 @@ export async function removeAccountPhoto(): Promise<{ error?: string }> {
       await reportNewerAvatarKept(previousKey);
       return {};
     }
-    await deleteAvatarObject(ctx.user.id, previousKey);
+    try {
+      await deleteAvatarObject(ctx.user.id, previousKey);
+    } catch (e) {
+      await reportAvatarOrphan(replacedAvatarObjectKeys(ctx.user.id, previousKey, AVATAR_CLEARED), e);
+    }
   } catch (e) {
     return {
       error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoRemoveFailed,

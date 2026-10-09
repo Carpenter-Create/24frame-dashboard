@@ -32,7 +32,6 @@ import {
 } from "@/lib/account-avatar-crop";
 import { cn } from "@/lib/cn";
 import { SOCIAL_VIDEO_CONTENT_TYPES } from "@/lib/social-media";
-import { uploadSocialMuxVideoFile } from "@/lib/social-media-upload";
 import { SOCIAL_WELCOME_VIDEO_PRESENT } from "@/lib/social-query";
 import {
   SOCIAL_PROFILE_EDIT_AVATAR_CLASS,
@@ -326,6 +325,7 @@ export function useSocialProfileEditDraft({
     setError("");
     const previous = welcomePreview;
     setUploading(true);
+    const { uploadSocialMuxVideoFile } = await import("@/lib/social-media-upload");
     const uploaded = await uploadSocialMuxVideoFile(file, { lane: "posts" });
     if (uploaded.error || uploaded.aborted || !uploaded.item) {
       setUploading(false);

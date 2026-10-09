@@ -301,6 +301,37 @@ describe("social video visibility", () => {
     ).toEqual(["post-9", "post-other"]);
   });
 
+  it("holds nothing when the notice call, the scan read, and the ownership read all fail", async () => {
+    const failing = (table: string) => {
+      const chain: Record<string, unknown> = {};
+      const finish = () => ({ data: null, error: { message: `${table} down` } });
+      chain.select = () => chain;
+      chain.eq = () => chain;
+      chain.in = () => chain;
+      chain.order = () => chain;
+      chain.limit = () => chain;
+      chain.gt = () => chain;
+      chain.then = (resolve: (value: ReturnType<typeof finish>) => void) => resolve(finish());
+      return chain;
+    };
+    const supabase = {
+      rpc: async () => ({ data: null, error: { message: "notices down" } }),
+      from: (table: string) => failing(table),
+    };
+    const maps = await loadOwnMusicNotices(supabase as never, "author-1", {
+      postIds: ["post-9", "post-other"],
+      storyIds: ["story-9"],
+    });
+    expect(maps.posts.size).toBe(0);
+    expect(maps.stories.size).toBe(0);
+    expect(maps.welcome).toBeNull();
+    expect([...maps.withheldPostIds]).toEqual([]);
+    expect([...maps.withheldStoryIds]).toEqual([]);
+    expect(
+      omitHeldPosts([{ id: "post-9" }, { id: "post-other" }], maps.posts, maps.withheldPostIds).map((hit) => hit.id),
+    ).toEqual(["post-9", "post-other"]);
+  });
+
   it("keeps the author filter and ignores a superseded row when the scan read succeeds", async () => {
     const supabase = {
       rpc: async () => ({ data: null, error: { message: "still down" } }),
@@ -613,6 +644,13 @@ describe("music scan windows", () => {
     expect(planMusicScanCoverage(480.6)).toEqual({ kind: "unknown" });
     expect(socialVideoDurationExceedsCap(SOCIAL_GO_LIVE_MAX_MS / 1000)).toBe(false);
     expect(musicScanWindows(MUSIC_SCAN_COVERED_SECONDS)).toHaveLength(MUSIC_SCAN_MAX_WINDOWS);
+    const cap = planMusicScanCoverage(480.5);
+    expect(cap.kind).toBe("cover");
+    if (cap.kind === "cover") {
+      expect(cap.windows).toHaveLength(40);
+      expect(cap.windows[0]).toEqual({ startSeconds: 0, endSeconds: 12 });
+      expect(cap.windows.at(-1)).toEqual({ startSeconds: 468.5, endSeconds: 480.5 });
+    }
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(40), match(24)]) })).toBe("block");
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(24)]) })).toBe("allow");
     expect(

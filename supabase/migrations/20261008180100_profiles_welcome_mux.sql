@@ -16,9 +16,15 @@
 --   public.profiles: SHARE ROW EXCLUSIVE for CREATE TRIGGER is also held
 --   with the ACCESS EXCLUSIVE lock until commit. Milliseconds once acquired.
 --
--- ROLLBACK: drop the trigger and function, drop the constraint, drop the
--- three columns. Do this with the scans rollback. Restoring the old
--- policies re-exposes blocked videos. Revert the app in the same window.
+-- ROLLBACK: run this after the avatar file's rollback and before the scans
+-- file's rollback. Restoring the old policies re-exposes blocked videos.
+-- Revert the app in the same window.
+--   drop trigger if exists profiles_enqueue_welcome_music_scan on public.profiles;
+--   drop function if exists public.enqueue_welcome_music_scan();
+--   alter table public.profiles drop constraint if exists profiles_welcome_mux_ids;
+--   alter table public.profiles drop column if exists welcome_mux_upload_id;
+--   alter table public.profiles drop column if exists welcome_mux_playback_id;
+--   alter table public.profiles drop column if exists welcome_mux_asset_id;
 -- ============================================================================
 
 set lock_timeout = '3s';
