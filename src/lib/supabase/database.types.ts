@@ -3564,6 +3564,10 @@ export type Database = {
       can_self_join_group: {
         Args: { p_group: string; p_user: string }
         Returns: boolean
+      },
+      social_music_author_notices: {
+        Args: { p_post_ids: string[]; p_story_ids: string[] }
+        Returns: { post_id: string | null; story_id: string | null; notice: string | null }[]
       }
       create_asset: {
         Args: {

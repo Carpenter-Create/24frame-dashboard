@@ -506,4 +506,73 @@ describe("social music scan migration", () => {
     );
     expect(unfinished.rows).toEqual([]);
   });
+
+  it("lets the authenticated author read a notice and refuses last_error", async () => {
+    await bind("assetNOTE0001", "playNOTE00001", "uploadNOTE0001");
+    await bind("assetNOTE0002", "playNOTE00002", "uploadNOTE0002");
+    await bind("assetNOTE0003", "playNOTE00003", "uploadNOTE0003");
+    await bind("assetNOTE0004", "playNOTE00004", "uploadNOTE0004");
+    await bind("assetNOTE0005", "playNOTE00005", "uploadNOTE0005");
+    const pending = await insertPost(vid("assetNOTE0001", "playNOTE00001"));
+    const blocked = await insertPost(vid("assetNOTE0002", "playNOTE00002"));
+    await setStatus(blocked, "blocked");
+    const malformed = await insertPost(vid("assetNOTE0003", "playNOTE00003"));
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 8, next_attempt_at = null
+       where post_id = $1`,
+      [malformed],
+    );
+    const retrying = await insertPost(vid("assetNOTE0004", "playNOTE00004"));
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 2, next_attempt_at = now()
+       where post_id = $1`,
+      [retrying],
+    );
+    const replaced = await insertPost(vid("assetNOTE0005", "playNOTE00005"));
+    await db.query(
+      `update public.social_music_scans
+       set last_error = 'superseded', next_attempt_at = null, attempt_count = 0
+       where post_id = $1`,
+      [replaced],
+    );
+
+    const rows = await asUser(A, async () => {
+      const result = await db.query<{ post_id: string; notice: string }>(
+        `select post_id::text as post_id, notice
+         from public.social_music_author_notices($1::uuid[], '{}'::uuid[])`,
+        [[pending, blocked, malformed, retrying, replaced]],
+      );
+      return result.rows;
+    });
+    const byId = new Map(rows.map((row) => [row.post_id, row.notice]));
+    expect(byId.get(pending)).toBe("pending");
+    expect(byId.get(blocked)).toBe("blocked");
+    expect(byId.get(malformed)).toBe("malformed");
+    expect(byId.get(retrying)).toBe("pending");
+    expect(byId.has(replaced)).toBe(false);
+
+    await expect(
+      asUser(A, () => db.query(`select last_error from public.social_music_scans where author_id = $1`, [A])),
+    ).rejects.toThrow(/permission denied/);
+
+    const stranger = await asUser(B, async () => {
+      const result = await db.query(
+        `select post_id from public.social_music_author_notices($1::uuid[], '{}'::uuid[])`,
+        [[pending]],
+      );
+      return result.rows;
+    });
+    expect(stranger).toEqual([]);
+
+    const source = readFileSync("src/lib/social-music-scan.ts", "utf8");
+    const body = source.slice(source.indexOf("export async function loadOwnMusicNotices"));
+    const selects = [...body.matchAll(/\.select\(\s*"([^"]+)"\s*\)/g)].map((match) => match[1]);
+    for (const columns of selects) {
+      await asUser(A, () =>
+        db.query(`select ${columns} from public.social_music_scans where author_id = $1 limit 1`, [A]),
+      );
+    }
+  });
 });

@@ -423,64 +423,21 @@ export function omitHeldPosts<T extends { id: string }>(
   return hits.filter((hit) => !notices.has(hit.id));
 }
 
-type ScanNoticeRow = {
-  post_id: string | null;
-  story_id: string | null;
-  status: string;
-  attempt_count?: number | null;
-  next_attempt_at?: string | null;
-  last_error?: string | null;
-};
-
-type NoticeQuery = {
-  select: (columns: string) => {
-    eq: (column: string, value: string) => {
-      in: (column: string, values: readonly string[]) => Promise<{
-        data: ScanNoticeRow[] | null;
-        error: { message: string } | null;
-      }>;
-    };
-  };
-};
-
 export type MusicNoticeMaps = {
   posts: Map<string, SocialMusicNotice>;
   stories: Map<string, SocialMusicNotice>;
 };
 
-function groupNotices(
-  rows: readonly ScanNoticeRow[],
-  idOf: (row: ScanNoticeRow) => string | null,
-): Map<string, SocialMusicNotice> {
-  const grouped = new Map<string, ScanNoticeRow[]>();
-  for (const row of rows) {
-    const id = idOf(row);
-    if (!id) continue;
-    if (row.status !== "pending" && row.status !== "blocked" && row.status !== "allowed") continue;
-    const list = grouped.get(id) ?? [];
-    list.push(row);
-    grouped.set(id, list);
-  }
-  const notices = new Map<string, SocialMusicNotice>();
-  for (const [id, scans] of grouped) {
-    const notice = musicNoticeFromScans(
-      scans.map((row) => ({
-        status: row.status as "pending" | "allowed" | "blocked",
-        attemptCount: typeof row.attempt_count === "number" ? row.attempt_count : undefined,
-        nextAttemptAt: row.next_attempt_at,
-        lastError: row.last_error,
-      })),
-    );
-    if (notice) notices.set(id, notice);
-  }
-  return notices;
+function isMusicNotice(value: string | null): value is SocialMusicNotice {
+  return value === "pending" || value === "blocked" || value === "malformed";
 }
 
 /**
- * Status only, for the signed-in author. Vendor columns are not selected.
- * A missing table (migration not applied yet) returns empty maps so the
- * feed does not 500. RLS still hides unreleased videos once the migration
- * is applied.
+ * The signed-in author's notice, from social_music_author_notices.
+ * That function reads last_error and next_attempt_at as its owner and
+ * returns only pending, blocked, or malformed. The author select does
+ * not include those columns. A missing function (migration not applied
+ * yet) returns empty maps so the feed does not 500.
  */
 export async function loadOwnMusicNotices(
   supabase: SupabaseClient<Database>,
@@ -492,23 +449,20 @@ export async function loadOwnMusicNotices(
   const empty = { posts: new Map<string, SocialMusicNotice>(), stories: new Map<string, SocialMusicNotice>() };
   if (!viewerId || (postIds.length === 0 && storyIds.length === 0)) return empty;
 
-  const table = supabase.from("social_music_scans") as unknown as NoticeQuery;
-  const [posts, stories] = await Promise.all([
-    postIds.length
-      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at, last_error").eq("author_id", viewerId).in("post_id", postIds)
-      : Promise.resolve({ data: [] as ScanNoticeRow[], error: null }),
-    storyIds.length
-      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at, last_error").eq("author_id", viewerId).in("story_id", storyIds)
-      : Promise.resolve({ data: [] as ScanNoticeRow[], error: null }),
-  ]);
-  if (posts.error || stories.error) {
-    console.error(
-      `[social-music] notice read failed: ${posts.error?.message ?? stories.error?.message ?? "unknown"}`,
-    );
+  const { data, error } = await supabase.rpc("social_music_author_notices", {
+    p_post_ids: postIds,
+    p_story_ids: storyIds,
+  });
+  if (error) {
+    console.error(`[social-music] notice read failed: ${error.message}`);
     return empty;
   }
-  return {
-    posts: groupNotices(posts.data ?? [], (row) => row.post_id),
-    stories: groupNotices(stories.data ?? [], (row) => row.story_id),
-  };
+  const posts = new Map<string, SocialMusicNotice>();
+  const stories = new Map<string, SocialMusicNotice>();
+  for (const row of data ?? []) {
+    if (!isMusicNotice(row.notice)) continue;
+    if (row.post_id && postIds.includes(row.post_id)) posts.set(row.post_id, row.notice);
+    if (row.story_id && storyIds.includes(row.story_id)) stories.set(row.story_id, row.notice);
+  }
+  return { posts, stories };
 }

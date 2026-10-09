@@ -612,6 +612,59 @@ grant select (
 
 grant select, insert, update on public.social_music_scans to service_role;
 
+-- Author notices. The authenticated grant above does not include last_error
+-- or next_attempt_at. This function reads those columns as its owner and
+-- returns only the notice word. 8 matches MUSIC_SCAN_MAX_ATTEMPTS.
+create or replace function public.social_music_author_notices(
+  p_post_ids uuid[],
+  p_story_ids uuid[]
+)
+returns table (post_id uuid, story_id uuid, notice text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with live as (
+    select s.post_id, s.story_id, s.status, s.attempt_count, s.next_attempt_at
+    from public.social_music_scans s
+    where s.author_id = (select auth.uid())
+      and s.last_error is distinct from 'superseded'
+      and (
+        (s.post_id is not null and s.post_id = any(coalesce(p_post_ids, '{}'::uuid[])))
+        or (s.story_id is not null and s.story_id = any(coalesce(p_story_ids, '{}'::uuid[])))
+      )
+  ),
+  grouped as (
+    select
+      live.post_id,
+      live.story_id,
+      bool_or(live.status = 'blocked') as blocked,
+      count(*) filter (where live.status = 'pending') as pending_n,
+      count(*) filter (
+        where live.status = 'pending'
+          and live.attempt_count >= 8
+          and live.next_attempt_at is null
+      ) as exhausted_n
+    from live
+    group by live.post_id, live.story_id
+  )
+  select
+    grouped.post_id,
+    grouped.story_id,
+    case
+      when grouped.blocked then 'blocked'
+      when grouped.pending_n > 0 and grouped.pending_n = grouped.exhausted_n then 'malformed'
+      when grouped.pending_n > 0 then 'pending'
+      else null
+    end as notice
+  from grouped
+  where grouped.blocked or grouped.pending_n > 0;
+$$;
+
+revoke all on function public.social_music_author_notices(uuid[], uuid[]) from public, anon, authenticated;
+grant execute on function public.social_music_author_notices(uuid[], uuid[]) to authenticated;
+
 -- Other users do not see a post until every still-attached scan is allowed.
 -- The author does. create_group still sees non-active rows, but not an
 -- unreleased video that is not theirs.

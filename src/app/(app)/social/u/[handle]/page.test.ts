@@ -132,7 +132,10 @@ function stubClient({
     if (table === "social_music_scans") return chain([]);
     throw new Error(`unexpected from(${table})`);
   });
-  vi.mocked(createClient).mockResolvedValue({ from } as never);
+  vi.mocked(createClient).mockResolvedValue({
+    from,
+    rpc: vi.fn(async () => ({ data: [], error: null })),
+  } as never);
   return { from };
 }
 

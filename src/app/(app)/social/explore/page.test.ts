@@ -105,7 +105,10 @@ function muxMedia(objectId = CLIP) {
 }
 
 function stub() {
-  vi.mocked(createClient).mockResolvedValue({ from: vi.fn(() => emptyQuery()) } as never);
+  vi.mocked(createClient).mockResolvedValue({
+    from: vi.fn(() => emptyQuery()),
+    rpc: vi.fn(async () => ({ data: [], error: null })),
+  } as never);
 }
 
 describe("Social Explore", () => {
@@ -217,6 +220,7 @@ describe("Social Explore", () => {
         if (table === "posts") return postsChain;
         return emptyQuery();
       }),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -255,6 +259,7 @@ describe("Social Explore", () => {
         if (table === "posts") return postsQuery(posts);
         return emptyQuery();
       }),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -299,6 +304,7 @@ describe("Social Explore", () => {
         if (table === "profiles") return profiles;
         return emptyQuery();
       }),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -348,6 +354,7 @@ describe("Social Explore", () => {
     }));
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => (table === "profiles" ? profiles : emptyQuery())),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -421,6 +428,7 @@ describe("Social Explore", () => {
           if (table === "profiles") return profiles;
           return emptyQuery();
         }),
+        rpc: vi.fn(async () => ({ data: [], error: null })),
       } as never);
       return postsChain;
     }

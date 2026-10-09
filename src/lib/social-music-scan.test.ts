@@ -133,43 +133,34 @@ describe("social video visibility", () => {
     expect(musicNoticeFromScans([{ status: "pending", lastError: "superseded" }])).toBeNull();
   });
 
-  it("does not load a superseded row as a pending notice", async () => {
-    const columns: string[] = [];
+  it("maps the server notice and does not select last_error", async () => {
+    const source = readFileSync("src/lib/social-music-scan.ts", "utf8");
+    const body = source.slice(source.indexOf("export async function loadOwnMusicNotices"));
+    expect(body).not.toContain("last_error");
+    expect(body).not.toContain("next_attempt_at");
     const supabase = {
-      from: () => ({
-        select: (picked: string) => {
-          columns.push(picked);
-          return {
-            eq: () => ({
-              in: async () => ({
-                data: [
-                  {
-                    post_id: "post-1",
-                    story_id: null,
-                    status: "pending",
-                    last_error: "superseded",
-                    attempt_count: 0,
-                    next_attempt_at: null,
-                  },
-                  {
-                    post_id: "post-1",
-                    story_id: null,
-                    status: "allowed",
-                    last_error: null,
-                    attempt_count: 1,
-                    next_attempt_at: null,
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        },
-      }),
+      rpc: async (name: string, args: { p_post_ids: string[]; p_story_ids: string[] }) => {
+        expect(name).toBe("social_music_author_notices");
+        expect(args.p_post_ids).toEqual(["post-1", "post-2"]);
+        expect(args.p_story_ids).toEqual(["story-1"]);
+        return {
+          data: [
+            { post_id: "post-1", story_id: null, notice: "blocked" },
+            { post_id: "post-2", story_id: null, notice: "malformed" },
+            { post_id: null, story_id: "story-1", notice: "pending" },
+            { post_id: "post-1", story_id: null, notice: "allowed" },
+          ],
+          error: null,
+        };
+      },
     };
-    const maps = await loadOwnMusicNotices(supabase as never, "author-1", { postIds: ["post-1"] });
-    expect(columns.some((column) => column.includes("last_error"))).toBe(true);
-    expect(maps.posts.has("post-1")).toBe(false);
+    const maps = await loadOwnMusicNotices(supabase as never, "author-1", {
+      postIds: ["post-1", "post-2"],
+      storyIds: ["story-1"],
+    });
+    expect(maps.posts.get("post-1")).toBe("blocked");
+    expect(maps.posts.get("post-2")).toBe("malformed");
+    expect(maps.stories.get("story-1")).toBe("pending");
   });
 
   it("skips a welcome or media row that no longer stores the scanned pair", () => {
