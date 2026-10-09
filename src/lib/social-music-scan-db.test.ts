@@ -456,6 +456,75 @@ describe("social music scan migration", () => {
     expect(blockedNew.rows).toEqual([]);
   });
 
+  it("restores a blocked welcome notice when the same mux pair is saved again", async () => {
+    const profile = "99999999-9999-4999-8999-999999999999";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await db.query(
+      `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+       values ($1, 'uploadBLK0001', 'assetBLK00001', 'playBLK000001')`,
+      [profile],
+    );
+    await db.query(
+      `update public.profiles
+       set welcome_mux_asset_id = 'assetBLK00001',
+           welcome_mux_playback_id = 'playBLK000001',
+           welcome_mux_upload_id = 'uploadBLK0001'
+       where id = $1`,
+      [profile],
+    );
+    await db.query(
+      `update public.social_music_scans
+       set status = 'blocked', next_attempt_at = null, decided_at = now(),
+           vendor_title = 'Held track'
+       where profile_id = $1 and playback_id = 'playBLK000001'`,
+      [profile],
+    );
+    await db.query(
+      `update public.profiles
+       set welcome_mux_asset_id = null,
+           welcome_mux_playback_id = null,
+           welcome_mux_upload_id = null
+       where id = $1`,
+      [profile],
+    );
+    const cleared = await db.query<{ last_error: string; status: string }>(
+      `select last_error, status::text as status
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playBLK000001'`,
+      [profile],
+    );
+    expect(cleared.rows).toEqual([{ last_error: "superseded", status: "blocked" }]);
+    const hidden = await asUser(profile, async () => {
+      const result = await db.query<{ notice: string }>(
+        `select notice from public.social_music_author_notices('{}'::uuid[], '{}'::uuid[])`,
+      );
+      return result.rows;
+    });
+    expect(hidden).toEqual([]);
+    await db.query(
+      `update public.profiles
+       set welcome_mux_asset_id = 'assetBLK00001',
+           welcome_mux_playback_id = 'playBLK000001',
+           welcome_mux_upload_id = 'uploadBLK0001'
+       where id = $1`,
+      [profile],
+    );
+    const restored = await db.query<{ last_error: string | null; status: string; vendor_title: string | null }>(
+      `select last_error, status::text as status, vendor_title
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playBLK000001'`,
+      [profile],
+    );
+    expect(restored.rows).toEqual([{ last_error: null, status: "blocked", vendor_title: "Held track" }]);
+    const notice = await asUser(profile, async () => {
+      const result = await db.query<{ notice: string }>(
+        `select notice from public.social_music_author_notices('{}'::uuid[], '{}'::uuid[])`,
+      );
+      return result.rows.map((row) => row.notice);
+    });
+    expect(notice).toEqual(["blocked"]);
+  });
+
   it("does not backfill an expired story on either video path", async () => {
     const expired = await db.query(
       `select last_error from public.social_music_scans where story_id = $1`,

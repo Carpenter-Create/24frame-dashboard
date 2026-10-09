@@ -134,6 +134,9 @@ begin
   elsif v_decided is null then
     v_decided := now();
   end if;
+  -- A superseded row for this same pair is live again, including a
+  -- blocked or allowed decision. ON CONFLICT DO NOTHING would leave
+  -- last_error superseded, and the author notice would drop the block.
   update public.social_music_scans as s
   set status = v_status,
       decided_at = case when v_status = 'pending' then null else coalesce(v_decided, now()) end,
@@ -157,8 +160,7 @@ begin
   where s.profile_id = new.id
     and s.playback_id = new.welcome_mux_playback_id
     and s.asset_id = new.welcome_mux_asset_id
-    and s.last_error = 'superseded'
-    and s.status = 'pending';
+    and s.last_error = 'superseded';
   insert into public.social_music_scans (
     surface, post_id, story_id, profile_id, author_id,
     asset_id, playback_id, upload_id, status, decided_at, next_attempt_at,
