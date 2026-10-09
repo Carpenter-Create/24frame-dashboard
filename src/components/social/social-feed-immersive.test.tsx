@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { SOCIAL } from "@/lib/social";
 import {
   SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS,
+  SOCIAL_FEED_IMMERSIVE_DOCK_CLASS,
+  SOCIAL_FEED_IMMERSIVE_MEDIA_CLASS,
   SOCIAL_FEED_IMMERSIVE_MUTE_CLASS,
   SOCIAL_FEED_IMMERSIVE_STAGE_CLASS,
   SOCIAL_POST_ACTIONS_ROW_CLASS,
@@ -34,6 +36,23 @@ const post = {
 };
 
 describe("SocialFeedImmersive", () => {
+  // Adam 2026-10-08: "on desktop, the icons are covering the player options
+  // at the bottom" (when playing a video back). Desktop stacks the media
+  // above the dock, so the player bar clears the caption and the actions;
+  // the phone keeps the media full-bleed under the dock.
+  it("on desktop, stacks the media above the dock so the player bar is never under it", () => {
+    const html = renderToStaticMarkup(
+      <SocialFeedImmersive post={post} index={0} onClose={() => undefined} />,
+    );
+    expect(SOCIAL_FEED_IMMERSIVE_STAGE_CLASS).toContain("md:flex md:flex-col");
+    expect(SOCIAL_FEED_IMMERSIVE_MEDIA_CLASS).toBe("absolute inset-0 md:relative md:inset-auto md:min-h-0 md:flex-1");
+    expect(SOCIAL_FEED_IMMERSIVE_DOCK_CLASS).toContain("absolute inset-x-0 bottom-0");
+    expect(SOCIAL_FEED_IMMERSIVE_DOCK_CLASS).toContain("md:relative md:inset-auto md:shrink-0 md:bg-none");
+    expect(html).toContain(`data-social-feed-immersive-media="" class="${SOCIAL_FEED_IMMERSIVE_MEDIA_CLASS}"`);
+    // Media first, then the dock: the dock follows the media in the column.
+    expect(html.indexOf("data-social-feed-immersive-media")).toBeLessThan(html.indexOf("data-social-feed-immersive-dock"));
+  });
+
   it("is one fullscreen stage with contain media and a bottom dock", () => {
     const html = renderToStaticMarkup(
       <SocialFeedImmersive post={post} index={0} onClose={() => undefined} />,

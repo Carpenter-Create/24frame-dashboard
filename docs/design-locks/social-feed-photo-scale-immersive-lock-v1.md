@@ -53,6 +53,7 @@
 | Comment | Opens comment thread / composer for this post (cite Share lock: Comment ≠ Share) |
 | Share | Opens existing Share sheet lock |
 | Desktop | Same fullscreen immersive (not a required FB right-rail clone). Optional trailing caption column **OUT** v1 — bottom caption+actions is the one SoT |
+| Desktop media vs dock (amended 2026-10-08) | Adam, in chat, on a video playing back: "on desktop, the icons are covering the player options at the bottom". On desktop (`md+`) the stage stacks: the media fills the stage above the dock, and the dock (caption, Like / Comment / Share) sits under it on the stage black, so the player bar (play, time, volume, PiP, fullscreen) is never under the dock. The phone is unchanged: the media full-bleed, the dock over its bottom on the scrim |
 | Motion | Open fade **180ms** · **no** bounce |
 
 **Stacking:** The stage portals to `document.body` at **`z-[45]`**. The comment thread mounts inside that stage (host **`z-50`**) and paints above the dock. The Share sheet stays the existing body portal at **`z-[60]`**, above the stage. Do not raise the stage over either sheet.
