@@ -71,9 +71,9 @@ const faces = new Map([["u2", "https://s3.example/signed-avatar"]]);
 
 describe("Social Home craft (Figma 160:482 / 160:964)", () => {
   // Adam 2026-10-08, "Match the fan": the row's rounds are the + fan's Media
-  // and Record tiles (same list, glyphs, names, acts). Record opens the
+  // and Live tiles (same list, glyphs, names, acts). Live opens the
   // 24Frame camera, never the phone's own camera app.
-  it("renders the one-row share stage: prompt opens write compose, icon-only Media and Record are the fan's tiles", () => {
+  it("renders the one-row share stage: prompt opens write compose, icon-only Media and Live are the fan's tiles", () => {
     const html = renderToStaticMarkup(
       <SocialHomeComposer authorName="Adam Carpenter" />,
     );
@@ -103,7 +103,7 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     expect(html).not.toContain("data-social-composer-action");
     expect(html).not.toContain("Feeling");
     expect(html).not.toContain("Go live");
-    expect(SOCIAL.create.goLive).toBe("Record");
+    expect(SOCIAL.create.goLive).toBe("Live");
     expect(html).not.toContain(SOCIAL.home.attach);
     expect(html).not.toContain(`>${SOCIAL.create.text}<`);
     expect(html).toContain("data-social-avatar");
@@ -136,7 +136,7 @@ describe("Social Home craft (Figma 160:482 / 160:964)", () => {
     const recordAt = html.indexOf('data-social-composer-affordance="live"');
     expect(mediaAt).toBeGreaterThan(html.indexOf("data-social-composer-prompt"));
     expect(recordAt).toBeGreaterThan(mediaAt);
-    // Record is a link to the 24Frame camera, remembering where it opened.
+    // Live is a link to the 24Frame camera, remembering where it opened.
     const record = html.slice(html.lastIndexOf("<a", recordAt), html.indexOf("</a>", recordAt));
     expect(record).toContain(`href="${SOCIAL_ROUTES.createLive}"`);
     const composerSrc = readFileSync("src/components/social/social-home-composer.tsx", "utf8");

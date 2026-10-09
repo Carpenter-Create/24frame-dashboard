@@ -3,7 +3,7 @@
 **Date:** 2026-09-29 (CT)
 **Status:** **LOCKED** · CoS / Adam CLEAR · sheet, not a full-page navigation
 **Amended 2026-10-08:** [`social-desktop-create-composer-lock-v1.md`](social-desktop-create-composer-lock-v1.md) (Adam, "Open the composer"). On desktop the write compose is the composer window (600, radius 24: close, the avatar beside the field, then Media, Go live and Post), and the side menu's Create opens it too. The phone sheet below is unchanged.
-**Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Media · Write · Record", "Match the fan"). The row's rounds are the fan's Media and Record (Record opens the 24Frame camera), and the phone sheet takes the desktop window's layout (close; avatar beside the field; Media · Record · Post above the keyboard).
+**Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Match the fan"; the label, 2026-10-09: "Live / Not record", everywhere). The row's rounds are the fan's Media and Live (Live opens the 24Frame camera), and the phone sheet takes the desktop window's layout (close; avatar beside the field; Media · Live · Post above the keyboard).
 **Repo:** `docs/design-locks/share-something-write-compose-sheet-lock-v1.md`
 **Supersedes:** the route-jump presentation in `docs/design-locks/share-something-text-write-direct-lock-v1.md` for the Home prompt + avatar hit only
 **Keeps:** that lock’s destination (kind=text write compose, keyboard, attach photo/video, no Create chooser), Home Photo and Camera, bottom-nav +, and the FB-row chrome lock `docs/design-locks/social-home-composer-fb-row-sheet-lock-v1.6.md`

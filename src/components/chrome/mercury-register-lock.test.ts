@@ -116,9 +116,9 @@ describe("Adam Mercury register lock", () => {
     expect(composer).not.toContain('socialCreateHref("text")');
     expect(composer).not.toContain("SocialCreateSheet");
     expect(composer).toContain("SocialIcon");
-    // The fan's Media and Record tiles ("Match the fan", Adam 2026-10-08).
+    // The fan's Media and Live tiles ("Match the fan", Adam 2026-10-08).
     expect(composer).toContain("name={MEDIA_TILE.icon}");
-    expect(composer).toContain("name={RECORD_TILE.icon}");
+    expect(composer).toContain("name={LIVE_TILE.icon}");
     expect(composer).not.toContain('icon="camera"');
     expect(src("src/components/social/social-create-compose.tsx")).toContain("SocialIcon");
     expect(src("src/components/chrome/house-lead-search.tsx")).toContain("MagnifyingGlass");

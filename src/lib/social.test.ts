@@ -523,9 +523,9 @@ describe("profile opt-in", () => {
     expect(socialCreateHref("text")).toBe("/social/create?kind=text");
     expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
     expect(SOCIAL.create.write).toBe("Write");
-    // Adam 2026-10-08: "Media · Write · Record" (one word, and true).
-    expect(SOCIAL.create.goLive).toBe("Record");
-    expect(SOCIAL.create.liveTitle).toBe("Record");
+    // Adam 2026-10-09: "Live / Not record", everywhere (one word).
+    expect(SOCIAL.create.goLive).toBe("Live");
+    expect(SOCIAL.create.liveTitle).toBe("Live");
     expect(SOCIAL.create.close).toBe("Close");
     expect(SOCIAL.create.title).toBe("Create");
     expect(socialCreateWellCopy("media", false)).toBeNull();

@@ -63,7 +63,7 @@ describe("Social create kinds", () => {
 
     // Adam 2026-10-08, "Match the fan": the page (the + fan's Write) and the
     // phone sheet take the desktop window's layout. Close, then the avatar
-    // beside the field, the media under it, and the tool row (Media, Record,
+    // beside the field, the media under it, and the tool row (Media, Live,
     // Post) at the bottom, above the keyboard. The page fills the viewport.
     expect(write).toContain('data-social-write-compose-presentation="page"');
     expect(write).toContain(SOCIAL_WRITE_COMPOSE_HOST_CLASS);

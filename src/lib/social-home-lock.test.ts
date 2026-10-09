@@ -251,15 +251,15 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(composer).not.toContain("data-social-composer-action");
     expect(composer).not.toContain("ACTIONS");
     expect(composer).toContain("SocialIcon");
-    // The rounds are the + fan's Media and Record tiles (Adam 2026-10-08,
+    // The rounds are the + fan's Media and Live tiles (Adam 2026-10-08,
     // "Match the fan"): glyph and name from the tile list; no camera-app
     // capture input.
     expect(composer).toContain('socialCreateTile("media")');
     expect(composer).toContain('socialCreateTile("live")');
     expect(composer).toContain("name={MEDIA_TILE.icon}");
-    expect(composer).toContain("name={RECORD_TILE.icon}");
+    expect(composer).toContain("name={LIVE_TILE.icon}");
     expect(composer).toContain("aria-label={MEDIA_TILE.label}");
-    expect(composer).toContain("aria-label={RECORD_TILE.label}");
+    expect(composer).toContain("aria-label={LIVE_TILE.label}");
     expect(composer).not.toContain('name="plus"');
     expect(composer).not.toContain("t-label");
     expect(composer).toContain("useSocialCreateMediaPick");

@@ -22,7 +22,7 @@ import { SOCIAL, socialComposerPrompt } from "@/lib/social";
 
 // Feed composer (H register §5.3; founder 2026-10-05, "I like the
 // designs. Let's use them."): one 44 row on phone and desktop — the 44
-// avatar, the "Share something" pill, then round 44 Media and Record —
+// avatar, the "Share something" pill, then round 44 Media and Live —
 // in its own card, the pill and rounds on the in-card fill (cards lock,
 // docs/design-locks/social-feed-cards-lock-v1.md). Supersedes the G
 // composer bar (52, radius 16).
@@ -31,14 +31,14 @@ import { SOCIAL, socialComposerPrompt } from "@/lib/social";
 // Create sheet hop, no second window here.
 // docs/design-locks/social-feed-register-lock-v1.md
 // docs/design-locks/share-something-write-compose-sheet-lock-v1.md
-// The two rounds are the + fan's own Media and Record tiles (Adam
+// The two rounds are the + fan's own Media and Live tiles (Adam
 // 2026-10-08, "Match the fan": the row read as behind the fan). Same tile
-// list, glyphs, names, and acts: Media opens the same media pick; Record
+// list, glyphs, names, and acts: Media opens the same media pick; Live
 // opens the 24Frame camera (never the phone's own camera app), remembering
 // where it was opened. Icon only. No second row, no Feeling strip.
 // docs/design-locks/social-create-fan-lock-v1.md
 const MEDIA_TILE = socialCreateTile("media")!;
-const RECORD_TILE = socialCreateTile("live")!;
+const LIVE_TILE = socialCreateTile("live")!;
 
 function MediaAffordance() {
   const { openPicker, input } = useSocialCreateMediaPick({ label: MEDIA_TILE.label });
@@ -62,17 +62,17 @@ function MediaAffordance() {
   );
 }
 
-function RecordAffordance() {
+function LiveAffordance() {
   return (
     <HouseLink
-      href={RECORD_TILE.href}
-      data-social-composer-affordance={RECORD_TILE.id}
-      aria-label={RECORD_TILE.label}
+      href={LIVE_TILE.href}
+      data-social-composer-affordance={LIVE_TILE.id}
+      aria-label={LIVE_TILE.label}
       className={SOCIAL_COMPOSER_AFFORDANCE_CLASS}
       onClick={() => rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`)}
     >
       <SocialIcon
-        name={RECORD_TILE.icon}
+        name={LIVE_TILE.icon}
         size={SOCIAL_COMPOSER_AFFORDANCE_GLYPH}
         className={SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS}
       />
@@ -113,7 +113,7 @@ export function SocialHomeComposer({
       </button>
       <div data-social-composer-affordances="" className={SOCIAL_COMPOSER_AFFORDANCE_ROW_CLASS}>
         <MediaAffordance />
-        <RecordAffordance />
+        <LiveAffordance />
       </div>
     </div>
   );

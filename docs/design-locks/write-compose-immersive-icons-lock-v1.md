@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-25 (CT)  
 **Status:** **LOCKED** · Design READY · Adam phone FAIL on the floating card · path stays `docs/design-locks/write-compose-immersive-icons-lock-v1.md`  
-**Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Media · Write · Record", "Match the fan"). The full-page writer takes the desktop window's layout; the top X + Post and the bottom caption row with the camera glyph are retired.
+**Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Match the fan"; the label, 2026-10-09: "Live / Not record", everywhere). The full-page writer takes the desktop window's layout; the top X + Post and the bottom caption row with the camera glyph are retired.
 **Box:** `/workspace/24frame-agg-ux/write-compose-immersive-icons-lock-v1.md` — checked 2026-09-25; that file was not in the tree. This lock records the Design READY tokens.  
 **FAIL shot:** `/workspace/24frame-agg-ux/write-compose-sheet-adam-fail-2026-09-25.png`  
 **Parent:** `docs/design-locks/share-something-text-write-direct-lock-v1.md` — Home Photo and Camera stay. Phone dock + fans Media · Write · Go live (`docs/design-locks/social-create-fan-lock-v1.md`).

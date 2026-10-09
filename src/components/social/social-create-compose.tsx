@@ -948,7 +948,7 @@ export function SocialCreateCompose({
     // Adam 2026-10-08, "Open the composer"; then, for the phone, "Match the
     // fan": the phone sheet and the full-page writer take the desktop
     // window's layout). Close, then the avatar beside the field, the media
-    // under it, and the tool row (Media, Record, Post). The window hugs its
+    // under it, and the tool row (Media, Live, Post). The window hugs its
     // content; the phone sheet and the page fill their host, so the tool row
     // sits at the bottom, above the keyboard.
     return (

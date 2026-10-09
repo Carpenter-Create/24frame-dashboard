@@ -85,11 +85,11 @@ describe("Aggregation chrome Phosphor lock + Design miss list", () => {
     expect(socialComposer).not.toContain('socialCreateHref("text")');
     expect(socialComposer).not.toContain("SocialCreateSheet");
     // Density lock v1.1: the composer's rounds use Social V1 glyphs. Since
-    // "Match the fan" (Adam 2026-10-08) they are the fan's Media and Record
+    // "Match the fan" (Adam 2026-10-08) they are the fan's Media and Live
     // tiles, glyphs from the tile list (image, broadcast).
     expect(socialComposer).toContain("SocialIcon");
     expect(socialComposer).toContain("name={MEDIA_TILE.icon}");
-    expect(socialComposer).toContain("name={RECORD_TILE.icon}");
+    expect(socialComposer).toContain("name={LIVE_TILE.icon}");
     expect(socialCreateTile("media")?.icon).toBe("image");
     expect(socialCreateTile("live")?.icon).toBe("broadcast");
     expect(socialComposer).not.toContain('from "lucide-react"');

@@ -93,7 +93,7 @@ describe("Share something write compose sheet", () => {
     expect(html.slice(formAt, formAt + 400)).not.toContain("h-dvh");
   });
 
-  it("keeps the Home prompt a sheet trigger beside the fan's Media and Record, and leaves Create + alone", () => {
+  it("keeps the Home prompt a sheet trigger beside the fan's Media and Live, and leaves Create + alone", () => {
     const html = renderToStaticMarkup(
       createElement(SocialHomeComposer, { authorName: "Ada Lovelace" }),
     );
