@@ -16,7 +16,7 @@ import {
 import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadSocialPostMedia } from "@/lib/social-media-upload";
+import { uploadSocialPostMedia, uploadSocialWelcomeVideoFile } from "@/lib/social-media-upload";
 import {
   SOCIAL_GO_LIVE_CAPTION_CLASS,
   SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS,
@@ -66,9 +66,12 @@ import {
   SOCIAL_GO_LIVE_MAX_MS,
   type GoLiveCamera,
   type GoLiveFrame,
+  type GoLivePurpose,
 } from "@/lib/social-go-live";
 import { clearSocialGoLiveOpener, takeSocialGoLiveExitHref } from "@/lib/social-go-live-nav";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
+import { saveSocialWelcomeVideo } from "@/app/(app)/social/actions";
+import { patchSocialProfileOptimistic } from "@/lib/social-profile-edit";
 import { SOCIAL, SOCIAL_ROUTES, socialCreateHref } from "@/lib/social";
 import {
   applyOptimisticSocialPost,
@@ -164,8 +167,10 @@ async function uploadLiveVideo(
   return { item: result.items[0] };
 }
 
-export function SocialGoLive() {
+export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } = {}) {
   const router = useRouter();
+  // welcome: the clip becomes the profile's welcome video, not a post.
+  const welcome = purpose === "welcome";
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -703,6 +708,40 @@ export function SocialGoLive() {
     });
   }
 
+  // The welcome video: the same blue bar, then the profile keeps it. The
+  // profile shows the clip from this device until the next load, and the
+  // camera goes back to Edit profile where it opened.
+  async function saveWelcomeClip() {
+    if (!clip || posting) return;
+    setError("");
+    setUploadPercent(0);
+    setPosting(true);
+    const uploaded = await uploadSocialWelcomeVideoFile(clip.file, {
+      onProgress: (progress) => {
+        if (progress.percent != null && aliveRef.current) setUploadPercent(progress.percent);
+      },
+    });
+    if (!aliveRef.current) return;
+    if (uploaded.error || !uploaded.item) {
+      setPosting(false);
+      setError(uploaded.error ?? SOCIAL.home.uploadFailed);
+      return;
+    }
+    const save = new FormData();
+    save.set("media", JSON.stringify([uploaded.item]));
+    const result = await saveSocialWelcomeVideo(save);
+    if (!aliveRef.current) return;
+    if (result.error) {
+      setPosting(false);
+      setError(result.error);
+      return;
+    }
+    patchSocialProfileOptimistic({ welcomeVideoUrl: clip.url });
+    // The profile now plays this blob: it must outlive the camera.
+    clipUrlRef.current = null;
+    router.replace(takeSocialGoLiveExitHref());
+  }
+
   const mirrored = storyStudioMirrorsPreview(facing);
 
   return (
@@ -765,7 +804,9 @@ export function SocialGoLive() {
           >
             <SocialIcon weight="bold" name="x" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
           </HouseLink>
-          <span className="t-label font-semibold text-band-ink">{SOCIAL.create.goLive}</span>
+          <span className="t-label font-semibold text-band-ink">
+            {welcome ? SOCIAL.profile.welcomeVideo : SOCIAL.create.goLive}
+          </span>
           {desktop ? (
             // A computer chooses among its cameras (built in, an iPhone, a
             // webcam); there is no back camera to flip to.
@@ -857,6 +898,8 @@ export function SocialGoLive() {
         ) : null}
         {phase === "review" ? (
           <div data-social-go-live-review="" className={SOCIAL_GO_LIVE_REVIEW_CLASS}>
+            {/* A welcome video has no caption. */}
+            {welcome ? null : (
             <div data-social-go-live-caption="" className={SOCIAL_GO_LIVE_CAPTION_CLASS}>
               <label className="sr-only" htmlFor="social-go-live-body">
                 {SOCIAL.create.caption}
@@ -881,6 +924,7 @@ export function SocialGoLive() {
                 />
               )}
             </div>
+            )}
             {posting ? (
               <div
                 data-social-go-live-progress=""
@@ -908,10 +952,13 @@ export function SocialGoLive() {
               <button
                 type="button"
                 data-social-go-live-post=""
-                aria-label={posting ? SOCIAL.stories.posting : SOCIAL.create.livePost}
+                data-social-go-live-purpose={purpose}
+                aria-label={
+                  posting ? SOCIAL.stories.posting : welcome ? SOCIAL.profile.welcomeAdd : SOCIAL.create.livePost
+                }
                 className={SOCIAL_GO_LIVE_POST_CLASS}
                 disabled={posting}
-                onClick={() => void postClip()}
+                onClick={() => void (welcome ? saveWelcomeClip() : postClip())}
               >
                 <SocialIcon weight="bold" name="arrow-up" size={SOCIAL_ICON_SIZE_STORY_STUDIO} />
               </button>
@@ -921,10 +968,15 @@ export function SocialGoLive() {
         {error ? (
           <div className="absolute inset-x-4 top-16 z-20">
             <InlineNotice tone="error">
-              {error}{" "}
-              <Link href={socialCreateHref("media")} className="underline">
-                {SOCIAL.create.liveUseVideo}
-              </Link>
+              {error}
+              {welcome ? null : (
+                <>
+                  {" "}
+                  <Link href={socialCreateHref("media")} className="underline">
+                    {SOCIAL.create.liveUseVideo}
+                  </Link>
+                </>
+              )}
             </InlineNotice>
           </div>
         ) : null}

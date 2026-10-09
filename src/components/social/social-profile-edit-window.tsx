@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 
 import { HouseDialogFrame, useHouseDesktop } from "@/components/chrome/house-overlay";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
 import { SOCIAL } from "@/lib/social";
+import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
 import type { SocialProfileEditFace } from "@/lib/social-profile-edit";
 
 // Desktop Edit profile: the house window over the live profile
@@ -80,11 +82,14 @@ export function SocialProfileEditWindow({
   /** The background save is out. */
   onPersisting?: (settled: Promise<void>) => void;
 }) {
+  const router = useRouter();
   const edit = useSocialProfileEditDraft(props);
   // A changed username, or an earlier save, is with the server: nothing
   // leaves or changes until it answers.
   const busy = edit.pending || waiting;
   const [asking, setAsking] = useState(false);
+  // Set when the ask is for leaving Edit to another screen (the camera).
+  const [leaveHref, setLeaveHref] = useState<string | null>(null);
   const [held, setHeld] = useState<number | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -113,6 +118,7 @@ export function SocialProfileEditWindow({
       return true;
     }
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setLeaveHref(null);
     setAsking(true);
     return false;
   }
@@ -131,17 +137,31 @@ export function SocialProfileEditWindow({
   function discard() {
     edit.discard();
     setAsking(false);
+    if (leaveHref) {
+      rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+      router.push(leaveHref);
+      return;
+    }
     onClose();
   }
 
   function keepEditing() {
     setAsking(false);
+    setLeaveHref(null);
     restoreFocus("[data-social-profile-edit-close]");
   }
 
   function closeMenu() {
     edit.setAvatarSheet(false);
     restoreFocus("[data-social-profile-edit-picture]");
+  }
+
+  /** Leaving Edit for another screen (the camera) with changes: ask first. */
+  function askLeave(href: string) {
+    if (busy) return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setLeaveHref(href);
+    setAsking(true);
   }
 
   function onEscape() {
@@ -323,6 +343,7 @@ export function SocialProfileEditWindow({
             {atIndex ? (
               <SocialProfileEditIndexBody
                 edit={edit}
+                onLeave={askLeave}
                 avatarMenu={
                   <SocialProfileAvatarSheet
                     open={edit.avatarSheet}

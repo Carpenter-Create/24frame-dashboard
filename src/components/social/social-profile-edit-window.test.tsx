@@ -107,6 +107,9 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(escape.slice(escape.indexOf("if (asking)"), escape.indexOf('if (edit.face !== "edit")'))).toContain(
       "keepEditing()",
     );
+    expect(windowSrc).toContain(
+      'function keepEditing() {\n    setAsking(false);\n    setLeaveHref(null);\n    restoreFocus("[data-social-profile-edit-close]");\n  }',
+    );
     expect(escape).not.toContain("discard(");
     expect(windowSrc).toContain('if (event.key === "Escape") {\n        event.preventDefault();');
     // Closing the ask or the menu puts focus back where it was.
@@ -249,5 +252,17 @@ describe("Edit profile pill (social-profile-edit-entry)", () => {
     expect(entrySrc).toContain("waiting={saving}");
     expect(entrySrc).toContain("onPersisting={onPersisting}");
     expect(entrySrc).toContain("setSaving(true);");
+  });
+
+  it("leaves for the camera only through the ask when there are changes", () => {
+    expect(windowSrc).toContain("onLeave={askLeave}");
+    const discard = windowSrc.slice(windowSrc.indexOf("function discard()"), windowSrc.indexOf("function keepEditing()"));
+    expect(discard).toContain("if (leaveHref) {");
+    expect(discard).toContain("router.push(leaveHref)");
+    expect(discard.indexOf("edit.discard();")).toBeLessThan(discard.indexOf("router.push(leaveHref)"));
+    // Never while the server has the save; Keep editing returns focus to Live.
+    const ask = windowSrc.slice(windowSrc.indexOf("function askLeave("), windowSrc.indexOf("function onEscape()"));
+    expect(ask).toContain("if (busy) return;");
+    expect(ask).toContain("returnFocusRef.current = document.activeElement");
   });
 });

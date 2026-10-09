@@ -159,7 +159,9 @@ describe("Social Go live recorder", () => {
     expect(review).toContain('name="arrow-counter-clockwise"');
     expect(review).toContain("aria-label={SOCIAL.create.liveRetake}");
     expect(review).toContain('name="arrow-up"');
-    expect(review).toContain("aria-label={posting ? SOCIAL.stories.posting : SOCIAL.create.livePost}");
+    expect(review).toContain(
+      "posting ? SOCIAL.stories.posting : welcome ? SOCIAL.profile.welcomeAdd : SOCIAL.create.livePost",
+    );
     // No words on the buttons: the glyphs, and the bar while posting.
     expect(review).not.toMatch(/>\s*\{SOCIAL\.create\.liveRetake\}\s*</);
     expect(review).not.toMatch(/>\s*\{posting \? SOCIAL\.stories\.posting : SOCIAL\.create\.livePost\}\s*</);
@@ -332,5 +334,30 @@ describe("Social Go live recorder", () => {
     );
     expect(server).not.toContain("data-social-feed-video-local");
     expect(server).toContain("data-social-post-play-disc");
+  });
+
+  // Adam 2026-10-09: "add welcome video should have the media icon (to
+  // upload a file) or live (to record a file)". Edit profile's Live round
+  // opens this camera with ?for=welcome.
+  it("records the welcome video: no caption, its own save, back to Edit profile", () => {
+    expect(src).toContain('export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } = {})');
+    expect(src).toContain('const welcome = purpose === "welcome";');
+    // Header names it; no caption, no dictate on a welcome video.
+    expect(src).toContain("{welcome ? SOCIAL.profile.welcomeVideo : SOCIAL.create.goLive}");
+    const review = src.slice(src.indexOf('{phase === "review" ? ('), src.indexOf("{error ? ("));
+    expect(review).toContain("{welcome ? null : (\n            <div data-social-go-live-caption");
+    expect(review).toContain("onClick={() => void (welcome ? saveWelcomeClip() : postClip())}");
+    // Saved as the profile's welcome video (S3, never a post), painted from
+    // this device, then back to where Edit opened the camera.
+    const save = src.slice(src.indexOf("async function saveWelcomeClip()"), src.indexOf("const mirrored ="));
+    expect(save).toContain("uploadSocialWelcomeVideoFile(clip.file");
+    expect(save).toContain("saveSocialWelcomeVideo(save)");
+    expect(save.indexOf("saveSocialWelcomeVideo(save)")).toBeLessThan(save.indexOf("patchSocialProfileOptimistic({ welcomeVideoUrl: clip.url })"));
+    expect(save).toContain("router.replace(takeSocialGoLiveExitHref())");
+    expect(save).not.toContain("beginSocialPostPublish");
+    expect(save).not.toContain("persistSocialPost");
+    // The "use a video" fallback is a post path: not offered for a welcome video.
+    const notice = src.slice(src.indexOf("{error ? ("));
+    expect(notice).toContain("{welcome ? null : (");
   });
 });

@@ -70,6 +70,18 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Discard | The draft goes; saved media stays. After a failed save, the failed draft is dropped from the overlay too |
 | Browser | While the draft has changes, reloading or closing the tab raises the browser's own prompt |
 
+## 4) Welcome video — Media or Live (amended 2026-10-09)
+
+> also, add welcome video should have the media icon (to upload a file) or live (to record a file)
+
+| Token | Lock |
+|-------|------|
+| Card | Label "Welcome video"; the clip (closed plate or the local preview) when there is one; then a row: the + fan's **Media** and **Live** rounds (`SOCIAL_CREATE_TILES`: the same glyph and name; round grey 44s, as in the composer's tool row), and **Remove welcome video** at the end when there is one. The text buttons "Add / Replace welcome video" give way to the rounds (the file input keeps that name) |
+| Media | The video file pick, as before: saves on confirm |
+| Live | The 24Frame camera for the welcome video (`/social/live?for=welcome`), remembering where Edit opened it. With changes in the draft, it asks first (Keep editing · Discard); Discard then opens the camera |
+| Camera | Header "Welcome video"; no caption and no dictate on the review; the round accent save (up arrow) is named "Add welcome video" and shows the blue bar. The clip goes to the media S3 posts lane (never Mux, never a post), is saved as the welcome video, shows on the profile at once from this device, and the camera returns to where it opened (the window on a computer, the sheet on a phone). The "use a video" fallback in errors is a post path and is not offered |
+| Copy | Existing only: "Welcome video", "Add welcome video", "Media", "Live", "Remove welcome video" |
+
 ## Copy
 
 "Discard changes?", "{fields} aren't saved." / "{field} isn't saved.", "Your new picture is already saved.", "Your new welcome video is already saved.", "Keep editing", "Discard" (Adam approved the set with "build it"; the singular and welcome video lines follow the approved pattern). Everything else is existing copy.

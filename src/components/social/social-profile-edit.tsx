@@ -36,7 +36,14 @@ import {
 } from "@/lib/account-avatar-crop";
 import { cn } from "@/lib/cn";
 import { SOCIAL_VIDEO_CONTENT_TYPES } from "@/lib/social-media";
+import { socialCreateTile } from "@/lib/social-create-sheet";
+import { socialGoLiveWelcomeHref } from "@/lib/social-go-live";
+import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
+import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
 import {
+  SOCIAL_COMPOSER_AFFORDANCE_GLYPH,
+  SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS,
+  SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS,
   SOCIAL_PROFILE_EDIT_AVATAR_CLASS,
   SOCIAL_PROFILE_EDIT_AVATAR_DROPPING_CLASS,
   SOCIAL_PROFILE_EDIT_BACK_CLASS,
@@ -577,13 +584,19 @@ export function useSocialProfileEditLeaveGuard(dirty: boolean) {
 }
 
 /** Photo, welcome video and the drill rows: nothing typed on the index. */
+const WELCOME_MEDIA_TILE = socialCreateTile("media")!;
+const WELCOME_LIVE_TILE = socialCreateTile("live")!;
+
 export function SocialProfileEditIndexBody({
   edit,
   avatarMenu = null,
+  onLeave,
 }: {
   edit: SocialProfileEditDraft;
   /** The window's anchored photo menu, dropped under Edit picture. */
   avatarMenu?: ReactNode;
+  /** Leaving Edit for another screen (the camera) with changes: the host asks first. */
+  onLeave?: (href: string) => void;
 }) {
   const welcomeRef = useRef<HTMLInputElement>(null);
   const name = composeSocialDisplayName(edit.firstName, edit.lastName, edit.middleName);
@@ -660,21 +673,56 @@ export function SocialProfileEditIndexBody({
           ) : edit.welcomePreview ? (
             <div data-social-video-closed="" className="aspect-video w-full bg-surface-muted" />
           ) : null}
-          <div className="flex flex-col gap-2">
+          {/* The + fan's Media and Live (Adam 2026-10-09): upload a video or
+              record one with the 24Frame camera. Round grey 44s, as in the
+              composer's tool row. */}
+          <div data-social-profile-edit-welcome-actions="" className={SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS}>
             <button
               type="button"
               disabled={edit.uploading}
+              data-social-profile-edit-welcome-media=""
+              aria-label={WELCOME_MEDIA_TILE.label}
+              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
               onClick={() => welcomeRef.current?.click()}
-              className={SOCIAL_PROFILE_EDIT_PICTURE_CLASS}
             >
-              {edit.welcomePreview ? SOCIAL.profile.welcomeReplace : SOCIAL.profile.welcomeAdd}
+              <SocialIcon
+                name={WELCOME_MEDIA_TILE.icon}
+                size={SOCIAL_COMPOSER_AFFORDANCE_GLYPH}
+                className={SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS}
+              />
             </button>
+            <HouseLink
+              href={socialGoLiveWelcomeHref()}
+              data-social-profile-edit-welcome-live=""
+              aria-label={WELCOME_LIVE_TILE.label}
+              aria-disabled={edit.uploading || undefined}
+              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
+              onClick={(event) => {
+                if (edit.uploading) {
+                  event.preventDefault();
+                  return;
+                }
+                // Leaving Edit with changes asks first (Keep editing · Discard).
+                if (edit.dirty && onLeave) {
+                  event.preventDefault();
+                  onLeave(socialGoLiveWelcomeHref());
+                  return;
+                }
+                rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+              }}
+            >
+              <SocialIcon
+                name={WELCOME_LIVE_TILE.icon}
+                size={SOCIAL_COMPOSER_AFFORDANCE_GLYPH}
+                className={SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS}
+              />
+            </HouseLink>
             {edit.welcomePreview ? (
               <button
                 type="button"
                 disabled={edit.uploading}
                 onClick={() => void edit.onWelcomeRemove()}
-                className="t-body-sm font-medium text-ink-2"
+                className="ml-auto t-body-sm font-medium text-ink-2"
               >
                 {SOCIAL.profile.welcomeRemove}
               </button>
@@ -685,7 +733,7 @@ export function SocialProfileEditIndexBody({
             type="file"
             accept={SOCIAL_VIDEO_CONTENT_TYPES.join(",")}
             className="sr-only"
-            aria-label={SOCIAL.profile.welcomeAdd}
+            aria-label={edit.welcomePreview ? SOCIAL.profile.welcomeReplace : SOCIAL.profile.welcomeAdd}
             onChange={(e) =>
               void edit.onWelcomePick(e.target.files?.[0], () => {
                 if (welcomeRef.current) welcomeRef.current.value = "";
@@ -907,6 +955,8 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   const router = useRouter();
   const edit = useSocialProfileEditDraft(props);
   const [asking, setAsking] = useState(false);
+  // Set when the ask is for leaving Edit to another screen (the camera).
+  const [leaveHref, setLeaveHref] = useState<string | null>(null);
   const askTitleId = "social-profile-edit-discard-title";
   useSocialProfileEditLeaveGuard(edit.dirty);
 
@@ -920,13 +970,23 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   function onDiscard() {
     edit.discard();
     setAsking(false);
+    if (leaveHref) {
+      rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+      router.push(leaveHref);
+      return;
+    }
     router.push(SOCIAL_ROUTES.profile);
+  }
+
+  function keepEditing() {
+    setAsking(false);
+    setLeaveHref(null);
   }
 
   useEffect(() => {
     if (!asking) return undefined;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAsking(false);
+      if (event.key === "Escape") keepEditing();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -960,6 +1020,7 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
                 // With changes, leaving asks first (Keep editing · Discard).
                 if (!edit.dirty) return;
                 event.preventDefault();
+                setLeaveHref(null);
                 setAsking(true);
               }}
             >
@@ -978,7 +1039,13 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
             </button>
           </header>
           <div className={SOCIAL_PROFILE_EDIT_BODY_CLASS} inert={edit.pending} aria-busy={edit.pending || undefined}>
-            <SocialProfileEditIndexBody edit={edit} />
+            <SocialProfileEditIndexBody
+              edit={edit}
+              onLeave={(href) => {
+                setLeaveHref(href);
+                setAsking(true);
+              }}
+            />
           </div>
         </div>
       </div>
@@ -995,7 +1062,7 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
           edit={edit}
           variant="sheet"
           titleId={askTitleId}
-          onKeep={() => setAsking(false)}
+          onKeep={keepEditing}
           onDiscard={onDiscard}
         />
       ) : null}
