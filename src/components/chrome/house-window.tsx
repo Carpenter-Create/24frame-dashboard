@@ -28,6 +28,7 @@ import {
   HOUSE_WINDOW_DONE_CLASS,
   HOUSE_WINDOW_FACE_CLASS,
   HOUSE_WINDOW_FRAME_CLASS,
+  HOUSE_WINDOW_FRAME_FILL_CLASS,
   HOUSE_WINDOW_HEADER_CLASS,
   HOUSE_WINDOW_PANEL_CLASS,
   HOUSE_WINDOW_SHEET_BODY_CLASS,
@@ -48,6 +49,8 @@ import {
 // is Done; Tab stays inside. Below md the window is hidden and holds no
 // keys and no scroll lock (a phone host draws its own sheet), unless it
 // opts into the phone sheet: then the same window fills the full AppSheet.
+// A window whose faces hold long lists may fill 80vh (fill: never the held
+// px; absent for every window before it, so their markup is unchanged).
 
 /** While the draft has changes, reloading or closing the tab raises the
  *  browser's own prompt. */
@@ -368,6 +371,7 @@ export function HouseWindowFrame({
   backIcon,
   doneDisabled = false,
   ask,
+  fill = false,
   children,
 }: {
   win: HouseWindowState;
@@ -383,6 +387,8 @@ export function HouseWindowFrame({
   doneDisabled?: boolean;
   /** The ask, drawn while the window asks. */
   ask: ReactNode;
+  /** The frame fills 80vh and never takes the held px height. */
+  fill?: boolean;
   children: ReactNode;
 }) {
   const a = win.attr;
@@ -393,8 +399,8 @@ export function HouseWindowFrame({
       ref={frameRef}
       tabIndex={-1}
       {...{ [`data-${a}`]: "", [`data-${a}-window`]: "" }}
-      className={onSheet ? HOUSE_WINDOW_SHEET_FRAME_CLASS : HOUSE_WINDOW_FRAME_CLASS}
-      style={onSheet || win.held === null ? undefined : { height: win.held }}
+      className={onSheet ? HOUSE_WINDOW_SHEET_FRAME_CLASS : fill ? HOUSE_WINDOW_FRAME_FILL_CLASS : HOUSE_WINDOW_FRAME_CLASS}
+      style={onSheet || fill || win.held === null ? undefined : { height: win.held }}
     >
       <header {...{ [`data-${a}-header`]: "" }} className={HOUSE_WINDOW_HEADER_CLASS} inert={win.asking || win.busy}>
         {win.atIndex ? (

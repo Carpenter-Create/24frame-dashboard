@@ -202,7 +202,9 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(held).toContain("if (!frame || held !== null || !desktop) return;");
     expect(held).toContain("if (height > 0) setHeld(height);");
     expect(held).toContain("}, [held, desktop]);");
-    expect(shellSrc).toContain("style={onSheet || win.held === null ? undefined : { height: win.held }}");
+    // Edit profile never fills: it holds the height it opens at.
+    expect(shellSrc).toContain("style={onSheet || fill || win.held === null ? undefined : { height: win.held }}");
+    expect(windowSrc).not.toMatch(/^\s+fill\b/m);
     // Edit profile keeps its own phone route: its window is never the sheet.
     expect(windowSrc).not.toContain('phone: "sheet"');
     expect(shellSrc).toContain('if (event.key !== "Tab") return;');

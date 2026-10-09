@@ -5,9 +5,11 @@ import {
   HOUSE_WINDOW_ASK_STRIP_CLASS,
   HOUSE_WINDOW_FOCUSABLE,
   HOUSE_WINDOW_FRAME_CLASS,
+  HOUSE_WINDOW_FRAME_FILL_CLASS,
   HOUSE_WINDOW_HEADER_CLASS,
   HOUSE_WINDOW_PANEL_CLASS,
   houseWindowClosedHref,
+  houseWindowFocusables,
   houseWindowMotionClass,
   houseWindowOpenHref,
   parseHouseWindowParam,
@@ -51,5 +53,33 @@ describe("house window (lib/house-window)", () => {
     expect(houseWindowClosedHref("/p", "?edit=bio", "edit")).toBe("/p");
     expect(houseWindowClosedHref("/p", "?tab=x&edit", "edit")).toBe("/p?tab=x");
     expect(houseWindowClosedHref("/p", "tab=x", "edit")).toBe("/p?tab=x");
+  });
+
+  it("closes both windows of a page with two, every other param kept", () => {
+    expect(houseWindowClosedHref("/p", "?a=1&edit&add-right=type", ["edit", "add-right"])).toBe("/p?a=1");
+    expect(houseWindowClosedHref("/p", "?edit=bio", ["edit", "add-right"])).toBe("/p");
+    // One param behaves as before.
+    expect(houseWindowClosedHref("/p", "?a=1&edit&b=2", "edit")).toBe("/p?a=1&b=2");
+  });
+
+  it("may fill 80vh for a window whose faces hold long lists", () => {
+    expect(HOUSE_WINDOW_FRAME_FILL_CLASS).toBe("flex h-[80vh] min-h-0 flex-col outline-none");
+    expect(HOUSE_WINDOW_FRAME_FILL_CLASS).not.toContain("max-h");
+  });
+
+  it("counts only real Tab stops: never tabindex=-1, an .sr-only input, or anything inert", () => {
+    type Fake = { tabindex: string | null; srOnly?: boolean; inert?: boolean };
+    const node = ({ tabindex, srOnly = false, inert = false }: Fake) => ({
+      getAttribute: (name: string) => (name === "tabindex" ? tabindex : null),
+      closest: (selector: string) => (selector === "[inert]" && inert ? {} : null),
+      classList: { contains: (name: string) => name === "sr-only" && srOnly },
+    });
+    const header = node({ tabindex: null });
+    const stop = node({ tabindex: "0" });
+    const roving = node({ tabindex: "-1" });
+    const file = node({ tabindex: null, srOnly: true });
+    const behind = node({ tabindex: null, inert: true });
+    const root = { querySelectorAll: () => [header, stop, roving, file, behind] } as unknown as HTMLElement;
+    expect(houseWindowFocusables(root)).toEqual([header, stop]);
   });
 });

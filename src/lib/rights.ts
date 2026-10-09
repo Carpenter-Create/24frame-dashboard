@@ -58,3 +58,16 @@ export const RIGHTS_META: Record<RightsType, { label: string; category: string }
   Object.fromEntries(
     RIGHTS_CATEGORIES.flatMap((c) => c.types.map((t) => [t.code, { label: t.label, category: c.category }])),
   ) as Record<RightsType, { label: string; category: string }>;
+
+// Every rights type, in taxonomy order: the zod enum source for the Add right
+// action (no runtime import of the generated types; rights.test.ts pins it to
+// the database enum).
+export const RIGHTS_TYPE_CODES: readonly RightsType[] = RIGHTS_CATEGORIES.flatMap((c) => c.types.map((t) => t.code));
+
+// A grant's exclusivity as the rights list, the staff title page and the Add
+// right window read it.
+export const EXCLUSIVITY_LABEL = { exclusive: "Exclusive", nonExclusive: "Non-exclusive" } as const;
+
+export function exclusivityLabel(exclusive: boolean): string {
+  return exclusive ? EXCLUSIVITY_LABEL.exclusive : EXCLUSIVITY_LABEL.nonExclusive;
+}

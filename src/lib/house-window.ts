@@ -12,6 +12,11 @@ export const HOUSE_WINDOW_PANEL_CLASS = `${HOUSE_DIALOG_WINDOW_CLASS} relative f
 /** The frame holds the height it opens at (up to 80vh). */
 export const HOUSE_WINDOW_FRAME_CLASS = "flex max-h-[80vh] min-h-0 flex-col outline-none";
 
+// A window whose faces hold long lists (Add right,
+// aggregation-add-right-window-lock-v1) fills 80vh and never takes the held
+// px height. The same prop and class as the comments window's `fill`.
+export const HOUSE_WINDOW_FRAME_FILL_CLASS = "flex h-[80vh] min-h-0 flex-col outline-none";
+
 // Phone, for a window that opts in: the same header and body filling the
 // full AppSheet, clear of the status bar and the home indicator.
 export const HOUSE_WINDOW_SHEET_FRAME_CLASS = "flex h-full min-h-0 flex-col pt-[env(safe-area-inset-top)] outline-none";
@@ -56,9 +61,13 @@ export const HOUSE_WINDOW_ASK_BUTTON_CLASS = "min-h-11 px-5 focus-visible:rounde
 export const HOUSE_WINDOW_FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/** The window's real Tab stops, in order: never under [inert], never an
+ *  .sr-only input, and never tabindex="-1" (a roving list's other options,
+ *  reached with the arrows; HousePageSelectOptions `inline`). */
 export function houseWindowFocusables(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(HOUSE_WINDOW_FOCUSABLE)].filter(
-    (node) => !node.closest("[inert]") && !node.classList.contains("sr-only"),
+    (node) =>
+      !node.closest("[inert]") && !node.classList.contains("sr-only") && node.getAttribute("tabindex") !== "-1",
   );
 }
 
@@ -104,10 +113,11 @@ export function houseWindowOpenHref(
   return `${pathname}?${rest ? `${rest}&` : ""}${param}${value}`;
 }
 
-/** The address with the window's query removed (every other param kept). */
-export function houseWindowClosedHref(pathname: string, search: string, param: string): string {
+/** The address with the window's query removed (every other param kept).
+ *  A list removes each of its params (a page with two windows). */
+export function houseWindowClosedHref(pathname: string, search: string, param: string | readonly string[]): string {
   const params = paramsOf(search);
-  params.delete(param);
+  for (const name of typeof param === "string" ? [param] : param) params.delete(name);
   const rest = params.toString();
   return rest ? `${pathname}?${rest}` : pathname;
 }

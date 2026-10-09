@@ -7,8 +7,17 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { generateToken, hashToken } from "@/lib/portal";
 import { escapeIlikePattern } from "@/lib/buyer-names";
-import { resolveTerritories, type TerritoryMode } from "@/lib/territories";
-import type { RightsType } from "@/lib/rights";
+import { ISO_COUNTRIES, TERRITORY_MODES, resolveTerritories } from "@/lib/territories";
+import { RIGHTS_TYPE_CODES } from "@/lib/rights";
+import {
+  ADD_RIGHT,
+  addRightGrantOnTitle,
+  addRightOnTitleLine,
+  checkAddRight,
+  mapAddRightsRpcError,
+  type AddRightFace,
+} from "@/lib/add-right";
+import { DETAIL_LIST, rangeFor } from "@/lib/list-bounds";
 import { aggregationViewAsSurface } from "@/lib/aggregation-impersonation";
 import {
   computeMetadataFindings,
@@ -23,51 +32,135 @@ import { getOrgContext } from "@/lib/supabase/context";
 import { RELEASE_FIELD, TITLE_DETAILS } from "@/lib/title-details";
 import type { Json } from "@/lib/supabase/database.types";
 import { purgeDeletedTitleStorage } from "@/lib/s3-title-purge";
-import { TITLES_HREF, titleClientPath } from "@/lib/title-public-id";
+import { TITLES_HREF, titleClientPath, titleOpsPath } from "@/lib/title-public-id";
 import { TITLE_LIFECYCLE } from "@/lib/titles-lifecycle";
 import { TITLE_DETAIL } from "@/lib/titles";
 
-// Add a rights grant (expand = insert) for a title in the active org. Territories
-// resolve to ISO codes server-side; the write goes through the add_rights_grant
-// SECURITY DEFINER RPC (capability re-checked in the DB).
-export async function addRights(input: {
-  orgId: string;
-  titleId: string;
-  rightsTypes: RightsType[];
-  mode: TerritoryMode;
-  countryCodes: string[];
-  exclusive: boolean;
-  windowStart: string | null;
-  windowEnd: string | null;
-}): Promise<{ error?: string }> {
-  const supabase = await createClient();
+// The title's Add right window adds one rights grant here
+// (docs/design-locks/aggregation-add-right-window-lock-v1.md). A grant is a
+// permanent record (insert only). Nothing the browser sends decides who may
+// write, as saveTitleDetails below (duplicated on purpose; the locked
+// Metadata path is not touched): zod at the edge (unknown keys such as an
+// org id or window dates are dropped), view-as refused before any read, the
+// title read under row security and never a deleted one, its org from that
+// row, and only the title org's operators add. The right, territory and
+// exclusivity are checked, territories resolve to real ISO codes, and the
+// same right with the same territory set already on the title adds nothing
+// (that read fails closed). add_rights_grant (SECURITY DEFINER, operate on
+// the org, the title in the org) stays the gate. Database text never
+// reaches the browser.
+const addRightInput = z.object({
+  titleId: z.string().uuid(),
+  rightsType: z.enum(RIGHTS_TYPE_CODES),
+  mode: z.enum(TERRITORY_MODES),
+  countryCodes: z.array(z.string().regex(/^[A-Za-z]{2}$/)).max(Object.keys(ISO_COUNTRIES).length),
+  exclusive: z.boolean(),
+});
+
+export type AddRightResult =
+  | { ok: true }
+  | {
+      ok: false;
+      /** The face the line belongs on; null leaves the window where it is. */
+      face: AddRightFace | null;
+      error: string;
+      /** The same right and territory set is already on the title. */
+      onTitle: boolean;
+    };
+
+function notAdded(error: string, face: AddRightFace | null = null): AddRightResult {
+  return { ok: false, face, error, onTitle: false };
+}
+
+export async function addRights(input: unknown): Promise<AddRightResult> {
+  const parsed = addRightInput.safeParse(input);
+  if (!parsed.success) return notAdded(ADD_RIGHT.saveFailed);
+  const { titleId, rightsType, mode, countryCodes, exclusive } = parsed.data;
+
   const user = await getAuthUser();
-  if (!user) return { error: "Not authenticated." };
-  if (input.rightsTypes.length === 0) return { error: "Select at least one rights type." };
+  if (!user) return notAdded(ADD_RIGHT.notAuthenticated);
+  const ctx = await getOrgContext();
+  if (!ctx) return notAdded(ADD_RIGHT.notAuthenticated);
+  if (ctx.aggregationViewAs) return notAdded(ADD_RIGHT.notAuthorized);
+
+  const supabase = await createClient();
+  const { data: title } = await supabase
+    .from("titles")
+    .select("id, org_id, catalog_id")
+    .eq("id", titleId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!title) return notAdded(ADD_RIGHT.notAuthorized);
+
+  const titleRole =
+    ctx.rows.find((m) => m.organizations.id === title.org_id)?.role ??
+    (ctx.activeOrg?.id === title.org_id ? ctx.activeRole : null);
+  const { canOperate } = aggregationViewAsSurface({
+    viewAs: ctx.aggregationViewAs,
+    canOperate: titleRole === "account_owner" || titleRole === "delivery_ops",
+    isGcStaff: ctx.isGcStaff,
+  });
+  if (!canOperate) return notAdded(ADD_RIGHT.notAuthorized);
+
+  const problem = checkAddRight({ type: rightsType, mode, codes: mode === "world" ? [] : countryCodes, exclusive });
+  if (problem) return notAdded(problem.error, problem.face);
 
   let territories: string[];
   try {
-    territories = resolveTerritories(input.mode, input.countryCodes);
+    territories = resolveTerritories(mode, countryCodes);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Invalid territories." };
+    console.error("[add-right] territories refused", e instanceof Error ? e.message : e);
+    return notAdded(ADD_RIGHT.saveFailed, "territory");
+  }
+
+  // Already on the title: the same right and territory set, active, with no
+  // window (either exclusivity). Nothing is added and the grant is named.
+  const { data: active, error: readError } = await supabase
+    .from("rights_grants")
+    .select("rights_type, territory_mode, territories, exclusive")
+    .eq("title_id", title.id)
+    .eq("rights_type", rightsType)
+    .eq("territory_mode", mode)
+    .is("effective_to", null)
+    .is("window_start", null)
+    .is("window_end", null)
+    .range(...rangeFor(DETAIL_LIST));
+  // A failed read is never "nothing there": a permanent record is never
+  // written unverified.
+  if (readError) {
+    console.error("[add-right] rights_grants read failed", readError.message);
+    return notAdded(ADD_RIGHT.saveFailed);
+  }
+  const existing = addRightGrantOnTitle(active ?? [], { rightsType, mode, territories });
+  if (existing) {
+    revalidateRights(title);
+    return { ok: false, face: "index", error: addRightOnTitleLine(existing), onTitle: true };
   }
 
   const { error } = await supabase.rpc("add_rights_grant", {
-    p_org_id: input.orgId,
-    p_title_id: input.titleId,
-    p_rights_types: input.rightsTypes,
-    p_mode: input.mode,
+    p_org_id: title.org_id,
+    p_title_id: title.id,
+    p_rights_types: [rightsType],
+    p_mode: mode,
     p_territories: territories,
-    p_exclusive: input.exclusive,
-    p_window_start: input.windowStart ?? undefined,
-    p_window_end: input.windowEnd ?? undefined,
+    p_exclusive: exclusive,
+    // Grant-event time, the server's own (never the browser's).
     p_effective_from: new Date().toISOString(),
   });
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[add-right] add_rights_grant failed", error.message);
+    return notAdded(mapAddRightsRpcError(error.message));
+  }
 
-  revalidatePath(`${TITLES_HREF}/${input.titleId}`);
-  revalidatePath(TITLES_HREF, "layout");
-  return {};
+  revalidateRights(title);
+  return { ok: true };
+}
+
+// The client title page (by catalog id) and the staff title page, whose
+// grants and same-work conflicts read the new row.
+function revalidateRights(title: { id: string; catalog_id: string | null }) {
+  revalidateTitle(title.catalog_id);
+  revalidatePath(titleOpsPath(title.id));
 }
 
 // Set a title's screener source (master = the master doubles as the screener;
