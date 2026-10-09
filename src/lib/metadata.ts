@@ -159,7 +159,9 @@ export function metadataTierCount(
 // and Submit, and the submit action's own check. A field counts only when it
 // is filled with a value the checks accept (read as the window reads it), so
 // a stored value the limits now refuse never lets a title be submitted
-// (Codex on #801). The database submit gate mirrors this (founder SQL).
+// (Codex on #801). The database gate does the same only once the founder
+// applies the draft in #799 (submit_title runs check_title_metadata); until
+// then the submit_title RPC checks only that the fields are filled.
 export function requiredComplete(data: Record<string, unknown> | null | undefined): { filled: number; total: number } {
   return metadataTierCount(normalizeStoredMetadata(data), "required");
 }

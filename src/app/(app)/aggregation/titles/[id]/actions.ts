@@ -250,7 +250,8 @@ export async function submitTitle(
 
   // Submit only with every required field filled with a value the checks
   // accept: the button can be stale, and a stored value from before the
-  // limits must not pass (Codex on #801).
+  // limits must not pass (Codex on #801). This guards the app's path; the
+  // RPC itself enforces it once the founder applies the #799 draft.
   const { data: stored, error: readError } = await supabase
     .from("title_metadata")
     .select("data")
