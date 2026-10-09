@@ -94,12 +94,15 @@ select lives_ok(
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('t.ownerB'),'role','authenticated')::text, true);
 select is((select count(*) from public.findings where entity_id=current_setting('t.title')::uuid)::int, 0,
   'org B owner cannot see org A findings (RLS)');
--- The title lock (20261009120000, Codex on #799) matches only a live title in
--- p_org_id: org B's owner, under org B, cannot reconcile org A's title.
+-- Org B's owner, under org B, cannot reconcile org A's title. This asserts the
+-- refusal only: the title lock (20261009120000, Codex on #799) and the refresh
+-- both raise this message, so it passes with or without the lock. The lock is
+-- proven by the stored-source checks in title_metadata_merge_test.sql and by
+-- vitest src/lib/metadata-merge.test.ts.
 select throws_ok(
   format($$ select public.reconcile_title_findings(%L,%L,'[]'::jsonb,'metadata-v1') $$,
          current_setting('t.orgB'), current_setting('t.title')),
-  'P0001', 'Title not found in this organization', 'SPOOF: own org, another org''s title is refused at the title lock');
+  'P0001', 'Title not found in this organization', 'SPOOF: own org, another org''s title is refused');
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('t.ownerA'),'role','authenticated')::text, true);
 select ok((select count(*) from public.my_findings()) >= 1,
   'owner A my_findings returns own open findings');
