@@ -337,9 +337,15 @@ export function socialProfileOptimisticPublic(
   return Boolean(next && !next.error && !next.handleError && (next.handle || next.displayName));
 }
 
-export function applySocialProfileOptimistic(next: SocialProfileOptimisticSnapshot): void {
+/** `hop: false` when Edit stays on the mounted profile (the desktop window):
+ *  the save-hop cover is for the phone's hop to the profile route only, and
+ *  raising it would remount the Social tree under the window. */
+export function applySocialProfileOptimistic(
+  next: SocialProfileOptimisticSnapshot,
+  options: { hop?: boolean } = {},
+): void {
   overlay = next;
-  hop = socialProfileOptimisticPublic(next);
+  hop = options.hop === false ? false : socialProfileOptimisticPublic(next);
   writeSocialProfileOptimisticBridge(next);
   emitSocialProfileOptimistic();
 }

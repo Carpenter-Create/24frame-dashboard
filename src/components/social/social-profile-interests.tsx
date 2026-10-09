@@ -3,7 +3,8 @@ import { HouseLink } from "@/components/chrome/house-link";
 import { SocialEmpty } from "@/components/social/social-empty";
 import { cn } from "@/lib/cn";
 import { SOCIAL_TOPIC_CHIP_BANK_CLASS, SOCIAL_TOPIC_CHIP_CLASS } from "@/lib/social-chrome";
-import { SOCIAL, socialProfileEditTopicsHref, socialProfileEditWindowHref } from "@/lib/social";
+import { SocialProfileEditTopicsLink } from "@/components/social/social-profile-edit-entry";
+import { SOCIAL, socialProfileEditTopicsHref } from "@/lib/social";
 import { parseSocialProfileTopics } from "@/lib/social-profile-topics";
 
 // Profile Interests tab. Same topic chip SoT the face used. Roles stay
@@ -36,14 +37,9 @@ export function SocialProfileInterests({
           >
             {SOCIAL.profile.topics}
           </HouseLink>
-          <HouseLink
-            href={socialProfileEditWindowHref("topics", "interests")}
-            data-social-profile-interests-edit=""
-            data-social-profile-interests-edit-window=""
-            className="t-body-sm font-medium text-ink max-md:hidden"
-          >
+          <SocialProfileEditTopicsLink className="t-body-sm font-medium text-ink max-md:hidden">
             {SOCIAL.profile.topics}
-          </HouseLink>
+          </SocialProfileEditTopicsLink>
         </SocialEmpty>
       </div>
     );

@@ -3,7 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
 import { createPortal } from "react-dom";
 
-import { HouseDialogFrame } from "@/components/chrome/house-overlay";
+import { HouseDialogFrame, useHouseDesktop } from "@/components/chrome/house-overlay";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialProfileAvatarSheet } from "@/components/social/social-profile-avatar-sheet";
 import {
@@ -28,7 +28,7 @@ import {
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
 import { SOCIAL } from "@/lib/social";
-import { releaseSocialProfileSaveHop, type SocialProfileEditFace } from "@/lib/social-profile-edit";
+import type { SocialProfileEditFace } from "@/lib/social-profile-edit";
 
 // Desktop Edit profile: the house window over the live profile
 // (docs/design-locks/social-profile-edit-window-lock-v1.md, Adam 2026-10-09,
@@ -82,11 +82,28 @@ export function SocialProfileEditWindow({
   const askTitleId = useId();
   useSocialProfileEditLeaveGuard(edit.dirty);
 
+  // Where focus goes back to when the ask or the photo menu closes.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  function restoreFocus(fallback?: string) {
+    const target =
+      returnFocusRef.current?.isConnected && !returnFocusRef.current.closest("[inert]")
+        ? returnFocusRef.current
+        : fallback
+          ? frameRef.current?.querySelector<HTMLElement>(fallback)
+          : null;
+    returnFocusRef.current = null;
+    window.requestAnimationFrame(() => (target ?? frameRef.current)?.focus());
+  }
+
   function requestClose(): boolean {
+    // A changed username is with the server: nothing leaves until it answers.
+    if (edit.pending) return false;
     if (!edit.dirty) {
       onClose();
       return true;
     }
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setAsking(true);
     return false;
   }
@@ -95,7 +112,7 @@ export function SocialProfileEditWindow({
     edit.save({
       leave: onClose,
       // The window stays on the mounted profile: no save-hop cover.
-      afterPaint: releaseSocialProfileSaveHop,
+      stayOnPage: true,
       onPersistFailed,
     });
   }
@@ -106,9 +123,20 @@ export function SocialProfileEditWindow({
     onClose();
   }
 
+  function keepEditing() {
+    setAsking(false);
+    restoreFocus("[data-social-profile-edit-close]");
+  }
+
+  function closeMenu() {
+    edit.setAvatarSheet(false);
+    restoreFocus("[data-social-profile-edit-picture]");
+  }
+
   function onEscape() {
+    if (edit.pending) return;
     if (edit.avatarSheet) {
-      edit.setAvatarSheet(false);
+      closeMenu();
       return;
     }
     if (edit.cropOpen) {
@@ -117,7 +145,7 @@ export function SocialProfileEditWindow({
     }
     // A second Esc keeps editing: a double Esc never discards.
     if (asking) {
-      setAsking(false);
+      keepEditing();
       return;
     }
     if (edit.face !== "edit") {
@@ -139,7 +167,11 @@ export function SocialProfileEditWindow({
     };
   }, [requestRef]);
 
+  // Below md the window is hidden (a phone uses the sheet): it holds no
+  // keys and no scroll lock there, so a resize never leaves the page dead.
+  const desktop = useHouseDesktop();
   useEffect(() => {
+    if (!desktop) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -170,12 +202,12 @@ export function SocialProfileEditWindow({
     document.addEventListener("keydown", onKey);
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    frameRef.current?.focus();
+    if (!frameRef.current?.contains(document.activeElement)) frameRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
     };
-  }, []);
+  }, [desktop]);
 
   // One still frame: it takes the height it opens at (up to 80vh) and
   // holds it, so a face never makes the window jump.
@@ -228,7 +260,11 @@ export function SocialProfileEditWindow({
         className="flex max-h-[80vh] min-h-0 flex-col outline-none"
         style={held === null ? undefined : { height: held }}
       >
-        <header data-social-profile-edit-header="" className={SOCIAL_PROFILE_EDIT_WINDOW_HEADER_CLASS} inert={asking}>
+        <header
+          data-social-profile-edit-header=""
+          className={SOCIAL_PROFILE_EDIT_WINDOW_HEADER_CLASS}
+          inert={asking || edit.pending}
+        >
           {atIndex ? (
             <button
               type="button"
@@ -265,7 +301,12 @@ export function SocialProfileEditWindow({
             {SOCIAL.profile.done}
           </Button>
         </header>
-        <div ref={bodyRef} className={SOCIAL_PROFILE_EDIT_WINDOW_BODY_CLASS} inert={asking}>
+        <div
+          ref={bodyRef}
+          className={SOCIAL_PROFILE_EDIT_WINDOW_BODY_CLASS}
+          inert={asking || edit.pending}
+          aria-busy={edit.pending || undefined}
+        >
           <div key={edit.face} className={cn(SOCIAL_PROFILE_EDIT_WINDOW_FACE_CLASS, motionClass)}>
             {atIndex ? (
               <SocialProfileEditIndexBody
@@ -276,7 +317,7 @@ export function SocialProfileEditWindow({
                     hasPhoto={Boolean(edit.previewPhoto)}
                     pending={edit.uploading}
                     placement="inline"
-                    onClose={() => edit.setAvatarSheet(false)}
+                    onClose={closeMenu}
                     onPick={edit.beginCrop}
                     onRemove={() => void edit.onPhotoRemove()}
                   />
@@ -294,7 +335,7 @@ export function SocialProfileEditWindow({
             edit={edit}
             variant="strip"
             titleId={askTitleId}
-            onKeep={() => setAsking(false)}
+            onKeep={keepEditing}
             onDiscard={discard}
           />
         ) : null}

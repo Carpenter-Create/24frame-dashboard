@@ -537,4 +537,13 @@ describe("Edit profile window: one draft, one save (social-profile-edit-window-l
     dropSocialProfileOptimisticDraft();
     expect(readSocialProfileOptimistic()).toMatchObject({ handle: "ada" });
   });
+
+  it("paints without the save-hop cover when Edit stays on the profile (the window)", () => {
+    applySocialProfileOptimistic({ handle: "ada", displayName: "Ada" }, { hop: false });
+    expect(readSocialProfileSaveHop()).toBe(false);
+    expect(readSocialProfileOptimistic()).toMatchObject({ handle: "ada" });
+    // The phone's hop to the profile route still raises it.
+    applySocialProfileOptimistic({ handle: "ada", displayName: "Ada" });
+    expect(readSocialProfileSaveHop()).toBe(true);
+  });
 });

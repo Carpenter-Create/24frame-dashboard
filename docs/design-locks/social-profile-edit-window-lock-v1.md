@@ -39,12 +39,15 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Header | 64, surface, hairline under. Left: the round grey 44 (`HOUSE_HEADER_ROUND_BUTTON_CLASS`): **X** (Close) on the index, **‹** (Back) on a face. Centre: the face title, 17 / 600, naming the dialog. Right: **Done**, the accent pill (40 tall). Done always saves everything and closes |
 | Index | On the wash, pad 24, gap 16: the 88 avatar and **Edit picture**; the Welcome video card; the drill card Name · Username · Professions · Topics · IMDb · Links · Bio with their live summaries. Nothing typed on the index |
 | Faces | A row pushes its face into the same frame: 220ms ease-out slide from the right (Back: from the left), instant under reduced motion. The face's first field takes focus; Back returns focus to the row it came from. Faces are today's faces, unchanged in content |
-| Photo | **Edit picture** opens the house menu (MenuSurface) dropped under it, inside the window. The crop runs in place; Done waits while it is open. Photo and welcome video still save the moment they are confirmed; the profile behind updates at once |
+| Photo | **Edit picture** (and the avatar) toggles the house menu (MenuSurface) dropped under it, inside the window; it takes focus on its first row, a click anywhere outside closes it, and focus returns to Edit picture. The crop runs in place; Done waits while it is open; opening a face closes both. Photo and welcome video still save the moment they are confirmed; the profile behind updates at once |
 | Esc | Closes the nearest layer: the photo menu, the crop, the ask (Keep editing), a face (Back), then the window. A second Esc keeps editing: a double Esc never discards |
 | Keyboard | ⌘/Ctrl + Enter is Done from anywhere in the window. Tab stays inside the window |
 | Close | X, Esc on the index, a click on the scrim, and browser Back all take one path: with nothing changed the window closes; with changes it asks first (§3). Closing returns focus to the pill |
 | Done | Valid: the profile behind repaints under the scrim, the window closes, the write runs in the background; a failure rolls the paint back and reopens the window at the face at fault, with the draft. Invalid: the window goes to the face at fault with its error |
-| Username | A changed username waits for the server (Done shows pending): it is the public address, and "taken" is a common answer. "Taken" stays on Username with its error. Every other field stays optimistic |
+| Username | A changed username waits for the server (Done shows pending): it is the public address, and "taken" is a common answer. "Taken" stays on Username with its error. While it waits nothing leaves or changes: X, Esc, the scrim and Back do nothing, and the window is inert. Every other field stays optimistic |
+| Address | The `?edit` entry is written with the browser's own history calls (no shell-only marker), so Next keeps it as its address: a server action under the window (a new photo) never writes a stale address back. Closing pops the entry Edit pushed, or strips `?edit` in place when it came with the page |
+| Paint | The window paints the saved draft without the save-hop cover (that cover is for the phone's hop to the profile route; under the window it would remount the page). The cached profile row is merged, never replaced, so the cover and welcome video stay; a failed save puts the row back |
+| Width | Below md the window is hidden and holds no keys and no scroll lock; its draft is kept, and it shows again at md+. A resize is never "Back" |
 | Other entries | Interests' **Topics** (empty Interests, owner) opens the window at Topics, the Interests tab kept behind it. `/social/profile/edit[?face=]` and `/social/profile/edit/bio` on a computer hand over to the window (`?edit[=face]`) |
 | Not | A drawer, a separate page, an editing mode on the profile, a pencil on every section. The cover keeps its in-place editor on the hero |
 
@@ -62,7 +65,7 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Token | Lock |
 |-------|------|
 | Draft | Every face writes into one draft as you type. Back never drops anything |
-| Save | One write: Name, Username, Professions, Topics, IMDb, Links and **Bio** (`createSocialProfile` writes Bio when the form carries it; over 150 returns the Bio limit) |
+| Save | One write: Name, Username, Professions, Topics, IMDb, Links and **Bio** when this draft changed it (`createSocialProfile` writes Bio when the form carries it; over 150 returns the Bio limit). An unchanged Bio is left out, so a Bio saved meanwhile from the Home prompt is never overwritten |
 | Ask | Title **"Discard changes?"**; a line naming the changed fields in row order ("Name and Topics aren't saved." · one field: "Name isn't saved."); when a new picture or welcome video already saved, a line saying so. **Keep editing** · **Discard**. On desktop, a strip rising at the foot inside the window (the body above is inert); never a dialog over a dialog |
 | Discard | The draft goes; saved media stays. After a failed save, the failed draft is dropped from the overlay too |
 | Browser | While the draft has changes, reloading or closing the tab raises the browser's own prompt |

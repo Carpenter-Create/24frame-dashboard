@@ -1466,8 +1466,10 @@ export const SOCIAL_PROFILE_AVATAR_SHEET_LIST_CLASS = "flex w-full flex-col";
 // Desktop Edit profile window only: the house menu drops under Edit picture,
 // inside the window (social-profile-edit-window-lock-v1). Phone stays the
 // bottom AppSheet.
+// Centred without a transform: a transformed box would become the
+// containing block of the fixed click-outside layer and clip it to the menu.
 export const SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS =
-  "absolute left-1/2 top-full z-30 mt-[var(--space-2)] -translate-x-1/2";
+  "absolute inset-x-0 top-full z-30 mx-auto mt-[var(--space-2)] w-fit";
 
 export const SOCIAL_PROFILE_AVATAR_SHEET_ROW_CLASS =
   "flex w-full items-center gap-3 py-3 text-left t-body text-ink";

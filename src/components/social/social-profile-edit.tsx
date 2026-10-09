@@ -63,6 +63,7 @@ import {
   SOCIAL_ROUTES,
   composeSocialDisplayName,
   handleFieldValue,
+  normalizeBio,
   splitSocialDisplayName,
 } from "@/lib/social";
 import { isLocalMediaPreviewSrc } from "@/lib/social-media-display";
@@ -95,11 +96,10 @@ import {
   type SocialProfileEditFace,
   type SocialProfileEditSaveDraft,
   type SocialProfileIdentityView,
+  type SocialProfileOptimisticSnapshot,
 } from "@/lib/social-profile-edit";
-import {
-  applyOptimisticSocialProfile,
-  invalidateSocialQueries,
-} from "@/lib/social-query";
+import { applyOptimisticSocialProfilePatch, invalidateSocialQueries } from "@/lib/social-query";
+import { socialProfileQueryKey } from "@/lib/social-cache-keys";
 
 // Edit profile: one draft, one save, two hosts
 // (docs/design-locks/social-profile-edit-window-lock-v1.md, Adam 2026-10-09).
@@ -148,8 +148,9 @@ function editDraftFrom(view: EditView): SocialProfileEditSaveDraft {
 export type SocialProfileEditSaveHost = {
   /** Leave Edit: the phone routes to the profile; the window closes. */
   leave: () => void;
-  /** After the optimistic paint (the window stays on the mounted profile). */
-  afterPaint?: () => void;
+  /** The window stays on the mounted profile: paint without the save-hop
+   *  cover (raising it would remount the Social tree under the window). */
+  stayOnPage?: boolean;
   /** A background persist failed after Edit left: come back at that face. */
   onPersistFailed: (face: SocialProfileEditFace) => void;
 };
@@ -231,6 +232,9 @@ export function useSocialProfileEditDraft({
   const cropOpen = Boolean(cropFile && cropPreview && cropSize);
 
   function openFace(next: SocialProfileEditFace) {
+    // The photo menu and the crop belong to the index; leaving it closes them.
+    setAvatarSheet(false);
+    clearCrop();
     setMotion("push");
     setCameFrom(null);
     setFace(next);
@@ -413,24 +417,36 @@ export function useSocialProfileEditDraft({
       showSaveError(checked.handleError ?? checked.error ?? "");
       return;
     }
+    // Bio rides the one save only when this draft changed it: a Bio saved
+    // elsewhere meanwhile (the Home prompt's Bio route) is never overwritten
+    // by the copy Edit opened with.
+    const bioChanged = (normalizeBio(baseline.bio) ?? baseline.bio) !== (normalizeBio(bioText) ?? bioText);
+    if (!bioChanged) checked.form.delete("bio");
+    const snapshot: SocialProfileOptimisticSnapshot = bioChanged
+      ? checked.snapshot
+      : { ...checked.snapshot, bio: undefined };
+    const key = profileId ? socialProfileQueryKey(profileId) : null;
+    // The cached row as it stood, to put back if the write fails.
+    const cached = queryClient && key ? queryClient.getQueryData(key) : undefined;
+    const restoreCached = () => {
+      if (!queryClient || !key || !profileId) return;
+      queryClient.setQueryData(key, cached);
+      invalidateSocialQueries(queryClient, { profileId });
+    };
     const paint = () => {
       flushSync(() => {
-        applySocialProfileOptimistic(checked.snapshot);
+        applySocialProfileOptimistic(snapshot, { hop: !host.stayOnPage });
       });
-      host.afterPaint?.();
       if (queryClient && profileId) {
-        applyOptimisticSocialProfile(queryClient, {
-          id: profileId,
-          handle: checked.snapshot.handle ?? username,
-          display_name:
-            checked.snapshot.displayName ?? composeSocialDisplayName(firstName, lastName, middleName),
-          status: "active",
-          bio: checked.snapshot.bio ?? bioText,
-          crafts: [...(checked.snapshot.crafts ?? roles)],
-          topics: [...(checked.snapshot.topics ?? interestTopics)],
-          imdb_url: checked.snapshot.imdbUrl?.trim() || null,
-          website_url:
-            checked.snapshot.websiteUrl ?? composeSocialWebsiteUrlField(linkDrafts.filter(Boolean)),
+        // Merge into the cached row: the cover and welcome video keys stay.
+        applyOptimisticSocialProfilePatch(queryClient, profileId, {
+          handle: snapshot.handle ?? username,
+          display_name: snapshot.displayName ?? composeSocialDisplayName(firstName, lastName, middleName),
+          ...(bioChanged ? { bio: snapshot.bio ?? bioText } : {}),
+          crafts: [...(snapshot.crafts ?? roles)],
+          topics: [...(snapshot.topics ?? interestTopics)],
+          imdb_url: snapshot.imdbUrl?.trim() || null,
+          website_url: snapshot.websiteUrl ?? composeSocialWebsiteUrlField(linkDrafts.filter(Boolean)),
         });
       }
     };
@@ -461,14 +477,15 @@ export function useSocialProfileEditDraft({
     void persistSocialProfileEdit(checked.form)
       .then((result) => {
         if (!result.error) return;
-        if (queryClient && profileId) invalidateSocialQueries(queryClient, { profileId });
-        applySocialProfileOptimistic(socialProfileOptimisticFail(checked.snapshot, result.error));
+        restoreCached();
+        applySocialProfileOptimistic(socialProfileOptimisticFail(snapshot, result.error));
         showSaveError(result.error);
         host.onPersistFailed(socialProfileEditFaceForError(result.error) ?? "edit");
       })
       .catch((cause) => {
         const notice = socialProfilePersistNotice(cause, ACCOUNT_PROFILE.saveFailed);
-        applySocialProfileOptimistic(socialProfileOptimisticFail(checked.snapshot, notice));
+        restoreCached();
+        applySocialProfileOptimistic(socialProfileOptimisticFail(snapshot, notice));
         setError(notice);
         host.onPersistFailed("edit");
       })
@@ -592,7 +609,7 @@ export function SocialProfileEditIndexBody({
                 SOCIAL_PROFILE_EDIT_AVATAR_CLASS,
                 edit.dropping ? SOCIAL_PROFILE_EDIT_AVATAR_DROPPING_CLASS : null,
               )}
-              onClick={() => edit.setAvatarSheet(true)}
+              onClick={() => edit.setAvatarSheet(!edit.avatarSheet)}
               onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "copy";
@@ -613,7 +630,7 @@ export function SocialProfileEditIndexBody({
               data-social-profile-edit-picture=""
               aria-haspopup="dialog"
               aria-expanded={edit.avatarSheet}
-              onClick={() => edit.setAvatarSheet(true)}
+              onClick={() => edit.setAvatarSheet(!edit.avatarSheet)}
               className={SOCIAL_PROFILE_EDIT_PICTURE_CLASS}
             >
               {edit.dropping
@@ -915,7 +932,7 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   if (edit.face !== "edit") {
     return (
       <SocialProfileEditFaceHostProvider
-        value={{ kind: "sheet", error: edit.error, pending: edit.pending, onDone }}
+        value={{ kind: "sheet", error: edit.error, pending: edit.pending || edit.cropOpen, onDone }}
       >
         <SocialProfileEditFaceSwitch edit={edit} />
       </SocialProfileEditFaceHostProvider>
@@ -932,6 +949,11 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
               className={SOCIAL_PROFILE_EDIT_BACK_CLASS}
               aria-label={SOCIAL.profile.back}
               onClick={(event) => {
+                // A changed username is with the server: stay until it answers.
+                if (edit.pending) {
+                  event.preventDefault();
+                  return;
+                }
                 // With changes, leaving asks first (Keep editing · Discard).
                 if (!edit.dirty) return;
                 event.preventDefault();
@@ -952,7 +974,7 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
               {SOCIAL.profile.done}
             </button>
           </header>
-          <div className={SOCIAL_PROFILE_EDIT_BODY_CLASS}>
+          <div className={SOCIAL_PROFILE_EDIT_BODY_CLASS} inert={edit.pending} aria-busy={edit.pending || undefined}>
             <SocialProfileEditIndexBody edit={edit} />
           </div>
         </div>

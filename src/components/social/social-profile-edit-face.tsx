@@ -122,7 +122,11 @@ export function SocialProfileEditFace({
           <h1 className="min-w-0 flex-1 text-center text-[17px] font-semibold text-ink">{title}</h1>
           {trailing}
         </header>
-        <div className={SOCIAL_PROFILE_EDIT_BODY_CLASS}>
+        <div
+          className={SOCIAL_PROFILE_EDIT_BODY_CLASS}
+          inert={host?.kind === "sheet" && host.pending}
+          aria-busy={(host?.kind === "sheet" && host.pending) || undefined}
+        >
           {children}
           {notice}
         </div>

@@ -93,6 +93,7 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
   it("closes the nearest layer on Esc: menu, crop, ask, face, then the window", () => {
     const escape = windowSrc.slice(windowSrc.indexOf("function onEscape()"), windowSrc.indexOf("// Latest handlers"));
     const order = [
+      "if (edit.pending) return;",
       "if (edit.avatarSheet)",
       "if (edit.cropOpen)",
       "if (asking)",
@@ -103,35 +104,52 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     // A second Esc keeps editing; it never discards.
     expect(escape.slice(escape.indexOf("if (asking)"), escape.indexOf('if (edit.face !== "edit")'))).toContain(
-      "setAsking(false)",
+      "keepEditing()",
     );
     expect(escape).not.toContain("discard(");
     expect(windowSrc).toContain('if (event.key === "Escape") {\n        event.preventDefault();');
+    // Closing the ask or the menu puts focus back where it was.
+    expect(windowSrc).toContain('restoreFocus("[data-social-profile-edit-close]")');
+    expect(windowSrc).toContain('restoreFocus("[data-social-profile-edit-picture]")');
   });
 
   it("asks before leaving with changes, inside the window, and closes at once when clean", () => {
     const close = windowSrc.slice(windowSrc.indexOf("function requestClose()"), windowSrc.indexOf("function done()"));
     expect(close).toContain("if (!edit.dirty) {\n      onClose();\n      return true;\n    }");
     expect(close).toContain("setAsking(true);");
+    // A changed username is with the server: nothing leaves until it answers.
+    expect(close).toContain("if (edit.pending) return false;\n    if (!edit.dirty) {");
+    expect(windowSrc).toContain("inert={asking || edit.pending}");
     // X, the scrim and browser Back all take requestClose.
     expect(windowSrc).toContain("onClose={() => {\n        requestClose();\n      }}");
     expect(windowSrc).toContain('data-social-profile-edit-close=""');
     expect(windowSrc).toContain('variant="strip"');
-    expect(windowSrc).toContain("inert={asking}");
     expect(entrySrc).toContain("const closed = requestRef.current ? requestRef.current() : true;");
     // Leaving the tab with changes: the browser's own prompt.
     expect(windowSrc).toContain("useSocialProfileEditLeaveGuard(edit.dirty)");
     expect(editSrc).toContain('window.addEventListener("beforeunload", onBeforeUnload)');
   });
 
-  it("saves once: paint the profile behind, release the hop, close; ⌘/Ctrl+Enter is Done", () => {
+  it("saves once without the save-hop cover, so the profile under the window never remounts", () => {
     const done = windowSrc.slice(windowSrc.indexOf("function done()"), windowSrc.indexOf("function discard()"));
     expect(done).toContain("leave: onClose");
-    expect(done).toContain("afterPaint: releaseSocialProfileSaveHop");
+    expect(done).toContain("stayOnPage: true");
     expect(done).toContain("onPersistFailed");
+    expect(editSrc).toContain("applySocialProfileOptimistic(snapshot, { hop: !host.stayOnPage });");
     expect(windowSrc).toContain('event.key === "Enter" && (event.metaKey || event.ctrlKey)');
     expect(windowSrc).toContain("disabled={edit.pending || edit.cropOpen}");
     expect(windowSrc).toContain("aria-busy={edit.pending}");
+  });
+
+  it("merges the save into the cached row, puts it back on failure, and sends Bio only when changed", () => {
+    const save = editSrc.slice(editSrc.indexOf("function save(host"), editSrc.indexOf("function discard()"));
+    // The cover and welcome video keys stay: a merge, never a replace.
+    expect(save).toContain("applyOptimisticSocialProfilePatch(queryClient, profileId, {");
+    expect(save).not.toContain("applyOptimisticSocialProfile(queryClient");
+    expect(save).toContain("const cached = queryClient && key ? queryClient.getQueryData(key) : undefined;");
+    expect(save).toContain("queryClient.setQueryData(key, cached);");
+    expect(save.match(/restoreCached\(\);/g)?.length).toBe(2);
+    expect(save).toContain('if (!bioChanged) checked.form.delete("bio");');
   });
 
   it("holds one height while open and keeps focus inside", () => {
@@ -154,11 +172,21 @@ describe("Edit profile pill (social-profile-edit-entry)", () => {
     expect(html).not.toContain("data-social-profile-edit-window");
   });
 
-  it("opens by a panel hop to ?edit and closes by popping or stripping it", () => {
-    expect(entrySrc).toContain("house?.navigateOwned(socialProfileEditWindowOpenHref(at.pathname, at.search))");
+  it("opens with a ?edit entry Next can see, and closes by popping or stripping it", () => {
+    // The browser's own history calls, no __NA: Next keeps ?edit as its address.
+    expect(entrySrc).toContain("const EDIT_ENTRY_STATE = { houseClient: true, socialProfileEdit: true } as const;");
+    expect(entrySrc).toContain("window.history.pushState(\n    EDIT_ENTRY_STATE,");
+    expect(entrySrc).toContain("window.history.replaceState(\n    EDIT_ENTRY_STATE,");
+    expect(entrySrc).not.toContain("__NA");
+    expect(entrySrc).not.toContain("navigateOwned");
     expect(entrySrc).toContain("window.history.back();");
-    expect(entrySrc).toContain("socialProfileEditWindowClosedHref(window.location.pathname, window.location.search)");
-    expect(entrySrc).toContain("onPersistFailed={(face) => open(face, false)}");
+    // ?edit is read whatever the width; only opening needs a computer.
+    expect(entrySrc).toContain('const editFace = parseSocialProfileEditWindow(house?.search ?? "");');
+    expect(entrySrc).toContain("isHouseDesktop()) open(editFace, isEditEntry());");
+    // Late callbacks only touch the window they belong to.
+    expect(entrySrc).toContain("if (winRef.current?.key !== key) return;");
+    expect(entrySrc).toContain("onClose={() => closeWindow(win.key)}");
+    expect(entrySrc).toContain("function reopenAfterFailure(face: SocialProfileEditFace) {\n    if (winRef.current) return;");
     expect(entrySrc).toContain("router.replace(socialProfileEditWindowHref(face))");
   });
 });

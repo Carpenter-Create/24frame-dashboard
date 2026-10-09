@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { useHouseClient } from "@/components/chrome/house-client-shell";
 import { HouseLink } from "@/components/chrome/house-link";
-import { isHouseDesktop, useHouseDesktop } from "@/components/chrome/house-overlay";
+import { isHouseDesktop } from "@/components/chrome/house-overlay";
 import { useSocialOwnProfileIdentity } from "@/components/social/social-own-profile";
 import { SocialProfileEditWindow } from "@/components/social/social-profile-edit-window";
 import { cn } from "@/lib/cn";
-import { houseClientHistoryState } from "@/lib/house-client-shell";
 import { SOCIAL_PROFILE_ACTION_PILL_CLASS } from "@/lib/social-chrome";
 import { SOCIAL, SOCIAL_ROUTES, socialProfileEditWindowHref } from "@/lib/social";
 import {
@@ -21,19 +20,44 @@ import {
 
 // The owner's Edit profile pill (docs/design-locks/social-profile-edit-window-lock-v1.md).
 // Phone: a link to the full-screen sheet on /social/profile/edit.
-// Desktop: a button that opens the window over this profile, as a panel
-// hop to ?edit on the mounted screen (no route change, no skeleton), so
-// browser Back closes it. ?edit[=face] from a link opens it the same way.
+// Desktop: a button that opens the window over this profile and adds a
+// ?edit entry on the same screen (no route change, no skeleton), so browser
+// Back closes it. ?edit[=face] from a link opens it the same way.
+//
+// The ?edit entry is written with the browser's own history calls and no
+// shell marker for Next to skip, so Next keeps it as its address: a server
+// action under the window (a new photo) never writes a stale address back.
 
-function isShellPushedEntry(): boolean {
-  const state = window.history.state as { houseClient?: boolean } | null;
-  return state?.houseClient === true;
+const EDIT_ENTRY_STATE = { houseClient: true, socialProfileEdit: true } as const;
+
+function isEditEntry(): boolean {
+  const state = window.history.state as { socialProfileEdit?: boolean; houseClient?: boolean } | null;
+  return state?.socialProfileEdit === true || state?.houseClient === true;
+}
+
+export function pushEditEntry(face: SocialProfileEditFace) {
+  window.history.pushState(
+    EDIT_ENTRY_STATE,
+    "",
+    socialProfileEditWindowOpenHref(window.location.pathname, window.location.search, face),
+  );
+}
+
+function stripEditEntry() {
+  window.history.replaceState(
+    EDIT_ENTRY_STATE,
+    "",
+    socialProfileEditWindowClosedHref(window.location.pathname, window.location.search),
+  );
+}
+
+function addressHasEdit(): boolean {
+  return parseSocialProfileEditWindow(window.location.search) !== null;
 }
 
 export function SocialProfileEditEntry() {
   const identity = useSocialOwnProfileIdentity();
   const house = useHouseClient();
-  const desktop = useHouseDesktop();
   const [win, setWin] = useState<{ face: SocialProfileEditFace; key: number } | null>(null);
   const winRef = useRef(win);
   const keyRef = useRef(0);
@@ -44,8 +68,9 @@ export function SocialProfileEditEntry() {
   const requestRef = useRef<(() => boolean) | null>(null);
   const pillRef = useRef<HTMLButtonElement>(null);
   const prevEdit = useRef<SocialProfileEditFace | null>(null);
-  const search = house?.search ?? "";
-  const editFace = desktop ? parseSocialProfileEditWindow(search) : null;
+  // The address the shell shows. Read whatever the width: a resize is never
+  // ?edit leaving (below md the window stays mounted, hidden, keeping its draft).
+  const editFace = parseSocialProfileEditWindow(house?.search ?? "");
 
   function open(face: SocialProfileEditFace, pushed: boolean) {
     keyRef.current += 1;
@@ -56,53 +81,45 @@ export function SocialProfileEditEntry() {
     setWin(next);
   }
 
-  // The address the shell shows (its owned panel query included).
-  function where() {
-    return {
-      pathname: house?.pathname ?? window.location.pathname,
-      search: house?.search ?? window.location.search,
-    };
-  }
-
   function onPill() {
     if (winRef.current) return;
-    const at = where();
-    const before = `${window.location.pathname}${window.location.search}`;
-    const already = parseSocialProfileEditWindow(at.search) !== null;
-    const pushed =
-      !already &&
-      Boolean(house?.navigateOwned(socialProfileEditWindowOpenHref(at.pathname, at.search))) &&
-      `${window.location.pathname}${window.location.search}` !== before;
+    const pushed = !addressHasEdit();
+    if (pushed) pushEditEntry("edit");
     open("edit", pushed);
   }
 
-  function closeWindow() {
+  /** Only the window that is open now may close it. */
+  function closeWindow(key: number) {
+    if (winRef.current?.key !== key) return;
     winRef.current = null;
     setWin(null);
-    if (parseSocialProfileEditWindow(window.location.search) !== null) {
-      closingRef.current = true;
+    if (addressHasEdit()) {
       if (pushedRef.current) {
+        closingRef.current = true;
         window.history.back();
       } else {
-        window.history.replaceState(
-          houseClientHistoryState(window.history.state),
-          "",
-          socialProfileEditWindowClosedHref(window.location.pathname, window.location.search),
-        );
+        stripEditEntry();
       }
     }
     pushedRef.current = false;
     window.requestAnimationFrame(() => pillRef.current?.focus());
   }
 
-  // The address drives the window: ?edit arriving opens it; ?edit leaving
-  // (browser Back) asks the window to close. With changes it asks first,
-  // and its entry goes back so the next Back asks again.
+  /** A save that failed after its window closed: reopen at the face, unless
+   *  a newer window is already open (the failed draft seeds the next one). */
+  function reopenAfterFailure(face: SocialProfileEditFace) {
+    if (winRef.current) return;
+    open(face, false);
+  }
+
+  // The address drives the window: ?edit arriving opens it (on a computer);
+  // ?edit leaving (browser Back) asks the window to close. With changes it
+  // asks first, and its entry goes back so the next Back asks again.
   useEffect(() => {
     const prev = prevEdit.current;
     prevEdit.current = editFace;
     if (editFace !== null && prev === null) {
-      if (!winRef.current && !closingRef.current) open(editFace, isShellPushedEntry());
+      if (!winRef.current && !closingRef.current && isHouseDesktop()) open(editFace, isEditEntry());
       return;
     }
     if (editFace === null && prev !== null) {
@@ -113,12 +130,9 @@ export function SocialProfileEditEntry() {
       if (!winRef.current) return;
       const closed = requestRef.current ? requestRef.current() : true;
       if (closed) return;
-      const at = where();
-      const pushed = Boolean(house?.navigateOwned(socialProfileEditWindowOpenHref(at.pathname, at.search)));
-      pushedRef.current = pushed;
+      pushEditEntry("edit");
+      pushedRef.current = true;
     }
-    // house is read at the moment of a transition only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editFace]);
 
   return (
@@ -157,8 +171,8 @@ export function SocialProfileEditEntry() {
           websiteUrl={identity.websiteUrl}
           initialFace={win.face}
           requestRef={requestRef}
-          onClose={closeWindow}
-          onPersistFailed={(face) => open(face, false)}
+          onClose={() => closeWindow(win.key)}
+          onPersistFailed={reopenAfterFailure}
         />
       ) : null}
     </>
@@ -174,4 +188,25 @@ export function SocialProfileEditDesktopHop({ face = "edit" }: { face?: SocialPr
     router.replace(socialProfileEditWindowHref(face));
   }, [face, router]);
   return null;
+}
+
+/** Empty Interests (owner) on a computer: open the window at Topics over this
+ *  profile, the Interests tab kept behind it. The href stays for a new tab. */
+export function SocialProfileEditTopicsLink({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <a
+      href={socialProfileEditWindowHref("topics", "interests")}
+      data-social-profile-interests-edit=""
+      data-social-profile-interests-edit-window=""
+      className={className}
+      onClick={(event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (addressHasEdit()) return;
+        pushEditEntry("topics");
+      }}
+    >
+      {children}
+    </a>
+  );
 }

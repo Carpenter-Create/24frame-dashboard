@@ -47,6 +47,13 @@ export function SocialProfileAvatarSheet({
   const cameraRef = useRef<HTMLInputElement>(null);
   const dragStartY = useRef<number | null>(null);
   const inline = placement === "inline";
+  const inlineListRef = useRef<HTMLDivElement>(null);
+
+  // The anchored menu takes focus on its first row as it opens.
+  useEffect(() => {
+    if (!open || !inline) return;
+    inlineListRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
+  }, [open, inline]);
 
   useEffect(() => {
     if (!open || inline) return undefined;
@@ -163,8 +170,8 @@ export function SocialProfileAvatarSheet({
           onClick={onClose}
         />
         <div
-          role="dialog"
-          aria-modal="true"
+          ref={inlineListRef}
+          role="group"
           aria-labelledby={titleId}
           className={`relative ${menuSurfaceContentClass(menuSurfaceDensityForCount(hasPhoto ? 3 : 2))}`}
         >
