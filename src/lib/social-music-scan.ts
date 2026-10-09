@@ -433,15 +433,39 @@ export function musicScanLatencyLine(input: {
 export function omitHeldPosts<T extends { id: string }>(
   hits: readonly T[],
   notices: ReadonlyMap<string, SocialMusicNotice>,
+  withheldIds?: ReadonlySet<string>,
 ): T[] {
-  return hits.filter((hit) => !notices.has(hit.id));
+  return hits.filter((hit) => !notices.has(hit.id) && !withheldIds?.has(hit.id));
 }
 
 export type MusicNoticeMaps = {
   posts: Map<string, SocialMusicNotice>;
   stories: Map<string, SocialMusicNotice>;
   welcome: SocialMusicNotice | null;
+  /** Own pending or blocked posts whose video must not play. No notice is shown for these. */
+  withheldPostIds: ReadonlySet<string>;
+  /** Own pending or blocked stories whose video must not play. */
+  withheldStoryIds: ReadonlySet<string>;
 };
+
+export function emptyMusicNoticeMaps(): MusicNoticeMaps {
+  return {
+    posts: new Map(),
+    stories: new Map(),
+    welcome: null,
+    withheldPostIds: new Set(),
+    withheldStoryIds: new Set(),
+  };
+}
+
+/** Drop video playback when a notice failure is holding this parent. Images stay. */
+export function mediaWithoutHeldPlayback<T extends { kind?: string; playbackId?: string | null; url?: string | null }>(
+  media: readonly T[],
+  held: boolean,
+): T[] {
+  if (!held) return [...media];
+  return media.map((item) => (item.kind === "video" ? { ...item, playbackId: undefined, url: "" } : item));
+}
 
 function isMusicNotice(value: string | null): value is SocialMusicNotice {
   return (
@@ -479,7 +503,8 @@ async function captureNoticeFailure(error: unknown, captureException?: (error: u
  * The function returns only a notice word. The author select does not
  * include the columns that word is derived from. Ids are sent in calls of
  * at most 500. A failed call is logged and tried once more. If that also
- * fails, the error is thrown. An empty map is not used to hide the failure.
+ * fails, the page still renders: no notice is shown, and the viewer's own
+ * pending or blocked video posts and stories are held so they do not play.
  */
 export async function loadOwnMusicNotices(
   supabase: SupabaseClient<Database>,
@@ -489,12 +514,7 @@ export async function loadOwnMusicNotices(
 ): Promise<MusicNoticeMaps> {
   const postIds = [...new Set((ids.postIds ?? []).filter(Boolean))];
   const storyIds = [...new Set((ids.storyIds ?? []).filter(Boolean))];
-  const empty = {
-    posts: new Map<string, SocialMusicNotice>(),
-    stories: new Map<string, SocialMusicNotice>(),
-    welcome: null as SocialMusicNotice | null,
-  };
-  if (!viewerId) return empty;
+  if (!viewerId) return emptyMusicNoticeMaps();
 
   const postChunks = noticeIdChunks(postIds);
   const storyChunks = noticeIdChunks(storyIds);
@@ -521,7 +541,7 @@ export async function loadOwnMusicNotices(
       await captureNoticeFailure(result.error, captureException);
     }
     if (lastError || !data) {
-      throw new Error(`Music notice read failed: ${lastError?.message ?? "unknown"}`);
+      return withholdOwnVideoOnNoticeFailure(supabase, viewerId, postIds, storyIds);
     }
     for (const row of data) {
       if (!isMusicNotice(row.notice)) continue;
@@ -533,5 +553,42 @@ export async function loadOwnMusicNotices(
       if (row.story_id && storyIds.includes(row.story_id)) stories.set(row.story_id, row.notice);
     }
   }
-  return { posts, stories, welcome };
+  return { posts, stories, welcome, withheldPostIds: new Set(), withheldStoryIds: new Set() };
+}
+
+async function withholdOwnVideoOnNoticeFailure(
+  supabase: SupabaseClient<Database>,
+  viewerId: string,
+  postIds: readonly string[],
+  storyIds: readonly string[],
+): Promise<MusicNoticeMaps> {
+  const empty = emptyMusicNoticeMaps();
+  try {
+    const scan = await supabase
+      .from("social_music_scans")
+      .select("post_id, story_id, status")
+      .eq("author_id", viewerId)
+      .in("status", ["pending", "blocked"]);
+    if (scan.error || !scan.data) {
+      return {
+        ...empty,
+        withheldPostIds: new Set(postIds),
+        withheldStoryIds: new Set(storyIds),
+      };
+    }
+    const withheldPostIds = new Set<string>();
+    const withheldStoryIds = new Set<string>();
+    for (const row of scan.data) {
+      if (row.status !== "pending" && row.status !== "blocked") continue;
+      if (row.post_id && postIds.includes(row.post_id)) withheldPostIds.add(row.post_id);
+      if (row.story_id && storyIds.includes(row.story_id)) withheldStoryIds.add(row.story_id);
+    }
+    return { ...empty, withheldPostIds, withheldStoryIds };
+  } catch {
+    return {
+      ...empty,
+      withheldPostIds: new Set(postIds),
+      withheldStoryIds: new Set(storyIds),
+    };
+  }
 }

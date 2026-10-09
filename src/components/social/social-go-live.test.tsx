@@ -17,6 +17,7 @@ vi.mock("next/link", async () => {
   return { __esModule: true, default: MockLink };
 });
 
+import { goLiveRecordingFlag } from "@/lib/social-go-live";
 import { armGoLiveRecorder, SocialGoLive } from "./social-go-live";
 import { SOCIAL_GO_LIVE_MAX_MS, startGoLiveClock } from "@/lib/social-go-live";
 import { SocialPostMedia } from "./social-post-media";
@@ -100,6 +101,10 @@ describe("Social Go live recorder", () => {
     expect(clock).not.toMatch(/window\.setInterval\(\(\) =>/);
     const begin = src.slice(src.indexOf("function beginRecording"), src.indexOf("function startRecording"));
     expect(begin).toContain("armGoLiveRecorder(");
+    const arm = begin.slice(begin.indexOf("armGoLiveRecorder({"));
+    expect(arm).toContain("isRecording: () => goLiveRecordingFlag(recordingRef)");
+    expect(goLiveRecordingFlag({ current: true })).toBe(true);
+    expect(goLiveRecordingFlag({ current: false })).toBe(false);
     expect(begin).not.toMatch(/ondataavailable\s*=/);
     expect(src).toContain("goLiveFitsByteCap(used + event.data.size");
     expect(src).toContain("new MediaRecorder(stream, { mimeType: probed.raw })");

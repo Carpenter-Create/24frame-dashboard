@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialStoryViewer, type SocialStoryNeighbor } from "@/components/social/social-story-viewer";
 import { SOCIAL_STORY_STAGE_CLASS } from "@/lib/social-chrome";
+import { avatarKeyFromProfileRead } from "@/lib/account-avatar";
 import { signedAvatarUrl, signedAvatarUrls } from "@/lib/s3-avatars";
 import { socialMediaProxies, socialStoryRailCover } from "@/lib/social-edge";
 import { followingAuthorIds } from "@/lib/social-home";
@@ -19,7 +20,7 @@ import {
   loadViewedStoryIds,
   type SocialStoryRailCard,
 } from "@/lib/social-feed";
-import { loadOwnMusicNotices } from "@/lib/social-music-scan";
+import { loadOwnMusicNotices, mediaWithoutHeldPlayback } from "@/lib/social-music-scan";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import type { SocialStoryLikeState } from "@/lib/social-story-actions";
 import { sortStoryTrayOldestFirst, type SocialStoryTrayAuthor } from "@/lib/social-story-tray";
@@ -109,7 +110,8 @@ export default async function SocialStoryPage({
     supabase.from("profiles").select("avatar_key").eq("id", story.author_id).maybeSingle(),
     signedAvatarUrls(peopleIds),
   ]);
-  const photoUrl = await signedAvatarUrl(story.author_id, avatarRow.data?.avatar_key);
+  const avatarPointer = avatarKeyFromProfileRead(avatarRow.error, avatarRow.data);
+  const photoUrl = avatarPointer.sign ? await signedAvatarUrl(story.author_id, avatarPointer.key) : null;
   const rail = groupStoryRail(railPage.stories, viewed);
   const storyRows = new Map(railPage.stories.map((row) => [row.id, row]));
   for (const row of authorStoriesPage.stories) storyRows.set(row.id, row);
@@ -159,7 +161,10 @@ export default async function SocialStoryPage({
             id: row.id,
             createdAt: row.created_at,
             body: row.body,
-            media: mediaById.get(row.id) ?? [],
+            media: mediaWithoutHeldPlayback(
+              mediaById.get(row.id) ?? [],
+              music.withheldStoryIds.has(row.id),
+            ),
             ...(row.author_id === ctx.user.id && music.stories.get(row.id)
               ? { musicNotice: music.stories.get(row.id) }
               : {}),
@@ -203,7 +208,7 @@ export default async function SocialStoryPage({
         authorPhotoUrl={photoUrl}
         createdAt={story.created_at}
         body={story.body}
-        media={media}
+        media={mediaWithoutHeldPlayback(media, music.withheldStoryIds.has(story.id))}
         prevId={prevId}
         nextId={nextId}
         prevAuthor={neighbor(authorAt > 0 ? rail[authorAt - 1] : undefined)}

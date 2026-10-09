@@ -9,6 +9,7 @@ import {
   MUSIC_SCAN_MAX_ATTEMPTS,
   decideMusicScan,
   loadOwnMusicNotices,
+  mediaWithoutHeldPlayback,
   musicNoticeFromScans,
   musicScanBackoff,
   musicScanConfig,
@@ -174,7 +175,7 @@ describe("social video visibility", () => {
     expect(maps.welcome).toBe("legacyHeld");
   });
 
-  it("chunks notice ids at 500, logs a failed read, retries once, and throws if the retry fails", async () => {
+  it("chunks notice ids at 500, logs a failed read, retries once, and withholds own video when the retry fails", async () => {
     const posts = Array.from({ length: 501 }, (_, index) => `post-${index}`);
     const calls: { posts: number; stories: number }[] = [];
     let failures = 0;
@@ -205,16 +206,58 @@ describe("social video visibility", () => {
     expect(maps.posts.get("post-0")).toBe("pending");
     expect(maps.posts.get("post-500")).toBe("pending");
 
+    const scans = [
+      { post_id: "post-1", story_id: null, status: "pending" },
+      { post_id: "post-2", story_id: null, status: "allowed" },
+      { post_id: null, story_id: "story-1", status: "blocked" },
+    ];
     const broken = {
       rpc: async () => ({ data: null, error: { message: "still down" } }),
+      from: (table: string) => {
+        expect(table).toBe("social_music_scans");
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          in: async () => ({ data: scans, error: null }),
+        };
+        return chain;
+      },
     };
     const again: unknown[] = [];
-    await expect(
-      loadOwnMusicNotices(broken as never, "author-1", { postIds: ["post-1"] }, (error) => {
+    const degraded = await loadOwnMusicNotices(
+      broken as never,
+      "author-1",
+      { postIds: ["post-1", "post-2"], storyIds: ["story-1"] },
+      (error) => {
         again.push(error);
-      }),
-    ).rejects.toThrow(/Music notice read failed: still down/);
+      },
+    );
     expect(again).toEqual([{ message: "still down" }, { message: "still down" }]);
+    expect(degraded.posts.size).toBe(0);
+    expect(degraded.stories.size).toBe(0);
+    expect(degraded.welcome).toBeNull();
+    expect([...degraded.withheldPostIds]).toEqual(["post-1"]);
+    expect([...degraded.withheldStoryIds]).toEqual(["story-1"]);
+    expect(
+      mediaWithoutHeldPlayback([{ kind: "video", playbackId: "playHELD0001", url: "https://example.test/v" }], true),
+    ).toEqual([{ kind: "video", playbackId: undefined, url: "" }]);
+    expect(
+      omitHeldPosts([{ id: "post-1" }, { id: "post-2" }], degraded.posts, degraded.withheldPostIds).map((hit) => hit.id),
+    ).toEqual(["post-2"]);
+
+    const blind = {
+      rpc: async () => ({ data: null, error: { message: "still down" } }),
+      from: () => {
+        throw new Error("scans unreadable");
+      },
+    };
+    const held = await loadOwnMusicNotices(blind as never, "author-1", {
+      postIds: ["post-9"],
+      storyIds: ["story-9"],
+    });
+    expect(held.posts.size).toBe(0);
+    expect([...held.withheldPostIds]).toEqual(["post-9"]);
+    expect([...held.withheldStoryIds]).toEqual(["story-9"]);
   });
 
   it("skips a welcome or media row that no longer stores the scanned pair", () => {

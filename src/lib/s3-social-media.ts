@@ -212,6 +212,9 @@ export async function putPublishedSocialImage(input: {
       ContentType: input.contentType,
       CacheControl: "private, max-age=300",
       IfNoneMatch: "*",
+      Metadata: {
+        [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
+      },
     }),
   );
 }

@@ -13,7 +13,7 @@ import { SocialShareButton } from "@/components/social/social-share-button";
 import { SocialProfileIdentity } from "@/components/social/social-profile-identity";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
 import { welcomeVideoVisible } from "@/lib/social-media-access";
-import { loadOwnMusicNotices } from "@/lib/social-music-scan";
+import { loadOwnMusicNotices, mediaWithoutHeldPlayback } from "@/lib/social-music-scan";
 import { SocialWelcomeVideo } from "@/components/social/social-welcome-video";
 import { SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PAGE_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
 import {
@@ -259,7 +259,7 @@ export default async function SocialPublicProfilePage({
                 authorPhotoUrl: photoUrl,
                 liked: liked.has(post.id),
                 canLike: !!own,
-                media: media.get(post.id) ?? [],
+                media: mediaWithoutHeldPlayback(media.get(post.id) ?? [], music.withheldPostIds.has(post.id)),
                 owned: isSelf,
                 musicNotice: isSelf ? (music.posts.get(post.id) ?? null) : null,
               }),
@@ -284,7 +284,10 @@ export default async function SocialPublicProfilePage({
                   authorPhotoUrl: parentFaces.get(item.post.author_id) ?? photoUrl,
                   liked: liked.has(item.post.id),
                   canLike: !!own,
-                  media: media.get(item.post.id) ?? [],
+                  media: mediaWithoutHeldPlayback(
+                    media.get(item.post.id) ?? [],
+                    music.withheldPostIds.has(item.post.id),
+                  ),
                   owned: item.post.author_id === ctx.user.id,
                   musicNotice:
                     item.post.author_id === ctx.user.id ? (music.posts.get(item.post.id) ?? null) : null,

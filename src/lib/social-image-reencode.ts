@@ -35,8 +35,10 @@ export async function reencodeSocialImage(
     const image = sharp(bytes, { animated, failOn: "error", limitInputPixels: 40_000_000 });
     const meta = await image.metadata();
     if (meta.format !== format) return null;
-    // Apply the EXIF orientation, then drop the tag. A phone portrait is stored sideways.
-    const oriented = image.rotate();
+    // Rotate a single page only. sharp refuses rotate on a multi-page image,
+    // and an animated WebP with an orientation tag must still publish.
+    const pages = meta.pages ?? 1;
+    const oriented = pages === 1 ? image.rotate() : image;
     const encoded =
       format === "jpeg"
         ? await oriented.jpeg().toBuffer()
@@ -113,6 +115,14 @@ export type SocialImageRecheckItem = {
   readError?: string;
 };
 
+export type SocialImageRecheckStoreResult =
+  | void
+  | {
+      /** The parent changed after the page was read. The new object is an orphan. */
+      skipped?: boolean;
+      orphanKey?: string;
+    };
+
 export type SocialImageRecheckReport = {
   dryRun: boolean;
   skip: number;
@@ -121,7 +131,50 @@ export type SocialImageRecheckReport = {
   reported: number;
   /** A read failed. The parent stays active so the next run tries again. */
   unfinished: number;
+  /** Hidden post ids. A later run can set status back to active. */
+  hiddenPosts: string[];
+  /** Hidden story ids. */
+  hiddenStories: string[];
+  /** Avatar profile ids whose pointer was cleared. */
+  clearedAvatars: string[];
+  /** Parents whose media or avatar pointer changed before the write. */
+  skippedParents: string[];
+  /** New keys written when the parent update did not land. Clean these up. */
+  orphanedKeys: string[];
+  /** Posts that still carry a non-Mux video. Counted once, not unfinished. */
+  legacyS3Video: number;
 };
+
+export function blankSocialImageRecheckReport(dryRun: boolean): SocialImageRecheckReport {
+  return {
+    dryRun,
+    skip: 0,
+    store: 0,
+    hide: 0,
+    reported: 0,
+    unfinished: 0,
+    hiddenPosts: [],
+    hiddenStories: [],
+    clearedAvatars: [],
+    skippedParents: [],
+    orphanedKeys: [],
+    legacyS3Video: 0,
+  };
+}
+
+function addRecheckReport(total: SocialImageRecheckReport, page: SocialImageRecheckReport): void {
+  total.skip += page.skip;
+  total.store += page.store;
+  total.hide += page.hide;
+  total.reported += page.reported;
+  total.unfinished += page.unfinished;
+  total.hiddenPosts.push(...(page.hiddenPosts ?? []));
+  total.hiddenStories.push(...(page.hiddenStories ?? []));
+  total.clearedAvatars.push(...(page.clearedAvatars ?? []));
+  total.skippedParents.push(...(page.skippedParents ?? []));
+  total.orphanedKeys.push(...(page.orphanedKeys ?? []));
+  total.legacyS3Video += page.legacyS3Video ?? 0;
+}
 
 /** True only when the process was started with --execute. Dry-run is the default. */
 export function recheckWantsExecute(argv: readonly string[]): boolean {
@@ -139,20 +192,13 @@ export async function runSocialImageRecheck(input: {
   execute: boolean;
   items: readonly SocialImageRecheckItem[];
   reencode?: (bytes: Uint8Array, contentType: string) => Promise<Uint8Array | null>;
-  store: (item: SocialImageRecheckItem, bytes: Uint8Array) => Promise<void>;
+  store: (item: SocialImageRecheckItem, bytes: Uint8Array) => Promise<SocialImageRecheckStoreResult>;
   hide: (parent: { surface: "post" | "story"; parentId: string }) => Promise<void>;
-  clearAvatar?: (parentId: string) => Promise<void>;
+  clearAvatar?: (parentId: string) => Promise<SocialImageRecheckStoreResult>;
   report?: (line: string) => void;
 }): Promise<SocialImageRecheckReport> {
   const reencode = input.reencode ?? reencodeSocialImage;
-  const report: SocialImageRecheckReport = {
-    dryRun: !input.execute,
-    skip: 0,
-    store: 0,
-    hide: 0,
-    reported: 0,
-    unfinished: 0,
-  };
+  const report = blankSocialImageRecheckReport(!input.execute);
   const hidden = new Set<string>();
   for (const item of input.items) {
     const parentKey = `${item.surface}:${item.parentId}`;
@@ -177,18 +223,43 @@ export async function runSocialImageRecheck(input: {
         if (item.surface === "avatar") {
           report.reported += 1;
           input.report?.(`avatar ${item.parentId} did not decode`);
-          if (input.execute) await input.clearAvatar?.(item.parentId);
+          if (input.execute) {
+            const cleared = await input.clearAvatar?.(item.parentId);
+            if (cleared?.orphanKey) report.orphanedKeys.push(cleared.orphanKey);
+            if (cleared?.skipped) {
+              report.skippedParents.push(`avatar:${item.parentId}`);
+              input.report?.(`avatar ${item.parentId} skipped; pointer changed`);
+              continue;
+            }
+          }
+          report.clearedAvatars.push(item.parentId);
           continue;
         }
         report.hide += 1;
+        if (item.surface === "post") report.hiddenPosts.push(item.parentId);
+        else report.hiddenStories.push(item.parentId);
         hidden.add(parentKey);
+        input.report?.(`${item.surface} ${item.parentId} hidden`);
         if (input.execute) await input.hide({ surface: item.surface, parentId: item.parentId });
         continue;
       }
-      if (input.execute) await input.store(item, encoded);
+      if (input.execute) {
+        const stored = await input.store(item, encoded);
+        if (stored?.orphanKey) report.orphanedKeys.push(stored.orphanKey);
+        if (stored?.skipped) {
+          report.skippedParents.push(`${item.surface}:${item.parentId}`);
+          input.report?.(`${item.surface} ${item.parentId} skipped; media changed`);
+          continue;
+        }
+      }
       report.store += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : "recheck_failed";
+      const orphanKey =
+        error && typeof error === "object" && "orphanKey" in error && typeof error.orphanKey === "string"
+          ? error.orphanKey
+          : "";
+      if (orphanKey) report.orphanedKeys.push(orphanKey);
       input.report?.(`${item.surface} ${item.parentId} failed: ${message}`);
       report.unfinished += 1;
     }
@@ -196,32 +267,34 @@ export async function runSocialImageRecheck(input: {
   return report;
 }
 
-/** One parent page at a time. The page's bytes are dropped before the next read. */
-export async function recheckParentPages<T>(input: {
+/** One parent page at a time, keyed by id. The page's bytes are dropped before the next read. */
+export async function recheckParentPages<T extends { id: string }>(input: {
   execute: boolean;
   pageSize: number;
-  loadParents: (offset: number, limit: number) => Promise<T[]>;
+  loadParents: (afterId: string | null, limit: number) => Promise<T[]>;
   recheck: (parents: readonly T[]) => Promise<SocialImageRecheckReport>;
 }): Promise<SocialImageRecheckReport> {
-  const report: SocialImageRecheckReport = {
-    dryRun: !input.execute,
-    skip: 0,
-    store: 0,
-    hide: 0,
-    reported: 0,
-    unfinished: 0,
-  };
-  let offset = 0;
+  const report = blankSocialImageRecheckReport(!input.execute);
+  let afterId: string | null = null;
   for (;;) {
-    const parents = await input.loadParents(offset, input.pageSize);
+    const parents = await input.loadParents(afterId, input.pageSize);
     const page = await input.recheck(parents);
-    report.skip += page.skip;
-    report.store += page.store;
-    report.hide += page.hide;
-    report.reported += page.reported;
-    report.unfinished += page.unfinished;
+    addRecheckReport(report, page);
     if (parents.length < input.pageSize) break;
-    offset += input.pageSize;
+    afterId = parents[parents.length - 1]?.id ?? afterId;
+    if (!afterId) break;
   }
   return report;
+}
+
+/** A post whose media still holds a video that is not Mux. The image recheck cannot repoint it. */
+export function socialPostHasLegacyS3Video(media: unknown): boolean {
+  if (!Array.isArray(media)) return false;
+  return media.some((entry) => {
+    if (!entry || typeof entry !== "object") return false;
+    const row = entry as { kind?: string; contentType?: string; provider?: string };
+    const type = (row.contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+    const video = row.kind === "video" || type.startsWith("video/");
+    return video && row.provider !== "mux";
+  });
 }

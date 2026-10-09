@@ -19,16 +19,19 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
   getSignedUrl: mockGetSignedUrl,
 }));
 
-import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
-import { AVATAR_CLEARED, avatarRecheckObjectKey } from "./account-avatar";
+import { AVATAR_CLEARED, avatarQuarantineObjectKey, avatarRecheckObjectKey } from "./account-avatar";
+import { SOCIAL_IMAGE_PREVIOUS_KEY_METADATA, SOCIAL_IMAGE_REENCODED_METADATA } from "./social-image-reencode";
 import {
   deleteAvatarObject,
   hasAvatarObject,
   headAvatarObject,
   presignAvatarGet,
   putAvatarObject,
+  putAvatarRecheckObject,
+  quarantineAvatarObject,
   signedAvatarUrl,
   signedAvatarUrls,
 } from "./s3-avatars";
@@ -165,5 +168,74 @@ describe("s3-avatars dedicated bucket", () => {
   it("returns an empty map when no ids are passed", async () => {
     await expect(signedAvatarUrls([])).resolves.toEqual(new Map());
     expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("marks a published face as re-encoded", async () => {
+    mockSend.mockResolvedValueOnce({});
+    const jpeg = new Uint8Array(
+      await sharp({ create: { width: 2, height: 2, channels: 3, background: { r: 1, g: 2, b: 3 } } }).jpeg().toBuffer(),
+    );
+    await putAvatarObject(UID, jpeg, "image/jpeg");
+    const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
+    expect(cmd.input.Metadata?.[SOCIAL_IMAGE_REENCODED_METADATA]).toBe("1");
+  });
+
+  it("refuses IfNoneMatch overwrite on a recheck face and records the previous key", async () => {
+    mockSend.mockResolvedValueOnce({});
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const key = await putAvatarRecheckObject({
+      userId: UID,
+      objectId,
+      body: new Uint8Array([1, 2, 3]),
+      contentType: "image/jpeg",
+      previousKey: KEY,
+    });
+    const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
+    expect(key).toBe(avatarRecheckObjectKey(UID, objectId));
+    expect(cmd.input.IfNoneMatch).toBe("*");
+    expect(cmd.input.Metadata?.[SOCIAL_IMAGE_REENCODED_METADATA]).toBe("1");
+    expect(cmd.input.Metadata?.[SOCIAL_IMAGE_PREVIOUS_KEY_METADATA]).toBe(KEY);
+  });
+
+  it("deletes the canonical face and this member's recheck copy, and leaves another member's key", async () => {
+    mockSend.mockResolvedValue({});
+    const own = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    await deleteAvatarObject(UID, own);
+    const keys = mockSend.mock.calls.map((call) => (call[0] as DeleteObjectCommand).input.Key);
+    expect(keys).toEqual([KEY, own]);
+    mockSend.mockClear();
+    const other = "33333333-3333-4333-8333-333333333333";
+    await deleteAvatarObject(UID, avatarRecheckObjectKey(other, "22222222-2222-4222-8222-222222222222"));
+    const left = mockSend.mock.calls.map((call) => (call[0] as DeleteObjectCommand).input.Key);
+    expect(left).toEqual([KEY]);
+  });
+
+  it("moves a canonical face into quarantine and never signs that key", async () => {
+    mockSend.mockResolvedValue({});
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const dest = await quarantineAvatarObject(UID, objectId);
+    expect(dest).toBe(avatarQuarantineObjectKey(UID, objectId));
+    const copy = mockSend.mock.calls[0]?.[0] as CopyObjectCommand;
+    const removed = mockSend.mock.calls[1]?.[0] as DeleteObjectCommand;
+    expect(copy).toBeInstanceOf(CopyObjectCommand);
+    expect(copy.input.Key).toBe(dest);
+    expect(copy.input.IfNoneMatch).toBe("*");
+    expect(removed).toBeInstanceOf(DeleteObjectCommand);
+    expect(removed.input.Key).toBe(KEY);
+    mockSend.mockClear();
+    await expect(signedAvatarUrl(UID, dest)).resolves.toBeNull();
+    expect(mockSend).not.toHaveBeenCalled();
+    expect(mockGetSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("signs this member's canonical face when the pointer names another member's recheck key", async () => {
+    const other = "33333333-3333-4333-8333-333333333333";
+    const foreign = avatarRecheckObjectKey(other, "22222222-2222-4222-8222-222222222222");
+    mockSend.mockResolvedValueOnce({});
+    mockGetSignedUrl.mockResolvedValueOnce("https://s3.example/canonical");
+    await expect(signedAvatarUrl(UID, foreign)).resolves.toBe("https://s3.example/canonical");
+    const head = mockSend.mock.calls[0]?.[0] as HeadObjectCommand;
+    expect(head.input.Key).toBe(KEY);
+    expect(head.input.Key).not.toBe(foreign);
   });
 });

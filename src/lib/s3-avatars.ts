@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -12,9 +13,12 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   AVATAR_SIGNED_URL_TTL_SECONDS,
   avatarObjectKey,
+  avatarQuarantineObjectKey,
   avatarRecheckObjectKey,
   avatarServeKey,
   isAvatarContentType,
+  isAvatarQuarantineKey,
+  isAvatarRecheckKey,
 } from "@/lib/account-avatar";
 import {
   reencodeSocialImage,
@@ -69,6 +73,9 @@ export async function putAvatarObject(
       Body: encoded,
       ContentType: contentType,
       CacheControl: "private, max-age=300",
+      Metadata: {
+        [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
+      },
     }),
   );
   return key;
@@ -131,10 +138,38 @@ export async function readAvatarObject(
   return { bytes, contentType };
 }
 
-export async function deleteAvatarObject(userId: string): Promise<void> {
+export async function deleteAvatarObject(userId: string, storedKey?: string | null): Promise<void> {
   const key = avatarObjectKey(userId);
   const { bucket, s3 } = avatarsClient();
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  if (
+    typeof storedKey === "string" &&
+    storedKey !== key &&
+    (isAvatarRecheckKey(storedKey, userId) || isAvatarQuarantineKey(storedKey, userId))
+  ) {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: storedKey }));
+  }
+}
+
+/**
+ * Move avatars/{id}/avatar to avatars/{id}/quarantine/{objectId}.
+ * The quarantine key is never signed. Rollback copies it back to the
+ * canonical key and deletes the quarantine object.
+ */
+export async function quarantineAvatarObject(userId: string, objectId: string): Promise<string> {
+  const source = avatarObjectKey(userId);
+  const dest = avatarQuarantineObjectKey(userId, objectId);
+  const { bucket, s3 } = avatarsClient();
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: dest,
+      CopySource: `${bucket}/${source.split("/").map(encodeURIComponent).join("/")}`,
+      IfNoneMatch: "*",
+    }),
+  );
+  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: source }));
+  return dest;
 }
 
 export async function headAvatarObject(userId: string): Promise<boolean> {

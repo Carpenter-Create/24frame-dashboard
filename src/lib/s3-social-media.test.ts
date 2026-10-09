@@ -34,10 +34,13 @@ import {
 } from "@aws-sdk/client-s3";
 
 import { SOCIAL_IMAGE_MAX_BYTES } from "@/lib/social-media";
+import { SOCIAL_IMAGE_PREVIOUS_KEY_METADATA, SOCIAL_IMAGE_REENCODED_METADATA } from "@/lib/social-image-reencode";
 import { isMediaCloudfrontConfigured, signSocialMediaCloudfrontUrl } from "@/lib/social-media-cloudfront";
 import {
   MEDIA_AWS_ENV,
   copySocialMediaObject,
+  putPublishedSocialImage,
+  putRecheckedSocialImage,
   mediaOutputBucket,
   mediaSourceBucket,
   headSocialMediaObject,
@@ -559,5 +562,28 @@ describe("s3-social-media MEDIA_AWS env selection", () => {
     await expect(presignSocialMediaGet(KEY)).rejects.toThrow(/MEDIA_AWS_/);
     expect(S3Client).not.toHaveBeenCalled();
     expect(mockGetSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("marks a published image as re-encoded", async () => {
+    mockSend.mockResolvedValueOnce({});
+    await putPublishedSocialImage({ key: PUBLISHED_KEY, body: new Uint8Array([1, 2, 3]), contentType: "image/jpeg" });
+    const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
+    expect(cmd.input.Metadata?.[SOCIAL_IMAGE_REENCODED_METADATA]).toBe("1");
+    expect(cmd.input.IfNoneMatch).toBe("*");
+  });
+
+  it("refuses IfNoneMatch overwrite on a rechecked image and records the previous key", async () => {
+    mockSend.mockResolvedValueOnce({});
+    const next = `posts/${USER}/33333333-3333-4333-8333-333333333333.jpg`;
+    await putRecheckedSocialImage({
+      key: next,
+      previousKey: PUBLISHED_KEY,
+      body: new Uint8Array([1, 2, 3]),
+      contentType: "image/jpeg",
+    });
+    const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
+    expect(cmd.input.IfNoneMatch).toBe("*");
+    expect(cmd.input.Metadata?.[SOCIAL_IMAGE_REENCODED_METADATA]).toBe("1");
+    expect(cmd.input.Metadata?.[SOCIAL_IMAGE_PREVIOUS_KEY_METADATA]).toBe(PUBLISHED_KEY);
   });
 });

@@ -108,7 +108,7 @@ async function SocialExploreForYouBody({
   const music = await loadOwnMusicNotices(session.supabase, session.ctx.user.id, {
     postIds: loaded.page.hits.map((hit) => hit.id),
   });
-  const hits = omitHeldPosts(loaded.page.hits, music.posts);
+  const hits = omitHeldPosts(loaded.page.hits, music.posts, music.withheldPostIds);
   const mediaByPost = socialMediaProxiesByPostId(
     hits.map((hit) => ({ id: hit.id, author_id: hit.authorId, media: hit.media })),
   );

@@ -51,6 +51,7 @@ import {
 import {
   bindGoLiveRecorderStop,
   formatGoLiveClock,
+  goLiveRecordingFlag,
   startGoLiveClock,
   goLiveFileName,
   goLiveFitsByteCap,
@@ -619,7 +620,7 @@ export function SocialGoLive() {
       recorder,
       now: () => Date.now(),
       startedAt: clockStartedRef.current,
-      isRecording: () => recordingRef.current,
+      isRecording: () => goLiveRecordingFlag(recordingRef),
       stop: () => stopRecording(),
       takeChunk: (event) => {
         if (event.data.size <= 0) return;

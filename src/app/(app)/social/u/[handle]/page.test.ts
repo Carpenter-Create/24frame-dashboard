@@ -109,7 +109,9 @@ const viewer: PublicProfile = {
 function stubClient({
   member = ada,
   posts = [],
+  noticeError = false,
 }: {
+  noticeError?: boolean;
   member?: PublicProfile | null;
   posts?: {
     id: string;
@@ -134,7 +136,11 @@ function stubClient({
   });
   vi.mocked(createClient).mockResolvedValue({
     from,
-    rpc: vi.fn(async () => ({ data: [], error: null })),
+    rpc: vi.fn(async (name: string) =>
+      noticeError && name === "social_music_author_notices"
+        ? { data: null, error: { message: "still down" } }
+        : { data: [], error: null },
+    ),
   } as never);
   return { from };
 }
@@ -152,6 +158,12 @@ describe("Social public profile", () => {
     vi.mocked(signedSocialMediaByPostId).mockResolvedValue(new Map());
     vi.mocked(ensureOwnSocialProfile).mockResolvedValue(viewer);
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+  });
+
+  it("renders when the music notice rpc fails", async () => {
+    stubClient({ noticeError: true });
+    const html = await renderPublic();
+    expect(html).toContain("data-social-member");
   });
 
   it("shows that author's posts under the identity header", async () => {

@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const profileRead = vi.hoisted(() => ({
+  current: { data: { avatar_key: null as string | null }, error: null as { message: string } | null },
+}));
+
 vi.mock("@/lib/supabase/auth", () => ({ getAuthUser: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: { avatar_key: null }, error: null }),
+          maybeSingle: async () => profileRead.current,
         }),
       }),
     }),
@@ -23,6 +27,7 @@ const UID = "11111111-1111-4111-8111-111111111111";
 describe("GET /api/social/avatar/[userId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    profileRead.current = { data: { avatar_key: null }, error: null };
   });
 
   it("is 401 without a session and does not sign", async () => {
@@ -55,5 +60,16 @@ describe("GET /api/social/avatar/[userId]", () => {
     expect(res.headers.get("Location")).toBe("https://s3.example/signed-avatar");
     expect(res.headers.get("Cache-Control")).toBe("private, max-age=300");
     expect(signedAvatarUrl).toHaveBeenCalledWith(UID, null);
+  });
+
+  it("is 404 when the profile pointer cannot be read and does not sign the original", async () => {
+    vi.mocked(getAuthUser).mockResolvedValue({ id: UID, email: "ada@example.com" });
+    profileRead.current = { data: { avatar_key: null }, error: { message: "permission denied" } };
+    const res = await GET(new Request("http://local/api/social/avatar/" + UID), {
+      params: Promise.resolve({ userId: UID }),
+    });
+    expect(res.status).toBe(404);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(signedAvatarUrl).not.toHaveBeenCalled();
   });
 });

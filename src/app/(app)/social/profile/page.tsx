@@ -13,7 +13,7 @@ import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot
 import { SocialForYouSkeleton, SocialProfileCenterSkeleton } from "@/components/social/social-skeletons";
 import { SocialOwnProfileFace } from "@/components/social/social-own-profile";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
-import { loadOwnMusicNotices } from "@/lib/social-music-scan";
+import { loadOwnMusicNotices, mediaWithoutHeldPlayback } from "@/lib/social-music-scan";
 import {
   SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_PAGE_CLASS,
@@ -224,7 +224,7 @@ async function SocialProfileMain({
               authorPhotoUrl: photoUrl,
               liked: liked.has(post.id),
               canLike: true,
-              media: media.get(post.id) ?? [],
+              media: mediaWithoutHeldPlayback(media.get(post.id) ?? [], music.withheldPostIds.has(post.id)),
               owned: true,
               musicNotice: music.posts.get(post.id) ?? null,
             }),
@@ -249,7 +249,10 @@ async function SocialProfileMain({
                 authorPhotoUrl: parentFaces.get(item.post.author_id) ?? photoUrl,
                 liked: liked.has(item.post.id),
                 canLike: true,
-                media: media.get(item.post.id) ?? [],
+                media: mediaWithoutHeldPlayback(
+                  media.get(item.post.id) ?? [],
+                  music.withheldPostIds.has(item.post.id),
+                ),
                 owned: item.post.author_id === profile.id,
                 musicNotice:
                   item.post.author_id === profile.id ? (music.posts.get(item.post.id) ?? null) : null,

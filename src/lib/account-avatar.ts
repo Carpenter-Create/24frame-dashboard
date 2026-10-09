@@ -41,6 +41,9 @@ export const AVATAR_CLEARED = "cleared";
 const AVATAR_RECHECK_KEY =
   /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/recheck\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
 
+const AVATAR_QUARANTINE_KEY =
+  /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/quarantine\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+
 /** A recheck writes here. The canonical `avatars/{user-id}/avatar` object is left as it was. */
 export function avatarRecheckObjectKey(userId: string, objectId: string): string {
   const user = userIdSchema.safeParse(userId);
@@ -56,6 +59,35 @@ export function isAvatarRecheckKey(key: string, userId: string): boolean {
   return match?.[1] === userId;
 }
 
+/** Private hold for a face the recheck could not decode. Never signed. */
+export function avatarQuarantineObjectKey(userId: string, objectId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  const object = userIdSchema.safeParse(objectId);
+  if (!user.success || !object.success) {
+    throw new Error("Avatar key requires a UUID user id");
+  }
+  return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/${object.data}`;
+}
+
+export function isAvatarQuarantineKey(key: string, userId?: string): boolean {
+  const match = AVATAR_QUARANTINE_KEY.exec(key);
+  if (!match) return false;
+  if (userId && match[1] !== userId) return false;
+  return true;
+}
+
+/**
+ * A profile read that failed, or a row that is not visible, must not fall
+ * through to the canonical object.
+ */
+export function avatarKeyFromProfileRead(
+  error: { message: string } | null | undefined,
+  row: { avatar_key?: string | null } | null | undefined,
+): { sign: false } | { sign: true; key: string | null } {
+  if (error || !row) return { sign: false };
+  return { sign: true, key: row.avatar_key ?? null };
+}
+
 /**
  * Which object to sign. A cleared pointer signs nothing, so the default face
  * shows. A recheck pointer signs that object. Anything else, including a
@@ -63,6 +95,7 @@ export function isAvatarRecheckKey(key: string, userId: string): boolean {
  */
 export function avatarServeKey(userId: string, stored: string | null | undefined): string | null {
   if (stored === AVATAR_CLEARED) return null;
+  if (typeof stored === "string" && isAvatarQuarantineKey(stored)) return null;
   if (typeof stored === "string" && isAvatarRecheckKey(stored, userId)) return stored;
   try {
     return avatarObjectKey(userId);

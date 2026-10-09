@@ -1,4 +1,5 @@
 import { SocialProfileEditForm } from "@/components/social/social-profile-edit";
+import { avatarKeyFromProfileRead } from "@/lib/account-avatar";
 import { signedAvatarUrl } from "@/lib/s3-avatars";
 import { SOCIAL_PROFILE_EDIT_FACE_PARAM, SOCIAL_ROUTES } from "@/lib/social";
 import { SOCIAL_WELCOME_VIDEO_PRESENT } from "@/lib/social-query";
@@ -23,7 +24,8 @@ export default async function SocialProfileEditPage({
     supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle(),
   ]);
   if (!profile) redirect(SOCIAL_ROUTES.profile);
-  const photoUrl = await signedAvatarUrl(ctx.user.id, avatarRow.data?.avatar_key);
+  const avatarPointer = avatarKeyFromProfileRead(avatarRow.error, avatarRow.data);
+  const photoUrl = avatarPointer.sign ? await signedAvatarUrl(ctx.user.id, avatarPointer.key) : null;
   const welcomeVideoUrl =
     profile.welcome_video_key || profile.welcome_mux_playback_id ? SOCIAL_WELCOME_VIDEO_PRESENT : null;
 

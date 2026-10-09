@@ -10,6 +10,7 @@ import {
 } from "@/lib/account-profile";
 import { AVATAR_CLEARED, AVATAR_MAX_BYTES, isAvatarContentType } from "@/lib/account-avatar";
 import { deleteAvatarObject, putAvatarObject } from "@/lib/s3-avatars";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 
@@ -58,9 +59,14 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
 
   try {
     const body = new Uint8Array(await file.arrayBuffer());
-    const key = await putAvatarObject(ctx.user.id, body, file.type);
     const supabase = await createClient();
-    const { error } = await supabase.from("profiles").update({ avatar_key: key }).eq("id", ctx.user.id);
+    const previous = await supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle();
+    if (previous.error || !previous.data) return { error: previous.error?.message || ACCOUNT_PROFILE.photoFailed };
+    const previousKey = previous.data.avatar_key;
+    await deleteAvatarObject(ctx.user.id, previousKey);
+    const key = await putAvatarObject(ctx.user.id, body, file.type);
+    const admin = createAdminClient();
+    const { error } = await admin.from("profiles").update({ avatar_key: key }).eq("id", ctx.user.id);
     if (error) return { error: error.message || ACCOUNT_PROFILE.photoFailed };
   } catch (e) {
     if (e instanceof Error && e.message === "Unsupported avatar content type") {
@@ -86,9 +92,13 @@ export async function removeAccountPhoto(): Promise<{ error?: string }> {
 
   try {
     const supabase = await createClient();
-    const { error } = await supabase.from("profiles").update({ avatar_key: AVATAR_CLEARED }).eq("id", ctx.user.id);
+    const previous = await supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle();
+    if (previous.error || !previous.data) return { error: previous.error?.message || ACCOUNT_PROFILE.photoRemoveFailed };
+    const previousKey = previous.data.avatar_key;
+    const admin = createAdminClient();
+    const { error } = await admin.from("profiles").update({ avatar_key: AVATAR_CLEARED }).eq("id", ctx.user.id);
     if (error) return { error: error.message || ACCOUNT_PROFILE.photoRemoveFailed };
-    await deleteAvatarObject(ctx.user.id);
+    await deleteAvatarObject(ctx.user.id, previousKey);
   } catch (e) {
     return {
       error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoRemoveFailed,

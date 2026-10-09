@@ -329,6 +329,7 @@ set search_path to 'public'
 as $$
   select
     case
+      when p_surface is distinct from 'post' and p_surface is distinct from 'story' then false
       when p_surface = 'post' and exists (
         select 1 from public.posts p
         where p.id = p_id
@@ -1008,6 +1009,23 @@ as $$
 declare
   v_retired boolean;
 begin
+  -- Lock the parent before the scan update. A concurrent switch-back holds
+  -- that row. FOR SHARE waits for it, and the UPDATE below then reads a
+  -- fresh snapshot. Without the lock, READ COMMITTED rechecks only the
+  -- scan row and can retire a pair the member just restored.
+  perform 1
+  from public.profiles p
+  where p.id = (select s.profile_id from public.social_music_scans s where s.id = p_id)
+  for share;
+  perform 1
+  from public.posts p
+  where p.id = (select s.post_id from public.social_music_scans s where s.id = p_id)
+  for share;
+  perform 1
+  from public.stories st
+  where st.id = (select s.story_id from public.social_music_scans s where s.id = p_id)
+  for share;
+
   v_retired := false;
   update public.social_music_scans as s
   set next_attempt_at = null,

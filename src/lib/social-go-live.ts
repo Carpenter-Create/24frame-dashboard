@@ -31,6 +31,11 @@ export function goLiveReachedCap(
  * Stop at 479s from the timer or from recorder.ondataavailable, whichever
  * fires first. A stalled timer still stops when a chunk arrives.
  */
+/** True only while the component's recording ref is set. A constant false drops the cap chunk. */
+export function goLiveRecordingFlag(recording: { current: boolean }): boolean {
+  return recording.current;
+}
+
 export function bindGoLiveRecorderStop<T extends { data: Blob }>(input: {
   recorder: { ondataavailable: ((event: T) => void) | null };
   now: () => number;

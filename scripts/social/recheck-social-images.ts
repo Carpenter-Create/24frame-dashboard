@@ -9,7 +9,8 @@
  * retried on the next run. The next run loads status = active, so a hidden
  * post is not retried and a store error must not hide.
  * An avatar that will not decode is cleared so the default face shows. The
- * original object is left in place.
+ * canonical object is moved to avatars/{id}/quarantine/{objectId}. That
+ * prefix is never signed. Rollback copies it back to avatars/{id}/avatar.
  * One page is read, rechecked, and dropped before the next page.
  * Do not run this against production from CI. Adam runs it after the SQL is applied.
  *
@@ -19,16 +20,18 @@
 import { randomUUID } from "node:crypto";
 
 import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey, isAvatarRecheckKey } from "@/lib/account-avatar";
-import { headAvatarRecheck, putAvatarRecheckObject, readAvatarObject } from "@/lib/s3-avatars";
+import { headAvatarRecheck, putAvatarRecheckObject, quarantineAvatarObject, readAvatarObject } from "@/lib/s3-avatars";
 import { headSocialImageRecheck, putRecheckedSocialImage, readSocialMediaObject } from "@/lib/s3-social-media";
 import {
   pointSocialMediaAtRecheckedImage,
+  blankSocialImageRecheckReport,
   recheckParentPages,
   recheckedSocialImageKey,
   recheckWantsExecute,
   runSocialImageRecheck,
   SOCIAL_IMAGE_RECHECK_ORDER,
   SOCIAL_IMAGE_RECHECK_PAGE,
+  socialPostHasLegacyS3Video,
   type SocialImageRecheckItem,
   type SocialImageRecheckReport,
 } from "@/lib/social-image-reencode";
@@ -60,28 +63,30 @@ function imageKeys(media: unknown): { key: string; contentType: string }[] {
 
 async function loadParentPage(
   table: "posts" | "stories",
-  offset: number,
+  afterId: string | null,
 ): Promise<{ id: string; media: unknown }[]> {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from(table)
     .select("id, media")
     .eq("status", "active")
-    .order(SOCIAL_IMAGE_RECHECK_ORDER)
-    .range(offset, offset + SOCIAL_IMAGE_RECHECK_PAGE - 1);
+    .order(SOCIAL_IMAGE_RECHECK_ORDER);
+  if (afterId) query = query.gt("id", afterId);
+  const { data, error } = await query.limit(SOCIAL_IMAGE_RECHECK_PAGE);
   assertOk(error, `${table} read`);
   return data ?? [];
 }
 
-async function loadAvatarPage(offset: number): Promise<{ id: string; avatar_key: string }[]> {
+async function loadAvatarPage(afterId: string | null): Promise<{ id: string; avatar_key: string }[]> {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from("profiles")
     .select("id, avatar_key")
     .not("avatar_key", "is", null)
     .neq("avatar_key", AVATAR_CLEARED)
-    .order(SOCIAL_IMAGE_RECHECK_ORDER)
-    .range(offset, offset + SOCIAL_IMAGE_RECHECK_PAGE - 1);
+    .order(SOCIAL_IMAGE_RECHECK_ORDER);
+  if (afterId) query = query.gt("id", afterId);
+  const { data, error } = await query.limit(SOCIAL_IMAGE_RECHECK_PAGE);
   assertOk(error, "avatar profile read");
   const rows: { id: string; avatar_key: string }[] = [];
   for (const row of data ?? []) {
@@ -142,31 +147,30 @@ async function main(): Promise<void> {
   const admin = createAdminClient();
   const logs: string[] = [];
   const hidden = new Set<string>();
-  const report: SocialImageRecheckReport = {
-    dryRun: !execute,
-    skip: 0,
-    store: 0,
-    hide: 0,
-    reported: 0,
-    unfinished: 0,
-  };
+  const report: SocialImageRecheckReport = blankSocialImageRecheckReport(!execute);
 
   for (const surface of ["post", "story"] as const) {
     const table = surface === "post" ? "posts" : "stories";
     const page = await recheckParentPages({
       execute,
       pageSize: SOCIAL_IMAGE_RECHECK_PAGE,
-      loadParents: (offset) => loadParentPage(table, offset),
+      loadParents: (afterId) => loadParentPage(table, afterId),
       recheck: async (parents) => {
         const items: SocialImageRecheckItem[] = [];
         const mediaByParent = new Map<string, unknown>();
+        const legacy = new Set<string>();
         for (const parent of parents) {
+          if (surface === "post" && socialPostHasLegacyS3Video(parent.media)) {
+            legacy.add(parent.id);
+            logs.push(`post ${parent.id} legacy s3 video`);
+            continue;
+          }
           mediaByParent.set(parent.id, parent.media);
           for (const image of imageKeys(parent.media)) {
             items.push(await mediaItem(surface, parent.id, image));
           }
         }
-        return runSocialImageRecheck({
+        const page = await runSocialImageRecheck({
           execute,
           items,
           report: (line) => {
@@ -174,17 +178,30 @@ async function main(): Promise<void> {
           },
           store: async (item, bytes) => {
             const nextKey = recheckedSocialImageKey(item.key, item.contentType, randomUUID());
-            await putRecheckedSocialImage({
-              key: nextKey,
-              previousKey: item.key,
-              body: bytes,
-              contentType: item.contentType,
-            });
             const current = mediaByParent.get(item.parentId);
-            const next = pointSocialMediaAtRecheckedImage(current, item.key, nextKey);
-            mediaByParent.set(item.parentId, next);
-            const { error } = await admin.from(table).update({ media: next }).eq("id", item.parentId);
-            assertOk(error, "point media at rechecked image");
+            try {
+              await putRecheckedSocialImage({
+                key: nextKey,
+                previousKey: item.key,
+                body: bytes,
+                contentType: item.contentType,
+              });
+              const next = pointSocialMediaAtRecheckedImage(current, item.key, nextKey);
+              const { data, error } = await admin
+                .from(table)
+                .update({ media: next })
+                .eq("id", item.parentId)
+                .eq("media", current as never)
+                .select("id");
+              assertOk(error, "point media at rechecked image");
+              if (!data || data.length === 0) {
+                return { skipped: true, orphanKey: nextKey };
+              }
+              mediaByParent.set(item.parentId, next);
+            } catch (error) {
+              const failure = error instanceof Error ? error : new Error("recheck_failed");
+              throw Object.assign(failure, { orphanKey: nextKey });
+            }
           },
           hide: async (parent) => {
             const key = `${parent.surface}:${parent.parentId}`;
@@ -199,6 +216,8 @@ async function main(): Promise<void> {
             assertOk(error, "hide parent");
           },
         });
+        page.legacyS3Video += legacy.size;
+        return page;
       },
     });
     report.skip += page.skip;
@@ -206,15 +225,23 @@ async function main(): Promise<void> {
     report.hide += page.hide;
     report.reported += page.reported;
     report.unfinished += page.unfinished;
+    report.hiddenPosts.push(...page.hiddenPosts);
+    report.hiddenStories.push(...page.hiddenStories);
+    report.clearedAvatars.push(...page.clearedAvatars);
+    report.skippedParents.push(...page.skippedParents);
+    report.orphanedKeys.push(...page.orphanedKeys);
+    report.legacyS3Video += page.legacyS3Video;
   }
 
   const avatars = await recheckParentPages({
     execute,
     pageSize: SOCIAL_IMAGE_RECHECK_PAGE,
-    loadParents: (offset) => loadAvatarPage(offset),
+    loadParents: (afterId) => loadAvatarPage(afterId),
     recheck: async (parents) => {
       const items: SocialImageRecheckItem[] = [];
+      const avatarKeyByParent = new Map<string, string>();
       for (const profile of parents) {
+        avatarKeyByParent.set(profile.id, profile.avatar_key);
         let canonical = "";
         try {
           canonical = avatarObjectKey(profile.id);
@@ -284,23 +311,44 @@ async function main(): Promise<void> {
         store: async (item, bytes) => {
           const objectId = randomUUID();
           const nextKey = avatarRecheckObjectKey(item.parentId, objectId);
-          await putAvatarRecheckObject({
-            userId: item.parentId,
-            objectId,
-            body: bytes,
-            contentType: item.contentType,
-            previousKey: item.key,
-          });
-          if (nextKey === item.key) throw new Error("Avatar recheck must not overwrite the original");
-          const { error } = await admin.from("profiles").update({ avatar_key: nextKey }).eq("id", item.parentId);
-          assertOk(error, "point avatar at rechecked image");
+          const readKey = avatarKeyByParent.get(item.parentId);
+          try {
+            await putAvatarRecheckObject({
+              userId: item.parentId,
+              objectId,
+              body: bytes,
+              contentType: item.contentType,
+              previousKey: item.key,
+            });
+            if (nextKey === item.key) throw new Error("Avatar recheck must not overwrite the original");
+            const { data, error } = await admin
+              .from("profiles")
+              .update({ avatar_key: nextKey })
+              .eq("id", item.parentId)
+              .eq("avatar_key", readKey ?? "")
+              .select("id");
+            assertOk(error, "point avatar at rechecked image");
+            if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey };
+          } catch (error) {
+            const failure = error instanceof Error ? error : new Error("recheck_failed");
+            throw Object.assign(failure, { orphanKey: nextKey });
+          }
         },
         hide: async () => {
           throw new Error("avatar recheck does not hide a post");
         },
         clearAvatar: async (parentId) => {
-          const { error } = await admin.from("profiles").update({ avatar_key: AVATAR_CLEARED }).eq("id", parentId);
+          const readKey = avatarKeyByParent.get(parentId);
+          const { data, error } = await admin
+            .from("profiles")
+            .update({ avatar_key: AVATAR_CLEARED })
+            .eq("id", parentId)
+            .eq("avatar_key", readKey ?? "")
+            .select("id");
           assertOk(error, "clear avatar");
+          if (!data || data.length === 0) return { skipped: true };
+          const quarantineKey = await quarantineAvatarObject(parentId, randomUUID());
+          logs.push(`avatar ${parentId} quarantined ${quarantineKey}`);
         },
       });
     },
@@ -310,6 +358,12 @@ async function main(): Promise<void> {
   report.hide += avatars.hide;
   report.reported += avatars.reported;
   report.unfinished += avatars.unfinished;
+  report.hiddenPosts.push(...avatars.hiddenPosts);
+  report.hiddenStories.push(...avatars.hiddenStories);
+  report.clearedAvatars.push(...avatars.clearedAvatars);
+  report.skippedParents.push(...avatars.skippedParents);
+  report.orphanedKeys.push(...avatars.orphanedKeys);
+  report.legacyS3Video += avatars.legacyS3Video;
 
   console.log(JSON.stringify({ msg: "social image recheck", ...report, notes: logs }));
 }

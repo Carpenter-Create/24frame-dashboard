@@ -306,7 +306,11 @@ A pending row saved again after a clear goes back on the worker
 (`next_attempt_at = now()`) and its `attempt_count` returns to 0, including
 a row that has already used all 8 tries. The same row and the same asset
 resume. Windows already saved are kept. Blocked and allowed rows are not
-requeued and keep their attempt count. No other row is made active. Clearing an S3 welcome whose Mux
+requeued and keep their attempt count, unless any blocked row already
+exists for that playback. In that case the restored row becomes blocked,
+stays off the worker, copies that verdict, and the author notice is
+`blocked`. Test: `copies a sibling block onto a re-saved welcome and denies the mint`.
+No other row is made active. Clearing an S3 welcome whose Mux
 ids are already null still marks that digest `superseded`, so the author
 notice goes away. A `reingest_failed` welcome rerun reuses the upload
 already stored on that row and does not create a second Mux asset.
@@ -317,14 +321,14 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
 
 | State | Save a new pair | Clear | Re-save the same pair | Worker tick | Re-ingest rerun | 8 min / 479 s stop |
 | --- | --- | --- | --- | --- | --- | --- |
-| pending (queued) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset. `welcome state: re-save the same pair` | none; visible; off; no asset. `welcome state: worker tick`. `allows a no-match and does not store a title` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A |
-| pending (mid-scan) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending until the worker finishes; hidden; due; no asset; same windows. `finishes a cleared pending welcome when the same pair is saved again` | none; visible; off; no asset; stored window not identified again. `welcome state: worker tick`. `does not rescan a window that was already stored` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A |
-| pending (backing off) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due now; attempts 0; no asset. `welcome state: re-save the same pair` | welcomePending; hidden; later, not claimed; no asset. `welcome state: worker tick`. `backs off a rate limit without burning the leased attempt` | N/A. Stays welcomePending, hidden, later. No asset. `welcome state: re-ingest rerun` | N/A |
-| pending (exhausted) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; attempts 0; no asset. `welcome state: re-save the same pair` | malformed; hidden; off, not claimed; no asset. `welcome state: worker tick` | N/A. Stays malformed, hidden, off. No asset. `welcome state: re-ingest rerun` | N/A |
-| allowed | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | none; visible; off; no asset. `shows an allowed welcome again when the same pair is saved again` | none; visible; off, not claimed; no asset. `welcome state: worker tick` | N/A. Stays none, visible, off. No asset. `welcome state: re-ingest rerun` | N/A |
+| pending (queued) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset, unless a blocked row exists for this playback: then blocked, off, that verdict. `welcome state: re-save the same pair`. `copies a sibling block onto a re-saved welcome and denies the mint` | none; visible; off; no asset. `welcome state: worker tick`. `allows a no-match and does not store a title` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A |
+| pending (mid-scan) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending until the worker finishes; hidden; due; no asset; same windows, unless a blocked row exists for this playback: then blocked, off, that verdict. `finishes a cleared pending welcome when the same pair is saved again`. `copies a sibling block onto a re-saved welcome and denies the mint` | none; visible; off; no asset; stored window not identified again. `welcome state: worker tick`. `does not rescan a window that was already stored` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A |
+| pending (backing off) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due now; attempts 0; no asset, unless a blocked row exists for this playback: then blocked, off, that verdict, attempts kept. `welcome state: re-save the same pair`. `copies a sibling block onto a re-saved welcome and denies the mint` | welcomePending; hidden; later, not claimed; no asset. `welcome state: worker tick`. `backs off a rate limit without burning the leased attempt` | N/A. Stays welcomePending, hidden, later. No asset. `welcome state: re-ingest rerun` | N/A |
+| pending (exhausted) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; attempts 0; no asset, unless a blocked row exists for this playback: then blocked, off, that verdict, attempts kept. `welcome state: re-save the same pair`. `copies a sibling block onto a re-saved welcome and denies the mint` | malformed; hidden; off, not claimed; no asset. `welcome state: worker tick` | N/A. Stays malformed, hidden, off. No asset. `welcome state: re-ingest rerun` | N/A |
+| allowed | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | none; visible; off; no asset, unless a blocked row exists for this playback: then blocked, off, that verdict. `shows an allowed welcome again when the same pair is saved again`. `copies a sibling block onto a re-saved welcome and denies the mint` | none; visible; off, not claimed; no asset. `welcome state: worker tick` | N/A. Stays none, visible, off. No asset. `welcome state: re-ingest rerun` | N/A |
 | blocked | welcomePending; hidden; old off, new due; no asset. `supersedes a replaced welcome pair so the old scan does not decide the new one` | none; hidden; off; no asset. `welcome state: clear` | blocked; hidden; off; no asset. `restores a blocked welcome notice when the same pair is saved again` | blocked; hidden; off, not claimed; no asset. `does not scan again or flip a blocked decision on a second pass` | N/A. Stays blocked, hidden, off. No asset. `welcome state: re-ingest rerun` | N/A |
 | reingest_failed | welcomePending; hidden; digest off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | N/A. Digest is not a Mux pair. Row stays reingest_failed, off. `welcome state: re-save the same pair` | welcomePending; hidden; off, not claimed; no asset. `welcome state: worker tick` | welcomePending; hidden; digest off, new due; no second asset. `welcome state: re-ingest rerun`. `retries a reingest_failed parent once, without a second asset, and still isolates the next failure` | N/A |
-| superseded | welcomePending on the new pair; hidden; this row stays off; no asset. `leaves other superseded welcome rows superseded when one pair is saved again` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset. `welcome state: re-save the same pair` | none; hidden; off, not claimed; no asset. `welcome state: worker tick` | N/A. No S3 key. Row stays superseded, off. `welcome state: re-ingest rerun` | N/A |
+| superseded | welcomePending on the new pair; hidden; this row stays off; no asset. `leaves other superseded welcome rows superseded when one pair is saved again` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset, unless a blocked row exists for this playback: then blocked, off, that verdict. `welcome state: re-save the same pair`. `copies a sibling block onto a re-saved welcome and denies the mint` | none; hidden; off, not claimed; no asset. `welcome state: worker tick` | N/A. No S3 key. Row stays superseded, off. `welcome state: re-ingest rerun` | N/A |
 
 ## Order
 
@@ -339,14 +343,32 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    image will not decode is hidden. A read error or a store error is
    unfinished: reported, not hidden, and tried again on the next run
    (the run loads `status = active` only). An avatar that will not decode
-   is cleared so the default face shows. Its original object is left in
-   place. A second execute skips objects that already carry `gc-reencoded`.
+   is cleared so the default face shows, and the canonical object is moved
+   to a private quarantine prefix. A second execute skips objects that already carry `gc-reencoded`.
 
    Reversal: read `gc-previous-key` on the new object. Point the post or
    story media item back at that key. For an avatar, set
    `profiles.avatar_key` back to that previous key (`avatars/{user-id}/avatar`
    for a face that was rechecked off the canonical object). Do not delete
-   either object as part of this reversal.
+   either object as part of this reversal. `profiles.avatar_key` is
+   server-only: that write is service role. A member PATCH of the column
+   is 42501.
+
+   The report lists every hidden post id, hidden story id, and cleared
+   avatar id. Set a hidden parent back to `active` to undo a hide. It also
+   lists `orphanedKeys`: new objects written when the parent update did not
+   land. Delete those keys. They are not referenced. A post that still has
+   a non-Mux video is `legacyS3Video`, counted once, and is not unfinished.
+
+   A face that will not decode is not left at `avatars/{user-id}/avatar`.
+   The recheck copies that object to
+   `avatars/{user-id}/quarantine/{object-id}` and deletes the canonical
+   key. Nothing signs a quarantine key. Rollback: copy
+   `avatars/{user-id}/quarantine/{object-id}` back to
+   `avatars/{user-id}/avatar`, delete the quarantine object, then set
+   `profiles.avatar_key` to null with the service role. Removing a photo,
+   or uploading a replacement, deletes the member's re-encoded copy and
+   the canonical object. That is not this rollback.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts

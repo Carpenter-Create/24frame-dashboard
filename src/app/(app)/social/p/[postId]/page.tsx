@@ -13,7 +13,7 @@ import {
   loadProfilesByIds,
   loadVisiblePost,
 } from "@/lib/social-feed";
-import { loadOwnMusicNotices } from "@/lib/social-music-scan";
+import { loadOwnMusicNotices, mediaWithoutHeldPlayback } from "@/lib/social-music-scan";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession } from "@/lib/social-session";
 
@@ -88,7 +88,7 @@ export default async function SocialPostPage({
             canLike: !!profile,
             owned,
             topic: normalizeSocialCategory(post.category),
-            media,
+            media: mediaWithoutHeldPlayback(media, music?.withheldPostIds.has(post.id) ?? false),
             musicNotice: music?.posts.get(post.id),
           }}
           comments={

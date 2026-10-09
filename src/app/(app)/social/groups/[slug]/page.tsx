@@ -11,7 +11,7 @@ import {
   loadProfilesByIds,
   loadVisiblePosts,
 } from "@/lib/social-feed";
-import { loadOwnMusicNotices } from "@/lib/social-music-scan";
+import { loadOwnMusicNotices, mediaWithoutHeldPlayback } from "@/lib/social-music-scan";
 import { ensureOwnSocialProfile } from "@/lib/social-profile";
 import { requireSocialSession } from "@/lib/social-session";
 
@@ -102,7 +102,7 @@ export default async function SocialGroupPage({
             groupName: group.name,
             canLike: !!profile,
             owned: post.author_id === ctx.user.id,
-            media: media.get(post.id) ?? [],
+            media: mediaWithoutHeldPlayback(media.get(post.id) ?? [], music.withheldPostIds.has(post.id)),
             ...(post.author_id === ctx.user.id && music.posts.get(post.id)
               ? { musicNotice: music.posts.get(post.id) }
               : {}),

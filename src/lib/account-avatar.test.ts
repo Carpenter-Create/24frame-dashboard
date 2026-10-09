@@ -15,6 +15,7 @@ import {
   AVATAR_CLEARED,
   avatarObjectKey,
   avatarRecheckObjectKey,
+  avatarQuarantineObjectKey,
   avatarServeKey,
   isAvatarContentType,
   isAvatarObjectKey,
@@ -48,6 +49,13 @@ describe("avatarObjectKey", () => {
     expect(avatarServeKey(UID, avatarObjectKey(UID))).toBe(avatarObjectKey(UID));
     expect(avatarServeKey(UID, recheck)).toBe(recheck);
     expect(avatarServeKey(UID, AVATAR_CLEARED)).toBeNull();
+    const other = "33333333-3333-4333-8333-333333333333";
+    const foreign = avatarRecheckObjectKey(other, objectId);
+    expect(avatarServeKey(UID, foreign)).toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, foreign)).not.toBe(foreign);
+    const quarantine = avatarQuarantineObjectKey(UID, objectId);
+    expect(avatarServeKey(UID, quarantine)).toBeNull();
+    expect(avatarServeKey(UID, avatarQuarantineObjectKey(other, objectId))).toBeNull();
   });
 
   it("rejects a non-UUID so title paths cannot be smuggled in", () => {
@@ -119,7 +127,8 @@ describe("one face across chrome, Settings, and Social", () => {
     expect(uploadSrc).toContain("deleteAvatarObject(ctx.user.id");
     expect(uploadSrc).toContain("removeAccountPhoto");
     expect(uploadSrc).toContain('revalidatePath("/", "layout")');
-    expect(photoRouteSrc).toContain("signedAvatarUrl(user.id, data?.avatar_key)");
+    expect(photoRouteSrc).toContain("avatarKeyFromProfileRead");
+    expect(photoRouteSrc).toContain("signedAvatarUrl(user.id, pointer.key)");
     expect(photoRouteSrc).toContain("private, no-store");
     expect(photoRouteSrc).not.toContain("activeOrg");
     expect(layoutSrc).not.toContain("putAvatarObject");

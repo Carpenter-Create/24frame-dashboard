@@ -198,6 +198,19 @@ describe("Social Explore", () => {
     expect(host).not.toContain('fit="contain"');
   });
 
+  it("renders when the music notice rpc fails", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn(() => emptyQuery()),
+      rpc: vi.fn(async (name: string) =>
+        name === "social_music_author_notices"
+          ? { data: null, error: { message: "still down" } }
+          : { data: [], error: null },
+      ),
+    } as never);
+    const html = await renderServerMarkup(await SocialExplorePage({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain("data-social-explore");
+  });
+
   it("sends an unauthenticated visitor to login", async () => {
     vi.mocked(getOrgContext).mockResolvedValue(null as never);
     await expect(SocialExplorePage({ searchParams: Promise.resolve({}) })).rejects.toThrow(

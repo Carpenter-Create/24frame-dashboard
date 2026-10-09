@@ -4,14 +4,16 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/context", () => ({ getOrgContext: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/s3-avatars", () => ({ putAvatarObject: vi.fn(), deleteAvatarObject: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgContext } from "@/lib/supabase/context";
 import { revalidatePath } from "next/cache";
 import { deleteAvatarObject, putAvatarObject } from "@/lib/s3-avatars";
 
 import { ACCOUNT_NAME_MAX, ACCOUNT_PROFILE, COMPANY_PROFILE } from "@/lib/account-profile";
-import { AVATAR_MAX_BYTES } from "@/lib/account-avatar";
+import { AVATAR_CLEARED, AVATAR_MAX_BYTES } from "@/lib/account-avatar";
 import { removeAccountPhoto, saveAccountName, saveCompanyName, uploadAccountPhoto } from "./actions";
 
 const USER = { id: "11111111-1111-4111-8111-111111111111", email: "ada@example.com", name: "Ada" };
@@ -141,36 +143,47 @@ function photoForm(file: File) {
   return body;
 }
 
-function profileUpdateClient() {
-  const eq = vi.fn(async () => ({ error: null }));
-  const update = vi.fn(() => ({ eq }));
+function profileUpdateClient(previousKey: string | null = null) {
+  const maybeSingle = vi.fn(async () => ({ data: { avatar_key: previousKey }, error: null }));
+  const selectEq = vi.fn(() => ({ maybeSingle }));
+  const select = vi.fn(() => ({ eq: selectEq }));
   const from = vi.fn((table: string) => {
     if (table !== "profiles") throw new Error(`unexpected from(${table})`);
-    return { update };
+    return { select };
+  });
+  const adminEq = vi.fn(async () => ({ error: null }));
+  const adminUpdate = vi.fn(() => ({ eq: adminEq }));
+  const adminFrom = vi.fn((table: string) => {
+    if (table !== "profiles") throw new Error(`unexpected admin from(${table})`);
+    return { update: adminUpdate };
   });
   vi.mocked(createClient).mockResolvedValue({ from } as never);
-  return { from, update, eq };
+  vi.mocked(createAdminClient).mockReturnValue({ from: adminFrom } as never);
+  return { from, adminUpdate, adminEq };
 }
 
 describe("uploadAccountPhoto", () => {
-  let profileUpdate: ReturnType<typeof profileUpdateClient>["update"];
+  const previousKey = `avatars/${USER.id}/recheck/22222222-2222-4222-8222-222222222222`;
+  let adminUpdate: ReturnType<typeof profileUpdateClient>["adminUpdate"];
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(putAvatarObject).mockResolvedValue(`avatars/${USER.id}/avatar`);
-    profileUpdate = profileUpdateClient().update;
+    adminUpdate = profileUpdateClient(previousKey).adminUpdate;
   });
 
   it("PUTs the session user's bytes and does not touch email", async () => {
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});
+    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey);
     expect(putAvatarObject).toHaveBeenCalledTimes(1);
     const [userId, body, type] = vi.mocked(putAvatarObject).mock.calls[0] ?? [];
     expect(userId).toBe(USER.id);
     expect(type).toBe("image/jpeg");
     expect(body).toBeInstanceOf(Uint8Array);
-    expect(profileUpdate).toHaveBeenCalledWith({ avatar_key: `avatars/${USER.id}/avatar` });
+    expect(adminUpdate).toHaveBeenCalledWith({ avatar_key: `avatars/${USER.id}/avatar` });
+    expect(createAdminClient).toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/settings");
     expect(revalidatePath).toHaveBeenCalledWith("/settings/profile");
     expect(revalidatePath).toHaveBeenCalledWith("/social");
@@ -207,17 +220,21 @@ describe("uploadAccountPhoto", () => {
 });
 
 describe("removeAccountPhoto", () => {
+  const previousKey = `avatars/${USER.id}/recheck/22222222-2222-4222-8222-222222222222`;
+  let adminUpdate: ReturnType<typeof profileUpdateClient>["adminUpdate"];
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(deleteAvatarObject).mockResolvedValue(undefined);
-    profileUpdateClient();
+    adminUpdate = profileUpdateClient(previousKey).adminUpdate;
   });
 
   it("DELETEs the session user's face and does not touch email", async () => {
     await expect(removeAccountPhoto()).resolves.toEqual({});
+    expect(adminUpdate).toHaveBeenCalledWith({ avatar_key: AVATAR_CLEARED });
     expect(deleteAvatarObject).toHaveBeenCalledTimes(1);
-    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id);
+    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey);
     expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   });

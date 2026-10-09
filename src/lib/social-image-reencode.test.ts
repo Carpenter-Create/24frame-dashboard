@@ -1,9 +1,24 @@
 import { readFileSync } from "node:fs";
 
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const publishS3 = vi.hoisted(() => ({
+  headSocialMediaObject: vi.fn(),
+  readSocialMediaObjectIfMatch: vi.fn(),
+  putPublishedSocialImage: vi.fn(async () => undefined),
+  copySocialMediaObject: vi.fn(),
+}));
+
+vi.mock("@/lib/s3-social-media", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/s3-social-media")>();
+  return { ...actual, ...publishS3 };
+});
+
+import { publishSocialMediaItems } from "@/lib/social-media-publish";
 
 import {
+  blankSocialImageRecheckReport,
   recheckParentPages,
   recheckedSocialImageKey,
   recheckWantsExecute,
@@ -11,6 +26,9 @@ import {
   runSocialImageRecheck,
   SOCIAL_IMAGE_RECHECK_ORDER,
   socialImageRecheckPlan,
+  socialImageWasReencoded,
+  socialPostHasLegacyS3Video,
+  SOCIAL_IMAGE_REENCODED_METADATA,
 } from "@/lib/social-image-reencode";
 
 async function jpeg(): Promise<Uint8Array> {
@@ -213,6 +231,7 @@ describe("reencodeSocialImage", () => {
     const trailer = new Uint8Array(clean.byteLength + 4);
     trailer.set(clean);
     trailer.set([9, 8, 7, 6], clean.byteLength);
+    const cleared: string[] = [];
     const report = await runSocialImageRecheck({
       execute: false,
       items: [
@@ -231,14 +250,17 @@ describe("reencodeSocialImage", () => {
       hide: async () => {
         throw new Error("dry run hid");
       },
-      clearAvatar: async () => {
-        throw new Error("dry run cleared");
+      clearAvatar: async (parentId) => {
+        cleared.push(parentId);
       },
     });
     expect(report.dryRun).toBe(true);
     expect(report.store).toBe(1);
     expect(report.hide).toBe(0);
     expect(report.reported).toBe(1);
+    expect(report.unfinished).toBe(0);
+    expect(cleared).toEqual([]);
+    expect(report.clearedAvatars).toEqual(["user-1"]);
   });
 
   it("clears an avatar that will not decode and leaves the original key unwritten", async () => {
@@ -316,26 +338,26 @@ describe("reencodeSocialImage", () => {
   });
 
   it("rechecks one parent page and drops it before reading the next", async () => {
-    const seen: number[] = [];
+    const seen: (string | null)[] = [];
     let released = true;
     const report = await recheckParentPages({
       execute: false,
       pageSize: 2,
-      loadParents: async (offset, limit) => {
+      loadParents: async (afterId, limit) => {
         expect(released).toBe(true);
         expect(limit).toBe(2);
-        seen.push(offset);
+        seen.push(afterId);
         released = false;
-        if (offset === 0) return ["a", "b"];
-        return ["c"];
+        if (afterId === null) return [{ id: "a" }, { id: "b" }];
+        return [{ id: "c" }];
       },
       recheck: async (parents) => {
         expect(parents.length).toBeGreaterThan(0);
         released = true;
-        return { dryRun: true, skip: parents.length, store: 0, hide: 0, reported: 0, unfinished: 0 };
+        return { ...blankSocialImageRecheckReport(true), skip: parents.length };
       },
     });
-    expect(seen).toEqual([0, 2]);
+    expect(seen).toEqual([null, "b"]);
     expect(report.skip).toBe(3);
     expect(SOCIAL_IMAGE_RECHECK_ORDER).toBe("id");
     expect(recheckWantsExecute(["node", "recheck-social-images.ts"])).toBe(false);
@@ -347,5 +369,169 @@ describe("reencodeSocialImage", () => {
     expect(script).not.toContain("overwritePublishedSocialImage");
     expect(script).not.toContain("replaceAvatarObject");
     expect(script.split(".order(SOCIAL_IMAGE_RECHECK_ORDER)").length - 1).toBe(2);
+    expect(script).toContain('.gt("id", afterId)');
+    expect(script).not.toContain(".range(");
+    expect(script).toContain('.eq("media", current as never)');
+    expect(script.split('.eq("avatar_key", readKey ?? "")').length - 1).toBe(2);
+    expect(script).toContain("orphanedKeys");
+    expect(script).toContain("quarantineAvatarObject");
+  });
+
+  it("visits every later row when the first page is hidden", async () => {
+    const ids = ["00", "01", "02", "03", "04", "05"];
+    const active = new Set(ids);
+    const seen: string[] = [];
+    const report = await recheckParentPages({
+      execute: true,
+      pageSize: 2,
+      loadParents: async (afterId, limit) => {
+        const rows = ids.filter((id) => active.has(id));
+        if (typeof afterId === "number") return rows.slice(afterId, afterId + limit).map((id) => ({ id }));
+        const keyed = rows.filter((id) => afterId === null || id > afterId);
+        return keyed.slice(0, limit).map((id) => ({ id }));
+      },
+      recheck: async (parents) => {
+        for (const parent of parents) {
+          seen.push(parent.id);
+          active.delete(parent.id);
+        }
+        return {
+          ...blankSocialImageRecheckReport(false),
+          hide: parents.length,
+          hiddenPosts: parents.map((parent) => parent.id),
+        };
+      },
+    });
+    expect(seen).toEqual(ids);
+    expect(report.hiddenPosts).toEqual(ids);
+    expect(report.hide).toBe(6);
+  });
+
+  it("keeps an animated WebP that carries an orientation tag", async () => {
+    const frame = async (red: number) =>
+      sharp({
+        create: { width: 8, height: 4, channels: 3, background: { r: red, g: 20, b: 40 } },
+      })
+        .png()
+        .toBuffer();
+    const animated = await sharp([await frame(200), await frame(10)], { join: { animated: true } })
+      .webp()
+      .toBuffer();
+    const tagged = new Uint8Array(await sharp(animated, { animated: true }).withMetadata({ orientation: 6 }).toBuffer());
+    const encoded = await reencodeSocialImage(tagged, "image/webp");
+    expect(encoded).not.toBeNull();
+    const meta = await sharp(encoded!, { animated: true }).metadata();
+    expect(meta.pages).toBe(2);
+    const hidden: string[] = [];
+    const report = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "post",
+          parentId: "anim",
+          key: "posts/a/a.webp",
+          original: tagged,
+          contentType: "image/webp",
+        },
+      ],
+      store: async () => undefined,
+      hide: async (parent) => {
+        hidden.push(parent.parentId);
+      },
+    });
+    expect(hidden).toEqual([]);
+    expect(report.hide).toBe(0);
+    expect(report.hiddenPosts).toEqual([]);
+    expect(socialPostHasLegacyS3Video([{ kind: "video", key: "posts/a/a.mp4", contentType: "video/mp4" }])).toBe(true);
+    expect(socialPostHasLegacyS3Video([{ kind: "video", provider: "mux", assetId: "a", playbackId: "b" }])).toBe(false);
+    expect(socialImageWasReencoded(undefined)).toBe(false);
+    expect(socialImageWasReencoded({ [SOCIAL_IMAGE_REENCODED_METADATA]: "1" })).toBe(true);
+    const user = "11111111-1111-4111-8111-111111111111";
+    const staging = `posts/upload/${user}/22222222-2222-4222-8222-222222222222.webp`;
+    publishS3.headSocialMediaObject.mockResolvedValue({
+      etag: '"abc"',
+      bytes: tagged.byteLength,
+      contentType: "image/webp",
+    });
+    publishS3.readSocialMediaObjectIfMatch.mockResolvedValue(tagged);
+    const published = await publishSocialMediaItems(
+      [{ kind: "image", key: staging, contentType: "image/webp" }],
+      user,
+      "posts",
+    );
+    expect(published.ok).toBe(true);
+    expect(publishS3.putPublishedSocialImage).toHaveBeenCalledTimes(1);
+    const stored = (publishS3.putPublishedSocialImage.mock.calls as unknown as { body: Uint8Array }[][])[0]?.[0];
+    expect(stored?.body.byteLength).toBeGreaterThan(0);
+  });
+
+  it("lists a skipped repoint and its orphan key, and does not count the store", async () => {
+    const clean = await jpeg();
+    const trailer = new Uint8Array(clean.byteLength + 4);
+    trailer.set(clean);
+    trailer.set([1, 2, 3, 4], clean.byteLength);
+    const report = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        { surface: "story", parentId: "story-1", key: "stories/a/a.jpg", original: trailer, contentType: "image/jpeg" },
+      ],
+      store: async () => ({ skipped: true, orphanKey: "stories/a/new.jpg" }),
+      hide: async () => {
+        throw new Error("skipped story was hidden");
+      },
+    });
+    expect(report.store).toBe(0);
+    expect(report.skippedParents).toEqual(["story:story-1"]);
+    expect(report.orphanedKeys).toEqual(["stories/a/new.jpg"]);
+    expect(report.unfinished).toBe(0);
+  });
+
+  it("skips an avatar clear when the pointer changed and lists an orphan from a failed store", async () => {
+    const clean = await jpeg();
+    const cleared: string[] = [];
+    const skipped = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "avatar",
+          parentId: "11111111-1111-4111-8111-111111111111",
+          key: "avatars/11111111-1111-4111-8111-111111111111/avatar",
+          original: new Uint8Array([0xff, 0xd8]),
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async () => {
+        throw new Error("clear path stored");
+      },
+      hide: async () => {
+        throw new Error("clear path hid");
+      },
+      clearAvatar: async (parentId) => {
+        cleared.push(parentId);
+        return { skipped: true };
+      },
+    });
+    expect(cleared).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(skipped.clearedAvatars).toEqual([]);
+    expect(skipped.skippedParents).toEqual(["avatar:11111111-1111-4111-8111-111111111111"]);
+
+    const trailer = new Uint8Array(clean.byteLength + 4);
+    trailer.set(clean);
+    trailer.set([1, 2, 3, 4], clean.byteLength);
+    const failed = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        { surface: "post", parentId: "post-1", key: "posts/a/a.jpg", original: trailer, contentType: "image/jpeg" },
+      ],
+      store: async () => {
+        throw Object.assign(new Error("update failed"), { orphanKey: "posts/a/orphan.jpg" });
+      },
+      hide: async () => {
+        throw new Error("orphan was hidden");
+      },
+    });
+    expect(failed.unfinished).toBe(1);
+    expect(failed.hide).toBe(0);
+    expect(failed.orphanedKeys).toEqual(["posts/a/orphan.jpg"]);
   });
 });
