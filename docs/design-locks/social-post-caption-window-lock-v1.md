@@ -25,30 +25,21 @@ Asked to build the window audit's recommendations (recommendation #3, Edit capti
 
 > make sure we do your recommendations above, resolve any flaw or security issues, and let me know if you still need me to answer anything that I may have missed.
 
-The first plan's seven questions, answered on 2026-10-09 (relayed):
-
-> 1) approved. 2) approved. 3) what do I need to do? 4) yes, please. 5) approved, but tell me if you need me to do something specific. 6) yes, please. 7) yes.
-
-| # | First plan's question | Answer | Decision |
-|---|-----------------------|--------|----------|
-| 1 | Approve the lock: Edit caption becomes the house window (✕ · Edit caption · Done), retiring Save and Cancel here | "approved." | LOCKED as written. |
-| 2 | Phone: the same window as the full AppSheet, or keep the AppSheet card with Cancel / Save and no ask | "approved." | The full AppSheet through the shell. |
-| 3 | The ask: title and buttons only, or add a line "Caption isn't saved." (new copy) | "what do I need to do?" | Nothing to do: no line, so no new copy. |
-| 4 | Save: optimistic (the words show at once; a failure reopens with the draft), or wait for the server | "yes, please." | Optimistic. |
-| 5 | Media: every item stacked, or only the first | "approved, but tell me if you need me to do something specific." | Every item stacked, read-only. Nothing is needed from the founder: no SQL, setting or deploy step. |
-| 6 | Also stop Delete sending database text to the browser, in this PR | "yes, please." | Yes, in this PR. |
-| 7 | File two gaps as follow-ups: `posts.body` has no database length limit; a post still being published shows ⋯ and its edit fails | "yes." | Both filed below. |
-
-The open questions after the independent review, answered on 2026-10-09:
+The open questions, answered on 2026-10-09:
 
 > approved, use the defaults
 
 | Question | Decision (the default) |
 |----------|------------------------|
+| Approve the lock: Edit caption becomes the house window (✕ · Edit caption · Done), retiring Save and Cancel here | LOCKED as written. |
+| Phone: the same window as the full AppSheet, or keep the AppSheet card with Cancel / Save and no ask | The full AppSheet through the shell. |
+| The ask: title and buttons only, or add a line "Caption isn't saved." (new copy) | No line, so no new copy. |
+| Save: optimistic (the words show at once; a failure reopens with the draft), or wait for the server | Optimistic. |
+| Media: every item stacked, or only the first | Every item stacked, read-only. |
+| Also stop Delete sending database text to the browser, in this PR | Yes, in this PR. |
+| File two gaps as follow-ups: `posts.body` has no database length limit; a post still being published shows ⋯ and its edit fails | Both filed below. |
 | After the independent review the build changed underneath, with no change to copy or look: one caption host for all of Social (one caption window at a time; a failure that lands while another post's window is open reopens after it closes); the edited words also show in Explore and the Feed's reel tiles; the shared window shell gets a three-line fix so Back always asks. Proceed in this PR? | Yes, in this PR. Each item is covered by tests and recorded here. |
 | Eight more places in the same server file still send database text to the browser (follow, like, story send, comment delete). Fix them here or as a follow-up? | A follow-up, listed below with the other two. This PR stays one lock row. |
-
-The same answer confirms the reading of the seven relayed answers above.
 
 Refined after independent review, engineering only, no copy or look change: one window at a time; the edited words also show in Explore and the Feed's reels; a leftover window address gets its own Back entry.
 
