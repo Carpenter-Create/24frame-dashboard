@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { METADATA_FIELDS, computeMetadataFindings, metadataTierCount, parseMetadata } from "./metadata";
+import {
+  METADATA_FIELDS,
+  computeMetadataFindings,
+  metadataTierCount,
+  normalizeStoredMetadata,
+  parseMetadata,
+} from "./metadata";
 
 describe("computeMetadataFindings", () => {
   it("empty metadata → all required (high) + recommended (low), no optional", () => {
@@ -94,5 +100,23 @@ describe("metadata choices", () => {
     const labels = (METADATA_FIELDS.find((f) => f.key === "country_of_origin")?.vocab ?? []).map((o) => o.label);
     expect(labels.length).toBeGreaterThan(100);
     expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b, "en")));
+  });
+});
+
+describe("normalizeStoredMetadata", () => {
+  it("drops empties, reads numeric text as numbers, drops blank list entries, keeps the rest as it is", () => {
+    expect(
+      normalizeStoredMetadata({
+        synopsis: "",
+        director: null,
+        cast: ["", "Smith, Jr.", " "],
+        keywords: [],
+        runtime_minutes: " 96 ",
+        release_year: "soon",
+        genre: "Drama",
+        budget: 1,
+      }),
+    ).toEqual({ cast: ["Smith, Jr."], runtime_minutes: 96, release_year: "soon", genre: "Drama" });
+    expect(normalizeStoredMetadata(null)).toEqual({});
   });
 });

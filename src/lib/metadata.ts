@@ -169,6 +169,32 @@ function isEmpty(v: unknown): boolean {
   return v === undefined || v === null || v === "";
 }
 
+/** The stored record as the title's Metadata window reads it, so a save is
+ *  never refused over a stored value the window shows as fine: empty values
+ *  are dropped, a number stored as text reads as that number, and blank list
+ *  entries are dropped. Nothing the window would show differently changes
+ *  (list entries are never re-split). Keys outside the registry are left out,
+ *  as parseMetadata leaves them out. */
+export function normalizeStoredMetadata(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of METADATA_FIELDS) {
+    const value = data?.[f.key];
+    if (isEmpty(value)) continue;
+    if (f.type === "number" && typeof value === "string") {
+      const number = Number(value.trim());
+      out[f.key] = value.trim() !== "" && Number.isFinite(number) ? number : value;
+      continue;
+    }
+    if (f.type === "list" && Array.isArray(value)) {
+      const entries = value.filter((entry) => !(typeof entry === "string" && entry.trim() === ""));
+      if (entries.length > 0) out[f.key] = entries;
+      continue;
+    }
+    out[f.key] = value;
+  }
+  return out;
+}
+
 // Bumped whenever the field registry / tiers change — every finding is stamped with it
 // (rule 4), so "why was this flagged" stays explainable under the rules of the day (§19).
 export const METADATA_LOGIC_VERSION = "metadata-v1";

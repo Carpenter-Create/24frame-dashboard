@@ -282,4 +282,15 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     // Nothing is written, so no field is dropped.
     expect(seen.rpc).toEqual([]);
   });
+
+  it("reads the stored record as the window does, so stored empties never block a save", async () => {
+    const seen = fake({
+      stored: { ...STORED, synopsis: "", runtime_minutes: "96", cast: ["", "Ada"], director: null, keywords: [] },
+    });
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { rating: "PG" }, release: null })).toEqual({ ok: true });
+    const { synopsis: _s, director: _d, ...rest } = STORED;
+    void _s;
+    void _d;
+    expect(seen.rpc[0].args.p_data).toEqual({ ...rest, runtime_minutes: 96, cast: ["Ada"], rating: "PG" });
+  });
 });

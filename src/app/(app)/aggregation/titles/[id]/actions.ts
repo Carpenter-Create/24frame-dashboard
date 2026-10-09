@@ -10,7 +10,13 @@ import { escapeIlikePattern } from "@/lib/buyer-names";
 import { resolveTerritories, type TerritoryMode } from "@/lib/territories";
 import type { RightsType } from "@/lib/rights";
 import { aggregationViewAsSurface } from "@/lib/aggregation-impersonation";
-import { computeMetadataFindings, METADATA_FIELDS, METADATA_LOGIC_VERSION, parseMetadata } from "@/lib/metadata";
+import {
+  computeMetadataFindings,
+  METADATA_FIELDS,
+  METADATA_LOGIC_VERSION,
+  normalizeStoredMetadata,
+  parseMetadata,
+} from "@/lib/metadata";
 import { checkReleaseInfo, releaseInfoSchema } from "@/lib/releases";
 import { getOrgContext } from "@/lib/supabase/context";
 import { RELEASE_FIELD, TITLE_DETAILS } from "@/lib/title-details";
@@ -169,7 +175,9 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
       console.error("[title-details] title_metadata read failed", readError.message);
       return { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
     }
-    const merged: Record<string, unknown> = { ...((row?.data as Record<string, unknown> | null) ?? {}) };
+    // Read as the window reads it (Bugbot on #801): a stored empty or a
+    // number stored as text never blocks a save the window can't show.
+    const merged = normalizeStoredMetadata(row?.data as Record<string, unknown> | null);
     for (const [key, value] of Object.entries(changes)) {
       if (value === null) delete merged[key];
       else merged[key] = value;
