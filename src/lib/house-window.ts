@@ -12,6 +12,10 @@ export const HOUSE_WINDOW_PANEL_CLASS = `${HOUSE_DIALOG_WINDOW_CLASS} relative f
 /** The frame holds the height it opens at (up to 80vh). */
 export const HOUSE_WINDOW_FRAME_CLASS = "flex max-h-[80vh] min-h-0 flex-col outline-none";
 
+// Phone, for a window that opts in: the same header and body filling the
+// full AppSheet, clear of the status bar and the home indicator.
+export const HOUSE_WINDOW_SHEET_FRAME_CLASS = "flex h-full min-h-0 flex-col pt-[env(safe-area-inset-top)] outline-none";
+
 // close or back · title · Done, the composer's measures: round grey 44,
 // 17/600 title, the accent Done pill 40 tall.
 export const HOUSE_WINDOW_HEADER_CLASS =
@@ -25,7 +29,13 @@ export const HOUSE_WINDOW_DONE_CLASS = "min-h-10 shrink-0 px-5 focus-visible:rou
 // header); taller faces scroll inside it.
 export const HOUSE_WINDOW_BODY_CLASS = "relative min-h-0 flex-1 overflow-y-auto bg-bg";
 
+export const HOUSE_WINDOW_SHEET_BODY_CLASS = `${HOUSE_WINDOW_BODY_CLASS} pb-[env(safe-area-inset-bottom)]`;
+
 export const HOUSE_WINDOW_FACE_CLASS = "flex flex-col gap-[var(--space-4)] p-[var(--space-6)]";
+
+// The index's rows sit on one card (Edit profile's measures).
+export const HOUSE_WINDOW_CARD_CLASS =
+  "flex w-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-hairline bg-surface px-4";
 
 // Leaving with changes: a strip rises at the foot, inside the window.
 export const HOUSE_WINDOW_ASK_STRIP_CLASS =

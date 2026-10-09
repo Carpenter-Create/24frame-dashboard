@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
@@ -8,10 +9,14 @@ import { generateToken, hashToken } from "@/lib/portal";
 import { escapeIlikePattern } from "@/lib/buyer-names";
 import { resolveTerritories, type TerritoryMode } from "@/lib/territories";
 import type { RightsType } from "@/lib/rights";
-import { computeMetadataFindings, METADATA_LOGIC_VERSION } from "@/lib/metadata";
+import { aggregationViewAsSurface } from "@/lib/aggregation-impersonation";
+import { computeMetadataFindings, METADATA_FIELDS, METADATA_LOGIC_VERSION, parseMetadata } from "@/lib/metadata";
+import { checkReleaseInfo, releaseInfoSchema } from "@/lib/releases";
+import { getOrgContext } from "@/lib/supabase/context";
+import { RELEASE_FIELD, TITLE_DETAILS } from "@/lib/title-details";
 import type { Json } from "@/lib/supabase/database.types";
 import { purgeDeletedTitleStorage } from "@/lib/s3-title-purge";
-import { TITLES_HREF } from "@/lib/title-public-id";
+import { TITLES_HREF, titleClientPath } from "@/lib/title-public-id";
 import { TITLE_LIFECYCLE } from "@/lib/titles-lifecycle";
 
 // Add a rights grant (expand = insert) for a title in the active org. Territories
@@ -79,31 +84,140 @@ export async function setScreenerSource(input: {
   return {};
 }
 
-// Set a title's release type + (for a re-release) the historical original date.
-// Client-owned; written via set_title_release_info (operate-gated in the DB). The
-// forward-looking release_date is GC-owned and set elsewhere.
-export async function setTitleReleaseInfo(input: {
-  orgId: string;
-  titleId: string;
-  releaseType: "new_release" | "re_release";
-  originalReleaseDate?: string;
-}): Promise<{ error?: string }> {
-  const supabase = await createClient();
+// The title's Metadata window saves here: metadata and release info in one
+// Done (docs/design-locks/aggregation-title-details-window-lock-v1.md).
+// Nothing the browser sends decides who may write: the title is read under
+// row security (another org's or a deleted title is never found), its org
+// comes from that row, view-as is refused, and only the title org's
+// operators write. Release is checked before anything is written; only the
+// changed metadata fields are merged onto the stored record, so a second
+// editor's untouched fields stay. Database text never reaches the browser.
+const titleDetailsInput = z.object({
+  titleId: z.string().uuid(),
+  // Changed fields only; null clears one.
+  metadata: z.record(z.string(), z.unknown()),
+  // Null when Release did not change.
+  release: releaseInfoSchema.nullable(),
+});
+
+export type SaveTitleDetailsResult =
+  | { ok: true }
+  | {
+      ok: false;
+      part: "access" | "metadata" | "release";
+      /** The field at fault, when one is. */
+      field: string | null;
+      error: string;
+      /** Metadata was written before Release failed. */
+      metadataSaved: boolean;
+    };
+
+function refused(error: string): SaveTitleDetailsResult {
+  return { ok: false, part: "access", field: null, error, metadataSaved: false };
+}
+
+export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetailsResult> {
+  const parsed = titleDetailsInput.safeParse(input);
+  if (!parsed.success) return refused(TITLE_DETAILS.saveFailed);
+  const { titleId, metadata: changes, release } = parsed.data;
+
   const user = await getAuthUser();
-  if (!user) return { error: "Not authenticated." };
+  if (!user) return refused(TITLE_DETAILS.notAuthenticated);
+  const ctx = await getOrgContext();
+  if (!ctx) return refused(TITLE_DETAILS.notAuthenticated);
+  if (ctx.aggregationViewAs) return refused(TITLE_DETAILS.notAuthorized);
 
-  const { error } = await supabase.rpc("set_title_release_info", {
-    p_org_id: input.orgId,
-    p_title_id: input.titleId,
-    p_release_type: input.releaseType,
-    p_original_release_date:
-      input.releaseType === "re_release" ? input.originalReleaseDate : undefined,
+  const supabase = await createClient();
+  const { data: title } = await supabase
+    .from("titles")
+    .select("id, org_id, catalog_id, release_type, original_release_date")
+    .eq("id", titleId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!title) return refused(TITLE_DETAILS.notAuthorized);
+
+  const titleRole =
+    ctx.rows.find((m) => m.organizations.id === title.org_id)?.role ??
+    (ctx.activeOrg?.id === title.org_id ? ctx.activeRole : null);
+  const { canOperate } = aggregationViewAsSurface({
+    viewAs: ctx.aggregationViewAs,
+    canOperate: titleRole === "account_owner" || titleRole === "delivery_ops",
+    isGcStaff: ctx.isGcStaff,
   });
-  if (error) return { error: error.message };
+  if (!canOperate) return refused(TITLE_DETAILS.notAuthorized);
 
-  revalidatePath(`${TITLES_HREF}/${input.titleId}`);
+  const releaseProblem = release ? checkReleaseInfo(release) : null;
+  if (releaseProblem) {
+    return { ok: false, part: "release", field: RELEASE_FIELD, error: releaseProblem, metadataSaved: false };
+  }
+  if (Object.keys(changes).some((key) => !METADATA_FIELDS.some((f) => f.key === key))) {
+    return refused(TITLE_DETAILS.saveFailed);
+  }
+
+  let metadataSaved = false;
+  if (Object.keys(changes).length > 0) {
+    const { data: row } = await supabase
+      .from("title_metadata")
+      .select("data")
+      .eq("title_id", title.id)
+      .maybeSingle();
+    const merged: Record<string, unknown> = { ...((row?.data as Record<string, unknown> | null) ?? {}) };
+    for (const [key, value] of Object.entries(changes)) {
+      if (value === null) delete merged[key];
+      else merged[key] = value;
+    }
+    const checked = parseMetadata(merged);
+    if (!checked.ok) {
+      return { ok: false, part: "metadata", field: checked.field, error: checked.error, metadataSaved: false };
+    }
+    const { error } = await supabase.rpc("set_title_metadata", {
+      p_org_id: title.org_id,
+      p_title_id: title.id,
+      p_data: checked.data as Json,
+    });
+    if (error) {
+      console.error("[title-details] set_title_metadata failed", error.message);
+      return { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
+    }
+    metadataSaved = true;
+    // §19: metadata changed → refresh this title's validator findings. Best-effort: the
+    // save already committed, so a refresh failure must not fail it.
+    const { error: findingsError } = await supabase.rpc("reconcile_title_findings", {
+      p_org_id: title.org_id,
+      p_title_id: title.id,
+      p_findings: computeMetadataFindings(checked.data as Record<string, unknown>) as unknown as Json,
+      p_logic_version: METADATA_LOGIC_VERSION,
+    });
+    if (findingsError) console.error("[findings] reconcile after metadata save failed", findingsError.message);
+  }
+
+  const releaseDiffers =
+    release !== null &&
+    (release.releaseType !== title.release_type ||
+      (release.releaseType === "re_release" ? release.originalReleaseDate : null) !==
+        (title.release_type === "re_release" ? title.original_release_date : null));
+  if (release && releaseDiffers) {
+    const { error } = await supabase.rpc("set_title_release_info", {
+      p_org_id: title.org_id,
+      p_title_id: title.id,
+      p_release_type: release.releaseType,
+      p_original_release_date:
+        release.releaseType === "re_release" ? (release.originalReleaseDate ?? undefined) : undefined,
+    });
+    if (error) {
+      console.error("[title-details] set_title_release_info failed", error.message);
+      if (metadataSaved) revalidateTitle(title.catalog_id);
+      return { ok: false, part: "release", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved };
+    }
+  }
+
+  if (metadataSaved || releaseDiffers) revalidateTitle(title.catalog_id);
+  return { ok: true };
+}
+
+function revalidateTitle(catalogId: string | null) {
+  revalidatePath(titleClientPath(catalogId));
   revalidatePath(TITLES_HREF, "layout");
-  return {};
 }
 
 // Submit a draft title for chain-of-title review (§11): draft → in_review, via

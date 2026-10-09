@@ -23,7 +23,10 @@ export const RATINGS: { value: string; label: string }[] = [
   "G", "PG", "PG-13", "R", "NC-17", "NR",
 ].map((r) => ({ value: r, label: r }));
 
-const COUNTRIES = Object.entries(ISO_COUNTRIES).map(([value, label]) => ({ value, label }));
+// By name, so a long list reads in order (ISO_COUNTRIES is grouped by region).
+const COUNTRIES = Object.entries(ISO_COUNTRIES)
+  .map(([value, label]) => ({ value, label }))
+  .sort((a, b) => a.label.localeCompare(b.label, "en"));
 
 // THE canonical field registry — single source for the form AND the validator.
 export const METADATA_FIELDS: FieldDef[] = [
@@ -41,20 +44,82 @@ export const METADATA_FIELDS: FieldDef[] = [
   { key: "production_company", label: "Production company", tier: "optional", type: "text" },
 ];
 
+// The limits Adam approved (2026-10-09, "Add these limits"); the database
+// checks the same ones (check_title_metadata, a founder-applied migration).
+export const METADATA_TEXT_MAX = 200;
+export const METADATA_SYNOPSIS_MAX = 4000;
+export const METADATA_RUNTIME_MIN = 1;
+export const METADATA_RUNTIME_MAX = 1000;
+export const METADATA_YEAR_MIN = 1888;
+export const METADATA_LIST_MAX = 50;
+
+/** The latest release year a title may carry: next year plus five. */
+export function metadataMaxYear(now: Date = new Date()): number {
+  return now.getUTCFullYear() + 5;
+}
+
+// Counted as the database counts (characters, not UTF-16 units).
+function chars(min: number, max: number) {
+  return z.string().refine((value) => {
+    const length = Array.from(value).length;
+    return length >= min && length <= max;
+  });
+}
+
 function fieldSchema(f: FieldDef): z.ZodTypeAny {
   switch (f.type) {
     case "number":
-      return z.number().int().nonnegative();
+      if (f.key === "release_year") {
+        return z
+          .number()
+          .int()
+          .min(METADATA_YEAR_MIN)
+          .refine((year) => year <= metadataMaxYear());
+      }
+      return z.number().int().min(METADATA_RUNTIME_MIN).max(METADATA_RUNTIME_MAX);
     case "list":
-      return z.array(z.string().min(1));
+      return z.array(chars(1, METADATA_TEXT_MAX)).max(METADATA_LIST_MAX);
     case "select": {
       const values = (f.vocab ?? []).map((v) => v.value);
       return z.enum(values as [string, ...string[]]);
     }
-    default: // text, textarea
-      return z.string().min(1);
+    case "textarea":
+      return chars(1, METADATA_SYNOPSIS_MAX);
+    default: // text
+      return chars(1, METADATA_TEXT_MAX);
   }
 }
+
+/** What a field says when its value breaks its limit (Adam 2026-10-09,
+ *  "Specific line"). */
+export function metadataFieldError(key: string, now: Date = new Date()): string {
+  const field = METADATA_FIELDS.find((f) => f.key === key);
+  if (!field) return METADATA_ERRORS.unknown;
+  switch (field.type) {
+    case "number":
+      return key === "release_year"
+        ? METADATA_ERRORS.year(metadataMaxYear(now))
+        : METADATA_ERRORS.runtime;
+    case "list":
+      return METADATA_ERRORS.list;
+    case "select":
+      return METADATA_ERRORS.select;
+    case "textarea":
+      return METADATA_ERRORS.synopsis;
+    default:
+      return METADATA_ERRORS.text;
+  }
+}
+
+export const METADATA_ERRORS = {
+  runtime: "Enter whole minutes, 1 to 1,000.",
+  year: (max: number) => `Enter a year from 1888 to ${max}.`,
+  synopsis: "Up to 4,000 characters.",
+  text: "Up to 200 characters.",
+  list: "Up to 50 entries.",
+  select: "Choose one from the list.",
+  unknown: "Could not save.",
+} as const;
 
 // All fields optional → partial drafts are valid; provided fields are type/vocab
 // checked. Unknown keys are stripped (zod object default). "The validator decides."
@@ -66,11 +131,27 @@ export type MetadataData = z.infer<typeof metadataSchema>;
 
 export function parseMetadata(
   input: unknown,
-): { ok: true; data: MetadataData } | { ok: false; error: string } {
+): { ok: true; data: MetadataData } | { ok: false; error: string; field: string | null } {
   const r = metadataSchema.safeParse(input);
   if (r.success) return { ok: true, data: r.data };
   const first = r.error.issues[0];
-  return { ok: false, error: `${first.path.join(".") || "field"}: ${first.message}` };
+  const key = first.path[0];
+  const field = typeof key === "string" && METADATA_FIELDS.some((f) => f.key === key) ? key : null;
+  return { ok: false, error: field ? metadataFieldError(field) : METADATA_ERRORS.unknown, field };
+}
+
+/** One tier's count for the window's rows: a field counts when it is filled
+ *  and its value passes its check, so a row never reads complete and then
+ *  fails on Done. */
+export function metadataTierCount(
+  values: Record<string, unknown>,
+  tier: Tier,
+): { filled: number; total: number } {
+  const fields = METADATA_FIELDS.filter((f) => f.tier === tier);
+  const filled = fields.filter(
+    (f) => !isEmpty(values?.[f.key]) && fieldSchema(f).safeParse(values[f.key]).success,
+  ).length;
+  return { filled, total: fields.length };
 }
 
 // Required-tier completeness — drives the detail-page summary and (later) the

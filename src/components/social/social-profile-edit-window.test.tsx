@@ -202,7 +202,9 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(held).toContain("if (!frame || held !== null || !desktop) return;");
     expect(held).toContain("if (height > 0) setHeld(height);");
     expect(held).toContain("}, [held, desktop]);");
-    expect(shellSrc).toContain("style={win.held === null ? undefined : { height: win.held }}");
+    expect(shellSrc).toContain("style={onSheet || win.held === null ? undefined : { height: win.held }}");
+    // Edit profile keeps its own phone route: its window is never the sheet.
+    expect(windowSrc).not.toContain('phone: "sheet"');
     expect(shellSrc).toContain('if (event.key !== "Tab") return;');
     expect(shellSrc).toContain('document.body.style.overflow = "hidden"');
     expect(windowSrc).toContain('placement="inline"');
@@ -225,7 +227,8 @@ describe("Edit profile pill (social-profile-edit-entry)", () => {
     expect(entrySrc).toContain('const EDIT_ENTRY_FLAG = "socialProfileEdit";');
     expect(entrySrc).toContain("flag: EDIT_ENTRY_FLAG,");
     expect(entrySrc).toContain("window.history.pushState(\n    { houseClient: true, [EDIT_ENTRY_FLAG]: true },");
-    expect(shellSrc).toContain("window.history.pushState(\n      { houseClient: true, [flag]: true },");
+    expect(shellSrc).toContain('window.history.pushState({ houseClient: true, [flag]: true }, "", href);');
+    expect(shellSrc).toContain("pushHouseWindowEntry(flag, openHref(window.location.pathname, window.location.search, face));");
     // The page without ?edit carries no window flags (stripped or underneath).
     const strip = shellSrc.slice(shellSrc.indexOf("const strip = () => {"), shellSrc.indexOf("const install = (face: F)"));
     expect(strip).toContain('window.history.replaceState({}, "",');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeMetadataFindings } from "./metadata";
+import { METADATA_FIELDS, computeMetadataFindings, metadataTierCount, parseMetadata } from "./metadata";
 
 describe("computeMetadataFindings", () => {
   it("empty metadata → all required (high) + recommended (low), no optional", () => {
@@ -36,5 +36,62 @@ describe("computeMetadataFindings", () => {
     expect(f.some((x) => x.field === "synopsis")).toBe(true); // "" is empty
     expect(f.some((x) => x.field === "cast")).toBe(true); // [] is empty
     expect(f.some((x) => x.field === "runtime_minutes")).toBe(false); // 0 is present
+  });
+});
+
+describe("metadata limits (Adam 2026-10-09, \"Add these limits\")", () => {
+  it("refuses values past the approved limits, naming the field and its line", () => {
+    const year = new Date().getUTCFullYear() + 5;
+    expect(parseMetadata({ runtime_minutes: 1 }).ok).toBe(true);
+    expect(parseMetadata({ runtime_minutes: 1000 }).ok).toBe(true);
+    expect(parseMetadata({ runtime_minutes: 0 })).toEqual({
+      ok: false,
+      field: "runtime_minutes",
+      error: "Enter whole minutes, 1 to 1,000.",
+    });
+    expect(parseMetadata({ runtime_minutes: 1001 }).ok).toBe(false);
+    expect(parseMetadata({ release_year: 1888 }).ok).toBe(true);
+    expect(parseMetadata({ release_year: year }).ok).toBe(true);
+    expect(parseMetadata({ release_year: 1887 }).ok).toBe(false);
+    expect(parseMetadata({ release_year: year + 1 })).toEqual({
+      ok: false,
+      field: "release_year",
+      error: `Enter a year from 1888 to ${year}.`,
+    });
+    expect(parseMetadata({ synopsis: "x".repeat(4000) }).ok).toBe(true);
+    expect(parseMetadata({ synopsis: "x".repeat(4001) }).ok).toBe(false);
+    expect(parseMetadata({ director: "é".repeat(200) }).ok).toBe(true);
+    // Counted as the database counts: characters, not UTF-16 units.
+    expect(parseMetadata({ director: "🎬".repeat(200) }).ok).toBe(true);
+    expect(parseMetadata({ director: "x".repeat(201) }).ok).toBe(false);
+    expect(parseMetadata({ cast: Array.from({ length: 50 }, () => "a") }).ok).toBe(true);
+    expect(parseMetadata({ cast: Array.from({ length: 51 }, () => "a") })).toEqual({
+      ok: false,
+      field: "cast",
+      error: "Up to 50 entries.",
+    });
+    expect(parseMetadata({ keywords: ["x".repeat(201)] }).ok).toBe(false);
+    expect(parseMetadata({ genre: "Drama" })).toEqual({ ok: false, field: "genre", error: "Choose one from the list." });
+  });
+
+  it("strips keys outside the registry", () => {
+    const parsed = parseMetadata({ synopsis: "A film.", budget: 1 });
+    expect(parsed).toEqual({ ok: true, data: { synopsis: "A film." } });
+  });
+
+  it("counts a tier only with values that pass their check", () => {
+    expect(metadataTierCount({ synopsis: "A", runtime_minutes: 0, genre: "drama" }, "required")).toEqual({
+      filled: 2,
+      total: 6,
+    });
+    expect(metadataTierCount({ cast: [] }, "recommended")).toEqual({ filled: 0, total: 4 });
+  });
+});
+
+describe("metadata choices", () => {
+  it("lists countries by name, so a long list reads in order", () => {
+    const labels = (METADATA_FIELDS.find((f) => f.key === "country_of_origin")?.vocab ?? []).map((o) => o.label);
+    expect(labels.length).toBeGreaterThan(100);
+    expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b, "en")));
   });
 });

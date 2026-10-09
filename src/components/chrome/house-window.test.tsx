@@ -93,7 +93,18 @@ describe("house window shell (components/chrome/house-window)", () => {
     expect(escape).not.toContain("discard(");
     expect(escape.indexOf("if (asking)")).toBeLessThan(escape.indexOf("requestClose();"));
     expect(shellSrc).toContain('if (frameRef.current?.querySelector("[data-house-form-select-menu]")) return;');
-    // Below md the window holds no keys and no scroll lock.
-    expect(shellSrc).toContain("if (!desktop) return undefined;");
+    // Below md a window holds no keys and no scroll lock, unless it opts
+    // into the phone sheet.
+    expect(shellSrc).toContain("const shown = desktop || sheet;");
+    expect(shellSrc).toContain("if (!shown) return undefined;");
+  });
+
+  it("runs a close's follow-up once Back has landed on the page", () => {
+    const close = shellSrc.slice(shellSrc.indexOf("function close(key: number, after?"), shellSrc.indexOf("function reopenAfterFailure("));
+    expect(close).toContain(
+      'if (after) window.addEventListener("popstate", () => window.setTimeout(after, 0), { once: true });\n      window.history.back();',
+    );
+    // A window that stripped its query (it came with the page) runs it at once.
+    expect(close).toContain("if (addressHasWindow()) strip();\n      after?.();");
   });
 });

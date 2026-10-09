@@ -30,6 +30,8 @@ import {
   HOUSE_WINDOW_FRAME_CLASS,
   HOUSE_WINDOW_HEADER_CLASS,
   HOUSE_WINDOW_PANEL_CLASS,
+  HOUSE_WINDOW_SHEET_BODY_CLASS,
+  HOUSE_WINDOW_SHEET_FRAME_CLASS,
   HOUSE_WINDOW_TITLE_CLASS,
   houseWindowFocusables,
   houseWindowMotionClass,
@@ -44,7 +46,8 @@ import {
 // (a menu, a crop), the ask (Keep editing), a face (Back), then the window;
 // a second Esc keeps editing, so a double Esc never discards. ⌘/Ctrl+Enter
 // is Done; Tab stays inside. Below md the window is hidden and holds no
-// keys and no scroll lock (a phone host draws its own sheet).
+// keys and no scroll lock (a phone host draws its own sheet), unless it
+// opts into the phone sheet: then the same window fills the full AppSheet.
 
 /** While the draft has changes, reloading or closing the tab raises the
  *  browser's own prompt. */
@@ -86,6 +89,9 @@ export type HouseWindowOptions = {
   escapeLayer?: () => boolean;
   /** The island asks the window to close (browser Back). True when it closed. */
   requestRef?: HouseWindowRequest;
+  /** Below md: hidden (the host has its own phone route), or the same
+   *  window as the full AppSheet. */
+  phone?: "hidden" | "sheet";
 };
 
 export type HouseWindowState = {
@@ -95,6 +101,8 @@ export type HouseWindowState = {
   busy: boolean;
   holdOpen: boolean;
   face: string;
+  /** The window shows below md as the full AppSheet. */
+  sheet: boolean;
   titleId: string;
   askTitleId: string;
   held: number | null;
@@ -118,8 +126,23 @@ export type HouseWindowRefs = {
 };
 
 export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, HouseWindowRefs] {
-  const { attr, face, indexFace, cameFrom = null, dirty, busy, holdOpen, onDone, onBack, onClose, onDiscard, escapeLayer, requestRef } =
-    options;
+  const {
+    attr,
+    face,
+    indexFace,
+    cameFrom = null,
+    dirty,
+    busy,
+    holdOpen,
+    onDone,
+    onBack,
+    onClose,
+    onDiscard,
+    escapeLayer,
+    requestRef,
+    phone = "hidden",
+  } = options;
+  const sheet = phone === "sheet";
   const [asking, setAsking] = useState(false);
   // Set when the ask is for leaving to another screen: it runs on Discard.
   const [leave, setLeave] = useState<{ go: () => void } | null>(null);
@@ -223,11 +246,12 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
     };
   }, [requestRef]);
 
-  // Below md the window is hidden: it holds no keys and no scroll lock
-  // there, so a resize never leaves the page dead.
+  // Below md a window without the phone sheet is hidden: it holds no keys
+  // and no scroll lock there, so a resize never leaves the page dead.
   const desktop = useHouseDesktop();
+  const shown = desktop || sheet;
   useEffect(() => {
-    if (!desktop) return undefined;
+    if (!shown) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         // An open house menu inside the window closes itself first.
@@ -265,7 +289,13 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
     };
-  }, [desktop]);
+  }, [shown]);
+
+  // A resize that swaps the host (window ↔ sheet) keeps focus in the window.
+  useEffect(() => {
+    if (!sheet) return;
+    if (!frameRef.current?.contains(document.activeElement)) frameRef.current?.focus();
+  }, [desktop, sheet]);
 
   // One still frame: it takes the height it opens at (up to 80vh) and
   // holds it, so a face never makes the window jump. Measured only while
@@ -307,6 +337,7 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
     busy,
     holdOpen,
     face,
+    sheet,
     titleId,
     askTitleId,
     held,
@@ -352,7 +383,72 @@ export function HouseWindowFrame({
   children: ReactNode;
 }) {
   const a = win.attr;
-  const dialog = (
+  const desktop = useHouseDesktop();
+  const onSheet = win.sheet && !desktop;
+  const frame = (
+    <div
+      ref={frameRef}
+      tabIndex={-1}
+      {...{ [`data-${a}`]: "", [`data-${a}-window`]: "" }}
+      className={onSheet ? HOUSE_WINDOW_SHEET_FRAME_CLASS : HOUSE_WINDOW_FRAME_CLASS}
+      style={onSheet || win.held === null ? undefined : { height: win.held }}
+    >
+      <header {...{ [`data-${a}-header`]: "" }} className={HOUSE_WINDOW_HEADER_CLASS} inert={win.asking || win.busy}>
+        {win.atIndex ? (
+          <button
+            type="button"
+            {...{ [`data-${a}-close`]: "" }}
+            aria-label={closeLabel}
+            className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
+            onClick={() => {
+              win.requestClose();
+            }}
+          >
+            {closeIcon}
+          </button>
+        ) : (
+          <button
+            type="button"
+            {...{ [`data-${a}-back`]: "" }}
+            aria-label={backLabel}
+            className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
+            onClick={win.onBack}
+          >
+            {backIcon}
+          </button>
+        )}
+        <h2 id={win.titleId} className={HOUSE_WINDOW_TITLE_CLASS}>
+          {title}
+        </h2>
+        <Button
+          {...{ [`data-${a}-done`]: "" }}
+          disabled={win.holdOpen || doneDisabled}
+          aria-busy={win.busy}
+          className={HOUSE_WINDOW_DONE_CLASS}
+          onClick={win.done}
+        >
+          {doneLabel}
+        </Button>
+      </header>
+      <div
+        ref={bodyRef}
+        className={onSheet ? HOUSE_WINDOW_SHEET_BODY_CLASS : HOUSE_WINDOW_BODY_CLASS}
+        inert={win.asking || win.busy}
+        aria-busy={win.busy || undefined}
+      >
+        <div key={win.face} className={cn(HOUSE_WINDOW_FACE_CLASS, houseWindowMotionClass(motion))}>
+          {children}
+        </div>
+      </div>
+      {win.asking ? ask : null}
+    </div>
+  );
+
+  const host = onSheet ? (
+    <AppSheetFrame span="full" titleId={win.titleId}>
+      {frame}
+    </AppSheetFrame>
+  ) : (
     <HouseDialogFrame
       size="form"
       titleId={win.titleId}
@@ -362,66 +458,11 @@ export function HouseWindowFrame({
       closeLabel={closeLabel}
       panelClassName={HOUSE_WINDOW_PANEL_CLASS}
     >
-      <div
-        ref={frameRef}
-        tabIndex={-1}
-        {...{ [`data-${a}`]: "", [`data-${a}-window`]: "" }}
-        className={HOUSE_WINDOW_FRAME_CLASS}
-        style={win.held === null ? undefined : { height: win.held }}
-      >
-        <header {...{ [`data-${a}-header`]: "" }} className={HOUSE_WINDOW_HEADER_CLASS} inert={win.asking || win.busy}>
-          {win.atIndex ? (
-            <button
-              type="button"
-              {...{ [`data-${a}-close`]: "" }}
-              aria-label={closeLabel}
-              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
-              onClick={() => {
-                win.requestClose();
-              }}
-            >
-              {closeIcon}
-            </button>
-          ) : (
-            <button
-              type="button"
-              {...{ [`data-${a}-back`]: "" }}
-              aria-label={backLabel}
-              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
-              onClick={win.onBack}
-            >
-              {backIcon}
-            </button>
-          )}
-          <h2 id={win.titleId} className={HOUSE_WINDOW_TITLE_CLASS}>
-            {title}
-          </h2>
-          <Button
-            {...{ [`data-${a}-done`]: "" }}
-            disabled={win.holdOpen || doneDisabled}
-            aria-busy={win.busy}
-            className={HOUSE_WINDOW_DONE_CLASS}
-            onClick={win.done}
-          >
-            {doneLabel}
-          </Button>
-        </header>
-        <div
-          ref={bodyRef}
-          className={HOUSE_WINDOW_BODY_CLASS}
-          inert={win.asking || win.busy}
-          aria-busy={win.busy || undefined}
-        >
-          <div key={win.face} className={cn(HOUSE_WINDOW_FACE_CLASS, houseWindowMotionClass(motion))}>
-            {children}
-          </div>
-        </div>
-        {win.asking ? ask : null}
-      </div>
+      {frame}
     </HouseDialogFrame>
   );
 
-  return typeof document === "undefined" ? dialog : createPortal(dialog, document.body);
+  return typeof document === "undefined" ? host : createPortal(host, document.body);
 }
 
 /** The ask before changes are lost: a strip at the window's foot (Discard,
@@ -526,6 +567,13 @@ export function HouseWindowAsk({
 // stale address back. A window always has the page without its query under
 // it, so Back reaches the ask and never leaves the page with the draft.
 
+/** Push a window's own entry: the browser's own call with the window's flag
+ *  and no shell marker, so Next keeps the query as its address. A link
+ *  that opens a window (marked data-house-link) pushes it on its click. */
+export function pushHouseWindowEntry(flag: string, href: string) {
+  window.history.pushState({ houseClient: true, [flag]: true }, "", href);
+}
+
 export type HouseWindowEntryOptions<F extends string> = {
   /** The window's own history flag (a shell entry is never one). */
   flag: string;
@@ -548,8 +596,9 @@ export type HouseWindowEntry<F extends string> = {
   requestRef: HouseWindowRequest;
   /** Open from a control on the page (pushes the entry). */
   openFromPage: (face: F) => void;
-  /** Only the window that is open now may close it. */
-  close: (key: number) => void;
+  /** Only the window that is open now may close it. `after` runs once the
+   *  address is the page's again (after Back has landed). */
+  close: (key: number, after?: () => void) => void;
   /** A save that failed after its window closed: reopen at the face. */
   reopenAfterFailure: (face: F) => void;
   onPersisting: (settled: Promise<void>) => void;
@@ -578,11 +627,7 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
 
   const isOwnEntry = () => (window.history.state as Record<string, unknown> | null)?.[flag] === true;
   const push = (face: F) => {
-    window.history.pushState(
-      { houseClient: true, [flag]: true },
-      "",
-      openHref(window.location.pathname, window.location.search, face),
-    );
+    pushHouseWindowEntry(flag, openHref(window.location.pathname, window.location.search, face));
   };
   // The page without the query is not a window entry: it carries no flags.
   const strip = () => {
@@ -613,17 +658,18 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
     open(face, pushed);
   }
 
-  function close(key: number) {
+  function close(key: number, after?: () => void) {
     if (winRef.current?.key !== key) return;
     winRef.current = null;
     setWin(null);
-    if (addressHasWindow()) {
-      if (pushedRef.current) {
-        closingRef.current = true;
-        window.history.back();
-      } else {
-        strip();
-      }
+    if (addressHasWindow() && pushedRef.current) {
+      closingRef.current = true;
+      // After the router's own popstate work, so `after` sees the page.
+      if (after) window.addEventListener("popstate", () => window.setTimeout(after, 0), { once: true });
+      window.history.back();
+    } else {
+      if (addressHasWindow()) strip();
+      after?.();
     }
     pushedRef.current = false;
     window.requestAnimationFrame(() => returnFocus?.()?.focus());
