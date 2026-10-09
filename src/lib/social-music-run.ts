@@ -269,13 +269,15 @@ async function scanOne(
     if (socialVideoDurationExceedsCap(asset.duration)) {
       return recordFailure(scan, deps, book, "duration_over_cap", muxReadyAt, scan.scanStartedAt);
     }
-    const seconds = typeof asset.duration === "number" && Number.isFinite(asset.duration) ? asset.duration : 0;
+    if (typeof asset.duration !== "number" || !Number.isFinite(asset.duration) || asset.duration <= 0) {
+      return recordFailure(scan, deps, book, "unknown_duration", muxReadyAt, scan.scanStartedAt);
+    }
     return writeDecision(
       scan,
       deps,
       { kind: "no_match", code: 0 },
       [],
-      seconds,
+      asset.duration,
       muxReadyAt,
       scan.scanStartedAt ?? nowIso,
     );

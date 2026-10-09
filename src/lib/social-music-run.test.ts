@@ -667,6 +667,18 @@ describe("processMusicScan", () => {
     });
     await expect(processMusicScan(scan(), ambiguous)).resolves.toBe("retried");
     expect(ambiguous.saves.at(-1)?.lastError).toBe("mux_audio_errored");
+
+    const unmeasured = deps({
+      loadAsset: async () => ({
+        ...READY,
+        duration: null,
+        tracks: [{ type: "video" }],
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    });
+    await expect(processMusicScan(scan(), unmeasured)).resolves.toBe("retried");
+    expect(unmeasured.saves.at(-1)?.lastError).toBe("unknown_duration");
+    expect(unmeasured.saves.at(-1)?.durationSeconds ?? null).toBeNull();
   });
 });
 

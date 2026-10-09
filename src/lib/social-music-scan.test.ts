@@ -8,6 +8,7 @@ import {
   MUSIC_SCAN_BACKOFF_MS,
   MUSIC_SCAN_MAX_ATTEMPTS,
   decideMusicScan,
+  loadOwnMusicNotices,
   musicNoticeFromScans,
   musicScanBackoff,
   musicScanConfig,
@@ -123,6 +124,52 @@ describe("social video visibility", () => {
         { status: "pending", attemptCount: MUSIC_SCAN_MAX_ATTEMPTS, nextAttemptAt: null },
       ]),
     ).toBe("blocked");
+    expect(
+      musicNoticeFromScans([
+        { status: "pending", lastError: "superseded" },
+        { status: "allowed" },
+      ]),
+    ).toBeNull();
+    expect(musicNoticeFromScans([{ status: "pending", lastError: "superseded" }])).toBeNull();
+  });
+
+  it("does not load a superseded row as a pending notice", async () => {
+    const columns: string[] = [];
+    const supabase = {
+      from: () => ({
+        select: (picked: string) => {
+          columns.push(picked);
+          return {
+            eq: () => ({
+              in: async () => ({
+                data: [
+                  {
+                    post_id: "post-1",
+                    story_id: null,
+                    status: "pending",
+                    last_error: "superseded",
+                    attempt_count: 0,
+                    next_attempt_at: null,
+                  },
+                  {
+                    post_id: "post-1",
+                    story_id: null,
+                    status: "allowed",
+                    last_error: null,
+                    attempt_count: 1,
+                    next_attempt_at: null,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        },
+      }),
+    };
+    const maps = await loadOwnMusicNotices(supabase as never, "author-1", { postIds: ["post-1"] });
+    expect(columns.some((column) => column.includes("last_error"))).toBe(true);
+    expect(maps.posts.has("post-1")).toBe(false);
   });
 
   it("skips a welcome or media row that no longer stores the scanned pair", () => {

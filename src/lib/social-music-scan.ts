@@ -324,10 +324,12 @@ export function musicNoticeFromScans(
     status: MusicScanVisibility;
     attemptCount?: number;
     nextAttemptAt?: string | null;
+    lastError?: string | null;
   }[],
 ): SocialMusicNotice | null {
-  if (scans.some((scan) => scan.status === "blocked")) return "blocked";
-  const pending = scans.filter((scan) => scan.status === "pending");
+  const live = scans.filter((scan) => scan.lastError !== "superseded");
+  if (live.some((scan) => scan.status === "blocked")) return "blocked";
+  const pending = live.filter((scan) => scan.status === "pending");
   if (pending.length === 0) return null;
   const exhausted =
     pending.every((scan) => typeof scan.attemptCount === "number") &&
@@ -427,6 +429,7 @@ type ScanNoticeRow = {
   status: string;
   attempt_count?: number | null;
   next_attempt_at?: string | null;
+  last_error?: string | null;
 };
 
 type NoticeQuery = {
@@ -465,6 +468,7 @@ function groupNotices(
         status: row.status as "pending" | "allowed" | "blocked",
         attemptCount: typeof row.attempt_count === "number" ? row.attempt_count : undefined,
         nextAttemptAt: row.next_attempt_at,
+        lastError: row.last_error,
       })),
     );
     if (notice) notices.set(id, notice);
@@ -491,10 +495,10 @@ export async function loadOwnMusicNotices(
   const table = supabase.from("social_music_scans") as unknown as NoticeQuery;
   const [posts, stories] = await Promise.all([
     postIds.length
-      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at").eq("author_id", viewerId).in("post_id", postIds)
+      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at, last_error").eq("author_id", viewerId).in("post_id", postIds)
       : Promise.resolve({ data: [] as ScanNoticeRow[], error: null }),
     storyIds.length
-      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at").eq("author_id", viewerId).in("story_id", storyIds)
+      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at, last_error").eq("author_id", viewerId).in("story_id", storyIds)
       : Promise.resolve({ data: [] as ScanNoticeRow[], error: null }),
   ]);
   if (posts.error || stories.error) {
