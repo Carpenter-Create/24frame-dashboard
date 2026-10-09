@@ -5,6 +5,7 @@ import {
   metadataTierCount,
   normalizeStoredMetadata,
   parseMetadata,
+  requiredComplete,
 } from "./metadata";
 
 describe("computeMetadataFindings", () => {
@@ -118,5 +119,16 @@ describe("normalizeStoredMetadata", () => {
       }),
     ).toEqual({ cast: ["Smith, Jr."], runtime_minutes: 96, release_year: "soon", genre: "Drama" });
     expect(normalizeStoredMetadata(null)).toEqual({});
+  });
+});
+
+describe("requiredComplete", () => {
+  it("counts a required field only when its value is accepted (Codex on #801)", () => {
+    const full = { synopsis: "A", runtime_minutes: 90, release_year: 2024, genre: "drama", primary_language: "en", country_of_origin: "US" };
+    expect(requiredComplete(full)).toEqual({ filled: 6, total: 6 });
+    expect(requiredComplete({ ...full, runtime_minutes: 0 })).toEqual({ filled: 5, total: 6 });
+    expect(requiredComplete({ ...full, genre: "Drama" })).toEqual({ filled: 5, total: 6 });
+    expect(requiredComplete({ ...full, runtime_minutes: "90" })).toEqual({ filled: 6, total: 6 });
+    expect(requiredComplete(null)).toEqual({ filled: 0, total: 6 });
   });
 });

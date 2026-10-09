@@ -13,7 +13,7 @@ import { getAuthUser } from "@/lib/supabase/auth";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 import { titleClientPath } from "@/lib/title-public-id";
-import { saveTitleDetails } from "./actions";
+import { saveTitleDetails, submitTitle } from "./actions";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
 const TITLE = "22222222-2222-4222-8222-222222222222";
@@ -292,5 +292,28 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     void _s;
     void _d;
     expect(seen.rpc[0].args.p_data).toEqual({ ...rest, runtime_minutes: 96, cast: ["Ada"], rating: "PG" });
+  });
+
+});
+
+describe("submitTitle (Codex on #801)", () => {
+  it("submits only with every required field filled with an accepted value", async () => {
+    const invalid = fake({ stored: { ...STORED, runtime_minutes: 0 } });
+    expect(await submitTitle(ORG, TITLE)).toEqual({
+      error: "Complete the 6 required metadata fields to submit this title for review.",
+    });
+    expect(invalid.rpc).toEqual([]);
+
+    const missing = fake({ stored: { synopsis: "A film." } });
+    expect((await submitTitle(ORG, TITLE)).error).toContain("required metadata fields");
+    expect(missing.rpc).toEqual([]);
+
+    const unread = fake({ readError: { message: "timeout" } });
+    expect(await submitTitle(ORG, TITLE)).toEqual({ error: "Could not save." });
+    expect(unread.rpc).toEqual([]);
+
+    const ok = fake();
+    expect(await submitTitle(ORG, TITLE)).toEqual({});
+    expect(ok.rpc[0]).toEqual({ name: "submit_title", args: { p_org_id: ORG, p_title_id: TITLE } });
   });
 });

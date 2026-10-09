@@ -155,12 +155,13 @@ export function metadataTierCount(
   return { filled, total: fields.length };
 }
 
-// Required-tier completeness — drives the detail-page summary and (later) the
-// delivery gate. A field counts as filled if present and non-empty.
-export function requiredComplete(data: Record<string, unknown>): { filled: number; total: number } {
-  const req = METADATA_FIELDS.filter((f) => f.tier === "required");
-  const filled = req.filter((f) => !isEmpty(data?.[f.key])).length;
-  return { filled, total: req.length };
+// Required-tier completeness: drives the detail page's summary, its notice
+// and Submit, and the submit action's own check. A field counts only when it
+// is filled with a value the checks accept (read as the window reads it), so
+// a stored value the limits now refuse never lets a title be submitted
+// (Codex on #801). The database submit gate mirrors this (founder SQL).
+export function requiredComplete(data: Record<string, unknown> | null | undefined): { filled: number; total: number } {
+  return metadataTierCount(normalizeStoredMetadata(data), "required");
 }
 
 // A field counts as filled if present and non-empty (arrays: at least one entry).

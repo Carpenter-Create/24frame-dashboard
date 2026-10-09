@@ -16,6 +16,7 @@ import {
   METADATA_LOGIC_VERSION,
   normalizeStoredMetadata,
   parseMetadata,
+  requiredComplete,
 } from "@/lib/metadata";
 import { checkReleaseInfo, releaseInfoSchema } from "@/lib/releases";
 import { getOrgContext } from "@/lib/supabase/context";
@@ -24,6 +25,7 @@ import type { Json } from "@/lib/supabase/database.types";
 import { purgeDeletedTitleStorage } from "@/lib/s3-title-purge";
 import { TITLES_HREF, titleClientPath } from "@/lib/title-public-id";
 import { TITLE_LIFECYCLE } from "@/lib/titles-lifecycle";
+import { TITLE_DETAIL } from "@/lib/titles";
 
 // Add a rights grant (expand = insert) for a title in the active org. Territories
 // resolve to ISO codes server-side; the write goes through the add_rights_grant
@@ -245,6 +247,18 @@ export async function submitTitle(
   const supabase = await createClient();
   const user = await getAuthUser();
   if (!user) return { error: "Not authenticated." };
+
+  // Submit only with every required field filled with a value the checks
+  // accept: the button can be stale, and a stored value from before the
+  // limits must not pass (Codex on #801).
+  const { data: stored, error: readError } = await supabase
+    .from("title_metadata")
+    .select("data")
+    .eq("title_id", titleId)
+    .maybeSingle();
+  if (readError) return { error: TITLE_DETAILS.saveFailed };
+  const complete = requiredComplete(stored?.data as Record<string, unknown> | null);
+  if (complete.filled < complete.total) return { error: TITLE_DETAIL.requiredNotice(complete.total) };
 
   const { error } = await supabase.rpc("submit_title", { p_org_id: orgId, p_title_id: titleId });
   if (error) return { error: error.message };
