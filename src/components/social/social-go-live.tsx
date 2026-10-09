@@ -51,6 +51,7 @@ import {
 import {
   bindGoLiveRecorderStop,
   formatGoLiveClock,
+  startGoLiveClock,
   goLiveFileName,
   goLiveFitsByteCap,
   goLiveRecorderOptions,
@@ -60,7 +61,6 @@ import {
   goLiveVideoConstraints,
   readGoLiveCamera,
   rememberGoLiveCamera,
-  goLiveRemainingMs,
   SOCIAL_GO_LIVE_DEFAULT_FRAME,
   SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
@@ -162,6 +162,27 @@ async function uploadLiveVideo(
     return { error: result.error ?? SOCIAL.home.uploadFailed };
   }
   return { item: result.items[0] };
+}
+
+/** The component's stop wiring. A chunk past 479s is kept, then the take stops. The clock tick uses the same stop. */
+export function armGoLiveRecorder<T extends { data: Blob }>(input: {
+  recorder: { ondataavailable: ((event: T) => void) | null };
+  now: () => number;
+  startedAt: number;
+  isRecording: () => boolean;
+  stop: () => void;
+  takeChunk: (event: T) => void;
+  stopTick: { current: (() => void) | null };
+}): void {
+  const stopWatch = bindGoLiveRecorderStop({
+    recorder: input.recorder,
+    now: input.now,
+    startedAt: input.startedAt,
+    isRecording: input.isRecording,
+    stop: input.stop,
+    takeChunk: input.takeChunk,
+  });
+  input.stopTick.current = stopWatch.onTick;
 }
 
 export function SocialGoLive() {
@@ -524,12 +545,13 @@ export function SocialGoLive() {
   function startClock() {
     clockStartedRef.current = Date.now();
     clearClock();
-    setClock(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS));
-    clockTimerRef.current = window.setInterval(() => {
-      const elapsed = Date.now() - clockStartedRef.current;
-      setClock(formatGoLiveClock(goLiveRemainingMs(elapsed)));
-      stopTickRef.current?.();
-    }, 250);
+    clockTimerRef.current = startGoLiveClock({
+      now: () => Date.now(),
+      startedAt: () => clockStartedRef.current,
+      setClock,
+      stopTick: stopTickRef,
+      setInterval: (fn, ms) => window.setInterval(fn, ms),
+    });
   }
 
   function beginRecording(source: MediaStream) {
@@ -593,7 +615,7 @@ export function SocialGoLive() {
     recorderRef.current = recorder;
     recordingRef.current = true;
     startClock();
-    const stopWatch = bindGoLiveRecorderStop({
+    armGoLiveRecorder({
       recorder,
       now: () => Date.now(),
       startedAt: clockStartedRef.current,
@@ -611,8 +633,8 @@ export function SocialGoLive() {
         }
         chunksRef.current.push(event.data);
       },
+      stopTick: stopTickRef,
     });
-    stopTickRef.current = stopWatch.onTick;
     recorder.start(1000);
     setPhase("recording");
   }

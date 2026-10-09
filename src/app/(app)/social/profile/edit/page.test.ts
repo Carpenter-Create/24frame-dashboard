@@ -62,7 +62,12 @@ describe("Social profile edit page", () => {
       profile: ensured,
       error: null,
     });
-    vi.mocked(createClient).mockResolvedValue({ from: vi.fn() } as never);
+    const chain = {
+      select: vi.fn(() => chain),
+      eq: vi.fn(() => chain),
+      maybeSingle: vi.fn(async () => ({ data: { avatar_key: null }, error: null })),
+    };
+    vi.mocked(createClient).mockResolvedValue({ from: vi.fn(() => chain) } as never);
   });
 
   it("renders the locked Edit profile sheet", async () => {

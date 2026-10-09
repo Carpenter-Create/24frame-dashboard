@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { signedAvatarUrl } from "@/lib/s3-avatars";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,9 @@ export async function GET() {
     });
   }
 
-  const url = await signedAvatarUrl(user.id);
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("avatar_key").eq("id", user.id).maybeSingle();
+  const url = await signedAvatarUrl(user.id, data?.avatar_key);
   if (!url) {
     return new NextResponse(null, {
       status: 404,

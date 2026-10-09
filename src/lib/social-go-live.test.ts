@@ -6,6 +6,7 @@ import { formatStoryRecorderClock } from "./social-story-recorder";
 import {
   bindGoLiveRecorderStop,
   formatGoLiveClock,
+  startGoLiveClock,
   goLiveFileName,
   goLiveFitsByteCap,
   goLiveReachedCap,
@@ -71,7 +72,52 @@ describe("Go live duration cap", () => {
     expect(watch.onTick).toBeTypeOf("function");
     recorder.ondataavailable?.({ data: new Blob(["late"]) });
     expect(recorder.stopped).toBe(true);
+    expect(chunks).toBe(2);
+  });
+
+  it("keeps the chunk that crosses 479s, then the clock tick stops the take", () => {
+    let now = 0;
+    let recording = true;
+    let chunks = 0;
+    const recorder = {
+      ondataavailable: null as ((event: { data: Blob }) => void) | null,
+      stopped: false,
+    };
+    const stopTick = { current: null as (() => void) | null };
+    const watch = bindGoLiveRecorderStop({
+      recorder,
+      now: () => now,
+      startedAt: 0,
+      isRecording: () => recording,
+      stop: () => {
+        recorder.stopped = true;
+        recording = false;
+      },
+      takeChunk: () => {
+        chunks += 1;
+      },
+    });
+    stopTick.current = watch.onTick;
+    const clock = { tick: null as (() => void) | null };
+    startGoLiveClock({
+      now: () => now,
+      startedAt: () => 0,
+      setClock: () => undefined,
+      stopTick,
+      setInterval: (fn) => {
+        clock.tick = fn;
+        return 1;
+      },
+    });
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    recorder.ondataavailable?.({ data: new Blob(["late"]) });
     expect(chunks).toBe(1);
+    expect(recorder.stopped).toBe(true);
+    recording = true;
+    recorder.stopped = false;
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    clock.tick?.();
+    expect(recorder.stopped).toBe(true);
   });
 
   it("stops at 479s from a timer tick when no chunk arrives", () => {

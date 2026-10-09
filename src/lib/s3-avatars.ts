@@ -12,9 +12,16 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   AVATAR_SIGNED_URL_TTL_SECONDS,
   avatarObjectKey,
+  avatarRecheckObjectKey,
+  avatarServeKey,
   isAvatarContentType,
 } from "@/lib/account-avatar";
-import { reencodeSocialImage } from "@/lib/social-image-reencode";
+import {
+  reencodeSocialImage,
+  SOCIAL_IMAGE_PREVIOUS_KEY_METADATA,
+  SOCIAL_IMAGE_REENCODED_METADATA,
+  socialImageWasReencoded,
+} from "@/lib/social-image-reencode";
 import { socialAvatarFaces } from "@/lib/social-edge";
 import { privateMaxAgeCacheControl, stablePresignOptions } from "@/lib/signing-window";
 
@@ -47,7 +54,7 @@ export async function putAvatarObject(
   userId: string,
   body: Uint8Array,
   contentType: string,
-): Promise<void> {
+): Promise<string> {
   if (!isAvatarContentType(contentType)) {
     throw new Error("Unsupported avatar content type");
   }
@@ -64,28 +71,51 @@ export async function putAvatarObject(
       CacheControl: "private, max-age=300",
     }),
   );
+  return key;
 }
 
-/** Bytes already re-encoded. Recheck writes these. Upload still goes through putAvatarObject. */
-export async function replaceAvatarObject(
-  userId: string,
-  body: Uint8Array,
-  contentType: string,
-): Promise<void> {
-  if (!isAvatarContentType(contentType) || body.byteLength === 0) {
+/**
+ * Re-encoded face at a new key. The canonical avatar object is not written.
+ * IfNoneMatch refuses a key that already exists.
+ */
+export async function putAvatarRecheckObject(input: {
+  userId: string;
+  objectId: string;
+  body: Uint8Array;
+  contentType: string;
+  previousKey: string;
+}): Promise<string> {
+  if (!isAvatarContentType(input.contentType) || input.body.byteLength === 0) {
     throw new Error("Unsupported avatar content type");
   }
-  const key = avatarObjectKey(userId);
+  const key = avatarRecheckObjectKey(input.userId, input.objectId);
+  if (key === input.previousKey) throw new Error("Avatar recheck must not overwrite the original");
   const { bucket, s3 } = avatarsClient();
   await s3.send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
-      Body: body,
-      ContentType: contentType,
+      Body: input.body,
+      ContentType: input.contentType,
       CacheControl: "private, max-age=300",
+      IfNoneMatch: "*",
+      Metadata: {
+        [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
+        [SOCIAL_IMAGE_PREVIOUS_KEY_METADATA]: input.previousKey,
+      },
     }),
   );
+  return key;
+}
+
+export async function headAvatarRecheck(key: string): Promise<{ reencoded: boolean } | null> {
+  const { bucket, s3 } = avatarsClient();
+  try {
+    const out = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return { reencoded: socialImageWasReencoded(out.Metadata) };
+  } catch {
+    return null;
+  }
 }
 
 export async function readAvatarObject(
@@ -144,11 +174,28 @@ export async function hasAvatarObject(userId: string): Promise<boolean> {
 }
 
 /** Signed GET for the card, or null when empty / bucket not applied yet. */
-export async function signedAvatarUrl(userId: string): Promise<string | null> {
+export async function signedAvatarUrl(userId: string, storedKey?: string | null): Promise<string | null> {
+  const key = avatarServeKey(userId, storedKey);
+  if (!key) return null;
   try {
-    if (!(await headAvatarObject(userId))) return null;
-    return presignAvatarGet(userId);
-  } catch {
+    if (key === avatarObjectKey(userId)) {
+      if (!(await headAvatarObject(userId))) return null;
+      return presignAvatarGet(userId);
+    }
+    const { bucket, s3 } = avatarsClient();
+    await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return getSignedUrl(
+      s3,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ResponseCacheControl: privateMaxAgeCacheControl(AVATAR_SIGNED_URL_TTL_SECONDS),
+      }),
+      stablePresignOptions(AVATAR_SIGNED_URL_TTL_SECONDS),
+    );
+  } catch (e) {
+    const name = (e as { name?: string })?.name;
+    if (name === "NotFound") return null;
     return null;
   }
 }

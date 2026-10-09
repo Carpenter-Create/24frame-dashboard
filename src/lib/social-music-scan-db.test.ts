@@ -3,8 +3,7 @@ import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { bindGoLiveRecorderStop, SOCIAL_GO_LIVE_MAX_MS } from "@/lib/social-go-live";
-import { socialMusicParentStillHasScan, socialVideoKeyDigest, type MusicWindowRecord } from "@/lib/social-music-scan";
+import { socialVideoKeyDigest, type MusicWindowRecord } from "@/lib/social-music-scan";
 import { runSocialMusicBatch, type MusicScanPatch, type PendingMusicScan } from "@/lib/social-music-run";
 import {
   reingestSocialS3Videos,
@@ -157,6 +156,7 @@ type WelcomeRowState =
   | "allowed"
   | "blocked"
   | "reingest_failed"
+  | "pending exhausted"
   | "superseded";
 
 let welcomeTag = 0;
@@ -227,9 +227,20 @@ async function seedWelcomeState(state: WelcomeRowState): Promise<SeededWelcome> 
   if (state === "allowed" || state === "blocked") {
     await db.query(
       `update public.social_music_scans
-       set status = $3::public.social_music_scan_status, decided_at = now(), next_attempt_at = null
+       set status = $3::public.social_music_scan_status,
+           decided_at = now(),
+           next_attempt_at = null,
+           attempt_count = 3
        where profile_id = $1 and playback_id = $2`,
       [profile, play, state],
+    );
+  }
+  if (state === "pending exhausted") {
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 8, next_attempt_at = null
+       where profile_id = $1 and playback_id = $2`,
+      [profile, play],
     );
   }
   await db.query(
@@ -387,20 +398,11 @@ async function dueWelcomeScans(profile: string, now: Date): Promise<PendingMusic
   );
   const current: PendingMusicScan[] = [];
   for (const row of result.rows) {
-    if (
-      !socialMusicParentStillHasScan(
-        { surface: "welcome", assetId: row.asset_id, playbackId: row.playback_id },
-        { welcomeAssetId: row.welcome_asset, welcomePlaybackId: row.welcome_play },
-      )
-    ) {
-      await db.query(
-        `update public.social_music_scans
-         set next_attempt_at = null, last_error = 'superseded'
-         where id = $1::uuid and status = 'pending'`,
-        [row.id],
-      );
-      continue;
-    }
+    const retired = await db.query<{ retired: boolean }>(
+      `select public.retire_superseded_music_scan($1::uuid) as retired`,
+      [row.id],
+    );
+    if (retired.rows[0]?.retired) continue;
     current.push({
       id: row.id,
       surface: "welcome",
@@ -455,6 +457,7 @@ const WELCOME_STATES: WelcomeRowState[] = [
   "allowed",
   "blocked",
   "reingest_failed",
+  "pending exhausted",
   "superseded",
 ];
 
@@ -953,7 +956,7 @@ describe("social music scan migration", () => {
       [profile],
     );
     expect(rows.rows).toEqual([
-      { playback_id: "playAGN000001", last_error: null, status: "pending", attempt_count: 1, due: true },
+      { playback_id: "playAGN000001", last_error: null, status: "pending", attempt_count: 0, due: true },
       { playback_id: "playOTH000001", last_error: "superseded", status: "blocked", attempt_count: 0, due: false },
       { playback_id: "playPND000001", last_error: "superseded", status: "pending", attempt_count: 4, due: false },
     ]);
@@ -1543,9 +1546,13 @@ describe("social music scan migration", () => {
         expect(row.status).toBe("pending");
         expect(row.due).toBe(true);
         expect(row.later).toBe(false);
+        expect(row.attempt_count).toBe(0);
         expect(row.windows).toBe(state === "pending mid-scan" || state === "superseded" ? 1 : 0);
         expect(await welcomeNotices(seeded.profile)).toEqual(["welcomePending"]);
         expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      }
+      if (state === "allowed" || state === "blocked") {
+        expect(row.attempt_count).toBe(3);
       }
     }
   });
@@ -1596,6 +1603,14 @@ describe("social music scan migration", () => {
         expect(tick.identified).toBe(0);
         expect(await welcomeNotices(seeded.profile)).toEqual(["welcomePending"]);
         expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      } else if (state === "pending exhausted") {
+        expect(row.status).toBe("pending");
+        expect(row.attempt_count).toBe(8);
+        expect(row.due).toBe(false);
+        expect(row.later).toBe(false);
+        expect(tick.identified).toBe(0);
+        expect(await welcomeNotices(seeded.profile)).toEqual(["malformed"]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
       } else {
         expect(row.last_error).toBe("superseded");
         expect(row.due).toBe(false);
@@ -1629,6 +1644,11 @@ describe("social music scan migration", () => {
         expect(candidate).toBeNull();
         const before = await welcomeScan(seeded.profile, seeded.play);
         expect(before.id).toBe(seeded.scanId);
+        const resting = welcomeResting(state);
+        expect(await welcomeNotices(seeded.profile)).toEqual(resting.notices);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(resting.visible);
+        expect(before.due).toBe(resting.due);
+        expect(before.later).toBe(resting.later);
         await siblingStillOff(seeded.profile, seeded.siblingPlay);
         continue;
       }
@@ -1695,52 +1715,82 @@ describe("social music scan migration", () => {
     }
   });
 
-  it("welcome state: 8 min stop", async () => {
-    const seeded = await Promise.all(WELCOME_STATES.map((state) => seedWelcomeState(state)));
-    const ids = seeded.map((row) => row.profile);
-    const before = await db.query(
-      `select id::text as id, status::text as status, last_error, next_attempt_at::text as next_attempt_at,
-              attempt_count, asset_id, playback_id
-       from public.social_music_scans
-       where profile_id = any($1::uuid[])
-       order by id`,
-      [ids],
+  it("leaves a welcome queued when the pair is restored before retire, and retires it when the pair is still gone", async () => {
+    const kept = await seedWelcomeState("pending queued");
+    await clearWelcomeProfile(kept.profile);
+    await setWelcome(kept.profile, kept.asset, kept.play, kept.upload);
+    const keptCall = await db.query<{ retired: boolean }>(
+      `select public.retire_superseded_music_scan($1::uuid) as retired`,
+      [kept.scanId],
     );
-    const noticesBefore = await Promise.all(seeded.map((row) => welcomeNotices(row.profile)));
-    const visibleBefore = await Promise.all(seeded.map((row) => othersSeeCurrentWelcome(row.profile)));
-    let now = 0;
-    let recording = true;
-    const recorder = {
-      ondataavailable: null as ((event: { data: Blob }) => void) | null,
-      stopped: false,
-    };
-    const watch = bindGoLiveRecorderStop({
-      recorder,
-      now: () => now,
-      startedAt: 0,
-      isRecording: () => recording,
-      stop: () => {
-        recorder.stopped = true;
-        recording = false;
-      },
-      takeChunk: () => undefined,
-    });
-    now = SOCIAL_GO_LIVE_MAX_MS;
-    watch.onTick();
-    expect(recorder.stopped).toBe(true);
-    const after = await db.query(
-      `select id::text as id, status::text as status, last_error, next_attempt_at::text as next_attempt_at,
-              attempt_count, asset_id, playback_id
-       from public.social_music_scans
-       where profile_id = any($1::uuid[])
-       order by id`,
-      [ids],
+    expect(keptCall.rows[0]?.retired).toBe(false);
+    const keptRow = await welcomeScan(kept.profile, kept.play);
+    expect(keptRow.id).toBe(kept.scanId);
+    expect(keptRow.status).toBe("pending");
+    expect(keptRow.last_error).toBeNull();
+    expect(keptRow.due).toBe(true);
+
+    const dropped = await seedWelcomeState("pending queued");
+    await clearWelcomeProfile(dropped.profile);
+    const droppedCall = await db.query<{ retired: boolean }>(
+      `select public.retire_superseded_music_scan($1::uuid) as retired`,
+      [dropped.scanId],
     );
-    expect(after.rows).toEqual(before.rows);
-    const noticesAfter = await Promise.all(seeded.map((row) => welcomeNotices(row.profile)));
-    const visibleAfter = await Promise.all(seeded.map((row) => othersSeeCurrentWelcome(row.profile)));
-    expect(noticesAfter).toEqual(noticesBefore);
-    expect(visibleAfter).toEqual(visibleBefore);
-    for (const row of seeded) await siblingStillOff(row.profile, row.siblingPlay);
+    expect(droppedCall.rows[0]?.retired).toBe(true);
+    const droppedRow = await welcomeScan(dropped.profile, dropped.play);
+    expect(droppedRow.last_error).toBe("superseded");
+    expect(droppedRow.due).toBe(false);
+    expect(droppedRow.later).toBe(false);
+
+    const postProfile = `55555555-5555-4555-8555-${String(welcomeTag + 1).padStart(12, "0")}`;
+    await db.query(`insert into public.profiles (id) values ($1)`, [postProfile]);
+    const postAsset = "assetRT000001";
+    const postPlay = "playRT000001a";
+    await bindWelcome(postProfile, "upldRT000001a", postAsset, postPlay);
+    const postId = (
+      await db.query<{ id: string }>(
+        `insert into public.posts (author_id, media) values ($1, $2::jsonb) returning id`,
+        [postProfile, JSON.stringify([{ kind: "video", provider: "mux", assetId: postAsset, playbackId: postPlay, key: `posts/${postProfile}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.mp4`, contentType: "video/mp4" }])],
+      )
+    ).rows[0]!.id;
+    const postScan = await db.query<{ id: string }>(
+      `select id::text as id from public.social_music_scans where post_id = $1`,
+      [postId],
+    );
+    await db.query(`update public.posts set media = '[]'::jsonb where id = $1`, [postId]);
+    await db.query(
+      `update public.posts set media = $2::jsonb where id = $1`,
+      [postId, JSON.stringify([{ kind: "video", provider: "mux", assetId: postAsset, playbackId: postPlay, key: `posts/${postProfile}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.mp4`, contentType: "video/mp4" }])],
+    );
+    const postKept = await db.query<{ retired: boolean }>(
+      `select public.retire_superseded_music_scan($1::uuid) as retired`,
+      [postScan.rows[0]!.id],
+    );
+    expect(postKept.rows[0]?.retired).toBe(false);
+    await db.query(`update public.posts set media = '[]'::jsonb where id = $1`, [postId]);
+    const postDropped = await db.query<{ retired: boolean }>(
+      `select public.retire_superseded_music_scan($1::uuid) as retired`,
+      [postScan.rows[0]!.id],
+    );
+    expect(postDropped.rows[0]?.retired).toBe(true);
+
+    await expect(
+      asUser(kept.profile, () =>
+        db.query(`select public.retire_superseded_music_scan($1::uuid)`, [kept.scanId]),
+      ),
+    ).rejects.toThrow(/permission denied/);
   });
 });
+
+function welcomeResting(state: WelcomeRowState): { notices: string[]; visible: boolean; due: boolean; later: boolean } {
+  if (state === "pending queued" || state === "pending mid-scan") {
+    return { notices: ["welcomePending"], visible: false, due: true, later: false };
+  }
+  if (state === "pending backing off") {
+    return { notices: ["welcomePending"], visible: false, due: false, later: true };
+  }
+  if (state === "allowed") return { notices: [], visible: true, due: false, later: false };
+  if (state === "blocked") return { notices: ["blocked"], visible: false, due: false, later: false };
+  if (state === "pending exhausted") return { notices: ["malformed"], visible: false, due: false, later: false };
+  return { notices: [], visible: false, due: false, later: false };
+}

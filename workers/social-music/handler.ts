@@ -15,7 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyAcrProbe, createAcrCloudAdapter, silenceWav } from "../../src/lib/social-music-acrcloud";
 import { readBoundedBody, SOCIAL_MUSIC_FULL_AUDIO_MAX_BYTES } from "../../src/lib/social-music-audio";
 import { sliceSocialMusicAudio } from "../../src/lib/social-music-m4a";
-import { socialMusicParentStillHasScan, type MusicWindowRecord } from "../../src/lib/social-music-scan";
+import type { MusicWindowRecord } from "../../src/lib/social-music-scan";
 import {
   runSocialMusicBatch,
   type MusicScanPatch,
@@ -88,7 +88,7 @@ function patchToRow(patch: MusicScanPatch): Database["public"]["Tables"]["social
   return row;
 }
 
-async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]> {
+export async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]> {
   const { data, error } = await admin
     .from("social_music_scans")
     .select(
@@ -102,16 +102,7 @@ async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]>
   if (error) throw new Error(`Music scan read failed: ${error.message}`);
   const current: PendingMusicScan[] = [];
   for (const row of data ?? []) {
-    const parent = await loadScanParent(admin, row);
-    if (
-      !socialMusicParentStillHasScan(
-        { surface: row.surface, assetId: row.asset_id, playbackId: row.playback_id },
-        parent,
-      )
-    ) {
-      await retireSupersededScan(admin, row.id);
-      continue;
-    }
+    if (await retireSupersededScan(admin, row.id)) continue;
     current.push({
       id: row.id,
       surface: row.surface,
@@ -128,40 +119,11 @@ async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]>
   return current;
 }
 
-async function loadScanParent(
-  admin: Admin,
-  row: { surface: "post" | "story" | "welcome"; post_id: string | null; story_id: string | null; profile_id: string | null },
-): Promise<{ media?: unknown; welcomeAssetId?: string | null; welcomePlaybackId?: string | null } | null> {
-  if (row.surface === "welcome") {
-    if (!row.profile_id) return null;
-    const { data, error } = await admin
-      .from("profiles")
-      .select("welcome_mux_asset_id, welcome_mux_playback_id")
-      .eq("id", row.profile_id)
-      .maybeSingle();
-    if (error) throw new Error(`Music scan parent read failed: ${error.message}`);
-    if (!data) return null;
-    return { welcomeAssetId: data.welcome_mux_asset_id, welcomePlaybackId: data.welcome_mux_playback_id };
-  }
-  if (row.surface === "post") {
-    if (!row.post_id) return null;
-    const { data, error } = await admin.from("posts").select("media").eq("id", row.post_id).maybeSingle();
-    if (error) throw new Error(`Music scan parent read failed: ${error.message}`);
-    return data ? { media: data.media } : null;
-  }
-  if (!row.story_id) return null;
-  const { data, error } = await admin.from("stories").select("media").eq("id", row.story_id).maybeSingle();
-  if (error) throw new Error(`Music scan parent read failed: ${error.message}`);
-  return data ? { media: data.media } : null;
-}
-
-async function retireSupersededScan(admin: Admin, id: string): Promise<void> {
-  const { error } = await admin
-    .from("social_music_scans")
-    .update({ next_attempt_at: null, last_error: "superseded" })
-    .eq("id", id)
-    .eq("status", "pending");
+/** One statement. The row is retired only when the parent no longer holds this pair. */
+async function retireSupersededScan(admin: Admin, id: string): Promise<boolean> {
+  const { data, error } = await admin.rpc("retire_superseded_music_scan", { p_id: id });
   if (error) throw new Error(`Music scan retire failed: ${error.message}`);
+  return data === true;
 }
 
 function parseWindowResults(value: unknown): MusicWindowRecord[] {

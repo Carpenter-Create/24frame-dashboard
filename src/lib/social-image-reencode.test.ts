@@ -4,8 +4,12 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import {
+  recheckParentPages,
+  recheckedSocialImageKey,
+  recheckWantsExecute,
   reencodeSocialImage,
   runSocialImageRecheck,
+  SOCIAL_IMAGE_RECHECK_ORDER,
   socialImageRecheckPlan,
 } from "@/lib/social-image-reencode";
 
@@ -148,5 +152,200 @@ describe("reencodeSocialImage", () => {
     expect(second.hide).toBe(0);
     expect(second.unfinished).toBe(0);
     expect(hidden).toEqual(["bad-file"]);
+  });
+
+  it("applies EXIF orientation 6 and 8, and leaves an untagged image the same shape", async () => {
+    const wide = await sharp({
+      create: { width: 20, height: 10, channels: 3, background: { r: 180, g: 20, b: 20 } },
+    })
+      .jpeg()
+      .toBuffer();
+    for (const orientation of [6, 8] as const) {
+      const tagged = new Uint8Array(await sharp(wide).withMetadata({ orientation }).toBuffer());
+      const encoded = await reencodeSocialImage(tagged, "image/jpeg");
+      expect(encoded).not.toBeNull();
+      const meta = await sharp(encoded!).metadata();
+      const upright = await sharp(await sharp(tagged).rotate().toBuffer()).metadata();
+      expect(meta.width).toBe(upright.width);
+      expect(meta.height).toBe(upright.height);
+      expect(meta.width).toBe(10);
+      expect(meta.height).toBe(20);
+      expect(meta.orientation ?? 1).toBe(1);
+    }
+    const plain = new Uint8Array(wide);
+    const same = await reencodeSocialImage(plain, "image/jpeg");
+    const plainMeta = await sharp(same!).metadata();
+    const sourceMeta = await sharp(plain).metadata();
+    expect(plainMeta.width).toBe(sourceMeta.width);
+    expect(plainMeta.height).toBe(sourceMeta.height);
+    expect(plainMeta.width).toBe(20);
+    expect(plainMeta.height).toBe(10);
+  });
+
+  it("counts a store error as unfinished and does not hide the parent", async () => {
+    const clean = await jpeg();
+    const trailer = new Uint8Array(clean.byteLength + 4);
+    trailer.set(clean);
+    trailer.set([1, 2, 3, 4], clean.byteLength);
+    const hidden: string[] = [];
+    const stored: string[] = [];
+    const report = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        { surface: "post", parentId: "slow", key: "posts/a/a.jpg", original: trailer, contentType: "image/jpeg" },
+        { surface: "post", parentId: "next", key: "posts/a/b.jpg", original: trailer, contentType: "image/jpeg" },
+      ],
+      store: async (item) => {
+        if (item.parentId === "slow") throw new Error("SlowDown 503");
+        stored.push(item.parentId);
+      },
+      hide: async (parent) => {
+        hidden.push(parent.parentId);
+      },
+    });
+    expect(hidden).toEqual([]);
+    expect(stored).toEqual(["next"]);
+    expect(report).toMatchObject({ hide: 0, unfinished: 1, store: 1 });
+  });
+
+  it("does not store, hide, or clear during a dry run", async () => {
+    const clean = await jpeg();
+    const trailer = new Uint8Array(clean.byteLength + 4);
+    trailer.set(clean);
+    trailer.set([9, 8, 7, 6], clean.byteLength);
+    const report = await runSocialImageRecheck({
+      execute: false,
+      items: [
+        { surface: "post", parentId: "post-1", key: "posts/a/a.jpg", original: trailer, contentType: "image/jpeg" },
+        {
+          surface: "avatar",
+          parentId: "user-1",
+          key: "avatars/user-1/avatar",
+          original: new Uint8Array([1, 2, 3]),
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async () => {
+        throw new Error("dry run stored");
+      },
+      hide: async () => {
+        throw new Error("dry run hid");
+      },
+      clearAvatar: async () => {
+        throw new Error("dry run cleared");
+      },
+    });
+    expect(report.dryRun).toBe(true);
+    expect(report.store).toBe(1);
+    expect(report.hide).toBe(0);
+    expect(report.reported).toBe(1);
+  });
+
+  it("clears an avatar that will not decode and leaves the original key unwritten", async () => {
+    const cleared: string[] = [];
+    const stored: string[] = [];
+    const report = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "avatar",
+          parentId: "11111111-1111-4111-8111-111111111111",
+          key: "avatars/11111111-1111-4111-8111-111111111111/avatar",
+          original: new Uint8Array([0xff, 0xd8]),
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async (item) => {
+        stored.push(item.key);
+      },
+      hide: async () => {
+        throw new Error("avatar was hidden");
+      },
+      clearAvatar: async (parentId) => {
+        cleared.push(parentId);
+      },
+    });
+    expect(cleared).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(stored).toEqual([]);
+    expect(report).toMatchObject({ reported: 1, hide: 0, store: 0, unfinished: 0 });
+  });
+
+  it("skips an image that was already re-encoded, so a rerun does not store", async () => {
+    const stored: string[] = [];
+    const report = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "post",
+          parentId: "post-1",
+          key: "posts/a/new.jpg",
+          original: new Uint8Array([1]),
+          contentType: "image/jpeg",
+          alreadyReencoded: true,
+        },
+      ],
+      store: async (item) => {
+        stored.push(item.key);
+      },
+      hide: async () => {
+        throw new Error("rerun hid");
+      },
+    });
+    expect(stored).toEqual([]);
+    expect(report).toMatchObject({ skip: 1, store: 0, hide: 0 });
+    const user = "11111111-1111-4111-8111-111111111111";
+    const object = "22222222-2222-4222-8222-222222222222";
+    const original = `posts/${user}/${object}.jpg`;
+    const next = recheckedSocialImageKey(original, "image/jpeg", "33333333-3333-4333-8333-333333333333");
+    expect(next).not.toBe(original);
+    expect(next.startsWith(`posts/${user}/`)).toBe(true);
+    expect(() => recheckedSocialImageKey(original, "image/jpeg", object)).toThrow(/overwrite/);
+  });
+
+  it("refuses a png that decodes only when failOn is none", async () => {
+    const png = Buffer.from(
+      await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 9, g: 8, b: 7 } } }).png().toBuffer(),
+    );
+    // Byte 22 of this PNG is rejected at failOn error and accepted at failOn none.
+    const corrupt = Buffer.from(png);
+    corrupt[22] = corrupt[22]! ^ 0xff;
+    await expect(sharp(corrupt, { failOn: "error" }).png().toBuffer()).rejects.toThrow();
+    const loose = await sharp(corrupt, { failOn: "none" }).png().toBuffer();
+    expect(loose.byteLength).toBeGreaterThan(0);
+    expect(await reencodeSocialImage(new Uint8Array(corrupt), "image/png")).toBeNull();
+  });
+
+  it("rechecks one parent page and drops it before reading the next", async () => {
+    const seen: number[] = [];
+    let released = true;
+    const report = await recheckParentPages({
+      execute: false,
+      pageSize: 2,
+      loadParents: async (offset, limit) => {
+        expect(released).toBe(true);
+        expect(limit).toBe(2);
+        seen.push(offset);
+        released = false;
+        if (offset === 0) return ["a", "b"];
+        return ["c"];
+      },
+      recheck: async (parents) => {
+        expect(parents.length).toBeGreaterThan(0);
+        released = true;
+        return { dryRun: true, skip: parents.length, store: 0, hide: 0, reported: 0, unfinished: 0 };
+      },
+    });
+    expect(seen).toEqual([0, 2]);
+    expect(report.skip).toBe(3);
+    expect(SOCIAL_IMAGE_RECHECK_ORDER).toBe("id");
+    expect(recheckWantsExecute(["node", "recheck-social-images.ts"])).toBe(false);
+    expect(recheckWantsExecute(["node", "recheck-social-images.ts", "--execute"])).toBe(true);
+    const { socialImageRecheckExecute } = await import("../../scripts/social/recheck-social-images");
+    expect(socialImageRecheckExecute).toBe(false);
+    const script = readFileSync("scripts/social/recheck-social-images.ts", "utf8");
+    expect(script).toContain("const execute = socialImageRecheckExecute");
+    expect(script).not.toContain("overwritePublishedSocialImage");
+    expect(script).not.toContain("replaceAvatarObject");
+    expect(script.split(".order(SOCIAL_IMAGE_RECHECK_ORDER)").length - 1).toBe(2);
   });
 });

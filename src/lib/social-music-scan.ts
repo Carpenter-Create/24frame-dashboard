@@ -453,46 +453,85 @@ function isMusicNotice(value: string | null): value is SocialMusicNotice {
   );
 }
 
+/** The notice function refuses more than this many ids in one array. */
+export const MUSIC_NOTICE_IDS_PER_CALL = 500;
+
+function noticeIdChunks(ids: readonly string[]): string[][] {
+  if (ids.length === 0) return [[]];
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += MUSIC_NOTICE_IDS_PER_CALL) {
+    chunks.push(ids.slice(index, index + MUSIC_NOTICE_IDS_PER_CALL));
+  }
+  return chunks;
+}
+
+async function captureNoticeFailure(error: unknown, captureException?: (error: unknown) => void): Promise<void> {
+  if (captureException) {
+    captureException(error);
+    return;
+  }
+  const Sentry = await import("@sentry/nextjs");
+  Sentry.captureException(error);
+}
+
 /**
  * The signed-in author's notice, from social_music_author_notices.
  * The function returns only a notice word. The author select does not
- * include the columns that word is derived from. A missing function
- * (migration not applied yet) returns empty maps so the feed does not 500.
- * More than 500 ids is refused by the function.
+ * include the columns that word is derived from. Ids are sent in calls of
+ * at most 500. A failed call is logged and tried once more. If that also
+ * fails, the error is thrown. An empty map is not used to hide the failure.
  */
 export async function loadOwnMusicNotices(
   supabase: SupabaseClient<Database>,
   viewerId: string,
   ids: { postIds?: readonly string[]; storyIds?: readonly string[] },
+  captureException?: (error: unknown) => void,
 ): Promise<MusicNoticeMaps> {
   const postIds = [...new Set((ids.postIds ?? []).filter(Boolean))];
   const storyIds = [...new Set((ids.storyIds ?? []).filter(Boolean))];
   const empty = {
     posts: new Map<string, SocialMusicNotice>(),
     stories: new Map<string, SocialMusicNotice>(),
-    welcome: null,
+    welcome: null as SocialMusicNotice | null,
   };
   if (!viewerId) return empty;
 
-  const { data, error } = await supabase.rpc("social_music_author_notices", {
-    p_post_ids: postIds,
-    p_story_ids: storyIds,
-  });
-  if (error) {
-    console.error(`[social-music] notice read failed: ${error.message}`);
-    return empty;
-  }
+  const postChunks = noticeIdChunks(postIds);
+  const storyChunks = noticeIdChunks(storyIds);
+  const calls = Math.max(postChunks.length, storyChunks.length);
   const posts = new Map<string, SocialMusicNotice>();
   const stories = new Map<string, SocialMusicNotice>();
   let welcome: SocialMusicNotice | null = null;
-  for (const row of data ?? []) {
-    if (!isMusicNotice(row.notice)) continue;
-    if (!row.post_id && !row.story_id) {
-      welcome = row.notice;
-      continue;
+  for (let index = 0; index < calls; index += 1) {
+    const chunkPosts = postChunks[index] ?? [];
+    const chunkStories = storyChunks[index] ?? [];
+    let lastError: { message: string } | null = null;
+    let data: { post_id: string | null; story_id: string | null; notice: string | null }[] | null = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await supabase.rpc("social_music_author_notices", {
+        p_post_ids: chunkPosts,
+        p_story_ids: chunkStories,
+      });
+      if (!result.error) {
+        data = result.data ?? [];
+        lastError = null;
+        break;
+      }
+      lastError = result.error;
+      await captureNoticeFailure(result.error, captureException);
     }
-    if (row.post_id && postIds.includes(row.post_id)) posts.set(row.post_id, row.notice);
-    if (row.story_id && storyIds.includes(row.story_id)) stories.set(row.story_id, row.notice);
+    if (lastError || !data) {
+      throw new Error(`Music notice read failed: ${lastError?.message ?? "unknown"}`);
+    }
+    for (const row of data) {
+      if (!isMusicNotice(row.notice)) continue;
+      if (!row.post_id && !row.story_id) {
+        welcome = row.notice;
+        continue;
+      }
+      if (row.post_id && postIds.includes(row.post_id)) posts.set(row.post_id, row.notice);
+      if (row.story_id && storyIds.includes(row.story_id)) stories.set(row.story_id, row.notice);
+    }
   }
   return { posts, stories, welcome };
 }

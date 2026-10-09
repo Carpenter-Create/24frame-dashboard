@@ -8,7 +8,7 @@ import {
   accountNameSchema,
   companySaveSchema,
 } from "@/lib/account-profile";
-import { AVATAR_MAX_BYTES, isAvatarContentType } from "@/lib/account-avatar";
+import { AVATAR_CLEARED, AVATAR_MAX_BYTES, isAvatarContentType } from "@/lib/account-avatar";
 import { deleteAvatarObject, putAvatarObject } from "@/lib/s3-avatars";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
@@ -44,7 +44,7 @@ export async function saveAccountName(name: unknown): Promise<{ error?: string }
 }
 
 // Photo bytes go to the dedicated avatars bucket, key derived from the
-// session user id. Email is not touched. No SQL.
+// session user id. The profile pointer follows that key. Email is not touched.
 export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
@@ -58,7 +58,10 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
 
   try {
     const body = new Uint8Array(await file.arrayBuffer());
-    await putAvatarObject(ctx.user.id, body, file.type);
+    const key = await putAvatarObject(ctx.user.id, body, file.type);
+    const supabase = await createClient();
+    const { error } = await supabase.from("profiles").update({ avatar_key: key }).eq("id", ctx.user.id);
+    if (error) return { error: error.message || ACCOUNT_PROFILE.photoFailed };
   } catch (e) {
     if (e instanceof Error && e.message === "Unsupported avatar content type") {
       return { error: ACCOUNT_PROFILE.photoType };
@@ -75,13 +78,16 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
   return {};
 }
 
-// Inverse of uploadAccountPhoto — same avatars/{userId}/avatar key.
-// Missing object is success. No SQL.
+// Inverse of uploadAccountPhoto. The pointer is cleared first so a recheck
+// key stops being signed, then the canonical object is removed.
 export async function removeAccountPhoto(): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
 
   try {
+    const supabase = await createClient();
+    const { error } = await supabase.from("profiles").update({ avatar_key: AVATAR_CLEARED }).eq("id", ctx.user.id);
+    if (error) return { error: error.message || ACCOUNT_PROFILE.photoRemoveFailed };
     await deleteAvatarObject(ctx.user.id);
   } catch (e) {
     return {

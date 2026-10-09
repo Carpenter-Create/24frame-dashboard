@@ -3569,6 +3569,10 @@ export type Database = {
         Args: { p_post_ids: string[]; p_story_ids: string[] }
         Returns: { post_id: string | null; story_id: string | null; notice: string | null }[]
       }
+      retire_superseded_music_scan: {
+        Args: { p_id: string }
+        Returns: boolean
+      }
       create_asset: {
         Args: {
           p_bytes: number

@@ -97,7 +97,7 @@ export default async function SocialStoryPage({
     ]),
   ];
   const media = socialMediaProxies(story.media, story.author_id, "stories");
-  const [viewed, authors, photoUrl, faces] = await Promise.all([
+  const [viewed, authors, avatarRow, faces] = await Promise.all([
     profile
       ? loadViewedStoryIds(
           supabase,
@@ -106,9 +106,10 @@ export default async function SocialStoryPage({
         )
       : Promise.resolve(new Set<string>()),
     loadProfilesByIds(supabase, peopleIds),
-    signedAvatarUrl(story.author_id),
+    supabase.from("profiles").select("avatar_key").eq("id", story.author_id).maybeSingle(),
     signedAvatarUrls(peopleIds),
   ]);
+  const photoUrl = await signedAvatarUrl(story.author_id, avatarRow.data?.avatar_key);
   const rail = groupStoryRail(railPage.stories, viewed);
   const storyRows = new Map(railPage.stories.map((row) => [row.id, row]));
   for (const row of authorStoriesPage.stories) storyRows.set(row.id, row);

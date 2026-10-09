@@ -174,6 +174,49 @@ describe("social video visibility", () => {
     expect(maps.welcome).toBe("legacyHeld");
   });
 
+  it("chunks notice ids at 500, logs a failed read, retries once, and throws if the retry fails", async () => {
+    const posts = Array.from({ length: 501 }, (_, index) => `post-${index}`);
+    const calls: { posts: number; stories: number }[] = [];
+    let failures = 0;
+    const captured: unknown[] = [];
+    const supabase = {
+      rpc: async (_name: string, args: { p_post_ids: string[]; p_story_ids: string[] }) => {
+        calls.push({ posts: args.p_post_ids.length, stories: args.p_story_ids.length });
+        if (failures < 1) {
+          failures += 1;
+          return { data: null, error: { message: "statement timeout" } };
+        }
+        return {
+          data: [{ post_id: args.p_post_ids[0] ?? null, story_id: null, notice: "pending" }],
+          error: null,
+        };
+      },
+    };
+    const maps = await loadOwnMusicNotices(
+      supabase as never,
+      "author-1",
+      { postIds: posts, storyIds: [] },
+      (error) => {
+        captured.push(error);
+      },
+    );
+    expect(calls.map((call) => call.posts)).toEqual([500, 500, 1]);
+    expect(captured).toEqual([{ message: "statement timeout" }]);
+    expect(maps.posts.get("post-0")).toBe("pending");
+    expect(maps.posts.get("post-500")).toBe("pending");
+
+    const broken = {
+      rpc: async () => ({ data: null, error: { message: "still down" } }),
+    };
+    const again: unknown[] = [];
+    await expect(
+      loadOwnMusicNotices(broken as never, "author-1", { postIds: ["post-1"] }, (error) => {
+        again.push(error);
+      }),
+    ).rejects.toThrow(/Music notice read failed: still down/);
+    expect(again).toEqual([{ message: "still down" }, { message: "still down" }]);
+  });
+
   it("skips a welcome or media row that no longer stores the scanned pair", () => {
     const scan = { surface: "welcome" as const, assetId: "asset12345678", playbackId: "play12345678" };
     expect(socialMusicParentStillHasScan(scan, null)).toBe(false);

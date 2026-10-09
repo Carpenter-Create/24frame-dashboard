@@ -12,7 +12,10 @@ import {
   AVATAR_SIGNED_URL_TTL_SECONDS,
   ACCOUNT_PHOTO_HREF,
   accountPhotoSrc,
+  AVATAR_CLEARED,
   avatarObjectKey,
+  avatarRecheckObjectKey,
+  avatarServeKey,
   isAvatarContentType,
   isAvatarObjectKey,
 } from "./account-avatar";
@@ -37,6 +40,14 @@ describe("avatarObjectKey", () => {
     expect(AVATAR_KEY_PREFIX).toBe("avatars");
     expect(AVATAR_OBJECT_NAME).toBe("avatar");
     expect(isAvatarObjectKey(`avatars/${UID}/avatar`, UID)).toBe(true);
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const recheck = avatarRecheckObjectKey(UID, objectId);
+    expect(recheck).toBe(`avatars/${UID}/recheck/${objectId}`);
+    expect(recheck).not.toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, null)).toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, avatarObjectKey(UID))).toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, recheck)).toBe(recheck);
+    expect(avatarServeKey(UID, AVATAR_CLEARED)).toBeNull();
   });
 
   it("rejects a non-UUID so title paths cannot be smuggled in", () => {
@@ -108,7 +119,7 @@ describe("one face across chrome, Settings, and Social", () => {
     expect(uploadSrc).toContain("deleteAvatarObject(ctx.user.id");
     expect(uploadSrc).toContain("removeAccountPhoto");
     expect(uploadSrc).toContain('revalidatePath("/", "layout")');
-    expect(photoRouteSrc).toContain("signedAvatarUrl(user.id)");
+    expect(photoRouteSrc).toContain("signedAvatarUrl(user.id, data?.avatar_key)");
     expect(photoRouteSrc).toContain("private, no-store");
     expect(photoRouteSrc).not.toContain("activeOrg");
     expect(layoutSrc).not.toContain("putAvatarObject");

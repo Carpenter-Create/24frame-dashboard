@@ -41,17 +41,30 @@ export function bindGoLiveRecorderStop<T extends { data: Blob }>(input: {
 }): { onTick: () => void } {
   const capped = () => goLiveReachedCap(input.now() - input.startedAt) && input.isRecording();
   input.recorder.ondataavailable = (event) => {
-    if (capped()) {
-      input.stop();
-      return;
-    }
     input.takeChunk(event);
+    if (capped()) input.stop();
   };
   return {
     onTick: () => {
       if (capped()) input.stop();
     },
   };
+}
+
+/** The recording clock. Each tick updates the label and then asks the stop watch. */
+export function startGoLiveClock(input: {
+  now: () => number;
+  startedAt: () => number;
+  setClock: (label: string) => void;
+  stopTick: { current: (() => void) | null };
+  setInterval: (fn: () => void, ms: number) => number;
+}): number {
+  input.setClock(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS));
+  return input.setInterval(() => {
+    const elapsed = input.now() - input.startedAt();
+    input.setClock(formatGoLiveClock(goLiveRemainingMs(elapsed)));
+    input.stopTick.current?.();
+  }, 250);
 }
 
 export function formatGoLiveClock(ms: number): string {

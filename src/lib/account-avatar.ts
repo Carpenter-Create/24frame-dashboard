@@ -35,6 +35,42 @@ export function avatarObjectKey(userId: string): string {
   return `${AVATAR_KEY_PREFIX}/${parsed.data}/avatar`;
 }
 
+/** Profile pointer after a recheck that could not decode the face. The object stays; nothing signs it. */
+export const AVATAR_CLEARED = "cleared";
+
+const AVATAR_RECHECK_KEY =
+  /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/recheck\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+
+/** A recheck writes here. The canonical `avatars/{user-id}/avatar` object is left as it was. */
+export function avatarRecheckObjectKey(userId: string, objectId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  const object = userIdSchema.safeParse(objectId);
+  if (!user.success || !object.success) {
+    throw new Error("Avatar key requires a UUID user id");
+  }
+  return `${AVATAR_KEY_PREFIX}/${user.data}/recheck/${object.data}`;
+}
+
+export function isAvatarRecheckKey(key: string, userId: string): boolean {
+  const match = AVATAR_RECHECK_KEY.exec(key);
+  return match?.[1] === userId;
+}
+
+/**
+ * Which object to sign. A cleared pointer signs nothing, so the default face
+ * shows. A recheck pointer signs that object. Anything else, including a
+ * null column, signs the one canonical face.
+ */
+export function avatarServeKey(userId: string, stored: string | null | undefined): string | null {
+  if (stored === AVATAR_CLEARED) return null;
+  if (typeof stored === "string" && isAvatarRecheckKey(stored, userId)) return stored;
+  try {
+    return avatarObjectKey(userId);
+  } catch {
+    return null;
+  }
+}
+
 export function isAvatarObjectKey(key: string, userId: string): boolean {
   try {
     return key === avatarObjectKey(userId);

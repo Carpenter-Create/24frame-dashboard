@@ -25,10 +25,11 @@ export default async function SocialCreatePage({
   const initialKind = parseSocialCreateKind(sp.kind);
   const initialStep = parseSocialCreateMediaStep(sp.step);
   const { ctx, supabase } = session;
-  const [profile, photoUrl] = await Promise.all([
+  const [profile, avatarRow] = await Promise.all([
     ensureOwnSocialProfile(supabase, ctx.user),
-    signedAvatarUrl(ctx.user.id),
+    supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle(),
   ]);
+  const photoUrl = await signedAvatarUrl(ctx.user.id, avatarRow.data?.avatar_key);
 
   return (
     <div data-social-create="" className={SOCIAL_HOME_LAYOUT_CLASS}>

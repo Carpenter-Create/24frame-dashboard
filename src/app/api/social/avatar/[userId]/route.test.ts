@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/auth", () => ({ getAuthUser: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { avatar_key: null }, error: null }),
+        }),
+      }),
+    }),
+  })),
+}));
 vi.mock("@/lib/s3-avatars", () => ({ signedAvatarUrl: vi.fn() }));
 
 import { getAuthUser } from "@/lib/supabase/auth";
@@ -43,6 +54,6 @@ describe("GET /api/social/avatar/[userId]", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("https://s3.example/signed-avatar");
     expect(res.headers.get("Cache-Control")).toBe("private, max-age=300");
-    expect(signedAvatarUrl).toHaveBeenCalledWith(UID);
+    expect(signedAvatarUrl).toHaveBeenCalledWith(UID, null);
   });
 });

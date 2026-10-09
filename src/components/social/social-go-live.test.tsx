@@ -17,7 +17,8 @@ vi.mock("next/link", async () => {
   return { __esModule: true, default: MockLink };
 });
 
-import { SocialGoLive } from "./social-go-live";
+import { armGoLiveRecorder, SocialGoLive } from "./social-go-live";
+import { SOCIAL_GO_LIVE_MAX_MS, startGoLiveClock } from "@/lib/social-go-live";
 import { SocialPostMedia } from "./social-post-media";
 import { SOCIAL } from "@/lib/social";
 import {
@@ -35,6 +36,51 @@ const fan = readFileSync("src/components/social/social-create-fan.tsx", "utf8");
 const sheet = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
 
 describe("Social Go live recorder", () => {
+  it("keeps the chunk that crosses 479s and the clock tick stops the take", () => {
+    let now = 0;
+    let recording = true;
+    const chunks: Blob[] = [];
+    let stopped = 0;
+    const recorder = {
+      ondataavailable: null as ((event: { data: Blob }) => void) | null,
+    };
+    const stopTick = { current: null as (() => void) | null };
+    armGoLiveRecorder({
+      recorder,
+      now: () => now,
+      startedAt: 0,
+      isRecording: () => recording,
+      stop: () => {
+        stopped += 1;
+        recording = false;
+      },
+      takeChunk: (event) => {
+        chunks.push(event.data);
+      },
+      stopTick,
+    });
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    const late = new Blob(["late"]);
+    recorder.ondataavailable?.({ data: late });
+    expect(chunks).toEqual([late]);
+    expect(stopped).toBe(1);
+
+    recording = true;
+    const clock = { tick: null as (() => void) | null };
+    startGoLiveClock({
+      now: () => now,
+      startedAt: () => 0,
+      setClock: () => undefined,
+      stopTick,
+      setInterval: (fn) => {
+        clock.tick = fn;
+        return 1;
+      },
+    });
+    clock.tick?.();
+    expect(stopped).toBe(2);
+  });
+
   it("records in-app then posts on the normal video path with an 8:00 cap", () => {
     expect(page).toContain("SocialGoLive");
     expect(page).toContain("data-social-go-live-page");
@@ -46,7 +92,15 @@ describe("Social Go live recorder", () => {
     expect(src).toContain("uploadSocialPostMedia");
     expect(src).toContain('intent: "live"');
     expect(src).toContain("bindGoLiveRecorderStop");
-    expect(src).toContain("stopTickRef.current?.()");
+    expect(src).toContain("startGoLiveClock");
+    expect(src).toContain("stopTick: stopTickRef");
+    const clock = src.slice(src.indexOf("function startClock"), src.indexOf("function beginRecording"));
+    expect(clock).toContain("startGoLiveClock");
+    expect(clock).toContain("stopTick: stopTickRef");
+    expect(clock).not.toMatch(/window\.setInterval\(\(\) =>/);
+    const begin = src.slice(src.indexOf("function beginRecording"), src.indexOf("function startRecording"));
+    expect(begin).toContain("armGoLiveRecorder(");
+    expect(begin).not.toMatch(/ondataavailable\s*=/);
     expect(src).toContain("goLiveFitsByteCap(used + event.data.size");
     expect(src).toContain("new MediaRecorder(stream, { mimeType: probed.raw })");
     expect(src).toContain("aliveRef");

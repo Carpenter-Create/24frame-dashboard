@@ -14,7 +14,7 @@ import { ACCOUNT_NAME_MAX, ACCOUNT_PROFILE, COMPANY_PROFILE } from "@/lib/accoun
 import { AVATAR_MAX_BYTES } from "@/lib/account-avatar";
 import { removeAccountPhoto, saveAccountName, saveCompanyName, uploadAccountPhoto } from "./actions";
 
-const USER = { id: "u1", email: "ada@example.com", name: "Ada" };
+const USER = { id: "11111111-1111-4111-8111-111111111111", email: "ada@example.com", name: "Ada" };
 const ORG_ID = "11111111-1111-4111-8111-111111111111";
 
 function ctx({
@@ -141,11 +141,25 @@ function photoForm(file: File) {
   return body;
 }
 
+function profileUpdateClient() {
+  const eq = vi.fn(async () => ({ error: null }));
+  const update = vi.fn(() => ({ eq }));
+  const from = vi.fn((table: string) => {
+    if (table !== "profiles") throw new Error(`unexpected from(${table})`);
+    return { update };
+  });
+  vi.mocked(createClient).mockResolvedValue({ from } as never);
+  return { from, update, eq };
+}
+
 describe("uploadAccountPhoto", () => {
+  let profileUpdate: ReturnType<typeof profileUpdateClient>["update"];
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
-    vi.mocked(putAvatarObject).mockResolvedValue(undefined);
+    vi.mocked(putAvatarObject).mockResolvedValue(`avatars/${USER.id}/avatar`);
+    profileUpdate = profileUpdateClient().update;
   });
 
   it("PUTs the session user's bytes and does not touch email", async () => {
@@ -156,6 +170,7 @@ describe("uploadAccountPhoto", () => {
     expect(userId).toBe(USER.id);
     expect(type).toBe("image/jpeg");
     expect(body).toBeInstanceOf(Uint8Array);
+    expect(profileUpdate).toHaveBeenCalledWith({ avatar_key: `avatars/${USER.id}/avatar` });
     expect(revalidatePath).toHaveBeenCalledWith("/settings");
     expect(revalidatePath).toHaveBeenCalledWith("/settings/profile");
     expect(revalidatePath).toHaveBeenCalledWith("/social");
@@ -196,6 +211,7 @@ describe("removeAccountPhoto", () => {
     vi.clearAllMocks();
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(deleteAvatarObject).mockResolvedValue(undefined);
+    profileUpdateClient();
   });
 
   it("DELETEs the session user's face and does not touch email", async () => {

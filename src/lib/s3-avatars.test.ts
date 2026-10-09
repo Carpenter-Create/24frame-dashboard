@@ -22,6 +22,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
+import { AVATAR_CLEARED, avatarRecheckObjectKey } from "./account-avatar";
 import {
   deleteAvatarObject,
   hasAvatarObject,
@@ -124,6 +125,19 @@ describe("s3-avatars dedicated bucket", () => {
     );
     await expect(signedAvatarUrl(UID)).resolves.toBeNull();
     expect(mockGetSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("does not sign a cleared avatar, and signs a recheck key instead of the canonical object", async () => {
+    await expect(signedAvatarUrl(UID, AVATAR_CLEARED)).resolves.toBeNull();
+    expect(mockSend).not.toHaveBeenCalled();
+    mockSend.mockResolvedValueOnce({});
+    mockGetSignedUrl.mockResolvedValueOnce("https://s3.example/recheck");
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const key = avatarRecheckObjectKey(UID, objectId);
+    await expect(signedAvatarUrl(UID, key)).resolves.toBe("https://s3.example/recheck");
+    const head = mockSend.mock.calls[0]?.[0] as HeadObjectCommand;
+    expect(head.input.Key).toBe(key);
+    expect(head.input.Key).not.toBe(KEY);
   });
 
   it("hasAvatarObject is true only when HEAD succeeds, and never throws", async () => {

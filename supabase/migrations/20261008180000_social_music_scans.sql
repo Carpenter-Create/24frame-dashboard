@@ -89,6 +89,9 @@
 --   drop function if exists public.social_video_released(text, uuid);
 --   drop table if exists public.social_music_scans;
 --   drop table if exists public.social_mux_bindings;
+--   drop function if exists public.social_music_author_notices(uuid[], uuid[]);
+--   drop function if exists public.social_music_block_wins();
+--   drop function if exists public.retire_superseded_music_scan(uuid);
 --   alter table public.profiles drop constraint if exists profiles_welcome_mux_ids;
 --   alter table public.profiles drop column if exists welcome_mux_asset_id;
 --   alter table public.profiles drop column if exists welcome_mux_playback_id;
@@ -126,8 +129,14 @@
 --     cross join lateral jsonb_array_elements(
 --       case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
 --     ) as item
---     where lower(btrim(coalesce(item->>'kind', ''))) = 'video'
---        or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+--     where (
+--         lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+--         or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+--       )
+--       and (
+--         coalesce(item->>'provider', '') = 'mux'
+--         or coalesce(item->>'key', '') <> ''
+--       )
 --   ) as post_video_items,
 --   (select count(*) from public.stories st
 --     cross join lateral jsonb_array_elements(
@@ -137,6 +146,10 @@
 --       and (
 --         lower(btrim(coalesce(item->>'kind', ''))) = 'video'
 --         or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+--       )
+--       and (
+--         coalesce(item->>'provider', '') = 'mux'
+--         or coalesce(item->>'key', '') <> ''
 --       )
 --   ) as live_story_video_items;
 --
@@ -983,6 +996,78 @@ where st.expires_at > now()
   )
 on conflict do nothing;
 
+-- One statement. Retire a pending row only when its parent no longer holds
+-- this asset and playback pair. A pair restored before this statement is
+-- left queued. The worker calls this. anon and authenticated cannot.
+create or replace function public.retire_superseded_music_scan(p_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_retired boolean;
+begin
+  v_retired := false;
+  update public.social_music_scans as s
+  set next_attempt_at = null,
+      last_error = 'superseded'
+  where s.id = p_id
+    and s.status = 'pending'
+    and not (
+      (
+        s.surface = 'welcome'
+        and exists (
+          select 1
+          from public.profiles p
+          where p.id = s.profile_id
+            and p.welcome_mux_asset_id = s.asset_id
+            and p.welcome_mux_playback_id = s.playback_id
+        )
+      )
+      or (
+        s.surface = 'post'
+        and exists (
+          select 1
+          from public.posts p
+          where p.id = s.post_id
+            and exists (
+              select 1
+              from jsonb_array_elements(
+                case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
+              ) as item
+              where item->>'provider' = 'mux'
+                and item->>'assetId' = s.asset_id
+                and item->>'playbackId' = s.playback_id
+            )
+        )
+      )
+      or (
+        s.surface = 'story'
+        and exists (
+          select 1
+          from public.stories st
+          where st.id = s.story_id
+            and exists (
+              select 1
+              from jsonb_array_elements(
+                case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
+              ) as item
+              where item->>'provider' = 'mux'
+                and item->>'assetId' = s.asset_id
+                and item->>'playbackId' = s.playback_id
+            )
+        )
+      )
+    )
+  returning true into v_retired;
+  return coalesce(v_retired, false);
+end;
+$$;
+
+revoke all on function public.retire_superseded_music_scan(uuid) from public, anon, authenticated;
+grant execute on function public.retire_superseded_music_scan(uuid) to service_role;
+
 do $$
 begin
   if to_regclass('public.social_music_scans') is null then
@@ -1042,6 +1127,13 @@ begin
      or has_column_privilege('authenticated', 'public.social_music_scans', 'vendor_title', 'select')
      or has_column_privilege('authenticated', 'public.social_music_scans', 'window_results', 'select') then
     raise exception 'authenticated must not select hidden scan columns';
+  end if;
+  if has_function_privilege('anon', 'public.retire_superseded_music_scan(uuid)', 'execute')
+     or has_function_privilege('authenticated', 'public.retire_superseded_music_scan(uuid)', 'execute') then
+    raise exception 'retire_superseded_music_scan must not be executable by anon or authenticated';
+  end if;
+  if not has_function_privilege('service_role', 'public.retire_superseded_music_scan(uuid)', 'execute') then
+    raise exception 'service_role must execute retire_superseded_music_scan';
   end if;
   if has_function_privilege('anon', 'public.social_music_block_wins()', 'execute')
      or has_function_privilege('authenticated', 'public.social_music_block_wins()', 'execute')

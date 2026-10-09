@@ -18,11 +18,12 @@ export default async function SocialProfileEditPage({
     requireSocialSession(),
     searchParams ? searchParams : Promise.resolve({} as Record<string, string | string[] | undefined>),
   ]);
-  const [{ profile }, photoUrl] = await Promise.all([
+  const [{ profile }, avatarRow] = await Promise.all([
     ensureOwnSocialProfileResult(supabase, ctx.user),
-    signedAvatarUrl(ctx.user.id),
+    supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle(),
   ]);
   if (!profile) redirect(SOCIAL_ROUTES.profile);
+  const photoUrl = await signedAvatarUrl(ctx.user.id, avatarRow.data?.avatar_key);
   const welcomeVideoUrl =
     profile.welcome_video_key || profile.welcome_mux_playback_id ? SOCIAL_WELCOME_VIDEO_PRESENT : null;
 

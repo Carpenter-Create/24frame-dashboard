@@ -21,7 +21,6 @@
 -- policies re-exposes blocked videos. Revert the app in the same window.
 -- ============================================================================
 
-set lock_timeout = '0';
 set lock_timeout = '3s';
 
 do $lock_timeout$
@@ -149,10 +148,15 @@ begin
   end if;
   -- Re-saving this exact pair clears superseded. A pending row is put back
   -- on the worker (next_attempt_at = now()) on the same row and the same
-  -- asset. Saved windows stay. Blocked and allowed rows are not requeued.
-  -- No other row is touched.
+  -- asset, with attempt_count reset to 0 so an exhausted row is not one
+  -- failure from malformed again. Saved windows stay. Blocked and allowed
+  -- rows are not requeued and keep their attempt count. No other row is touched.
   update public.social_music_scans as s
   set last_error = null,
+      attempt_count = case
+        when s.status = 'pending' then 0
+        else s.attempt_count
+      end,
       next_attempt_at = case
         when s.status = 'pending' then now()
         else s.next_attempt_at

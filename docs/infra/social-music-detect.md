@@ -204,8 +204,14 @@ select
     cross join lateral jsonb_array_elements(
       case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
     ) as item
-    where lower(btrim(coalesce(item->>'kind', ''))) = 'video'
-       or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+    where (
+        lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+        or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+      )
+      and (
+        coalesce(item->>'provider', '') = 'mux'
+        or coalesce(item->>'key', '') <> ''
+      )
   ) as post_video_items,
   (select count(*) from public.stories st
     cross join lateral jsonb_array_elements(
@@ -215,6 +221,10 @@ select
       and (
         lower(btrim(coalesce(item->>'kind', ''))) = 'video'
         or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+      )
+      and (
+        coalesce(item->>'provider', '') = 'mux'
+        or coalesce(item->>'key', '') <> ''
       )
   ) as live_story_video_items;
 ```
@@ -293,9 +303,10 @@ else sees the current welcome. Queue is `next_attempt_at`: due, later,
 or off. Asset is a new Mux asset. N/A means that action does not apply.
 
 A pending row saved again after a clear goes back on the worker
-(`next_attempt_at = now()`). The same row and the same asset resume.
-Windows already saved are kept. Blocked and allowed rows are not
-requeued. No other row is made active. Clearing an S3 welcome whose Mux
+(`next_attempt_at = now()`) and its `attempt_count` returns to 0, including
+a row that has already used all 8 tries. The same row and the same asset
+resume. Windows already saved are kept. Blocked and allowed rows are not
+requeued and keep their attempt count. No other row is made active. Clearing an S3 welcome whose Mux
 ids are already null still marks that digest `superseded`, so the author
 notice goes away. A `reingest_failed` welcome rerun reuses the upload
 already stored on that row and does not create a second Mux asset.
@@ -306,23 +317,36 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
 
 | State | Save a new pair | Clear | Re-save the same pair | Worker tick | Re-ingest rerun | 8 min / 479 s stop |
 | --- | --- | --- | --- | --- | --- | --- |
-| pending (queued) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset. `welcome state: re-save the same pair` | none; visible; off; no asset. `welcome state: worker tick`. `allows a no-match and does not store a title` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A. Row unchanged. `welcome state: 8 min stop`. `stops at 479s from ondataavailable when the timer never ticks` |
-| pending (mid-scan) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending until the worker finishes; hidden; due; no asset; same windows. `finishes a cleared pending welcome when the same pair is saved again` | none; visible; off; no asset; stored window not identified again. `welcome state: worker tick`. `does not rescan a window that was already stored` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A. Row unchanged. `welcome state: 8 min stop`. `stops at 479s from a timer tick when no chunk arrives` |
-| pending (backing off) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due now; no asset. `welcome state: re-save the same pair` | welcomePending; hidden; later, not claimed; no asset. `welcome state: worker tick`. `backs off a rate limit without burning the leased attempt` | N/A. Stays welcomePending, hidden, later. No asset. `welcome state: re-ingest rerun` | N/A. Row unchanged. `welcome state: 8 min stop` |
-| allowed | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | none; visible; off; no asset. `shows an allowed welcome again when the same pair is saved again` | none; visible; off, not claimed; no asset. `welcome state: worker tick` | N/A. Stays none, visible, off. No asset. `welcome state: re-ingest rerun` | N/A. Row unchanged. `welcome state: 8 min stop` |
-| blocked | welcomePending; hidden; old off, new due; no asset. `supersedes a replaced welcome pair so the old scan does not decide the new one` | none; hidden; off; no asset. `welcome state: clear` | blocked; hidden; off; no asset. `restores a blocked welcome notice when the same pair is saved again` | blocked; hidden; off, not claimed; no asset. `does not scan again or flip a blocked decision on a second pass` | N/A. Stays blocked, hidden, off. No asset. `welcome state: re-ingest rerun` | N/A. Row unchanged. `welcome state: 8 min stop` |
-| reingest_failed | welcomePending; hidden; digest off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | N/A. Digest is not a Mux pair. Row stays reingest_failed, off. `welcome state: re-save the same pair` | welcomePending; hidden; off, not claimed; no asset. `welcome state: worker tick` | welcomePending; hidden; digest off, new due; no second asset. `welcome state: re-ingest rerun`. `retries a reingest_failed parent once, without a second asset, and still isolates the next failure` | N/A. Row unchanged. `welcome state: 8 min stop` |
-| superseded | welcomePending on the new pair; hidden; this row stays off; no asset. `leaves other superseded welcome rows superseded when one pair is saved again` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset. `welcome state: re-save the same pair` | none; hidden; off, not claimed; no asset. `welcome state: worker tick` | N/A. No S3 key. Row stays superseded, off. `welcome state: re-ingest rerun` | N/A. Row unchanged. `welcome state: 8 min stop` |
+| pending (queued) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset. `welcome state: re-save the same pair` | none; visible; off; no asset. `welcome state: worker tick`. `allows a no-match and does not store a title` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A |
+| pending (mid-scan) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending until the worker finishes; hidden; due; no asset; same windows. `finishes a cleared pending welcome when the same pair is saved again` | none; visible; off; no asset; stored window not identified again. `welcome state: worker tick`. `does not rescan a window that was already stored` | N/A. Stays welcomePending, hidden, due. No asset. `welcome state: re-ingest rerun` | N/A |
+| pending (backing off) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due now; attempts 0; no asset. `welcome state: re-save the same pair` | welcomePending; hidden; later, not claimed; no asset. `welcome state: worker tick`. `backs off a rate limit without burning the leased attempt` | N/A. Stays welcomePending, hidden, later. No asset. `welcome state: re-ingest rerun` | N/A |
+| pending (exhausted) | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; attempts 0; no asset. `welcome state: re-save the same pair` | malformed; hidden; off, not claimed; no asset. `welcome state: worker tick` | N/A. Stays malformed, hidden, off. No asset. `welcome state: re-ingest rerun` | N/A |
+| allowed | welcomePending; hidden; old off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | none; visible; off; no asset. `shows an allowed welcome again when the same pair is saved again` | none; visible; off, not claimed; no asset. `welcome state: worker tick` | N/A. Stays none, visible, off. No asset. `welcome state: re-ingest rerun` | N/A |
+| blocked | welcomePending; hidden; old off, new due; no asset. `supersedes a replaced welcome pair so the old scan does not decide the new one` | none; hidden; off; no asset. `welcome state: clear` | blocked; hidden; off; no asset. `restores a blocked welcome notice when the same pair is saved again` | blocked; hidden; off, not claimed; no asset. `does not scan again or flip a blocked decision on a second pass` | N/A. Stays blocked, hidden, off. No asset. `welcome state: re-ingest rerun` | N/A |
+| reingest_failed | welcomePending; hidden; digest off, new due; no asset. `welcome state: save a new pair` | none; hidden; off; no asset. `welcome state: clear` | N/A. Digest is not a Mux pair. Row stays reingest_failed, off. `welcome state: re-save the same pair` | welcomePending; hidden; off, not claimed; no asset. `welcome state: worker tick` | welcomePending; hidden; digest off, new due; no second asset. `welcome state: re-ingest rerun`. `retries a reingest_failed parent once, without a second asset, and still isolates the next failure` | N/A |
+| superseded | welcomePending on the new pair; hidden; this row stays off; no asset. `leaves other superseded welcome rows superseded when one pair is saved again` | none; hidden; off; no asset. `welcome state: clear` | welcomePending; hidden; due; no asset. `welcome state: re-save the same pair` | none; hidden; off, not claimed; no asset. `welcome state: worker tick` | N/A. No S3 key. Row stays superseded, off. `welcome state: re-ingest rerun` | N/A |
 
 ## Order
 
 1. Run the read-only video count above. Hand the two numbers to Adam before apply.
 2. Apply `supabase/migrations/20261008180000_social_music_scans.sql`, then
    `supabase/migrations/20261008180100_profiles_welcome_mux.sql`.
-3. Dry-run the image recheck, then execute it. A post or story whose image
-   will not decode is hidden. A read error is unfinished: reported, not
-   hidden, and tried again on the next run. An avatar that will not decode
-   is reported and left in place.
+3. Dry-run the image recheck, then execute it. `--execute` writes each
+   re-encoded image to a new key and points the post, story, or avatar at
+   that key. It never overwrites the original under the same key. The
+   original stays in the private bucket and is not signed once the pointer
+   names the new key, so the run can be reversed. A post or story whose
+   image will not decode is hidden. A read error or a store error is
+   unfinished: reported, not hidden, and tried again on the next run
+   (the run loads `status = active` only). An avatar that will not decode
+   is cleared so the default face shows. Its original object is left in
+   place. A second execute skips objects that already carry `gc-reencoded`.
+
+   Reversal: read `gc-previous-key` on the new object. Point the post or
+   story media item back at that key. For an avatar, set
+   `profiles.avatar_key` back to that previous key (`avatars/{user-id}/avatar`
+   for a face that was rechecked off the canonical object). Do not delete
+   either object as part of this reversal.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts
@@ -337,7 +361,7 @@ pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts 
 
 Apply the SQL before the app. A missing scan table denies playback and
 video-key signing for anyone who is not previewing only their own row.
-The author notice still fails closed to an empty map. Applying the SQL
+A notice read that fails twice surfaces the error. Applying the SQL
 first hides videos from other people even before the worker exists. They
 stay pending, which is the fail-closed state.
 

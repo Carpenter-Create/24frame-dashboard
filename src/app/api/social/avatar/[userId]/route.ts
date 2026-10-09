@@ -5,6 +5,7 @@ import { AVATAR_SIGNED_URL_TTL_SECONDS } from "@/lib/account-avatar";
 import { signedAvatarUrl } from "@/lib/s3-avatars";
 import { privateMaxAgeCacheControl } from "@/lib/signing-window";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,9 @@ export async function GET(
     });
   }
 
-  const url = await signedAvatarUrl(userId);
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("avatar_key").eq("id", userId).maybeSingle();
+  const url = await signedAvatarUrl(userId, data?.avatar_key);
   if (!url) {
     return new NextResponse(null, {
       status: 404,

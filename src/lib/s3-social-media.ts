@@ -24,6 +24,11 @@ import {
   type SocialMediaKind,
   type SocialMediaLane,
 } from "@/lib/social-media";
+import {
+  SOCIAL_IMAGE_PREVIOUS_KEY_METADATA,
+  SOCIAL_IMAGE_REENCODED_METADATA,
+  socialImageWasReencoded,
+} from "@/lib/social-image-reencode";
 import { socialMediaProxies, socialMediaProxiesByPostId } from "@/lib/social-edge";
 import type { SocialMuxPlaybackPolicy } from "@/lib/social-mux";
 import {
@@ -211,14 +216,23 @@ export async function putPublishedSocialImage(input: {
   );
 }
 
-/** Replace a published image in place. Recheck uses this after a decode. Publish does not. */
-export async function overwritePublishedSocialImage(input: {
+/**
+ * Store a re-encoded image at a new posts/ or stories/ key.
+ * IfNoneMatch refuses an existing object. The previous key is metadata only.
+ */
+export async function putRecheckedSocialImage(input: {
   key: string;
+  previousKey: string;
   body: Uint8Array;
   contentType: string;
 }): Promise<void> {
   const destination = parseSocialMediaObjectKey(input.key);
-  if (!destination || socialMediaKindFor(input.contentType) !== "image" || input.body.byteLength === 0) {
+  if (
+    !destination ||
+    input.key === input.previousKey ||
+    socialMediaKindFor(input.contentType) !== "image" ||
+    input.body.byteLength === 0
+  ) {
     throw new Error("Media copy is not allowed");
   }
   const { bucket, s3 } = mediaClient();
@@ -229,8 +243,25 @@ export async function overwritePublishedSocialImage(input: {
       Body: input.body,
       ContentType: input.contentType,
       CacheControl: "private, max-age=300",
+      IfNoneMatch: "*",
+      Metadata: {
+        [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
+        [SOCIAL_IMAGE_PREVIOUS_KEY_METADATA]: input.previousKey,
+      },
     }),
   );
+}
+
+/** True when this object was written by the image recheck. Null when the head fails. */
+export async function headSocialImageRecheck(key: string): Promise<{ reencoded: boolean } | null> {
+  if (isForbiddenMediaKey(key)) return null;
+  try {
+    const { bucket, s3 } = mediaClient();
+    const out = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return { reencoded: socialImageWasReencoded(out.Metadata) };
+  } catch {
+    return null;
+  }
 }
 
 /** Leading bytes of one object. Null when the key is closed, empty, or the read fails. */

@@ -115,7 +115,7 @@ describe("Social nav leftover split (shared shell vs Social-local)", () => {
     expect(socialProfile).toContain("<Suspense");
     expect(socialEdit).toContain("requireSocialSession");
     expect(socialEdit).toContain("Promise.all");
-    expect(socialEdit).toContain("signedAvatarUrl(ctx.user.id)");
+    expect(socialEdit).toContain("signedAvatarUrl(ctx.user.id, avatarRow.data?.avatar_key)");
     expect(socialBio).toContain("requireSocialSession");
   });
 });
