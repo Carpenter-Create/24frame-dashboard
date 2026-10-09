@@ -93,6 +93,7 @@ The house window shell (`components/chrome/house-window`) over the dimmed Licens
 - "Deliver · N" waits for the server. The body and header are inert, and ✕, Esc, the scrim and Back wait too.
 - Batches of 25 go one after another. A progress line reads "{c} of {t} deliveries created".
 - The run stops on sign-out, lost permission, an inactive channel, or a request that failed outright. The rest are not sent.
+- A request that failed outright (a timeout or a dropped connection): its batch's titles read "{title} · Could not save.", and the stop line "Could not save." covers the batches that were not sent. What the server kept is unknown, so the list refreshes on close.
 - All created: "Delivery created" (with "ID · {id}") or "{n} deliveries created", with ✓.
 - Otherwise: "{c} of {t} deliveries created", with "{title} · {reason}" lines stacked under it.
 - "Delivery already exists." counts as done.
@@ -100,8 +101,9 @@ The house window shell (`components/chrome/house-window`) over the dimmed Licens
 - Nothing went through: the window stays on the last face with the reasons, and the draft is kept.
 - A part that saved stays saved. A retry never duplicates: each batch first reads this channel's existing deliveries, and the unique key catches a race.
 
-## 7) Closing and paint-in
+## 7) Ticks, closing and paint-in
 
+- Deliver · N counts only the ticks the list draws, and the window takes only those. A search or filter that hides a ticked row leaves it out of both, and the tick comes back with the row. If a Deliver closes while the row is hidden, its tick drops (closing keeps only drawn ticks), and a hidden row is never part of a run. With no row drawn (a search or filter that matches nothing) there is no Deliver, so no window opens over the empty state (§11). Recorded as a review fix on 2026-10-09; it reverses with the one PR.
 - Delivered titles un-tick as the window closes. Failed, unsent and set-aside titles stay ticked.
 - Focus returns to Deliver, or to the delivered title's tick when the bar has gone.
 - After Back lands, the list refreshes. The new channel sub-rows fade in (220ms; none under reduced motion), and the first is scrolled into view. Delivered titles sort to the top.
@@ -176,7 +178,9 @@ The house window shell (`components/chrome/house-window`) over the dimmed Licens
   - chunked loads, with error and probe handling;
   - the RAISE texts pinned to the last `create_delivery` across `supabase/migrations`.
 - `deliver-window.test.tsx`: both hosts, the Channel header, each face, and the source pins (phone sheet, held open while saving or exporting, the ⌘Enter re-check, the batch loop's try/catch/finally, no org, no takeover, no inline copy).
+- `deliver-window.client.test.tsx` (mounted, fake actions): nothing created keeps the last face and the draft; a partial run moves to the result; batches of 25 carry no org; a stop ends the run; a thrown batch names its titles, shows the stop line and refreshes on close.
 - `licensing-status-list.test.tsx`: no ticks without operate, the empty state, the paint-in row, and the window entry, close and focus pins.
+- `licensing-status-list.client.test.tsx` (mounted): a search or filter that hides the ticked rows takes Deliver with it and the tick comes back with the row; the window and a bare `?deliver` get only the drawn ticks; close un-ticks the delivered titles, keeps a failed title ticked, drops a tick hidden while Deliver ran, and refreshes after Back.
 - `page.test.ts` (Licensing): Deliver only on a literal true from `gc_can(operate)`.
 - `deliver/page.test.ts`: the hand-over redirects.
 - `house-overlay.test.ts` (G4, G5) and `aggregation-revalidate.test.ts`.
@@ -204,3 +208,4 @@ This PR adds authorization code on a path that writes rights-bearing records. Co
 6. `/staff/gc/deliveries/deliver?titles=…` opens the window with those ticks at both widths. As gc_legal or gc_accountant it lands on the list with no ticks.
 7. A partial run (one title whose grant was revoked mid-flow) → "2 of 3 deliveries created" plus the reason. Retry → "Delivery already exists." for the others.
 8. Reload on a bare `?deliver` → the list, with no window.
+9. Tick a title, then search for something that matches nothing → the empty state with no Deliver. Clear the search → the title is still ticked and Deliver · 1 is back.

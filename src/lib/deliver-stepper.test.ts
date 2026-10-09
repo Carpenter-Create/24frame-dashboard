@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { licensingPruneSelection } from "./gc-deliveries";
+import { licensingPruneSelection, licensingShownSelection } from "./gc-deliveries";
 import {
   DELIVER_BATCH,
   DELIVER_GROUP_FROM,
@@ -316,6 +316,13 @@ describe("Deliver faces, items and labels", () => {
   it("un-ticks delivered titles and ids the list does not draw", () => {
     expect(licensingPruneSelection([TITLE_A, TITLE_B, tid(1)], [TITLE_A, TITLE_B], [TITLE_B])).toEqual([TITLE_A]);
     expect(licensingPruneSelection([TITLE_A], [TITLE_A], [])).toEqual([TITLE_A]);
+  });
+
+  it("counts and sends only the ticks the list draws, in tick order", () => {
+    expect(licensingShownSelection([TITLE_B, tid(1), TITLE_A], [TITLE_A, TITLE_B])).toEqual([TITLE_B, TITLE_A]);
+    // A search that matches nothing: no tick is drawn, so there is no Deliver.
+    expect(licensingShownSelection([TITLE_A, TITLE_B], [])).toEqual([]);
+    expect(licensingShownSelection([], [TITLE_A])).toEqual([]);
   });
 });
 

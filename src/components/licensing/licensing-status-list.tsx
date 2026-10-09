@@ -23,6 +23,7 @@ import {
   licensingDeliverLabel,
   licensingDeliverVisible,
   licensingPruneSelection,
+  licensingShownSelection,
   licensingTitleMeta,
   type LicensingTitleGroup,
 } from "@/lib/gc-deliveries";
@@ -37,7 +38,7 @@ import {
 
 // Titles catalog parent + indented vendor sub-rows. Phone stacks art /
 // title / track / date — never a horizontal meta cram. Deliver · N only
-// when ≥1 title is selected, and only for staff with operate: it opens the
+// when ≥1 drawn title is ticked, and only for staff with operate: it opens the
 // Deliver window over this list (docs/design-locks/staff-licensing-deliver-window-lock-v1.md).
 
 /** Deliver's own history flag (a shell entry is never one). */
@@ -202,6 +203,9 @@ export function LicensingStatusList({
   const lastDeliveredRef = useRef<string | null>(null);
   const scrolledRef = useRef<readonly string[] | null>(null);
   const groupIds = groups.map((group) => group.id);
+  // Only the ticks drawn now count and go: a search or filter that hides a
+  // ticked row (or every row) leaves it out, and the bar goes with the rows.
+  const ticked = licensingShownSelection(selected, groupIds);
 
   // The page without ?deliver (no window entry, no flags).
   function stripDeliver() {
@@ -225,8 +229,8 @@ export function LicensingStatusList({
       return true;
     }
     // Forward onto a bare ?deliver with the ticks still here.
-    if (selected.length > 0) {
-      setWindowIds(selected);
+    if (ticked.length > 0) {
+      setWindowIds(ticked);
       setPainted([]);
       return true;
     }
@@ -267,7 +271,7 @@ export function LicensingStatusList({
     );
   }
 
-  const showDeliver = canDeliver && licensingDeliverVisible(selected.length);
+  const showDeliver = canDeliver && licensingDeliverVisible(ticked.length);
 
   return (
     <div data-gc-licensing-list="" ref={listRef} tabIndex={-1} className="outline-none">
@@ -301,11 +305,11 @@ export function LicensingStatusList({
             className="max-md:w-full"
             onClick={() => {
               setPainted([]);
-              setWindowIds(selected);
+              setWindowIds(ticked);
               entry.openFromPage("channel");
             }}
           >
-            {licensingDeliverLabel(selected.length)}
+            {licensingDeliverLabel(ticked.length)}
           </Button>
         </div>
       ) : null}

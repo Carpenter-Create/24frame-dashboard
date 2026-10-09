@@ -216,13 +216,14 @@ export function DeliverWindow({
       // The request itself failed (a timeout, a dropped connection, a new
       // deploy): what the server kept of this batch is unknown, so the list
       // refreshes on close, and its titles read "Could not save." and stay
-      // ticked. A retry never duplicates (the pre-read and the unique key).
+      // ticked. The run stops: the later batches are not sent, and the stop
+      // line says so. A retry never duplicates (the pre-read and the unique key).
       savedRef.current = true;
       result = deliverMergeOutcome(result, {
         created: [],
         existing: [],
         failed: sending.map((item) => ({ titleId: item.titleId, reason: "save_failed" as const })),
-        stop: null,
+        stop: "save_failed",
       });
     } finally {
       if (mountedRef.current) setPending(false);

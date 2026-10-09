@@ -40,6 +40,16 @@ export function licensingDeliverVisible(selectedCount: number): boolean {
   return selectedCount >= 1;
 }
 
+/** The ticks the list draws now, in tick order. Deliver · N counts only these
+ *  and the window takes only these: a tick a search or filter hides comes
+ *  back with its row but never goes (closing Deliver then drops it, see
+ *  licensingPruneSelection), and with no row drawn there is no Deliver (no
+ *  overlay over an empty page). */
+export function licensingShownSelection(selected: readonly string[], groupIds: readonly string[]): string[] {
+  const shown = new Set(groupIds);
+  return selected.filter((id) => shown.has(id));
+}
+
 export const LICENSING_VENDOR_INDENT_CLASS = "pl-[var(--space-6)]";
 
 /** A channel sub-row Deliver just created fades in after the window leaves
