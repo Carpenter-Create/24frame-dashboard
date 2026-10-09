@@ -32,11 +32,21 @@ export function clearSocialGoLiveOpener(): void {
   openerHref = null;
 }
 
+/** Where the camera leaves to. `fromOpener` says the camera was pushed on
+ *  top of that page, so going back reuses its own history entry. A cold
+ *  visit (no opener: a reload, a deep link, a new tab) lands on `fallback`. */
+export function takeSocialGoLiveExit(fallback: string = SOCIAL_ROUTES.home): {
+  href: string;
+  fromOpener: boolean;
+} {
+  const opener = safeOpenerHref(openerHref);
+  openerHref = null;
+  return opener ? { href: opener, fromOpener: true } : { href: fallback, fromOpener: false };
+}
+
 /** Where X goes. A cold visit (no opener) lands on Social home. */
 export function takeSocialGoLiveExitHref(): string {
-  const opener = openerHref;
-  openerHref = null;
-  return safeOpenerHref(opener) ?? SOCIAL_ROUTES.home;
+  return takeSocialGoLiveExit().href;
 }
 
 export function resetSocialGoLiveOpenerForTests(): void {

@@ -5,6 +5,7 @@ import { SOCIAL_ROUTES } from "@/lib/social";
 import {
   rememberSocialGoLiveOpener,
   resetSocialGoLiveOpenerForTests,
+  takeSocialGoLiveExit,
   takeSocialGoLiveExitHref,
 } from "./social-go-live-nav";
 
@@ -13,6 +14,17 @@ afterEach(() => {
 });
 
 describe("Go live exit", () => {
+  it("says whether the camera was pushed on top of its opener, else the fallback", () => {
+    rememberSocialGoLiveOpener("/social/profile?edit");
+    expect(takeSocialGoLiveExit("/social/profile/edit")).toEqual({ href: "/social/profile?edit", fromOpener: true });
+    // Taken once: a second exit is a cold visit.
+    expect(takeSocialGoLiveExit("/social/profile/edit")).toEqual({ href: "/social/profile/edit", fromOpener: false });
+    expect(takeSocialGoLiveExit()).toEqual({ href: SOCIAL_ROUTES.home, fromOpener: false });
+    // Edit's phone sheet survives as an opener too.
+    rememberSocialGoLiveOpener("/social/profile/edit");
+    expect(takeSocialGoLiveExit("/x").href).toBe("/social/profile/edit");
+  });
+
   it("returns to the page that opened the camera", () => {
     rememberSocialGoLiveOpener("/social/profile");
     expect(takeSocialGoLiveExitHref()).toBe("/social/profile");

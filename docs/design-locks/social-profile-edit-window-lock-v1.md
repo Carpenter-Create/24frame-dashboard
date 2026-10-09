@@ -39,7 +39,7 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Header | 64, surface, hairline under. Left: the round grey 44 (`HOUSE_HEADER_ROUND_BUTTON_CLASS`): **X** (Close) on the index, **‹** (Back) on a face. Centre: the face title, 17 / 600, naming the dialog. Right: **Done**, the accent pill (40 tall). Done always saves everything and closes |
 | Index | On the wash, pad 24, gap 16: the 88 avatar and **Edit picture**; the Welcome video card; the drill card Name · Username · Professions · Topics · IMDb · Links · Bio with their live summaries. Nothing typed on the index |
 | Faces | A row pushes its face into the same frame: 220ms ease-out slide from the right (Back: from the left), instant under reduced motion. The face's first field takes focus; Back returns focus to the row it came from. Faces are today's faces, unchanged in content |
-| Photo | **Edit picture** (and the avatar) toggles the house menu (MenuSurface) dropped under it, inside the window; it takes focus on its first row, a click anywhere outside closes it, and focus returns to Edit picture. The crop runs in place; Done waits while it is open; opening a face closes both. Photo and welcome video still save the moment they are confirmed; the profile behind updates at once |
+| Photo | **Edit picture** (and the avatar) toggles the house menu (MenuSurface) dropped under it, inside the window; it takes focus on its first row, a click anywhere outside closes it, and focus returns to Edit picture. The crop runs in place; Done waits while it is open; opening a face closes both. Photo and welcome video still save the moment they are confirmed; the profile behind updates at once. While one is uploading, closing (X, Esc, the scrim, Back) and Done wait for it, so it never runs on after Edit has closed (the same on the phone sheet: its back ‹ and Done wait) |
 | Esc | Closes the nearest layer: the photo menu, the crop, the ask (Keep editing), a face (Back), then the window. A second Esc keeps editing: a double Esc never discards |
 | Keyboard | ⌘/Ctrl + Enter is Done from anywhere in the window. Tab stays inside the window |
 | Close | X, Esc on the index, a click on the scrim, and browser Back all take one path: with nothing changed the window closes; with changes it asks first (§3). Closing returns focus to the pill |
@@ -69,6 +69,18 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Ask | Title **"Discard changes?"**; a line naming the changed fields in row order ("Name and Topics aren't saved." · one field: "Name isn't saved."); when a new picture or welcome video already saved, a line saying so. **Keep editing** · **Discard**. On desktop, a strip rising at the foot inside the window (the body above is inert); never a dialog over a dialog |
 | Discard | The draft goes; saved media stays. After a failed save, the failed draft is dropped from the overlay too |
 | Browser | While the draft has changes, reloading or closing the tab raises the browser's own prompt |
+
+## 4) Welcome video — Media or Live (amended 2026-10-09)
+
+> also, add welcome video should have the media icon (to upload a file) or live (to record a file)
+
+| Token | Lock |
+|-------|------|
+| Card | Label "Welcome video"; the clip (closed plate or the local preview) when there is one; then a row: the + fan's **Media** and **Live** rounds (`SOCIAL_CREATE_TILES`: the same glyph and name; round grey 44s, as in the composer's tool row), and **Remove welcome video** at the end when there is one. The rounds are one group named by the "Welcome video" label. The text buttons "Add / Replace welcome video" give way to the rounds (the file input keeps that name; it is not a Tab stop, the Media round is the keyboard path) |
+| Media | The video file pick, as before: saves on confirm |
+| Live | The 24Frame camera for the welcome video (`/social/live?for=welcome`), remembering Edit's index (never a face). Blocked while a picture or video uploads. With changes in the draft, it asks first (Keep editing · Discard; Keep editing returns focus to Live); Discard then opens the camera |
+| Camera | Header "Welcome video"; no caption and no dictate on the review; the round accent save (up arrow) is named "Add welcome video" and shows the blue bar. The clip goes to the media S3 posts lane (never Mux, never a post), is saved as the welcome video, shows on the profile at once from this device, and the camera returns to where it opened (the window on a computer, the sheet on a phone): it goes back to Edit's own entry (no second entry under it), on Edit's index. A camera with nowhere remembered (a reload, a deep link, a new tab) returns to Edit. X does the same. Any failure (refused, a dropped connection, a server error) gives the camera its controls back with the error, and keeps the clip to try again; closing the camera mid-upload cancels it. The "use a video" fallback in errors is a post path and is not offered |
+| Copy | Existing only: "Welcome video", "Add welcome video", "Media", "Live", "Remove welcome video" |
 
 ## Copy
 

@@ -18,6 +18,7 @@ vi.mock("next/image", () => ({
 
 import { SETTINGS_DIALOG_LABEL_CLASS, SETTINGS_DRILL_ROW_CLASS } from "@/lib/settings";
 import { SOCIAL } from "@/lib/social";
+import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
 import { SOCIAL_PROFILE_EDIT_LABEL_CLASS } from "@/lib/social-chrome";
 import { socialProfileImdbRowSummary } from "@/lib/social-imdb";
 import { socialProfileLinksRowSummary } from "@/lib/social-profile-links";
@@ -164,6 +165,28 @@ describe("SocialProfileEditForm", () => {
     expect(html).not.toContain('value="Carpenter"');
     expect(html).toContain('src="https://s3.example/adam-face"');
     expect(html).not.toContain("AC");
+  });
+
+  // Adam 2026-10-09: "add welcome video should have the media icon (to
+  // upload a file) or live (to record a file)".
+  it("offers the fan's Media and Live for the welcome video", () => {
+    const html = renderToStaticMarkup(
+      <SocialProfileEditForm handle="ada" displayName="Ada Lovelace" bio="" photoUrl={null} />,
+    );
+    const card = html.slice(html.indexOf("data-social-profile-edit-welcome"), html.indexOf("data-social-profile-edit-fields"));
+    expect(card).toContain("data-social-profile-edit-welcome-media");
+    expect(card).toContain(`aria-label="${SOCIAL.create.media}"`);
+    expect(card).toContain('data-social-icon="image"');
+    expect(card).toContain("data-social-profile-edit-welcome-live");
+    expect(card).toContain(`aria-label="${SOCIAL.create.goLive}"`);
+    expect(card).toContain('data-social-icon="broadcast"');
+    expect(card).toContain('href="/social/live?for=welcome"');
+    expect(card).toContain(HOUSE_HEADER_ROUND_BUTTON_CLASS);
+    // The rounds replace the text buttons; the file input keeps its name.
+    expect(card).not.toMatch(new RegExp(`>${SOCIAL.profile.welcomeAdd}<`));
+    expect(card).toContain(`aria-label="${SOCIAL.profile.welcomeAdd}"`);
+    expect(card).not.toContain(SOCIAL.profile.welcomeRemove);
+    expect(card).not.toContain('capture="');
   });
 
   it("shows replace and remove when a welcome video is present, and does not play it", () => {

@@ -292,3 +292,49 @@ export async function uploadSocialMuxVideoFile(
     },
   };
 }
+
+/**
+ * The profile's welcome video recorded on the 24Frame camera
+ * (docs/design-locks/social-profile-edit-window-lock-v1.md §Welcome video):
+ * one video on the media S3 posts lane, never Mux (the profile stores an S3
+ * key), with the bytes reported for Live's blue bar. The caller saves it
+ * with saveSocialWelcomeVideo.
+ */
+export async function uploadSocialWelcomeVideoFile(
+  file: File,
+  options: {
+    signal?: AbortSignal;
+    onProgress?: (progress: SocialUploadProgress) => void;
+    createXhr?: () => SocialUploadXhr;
+  } = {},
+): Promise<{ item?: SocialMediaItem; error?: string; aborted?: boolean }> {
+  const planned = socialPostUploadPlan(file);
+  if (!planned || planned.kind !== "video") return { error: SOCIAL.stories.mediaType };
+  const body = new FormData();
+  body.set("content_type", planned.file.type);
+  body.set("byte_length", String(planned.file.size));
+  body.set("lane", "posts");
+  let signed: Awaited<ReturnType<typeof presignSocialMediaUpload>>;
+  try {
+    signed = await presignSocialMediaUpload(body);
+  } catch {
+    return { error: SOCIAL.home.uploadFailed };
+  }
+  if (signed.error || !signed.url || !signed.key || !signed.kind || !signed.contentType) {
+    return { error: signed.error ?? SOCIAL.home.uploadFailed };
+  }
+  try {
+    await putSocialMediaWithProgress(signed.url, planned.file, signed.contentType, options);
+  } catch (error) {
+    if (isSocialUploadAbort(error)) return { aborted: true };
+    reportUploadPutFailure("s3-put", "posts", error instanceof SocialUploadPutError ? error.status : 0);
+    return { error: SOCIAL.home.uploadFailed };
+  }
+  return {
+    item: {
+      kind: signed.kind as SocialMediaItem["kind"],
+      key: signed.key,
+      contentType: signed.contentType as SocialMediaItem["contentType"],
+    },
+  };
+}

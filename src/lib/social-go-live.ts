@@ -1,3 +1,4 @@
+import { SOCIAL_ROUTES } from "@/lib/social";
 import { SOCIAL_VIDEO_MAX_BYTES, type SocialVideoContentType } from "@/lib/social-media";
 import {
   formatStoryRecorderClock,
@@ -58,6 +59,22 @@ export function goLiveFitsByteCap(
 // 16:9; "reel" is the 9:16 stage and records 9:16. Phone is always the
 // camera's own (portrait) frame.
 export type GoLiveFrame = "full" | "reel";
+
+/** What the camera's clip is for. post: the feed (the default). welcome:
+ *  the profile's welcome video, opened from Edit profile's Live round
+ *  (docs/design-locks/social-profile-edit-window-lock-v1.md §Welcome video). */
+export type GoLivePurpose = "post" | "welcome";
+
+export const SOCIAL_GO_LIVE_PURPOSE_PARAM = "for";
+
+export function parseSocialGoLivePurpose(raw: string | string[] | undefined | null): GoLivePurpose {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === "welcome" ? "welcome" : "post";
+}
+
+export function socialGoLiveWelcomeHref(): string {
+  return `${SOCIAL_ROUTES.createLive}?${SOCIAL_GO_LIVE_PURPOSE_PARAM}=welcome`;
+}
 
 export const SOCIAL_GO_LIVE_FRAMES = ["full", "reel"] as const satisfies readonly GoLiveFrame[];
 

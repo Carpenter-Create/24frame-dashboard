@@ -1403,6 +1403,9 @@ export const SOCIAL_PROFILE_BIO_DONE_CLASS =
 export const SOCIAL_PROFILE_EDIT_BODY_CLASS =
   "flex flex-col gap-[var(--space-4)] px-4 pb-10 pt-5 md:p-5";
 
+// Welcome video: the + fan's Media and Live rounds, then Remove at the end.
+export const SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS = "flex flex-wrap items-center gap-[var(--space-2)]";
+
 // Desktop Edit profile window (docs/design-locks/social-profile-edit-window-lock-v1.md,
 // Adam 2026-10-09). The house window (HOUSE_DIALOG_WINDOW_CLASS: 600, radius 24,
 // no edge) with no pad of its own: the 64 header and the wash body carry it.

@@ -32,9 +32,10 @@ import {
 
 const EDIT_ENTRY_STATE = { houseClient: true, socialProfileEdit: true } as const;
 
+/** An entry Edit pushed itself (its own flag; a shell entry is not one). */
 function isEditEntry(): boolean {
-  const state = window.history.state as { socialProfileEdit?: boolean; houseClient?: boolean } | null;
-  return state?.socialProfileEdit === true || state?.houseClient === true;
+  const state = window.history.state as { socialProfileEdit?: boolean } | null;
+  return state?.socialProfileEdit === true;
 }
 
 export function pushEditEntry(face: SocialProfileEditFace) {
@@ -244,6 +245,10 @@ export function SocialProfileEditTopicsLink({ className, children }: { className
   return (
     <a
       href={socialProfileEditWindowHref("topics", "interests")}
+      // The shell's own click owner would take this same-screen hop first
+      // (an entry Next cannot see, and this handler never running): the
+      // house-link mark leaves it to the handler below.
+      data-house-link=""
       data-social-profile-interests-edit=""
       data-social-profile-interests-edit-window=""
       className={className}
