@@ -218,12 +218,13 @@ export function SocialProfileEditWindow({
   }, [held]);
 
   // A pushed face focuses its first field; Back returns to the row it left.
+  // A window that opens on a face (Interests' Topics, a failed save) focuses
+  // that face's first field too; one that opens on the index keeps the frame.
   const firstFace = useRef(true);
   useEffect(() => {
-    if (firstFace.current) {
-      firstFace.current = false;
-      return;
-    }
+    const opening = firstFace.current;
+    firstFace.current = false;
+    if (opening && edit.face === "edit") return;
     const body = bodyRef.current;
     if (!body) return;
     body.scrollTop = 0;

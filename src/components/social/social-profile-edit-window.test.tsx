@@ -152,6 +152,12 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(save).toContain('if (!bioChanged) checked.form.delete("bio");');
   });
 
+  it("focuses the first field when it opens straight on a face", () => {
+    const focus = windowSrc.slice(windowSrc.indexOf("const firstFace = useRef(true);"), windowSrc.indexOf("const atIndex ="));
+    expect(focus).toContain('if (opening && edit.face === "edit") return;');
+    expect(focus).not.toContain("if (firstFace.current) {");
+  });
+
   it("holds one height while open and keeps focus inside", () => {
     expect(windowSrc).toContain("setHeld(Math.ceil(frame.getBoundingClientRect().height))");
     expect(windowSrc).toContain("style={held === null ? undefined : { height: held }}");
