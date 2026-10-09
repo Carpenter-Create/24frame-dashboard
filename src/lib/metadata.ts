@@ -125,7 +125,8 @@ export function metadataValueError(key: string, value: unknown, now: Date = new 
     value.length <= METADATA_LIST_MAX &&
     value.some((entry) => typeof entry === "string" && Array.from(entry).length > METADATA_TEXT_MAX)
   ) {
-    return METADATA_ERRORS.listEntry;
+    // An entry over 200 reads the text limit (an existing approved line).
+    return METADATA_ERRORS.text;
   }
   return metadataFieldError(key, now);
 }
@@ -136,7 +137,6 @@ export const METADATA_ERRORS = {
   synopsis: "Up to 4,000 characters.",
   text: "Up to 200 characters.",
   list: "Up to 50 entries.",
-  listEntry: "Up to 200 characters per entry.",
   select: "Choose one from the list.",
   unknown: "Could not save.",
 } as const;

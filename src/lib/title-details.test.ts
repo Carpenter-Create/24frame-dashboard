@@ -138,7 +138,7 @@ describe("title Metadata window (lib/title-details)", () => {
     expect(checkTitleDetails(draft, NOW)).toEqual({
       face: "recommended",
       field: "cast",
-      error: "Up to 200 characters per entry.",
+      error: "Up to 200 characters.",
     });
     draft.metadata.cast = Array.from({ length: 51 }, (_, i) => `c${i}`).join(",");
     expect(checkTitleDetails(draft, NOW)).toEqual({ face: "recommended", field: "cast", error: "Up to 50 entries." });

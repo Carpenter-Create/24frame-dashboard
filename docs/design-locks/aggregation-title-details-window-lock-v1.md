@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-09
 **Status:** **LOCKED** (Adam, 2026-10-09, "approved") · Design Own→READY
-**Amended 2026-10-09:** (Adam, "4) yes, please."; questions "approved, use the defaults") the save sends only the changed fields; the database merges them under a lock on the title, checks the whole record and refreshes findings in one transaction (`merge_title_metadata`, founder-applied with the title findings migration). Submit reads the stored record as the app does, and what the database refuses reaches the browser only as an approved line. A Cast or Keywords entry over 200 characters reads the new "Up to 200 characters per entry."; more than 50 entries still reads "Up to 50 entries.". No UI change.
+**Amended 2026-10-09:** (Adam, "4) yes, please."; questions "approved, use the defaults") the save sends only the changed fields; the database merges them under a lock on the title, checks the whole record and refreshes findings in one transaction (`merge_title_metadata`, founder-applied with the title findings migration). Submit reads the stored record as the app does, and what the database refuses reaches the browser only as an approved line. A Cast or Keywords entry over 200 characters reads the existing approved "Up to 200 characters." (it read "Up to 50 entries." before; Bugbot on #801); more than 50 entries still reads "Up to 50 entries.". No UI change.
 **Scope:** Aggregation title detail: editing a title's metadata and release info. Covers the host, the one draft, the one save, leaving with changes, and who may edit.
 **Entity:** Global Content / 24Frame only
 **Follows:** [`social-profile-edit-window-lock-v1.md`](social-profile-edit-window-lock-v1.md) (the house window) and [`house-overlay-dual-host-v1.md`](house-overlay-dual-host-v1.md) (the object-edit job).
@@ -44,7 +44,7 @@ The plan's questions were answered on 2026-10-09, verbatim: "approved, use the d
 | What does Adam need to do? | Nothing until the PR is ready. Then: approve the exact SQL added to the title findings migration (`merge_title_metadata`, `normalize_stored_title_metadata`, the title lock in `set_title_metadata` and `submit_title`, and `submit_title`'s org check at that lock and normalized read); apply that migration to production once, as one transaction (it already carries the findings and checks work, so the merge rides along); verify (Verify on ship, step 9); merge. If the "merge_title_metadata not applied yet" log line still appears after the apply, run `notify pgrst, 'reload schema';`. |
 | Does the app change ride in the findings SQL PR or its own stacked PR? | The same PR: one SQL review, one apply, one preview check, one merge. The app diff inherits that PR's reserved SQL gate. |
 | A two-session (dblink) concurrency proof now? | No. A follow-up modeled on `screener_concurrency_test.sql`. This change proves the merge in one session and pins both locks on each function's source. |
-| Should a Cast or Keywords entry over 200 characters say "Up to 200 characters per entry." (a new line) instead of today's "Up to 50 entries."? (Bugbot on the window's PR) | Yes, with that exact line. The default was yes once Adam approves the line; "approved, use the defaults" is that approval, and the line is listed under Copy. More than 50 entries, and any other list problem, keeps "Up to 50 entries.". |
+| Should a Cast or Keywords entry over 200 characters say "Up to 200 characters per entry." (a new line) instead of today's "Up to 50 entries."? (Bugbot on the window's PR) | Not as a new line. The fix reuses the existing approved "Up to 200 characters.", so no new copy ships; "Up to 200 characters per entry." stays proposed until Adam approves that exact line. More than 50 entries, and any other list problem, keeps "Up to 50 entries.". |
 | Fix the existing B3 `set_title_metadata` cases, which pass without verifying anything? | Not here. The new merge cases get a positive control and verify callbacks; the old cases get the same in a separate follow-up. |
 | Revoke `set_title_metadata` and `reconcile_title_findings` from clients once the merge is live? | Yes, as a separate later draft for founder approval, after this is applied, deployed and verified. Not in this change: the old app and the fallback still need them. |
 | Refuse archived titles in the merge, not just deleted ones? | No. Match `set_title_metadata`, which allows archived titles. |
@@ -124,15 +124,14 @@ The same ask as Edit profile. On desktop it is a strip at the window's foot: Dis
 
 **New, approved with this lock:** Release's row summary "Re-release · {date}".
 
-**New with the atomic save amendment, approved by Adam on 2026-10-09 ("approved, use the defaults"):**
-- "Up to 200 characters per entry." — a Cast or Keywords entry over 200 characters. More than 50 entries keeps "Up to 50 entries.".
+**New with the atomic save amendment:** none. An entry over 200 characters reuses "Up to 200 characters.".
 
 **Reused by the amendment on Submit:** a field's approved line, "Complete the {total} required metadata fields to submit this title for review." and "Could not save."
 
 ## Gates
 
 - `title-details.test.ts` (lib): face parsing, the change diff (only changed fields, a cleared one as null), rows for the ask, the check order and lines (an over-long list entry vs too many entries), the row counts.
-- `metadata.test.ts` and `releases.test.ts`: the limits, the list-entry line ("Up to 200 characters per entry." vs "Up to 50 entries."), and the original date in the past (today anywhere counts).
+- `metadata.test.ts` and `releases.test.ts`: the limits, the list-entry line ("Up to 200 characters." for an entry over 200 vs "Up to 50 entries."), and the original date in the past (today anywhere counts).
 - `metadata-merge.test.ts`: the merge helpers (which errors fall back, which field a refusal names), SQL pins scoped to each function's own body (signature, gate, both locks, grants; the same title lock in `set_title_metadata` and `submit_title`; `submit_title` refusing another org's title at that lock and reading the record normalized), the registry and limits in `check_title_metadata` and the normalize helper, the hand-typed `database.types.ts` entry, and the normalize fixtures shared with pgTAP.
 - `supabase/tests/title_metadata_merge_test.sql` (pgTAP, CI): merge, clear and first-save semantics, one audit row per real write and none for a no-op, normalize parity, refusals, findings, a deleted title, cross-org and spoofed org, the role matrix, the lock pins, and submit (a complete record in an older shape submits and is not rewritten, a stored value the checks refuse still blocks it, another org's title is refused before its record is read).
 - B3 (CI): a CONTROL that A's own merge lands, then the merge on B's title, spoofed and clear-only, each verified against a service-role re-read.

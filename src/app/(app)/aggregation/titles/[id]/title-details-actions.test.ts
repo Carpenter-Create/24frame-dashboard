@@ -238,7 +238,7 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
       ok: false,
       part: "metadata",
       field: "cast",
-      error: "Up to 200 characters per entry.",
+      error: "Up to 200 characters.",
       metadataSaved: false,
     });
     expect(
