@@ -329,7 +329,6 @@ export function useSocialProfileEditDraft({
     const uploaded = await uploadSocialMuxVideoFile(file, { lane: "posts" });
     if (uploaded.error || uploaded.aborted || !uploaded.item) {
       setUploading(false);
-      if (welcomeRef.current) welcomeRef.current.value = "";
       reset?.();
       if (!uploaded.aborted) setError(uploaded.error ?? SOCIAL.home.uploadFailed);
       return;
