@@ -102,6 +102,9 @@ export function useHousePhoneChromeTracker(
 
     const measure = () => {
       const stack = root.querySelector<HTMLElement>("[data-house-lead-stack]");
+      // A stack hidden with display:none (the immersive feed) has no box:
+      // keep the last height, so the page's top pad does not collapse.
+      if (stack && stack.getClientRects().length === 0) return;
       chromeHeight = stack ? stack.offsetHeight : 0;
       root.style.setProperty(HOUSE_PHONE_CHROME_HEIGHT_VAR, `${chromeHeight}px`);
       paint(sheet.offset());
@@ -136,10 +139,32 @@ export function useHousePhoneChromeTracker(
     // A drag on the bar or the band moves the bar under the finger once it
     // reads as vertical; a sideways drag leaves the band's pills to slide.
     let drag: { x: number; y: number; axis: "vertical" | "horizontal" | null } | null = null;
+    // A touch whose element is removed mid-gesture (the header's Suspense
+    // swap, a skeleton giving way to the feed) ends on that element, out of
+    // the root's reach: listen there too, or the finger reads as down for
+    // good and the bar never settles.
+    let endTarget: Element | null = null;
+    const releaseEndTarget = () => {
+      endTarget?.removeEventListener("touchend", onDetachedEnd);
+      endTarget?.removeEventListener("touchcancel", onDetachedEnd);
+      endTarget = null;
+    };
+    const onDetachedEnd = (event: Event) => {
+      const el = endTarget;
+      releaseEndTarget();
+      // Still attached: the event reaches the root, which ends it there.
+      if (el && !el.isConnected && event instanceof TouchEvent) onTouchEnd(event);
+    };
     const onTouchStart = (event: TouchEvent) => {
       touching = true;
       clearTimeout(idleTimer);
       const el = event.target instanceof Element ? event.target : null;
+      releaseEndTarget();
+      if (el) {
+        endTarget = el;
+        el.addEventListener("touchend", onDetachedEnd, { passive: true });
+        el.addEventListener("touchcancel", onDetachedEnd, { passive: true });
+      }
       const touch = event.touches[0];
       drag =
         event.touches.length === 1 && touch && el?.closest(HOUSE_PHONE_CHROME_DRAG_ZONE)
@@ -178,6 +203,7 @@ export function useHousePhoneChromeTracker(
       root.removeEventListener("touchmove", onTouchMove);
       root.removeEventListener("touchend", onTouchEnd);
       root.removeEventListener("touchcancel", onTouchEnd);
+      releaseEndTarget();
       swaps?.disconnect();
       resize?.disconnect();
       clearTimeout(idleTimer);

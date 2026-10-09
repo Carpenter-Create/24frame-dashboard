@@ -60,6 +60,19 @@ export type SegmentedVisualPersist = {
 
 const thumbFlights = new Map<string, SegmentedThumbFlight>();
 const visualIndexes = new Map<string, SegmentedVisualPersist>();
+const railScrolls = new Map<string, number>();
+
+/** Where a sideways rail was left (its scrollLeft), so a remount (the
+ *  header's Suspense swap, back from Explore or a story) reopens it there
+ *  instead of at the start. */
+export function readSegmentedRailScroll(persistKey: string): number | undefined {
+  return railScrolls.get(persistKey);
+}
+
+export function writeSegmentedRailScroll(persistKey: string, left: number): void {
+  if (!Number.isFinite(left) || left < 0) return;
+  railScrolls.set(persistKey, left);
+}
 
 export function readSegmentedThumbFlight(
   persistKey: string,

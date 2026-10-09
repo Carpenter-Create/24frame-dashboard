@@ -15,7 +15,8 @@ import { HousePhoneChromeContext, useHousePhoneChromeTracker } from "./house-pho
 // One phone shell primitive. Both Social and Access trees mount this
 // so dest docks cannot fork. Desktop is unchanged — the bottom
 // nav is md:hidden. Hide-on-scroll is owned here (house-phone-chrome):
-// one tracker hides the dock and folds the workspace band together, for
+// one tracker slides the bar over the workspace band and lands the dock
+// with it at rest, for
 // every workspace that uses this shell (shell-phone-workspace-band-lock-v1
 // §5).
 // HouseLeadScrollToTop bridges the iOS status-bar tap to the nested

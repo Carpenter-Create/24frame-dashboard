@@ -100,7 +100,15 @@ export const HOUSE_LEAD_SCROLL_CLASS =
 // with the finger while the page scrolls under it, at the finger's speed
 // (shell-phone-workspace-band-lock-v1 §5). Page scroll stays on main (G9).
 export const HOUSE_LEAD_STACK_CLASS =
-  "sticky top-0 z-40 shrink-0 max-md:absolute max-md:inset-x-0 max-md:top-0 md:ml-[var(--sidebar-width)]";
+  "sticky top-0 z-40 shrink-0 max-md:absolute max-md:inset-x-0 max-md:top-0 max-md:pointer-events-none md:ml-[var(--sidebar-width)]";
+
+/** Phone: what the chrome draws takes taps, and only sideways pans. A
+ *  vertical drag on it is the bar's own (the tracker), never a scroll of the
+ *  document (which would carry both rows, bounce the white page under
+ *  Safari's bar, or start Safari's pull-to-refresh). The stack itself lets
+ *  taps through, so the strip the covered bar leaves is the page's. */
+export const HOUSE_PHONE_CHROME_TOUCH_CLASS =
+  "max-md:pointer-events-auto max-md:touch-pan-x max-md:touch-pinch-zoom";
 
 // The phone chrome's motion, written by the shell's tracker on the shell
 // element (house-phone-chrome-state): the chrome's height, its visible
@@ -151,7 +159,7 @@ export const HOUSE_LEAD_DESKTOP_BRAND_PAD_CLASS = HOUSE_SHELL_GUTTER_X_CLASS;
 // band — the opaque page colour (no glass, so no blue shows through) with
 // a 24 top radius (--radius-xl) and the grab handle in an 8 strip above
 // the 56 row (64 in all), so the handle clears the bar's round controls.
-export const HOUSE_LEAD_CHROME_CLASS = `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] max-md:h-[calc(var(--header-height)+var(--space-2))] max-md:pt-[var(--space-2)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`;
+export const HOUSE_LEAD_CHROME_CLASS = `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] max-md:h-[calc(var(--header-height)+var(--space-2))] max-md:pt-[var(--space-2)] ${HOUSE_LEAD_PHONE_PAD_CLASS} ${HOUSE_PHONE_CHROME_TOUCH_CLASS}`;
 
 // Phone grab handle (Adam 2026-10-08, lock §5): the cue that the sheet
 // moves. 36 × 4, centred 4 below the sheet's top edge, the tertiary ink
@@ -194,7 +202,7 @@ export const HOUSE_LEAD_SEARCH_PHONE_CLASS = "w-full min-w-0 md:hidden";
 // Phone Education search row under the bar: 16 both sides, so the
 // field starts on the emblem's edge. Opaque page colour: the stack
 // behind it is the Sporty Blue workspace band (no glass tint).
-export const HOUSE_LEAD_UNDER_NAV_CLASS = `flex w-full items-center md:hidden border-b border-hairline bg-bg max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--chrome-gutter)] ${HOUSE_SHELL_GUTTER_X_CLASS} py-[var(--space-3)]`;
+export const HOUSE_LEAD_UNDER_NAV_CLASS = `flex w-full items-center md:hidden border-b border-hairline bg-bg max-md:pl-[var(--chrome-gutter)] max-md:pr-[var(--chrome-gutter)] ${HOUSE_SHELL_GUTTER_X_CLASS} py-[var(--space-3)] ${HOUSE_PHONE_CHROME_TOUCH_CLASS}`;
 
 export const HOUSE_LEAD_SEARCH_PILL_CLASS =
   "flex h-[var(--header-search-height)] w-full min-w-0 items-center gap-2 px-3";

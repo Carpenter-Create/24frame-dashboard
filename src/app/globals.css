@@ -70,6 +70,10 @@ html {
   height: 100%;
   scroll-behavior: smooth;
   color-scheme: light;
+  /* The page scrolls on main, never the document (G9): no rubber band and
+     no Safari pull-to-refresh from the document (shell-phone-workspace-
+     band-lock-v1 §5, Adam 2026-10-09). */
+  overscroll-behavior-y: none;
 }
 html.dark {
   color-scheme: dark;
@@ -77,6 +81,7 @@ html.dark {
 
 body {
   min-height: 100%;
+  overscroll-behavior-y: none;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-geist-sans), "Geist", ui-sans-serif, -apple-system, system-ui, sans-serif;

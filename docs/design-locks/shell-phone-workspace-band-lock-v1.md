@@ -5,6 +5,7 @@
 **Amended v1.1:** 2026-10-08 (Adam, in chat) — §5, the sheet rides over the band: scroll down folds the band under the bar with the dock; scroll up or pull the bar down brings both back; a grab handle on the bar. Supersedes Departure 1 and the Explicit OUT drag handle.  
 **Amended v1.2:** 2026-10-08 (Adam, "just build it") — [`shell-phone-nav-motion-lock-v1.md`](shell-phone-nav-motion-lock-v1.md): §1 Current's page colour is a sliding thumb (it slides to the tapped pill and settles; the glyph fills as it lands), and the fold is `overflow-clip`.  
 **Amended v1.3:** 2026-10-08 (Adam, in chat: "the bar doesn't feel like it works very fluidly or naturally") — §5 rewritten: the bar slides over the band 1:1 with the scroll and the finger, over a page that scrolls under the chrome; the band no longer folds.  
+**Amended v1.4:** 2026-10-09 (Adam, from an iPhone Safari recording and a bot review of it; picks "Fix bugs, keep sheet", "Match bar at rest", "Keep slide, stop jumps") — §5 keeps the model and fixes what broke it: the chrome takes no vertical pan (a drag never scrolls the document, bounces the white page, or starts Safari's pull-to-refresh), the covered strip is the page's, the page position is clamped at both ends, a lost finger-up still settles, and the status-bar tap ignores a finger's scroll. At rest the dock lands the way the bar did. §1 the row reopens where it was left.  
 **Scope:** The phone shell (`max-md`) in every workspace: where the workspace switch lives (a band above the bar), the bar as a sheet over it, and the Feed's topic row on phone. Desktop and `md` to `lg` are unchanged.  
 **Entity:** Global Content / 24Frame only  
 **Reference:** the founder's screenshot of a phone app — a coloured top band of icon + word product tabs, under it a dark sheet with the logo row.  
@@ -50,6 +51,22 @@
 
 Recommendation adopted: scroll down, the sheet rides up and covers the band as the dock hides; scroll up, or pull the handle down, and the band comes back with the dock; the small grey handle on the bar is the cue.
 
+### v1.4 (verbatim, 2026-10-09)
+
+On a screen recording of Social Home in iPhone Safari (the top rows pushed up and pulled down):
+
+> Notice at the end of the video how messy the user experience is with the top menu section (the row with the logo, etc. that I push up or pull down)
+
+> file was too big to upload, so I had grok bot review. here is its review
+
+The review saw the rows drift apart, rest partway, the band's sideways position jump, a white band open under Safari's bar, Safari's pull-to-refresh reload the page, and the dock move out of step. It asked for one header unit that snaps, no cut pill, and the sheet look dropped. Traced in the code, the drift, the white band and the refresh came from a vertical drag on the chrome scrolling the document; the rest from a lost finger-up, a remount resetting the row, and the dock's separate rule. Asked which way (2026-10-09), Adam picked:
+
+> Fix bugs, keep sheet (Recommended)
+
+> Match bar at rest (Recommended)
+
+> Keep slide, stop jumps (Recommended)
+
 ---
 
 ## 1) The band (phone)
@@ -60,6 +77,7 @@ Recommendation adopted: scroll down, the sheet rides up and covers the band as t
 | Fill | **Sporty Blue in both themes**: `--workspace-band` `#1769ff`, never `--accent` (dark `--accent` is the light blue, not a brand colour) |
 | Top | Flush: the status bar's safe area pads it (`env(safe-area-inset-top)`), so the pills sit right under the status bar, as in the screenshot. No other gap |
 | Row | 56 tall, 16 side pads, gap 4. Slides sideways (`overflow-x-auto`, no scrollbar). **No arrow, no fade**; a pill cut at the screen edge is the scroll cue |
+| Where it was left | (v1.4) The row reopens where it was slid: a remount (the header's data arriving, back from Explore or a story) never resets it to the start. Revealing the current pill moves the row only when that pill is off screen, and stops at the 16 pad |
 | Pills | **Home · Aggregation · Social · Education** for everyone (Staff is the account menu's row). Icon + word: 18 Phosphor glyph (House, FilmStrip, Users, BookOpen), gap 6, 15 / 500. Face 36 tall, pad 14, radius full, inside a 44 hit |
 | Idle | White glyph (Regular) and word on the blue (`--workspace-band-ink`, 4.67:1) |
 | Current | The pill takes the page colour (`bg-bg`) with `--workspace-band-pill-ink`: accent-ink on white in light (5.29:1), white on `#0f0f0f` in dark. Filled glyph. `aria-current="page"`. One lit pill at most; none on Settings, Activity, Help, Co-Productions, or Staff |
@@ -96,12 +114,17 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 | Drag | A vertical drag that starts on the band, the bar, or the Education search row moves the bar under the finger (it reads as vertical after 6 of travel, more up/down than sideways), and settles the same way on release. Sideways slides of the band row never move it |
 | Top | The top of the page always shows the band |
 | Near the top | Within the first 56 of scroll, a settle or a drag scrolls the page by the change in cover (not to a fixed position), so the bar and the content move together and no gap opens between them. Deeper down the content is already under the bar, so only the bar moves |
-| Dock | Keeps its own hide-on-scroll rule from the same scroll (hides on 8 down, returns on 8 up). A drag that covers the band hides the dock with it; a drag that opens brings it back |
+| Dock | While the page moves, keeps its own hide-on-scroll rule from the same scroll (hides on 8 down, returns on 8 up). (v1.4) At rest it lands the way the bar did: hidden under a covered band, back with an open one, after a settle, a drag, or `open` alike |
+| Touch | (v1.4) The band, its row, the bar, the Education search row and the dock take sideways pans and pinch only (`touch-action: pan-x pinch-zoom`). A vertical drag on them is the bar's (the tracker's), never a scroll of the document: both rows never move as one, no white page bounces under Safari's bar, and no pull-to-refresh starts from the chrome |
+| Covered strip | (v1.4) The stack lets taps through where it draws nothing: the strip the covered bar leaves is the page's to tap and scroll |
+| Ends | (v1.4) The page position the bar and the dock follow is clamped to the page (0 to its range): the rubber band at the top or the bottom moves neither |
+| Pull-to-refresh | (v1.4) None. The page scroller contains its overscroll; html and body have `overscroll-behavior-y: none`; the chrome takes no vertical pan. Safari's pull-to-refresh never starts and the page never reloads under the finger. There is no in-app pull-to-refresh |
+| Finger up | (v1.4) A touch whose element is removed mid-gesture (the header's data arriving, a skeleton giving way) still ends: the tracker listens on the touched element too, so the bar always settles |
 | Corners | A 24 Sporty Blue strip rides just under the bar's top edge, so the rounded corners show blue at rest and while the bar slides |
 | Handle | 36 × 4, radius full, the tertiary ink at 40%, centred 4 below the bar's top edge, in the bar's 8 phone strip. Decorative (`aria-hidden`); the drag is the control, so no target smaller than 44 is added |
 | Under the chrome | Sticky rows inside a page and scroll-into-view stop at the chrome's visible bottom (`--house-phone-chrome-visible`), not under it |
 | Access | The covered band stays in the accessibility tree. Keyboard focus into it brings the bar back |
-| Status-bar tap | While the tap bridge holds the window at 1, html's scroll anchoring is off (`house-lead-scroll-to-top`), so no layout shift can read as a status-bar tap |
+| Status-bar tap | While the tap bridge holds the window at 1, html's scroll anchoring is off (`house-lead-scroll-to-top`), so no layout shift can read as a status-bar tap. (v1.4) A window at 0 while a finger is on the page, or within 400ms of the last lift, came from the finger, not the status bar: the bridge puts the window back without moving the page |
 | Reset | Every navigation starts open |
 
 ---
@@ -134,7 +157,10 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 **G7.** Phone: the lead stack is `max-md:absolute` over `main`; `main`'s first child is `data-house-phone-chrome-spacer` (`md:hidden`, the chrome's height); the band never changes height.  
 **G8.** One tracker: the phone shell provides `HousePhoneChromeContext` and writes `--house-phone-sheet-y` (the cover, 0–56) on the shell each scroll; the bar, the corner strip, and the Education search row translate by it; no other scroll listener hides the dock.  
 **G9.** The bar's first child is `data-house-lead-grip` (`aria-hidden`, `md:hidden`, 36 × 4); the phone bar is 64 with an 8 top strip.  
-**G10.** The cover follows the scroll 1:1, clamped 0–56, 0 at the top; it settles only at rest, the way it was moving (180ms); a vertical drag on `[data-house-lead-stack]` moves it 1:1; near the top both scroll the page by the change in cover.
+**G10.** The cover follows the scroll 1:1, clamped 0–56, 0 at the top; it settles only at rest, the way it was moving (180ms); a vertical drag on `[data-house-lead-stack]` moves it 1:1; near the top both scroll the page by the change in cover.  
+**G11.** (v1.4) The band, its row, the bar, the Education search row and the dock carry `touch-pan-x touch-pinch-zoom`; the stack is `max-md:pointer-events-none` and what it draws is `max-md:pointer-events-auto`; html and body have `overscroll-behavior-y: none`.  
+**G12.** (v1.4) At rest the dock lands with the bar (`housePhoneDockAtRest`): covered hides it, open shows it; the page position is clamped to the page (`housePhoneSheetPageY`); the tracker listens for the finger-up on the touched element; the bridge ignores a 0 a finger made.  
+**G13.** (v1.4) The band's track remembers its rail (`rememberRail`): the rail's position is restored before the current pill is revealed.
 
 ## Verify-on-ship
 
@@ -146,3 +172,8 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 6. (v1.3) Scroll down slowly: the bar follows the finger over the band, pixel for pixel. Stop halfway and let go: it settles the way you were going. Scroll up anywhere: the bar slides back with the finger.
 7. (v1.3) Drag the bar down and up: it moves under the finger; release and it settles. Slide the band's pills sideways: the bar stays.
 8. (v1.3) Dashboard and Reports tables: the sticky header row stops under the bar, not behind it.
+9. (v1.4) iPhone Safari (and WebKit at 390 × 844 and 430 × 932): deep in the feed, pull the bar down: the page stays where it was, no reload, no white band, the two rows never move as one.
+10. (v1.4) Drag the band, the bar and the dock up and down: only the bar moves (dock: nothing). At the top, pull down on the band: no spinner, no reload.
+11. (v1.4) Cover the band, then tap a post in the strip just under the bar: the post takes it.
+12. (v1.4) Slide the band to Education, open a story or Explore, come back: the row is where it was. Every other return: no jump.
+13. (v1.4) Scroll a little and stop, slow and fast, and jitter: the bar rests only open or covered, and the dock with it. Bounce at the bottom of the feed: neither moves.

@@ -30,6 +30,7 @@ import { WorkspaceSwitcher } from "@/components/chrome/workspace-switcher";
 import { UserMenu } from "@/components/chrome/user-menu";
 import {
   HOUSE_LEAD_CHROME_CLASS,
+  HOUSE_PHONE_CHROME_TOUCH_CLASS,
   HOUSE_LEAD_LOGO_CLASS,
   HOUSE_LEAD_PHONE_PAD_CLASS,
   HOUSE_LEAD_SCROLL_CLASS,
@@ -322,8 +323,14 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     // top radius, and an 8 strip above the 56 row for the grab handle
     // (shell-phone-workspace-band-lock-v1 §2, §5). md+ keeps the glass.
     expect(HOUSE_LEAD_CHROME_CLASS).toBe(
-      `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] max-md:h-[calc(var(--header-height)+var(--space-2))] max-md:pt-[var(--space-2)] ${HOUSE_LEAD_PHONE_PAD_CLASS}`,
+      `relative flex items-center justify-end gap-0 md:gap-[var(--space-6)] border-b border-hairline bg-bg/85 backdrop-blur max-md:rounded-t-[var(--radius-xl)] max-md:bg-bg max-md:backdrop-blur-none h-[var(--header-height)] max-md:h-[calc(var(--header-height)+var(--space-2))] max-md:pt-[var(--space-2)] ${HOUSE_LEAD_PHONE_PAD_CLASS} ${HOUSE_PHONE_CHROME_TOUCH_CLASS}`,
     );
+    // Phone (band lock v1.4): the bar takes taps and sideways pans only; a
+    // vertical drag on it is the tracker's, never a scroll of the document.
+    expect(HOUSE_PHONE_CHROME_TOUCH_CLASS).toBe(
+      "max-md:pointer-events-auto max-md:touch-pan-x max-md:touch-pinch-zoom",
+    );
+    expect(HOUSE_LEAD_UNDER_NAV_CLASS).toContain(HOUSE_PHONE_CHROME_TOUCH_CLASS);
     expect(HOUSE_LEAD_LOGO_CLASS).toBe(
       "inline-flex h-[var(--header-control-size)] min-w-[var(--header-control-size)] shrink-0 items-center -ml-[11px] pl-[11px]",
     );
@@ -492,8 +499,10 @@ describe("house lead chrome — unify-lead-now G1–G9", () => {
     // md+ the stack starts at the full-height side menu's edge.
     // Phone: it floats over main (shell-phone-workspace-band-lock-v1 §5
     // v1.3); page scroll still lives on main, so overscroll never carries it.
+    // v1.4: the stack lets taps through where it draws nothing (the strip
+    // the covered bar leaves is the page's).
     expect(HOUSE_LEAD_STACK_CLASS).toBe(
-      "sticky top-0 z-40 shrink-0 max-md:absolute max-md:inset-x-0 max-md:top-0 md:ml-[var(--sidebar-width)]",
+      "sticky top-0 z-40 shrink-0 max-md:absolute max-md:inset-x-0 max-md:top-0 max-md:pointer-events-none md:ml-[var(--sidebar-width)]",
     );
     expect(HOUSE_LEAD_STACK_CLASS).toContain("sticky");
     expect(HOUSE_LEAD_STACK_CLASS).toContain("top-0");
