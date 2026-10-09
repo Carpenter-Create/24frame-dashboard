@@ -72,8 +72,8 @@ async function mkUser(label) {
   return { id: data.user.id, email, client: c, cookie: sessionCookie(s.session) };
 }
 
-const META = { synopsis: "A film.", runtime_minutes: "96", release_year: "2024",
-               genre: "Drama", primary_language: "en", country_of_origin: "US" };
+const META = { synopsis: "A film.", runtime_minutes: 96, release_year: 2024,
+               genre: "drama", primary_language: "en", country_of_origin: "US" };
 
 async function seedOrg(owner, name) {
   const c = owner.client;
