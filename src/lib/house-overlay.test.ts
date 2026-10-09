@@ -5,7 +5,12 @@ import { ACCOUNT_SHEET_SURFACE_CLASS } from "./account-sheet";
 import { APP_SHEET_CHROME_CLASS, APP_SHEET_HOST_CLASS, APP_SHEET_SCRIM_CLASS } from "./house-sheet";
 import { HOUSE_PAGE_SELECT_TRIGGER_LABEL_CLASS } from "./house-page-select";
 import { MENU_SURFACE_CONTENT_CLASS, MENU_SURFACE_ITEM_CLASS, menuSurfaceContentClass } from "./menu-surface";
-import { SOCIAL_COMMENT_SHEET_SURFACE_CLASS, SOCIAL_PROFILE_EDIT_HOST_CLASS } from "./social-chrome";
+import {
+  SOCIAL_COMMENT_SHEET_SURFACE_CLASS,
+  SOCIAL_PROFILE_EDIT_HOST_CLASS,
+  SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS,
+} from "./social-chrome";
+import { SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS } from "./social-write-compose-sheet";
 import {
   APP_SHEET_FULL_HOST_CLASS,
   APP_SHEET_LOCK_HOST_CLASS,
@@ -14,6 +19,7 @@ import {
   HOUSE_DIALOG_FORM_CLASS,
   HOUSE_DIALOG_HOST_CLASS,
   HOUSE_DIALOG_PANEL_CLASS,
+  HOUSE_DIALOG_WINDOW_CLASS,
   HOUSE_DRAWER_HOST_CLASS,
   HOUSE_DRAWER_PANEL_CLASS,
   HOUSE_OVERLAY_HOSTS,
@@ -45,7 +51,12 @@ describe("HouseOverlay dual-host lock v1", () => {
       "confirm",
       "side-edit",
       "anchored",
+      "object-edit",
     ]);
+    // One object edited over the page that shows it (amended 2026-10-09):
+    // the composer and Edit profile. Phone is the full sheet.
+    expect(houseOverlayHost("object-edit", "phone")).toBe("app-sheet");
+    expect(houseOverlayHost("object-edit", "desktop")).toBe("house-dialog");
 
     expect(houseOverlayHost("account-system", "phone")).toBe("app-sheet");
     expect(houseOverlayHost("account-system", "desktop")).toBe("menu-surface");
@@ -113,6 +124,19 @@ describe("HouseOverlay dual-host lock v1", () => {
     expect(overlayClassMixesHosts(HOUSE_DIALOG_PANEL_CLASS)).toBe(false);
   });
 
+  it("G4 window: one 600 geometry for every window (the composer, Edit profile)", () => {
+    expect(HOUSE_DIALOG_WINDOW_CLASS).toBe("w-[min(92vw,600px)] rounded-[var(--radius-xl)] border-0");
+    expect(SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS).toBe(`${HOUSE_DIALOG_WINDOW_CLASS} p-[var(--space-4)]`);
+    expect(SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS.startsWith(HOUSE_DIALOG_WINDOW_CLASS)).toBe(true);
+    expect(overlayClassMixesHosts(SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS)).toBe(false);
+    const doc = src("docs/design-locks/house-overlay-dual-host-v1.md");
+    expect(doc).toContain("Max width 600 for a window");
+    expect(doc).toContain("No overlay over an empty page");
+    const out = doc.slice(doc.indexOf("## OUT"), doc.indexOf("## Why"));
+    expect(out).not.toContain("No Dialog for durable settings");
+    expect(out).toContain("No Dialog for a Settings index or a Settings destination");
+  });
+
   it("G5 puts durable side edit in a right drawer and never a phone side strip", () => {
     expect(HOUSE_DRAWER_HOST_CLASS).toContain("hidden");
     expect(HOUSE_DRAWER_HOST_CLASS).toContain("md:block");
@@ -139,7 +163,14 @@ describe("HouseOverlay dual-host lock v1", () => {
 
     expect(SOCIAL_PROFILE_EDIT_HOST_CLASS).toContain("md:hidden");
     expect(SOCIAL_PROFILE_EDIT_HOST_CLASS).not.toContain("w-[400px]");
-    expect(src("src/components/social/social-profile-edit.tsx")).toContain("HouseDrawerFrame");
+    // Edit profile left the drawer (it floated over an empty page): it is
+    // the window over the live profile now. Never a drawer over nothing.
+    expect(src("src/components/social/social-profile-edit.tsx")).not.toContain("HouseDrawerFrame");
+    expect(src("src/components/social/social-profile-edit-face.tsx")).not.toContain("HouseDrawerFrame");
+    const editWindow = src("src/components/social/social-profile-edit-window.tsx");
+    expect(editWindow).toContain("HouseDialogFrame");
+    expect(editWindow).toContain("SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS");
+    expect(SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS.startsWith(HOUSE_DIALOG_WINDOW_CLASS)).toBe(true);
   });
 
   it("G6 hugs MenuSurface at radius 12 with a 44px item and no shadow", () => {

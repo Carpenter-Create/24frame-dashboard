@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { APP_SHEET_HOST_CLASS, APP_SHEET_SCRIM_CLASS } from "@/lib/house-sheet";
 import { SOCIAL } from "@/lib/social";
+import { SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS } from "@/lib/social-chrome";
 import { SocialProfileAvatarSheet } from "./social-profile-avatar-sheet";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -46,6 +47,17 @@ describe("SocialProfileAvatarSheet", () => {
     expect(src).not.toContain("MenuSurface");
     expect(src).not.toContain("absolute left-1/2");
     expect(src).not.toContain("popover");
+    // The anchored menu is the desktop Edit window's only (placement inline).
+    expect(html).not.toContain(SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS);
+    expect(src).toContain('const inline = placement === "inline";');
+    // Centred with no transform, so the fixed click-outside layer covers
+    // the screen (a transformed box would clip it to the menu).
+    expect(SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS).not.toMatch(/translate/);
+    expect(SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS).toContain("mx-auto");
+    const inline = src.slice(src.indexOf("if (inline) {"), src.indexOf("const sheet = desktop"));
+    expect(inline).toContain('className="fixed inset-0 cursor-default"');
+    expect(inline).not.toContain('aria-modal="true"');
+    expect(src).toContain('inlineListRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus()');
   });
 
   it("shows Remove current picture only when a photo exists", () => {
@@ -79,7 +91,8 @@ describe("SocialProfileAvatarSheet", () => {
   });
 
   it("is the Edit Profile avatar action — not a file-input popover", () => {
-    expect(editSrc).toContain("setAvatarSheet(true)");
+    // Edit picture (and the avatar) toggle the house menu.
+    expect(editSrc).toContain("onClick={() => edit.setAvatarSheet(!edit.avatarSheet)}");
     expect(editSrc).toContain("SocialProfileAvatarSheet");
     expect(editSrc).toContain("removeAccountPhoto");
     expect(editSrc).not.toContain("fileRef.current?.click()");

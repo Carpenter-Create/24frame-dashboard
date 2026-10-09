@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { readSocialProfile } from "@/app/(app)/social/query-actions";
 import { SocialProfileAvatarEdit } from "@/components/social/social-profile-avatar-edit";
@@ -29,6 +29,17 @@ import {
   type SocialProfileIdentityView,
   type SocialProfileOptimisticSnapshot,
 } from "@/lib/social-profile-edit";
+
+// The owner's identity as the face shows it (server, query row and the
+// optimistic overlay merged). Edit profile's window opens from this, so it
+// always edits what is on the page.
+export type SocialOwnProfileIdentity = SocialProfileIdentityView & { profileId?: string };
+
+const OwnIdentityContext = createContext<SocialOwnProfileIdentity | null>(null);
+
+export function useSocialOwnProfileIdentity(): SocialOwnProfileIdentity | null {
+  return useContext(OwnIdentityContext);
+}
 
 type OwnProfileFace = SocialProfileIdentityView & {
   /** Stored framing of the kept original and its cover. Null: no original (Reposition opens the picker). */
@@ -161,7 +172,7 @@ function SocialOwnProfileFaceView({
   ]);
 
   return (
-    <>
+    <OwnIdentityContext.Provider value={{ ...merged, profileId }}>
       <SocialProfileIdentity
         name={merged.displayName}
         handle={merged.handle}
@@ -180,7 +191,7 @@ function SocialOwnProfileFaceView({
         actions={actions}
       />
       {merged.welcomeVideoUrl ? <SocialWelcomeVideo present /> : null}
-    </>
+    </OwnIdentityContext.Provider>
   );
 }
 

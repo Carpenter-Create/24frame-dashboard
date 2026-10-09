@@ -1,4 +1,5 @@
 import { SocialProfileEditForm } from "@/components/social/social-profile-edit";
+import { SocialProfileEditDesktopHop } from "@/components/social/social-profile-edit-entry";
 import { signedAvatarUrl } from "@/lib/s3-avatars";
 import { SOCIAL_PROFILE_EDIT_FACE_PARAM, SOCIAL_ROUTES } from "@/lib/social";
 import { SOCIAL_WELCOME_VIDEO_PRESENT } from "@/lib/social-query";
@@ -25,8 +26,11 @@ export default async function SocialProfileEditPage({
   if (!profile) redirect(SOCIAL_ROUTES.profile);
   const welcomeVideoUrl = profile.welcome_video_key ? SOCIAL_WELCOME_VIDEO_PRESENT : null;
 
+  const initialFace = parseSocialProfileEditFace(sp[SOCIAL_PROFILE_EDIT_FACE_PARAM]);
   return (
-    <SocialProfileEditForm
+    <>
+      <SocialProfileEditDesktopHop face={initialFace} />
+      <SocialProfileEditForm
       profileId={profile.id}
       handle={profile.handle}
       displayName={profile.display_name}
@@ -37,7 +41,8 @@ export default async function SocialProfileEditPage({
       topics={profile.topics ?? []}
       imdbUrl={profile.imdb_url ?? ""}
       websiteUrl={profile.website_url ?? ""}
-      initialFace={parseSocialProfileEditFace(sp[SOCIAL_PROFILE_EDIT_FACE_PARAM])}
-    />
+      initialFace={initialFace}
+      />
+    </>
   );
 }

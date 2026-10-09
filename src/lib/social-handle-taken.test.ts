@@ -42,8 +42,12 @@ describe("lookupHandleCollision", () => {
     expect(actionSrc).toContain("socialHandleInputError");
     expect(actionSrc).toContain("lookupHandleCollision");
     expect(actionSrc).toContain("handleTakenError");
-    expect(editSrc).toContain("SOCIAL.profile.handleTaken");
-    expect(editSrc).toContain("setHandleError(result.error)");
+    // Handle errors (taken included) land on the Username face; a changed
+    // username waits for the server's answer before Edit closes.
+    expect(editSrc).toContain("socialProfileSaveFieldError(notice)");
+    expect(editSrc).toContain("setHandleError(notice)");
+    expect(editSrc).toContain("showSaveError(result.error)");
+    expect(editSrc).toContain("socialProfileEditHandleChanged(baseline.username, username)");
     expect(handleFaceSrc).toContain("socialHandleDisplayError");
   });
 });
