@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
 
 import { removeAccountPhoto, uploadAccountPhoto } from "@/app/(app)/account/actions";
-import { AppSheetCard, AppSheetFrame, HouseScrim } from "@/components/chrome/house-overlay";
+import { HouseWindowAsk, useHouseLeaveGuard } from "@/components/chrome/house-window";
 import { HouseLink } from "@/components/chrome/house-link";
 import {
   clearSocialWelcomeVideo,
@@ -25,7 +25,6 @@ import { SocialProfileNameEditor } from "@/components/social/social-profile-name
 import { SocialProfileRolesEditor } from "@/components/social/social-profile-roles";
 import { SocialProfileTopicsEditor } from "@/components/social/social-profile-topics";
 import { SocialIcon } from "@/components/social/social-icon";
-import { Button } from "@/components/ui/button";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
 import {
@@ -49,12 +48,6 @@ import {
   SOCIAL_PROFILE_EDIT_BACK_CLASS,
   SOCIAL_PROFILE_EDIT_BODY_CLASS,
   SOCIAL_PROFILE_EDIT_CARD_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_ACTIONS_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_LINE_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_SHEET_ACTIONS_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_STRIP_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_TITLE_CLASS,
   SOCIAL_PROFILE_EDIT_DONE_CLASS,
   SOCIAL_PROFILE_EDIT_HEADER_CLASS,
   SOCIAL_PROFILE_EDIT_HOST_CLASS,
@@ -591,16 +584,9 @@ export function useSocialProfileEditDraft({
 export type SocialProfileEditDraft = ReturnType<typeof useSocialProfileEditDraft>;
 
 /** The browser's own prompt while the draft has changes (reload, close tab). */
-export function useSocialProfileEditLeaveGuard(dirty: boolean) {
-  useEffect(() => {
-    if (!dirty) return undefined;
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
-}
+/** While the draft has changes, reloading or closing the tab raises the
+ *  browser's own prompt (the house window shell's guard). */
+export const useSocialProfileEditLeaveGuard = useHouseLeaveGuard;
 
 /** Photo, welcome video and the drill rows: nothing typed on the index. */
 const WELCOME_MEDIA_TILE = socialCreateTile("media")!;
@@ -892,94 +878,23 @@ export function SocialProfileEditDiscardAsk({
   onKeep: () => void;
   onDiscard: () => void;
 }) {
-  const keepRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    keepRef.current?.focus();
-  }, []);
-  const notes = [
+  const lines = [
     socialProfileEditDiscardLine(edit.changed),
     edit.photoSaved ? SOCIAL.profile.discardPhotoSaved : "",
     edit.videoSaved ? SOCIAL.profile.discardVideoSaved : "",
   ].filter(Boolean);
-  const body = (
-    <>
-      <h2 id={titleId} className={SOCIAL_PROFILE_EDIT_DISCARD_TITLE_CLASS}>
-        {SOCIAL.profile.discardTitle}
-      </h2>
-      {notes.map((note) => (
-        <p key={note} className={SOCIAL_PROFILE_EDIT_DISCARD_LINE_CLASS}>
-          {note}
-        </p>
-      ))}
-      <div
-        className={
-          variant === "strip" ? SOCIAL_PROFILE_EDIT_DISCARD_ACTIONS_CLASS : SOCIAL_PROFILE_EDIT_DISCARD_SHEET_ACTIONS_CLASS
-        }
-      >
-        {variant === "strip" ? (
-          <>
-            <Button
-              variant="secondary"
-              data-social-profile-edit-discard=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onDiscard}
-            >
-              {SOCIAL.profile.discardConfirm}
-            </Button>
-            <Button
-              ref={keepRef}
-              data-social-profile-edit-keep=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onKeep}
-            >
-              {SOCIAL.profile.discardKeep}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              ref={keepRef}
-              data-social-profile-edit-keep=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onKeep}
-            >
-              {SOCIAL.profile.discardKeep}
-            </Button>
-            <Button
-              variant="secondary"
-              data-social-profile-edit-discard=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onDiscard}
-            >
-              {SOCIAL.profile.discardConfirm}
-            </Button>
-          </>
-        )}
-      </div>
-    </>
-  );
-  if (variant === "strip") {
-    return (
-      <div
-        data-social-profile-edit-discard-ask=""
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={SOCIAL_PROFILE_EDIT_DISCARD_STRIP_CLASS}
-      >
-        {body}
-      </div>
-    );
-  }
   return (
-    <AppSheetFrame span="card" titleId={titleId}>
-      <HouseScrim label={SOCIAL.profile.discardKeep} onClose={onKeep} />
-      <AppSheetCard className="gap-[var(--space-3)]">
-        <div data-social-profile-edit-discard-ask="" className="flex flex-col gap-[var(--space-3)]">
-          {body}
-        </div>
-      </AppSheetCard>
-    </AppSheetFrame>
+    <HouseWindowAsk
+      attr="social-profile-edit"
+      variant={variant}
+      titleId={titleId}
+      title={SOCIAL.profile.discardTitle}
+      lines={lines}
+      keepLabel={SOCIAL.profile.discardKeep}
+      discardLabel={SOCIAL.profile.discardConfirm}
+      onKeep={onKeep}
+      onDiscard={onDiscard}
+    />
   );
 }
 

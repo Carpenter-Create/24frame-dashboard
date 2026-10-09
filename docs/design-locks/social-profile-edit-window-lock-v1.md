@@ -88,8 +88,8 @@ A design panel (five approaches, three judges: premium feel, user experience and
 
 ## Gates
 
-- `house-overlay.test.ts`: G1 maps `object-edit` to app-sheet (phone) and house-dialog (desktop); G4 window: one 600 geometry (`HOUSE_DIALOG_WINDOW_CLASS`), the composer and Edit profile compose from it; G5: Edit profile and its faces carry no HouseDrawerFrame.
-- `social-profile-edit-window.test.tsx`: the window's header contract, Esc order, the ask, Done paths, held height, the inline photo menu.
+- `house-overlay.test.ts`: G1 maps `object-edit` to app-sheet (phone) and house-dialog (desktop); G4 window: one 600 geometry (`HOUSE_DIALOG_WINDOW_CLASS`), the composer and the house window shell compose from it; G5: Edit profile and its faces carry no HouseDrawerFrame, and the window draws the shell.
+- `social-profile-edit-window.test.tsx`: the window's header contract, Esc order, the ask, Done paths, held height, the inline photo menu. Edit profile is drawn by the house window shell (`components/chrome/house-window`, `lib/house-window`); `house-window.test.tsx` and `house-window.test.ts` hold the shell's own contract.
 - `social-profile-edit.test.ts` (lib): the changed-fields diff, the discard line, `?edit` parsing, the error → face map, Bio in the one save.
 
 ## Verify on ship

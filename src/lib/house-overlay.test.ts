@@ -5,11 +5,8 @@ import { ACCOUNT_SHEET_SURFACE_CLASS } from "./account-sheet";
 import { APP_SHEET_CHROME_CLASS, APP_SHEET_HOST_CLASS, APP_SHEET_SCRIM_CLASS } from "./house-sheet";
 import { HOUSE_PAGE_SELECT_TRIGGER_LABEL_CLASS } from "./house-page-select";
 import { MENU_SURFACE_CONTENT_CLASS, MENU_SURFACE_ITEM_CLASS, menuSurfaceContentClass } from "./menu-surface";
-import {
-  SOCIAL_COMMENT_SHEET_SURFACE_CLASS,
-  SOCIAL_PROFILE_EDIT_HOST_CLASS,
-  SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS,
-} from "./social-chrome";
+import { HOUSE_WINDOW_PANEL_CLASS } from "./house-window";
+import { SOCIAL_COMMENT_SHEET_SURFACE_CLASS, SOCIAL_PROFILE_EDIT_HOST_CLASS } from "./social-chrome";
 import { SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS } from "./social-write-compose-sheet";
 import {
   APP_SHEET_FULL_HOST_CLASS,
@@ -124,11 +121,11 @@ describe("HouseOverlay dual-host lock v1", () => {
     expect(overlayClassMixesHosts(HOUSE_DIALOG_PANEL_CLASS)).toBe(false);
   });
 
-  it("G4 window: one 600 geometry for every window (the composer, Edit profile)", () => {
+  it("G4 window: one 600 geometry for every window (the composer, the house window shell)", () => {
     expect(HOUSE_DIALOG_WINDOW_CLASS).toBe("w-[min(92vw,600px)] rounded-[var(--radius-xl)] border-0");
     expect(SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS).toBe(`${HOUSE_DIALOG_WINDOW_CLASS} p-[var(--space-4)]`);
-    expect(SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS.startsWith(HOUSE_DIALOG_WINDOW_CLASS)).toBe(true);
-    expect(overlayClassMixesHosts(SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS)).toBe(false);
+    expect(HOUSE_WINDOW_PANEL_CLASS.startsWith(HOUSE_DIALOG_WINDOW_CLASS)).toBe(true);
+    expect(overlayClassMixesHosts(HOUSE_WINDOW_PANEL_CLASS)).toBe(false);
     const doc = src("docs/design-locks/house-overlay-dual-host-v1.md");
     expect(doc).toContain("Max width 600 for a window");
     expect(doc).toContain("No overlay over an empty page");
@@ -167,10 +164,12 @@ describe("HouseOverlay dual-host lock v1", () => {
     // the window over the live profile now. Never a drawer over nothing.
     expect(src("src/components/social/social-profile-edit.tsx")).not.toContain("HouseDrawerFrame");
     expect(src("src/components/social/social-profile-edit-face.tsx")).not.toContain("HouseDrawerFrame");
-    const editWindow = src("src/components/social/social-profile-edit-window.tsx");
-    expect(editWindow).toContain("HouseDialogFrame");
-    expect(editWindow).toContain("SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS");
-    expect(SOCIAL_PROFILE_EDIT_WINDOW_PANEL_CLASS.startsWith(HOUSE_DIALOG_WINDOW_CLASS)).toBe(true);
+    // Every object-edit window draws the one house window shell.
+    expect(src("src/components/social/social-profile-edit-window.tsx")).toContain("HouseWindowFrame");
+    const shell = src("src/components/chrome/house-window.tsx");
+    expect(shell).toContain("HouseDialogFrame");
+    expect(shell).toContain("panelClassName={HOUSE_WINDOW_PANEL_CLASS}");
+    expect(shell).not.toContain("HouseDrawerFrame");
   });
 
   it("G6 hugs MenuSurface at radius 12 with a 44px item and no shadow", () => {

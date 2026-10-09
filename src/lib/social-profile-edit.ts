@@ -22,6 +22,7 @@
 // + a short cookie keep the phone hop off the skeleton.
 
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
+import { houseWindowClosedHref, houseWindowOpenHref, parseHouseWindowParam } from "@/lib/house-window";
 import { persistSocialMutation } from "@/lib/social-optimistic";
 import {
   BIO_MAX,
@@ -428,9 +429,7 @@ export function socialProfileEditFormData(draft: SocialProfileEditSaveDraft): Fo
 
 /** `?edit` / `?edit=<face>` on the profile: the desktop window and its face. */
 export function parseSocialProfileEditWindow(search: string): SocialProfileEditFace | null {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  if (!params.has(SOCIAL_PROFILE_EDIT_WINDOW_PARAM)) return null;
-  return parseSocialProfileEditFace(params.get(SOCIAL_PROFILE_EDIT_WINDOW_PARAM));
+  return parseHouseWindowParam(search, SOCIAL_PROFILE_EDIT_WINDOW_PARAM, parseSocialProfileEditFace);
 }
 
 /** The address with the window open at `face` (every other param kept, so
@@ -440,11 +439,7 @@ export function socialProfileEditWindowOpenHref(
   search: string,
   face: SocialProfileEditFace = "edit",
 ): string {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  params.delete(SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
-  const rest = params.toString();
-  const value = face === "edit" ? "" : `=${encodeURIComponent(face)}`;
-  return `${pathname}?${rest ? `${rest}&` : ""}${SOCIAL_PROFILE_EDIT_WINDOW_PARAM}${value}`;
+  return houseWindowOpenHref(pathname, search, SOCIAL_PROFILE_EDIT_WINDOW_PARAM, face, "edit");
 }
 
 /** Edit's index address for the page it is on: the window (`?edit`) or the
@@ -505,10 +500,7 @@ export function clearSocialProfileEditWelcomeReturn(): void {
 
 /** The address with the window's query removed (every other param kept). */
 export function socialProfileEditWindowClosedHref(pathname: string, search: string): string {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  params.delete(SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
-  const rest = params.toString();
-  return rest ? `${pathname}?${rest}` : pathname;
+  return houseWindowClosedHref(pathname, search, SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
 }
 
 function sameList(a: readonly string[], b: readonly string[]): boolean {
