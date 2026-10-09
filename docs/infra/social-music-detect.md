@@ -429,12 +429,13 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    recheck. Quarantine copies have no other cleanup. The 30-day rule on
    tag `gc-hold=quarantine` is the only one. Apply it from
    `docs/infra/avatar-storage-setup.md`, then run this read-only check.
-   Stop when that rule is missing. Do not set the env var until the check
-   shows it.
+   Stop when that rule is missing, not Enabled, filtered on a tag other
+   than `gc-hold=quarantine`, or set to an expiration other than 30 days.
+   Do not set the env var until the check shows it.
 
 ```sh
 aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET" \
-  --query "Rules[?ID=='avatars-quarantine-30d' && Status=='Enabled']"
+  --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
 ```
 
 4. Dry-run the image recheck, then execute it. `--execute` writes each
@@ -471,15 +472,14 @@ aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET" \
    A face that will not decode is not left at `avatars/{user-id}/avatar`.
    The recheck copies that object to
    `avatars/{user-id}/quarantine/{object-id}` and deletes the canonical
-   key. Nothing signs a quarantine key. Rollback is
-   `restoreQuarantinedAvatar`. It copies
+   key. Nothing signs a quarantine key. Rollback is the CLI below. Copy
    `avatars/{user-id}/quarantine/{object-id}` onto
-   `avatars/{user-id}/avatar` with `TaggingDirective: REPLACE` and an empty
-   tag set, sends DeleteObjectTagging, and reads the tags back. It deletes
+   `avatars/{user-id}/avatar` with `--tagging-directive REPLACE` and an empty
+   tag set, send `delete-object-tagging`, and read the tags back. Delete
    the quarantine object only when that read has no `gc-hold` tag. Set
    `profiles.avatar_key` to null with the service role or the table owner
-   only after `restoreQuarantinedAvatar` returns. A plain CopyObject keeps
-   `gc-hold`, and the restored face would expire. The same order with the CLI:
+   only after that tag read has no `gc-hold` tag. A plain copy keeps
+   `gc-hold`, and the restored face would expire.
 
 ```sh
 aws s3api copy-object \
@@ -548,11 +548,16 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
    pointer stays on the old face. This bucket's lifecycle config is not in
    the repo. The 30-day tag rule is the only cleanup for quarantine copies.
    It is the pre-deploy gate in step 3, before `S3_AVATARS_BUCKET` is set.
-   The read-only check there must show rule `avatars-quarantine-30d` Enabled.
+   The read-only check there must show rule `avatars-quarantine-30d` Enabled,
+   filtered on tag `gc-hold=quarantine`, with expiration 30 days.
    The same step applies the IAM policy in `docs/infra/avatar-storage-setup.md`:
    `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:GetObjectTagging`,
    `s3:PutObjectTagging`, and `s3:DeleteObjectTagging` on `avatars/*`, and
    `s3:ListBucket` on the avatars bucket with no `s3:prefix` condition.
+   The missing-key head in that file runs as `gc-assets-app`, with the same
+   `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` the app uses. Do not run
+   that head as an admin principal. An admin head can return 404 while the
+   app user still gets 403.
    The apply and the read-only check are in
    `docs/infra/avatar-storage-setup.md`, before `S3_AVATARS_BUCKET` is set.
    Do not run them from CI. Do not point them at the title-asset bucket.

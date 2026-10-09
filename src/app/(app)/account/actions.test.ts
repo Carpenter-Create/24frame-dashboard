@@ -166,7 +166,7 @@ function photoForm(file: File) {
 
 function profileUpdateClient(
   previousKey: string | null = null,
-  result: { data: { id: string }[] | null; error: { message: string } | null } = {
+  result: { data: { id: string }[] | null; error: { message: string; code?: string } | null } = {
     data: [{ id: USER.id }],
     error: null,
   },
@@ -265,17 +265,37 @@ describe("uploadAccountPhoto", () => {
     expect(captureException).not.toHaveBeenCalled();
   });
 
-  it("leaves the old photo in place when the pointer swap fails", async () => {
-    const client = profileUpdateClient(previousKey, { data: null, error: { message: "swap failed" } });
+  it("does not tag an upload when the swap errors and the re-read still shows the old pointer", async () => {
+    // The client errors at 150ms while the server PATCH waits on a row lock and then commits.
+    // The re-read still shows the old pointer. That is not proof the swap rolled back.
+    const client = profileUpdateClient(previousKey, {
+      data: null,
+      error: { message: "FetchError: request timed out" },
+    });
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
-    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "FetchError: request timed out" });
+    expect(client.maybeSingle).toHaveBeenCalledTimes(2);
     expect(client.adminUpdate).toHaveBeenCalled();
     expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey, expect.any(Function));
-    expect(applyAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(applyAvatarHoldTag).not.toHaveBeenCalled();
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("re-holds an upload when the swap error proves the transaction rolled back", async () => {
+    const client = profileUpdateClient(previousKey, {
+      data: null,
+      error: { message: "new row violates check", code: "23514" },
+    });
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "new row violates check" });
+    expect(client.maybeSingle).toHaveBeenCalledTimes(2);
+    expect(applyAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
   });
 
   it("leaves the old photo in place when the pointer no longer matches", async () => {
@@ -293,9 +313,11 @@ describe("uploadAccountPhoto", () => {
   });
 
   it("does not re-hold an upload when the pointer is not read again", async () => {
-    const client = profileUpdateClient(previousKey, { data: null, error: { message: "swap failed" } });
+    const client = profileUpdateClient(previousKey, { data: [], error: null });
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
-    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({
+      error: ACCOUNT_PROFILE.photoFailed,
+    });
     expect(client.maybeSingle).toHaveBeenCalledTimes(2);
     const reread = client.maybeSingle.mock.invocationCallOrder[1] ?? 0;
     const hold = vi.mocked(applyAvatarHoldTag).mock.invocationCallOrder[0] ?? 0;
@@ -305,7 +327,7 @@ describe("uploadAccountPhoto", () => {
   });
 
   it("does not re-hold an upload when the pointer read times out", async () => {
-    const client = profileUpdateClient(previousKey, { data: null, error: { message: "swap failed" } });
+    const client = profileUpdateClient(previousKey, { data: [], error: null });
     client.maybeSingle
       .mockResolvedValueOnce({ data: { avatar_key: previousKey }, error: null })
       .mockRejectedValueOnce(Object.assign(new Error("socket timeout"), { name: "TimeoutError" }));
@@ -317,17 +339,22 @@ describe("uploadAccountPhoto", () => {
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
   });
 
-  it("does not re-hold an upload when the pointer names the key", async () => {
-    const client = profileUpdateClient(previousKey, { data: null, error: { message: "swap failed" } });
+  it("deletes the replaced objects when the re-read names the new key", async () => {
+    const client = profileUpdateClient(previousKey, { data: [], error: null });
     client.maybeSingle
       .mockResolvedValueOnce({ data: { avatar_key: previousKey }, error: null })
       .mockResolvedValueOnce({ data: { avatar_key: nextKey }, error: null });
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
-    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});
     expect(applyAvatarHoldTag).not.toHaveBeenCalled();
-    expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
-    expect(captureException).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
+    expect(deleteReplacedAvatarObjects).toHaveBeenCalledWith(
+      USER.id,
+      previousKey,
+      nextKey,
+      expect.any(Function),
+    );
+    expect(captureException).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/settings");
     expect(avatarPointerNamesKey(USER.id, nextKey, nextKey)).toBe(true);
   });
 

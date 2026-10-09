@@ -15,8 +15,9 @@
  * It is not skipped.
  * An avatar that will not decode is cleared so the default face shows. The
  * canonical object is moved to avatars/{id}/quarantine/{objectId}. That
- * prefix is never signed. Rollback is restoreQuarantinedAvatar: the copy
- * replaces tags, and the pointer is set only after gc-hold is gone.
+ * prefix is never signed. Rollback is the CLI in
+ * docs/infra/social-music-detect.md: the copy replaces tags, and the
+ * pointer is set only after gc-hold is gone.
  * One page is read, rechecked, and dropped before the next page.
  * Do not run this against production from CI. Adam runs it after the SQL is applied.
  *
@@ -28,10 +29,10 @@ import { randomUUID } from "node:crypto";
 import {
   AVATAR_CLEARED,
   avatarObjectKey,
-  avatarPointerNamesKey,
   avatarRecheckObjectKey,
   isAvatarRecheckKey,
 } from "@/lib/account-avatar";
+import { avatarSwapFailureDecision } from "@/lib/avatar-swap-rollback";
 import {
   applyAvatarHoldTag,
   headAvatarRecheck,
@@ -108,7 +109,7 @@ type AvatarPointerQuery = {
   is: (column: "avatar_key", value: null) => AvatarPointerQuery;
   select: (columns: "id") => PromiseLike<{
     data: { id: string }[] | null;
-    error: { message: string } | null;
+    error: { message: string; code?: string } | null;
   }>;
 };
 
@@ -126,7 +127,7 @@ export async function writeAvatarPointer(
   parentId: string,
   readKey: string | null,
   nextKey: string,
-): Promise<{ data: { id: string }[] | null; error: { message: string } | null }> {
+): Promise<{ data: { id: string }[] | null; error: { message: string; code?: string } | null }> {
   const update = admin.from("profiles").update({ avatar_key: nextKey }).eq("id", parentId);
   const filtered = readKey === null ? update.is("avatar_key", null) : update.eq("avatar_key", readKey);
   return await filtered.select("id");
@@ -155,10 +156,13 @@ async function readProfileAvatarKey(admin: AvatarPointerWriter, userId: string):
 /**
  * Release the hold, confirm it, then move the pointer.
  * A failed release throws and the pointer stays on the face that was read.
- * Any failure after a successful release re-reads profiles.avatar_key.
- * gc-hold goes back on the new key only when that read proves the key is not live.
- * A read that names the key, or a read that errors, leaves the tag off and the
- * key unfinished.
+ * A failure after a successful release re-reads profiles.avatar_key.
+ * gc-hold goes back on the new key only when the swap itself proves it did
+ * not commit (zero rows, or a documented Postgres rollback SQLSTATE) and
+ * that read shows the key is not live. A transport, timeout, or unknown
+ * error leaves the key unfinished and untagged. The re-read is not proof.
+ * A re-read that names the new key is success. The original object stays
+ * so this run can be reversed. This path does not delete it.
  */
 export async function commitRecheckedAvatar(
   admin: AvatarPointerWriter,
@@ -172,22 +176,26 @@ export async function commitRecheckedAvatar(
 ): Promise<{ skipped: true; orphanKey: string } | Record<string, never>> {
   await releaseHold(parentId, nextKey);
   const { data, error } = await writeAvatarPointer(admin, parentId, readKey, nextKey);
-  if (error || !data || data.length === 0) {
-    let live: string | null;
-    try {
-      live = await readPointer();
-    } catch (readError) {
-      const failure = readError instanceof Error ? readError : new Error("avatar pointer was not read");
-      throw Object.assign(failure, { orphanKey: nextKey });
-    }
-    if (avatarPointerNamesKey(parentId, live, nextKey)) {
-      throw Object.assign(new Error("avatar pointer names the new face"), { orphanKey: nextKey });
-    }
+  if (!error && data && data.length > 0) return {};
+  let live: string | null;
+  try {
+    live = await readPointer();
+  } catch (readError) {
+    const failure = readError instanceof Error ? readError : new Error("avatar pointer was not read");
+    throw Object.assign(failure, { orphanKey: nextKey });
+  }
+  const decision = avatarSwapFailureDecision({ error, data, live, userId: parentId, key: nextKey });
+  if (decision === "committed") {
+    // The pointer already names this key, so the swap is the live face.
+    return {};
+  }
+  if (decision === "rehold") {
     await rehold(parentId, nextKey);
     assertOk(error, "point avatar at rechecked image");
     return { skipped: true, orphanKey: nextKey };
   }
-  return {};
+  const unfinished = new Error(error?.message || "avatar swap did not prove a rollback");
+  throw Object.assign(unfinished, { orphanKey: nextKey });
 }
 
 /** Include a null pointer. Exclude a cleared pointer. */

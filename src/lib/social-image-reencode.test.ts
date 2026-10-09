@@ -719,7 +719,7 @@ describe("reencodeSocialImage", () => {
     expect(held).toEqual([next]);
   });
 
-  it("re-tags the new key when the recheck pointer update errors", async () => {
+  it("does not tag a recheck key when the swap errors and the re-read still shows the old pointer", async () => {
     const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
     const user = "11111111-1111-4111-8111-111111111111";
     const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
@@ -738,7 +738,48 @@ describe("reencodeSocialImage", () => {
         return writer;
       },
       select() {
-        return Promise.resolve({ data: null, error: { message: "swap failed" } });
+        return Promise.resolve({ data: null, error: { message: "FetchError: request timed out" } });
+      },
+    };
+    const held: string[] = [];
+    // The client errors at 150ms while the server PATCH waits on a row lock and then commits.
+    // The re-read still shows the old pointer. That is not proof the swap rolled back.
+    await expect(
+      commitRecheckedAvatar(
+        writer,
+        user,
+        previous,
+        next,
+        async () => undefined,
+        async (_userId, key) => {
+          held.push(key);
+        },
+        async () => previous,
+      ),
+    ).rejects.toMatchObject({ message: "FetchError: request timed out", orphanKey: next });
+    expect(held).toEqual([]);
+  });
+
+  it("re-tags the new key when the swap error proves the transaction rolled back", async () => {
+    const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(user, "33333333-3333-4333-8333-333333333333");
+    const writer = {
+      from() {
+        return writer;
+      },
+      update() {
+        return writer;
+      },
+      eq() {
+        return writer;
+      },
+      is() {
+        return writer;
+      },
+      select() {
+        return Promise.resolve({ data: null, error: { message: "new row violates check", code: "23514" } });
       },
     };
     const held: string[] = [];
@@ -754,7 +795,7 @@ describe("reencodeSocialImage", () => {
         },
         async () => previous,
       ),
-    ).rejects.toThrow(/swap failed/);
+    ).rejects.toThrow(/point avatar at rechecked image: new row violates check/);
     expect(held).toEqual([next]);
   });
 
@@ -818,7 +859,7 @@ describe("reencodeSocialImage", () => {
         return writer;
       },
       select() {
-        return Promise.resolve({ data: null, error: { message: "swap failed" } });
+        return Promise.resolve({ data: [], error: null });
       },
     };
     const held: string[] = [];
@@ -840,7 +881,7 @@ describe("reencodeSocialImage", () => {
     expect(held).toEqual([]);
   });
 
-  it("does not re-hold a recheck key when the pointer names the key", async () => {
+  it("treats a recheck pointer that already names the new key as committed", async () => {
     const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
     const user = "11111111-1111-4111-8111-111111111111";
     const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
@@ -875,7 +916,7 @@ describe("reencodeSocialImage", () => {
         },
         async () => next,
       ),
-    ).rejects.toMatchObject({ message: "avatar pointer names the new face", orphanKey: next });
+    ).resolves.toEqual({});
     expect(held).toEqual([]);
   });
 

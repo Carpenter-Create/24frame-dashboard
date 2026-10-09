@@ -113,7 +113,11 @@ async function writeHoldTag(s3: S3Client, bucket: string, key: string): Promise<
   await assertHoldTagStored(s3, bucket, key);
 }
 
-/** Put gc-hold back on this member's face so the 30-day rule can expire an object the pointer does not name. */
+/**
+ * Put gc-hold back on this member's face so the 30-day rule can expire an object the pointer does not name.
+ * This write does not read the pointer. Callers tag only after they have proof the swap or tag-delete
+ * did not commit, and after the existing pointer re-read shows this key is not live.
+ */
 export async function applyAvatarHoldTag(userId: string, key: string): Promise<void> {
   const allowed =
     key === avatarObjectKey(userId) ||
@@ -233,9 +237,10 @@ export async function putAvatarRecheckObject(input: {
 /**
  * Remove gc-hold and confirm the read has no gc-hold tag.
  * Callers move the pointer only after this returns. A throw leaves the old face in place.
- * Putting the tag back re-reads the pointer first. The tag is written only when that
- * read proves the key is not live. A read that names the key, or a read that fails,
- * leaves the tag off.
+ * A thrown tag read is not proof the tag delete rolled back, so the tag stays off.
+ * A successful read that still shows gc-hold is that proof. Putting the tag back
+ * then re-reads the pointer. The tag is written only when that read shows the key
+ * is not live. A read that names the key, or a read that fails, leaves the tag off.
  */
 export async function releaseAvatarHoldTag(
   userId: string,
@@ -257,13 +262,8 @@ export async function releaseAvatarHoldTag(
     await writeHoldTag(s3, bucket, key);
   };
   await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: key }));
-  try {
-    const tags = await readObjectTags(s3, bucket, key);
-    if (!holdTagRemains(tags)) return;
-  } catch (error) {
-    await restoreHold().catch(() => undefined);
-    throw error;
-  }
+  const tags = await readObjectTags(s3, bucket, key);
+  if (!holdTagRemains(tags)) return;
   await restoreHold();
   throw new Error("Avatar hold tag remains");
 }
@@ -294,6 +294,9 @@ export async function readAvatarObject(
 /**
  * Delete these exact keys. Read the pointer immediately before each delete
  * and leave the key that read names. A read failure deletes nothing further.
+ * A thrown DeleteObject is not proof the object remains. S3 has no rollback
+ * class this caller can use, and another head would be a new read. Report
+ * the leftover and do not tag it.
  */
 async function deleteExactAvatarKeys(
   userId: string,
@@ -309,13 +312,6 @@ async function deleteExactAvatarKeys(
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     } catch {
       leftovers.push(key);
-      try {
-        const again = await readPointer();
-        if (avatarPointerNamesKey(userId, again, key)) continue;
-      } catch {
-        continue;
-      }
-      await writeHoldTag(s3, bucket, key).catch(() => undefined);
     }
   }
   if (leftovers.length > 0) {

@@ -15,10 +15,10 @@ import {
   AVATAR_MAX_BYTES,
   avatarKeyNamedForRemove,
   avatarKeysReadForRemove,
-  avatarPointerNamesKey,
   isAvatarContentType,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
+import { avatarSwapFailureDecision } from "@/lib/avatar-swap-rollback";
 import {
   applyAvatarHoldTag,
   deleteAvatarObject,
@@ -128,26 +128,38 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
     const update = admin.from("profiles").update({ avatar_key: stored.key }).eq("id", ctx.user.id);
     const filtered = previousKey == null ? update.is("avatar_key", null) : update.eq("avatar_key", previousKey);
     const { data, error } = await filtered.select("id");
-    if (error || !data || data.length === 0) {
+    let swapLanded = Boolean(!error && data && data.length > 0);
+    if (!swapLanded) {
+      let live: string | null;
       try {
-        const live = await readOwnAvatarKey(ctx.user.id);
-        if (avatarPointerNamesKey(ctx.user.id, live, stored.key)) {
-          await reportAvatarOrphan([stored.key], new Error("avatar pointer names the new face"));
-          return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
-        }
+        live = await readOwnAvatarKey(ctx.user.id);
       } catch (readError) {
         await reportAvatarOrphan([stored.key], readError);
         return {
           error: readError instanceof Error && readError.message ? readError.message : ACCOUNT_PROFILE.photoFailed,
         };
       }
-      try {
-        await applyAvatarHoldTag(ctx.user.id, stored.key);
-      } catch (holdError) {
-        await reportAvatarOrphan([stored.key], holdError);
+      const decision = avatarSwapFailureDecision({
+        error,
+        data,
+        live,
+        userId: ctx.user.id,
+        key: stored.key,
+      });
+      if (decision === "committed") {
+        swapLanded = true;
+      } else if (decision === "rehold") {
+        try {
+          await applyAvatarHoldTag(ctx.user.id, stored.key);
+        } catch (holdError) {
+          await reportAvatarOrphan([stored.key], holdError);
+        }
+        await reportAvatarOrphan([stored.key], error ?? new Error("avatar_key changed before replace"));
+        return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
+      } else {
+        await reportAvatarOrphan([stored.key], error ?? new Error("avatar swap did not prove a rollback"));
+        return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
       }
-      await reportAvatarOrphan([stored.key], error ?? new Error("avatar_key changed before replace"));
-      return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
     }
     try {
       await deleteReplacedAvatarObjects(ctx.user.id, previousKey, stored.key, () => readOwnAvatarKey(ctx.user.id));

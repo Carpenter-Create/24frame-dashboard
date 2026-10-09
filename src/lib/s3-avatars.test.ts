@@ -408,10 +408,8 @@ describe("s3-avatars dedicated bucket", () => {
       return {};
     });
     await expect(releaseAvatarHoldTag(UID, key, async () => null)).rejects.toThrow(/tag read failed/);
-    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
-    expect(put).toBeInstanceOf(PutObjectTaggingCommand);
-    expect(put.input.Key).toBe(key);
-    expect(reads).toBeGreaterThan(1);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
+    expect(reads).toBe(1);
   });
 
   it("re-tags the new key when the confirm read times out", async () => {
@@ -424,9 +422,7 @@ describe("s3-avatars dedicated bucket", () => {
       return {};
     });
     await expect(releaseAvatarHoldTag(UID, key, async () => null)).rejects.toThrow(/socket timeout/);
-    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
-    expect(put).toBeInstanceOf(PutObjectTaggingCommand);
-    expect(put.input.Key).toBe(key);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
   });
 
   it("TG4b: a gc-hold tag with any value still blocks", async () => {
@@ -611,7 +607,7 @@ describe("s3-avatars dedicated bucket", () => {
     expect(avatarPointerNamesKey(UID, null, KEY)).toBe(true);
   });
 
-  it("keeps deleting after one delete fails and tags the object that remains", async () => {
+  it("keeps deleting after one delete fails and leaves that object untagged", async () => {
     const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
     const next = avatarRecheckObjectKey(UID, "33333333-3333-4333-8333-333333333333");
     let deletes = 0;
@@ -628,11 +624,10 @@ describe("s3-avatars dedicated bucket", () => {
       leftoverKeys: [KEY],
     });
     expect(deletedKeys()).toEqual([KEY, previous]);
-    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
-    expect(put.input.Key).toBe(KEY);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
   });
 
-  it("keeps deleting a removed face after one delete fails and tags what remains", async () => {
+  it("keeps deleting a removed face after one delete fails and leaves that object untagged", async () => {
     const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
     mockSend.mockImplementation(async (command: unknown) => {
       if (command instanceof DeleteObjectCommand && command.input.Key === previous) {
@@ -645,8 +640,7 @@ describe("s3-avatars dedicated bucket", () => {
       leftoverKeys: [previous],
     });
     expect(deletedKeys()).toEqual([previous, KEY]);
-    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
-    expect(put.input.Key).toBe(previous);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
   });
 
   it("does not re-hold a delete leftover without reading the pointer again", async () => {
@@ -669,9 +663,8 @@ describe("s3-avatars dedicated bucket", () => {
         return next;
       }),
     ).rejects.toMatchObject({ leftoverKeys: [KEY] });
-    expect(reads).toBe(3);
-    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
-    expect(put.input.Key).toBe(KEY);
+    expect(reads).toBe(2);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
   });
 
   it("does not re-hold a delete leftover when the pointer read times out", async () => {
@@ -686,10 +679,11 @@ describe("s3-avatars dedicated bucket", () => {
     await expect(
       deleteReplacedAvatarObjects(UID, previous, next, async () => {
         reads += 1;
-        if (reads === 2) throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
+        if (reads > 2) throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
         return next;
       }),
     ).rejects.toMatchObject({ leftoverKeys: [KEY] });
+    expect(reads).toBe(2);
     expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
   });
 
@@ -705,9 +699,10 @@ describe("s3-avatars dedicated bucket", () => {
     await expect(
       deleteReplacedAvatarObjects(UID, previous, next, async () => {
         reads += 1;
-        return reads === 2 ? null : next;
+        return reads === 1 ? next : null;
       }),
     ).rejects.toMatchObject({ leftoverKeys: [KEY] });
+    expect(reads).toBe(2);
     expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
     expect(avatarPointerNamesKey(UID, null, KEY)).toBe(true);
   });
@@ -740,7 +735,8 @@ describe("s3-avatars dedicated bucket", () => {
     expect(directive).toBeGreaterThan(-1);
     expect(directive).toBeLessThan(read);
     expect(read).toBeLessThan(stop);
-    expect(notes).toContain("only after `restoreQuarantinedAvatar` returns");
+    expect(notes).not.toContain("restoreQuarantinedAvatar");
+    expect(notes).toContain("Rollback is the CLI below");
     const avatars = readFileSync("src/lib/s3-avatars.ts", "utf8");
     expect(avatars.split("new CopyObjectCommand(").length - 1).toBe(2);
     expect(readFileSync("src/lib/s3-social-media.ts", "utf8")).not.toContain("gc-hold");
@@ -753,6 +749,18 @@ describe("s3-avatars dedicated bucket", () => {
     expect(setup).toContain("no `s3:prefix` condition");
     expect(setup).toContain("must return 404");
     expect(setup).toContain('head-object --bucket "$AVATARS_BUCKET"');
+    expect(setup).toContain("as an admin principal");
+    const policyAttach = setup.indexOf("aws iam put-user-policy --user-name gc-assets-app --policy-name gc-avatars-s3");
+    const head = setup.indexOf('head-object --bucket "$AVATARS_BUCKET"');
+    expect(policyAttach).toBeGreaterThan(-1);
+    expect(head).toBeGreaterThan(policyAttach);
+    expect(setup).toContain("Filter.Tag.Key==`gc-hold`");
+    expect(setup).toContain("Filter.Tag.Value==`quarantine`");
+    expect(setup).toContain("Expiration.Days==`30`");
+    expect(notes).toContain("Filter.Tag.Key==`gc-hold`");
+    expect(notes).toContain("Filter.Tag.Value==`quarantine`");
+    expect(notes).toContain("Expiration.Days==`30`");
+    expect(notes).toContain("as an admin principal");
     const lifecycle = setup.indexOf("avatars-quarantine-30d");
     const env = setup.indexOf("S3_AVATARS_BUCKET=gc-avatars-prod");
     expect(lifecycle).toBeGreaterThan(-1);
