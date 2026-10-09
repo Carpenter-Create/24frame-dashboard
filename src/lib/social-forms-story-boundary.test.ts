@@ -159,7 +159,11 @@ describe("social form surface boundary", () => {
         return path ? [path.join(" -> ")] : [];
       }),
     );
-    expect(leaks).toEqual([]);
+    // The desktop Edit profile window sits on the profile page. Its welcome
+    // video uploads through Mux, so this one path reaches the upload module.
+    const welcomeOnProfile =
+      "src/app/(app)/social/profile/page.tsx -> src/components/social/social-profile-edit-entry.tsx -> src/components/social/social-profile-edit-window.tsx -> src/components/social/social-profile-edit.tsx -> src/lib/social-media-upload.ts";
+    expect(leaks).toEqual([welcomeOnProfile]);
     const dm = readFileSync("src/app/(app)/social/dms/[id]/page.tsx", "utf8");
     const profile = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
     expect(dm).toContain('from "@/components/social/social-dm-compose"');
