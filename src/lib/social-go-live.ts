@@ -72,20 +72,36 @@ export const SOCIAL_GO_LIVE_FRAME_ASPECT = {
   reel: 9 / 16,
 } as const satisfies Record<GoLiveFrame, number>;
 
-/** The camera a computer asks for: 16:9 HD. With no size, browsers open a
- *  webcam at 640 × 480 (4:3). Ideal, not exact: the nearest mode wins and
- *  the recording is cut to the frame's shape. A camera chosen in the picker
- *  is asked for by id (exact) instead of by facing. The phone asks for
- *  nothing but its facing. */
+/** Each frame's standard upload size, the most a clip records at (Adam
+ *  2026-10-08: "standard youtube video/landscape video dimensions", "and
+ *  then vertical reel dimensions"; then "build the upgrade"). A camera with
+ *  less detail records its own pixels: never scaled up. */
+export const SOCIAL_GO_LIVE_FRAME_SIZE = {
+  full: { width: 1920, height: 1080 },
+  reel: { width: 1080, height: 1920 },
+} as const satisfies Record<GoLiveFrame, { width: number; height: number }>;
+
+/** The camera a computer asks for. 16:9: HD (1920 × 1080); with no size,
+ *  browsers open a webcam at 640 × 480 (4:3). 9:16: the most it has, up to
+ *  4K (3840 × 2160) at 30 fps, since the 9:16 cut keeps only the camera's
+ *  height: a 1080-line camera gives 606 × 1080, a 4K one the full
+ *  1080 × 1920. Ideal, not exact: the nearest mode wins and the recording
+ *  is cut to the frame's shape. A camera chosen in the picker is asked for
+ *  by id (exact) instead of by facing. The phone asks for nothing but its
+ *  facing. */
 export function goLiveVideoConstraints(
   facing: StoryStudioFacing,
   desktop: boolean,
   deviceId?: string | null,
+  frame: GoLiveFrame = "full",
 ): MediaTrackConstraints {
   const base = storyRecorderVideoConstraints(facing);
   if (!desktop) return base;
-  const hd = { width: { ideal: 1920 }, height: { ideal: 1080 } };
-  return deviceId ? { deviceId: { exact: deviceId }, ...hd } : { ...base, ...hd };
+  const size =
+    frame === "reel"
+      ? { width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 30 } }
+      : { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  return deviceId ? { deviceId: { exact: deviceId }, ...size } : { ...base, ...size };
 }
 
 // Camera picker (social-go-live-camera-chrome-lock-v1 §Camera picker, Adam
@@ -171,23 +187,33 @@ export function findGoLiveCamera(
 
 const even = (n: number) => Math.max(2, Math.floor(n / 2) * 2);
 
-/** The centre cut of a camera frame at an aspect (source pixels, even sizes,
- *  no upscale), or null when the camera already has that shape (within 1%)
- *  or has not reported its size: record the camera as it is. A 720p webcam
- *  keeps its height for 9:16; a 4:3 webcam keeps its width for 16:9. */
-export function goLiveFrameCut(
-  width: number,
-  height: number,
-  aspect: number,
-): { sx: number; sy: number; sw: number; sh: number } | null {
+/** How a camera frame records in a frame's shape: the centre cut at its
+ *  aspect (source pixels sx/sy/sw/sh, even sizes), drawn at the standard
+ *  size (dw × dh) when the cut has that much detail, else at its own size:
+ *  scaled down, never up. A 1080p webcam keeps its height for 9:16
+ *  (606 × 1080); a 4K one gives 1080 × 1920; a 4:3 webcam keeps its width
+ *  for 16:9. Null when the camera already has the shape at or under the
+ *  standard size (within 1%), or has not reported its size: record the
+ *  camera as it is. */
+export type GoLiveCut = { sx: number; sy: number; sw: number; sh: number; dw: number; dh: number };
+
+export function goLiveFrameCut(width: number, height: number, frame: GoLiveFrame): GoLiveCut | null {
   if (!(width > 0 && height > 0)) return null;
-  if (Math.abs(width / height - aspect) / aspect < 0.01) return null;
-  if (width / height > aspect) {
-    const sw = even(height * aspect);
-    const sh = even(height);
-    return { sx: Math.floor((width - sw) / 2), sy: Math.floor((height - sh) / 2), sw, sh };
+  const aspect = SOCIAL_GO_LIVE_FRAME_ASPECT[frame];
+  const standard = SOCIAL_GO_LIVE_FRAME_SIZE[frame];
+  const shaped = Math.abs(width / height - aspect) / aspect < 0.01;
+  let sw = width;
+  let sh = height;
+  if (!shaped && width / height > aspect) {
+    sw = even(height * aspect);
+    sh = even(height);
+  } else if (!shaped) {
+    sw = even(width);
+    sh = even(width / aspect);
   }
-  const sw = even(width);
-  const sh = even(width / aspect);
-  return { sx: Math.floor((width - sw) / 2), sy: Math.floor((height - sh) / 2), sw, sh };
+  const detailed = sh >= standard.height;
+  const dw = detailed ? standard.width : sw;
+  const dh = detailed ? standard.height : sh;
+  if (shaped && dw === width && dh === height) return null;
+  return { sx: Math.floor((width - sw) / 2), sy: Math.floor((height - sh) / 2), sw, sh, dw, dh };
 }
