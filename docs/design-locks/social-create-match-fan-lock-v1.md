@@ -22,6 +22,10 @@
 
 Asked, the founder picked **"Media · Write · Record (Recommended)"** (one word each, and true: the camera records a clip, then posts it; nothing streams live) and **"Match the fan (Recommended)"**: the row's rounds are the fan's Media and Record, Record opens the 24Frame camera (never the phone's own camera app), and the write composer takes the desktop window's layout on the phone too.
 
+Asked whether the camera's own header should read "Record" or stay "Go live" (2026-10-09):
+
+> Record
+
 ---
 
 ## 1) Labels
