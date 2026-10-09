@@ -11,6 +11,7 @@ import {
   HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS,
   HOUSE_FORM_SELECT_TYPE_AHEAD_MS,
   houseFormSelectListKey,
+  houseFormSelectListKeyDown,
   houseFormSelectMatch,
   houseFormSelectOptionClass,
   houseFormSelectStep,
@@ -237,5 +238,131 @@ describe("house inline list (HousePageSelectOptions inline)", () => {
       typed: { text: "", at: t0 },
     });
     expect(HOUSE_FORM_SELECT_TYPE_AHEAD_MS).toBe(500);
+  });
+});
+
+describe("house inline list keydown (houseFormSelectListKeyDown)", () => {
+  const options = [
+    { label: "Canada" },
+    { label: "China" },
+    { label: "Colombia" },
+    { label: "Norway" },
+    { label: "United Kingdom" },
+    { label: "United States" },
+  ];
+  const idle = { text: "", at: 0 };
+  const t0 = 10_000;
+
+  // The drawn option buttons, logging what the list does to them.
+  function drawn() {
+    const log: string[] = [];
+    const nodes = options.map((_, i) => ({
+      focus: () => log.push(`focus ${i}`),
+      scrollIntoView: (opts?: ScrollIntoViewOptions) => log.push(`scroll ${i} ${opts?.block}`),
+    }));
+    return { nodes, log };
+  }
+
+  function press(key: string, mods: Partial<Record<"metaKey" | "ctrlKey" | "altKey", boolean>> = {}) {
+    const event = {
+      key,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      ...mods,
+      prevented: false,
+      preventDefault() {
+        event.prevented = true;
+      },
+    };
+    return event;
+  }
+
+  it("steps from the focused option, cancels the key's default and moves focus", () => {
+    const { nodes, log } = drawn();
+    const down = press("ArrowDown");
+    expect(houseFormSelectListKeyDown(options, nodes, nodes[1], down, idle, t0)).toEqual(idle);
+    expect(down.prevented).toBe(true);
+    expect(log).toEqual(["focus 2", "scroll 2 nearest"]);
+
+    log.length = 0;
+    const up = press("ArrowUp");
+    houseFormSelectListKeyDown(options, nodes, nodes[4], up, idle, t0);
+    expect(up.prevented).toBe(true);
+    expect(log).toEqual(["focus 3", "scroll 3 nearest"]);
+
+    log.length = 0;
+    houseFormSelectListKeyDown(options, nodes, nodes[2], press("End"), idle, t0);
+    houseFormSelectListKeyDown(options, nodes, nodes[5], press("Home"), idle, t0);
+    expect(log).toEqual(["focus 5", "scroll 5 nearest", "focus 0", "scroll 0 nearest"]);
+  });
+
+  it("starts before the first option when focus is not on one", () => {
+    const { nodes, log } = drawn();
+    houseFormSelectListKeyDown(options, nodes, { not: "an option" }, press("ArrowDown"), idle, t0);
+    houseFormSelectListKeyDown(options, nodes, null, press("ArrowUp"), idle, t0);
+    expect(log).toEqual(["focus 0", "scroll 0 nearest", "focus 5", "scroll 5 nearest"]);
+  });
+
+  it("keeps the typed word from key to key", () => {
+    const { nodes, log } = drawn();
+    const u = press("u");
+    const afterU = houseFormSelectListKeyDown(options, nodes, nodes[0], u, idle, t0);
+    expect(afterU).toEqual({ text: "u", at: t0 });
+    expect(u.prevented).toBe(true);
+    expect(log).toEqual(["focus 4", "scroll 4 nearest"]);
+
+    // "un" stays on United Kingdom; a dropped buffer would jump to Norway.
+    log.length = 0;
+    const afterN = houseFormSelectListKeyDown(options, nodes, nodes[4], press("n"), afterU, t0 + 100);
+    expect(afterN).toEqual({ text: "un", at: t0 + 100 });
+    expect(log).toEqual(["focus 4", "scroll 4 nearest"]);
+  });
+
+  it("types a Space inside a word, and leaves a picking Space to the button", () => {
+    const { nodes, log } = drawn();
+    const mid = press(" ");
+    const typed = houseFormSelectListKeyDown(
+      options,
+      nodes,
+      nodes[4],
+      mid,
+      { text: "united", at: t0 },
+      t0 + 100,
+    );
+    expect(mid.prevented).toBe(true);
+    expect(typed.text).toBe("united ");
+
+    log.length = 0;
+    const pick = press(" ");
+    expect(houseFormSelectListKeyDown(options, nodes, nodes[4], pick, idle, t0)).toEqual(idle);
+    expect(pick.prevented).toBe(false);
+    expect(log).toEqual([]);
+  });
+
+  it("passes Enter, Tab, Esc and modified keys through untouched", () => {
+    const { nodes, log } = drawn();
+    const keys = [
+      press("Enter"),
+      press("Tab"),
+      press("Escape"),
+      press("u", { metaKey: true }),
+      press("u", { ctrlKey: true }),
+      press("u", { altKey: true }),
+    ];
+    for (const event of keys) {
+      const typed = { text: "c", at: t0 };
+      expect(houseFormSelectListKeyDown(options, nodes, nodes[0], event, typed, t0 + 10)).toBe(typed);
+      expect(event.prevented).toBe(false);
+    }
+    expect(log).toEqual([]);
+  });
+
+  it("leaves focus alone when nothing matches, but keeps the word", () => {
+    const { nodes, log } = drawn();
+    const z = press("z");
+    expect(houseFormSelectListKeyDown(options, nodes, nodes[0], z, idle, t0)).toEqual({ text: "z", at: t0 });
+    expect(z.prevented).toBe(true);
+    expect(log).toEqual([]);
   });
 });

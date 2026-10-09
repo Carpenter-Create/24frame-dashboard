@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -16,11 +16,18 @@ import {
   HOUSE_PAGE_SELECT_TRIGGER_CLASS,
   housePageSelectGroupLabelId,
   housePageSelectInlineOptionClass,
+  housePageSelectOptionsInOrder,
   housePageSelectTabStop,
   type HousePageSelectGroup,
 } from "@/lib/house-page-select";
+import { houseWindowFocusables } from "@/lib/house-window";
 import { stripSourceComments } from "@/test/strip-source-comments";
-import { housePageSelectPinRenders } from "@/test/house-page-select-pins";
+import {
+  HOUSE_PAGE_SELECT_PIN_PATH,
+  HOUSE_PAGE_SELECT_PIN_UPDATE_ENV,
+  housePageSelectPinJson,
+  housePageSelectPinRenders,
+} from "@/test/house-page-select-pins";
 import { HousePageSelect, HousePageSelectOptions } from "./house-page-select";
 
 describe("HousePageSelect", () => {
@@ -88,18 +95,25 @@ describe("HousePageSelect", () => {
 });
 
 // Today's callers draw exactly what they drew before the opt-in props
-// (origin/main 553a53a): the primitive in every branch, and every consumer
-// that can render open. The deliver stepper's closed select is the
-// "no-match-open" case's props.
+// (first rendered from origin/main 553a53a): the primitive in every branch,
+// and every consumer that can render open. The deliver stepper's closed
+// select is the "no-match-open" case's props. A meant change to a caller's
+// markup rewrites the pin (src/test/house-page-select-pins.ts says how).
 describe("HousePageSelect default markup is pinned", () => {
-  const pinned = JSON.parse(
-    readFileSync("src/components/chrome/house-page-select.pin.json", "utf8"),
-  ) as Record<string, string>;
   const now = housePageSelectPinRenders();
+  if (process.env[HOUSE_PAGE_SELECT_PIN_UPDATE_ENV] === "1") {
+    writeFileSync(HOUSE_PAGE_SELECT_PIN_PATH, housePageSelectPinJson(now));
+  }
+  const raw = readFileSync(HOUSE_PAGE_SELECT_PIN_PATH, "utf8");
+  const pinned = JSON.parse(raw) as Record<string, string>;
 
   it("pins the same cases", () => {
     expect(Object.keys(now)).toEqual(Object.keys(pinned));
     expect(Object.keys(pinned).filter((key) => key.startsWith("consumer:"))).toHaveLength(7);
+  });
+
+  it("is the file the rewrite writes, byte for byte", () => {
+    expect(housePageSelectPinJson(pinned)).toBe(raw);
   });
 
   for (const name of Object.keys(pinned)) {
@@ -244,6 +258,16 @@ describe("HousePageSelectOptions inline", () => {
     expect(housePageSelectTabStop([], () => false, null)).toBeNull();
   });
 
+  it("draws its options in the order the keys walk them", () => {
+    // houseFormSelectListKeyDown pairs the drawn option buttons with
+    // housePageSelectOptionsInOrder by index.
+    const drawn = [...inlineList().matchAll(/data-house-page-select-option="([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+    expect(drawn).toEqual(housePageSelectOptionsInOrder(GROUPS).map((option) => option.key));
+    expect(drawn).toEqual(["CA", "US", "IE", "GB"]);
+  });
+
   it("wires the keys and owns no Esc, portal or sheet", () => {
     const src = stripSourceComments(
       readFileSync("src/components/chrome/house-page-select.tsx", "utf8"),
@@ -252,13 +276,67 @@ describe("HousePageSelectOptions inline", () => {
       src.indexOf("export function HousePageSelectOptions"),
       src.indexOf("function HousePageSelectSheet"),
     );
+    const flat = list.replace(/\s+/g, " ");
     expect(list).toContain("onKeyDown={inline ? onListKey : undefined}");
-    expect(list).toContain("houseFormSelectListKey(");
+    expect(list).toContain("ref={listRef}");
+    // Every key goes through the lib (lib/house-form-select tests it with
+    // fake nodes): the drawn options, the focused element, the event (whose
+    // default it cancels), and the type-ahead buffer it hands back.
+    expect(flat).toContain(
+      'const nodes = [ ...(listRef.current?.querySelectorAll<HTMLButtonElement>("[data-house-page-select-option]") ?? []), ];',
+    );
+    expect(flat).toContain(
+      "typedRef.current = houseFormSelectListKeyDown( housePageSelectOptionsInOrder(groups), nodes, document.activeElement, event, typedRef.current, Date.now(), );",
+    );
     expect(list).toContain("onFocus={inline ? () => setFocused(option.key) : undefined}");
     expect(list).toContain("tabIndex={inline ? (option.key === stop ? 0 : -1) : undefined}");
     expect(list).not.toContain("addEventListener");
     expect(list).not.toContain("createPortal");
     expect(list).not.toContain("Escape");
     expect(list).not.toContain("data-house-form-select-menu");
+  });
+});
+
+// An inline list's options other than its one stop are tabindex=-1, and the
+// house window's Tab trap (houseWindowFocusables) wraps at the last node it
+// counts. While it counts tabindex=-1 buttons, Tab from the list's stop at
+// the foot of a window body leaves the window. So the first caller of
+// HousePageSelectOptions lands with the trap change (Add right plan A1).
+describe("HousePageSelectOptions callers wait for the window Tab trap", () => {
+  function trapNode(tabindex: string) {
+    return {
+      tabIndex: Number(tabindex),
+      getAttribute: (name: string) => (name === "tabindex" ? tabindex : null),
+      hasAttribute: (name: string) => name === "tabindex",
+      matches: (selector: string) => selector.includes(`[tabindex="${tabindex}"]`),
+      closest: () => null,
+      classList: { contains: () => false },
+    };
+  }
+
+  it("has no caller until the trap skips tabindex=-1", () => {
+    const stop = trapNode("0");
+    const roving = trapNode("-1");
+    const root = { querySelectorAll: () => [stop, roving] } as unknown as HTMLElement;
+    const counted = houseWindowFocusables(root) as unknown[];
+    expect(counted).toContain(stop);
+    const trapSkipsRoving = !counted.includes(roving);
+
+    const callers = readdirSync("src", { recursive: true, encoding: "utf8" })
+      .filter((file) => /\.(ts|tsx)$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .map((file) => `src/${file}`)
+      .filter((file) => file !== "src/components/chrome/house-page-select.tsx")
+      .filter((file) =>
+        readFileSync(file, "utf8")
+          .split("\n")
+          .some(
+            (line) =>
+              !/^\s*(\/\/|\/\*|\*)/.test(line) && /\bHousePageSelectOptions\b/.test(line),
+          ),
+      );
+    expect(
+      callers.length === 0 || trapSkipsRoving,
+      `HousePageSelectOptions is used by ${callers.join(", ")} while houseWindowFocusables still counts tabindex=-1`,
+    ).toBe(true);
   });
 });

@@ -114,3 +114,48 @@ export function houseFormSelectListKey(
   const next = { text: text + key, at: now };
   return { focus: houseFormSelectMatch(options, next.text, index), handled: true, typed: next };
 }
+
+/** An option node an inline list moves focus to (its button). */
+export type HouseFormSelectListNode = {
+  focus: () => void;
+  scrollIntoView?: (options?: ScrollIntoViewOptions) => void;
+};
+
+export type HouseFormSelectListKeyEvent = {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  preventDefault: () => void;
+};
+
+/** One keydown on an inline house list. `nodes` are the drawn option
+ *  buttons in `options` order; `active` is the focused element (the step
+ *  starts from it, or from before the first when it is not an option). A
+ *  key used here has its default cancelled, so an arrow never scrolls the
+ *  page and a Space inside a word never picks; focus moves to the target.
+ *  Returns the type-ahead buffer the list keeps for its next key. */
+export function houseFormSelectListKeyDown(
+  options: readonly { label: string }[],
+  nodes: readonly HouseFormSelectListNode[],
+  active: unknown,
+  event: HouseFormSelectListKeyEvent,
+  typed: HouseFormSelectTyped,
+  now: number,
+): HouseFormSelectTyped {
+  const result = houseFormSelectListKey(
+    options,
+    nodes.findIndex((node) => node === active),
+    event.key,
+    event.metaKey || event.ctrlKey || event.altKey,
+    typed,
+    now,
+  );
+  if (result.handled) event.preventDefault();
+  const node = result.focus === null ? undefined : nodes[result.focus];
+  if (node) {
+    node.focus();
+    node.scrollIntoView?.({ block: "nearest" });
+  }
+  return result.typed;
+}

@@ -20,7 +20,7 @@ import { CaretDown } from "@phosphor-icons/react";
 
 import { AppearanceCheck } from "@/components/chrome/appearance-check";
 import { Close44 } from "@/components/chrome/house";
-import { houseFormSelectListKey, type HouseFormSelectTyped } from "@/lib/house-form-select";
+import { houseFormSelectListKeyDown, type HouseFormSelectTyped } from "@/lib/house-form-select";
 import {
   HOUSE_PAGE_SELECT_CHEVRON_CLASS,
   HOUSE_PAGE_SELECT_GROUP_CLASS,
@@ -216,9 +216,14 @@ export function HousePageSelect({
  *  - `inline`: the list laid flat (HOUSE_PAGE_SELECT_INLINE_LIST_CLASS) with
  *    the listbox `id`, labelled groups as role=group, one Tab stop (roving
  *    tabindex: the chosen option, else the first; it follows focus), ↓ ↑
- *    Home End and type-ahead (houseFormSelectListKey), 44 rows with the form
- *    hover. Still no Esc listener, portal or sheet, and never
+ *    Home End and type-ahead (houseFormSelectListKeyDown), 44 rows with the
+ *    form hover. Still no Esc listener, portal or sheet, and never
  *    data-house-form-select-menu: Esc stays its host's.
+ *    Inside a house window, `inline` needs the window's Tab trap to skip
+ *    tabindex=-1 (houseWindowFocusables, Add right plan A1): until then the
+ *    trap counts every option as a stop, and Tab from the list's one stop
+ *    can leave the window. The first inline caller lands with that change
+ *    (guarded in house-page-select.test.tsx).
  *  - `multiple` with `values`: aria-multiselectable; every listed key is
  *    chosen and onPick toggles in the caller.
  *  - an option's `detail`: a second line under its label. */
@@ -251,20 +256,14 @@ export function HousePageSelectOptions({
     const nodes = [
       ...(listRef.current?.querySelectorAll<HTMLButtonElement>("[data-house-page-select-option]") ?? []),
     ];
-    const result = houseFormSelectListKey(
+    typedRef.current = houseFormSelectListKeyDown(
       housePageSelectOptionsInOrder(groups),
-      nodes.indexOf(document.activeElement as HTMLButtonElement),
-      event.key,
-      event.metaKey || event.ctrlKey || event.altKey,
+      nodes,
+      document.activeElement,
+      event,
       typedRef.current,
       Date.now(),
     );
-    typedRef.current = result.typed;
-    if (result.handled) event.preventDefault();
-    const node = result.focus === null ? undefined : nodes[result.focus];
-    if (!node) return;
-    node.focus();
-    node.scrollIntoView?.({ block: "nearest" });
   }
 
   return (

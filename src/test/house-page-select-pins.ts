@@ -1,8 +1,11 @@
 // Test helper: the HousePageSelect markups pinned byte for byte in
-// src/components/chrome/house-page-select.pin.json. The pin was rendered
-// from origin/main 553a53a, before HousePageSelectOptions gained its opt-in
-// inline / multiple / detail props, so any change to what today's callers
-// draw fails house-page-select.test.tsx. The caller mocks next/navigation.
+// src/components/chrome/house-page-select.pin.json, so any change to what
+// today's callers draw fails house-page-select.test.tsx. The pin was first
+// rendered from origin/main 553a53a, before HousePageSelectOptions gained
+// its opt-in inline / multiple / detail props. When a change to a caller's
+// markup is meant, rewrite it and say so in the pull request:
+//   UPDATE_HOUSE_PAGE_SELECT_PIN=1 pnpm exec vitest run src/components/chrome/house-page-select.test.tsx
+// The caller mocks next/navigation.
 
 import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -19,6 +22,16 @@ import { dashboardPeriodOptions } from "@/lib/dashboard-admin";
 import { REPORTS_PERIOD_PRESETS } from "@/lib/reports";
 
 type PageSelectProps = ComponentProps<typeof HousePageSelect>;
+
+export const HOUSE_PAGE_SELECT_PIN_PATH = "src/components/chrome/house-page-select.pin.json";
+
+/** Set to "1" to rewrite the pin from what the cases draw now. */
+export const HOUSE_PAGE_SELECT_PIN_UPDATE_ENV = "UPDATE_HOUSE_PAGE_SELECT_PIN";
+
+/** The pin file's exact text for a set of renders. */
+export function housePageSelectPinJson(renders: Record<string, string>): string {
+  return `${JSON.stringify(renders, null, 2)}\n`;
+}
 
 const noop = () => undefined;
 
