@@ -1,7 +1,7 @@
 # [GC][24Frame] LOCK — Title metadata: the window over the title page v1
 
 **Date:** 2026-10-09
-**Status:** **DRAFT FOR FOUNDER APPROVAL.** The pull request stays a draft until Adam approves this lock.
+**Status:** **LOCKED** (Adam, 2026-10-09, "approved") · Design Own→READY
 **Scope:** Aggregation title detail: editing a title's metadata and release info. Covers the host, the one draft, the one save, leaving with changes, and who may edit.
 **Entity:** Global Content / 24Frame only
 **Follows:** [`social-profile-edit-window-lock-v1.md`](social-profile-edit-window-lock-v1.md) (the house window) and [`house-overlay-dual-host-v1.md`](house-overlay-dual-host-v1.md) (the object-edit job).
@@ -28,6 +28,7 @@ Answers given on 2026-10-09:
 | Error lines | "Specific line (Recommended)" |
 | Partial save | "Stay open on Release (Recommended)" |
 | Original release date | "Yes, app check now (Recommended)": it must be in the past |
+| This lock, with Release's "Re-release · {date}" | "approved" |
 
 ---
 
@@ -100,7 +101,7 @@ The same ask as Edit profile. On desktop it is a strip at the window's foot: Dis
 - the error lines "Enter whole minutes, 1 to 1,000.", "Enter a year from 1888 to {max}.", "Up to 4,000 characters.", "Up to 200 characters.", "Up to 50 entries.", "Choose one from the list.";
 - "Choose a date in the past."
 
-**New, for approval with this lock:** Release's row summary "Re-release · {date}".
+**New, approved with this lock:** Release's row summary "Re-release · {date}".
 
 ## Gates
 
