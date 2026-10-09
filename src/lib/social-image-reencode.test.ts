@@ -887,4 +887,84 @@ describe("reencodeSocialImage", () => {
     expect(second.no_object).toBe(0);
     expect(second.store).toBe(1);
   });
+
+  it("counts a head error on a recheck key as unfinished and retries it", async () => {
+    const { readAvatarRecheckPage } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const key = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const serverError = Object.assign(new Error("Internal Server Error"), {
+      name: "InternalError",
+      $metadata: { httpStatusCode: 500 },
+    });
+    const missing = [
+      Object.assign(new Error("NotFound"), { name: "NotFound", $metadata: { httpStatusCode: 404 } }),
+      Object.assign(new Error("The specified key does not exist."), {
+        name: "NoSuchKey",
+        $metadata: { httpStatusCode: 404 },
+      }),
+    ];
+    const stored: string[] = [];
+    const cleared: string[] = [];
+    let heads = 0;
+    const load = (head: () => Promise<{ reencoded: boolean }>) =>
+      readAvatarRecheckPage([{ id: user, avatar_key: key }], head, async () => {
+        throw new Error("recheck key was read as the canonical face");
+      });
+    const first = await load(async () => {
+      heads += 1;
+      throw serverError;
+    });
+    expect(first.noObject).toBe(0);
+    expect(first.notes.join("\n")).not.toContain("key does not match");
+    expect(first.items).toEqual([
+      expect.objectContaining({ parentId: user, key, readError: "Internal Server Error" }),
+    ]);
+    const failed = await runSocialImageRecheck({
+      execute: true,
+      items: first.items,
+      store: async () => {
+        stored.push(user);
+      },
+      hide: async () => {
+        throw new Error("recheck head error was hidden");
+      },
+      clearAvatar: async () => {
+        cleared.push(user);
+      },
+    });
+    expect(failed.unfinished).toBe(1);
+    expect(failed.skip).toBe(0);
+    expect(failed.no_object).toBe(0);
+    expect(stored).toEqual([]);
+    expect(cleared).toEqual([]);
+    const again = await load(async () => ({ reencoded: true }));
+    expect(again.notes).toEqual([]);
+    expect(again.items[0]?.alreadyReencoded).toBe(true);
+    const retried = await runSocialImageRecheck({
+      execute: true,
+      items: again.items,
+      store: async () => {
+        stored.push(user);
+      },
+      hide: async () => {
+        throw new Error("recheck head error was hidden");
+      },
+      clearAvatar: async () => {
+        cleared.push(user);
+      },
+    });
+    expect(retried.unfinished).toBe(0);
+    expect(retried.skip).toBe(1);
+    expect(stored).toEqual([]);
+    expect(heads).toBe(1);
+    for (const error of missing) {
+      const gone = await load(async () => {
+        throw error;
+      });
+      expect(gone.items).toEqual([]);
+      expect(gone.noObject).toBe(1);
+      expect(gone.notes.join("\n")).toContain("no_object");
+      expect(gone.notes.join("\n")).not.toContain("key does not match");
+    }
+  });
 });

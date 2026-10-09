@@ -10,6 +10,9 @@
  * post is not retried and a store error must not hide.
  * A 404 or NoSuchKey on the canonical avatar key is no avatar. It is
  * counted as no_object and skipped. It is not unfinished.
+ * A HeadObject error on a recheck key uses that same split. 404 or
+ * NoSuchKey is no_object. Any other head error is unfinished and retried.
+ * It is not skipped.
  * An avatar that will not decode is cleared so the default face shows. The
  * canonical object is moved to avatars/{id}/quarantine/{objectId}. That
  * prefix is never signed. Rollback copies it back to avatars/{id}/avatar.
@@ -183,6 +186,105 @@ export function avatarCanonicalObjectMissing(error: unknown): boolean {
   const name = typeof failure.name === "string" ? failure.name : "";
   const code = typeof failure.Code === "string" ? failure.Code : "";
   return name === "NoSuchKey" || code === "NoSuchKey" || name === "NotFound" || code === "NotFound";
+}
+
+/**
+ * Head result for one avatar pointer.
+ * A recheck key whose head fails for any reason other than 404/NoSuchKey
+ * is unfinished. The next run tries it again. It is not a skip.
+ */
+export function planAvatarRecheckHead(
+  profileId: string,
+  target: { kind: "canonical" | "recheck"; key: string },
+  marked: { reencoded: boolean } | null,
+  error: unknown,
+):
+  | { kind: "unfinished"; item: SocialImageRecheckItem }
+  | { kind: "no_object" }
+  | { kind: "already"; item: SocialImageRecheckItem }
+  | { kind: "skip"; note: string }
+  | { kind: "read" } {
+  if (error && target.kind === "recheck" && !avatarCanonicalObjectMissing(error)) {
+    const message = error instanceof Error ? error.message : "head_failed";
+    return {
+      kind: "unfinished",
+      item: {
+        surface: "avatar",
+        parentId: profileId,
+        key: target.key,
+        original: new Uint8Array(),
+        contentType: "image/jpeg",
+        readError: message,
+      },
+    };
+  }
+  if (target.kind === "recheck" && (error ? avatarCanonicalObjectMissing(error) : !marked)) {
+    return { kind: "no_object" };
+  }
+  if (marked?.reencoded) {
+    return {
+      kind: "already",
+      item: {
+        surface: "avatar",
+        parentId: profileId,
+        key: target.key,
+        original: new Uint8Array(),
+        contentType: "image/jpeg",
+        alreadyReencoded: true,
+      },
+    };
+  }
+  if (target.kind === "recheck") {
+    return { kind: "skip", note: "key does not match the profile object" };
+  }
+  return { kind: "read" };
+}
+
+/** Classify every avatar on the page. The caller stores the pointers it read. */
+export async function readAvatarRecheckPage(
+  profiles: readonly { id: string; avatar_key: string | null }[],
+  head: (key: string) => Promise<{ reencoded: boolean }>,
+  read: (userId: string) => Promise<{ bytes: Uint8Array; contentType: string } | null>,
+): Promise<{ items: SocialImageRecheckItem[]; noObject: number; notes: string[] }> {
+  const items: SocialImageRecheckItem[] = [];
+  const notes: string[] = [];
+  let noObject = 0;
+  for (const profile of profiles) {
+    const target = avatarRecheckTarget(profile);
+    if (target.kind === "skip") {
+      notes.push(`avatar ${profile.id} ${target.note}`);
+      continue;
+    }
+    let marked: { reencoded: boolean } | null = null;
+    let headError: unknown = null;
+    try {
+      marked = await head(target.key);
+    } catch (error) {
+      headError = error;
+    }
+    const planned = planAvatarRecheckHead(profile.id, target, marked, headError);
+    if (planned.kind === "unfinished" || planned.kind === "already") {
+      items.push(planned.item);
+      continue;
+    }
+    if (planned.kind === "no_object") {
+      noObject += 1;
+      notes.push(`avatar ${profile.id} no_object`);
+      continue;
+    }
+    if (planned.kind === "skip") {
+      notes.push(`avatar ${profile.id} ${planned.note}`);
+      continue;
+    }
+    const outcome = await readCanonicalAvatarForRecheck(profile.id, target.key, read);
+    if (outcome === "no_object") {
+      noObject += 1;
+      notes.push(`avatar ${profile.id} no_object`);
+      continue;
+    }
+    items.push(outcome);
+  }
+  return { items, noObject, notes };
 }
 
 /** Read avatars/{id}/avatar. A missing object is "no_object". Any other failure is unfinished. */
@@ -425,43 +527,16 @@ async function main(): Promise<void> {
     pageSize: SOCIAL_IMAGE_RECHECK_PAGE,
     loadParents: (afterId) => loadAvatarPage(afterId),
     recheck: async (parents) => {
-      const items: SocialImageRecheckItem[] = [];
       const avatarKeyByParent = new Map<string, string | null>();
-      let noObject = 0;
       for (const profile of parents) {
         const target = avatarRecheckTarget(profile);
-        if (target.kind === "skip") {
-          logs.push(`avatar ${profile.id} ${target.note}`);
-          continue;
-        }
-        avatarKeyByParent.set(profile.id, profile.avatar_key);
-        const marked = await headAvatarRecheck(target.key);
-        if (marked?.reencoded) {
-          items.push({
-            surface: "avatar",
-            parentId: profile.id,
-            key: target.key,
-            original: new Uint8Array(),
-            contentType: "image/jpeg",
-            alreadyReencoded: true,
-          });
-          continue;
-        }
-        if (target.kind === "recheck") {
-          logs.push(`avatar ${profile.id} key does not match the profile object`);
-          continue;
-        }
-        const outcome = await readCanonicalAvatarForRecheck(profile.id, target.key, readAvatarObject);
-        if (outcome === "no_object") {
-          noObject += 1;
-          logs.push(`avatar ${profile.id} no_object`);
-          continue;
-        }
-        items.push(outcome);
+        if (target.kind !== "skip") avatarKeyByParent.set(profile.id, profile.avatar_key);
       }
+      const read = await readAvatarRecheckPage(parents, headAvatarRecheck, readAvatarObject);
+      for (const note of read.notes) logs.push(note);
       const page = await runSocialImageRecheck({
         execute,
-        items,
+        items: read.items,
         report: (line) => {
           logs.push(line);
         },
@@ -502,7 +577,7 @@ async function main(): Promise<void> {
           logs.push(`avatar ${parentId} quarantined ${quarantineKey}`);
         },
       });
-      page.no_object += noObject;
+      page.no_object += read.noObject;
       return page;
     },
   });

@@ -218,14 +218,14 @@ export async function releaseAvatarHoldTag(userId: string, key: string): Promise
   if (holdTagRemains(tags)) throw new Error("Avatar hold tag remains");
 }
 
-export async function headAvatarRecheck(key: string): Promise<{ reencoded: boolean } | null> {
+/**
+ * Head this avatar object. A 404 and any other failure both throw.
+ * The recheck script splits 404/NoSuchKey from a retryable head error.
+ */
+export async function headAvatarRecheck(key: string): Promise<{ reencoded: boolean }> {
   const { bucket, s3 } = avatarsClient();
-  try {
-    const out = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-    return { reencoded: socialImageWasReencoded(out.Metadata) };
-  } catch {
-    return null;
-  }
+  const out = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+  return { reencoded: socialImageWasReencoded(out.Metadata) };
 }
 
 export async function readAvatarObject(

@@ -34,6 +34,7 @@ import {
   putAvatarRecheckObject,
   quarantineAvatarObject,
   releaseAvatarHoldTag,
+  headAvatarRecheck,
   signedAvatarUrl,
   signedAvatarUrls,
   storeAvatarReplacement,
@@ -519,6 +520,21 @@ describe("s3-avatars dedicated bucket", () => {
     });
     expect(deletedKeys()).toEqual([KEY]);
     expect(deletedKeys()).not.toContain(previous);
+  });
+
+  it("throws a recheck head error instead of treating it as a missing face", async () => {
+    const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    mockSend.mockRejectedValueOnce(
+      Object.assign(new Error("Internal Server Error"), {
+        name: "InternalError",
+        $metadata: { httpStatusCode: 500 },
+      }),
+    );
+    await expect(headAvatarRecheck(key)).rejects.toThrow(/Internal Server Error/);
+    mockSend.mockRejectedValueOnce(
+      Object.assign(new Error("NotFound"), { name: "NotFound", $metadata: { httpStatusCode: 404 } }),
+    );
+    await expect(headAvatarRecheck(key)).rejects.toMatchObject({ name: "NotFound" });
   });
 
   it("signs this member's canonical face when the pointer names another member's recheck key", async () => {

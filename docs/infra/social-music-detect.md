@@ -229,21 +229,44 @@ select
   ) as live_story_video_items;
 ```
 
-Read-only count of welcome videos a camera stored on the S3 posts lane.
-`#798` presigned `posts/upload/{user}/{object}.webm` (or `.mp4` / `.mov` when
-the camera's type was that), then `saveSocialWelcomeVideo` published
-`posts/{user}/{object}.{ext}` into `welcome_video_key` and left the Mux
-columns null. New clips upload to Mux. Re-ingest moves the rows already
-stored that way onto Mux. Count them before apply:
+Read-only counts before apply. A welcome clip with no Mux ids is still an
+S3 key. Re-ingest moves a row only when that key is one the posts builders
+emit: `socialMediaObjectKey` (`posts/{user}/{object}.webm` for a published
+camera clip, and the same shape for `.mp4` / `.mov`) or
+`socialMediaStagingKey` (`posts/upload/{user}/{object}.{mp4|mov|webm}`, the
+Media upload key). `welcome_s3_matching` is that set.
+`welcome_s3_any` is every `welcome_video_key` with no Mux ids. The pattern
+is `welcomeS3VideoKeySqlPattern()` in `src/lib/social-media.ts`, the same
+check `welcomeProfileReingestCandidate` uses. Rows in any but not matching
+stay hidden. The second query lists those rows by key prefix only.
 
 ```sql
-select count(*) as welcome_s3_posts_lane
+select
+  count(*) filter (where welcome_video_key ~ '^posts/(upload/)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)\.(mp4|mov|webm)$') as welcome_s3_matching,
+  count(*) as welcome_s3_any
+from public.profiles
+where welcome_video_key is not null
+  and welcome_mux_asset_id is null
+  and welcome_mux_playback_id is null
+  and welcome_mux_upload_id is null;
+```
+
+```sql
+select
+  case
+    when split_part(welcome_video_key, '/', 1) ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-' then '(id)'
+    when split_part(welcome_video_key, '/', 2) = 'upload' then split_part(welcome_video_key, '/', 1) || '/upload'
+    else split_part(welcome_video_key, '/', 1)
+  end as key_prefix,
+  count(*) as n
 from public.profiles
 where welcome_video_key is not null
   and welcome_mux_asset_id is null
   and welcome_mux_playback_id is null
   and welcome_mux_upload_id is null
-  and welcome_video_key ~ '^posts/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(webm|mp4|mov)$';
+  and welcome_video_key !~ '^posts/(upload/)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)\.(mp4|mov|webm)$'
+group by 1
+order by 1;
 ```
 
 `20261008180100_profiles_welcome_mux.sql` locks only `public.profiles`:

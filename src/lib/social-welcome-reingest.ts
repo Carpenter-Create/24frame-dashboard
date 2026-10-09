@@ -1,3 +1,4 @@
+import { isWelcomeS3VideoKey } from "@/lib/social-media";
 import { socialVideoKeyDigest } from "@/lib/social-music-scan";
 import { isSocialMuxId, socialVideoDurationExceedsCap } from "@/lib/social-mux";
 
@@ -216,7 +217,10 @@ async function settleAsset(
   return { candidate, assetId, playbackId, uploadId: assetId };
 }
 
-/** A profile with no S3 key is not a welcome re-ingest candidate. */
+/**
+ * A profile is a welcome re-ingest candidate only when its key is one the
+ * posts builders emit. Any other welcome key stays put.
+ */
 export function welcomeProfileReingestCandidate(profile: {
   id: string;
   welcomeVideoKey: string | null;
@@ -224,7 +228,7 @@ export function welcomeProfileReingestCandidate(profile: {
   welcomeMuxPlaybackId: string | null;
   progressUploadId: string | null;
 }): SocialReingestCandidate | null {
-  if (!profile.welcomeVideoKey) return null;
+  if (!profile.welcomeVideoKey || !isWelcomeS3VideoKey(profile.welcomeVideoKey)) return null;
   const muxAsset =
     profile.welcomeMuxAssetId && isSocialMuxId(profile.welcomeMuxAssetId) ? profile.welcomeMuxAssetId : null;
   const remembered =

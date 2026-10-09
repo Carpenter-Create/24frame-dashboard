@@ -10,6 +10,7 @@ import {
   type SocialPlaybackScan,
 } from "@/lib/social-music-scan";
 import { runSocialMusicBatch, type MusicScanPatch, type PendingMusicScan } from "@/lib/social-music-run";
+import { socialMediaObjectKey } from "@/lib/social-media";
 import {
   reingestSocialS3Videos,
   rememberWelcomeReingestAsset,
@@ -196,9 +197,10 @@ async function seedWelcomeState(state: WelcomeRowState): Promise<SeededWelcome> 
        ) values ('welcome', $1, $1, $2, $2, $3, 'pending', null, 'reingest_failed')`,
       [profile, digest, remembered],
     );
+    const objectId = `66666666-6666-4666-8666-${tag.padStart(12, "0")}`;
     await db.query(`update public.profiles set welcome_video_key = $2 where id = $1`, [
       profile,
-      `posts/${profile}/welcome.mp4`,
+      socialMediaObjectKey(profile, objectId, "video/mp4"),
     ]);
     await db.query(
       `insert into public.social_music_scans (

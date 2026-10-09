@@ -280,6 +280,105 @@ export function socialMediaStagingKey(
   return `${lane}/${SOCIAL_MEDIA_STAGING_SEGMENT}/${user.data}/${object.data}.${EXT_BY_TYPE[contentType]}`;
 }
 
+const WELCOME_S3_LANE: SocialMediaLane = "posts";
+
+function welcomeVideoTypeForExtension(ext: string): SocialVideoContentType | null {
+  for (const type of SOCIAL_VIDEO_CONTENT_TYPES) {
+    if (EXT_BY_TYPE[type] === ext) return type;
+  }
+  return null;
+}
+
+/**
+ * True when `key` is exactly what `socialMediaObjectKey` or
+ * `socialMediaStagingKey` emits for a posts-lane video. Camera clips are
+ * the object key (`.webm`). A Media upload key is the staging key
+ * (`.mp4` or `.mov`). Any other shape is false.
+ */
+export function isWelcomeS3VideoKey(key: string): boolean {
+  if (isForbiddenMediaKey(key)) return false;
+  const parts = key.split("/");
+  let userId = "";
+  let file = "";
+  let staging = false;
+  if (parts.length === 3 && parts[0] === WELCOME_S3_LANE) {
+    userId = parts[1] ?? "";
+    file = parts[2] ?? "";
+  } else if (
+    parts.length === 4 &&
+    parts[0] === WELCOME_S3_LANE &&
+    parts[1] === SOCIAL_MEDIA_STAGING_SEGMENT
+  ) {
+    staging = true;
+    userId = parts[2] ?? "";
+    file = parts[3] ?? "";
+  } else {
+    return false;
+  }
+  const dot = file.lastIndexOf(".");
+  if (dot <= 0) return false;
+  const objectId = file.slice(0, dot);
+  const ext = file.slice(dot + 1);
+  if (objectId.includes(".")) return false;
+  const contentType = welcomeVideoTypeForExtension(ext);
+  if (!contentType) return false;
+  try {
+    const built = staging
+      ? socialMediaStagingKey(userId, objectId, contentType, WELCOME_S3_LANE)
+      : socialMediaObjectKey(userId, objectId, contentType, WELCOME_S3_LANE);
+    return built === key;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Postgres pattern for `isWelcomeS3VideoKey`. The lane, the upload
+ * segment, and the video extensions come from the builders. The id atom
+ * is the RFC form `z.string().uuid()` accepts, including nil and all-f.
+ */
+export function welcomeS3VideoKeySqlPattern(): string {
+  const id =
+    "([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)";
+  const ext = SOCIAL_VIDEO_CONTENT_TYPES.map((type) => EXT_BY_TYPE[type]).join("|");
+  return `^${WELCOME_S3_LANE}/(${SOCIAL_MEDIA_STAGING_SEGMENT}/)?${id}/${id}\\.(${ext})$`;
+}
+
+const WELCOME_S3_NO_MUX = `welcome_video_key is not null
+  and welcome_mux_asset_id is null
+  and welcome_mux_playback_id is null
+  and welcome_mux_upload_id is null`;
+
+/** Rows re-ingest will move, and every welcome key that still has no Mux ids. */
+export function welcomeS3ApplyCountSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  count(*) filter (where welcome_video_key ~ '${pattern}') as welcome_s3_matching,
+  count(*) as welcome_s3_any
+from public.profiles
+where ${WELCOME_S3_NO_MUX};`;
+}
+
+/**
+ * Keys in welcome_s3_any that re-ingest will not move, grouped by prefix.
+ * The prefix is `posts/upload` or the first path segment. A leading id is `(id)`.
+ */
+export function welcomeS3UnmatchedPrefixSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  case
+    when split_part(welcome_video_key, '/', 1) ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-' then '(id)'
+    when split_part(welcome_video_key, '/', 2) = '${SOCIAL_MEDIA_STAGING_SEGMENT}' then split_part(welcome_video_key, '/', 1) || '/${SOCIAL_MEDIA_STAGING_SEGMENT}'
+    else split_part(welcome_video_key, '/', 1)
+  end as key_prefix,
+  count(*) as n
+from public.profiles
+where ${WELCOME_S3_NO_MUX}
+  and welcome_video_key !~ '${pattern}'
+group by 1
+order by 1;`;
+}
+
 // Case-sensitive, lowercase ids, one extension per type (no .jpeg).
 const SOCIAL_MEDIA_STAGING_KEY =
   /^(posts|stories)\/upload\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp|gif|mp4|mov|webm)$/;
