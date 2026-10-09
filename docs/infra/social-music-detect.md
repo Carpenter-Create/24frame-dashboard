@@ -366,9 +366,15 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    key. Nothing signs a quarantine key. Rollback: copy
    `avatars/{user-id}/quarantine/{object-id}` back to
    `avatars/{user-id}/avatar`, delete the quarantine object, then set
-   `profiles.avatar_key` to null with the service role. Removing a photo,
-   or uploading a replacement, deletes the member's re-encoded copy and
-   the canonical object. That is not this rollback.
+   `profiles.avatar_key` to null with the service role. Removing a photo
+   clears the pointer, then deletes the canonical object and this member's
+   recheck or quarantine object. Uploading a replacement stores a new
+   object and confirms it, then swaps `profiles.avatar_key` only when it
+   still matches the value that was read, and only then deletes the
+   canonical object and this member's previous recheck object. A quarantine
+   object stays. A failure before the swap deletes nothing, so the old
+   face stays. A delete failure after the swap leaves the new face in
+   place and reports the leftover key. That is not this rollback.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts

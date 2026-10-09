@@ -7,9 +7,10 @@ import { ACCOUNT_PHOTO_HREF, avatarObjectKey } from "./account-avatar";
 // One avatar per person (Adam 2026-10-08): "the avatar should always use
 // whatever the users 24frame avatar in their global settings is. however,
 // if they update the avatar on social, then the avatar should upsert
-// globally. two-way." Two-way by construction: one object
-// (avatars/{user-id}/avatar), written only through the account actions,
-// which Settings and every Social photo editor call.
+// globally. two-way." Two-way by construction: account actions are the
+// only writer. A replacement is a new object; the pointer moves; then
+// the previous canonical object is deleted. Settings and every Social
+// photo editor call those actions.
 const sources = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { encoding: "utf8" })
   .split("\n")
   .filter((file) => file && !file.includes(".test."));
@@ -24,7 +25,15 @@ describe("one avatar, read and written from one place", () => {
   });
 
   it("writes it only through the account actions", () => {
-    expect(using("putAvatarObject(").sort()).toEqual(["src/app/(app)/account/actions.ts", "src/lib/s3-avatars.ts"]);
+    expect(using("storeAvatarReplacement(").sort()).toEqual([
+      "src/app/(app)/account/actions.ts",
+      "src/lib/s3-avatars.ts",
+    ]);
+    expect(using("deleteReplacedAvatarObjects(").sort()).toEqual([
+      "src/app/(app)/account/actions.ts",
+      "src/lib/s3-avatars.ts",
+    ]);
+    expect(using("putAvatarObject(").sort()).toEqual(["src/lib/s3-avatars.ts"]);
     expect(using("deleteAvatarObject(").sort()).toEqual(["src/app/(app)/account/actions.ts", "src/lib/s3-avatars.ts"]);
   });
 

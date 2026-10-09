@@ -9,6 +9,7 @@ import {
   MUSIC_SCAN_MAX_ATTEMPTS,
   decideMusicScan,
   loadOwnMusicNotices,
+  MUSIC_NOTICE_SCAN_PAGE,
   mediaWithoutHeldPlayback,
   musicNoticeFromScans,
   musicScanBackoff,
@@ -215,11 +216,15 @@ describe("social video visibility", () => {
       rpc: async () => ({ data: null, error: { message: "still down" } }),
       from: (table: string) => {
         expect(table).toBe("social_music_scans");
-        const chain = {
-          select: () => chain,
-          eq: () => chain,
-          in: async () => ({ data: scans, error: null }),
-        };
+        const chain: Record<string, unknown> = {};
+        const finish = () => ({ data: scans, error: null });
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.limit = () => chain;
+        chain.gt = () => chain;
+        chain.then = (resolve: (value: ReturnType<typeof finish>) => void) => resolve(finish());
         return chain;
       },
     };
@@ -258,6 +263,54 @@ describe("social video visibility", () => {
     expect(held.posts.size).toBe(0);
     expect([...held.withheldPostIds]).toEqual(["post-9"]);
     expect([...held.withheldStoryIds]).toEqual(["story-9"]);
+  });
+
+  it("withholds held videos past the first scan page", async () => {
+    const page = MUSIC_NOTICE_SCAN_PAGE;
+    const rows = Array.from({ length: page + 2 }, (_, index) => ({
+      id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+      post_id: index % 2 === 0 ? `post-${index}` : null,
+      story_id: index % 2 === 1 ? `story-${index}` : null,
+      status: "pending" as const,
+    }));
+    const calls: { after: string | null; limit: number | null }[] = [];
+    const supabase = {
+      rpc: async () => ({ data: null, error: { message: "still down" } }),
+      from: () => {
+        let after: string | null = null;
+        let limit: number | null = null;
+        const chain: Record<string, unknown> = {};
+        const finish = () => {
+          calls.push({ after, limit });
+          const filtered = after ? rows.filter((row) => row.id > after!) : rows;
+          return { data: filtered.slice(0, limit ?? page), error: null };
+        };
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.limit = (value: number) => {
+          limit = value;
+          return chain;
+        };
+        chain.gt = (column: string, value: string) => {
+          expect(column).toBe("id");
+          after = value;
+          return chain;
+        };
+        chain.then = (resolve: (value: ReturnType<typeof finish>) => void) => resolve(finish());
+        return chain;
+      },
+    };
+    const maps = await loadOwnMusicNotices(supabase as never, "author-1", {
+      postIds: rows.flatMap((row) => (row.post_id ? [row.post_id] : [])),
+      storyIds: rows.flatMap((row) => (row.story_id ? [row.story_id] : [])),
+    });
+    expect(calls.map((call) => call.limit)).toEqual([page, page]);
+    expect(calls[1]?.after).toBe(rows[page - 1]?.id);
+    expect(maps.withheldPostIds.has(`post-${page}`)).toBe(true);
+    expect(maps.withheldStoryIds.has(`story-${page + 1}`)).toBe(true);
+    expect(maps.posts.size).toBe(0);
   });
 
   it("skips a welcome or media row that no longer stores the scanned pair", () => {

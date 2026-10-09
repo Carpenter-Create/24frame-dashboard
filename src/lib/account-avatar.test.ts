@@ -123,7 +123,14 @@ describe("one face across chrome, Settings, and Social", () => {
     expect(socialFormsSrc).not.toContain("putAvatarObject");
     expect(socialFormsSrc).not.toContain("avatarObjectKey");
     expect(socialFormsSrc).not.toContain("S3_MEDIA");
-    expect(uploadSrc).toContain("putAvatarObject(ctx.user.id");
+    const uploadFn = uploadSrc.slice(
+      uploadSrc.indexOf("export async function uploadAccountPhoto"),
+      uploadSrc.indexOf("export async function removeAccountPhoto"),
+    );
+    expect(uploadFn).toContain("storeAvatarReplacement(");
+    expect(uploadFn).toContain("deleteReplacedAvatarObjects(");
+    expect(uploadFn.indexOf("storeAvatarReplacement(")).toBeLessThan(uploadFn.indexOf("deleteReplacedAvatarObjects("));
+    expect(uploadFn).not.toContain("deleteAvatarObject(");
     expect(uploadSrc).toContain("deleteAvatarObject(ctx.user.id");
     expect(uploadSrc).toContain("removeAccountPhoto");
     expect(uploadSrc).toContain('revalidatePath("/", "layout")');

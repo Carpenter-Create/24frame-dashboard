@@ -22,10 +22,11 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
-import { AVATAR_CLEARED, avatarQuarantineObjectKey, avatarRecheckObjectKey } from "./account-avatar";
+import { AVATAR_CLEARED, avatarObjectKey, avatarQuarantineObjectKey, avatarRecheckObjectKey } from "./account-avatar";
 import { SOCIAL_IMAGE_PREVIOUS_KEY_METADATA, SOCIAL_IMAGE_REENCODED_METADATA } from "./social-image-reencode";
 import {
   deleteAvatarObject,
+  deleteReplacedAvatarObjects,
   hasAvatarObject,
   headAvatarObject,
   presignAvatarGet,
@@ -34,6 +35,7 @@ import {
   quarantineAvatarObject,
   signedAvatarUrl,
   signedAvatarUrls,
+  storeAvatarReplacement,
 } from "./s3-avatars";
 
 const UID = "11111111-1111-4111-8111-111111111111";
@@ -168,6 +170,79 @@ describe("s3-avatars dedicated bucket", () => {
   it("returns an empty map when no ids are passed", async () => {
     await expect(signedAvatarUrls([])).resolves.toEqual(new Map());
     expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("confirms a replacement with the put ETag and does not head the object", async () => {
+    mockSend.mockResolvedValueOnce({ ETag: '"put-etag"' });
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const jpeg = new Uint8Array(
+      await sharp({ create: { width: 2, height: 2, channels: 3, background: { r: 1, g: 2, b: 3 } } }).jpeg().toBuffer(),
+    );
+    const stored = await storeAvatarReplacement({
+      userId: UID,
+      objectId,
+      body: jpeg,
+      contentType: "image/jpeg",
+    });
+    expect(stored).toEqual({ key: avatarRecheckObjectKey(UID, objectId), etag: '"put-etag"' });
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
+    expect(cmd).toBeInstanceOf(PutObjectCommand);
+    expect(cmd.input.Key).toBe(stored.key);
+    expect(cmd.input.Key).not.toBe(KEY);
+    expect(cmd.input.IfNoneMatch).toBe("*");
+  });
+
+  it("confirms a replacement with HeadObject when the put has no ETag", async () => {
+    mockSend.mockResolvedValueOnce({});
+    mockSend.mockResolvedValueOnce({ ETag: '"head-etag"' });
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const jpeg = new Uint8Array(
+      await sharp({ create: { width: 2, height: 2, channels: 3, background: { r: 4, g: 5, b: 6 } } }).jpeg().toBuffer(),
+    );
+    const stored = await storeAvatarReplacement({
+      userId: UID,
+      objectId,
+      body: jpeg,
+      contentType: "image/jpeg",
+    });
+    expect(stored.etag).toBe('"head-etag"');
+    const head = mockSend.mock.calls[1]?.[0] as HeadObjectCommand;
+    expect(head).toBeInstanceOf(HeadObjectCommand);
+    expect(head.input.Key).toBe(stored.key);
+  });
+
+  it("does not return a replacement key when the object cannot be confirmed", async () => {
+    mockSend.mockResolvedValueOnce({});
+    mockSend.mockRejectedValueOnce(Object.assign(new Error("NotFound"), { name: "NotFound" }));
+    const jpeg = new Uint8Array(
+      await sharp({ create: { width: 2, height: 2, channels: 3, background: { r: 7, g: 8, b: 9 } } }).jpeg().toBuffer(),
+    );
+    await expect(
+      storeAvatarReplacement({
+        userId: UID,
+        objectId: "22222222-2222-4222-8222-222222222222",
+        body: jpeg,
+        contentType: "image/jpeg",
+      }),
+    ).rejects.toThrow(/NotFound/);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof DeleteObjectCommand)).toBe(false);
+  });
+
+  it("deletes the canonical face and the previous recheck key, and keeps quarantine", async () => {
+    mockSend.mockResolvedValue({});
+    const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(UID, "33333333-3333-4333-8333-333333333333");
+    await deleteReplacedAvatarObjects(UID, previous, next);
+    const keys = mockSend.mock.calls.map((call) => (call[0] as DeleteObjectCommand).input.Key);
+    expect(keys).toEqual([avatarObjectKey(UID), previous]);
+    mockSend.mockClear();
+    const quarantine = avatarQuarantineObjectKey(UID, "44444444-4444-4444-8444-444444444444");
+    await deleteReplacedAvatarObjects(UID, quarantine, next);
+    const kept = mockSend.mock.calls.map((call) => (call[0] as DeleteObjectCommand).input.Key);
+    expect(kept).toEqual([avatarObjectKey(UID)]);
+    expect(kept).not.toContain(quarantine);
+    expect(kept).not.toContain(next);
   });
 
   it("marks a published face as re-encoded", async () => {

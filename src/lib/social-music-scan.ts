@@ -480,6 +480,9 @@ function isMusicNotice(value: string | null): value is SocialMusicNotice {
 /** The notice function refuses more than this many ids in one array. */
 export const MUSIC_NOTICE_IDS_PER_CALL = 500;
 
+/** PostgREST returns one page. The fallback walks id until a short page. */
+export const MUSIC_NOTICE_SCAN_PAGE = 200;
+
 function noticeIdChunks(ids: readonly string[]): string[][] {
   if (ids.length === 0) return [[]];
   const chunks: string[][] = [];
@@ -505,6 +508,7 @@ async function captureNoticeFailure(error: unknown, captureException?: (error: u
  * at most 500. A failed call is logged and tried once more. If that also
  * fails, the page still renders: no notice is shown, and the viewer's own
  * pending or blocked video posts and stories are held so they do not play.
+ * That scan read is paged by id until it is exhausted.
  */
 export async function loadOwnMusicNotices(
   supabase: SupabaseClient<Database>,
@@ -563,25 +567,37 @@ async function withholdOwnVideoOnNoticeFailure(
   storyIds: readonly string[],
 ): Promise<MusicNoticeMaps> {
   const empty = emptyMusicNoticeMaps();
+  const withheldAll = {
+    ...empty,
+    withheldPostIds: new Set(postIds),
+    withheldStoryIds: new Set(storyIds),
+  };
   try {
-    const scan = await supabase
-      .from("social_music_scans")
-      .select("post_id, story_id, status")
-      .eq("author_id", viewerId)
-      .in("status", ["pending", "blocked"]);
-    if (scan.error || !scan.data) {
-      return {
-        ...empty,
-        withheldPostIds: new Set(postIds),
-        withheldStoryIds: new Set(storyIds),
-      };
-    }
     const withheldPostIds = new Set<string>();
     const withheldStoryIds = new Set<string>();
-    for (const row of scan.data) {
-      if (row.status !== "pending" && row.status !== "blocked") continue;
-      if (row.post_id && postIds.includes(row.post_id)) withheldPostIds.add(row.post_id);
-      if (row.story_id && storyIds.includes(row.story_id)) withheldStoryIds.add(row.story_id);
+    let afterId: string | null = null;
+    for (;;) {
+      const page = supabase
+        .from("social_music_scans")
+        .select("id, post_id, story_id, status")
+        .eq("author_id", viewerId)
+        .in("status", ["pending", "blocked"])
+        .order("id", { ascending: true })
+        .limit(MUSIC_NOTICE_SCAN_PAGE);
+      const scan: {
+        data: { id: string; post_id: string | null; story_id: string | null; status: string }[] | null;
+        error: { message: string } | null;
+      } = await (afterId ? page.gt("id", afterId) : page);
+      if (scan.error || !scan.data) return withheldAll;
+      for (const row of scan.data) {
+        if (row.status !== "pending" && row.status !== "blocked") continue;
+        if (row.post_id && postIds.includes(row.post_id)) withheldPostIds.add(row.post_id);
+        if (row.story_id && storyIds.includes(row.story_id)) withheldStoryIds.add(row.story_id);
+      }
+      if (scan.data.length < MUSIC_NOTICE_SCAN_PAGE) break;
+      const lastId = scan.data[scan.data.length - 1]?.id;
+      if (!lastId || lastId === afterId) return withheldAll;
+      afterId = lastId;
     }
     return { ...empty, withheldPostIds, withheldStoryIds };
   } catch {

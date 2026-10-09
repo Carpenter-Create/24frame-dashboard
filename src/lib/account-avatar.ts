@@ -104,6 +104,30 @@ export function avatarServeKey(userId: string, stored: string | null | undefined
   }
 }
 
+/**
+ * Objects a successful replace may delete. The new key stays. A quarantine
+ * object stays. The canonical face and this member's previous recheck key
+ * are the ones that become unreferenced after the pointer moves.
+ */
+export function replacedAvatarObjectKeys(
+  userId: string,
+  previousKey: string | null,
+  newKey: string,
+): string[] {
+  const canonical = avatarObjectKey(userId);
+  const keys: string[] = [];
+  if (canonical !== newKey) keys.push(canonical);
+  if (
+    typeof previousKey === "string" &&
+    previousKey !== newKey &&
+    previousKey !== canonical &&
+    isAvatarRecheckKey(previousKey, userId)
+  ) {
+    keys.push(previousKey);
+  }
+  return keys;
+}
+
 export function isAvatarObjectKey(key: string, userId: string): boolean {
   try {
     return key === avatarObjectKey(userId);

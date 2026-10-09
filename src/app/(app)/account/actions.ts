@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 
 import {
@@ -8,8 +10,13 @@ import {
   accountNameSchema,
   companySaveSchema,
 } from "@/lib/account-profile";
-import { AVATAR_CLEARED, AVATAR_MAX_BYTES, isAvatarContentType } from "@/lib/account-avatar";
-import { deleteAvatarObject, putAvatarObject } from "@/lib/s3-avatars";
+import {
+  AVATAR_CLEARED,
+  AVATAR_MAX_BYTES,
+  isAvatarContentType,
+  replacedAvatarObjectKeys,
+} from "@/lib/account-avatar";
+import { deleteAvatarObject, deleteReplacedAvatarObjects, storeAvatarReplacement } from "@/lib/s3-avatars";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
@@ -44,8 +51,18 @@ export async function saveAccountName(name: unknown): Promise<{ error?: string }
   return {};
 }
 
-// Photo bytes go to the dedicated avatars bucket, key derived from the
-// session user id. The profile pointer follows that key. Email is not touched.
+async function reportAvatarOrphan(keys: readonly string[], cause: unknown): Promise<void> {
+  const failure = cause instanceof Error ? cause : new Error("avatar replace orphan");
+  const reported = Object.assign(failure, { orphanKeys: [...keys] });
+  console.error("avatar replace orphan", reported.orphanKeys, reported.message);
+  const Sentry = await import("@sentry/nextjs");
+  Sentry.captureException(reported);
+}
+
+// Photo bytes go to a new private object. The pointer moves only after that
+// object is confirmed. The previous canonical object and this member's
+// previous recheck object are deleted after the swap. A quarantine object
+// stays. Email is not touched.
 export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
@@ -63,15 +80,34 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
     const previous = await supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle();
     if (previous.error || !previous.data) return { error: previous.error?.message || ACCOUNT_PROFILE.photoFailed };
     const previousKey = previous.data.avatar_key;
-    await deleteAvatarObject(ctx.user.id, previousKey);
-    const key = await putAvatarObject(ctx.user.id, body, file.type);
-    const admin = createAdminClient();
-    const { error } = await admin.from("profiles").update({ avatar_key: key }).eq("id", ctx.user.id);
-    if (error) return { error: error.message || ACCOUNT_PROFILE.photoFailed };
-  } catch (e) {
-    if (e instanceof Error && e.message === "Unsupported avatar content type") {
-      return { error: ACCOUNT_PROFILE.photoType };
+    let stored: { key: string; etag: string };
+    try {
+      stored = await storeAvatarReplacement({
+        userId: ctx.user.id,
+        objectId: randomUUID(),
+        body,
+        contentType: file.type,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.message === "Unsupported avatar content type") {
+        return { error: ACCOUNT_PROFILE.photoType };
+      }
+      return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
     }
+    const admin = createAdminClient();
+    const update = admin.from("profiles").update({ avatar_key: stored.key }).eq("id", ctx.user.id);
+    const filtered = previousKey == null ? update.is("avatar_key", null) : update.eq("avatar_key", previousKey);
+    const { data, error } = await filtered.select("id");
+    if (error || !data || data.length === 0) {
+      await reportAvatarOrphan([stored.key], error ?? new Error("avatar_key changed before replace"));
+      return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
+    }
+    try {
+      await deleteReplacedAvatarObjects(ctx.user.id, previousKey, stored.key);
+    } catch (e) {
+      await reportAvatarOrphan(replacedAvatarObjectKeys(ctx.user.id, previousKey, stored.key), e);
+    }
+  } catch (e) {
     return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
   }
 

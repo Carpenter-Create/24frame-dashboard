@@ -19,6 +19,7 @@ import {
   isAvatarContentType,
   isAvatarQuarantineKey,
   isAvatarRecheckKey,
+  replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
 import {
   reencodeSocialImage,
@@ -82,6 +83,45 @@ export async function putAvatarObject(
 }
 
 /**
+ * New face at avatars/{id}/recheck/{objectId}. The canonical object is not
+ * written. The caller swaps the pointer only after this confirms the object
+ * (Put ETag, or HeadObject when the put omits one).
+ */
+export async function storeAvatarReplacement(input: {
+  userId: string;
+  objectId: string;
+  body: Uint8Array;
+  contentType: string;
+}): Promise<{ key: string; etag: string }> {
+  if (!isAvatarContentType(input.contentType)) {
+    throw new Error("Unsupported avatar content type");
+  }
+  const { bucket, s3 } = avatarsClient();
+  const encoded = await reencodeSocialImage(input.body, input.contentType);
+  if (!encoded) throw new Error("Unsupported avatar content type");
+  const key = avatarRecheckObjectKey(input.userId, input.objectId);
+  const put = await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: encoded,
+      ContentType: input.contentType,
+      CacheControl: "private, max-age=300",
+      IfNoneMatch: "*",
+      Metadata: {
+        [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
+      },
+    }),
+  );
+  const putEtag = put.ETag?.trim();
+  if (putEtag) return { key, etag: putEtag };
+  const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+  const headEtag = head.ETag?.trim();
+  if (!headEtag) throw new Error("Avatar replace did not confirm the new object");
+  return { key, etag: headEtag };
+}
+
+/**
  * Re-encoded face at a new key. The canonical avatar object is not written.
  * IfNoneMatch refuses a key that already exists.
  */
@@ -136,6 +176,18 @@ export async function readAvatarObject(
   const contentType = response.ContentType?.split(";")[0]?.trim().toLowerCase() ?? "";
   if (!isAvatarContentType(contentType)) return null;
   return { bytes, contentType };
+}
+
+/** Delete the objects a successful replace left unreferenced. Quarantine stays. */
+export async function deleteReplacedAvatarObjects(
+  userId: string,
+  previousKey: string | null,
+  newKey: string,
+): Promise<void> {
+  const { bucket, s3 } = avatarsClient();
+  for (const key of replacedAvatarObjectKeys(userId, previousKey, newKey)) {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  }
 }
 
 export async function deleteAvatarObject(userId: string, storedKey?: string | null): Promise<void> {
