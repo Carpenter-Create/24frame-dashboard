@@ -34,15 +34,32 @@ type Fake = {
   rpc: { name: string; args: Record<string, unknown> }[];
 };
 
+type RpcError = { message: string; code?: string };
+
+// The database before merge_title_metadata is applied (PostgREST's PGRST202,
+// Postgres's 42883): the only errors that fall back to read, merge and set.
+const MERGE_MISSING: RpcError[] = [
+  {
+    code: "PGRST202",
+    message:
+      "Could not find the function public.merge_title_metadata(p_clear, p_org_id, p_set, p_title_id) in the schema cache",
+  },
+  {
+    code: "42883",
+    message:
+      "function public.merge_title_metadata(p_clear => text[], p_org_id => uuid, p_set => jsonb, p_title_id => uuid) does not exist",
+  },
+];
+
 function fake({
   title = { id: TITLE, org_id: ORG, catalog_id: CATALOG, release_type: "new_release", original_release_date: null },
   stored = STORED as Record<string, unknown> | null,
-  rpcErrors = {} as Record<string, { message: string }>,
+  rpcErrors = {} as Record<string, RpcError>,
   readError = null as { message: string } | null,
 }: {
   title?: Record<string, unknown> | null;
   stored?: Record<string, unknown> | null;
-  rpcErrors?: Record<string, { message: string }>;
+  rpcErrors?: Record<string, RpcError>;
   readError?: { message: string } | null;
 } = {}): Fake {
   const seen: Fake = { filters: [], rpc: [] };
@@ -89,7 +106,11 @@ beforeEach(() => {
   vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
   vi.mocked(revalidatePath).mockClear();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
+
+const names = (seen: Fake) => seen.rpc.map((call) => call.name);
+const readsMetadata = (seen: Fake) => seen.filters.some(([table]) => table === "title_metadata");
 
 describe("saveTitleDetails (the title's Metadata window)", () => {
   it("refuses a malformed request before reading anything", async () => {
@@ -136,7 +157,7 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
 
     const seen = fake();
     await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null, orgId: "evil" });
-    expect(seen.rpc[0]).toMatchObject({ name: "set_title_metadata", args: { p_org_id: ORG, p_title_id: TITLE } });
+    expect(seen.rpc[0]).toMatchObject({ name: "merge_title_metadata", args: { p_org_id: ORG, p_title_id: TITLE } });
   });
 
   it("lets only the title org's operators write", async () => {
@@ -179,18 +200,21 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     expect(seen.rpc).toEqual([]);
   });
 
-  it("merges only the changed fields onto the stored record", async () => {
+  it("sends only the changed fields to the database's merge, with nothing read first", async () => {
     const seen = fake();
     expect(
       await saveTitleDetails({ titleId: TITLE, metadata: { runtime_minutes: 100, director: null }, release: null }),
     ).toEqual({ ok: true });
-    const rest = Object.fromEntries(Object.entries(STORED).filter(([key]) => key !== "director"));
-    expect(seen.rpc[0]).toEqual({
-      name: "set_title_metadata",
-      args: { p_org_id: ORG, p_title_id: TITLE, p_data: { ...rest, runtime_minutes: 100 } },
-    });
-    expect(seen.rpc[1].name).toBe("reconcile_title_findings");
-    expect(seen.rpc).toHaveLength(2);
+    expect(seen.rpc).toEqual([
+      {
+        name: "merge_title_metadata",
+        args: { p_org_id: ORG, p_title_id: TITLE, p_set: { runtime_minutes: 100 }, p_clear: ["director"] },
+      },
+    ]);
+    // No read of the stored record, and no findings from the browser: the
+    // database merges, checks and refreshes in one transaction.
+    expect(readsMetadata(seen)).toBe(false);
+    expect(names(seen)).not.toContain("reconcile_title_findings");
     expect(revalidatePath).toHaveBeenCalledWith(titleClientPath(CATALOG));
   });
 
@@ -203,14 +227,81 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
       error: "Enter whole minutes, 1 to 1,000.",
       metadataSaved: false,
     });
-    // A stored value from before the lists were checked is named too.
-    const legacy = fake({ stored: { ...STORED, genre: "Drama" } });
+    expect(seen.rpc).toEqual([]);
+  });
+
+  it("names a Cast or Keywords entry over 200 characters with the text line, and too many entries with the list line", async () => {
+    const seen = fake();
+    expect(
+      await saveTitleDetails({ titleId: TITLE, metadata: { cast: ["Ada", "x".repeat(201)] }, release: null }),
+    ).toEqual({ ok: false, part: "metadata", field: "cast", error: "Up to 200 characters.", metadataSaved: false });
+    expect(
+      await saveTitleDetails({
+        titleId: TITLE,
+        metadata: { keywords: Array.from({ length: 51 }, (_, i) => `k${i}`) },
+        release: null,
+      }),
+    ).toEqual({ ok: false, part: "metadata", field: "keywords", error: "Up to 50 entries.", metadataSaved: false });
+    expect(seen.rpc).toEqual([]);
+  });
+
+  it("names the field the database refuses, with its approved line, and never its text", async () => {
+    // A stored value from before the lists were checked: the database names it.
+    const seen = fake({ rpcErrors: { merge_title_metadata: { code: "22023", message: "genre: p_secret" } } });
+    const result = await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null });
+    expect(result).toEqual({
+      ok: false,
+      part: "metadata",
+      field: "genre",
+      error: "Choose one from the list.",
+      metadataSaved: false,
+    });
+    expect(JSON.stringify(result)).not.toContain("p_secret");
+    expect(names(seen)).toEqual(["merge_title_metadata"]);
+  });
+
+  it.each([
+    { code: "P0001", message: 'relation "x" violates policy p_secret' },
+    { code: "42501", message: "permission denied for function merge_title_metadata" },
+    { code: "22023", message: "budget: p_secret" },
+    { code: "PGRST203", message: "Could not choose the best candidate function between: public.merge_title_metadata" },
+    { code: "42883", message: "function public.check_title_metadata(jsonb) does not exist" },
+    { code: "", message: "TypeError: fetch failed" },
+  ])("never falls back on any other failure ($code)", async (error) => {
+    const seen = fake({ rpcErrors: { merge_title_metadata: error } });
+    const result = await saveTitleDetails({
+      titleId: TITLE,
+      metadata: { director: "X" },
+      release: { releaseType: "re_release", originalReleaseDate: "2001-02-03" },
+    });
+    expect(result).toEqual({ ok: false, part: "metadata", field: null, error: "Could not save.", metadataSaved: false });
+    expect(JSON.stringify(result)).not.toContain("p_secret");
+    // Metadata failed: no read, no set, and Release is not attempted.
+    expect(names(seen)).toEqual(["merge_title_metadata"]);
+    expect(readsMetadata(seen)).toBe(false);
+  });
+
+  it.each(MERGE_MISSING)("reads, merges and sets while the merge is not applied ($code)", async (missing) => {
+    const seen = fake({ rpcErrors: { merge_title_metadata: missing } });
+    expect(
+      await saveTitleDetails({ titleId: TITLE, metadata: { runtime_minutes: 100, director: null }, release: null }),
+    ).toEqual({ ok: true });
+    const rest = Object.fromEntries(Object.entries(STORED).filter(([key]) => key !== "director"));
+    expect(names(seen)).toEqual(["merge_title_metadata", "set_title_metadata", "reconcile_title_findings"]);
+    expect(seen.rpc[1]).toEqual({
+      name: "set_title_metadata",
+      args: { p_org_id: ORG, p_title_id: TITLE, p_data: { ...rest, runtime_minutes: 100 } },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith(titleClientPath(CATALOG));
+  });
+
+  it.each(MERGE_MISSING)("names a stored value the checks refuse, before any set ($code)", async (missing) => {
+    const legacy = fake({ stored: { ...STORED, genre: "Drama" }, rpcErrors: { merge_title_metadata: missing } });
     expect(await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null })).toMatchObject({
       field: "genre",
       error: "Choose one from the list.",
     });
-    expect(seen.rpc).toEqual([]);
-    expect(legacy.rpc).toEqual([]);
+    expect(names(legacy)).toEqual(["merge_title_metadata"]);
   });
 
   it("saves Release alone without touching metadata, and only when it differs", async () => {
@@ -241,7 +332,9 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
   });
 
   it("never lets database text reach the browser", async () => {
-    const seen = fake({ rpcErrors: { set_title_metadata: { message: 'relation "x" violates policy p_secret' } } });
+    const seen = fake({
+      rpcErrors: { merge_title_metadata: { code: "P0001", message: 'relation "x" violates policy p_secret' } },
+    });
     const result = await saveTitleDetails({
       titleId: TITLE,
       metadata: { director: "X" },
@@ -250,28 +343,57 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     expect(result).toEqual({ ok: false, part: "metadata", field: null, error: "Could not save.", metadataSaved: false });
     expect(JSON.stringify(result)).not.toContain("p_secret");
     // Metadata failed: Release is not attempted.
-    expect(seen.rpc.map((call) => call.name)).toEqual(["set_title_metadata"]);
+    expect(names(seen)).toEqual(["merge_title_metadata"]);
+
+    // The same under the fallback, when the set fails.
+    const fallback = fake({
+      rpcErrors: {
+        merge_title_metadata: MERGE_MISSING[0],
+        set_title_metadata: { code: "P0001", message: 'relation "x" violates policy p_secret' },
+      },
+    });
+    const fallbackResult = await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null });
+    expect(fallbackResult).toEqual({
+      ok: false,
+      part: "metadata",
+      field: null,
+      error: "Could not save.",
+      metadataSaved: false,
+    });
+    expect(JSON.stringify(fallbackResult)).not.toContain("p_secret");
+    expect(names(fallback)).toEqual(["merge_title_metadata", "set_title_metadata"]);
   });
 
   it("reports metadata as saved when Release then fails", async () => {
     const seen = fake({ rpcErrors: { set_title_release_info: { message: "boom" } } });
-    expect(
-      await saveTitleDetails({
-        titleId: TITLE,
-        metadata: { director: "X" },
-        release: { releaseType: "re_release", originalReleaseDate: "2001-02-03" },
-      }),
-    ).toEqual({ ok: false, part: "release", field: null, error: "Could not save.", metadataSaved: true });
-    expect(seen.rpc.map((call) => call.name)).toEqual([
+    const release = { releaseType: "re_release", originalReleaseDate: "2001-02-03" };
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release })).toEqual({
+      ok: false,
+      part: "release",
+      field: null,
+      error: "Could not save.",
+      metadataSaved: true,
+    });
+    expect(names(seen)).toEqual(["merge_title_metadata", "set_title_release_info"]);
+    expect(revalidatePath).toHaveBeenCalledWith(titleClientPath(CATALOG));
+
+    const fallback = fake({
+      rpcErrors: { merge_title_metadata: MERGE_MISSING[0], set_title_release_info: { message: "boom" } },
+    });
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release })).toMatchObject({
+      part: "release",
+      metadataSaved: true,
+    });
+    expect(names(fallback)).toEqual([
+      "merge_title_metadata",
       "set_title_metadata",
       "reconcile_title_findings",
       "set_title_release_info",
     ]);
-    expect(revalidatePath).toHaveBeenCalledWith(titleClientPath(CATALOG));
   });
 
-  it("never takes a failed read of the stored record for an empty one", async () => {
-    const seen = fake({ readError: { message: "statement timeout" } });
+  it.each(MERGE_MISSING)("never takes a failed read of the stored record for an empty one ($code)", async (missing) => {
+    const seen = fake({ readError: { message: "statement timeout" }, rpcErrors: { merge_title_metadata: missing } });
     expect(await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null })).toEqual({
       ok: false,
       part: "metadata",
@@ -279,21 +401,24 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
       error: "Could not save.",
       metadataSaved: false,
     });
-    // Nothing is written, so no field is dropped.
-    expect(seen.rpc).toEqual([]);
+    // Nothing is set, so no field is dropped.
+    expect(names(seen)).toEqual(["merge_title_metadata"]);
   });
 
-  it("reads the stored record as the window does, so stored empties never block a save", async () => {
-    const seen = fake({
-      stored: { ...STORED, synopsis: "", runtime_minutes: "96", cast: ["", "Ada"], director: null, keywords: [] },
-    });
-    expect(await saveTitleDetails({ titleId: TITLE, metadata: { rating: "PG" }, release: null })).toEqual({ ok: true });
-    const { synopsis: _s, director: _d, ...rest } = STORED;
-    void _s;
-    void _d;
-    expect(seen.rpc[0].args.p_data).toEqual({ ...rest, runtime_minutes: 96, cast: ["Ada"], rating: "PG" });
-  });
-
+  it.each(MERGE_MISSING)(
+    "reads the stored record as the window does, so stored empties never block a save ($code)",
+    async (missing) => {
+      const seen = fake({
+        stored: { ...STORED, synopsis: "", runtime_minutes: "96", cast: ["", "Ada"], director: null, keywords: [] },
+        rpcErrors: { merge_title_metadata: missing },
+      });
+      expect(await saveTitleDetails({ titleId: TITLE, metadata: { rating: "PG" }, release: null })).toEqual({ ok: true });
+      const { synopsis: _s, director: _d, ...rest } = STORED;
+      void _s;
+      void _d;
+      expect(seen.rpc[1].args.p_data).toEqual({ ...rest, runtime_minutes: 96, cast: ["Ada"], rating: "PG" });
+    },
+  );
 });
 
 describe("submitTitle (Codex on #801)", () => {
@@ -315,5 +440,13 @@ describe("submitTitle (Codex on #801)", () => {
     const ok = fake();
     expect(await submitTitle(ORG, TITLE)).toEqual({});
     expect(ok.rpc[0]).toEqual({ name: "submit_title", args: { p_org_id: ORG, p_title_id: TITLE } });
+  });
+
+  it("leaves findings to the database: one call, and no read after it", async () => {
+    const seen = fake();
+    expect(await submitTitle(ORG, TITLE)).toEqual({});
+    expect(seen.rpc).toEqual([{ name: "submit_title", args: { p_org_id: ORG, p_title_id: TITLE } }]);
+    // The one read is the completeness check before the submit.
+    expect(seen.filters.filter(([table, method]) => table === "title_metadata" && method === "select")).toHaveLength(1);
   });
 });

@@ -112,6 +112,23 @@ export function metadataFieldError(key: string, now: Date = new Date()): string 
   }
 }
 
+/** What a field says for this value: as metadataFieldError, except that a
+ *  Cast or Keywords entry over 200 characters reads the approved "Up to 200
+ *  characters." (Bugbot on #801). Over 50 entries still reads "Up to 50
+ *  entries.", and so does any other list problem. */
+export function metadataValueError(key: string, value: unknown, now: Date = new Date()): string {
+  const field = METADATA_FIELDS.find((f) => f.key === key);
+  if (
+    field?.type === "list" &&
+    Array.isArray(value) &&
+    value.length <= METADATA_LIST_MAX &&
+    value.some((entry) => typeof entry === "string" && Array.from(entry).length > METADATA_TEXT_MAX)
+  ) {
+    return METADATA_ERRORS.text;
+  }
+  return metadataFieldError(key, now);
+}
+
 export const METADATA_ERRORS = {
   runtime: "Enter whole minutes, 1 to 1,000.",
   year: (max: number) => `Enter a year from 1888 to ${max}.`,
@@ -138,7 +155,8 @@ export function parseMetadata(
   const first = r.error.issues[0];
   const key = first.path[0];
   const field = typeof key === "string" && METADATA_FIELDS.some((f) => f.key === key) ? key : null;
-  return { ok: false, error: field ? metadataFieldError(field) : METADATA_ERRORS.unknown, field };
+  const value = field && typeof input === "object" && input !== null ? (input as Record<string, unknown>)[field] : undefined;
+  return { ok: false, error: field ? metadataValueError(field, value) : METADATA_ERRORS.unknown, field };
 }
 
 /** One tier's count for the window's rows: a field counts when it is filled

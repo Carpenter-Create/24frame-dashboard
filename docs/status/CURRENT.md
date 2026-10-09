@@ -161,6 +161,24 @@ Social Feed cards (Direction B, founder pick): a white canvas with every post an
 
 ---
 
+## Title metadata checks and atomic save (authorized; not applied)
+
+The title findings migration under `supabase/migrations` derives validator
+findings from stored metadata in the database, checks every metadata write
+against the approved limits, and adds `merge_title_metadata`: the title's
+Metadata window sends only the changed fields, and the database merges them
+under a lock on the title, checks the whole record and refreshes the title's
+findings in the same transaction. A failed findings refresh fails the save.
+It is founder-applied and **not applied**. Merge gate: the founder applies it,
+verifies on the PR preview, then merges. For the save, either order is safe:
+until it is applied, the database reports `merge_title_metadata` missing and
+the save reads, merges and sets as before; no other error falls back.
+Rollback for the merge alone: drop `merge_title_metadata` and
+`normalize_stored_title_metadata`. Design lock:
+[`docs/design-locks/aggregation-title-details-window-lock-v1.md`](../design-locks/aggregation-title-details-window-lock-v1.md).
+
+---
+
 ## Not authority
 
 - [`docs/HANDOFF.md`](../HANDOFF.md) — historical handoff; preserve as evidence; do not act on its branch, SHA, production, or task statements without fresh verification.

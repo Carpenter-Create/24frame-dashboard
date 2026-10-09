@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-09
 **Status:** **LOCKED** (Adam, 2026-10-09, "approved") · Design Own→READY
+**Amended 2026-10-09:** (Adam, "4) yes, please."; questions "approved, use the defaults") the save sends only the changed fields; the database merges them under a lock on the title, checks the whole record and refreshes findings in one transaction (`merge_title_metadata`, founder-applied with the title findings migration). A Cast or Keywords entry over 200 characters now reads the approved "Up to 200 characters."; more than 50 entries still reads "Up to 50 entries.". No new copy and no UI change.
 **Scope:** Aggregation title detail: editing a title's metadata and release info. Covers the host, the one draft, the one save, leaving with changes, and who may edit.
 **Entity:** Global Content / 24Frame only
 **Follows:** [`social-profile-edit-window-lock-v1.md`](social-profile-edit-window-lock-v1.md) (the house window) and [`house-overlay-dual-host-v1.md`](house-overlay-dual-host-v1.md) (the object-edit job).
@@ -29,6 +30,24 @@ Answers given on 2026-10-09:
 | Partial save | "Stay open on Release (Recommended)" |
 | Original release date | "Yes, app check now (Recommended)": it must be in the past |
 | This lock, with Release's "Re-release · {date}" | "approved" |
+
+### Amendment 2026-10-09: the atomic save
+
+Authorization, verbatim:
+
+> Adam, 2026-10-09: "4) yes, please." (draft the atomic metadata merge SQL, not applied)
+
+The plan's questions were answered on 2026-10-09, verbatim: "approved, use the defaults". Each default below is the decision. The SQL stays a draft: the founder approves the exact SQL before applying it, and "use the defaults" applies no SQL.
+
+| Question | Decision (the default) |
+|----------|------------------------|
+| What does Adam need to do? | Nothing until the PR is ready. Then: approve the exact SQL added to the title findings migration (`merge_title_metadata`, `normalize_stored_title_metadata`, and the title lock in `set_title_metadata` and `submit_title`); apply that migration to production once, as one transaction (it already carries the findings and checks work, so the merge rides along); verify (Verify on ship, step 9); merge. If the "merge_title_metadata not applied yet" log line still appears after the apply, run `notify pgrst, 'reload schema';`. |
+| Does the app change ride in the findings SQL PR or its own stacked PR? | The same PR: one SQL review, one apply, one preview check, one merge. The app diff inherits that PR's reserved SQL gate. |
+| A two-session (dblink) concurrency proof now? | No. A follow-up modeled on `screener_concurrency_test.sql`. This change proves the merge in one session and pins both locks on each function's source. |
+| A Cast or Keywords entry over 200 characters | Shows the approved "Up to 200 characters." (no new line); more than 50 entries keeps "Up to 50 entries." (Bugbot on the window's PR). |
+| Fix the existing B3 `set_title_metadata` cases, which pass without verifying anything? | Not here. The new merge cases get a positive control and verify callbacks; the old cases get the same in a separate follow-up. |
+| Revoke `set_title_metadata` and `reconcile_title_findings` from clients once the merge is live? | Yes, as a separate later draft for founder approval, after this is applied, deployed and verified. Not in this change: the old app and the fallback still need them. |
+| Refuse archived titles in the merge, not just deleted ones? | No. Match `set_title_metadata`, which allows archived titles. |
 
 ---
 
@@ -82,8 +101,10 @@ The same ask as Edit profile. On desktop it is a strip at the window's foot: Dis
   - the title is read under row security, and never a deleted one;
   - its org comes from that row;
   - Release and the field names are checked before anything is written;
-  - only the changed fields are merged onto the stored record;
+  - only the changed fields are sent, with no read first; the database merges them onto the stored record under a lock on the title, checks the whole record and refreshes the title's findings in the same transaction, so a failed refresh fails the save. Until that SQL is applied, the save reads, merges and sets as before, and only when the database reports `merge_title_metadata` itself missing. A field two people change at once keeps the last save, and a list (Cast, Keywords) is replaced whole;
+  - a value the database refuses is named with its field's approved line;
   - database text is logged on the server, and the browser gets "Could not save.".
+- Submit leaves findings to the database (`submit_title` refreshes them from the stored record).
 
 ## 7) Not
 
@@ -103,19 +124,25 @@ The same ask as Edit profile. On desktop it is a strip at the window's foot: Dis
 
 **New, approved with this lock:** Release's row summary "Re-release · {date}".
 
+**Amended 2026-10-09:** no new line. A Cast or Keywords entry over 200 characters shows the approved "Up to 200 characters."; more than 50 entries keeps "Up to 50 entries.".
+
 ## Gates
 
-- `title-details.test.ts` (lib): face parsing, the change diff (only changed fields, a cleared one as null), rows for the ask, the check order and lines, the row counts.
-- `metadata.test.ts` and `releases.test.ts`: the limits, and the original date in the past (today anywhere counts).
+- `title-details.test.ts` (lib): face parsing, the change diff (only changed fields, a cleared one as null), rows for the ask, the check order and lines (an over-long list entry vs too many entries), the row counts.
+- `metadata.test.ts` and `releases.test.ts`: the limits, the list-entry line, and the original date in the past (today anywhere counts).
+- `metadata-merge.test.ts`: the merge helpers (which errors fall back, which field a refusal names), SQL pins scoped to each function's own body (signature, gate, both locks, grants; the same title lock in `set_title_metadata` and `submit_title`), the registry and limits in `check_title_metadata` and the normalize helper, the hand-typed `database.types.ts` entry, and the normalize fixtures shared with pgTAP.
+- `supabase/tests/title_metadata_merge_test.sql` (pgTAP, CI): merge, clear and first-save semantics, one audit row per real write and none for a no-op, normalize parity, refusals, findings, a deleted title, cross-org and spoofed org, the role matrix, and the lock pins.
+- B3 (CI): a CONTROL that A's own merge lands, then the merge on B's title, spoofed and clear-only, each verified against a service-role re-read.
 - `house-form-select.test.ts`: arrow, Home and End steps, and type-ahead.
 - `title-details-actions.test.ts`:
   - a malformed request, a signed-out caller and view-as are refused with no write;
   - a deleted or another org's title, and a non-operator, are refused;
   - the org comes from the row;
   - Release is checked first;
-  - only changed fields are merged;
+  - only changed fields are sent and nothing is read first; the fallback runs only when the database reports `merge_title_metadata` missing; any other failure never falls back; a value the database refuses is named with its approved line;
   - no database text reaches the browser;
-  - a partial save is reported.
+  - a partial save is reported;
+  - submit makes one call and leaves findings to the database.
 - `title-details-window.test.tsx`: both hosts, the header, rows, faces, unique ids, the entry points, one save path, and that the old form and actions are gone.
 
 ## Verify on ship
@@ -128,3 +155,4 @@ The same ask as Edit profile. On desktop it is a strip at the window's foot: Dis
 6. Open from a new tab with `?edit=required`, and from `/metadata`: the window opens at both widths.
 7. Phone: the same window fills the sheet. A resize keeps the draft.
 8. A viewer, and staff under view-as, see View and no window.
+9. After the founder applies the SQL (a read-only check first: `select has_function_privilege('authenticated', 'public.merge_title_metadata(uuid, uuid, jsonb, text[])', 'EXECUTE');` is true): on the PR preview, open one title's Metadata window in two tabs, change Cast in one and Director in the other, Done in both, reload: both are kept. The preview's logs show no "merge_title_metadata not applied yet" line for those saves. This proves the merge path is live and nothing regressed; atomicity itself rests on the locks, which the tests pin.

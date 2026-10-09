@@ -3,6 +3,14 @@
 --
 -- DRAFT FOR FOUNDER REVIEW — NOT APPLIED. Adam authorized drafting only
 -- (2026-10-09, "Yes, draft for review"); applying it is founder-executed.
+-- Section 8 (the atomic metadata merge) was drafted on the same terms
+-- (Adam, 2026-10-09, "4) yes, please."; open questions "approved, use the
+-- defaults"). Approving this exact SQL and applying it stay founder-only.
+--
+-- MERGE GATE: the founder applies it, verifies on the PR preview, then
+-- merges. For the Metadata window's save either order is safe: until this is
+-- applied, PostgREST reports merge_title_metadata missing and the app reads,
+-- merges and sets as before; no other error falls back.
 --
 -- INTENT: close a forgery path in the findings store (§19) and harden the
 -- title write RPCs.
@@ -24,22 +32,36 @@
 --   3. A soft-deleted title (deleted_at set) can no longer be written through
 --      set_title_metadata, set_title_release_info, reconcile_title_findings
 --      or submit_title.
+--   4. An atomic metadata merge for the Metadata window's save
+--      (merge_title_metadata): the app sends only the changed fields; the
+--      database merges them onto the stored record under a lock on the
+--      title, checks the whole record and refreshes findings in one
+--      transaction. set_title_metadata and submit_title take the same title
+--      lock first, so every metadata writer serializes on the title and a
+--      submit reads what the last save stored.
 --
 -- DESTRUCTIVE OPS (approved before apply): create or replace 4 existing
 -- functions (reconcile_title_findings, set_title_metadata,
--- set_title_release_info, submit_title); create 4 new functions (2 pure
--- helpers, 1 internal refresh, 1 metadata check); revoke/grant execute. No
--- table, column, policy, trigger or data change. Existing stored metadata is
--- not rewritten or re-validated; the next save of a title is checked.
+-- set_title_release_info, submit_title); create 6 new functions (2 pure
+-- helpers, 1 internal refresh, 1 metadata check, and in section 8
+-- normalize_stored_title_metadata (internal) and merge_title_metadata); a
+-- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata and
+-- submit_title; revoke/grant execute. No table, column, policy, trigger or
+-- data change. Existing stored metadata is not rewritten or re-validated;
+-- the next save of a title is checked. Apply as one transaction.
 --
 -- ROLLBACK: re-apply the previous bodies from 20260718000700_title_metadata.sql
 -- (set_title_metadata), 20260721000200_release_dates.sql (set_title_release_info),
 -- 20260719000700_export_and_submit_gate.sql (submit_title) and
 -- 20260727000100_gc_role_separation.sql (reconcile_title_findings); drop the
--- four new functions.
+-- new functions. For the merge alone:
+--   drop function public.merge_title_metadata(uuid, uuid, jsonb, text[]);
+--   drop function public.normalize_stored_title_metadata(jsonb);
+-- The app then returns to read, merge and set by itself.
 --
 -- KEEP IN SYNC with src/lib/metadata.ts (METADATA_FIELDS, GENRES, RATINGS,
--- computeMetadataFindings, METADATA_LOGIC_VERSION) and the limits there.
+-- computeMetadataFindings, METADATA_LOGIC_VERSION, normalizeStoredMetadata)
+-- and the limits there; src/lib/metadata-merge.test.ts pins them.
 -- ============================================================================
 
 -- ---- 1. Pure helpers ---------------------------------------------------------
@@ -293,10 +315,11 @@ begin
   if not public.member_can(auth.uid(), p_org_id, 'operate') then
     raise exception 'Not authorized to edit metadata for this organization';
   end if;
-  if not exists (
-    select 1 from public.titles t
-     where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
-  ) then
+  -- One metadata writer per title: the lock merge_title_metadata takes.
+  perform 1 from public.titles t
+   where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
+   for no key update;
+  if not found then
     raise exception 'Title does not belong to this organization';
   end if;
 
@@ -366,6 +389,12 @@ begin
     raise exception 'Not authorized to submit titles for this organization';
   end if;
 
+  -- The metadata writers' title lock: a save in flight finishes first, and
+  -- the read below sees what it stored.
+  perform 1 from public.titles t
+   where t.id = p_title_id and t.org_id = p_org_id
+   for no key update;
+
   select data into v_data from public.title_metadata where title_id = p_title_id;
   foreach v_key in array v_required loop
     if v_data is null or coalesce(btrim(v_data->>v_key), '') = '' then
@@ -389,3 +418,169 @@ $$;
 
 revoke execute on function public.submit_title(uuid, uuid) from public, anon;
 grant  execute on function public.submit_title(uuid, uuid) to authenticated;
+
+-- ---- 8. The atomic metadata merge (the Metadata window's save) ---------------
+
+-- The stored record as the app reads it (normalizeStoredMetadata,
+-- src/lib/metadata.ts), so a save is never refused over a stored value the
+-- window shows as fine: empty values are dropped, a number stored as text
+-- reads as that number, blank list entries are dropped, keys outside the
+-- registry are left out. Anything else stays as stored, and the check names
+-- its field. Known differences from JS Number(), both refused by the check
+-- with the same field line: hex, binary or octal text stays text (JS reads
+-- it as a number), and an exponent from 309 to 999 becomes a number (JS
+-- keeps the text). The shared fixtures in
+-- supabase/tests/title_metadata_merge_test.sql pin both sides. Internal: no
+-- client role may execute it.
+create or replace function public.normalize_stored_title_metadata(p_data jsonb)
+  returns jsonb
+  language plpgsql immutable
+  set search_path = public
+as $$
+declare
+  -- METADATA_FIELDS (src/lib/metadata.ts), in order.
+  c_keys    constant text[] := array['synopsis','runtime_minutes','release_year','genre','primary_language',
+    'country_of_origin','director','cast','rating','keywords','alternate_title','production_company'];
+  -- The registry's type "number" keys and type "list" keys.
+  c_numbers constant text[] := array['runtime_minutes','release_year'];
+  c_lists   constant text[] := array['cast','keywords'];
+  -- JS String.prototype.trim's set (WhiteSpace and LineTerminator), so a
+  -- no-break space or a byte-order mark trims as it does in the app.
+  c_ws      constant text := '[\u0009-\u000d\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]';
+  c_trim    constant text := '^' || c_ws || '+|' || c_ws || '+$';
+  -- Decimal text JS Number() reads as finite. The exponent is capped at three
+  -- digits and the text at 400 characters, so the cast below cannot overflow.
+  c_number  constant text := '^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]{1,3})?$';
+  v_out   jsonb := '{}'::jsonb;
+  v_key   text;
+  v_value jsonb;
+  v_list  jsonb;
+  v_text  text;
+  v_n     numeric;
+begin
+  if jsonb_typeof(p_data) is distinct from 'object' then
+    return v_out;
+  end if;
+  foreach v_key in array c_keys loop
+    v_value := p_data -> v_key;
+    -- isEmpty(): absent, null, "" or [].
+    continue when v_value is null or v_value in ('null'::jsonb, '""'::jsonb, '[]'::jsonb);
+    if v_key = any (c_numbers) and jsonb_typeof(v_value) = 'string' then
+      v_text := regexp_replace(v_value #>> '{}', c_trim, '', 'g');
+      if char_length(v_text) <= 400 and v_text ~ c_number then
+        v_n := v_text::numeric;
+        v_value := to_jsonb(case when v_n = trunc(v_n) then trunc(v_n) else v_n end);
+      end if;
+    elsif v_key = any (c_lists) and jsonb_typeof(v_value) = 'array' then
+      select coalesce(jsonb_agg(x.v order by x.i), '[]'::jsonb) into v_list
+        from jsonb_array_elements(v_value) with ordinality as x(v, i)
+       where not (jsonb_typeof(x.v) = 'string' and regexp_replace(x.v #>> '{}', c_trim, '', 'g') = '');
+      continue when v_list = '[]'::jsonb;
+      v_value := v_list;
+    end if;
+    v_out := v_out || jsonb_build_object(v_key, v_value);
+  end loop;
+  return v_out;
+end;
+$$;
+
+revoke execute on function public.normalize_stored_title_metadata(jsonb) from public, anon, authenticated, service_role;
+
+-- The Metadata window's save: the changed fields (p_set) and the cleared ones
+-- (p_clear), merged onto the stored record in one transaction. Set applies
+-- first, then clear, so a key in both ends up cleared; an unknown key in
+-- p_clear is ignored. Same-field edits stay last-writer-wins, and a list is
+-- replaced whole.
+--
+-- Lock order for every metadata writer (this, set_title_metadata,
+-- submit_title): the title row (FOR NO KEY UPDATE), then the title_metadata
+-- row, then findings. NO KEY UPDATE, not SHARE: two merges never share the
+-- row and then upgrade (no deadlock), and the KEY SHARE lock a title_metadata
+-- insert takes for its foreign key is still allowed. A delete that commits
+-- first is re-checked under the lock and refused.
+--
+-- The write goes through the table, so audit_title_metadata (tg_audit)
+-- appends exactly one row per real write with the caller as actor. An
+-- unchanged record writes nothing: no audit row, no findings refresh
+-- (refresh_title_findings rewrites derived_at on every call). A failed
+-- refresh fails the save.
+create or replace function public.merge_title_metadata(
+  p_org_id uuid, p_title_id uuid, p_set jsonb, p_clear text[]
+) returns void
+  language plpgsql security definer
+  set search_path = public
+as $$
+declare
+  v_set     jsonb  := coalesce(p_set, '{}'::jsonb);
+  v_clear   text[] := coalesce(p_clear, '{}'::text[]);
+  v_current jsonb;
+  v_merged  jsonb;
+  v_rows    int;
+  v_wrote   boolean := false;
+begin
+  -- set_title_metadata's gate.
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  if not public.member_can(auth.uid(), p_org_id, 'operate') then
+    raise exception 'Not authorized to edit metadata for this organization';
+  end if;
+  if jsonb_typeof(v_set) <> 'object' then
+    raise exception 'p_set must be a JSON object' using errcode = '22023';
+  end if;
+
+  -- One metadata writer per title. A spoofed p_org_id matches no row, so
+  -- nothing is locked outside an org the caller may operate.
+  perform 1 from public.titles t
+   where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
+   for no key update;
+  if not found then
+    raise exception 'Title does not belong to this organization';
+  end if;
+
+  select m.data into v_current
+    from public.title_metadata m
+   where m.title_id = p_title_id
+   for update;
+  if not found then
+    v_merged := public.check_title_metadata(v_set - v_clear);
+    -- An empty first record is never stored.
+    if v_merged <> '{}'::jsonb then
+      insert into public.title_metadata (title_id, org_id, data)
+        values (p_title_id, p_org_id, v_merged)
+      on conflict (title_id) do nothing;
+      get diagnostics v_rows = row_count;
+      if v_rows = 1 then
+        v_wrote := true;
+      else
+        -- A writer without the title lock got there first: merge onto it.
+        select m.data into v_current
+          from public.title_metadata m
+         where m.title_id = p_title_id
+         for update;
+        if not found then
+          raise exception 'Could not save metadata';
+        end if;
+      end if;
+    end if;
+  end if;
+
+  if v_current is not null then
+    v_merged := public.check_title_metadata(
+      (public.normalize_stored_title_metadata(v_current) || v_set) - v_clear);
+    if v_merged is distinct from v_current then
+      update public.title_metadata
+         set data = v_merged, updated_at = now()
+       where title_id = p_title_id;
+      v_wrote := true;
+    end if;
+  end if;
+
+  if v_wrote then
+    perform public.refresh_title_findings(p_org_id, p_title_id);
+  end if;
+end;
+$$;
+
+revoke execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) from public, anon;
+grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) to authenticated;
