@@ -439,8 +439,16 @@ export const SOCIAL_POST_ACTIONS_ROW_CLASS =
 // z-[45] is the stage on document.body. The comment host (z-50) mounts
 // inside this stage and paints above the dock. The Share sheet is a
 // separate body portal at z-[60], above the stage. Do not raise this.
+// Desktop (md+) stacks the stage: the media above, the dock below it. A
+// video's player bar (play, time, volume, PiP, fullscreen) sits at the
+// bottom of the media, so laid under the dock it lost those controls to
+// the caption and Like / Comment / Share (Adam 2026-10-08: "on desktop, the
+// icons are covering the player options at the bottom"). The phone keeps
+// the media full-bleed under the dock.
 export const SOCIAL_FEED_IMMERSIVE_STAGE_CLASS =
-  "fixed inset-0 z-[45] bg-[#0A0A0B] text-band-ink social-feed-immersive-in";
+  "fixed inset-0 z-[45] bg-[#0A0A0B] text-band-ink social-feed-immersive-in md:flex md:flex-col";
+
+export const SOCIAL_FEED_IMMERSIVE_MEDIA_CLASS = "absolute inset-0 md:relative md:inset-auto md:min-h-0 md:flex-1";
 
 export const SOCIAL_FEED_IMMERSIVE_CLOSE_CLASS =
   "absolute left-0 top-[env(safe-area-inset-top)] z-30 flex size-[44px] min-h-[44px] min-w-[44px] items-center justify-center text-band-ink";
@@ -453,7 +461,7 @@ export const SOCIAL_FEED_IMMERSIVE_MUTE_CLASS =
   "absolute right-0 top-[env(safe-area-inset-top)] z-30 flex size-[44px] min-h-[44px] min-w-[44px] items-center justify-center text-band-ink md:hidden";
 
 export const SOCIAL_FEED_IMMERSIVE_DOCK_CLASS =
-  "absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pt-[var(--space-4)]";
+  "absolute inset-x-0 bottom-0 z-20 flex flex-col gap-[var(--space-2)] bg-[linear-gradient(to_top,rgb(0_0_0/0.4),rgb(0_0_0/0)_120px)] px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))] pt-[var(--space-4)] md:relative md:inset-auto md:shrink-0 md:bg-none";
 
 export const SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS = "t-body text-band-ink break-words";
 
@@ -1503,22 +1511,7 @@ export const SOCIAL_WRITE_COMPOSE_HOST_CLASS =
 export const SOCIAL_WRITE_COMPOSE_SHEET_FORM_CLASS =
   "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-transparent";
 
-export const SOCIAL_WRITE_COMPOSE_SHEET_CHROME_CLASS =
-  "flex h-12 shrink-0 items-center justify-between gap-[var(--space-4)] border-b border-hairline";
-
-export const SOCIAL_WRITE_COMPOSE_SHEET_ROW_CLASS =
-  "mt-auto flex min-h-12 w-full min-w-0 items-end gap-[var(--space-2)] border-t border-hairline bg-transparent";
-
 // §0. Row 48. Hairline on the bottom edge only. Pad H 16.
-export const SOCIAL_WRITE_COMPOSE_CHROME_CLASS =
-  "-mx-[var(--space-4)] flex h-12 items-center justify-between gap-[var(--space-4)] border-b border-hairline px-[var(--space-4)]";
-
-export const SOCIAL_WRITE_COMPOSE_POST_CLASS =
-  "inline-flex h-10 shrink-0 items-center justify-center rounded-[8px] bg-accent px-[var(--space-4)] t-body-sm font-medium text-accent-contrast disabled:opacity-70";
-
-export const SOCIAL_WRITE_COMPOSE_X_CLASS =
-  "inline-flex size-11 shrink-0 items-center justify-center text-ink active:opacity-70";
-
 // §0.2. Diameter 220. #EEEEF0 is denser than --surface-muted. The 1px hairline sits inside the face.
 export const SOCIAL_WRITE_VOICE_HERO_CLASS =
   "flex size-[220px] shrink-0 items-center justify-center rounded-full border border-hairline bg-[#EEEEF0] text-ink";
@@ -1532,14 +1525,8 @@ export const SOCIAL_WRITE_VOICE_HERO_RECORDING_CLASS = "bg-accent/10 text-accent
 
 // §0.4. iMessage compose row. Type is transparent on white. Feed write has no mic.
 // Hairline is the top edge only. No gray fill. Bottom pad is 16 above the safe area.
-export const SOCIAL_WRITE_COMPOSE_ROW_CLASS =
-  "-mx-[var(--space-4)] -mb-[max(var(--space-4),env(safe-area-inset-bottom))] mt-auto flex min-h-12 items-end gap-[var(--space-2)] border-t border-hairline bg-transparent px-[var(--space-4)] pb-[max(var(--space-4),env(safe-area-inset-bottom))]";
-
 // 16px floor. text-sm (15px) makes iOS Safari zoom the page on focus.
 // Flat caption. No elevation on the field.
-export const SOCIAL_WRITE_COMPOSE_ROW_FIELD_CLASS =
-  "max-h-[40vh] min-h-12 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-3 text-[16px] leading-normal text-ink caret-ink outline-none placeholder:text-ink-2";
-
 /** Grow the caption up to 40vh. Past that, scroll so the caret line stays inside the field. */
 export function fitSocialWriteComposeField(field: HTMLTextAreaElement): void {
   const view = field.ownerDocument.documentElement.clientHeight || 0;

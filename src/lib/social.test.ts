@@ -103,7 +103,7 @@ describe("social copy lock", () => {
     );
     expect(SOCIAL.home.composerPrompt).toBe("Share something");
     expect(SOCIAL.home.composerPromptNamed).toBe("Share something");
-    expect(SOCIAL.home.composerPhoto).toBe("Photo");
+    expect(SOCIAL.home).not.toHaveProperty("composerPhoto");
     expect(SOCIAL.home.composerCamera).toBe("Camera");
     // No Following / For you slider over the Feed (founder 2026-10-08).
     expect(SOCIAL.home).not.toHaveProperty("forYouTab");
@@ -523,7 +523,9 @@ describe("profile opt-in", () => {
     expect(socialCreateHref("text")).toBe("/social/create?kind=text");
     expect(SOCIAL_ROUTES.createLive).toBe("/social/live");
     expect(SOCIAL.create.write).toBe("Write");
-    expect(SOCIAL.create.goLive).toBe("Go live");
+    // Adam 2026-10-09: "Live / Not record", everywhere (one word).
+    expect(SOCIAL.create.goLive).toBe("Live");
+    expect(SOCIAL.create.liveTitle).toBe("Live");
     expect(SOCIAL.create.close).toBe("Close");
     expect(SOCIAL.create.title).toBe("Create");
     expect(socialCreateWellCopy("media", false)).toBeNull();

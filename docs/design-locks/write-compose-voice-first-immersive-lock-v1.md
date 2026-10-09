@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-25 (CT)  
 **Status:** **LOCKED** · **§0.4.2 Adam PASS amend 2026-09-25:** attach path REQUIRED · camera **far-right** on feed write · mic stays OUT · font ≥16 · grow-up · Design Own→READY tip-first · no PR · #681 DRAFT  
+**Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Match the fan"; the label, 2026-10-09: "Live / Not record", everywhere). The full-page writer takes the desktop window's layout; the bottom caption row with the camera glyph is retired.
 **Repo:** `docs/design-locks/write-compose-voice-first-immersive-lock-v1.md`  
 **Box:** `/workspace/24frame-agg-ux/write-compose-voice-first-immersive-lock-v1.md`  
 **FAIL tip `9c4cf970` (supersede):** gray paper card + orphan mic under left + dead white — Adam 2026-09-25 phone. **Prior FAIL:** `/workspace/24frame-agg-ux/write-compose-thin-card-adam-fail-2026-09-25.png` (thin CAPTION) · `/workspace/24frame-agg-ux/write-compose-photo-attach-no-preview-adam-fail-2026-09-25.png` (text-only Photo·Remove · **no** image face) · `/workspace/24frame-agg-ux/write-compose-tip-840ef405-adam-almost-2026-09-25.png` (tip `840ef405` almost-100% · Share something **not** optical V-center)  

@@ -93,7 +93,7 @@ describe("Share something write compose sheet", () => {
     expect(html.slice(formAt, formAt + 400)).not.toContain("h-dvh");
   });
 
-  it("keeps the Home prompt a sheet trigger and leaves Photo, Camera, and Create + alone", () => {
+  it("keeps the Home prompt a sheet trigger beside the fan's Media and Live, and leaves Create + alone", () => {
     const html = renderToStaticMarkup(
       createElement(SocialHomeComposer, { authorName: "Ada Lovelace" }),
     );
@@ -104,8 +104,8 @@ describe("Share something write compose sheet", () => {
     expect(html).not.toContain('href="/social/create?kind=text"');
     expect(html).not.toContain("data-social-write-compose-sheet");
     expect(html).not.toContain("data-social-create-form");
-    expect(html).toContain('data-social-composer-affordance="photo"');
-    expect(html).toContain('data-social-composer-affordance="camera"');
+    expect(html).toContain('data-social-composer-affordance="media"');
+    expect(html).toContain('data-social-composer-affordance="live"');
     // It opens the shell's one window; it never mounts its own.
     expect(composerSrc).toContain("onClick={compose?.onOpen}");
     expect(composerSrc).toContain("useSocialCompose()");

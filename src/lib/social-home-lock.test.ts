@@ -251,16 +251,20 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(composer).not.toContain("data-social-composer-action");
     expect(composer).not.toContain("ACTIONS");
     expect(composer).toContain("SocialIcon");
-    expect(composer).toContain('icon="image"');
-    expect(composer).toContain('icon="camera"');
+    // The rounds are the + fan's Media and Live tiles (Adam 2026-10-08,
+    // "Match the fan"): glyph and name from the tile list; no camera-app
+    // capture input.
+    expect(composer).toContain('socialCreateTile("media")');
+    expect(composer).toContain('socialCreateTile("live")');
+    expect(composer).toContain("name={MEDIA_TILE.icon}");
+    expect(composer).toContain("name={LIVE_TILE.icon}");
+    expect(composer).toContain("aria-label={MEDIA_TILE.label}");
+    expect(composer).toContain("aria-label={LIVE_TILE.label}");
     expect(composer).not.toContain('name="plus"');
-    expect(composer).not.toContain('icon="broadcast"');
     expect(composer).not.toContain("t-label");
-    expect(composer).toContain("aria-label={label}");
-    expect(composer).toContain("SOCIAL.home.composerPhoto");
-    expect(composer).toContain("SOCIAL.home.composerCamera");
     expect(composer).toContain("useSocialCreateMediaPick");
-    expect(composer).toContain("SOCIAL_CREATE_CAMERA_ACCEPT");
+    expect(composer).not.toContain("SOCIAL_CREATE_CAMERA_ACCEPT");
+    expect(composer).not.toContain("capture");
     // H · Feed composer (founder 2026-10-05; replaces G's muted 52 bar):
     // one 44 row — the 44 avatar, 12, the pill — in its own card since
     // the cards lock (its classes are pinned in the cards lock test).

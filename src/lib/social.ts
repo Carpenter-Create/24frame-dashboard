@@ -592,7 +592,6 @@ export const SOCIAL = {
     findPeople: "Find people",
     composerPrompt: "Share something",
     composerPromptNamed: "Share something",
-    composerPhoto: "Photo",
     composerCamera: "Camera",
     // The topic words are a group of this name; the chevron over the
     // topic fade scrolls the row.
@@ -672,9 +671,12 @@ export const SOCIAL = {
     media: "Media",
     photo: "Photo",
     video: "Video",
-    goLive: "Go live",
+    // One word (Adam 2026-10-08, "better/one words"; 2026-10-09: "Live /
+    // Not record", everywhere): the fan tile, the Feed row's round, the
+    // composer's glyph, and the camera's header.
+    goLive: "Live",
     close: "Close",
-    liveTitle: "Go live",
+    liveTitle: "Live",
     // Desktop camera frame switch (Adam 2026-10-08: "normal view" by
     // default, a simple switch to "reel sized").
     liveFrame: "Aspect ratio",
