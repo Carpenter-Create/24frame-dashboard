@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // Founder lock 2026-09-19 (hygiene P1-1 / P1-2 / P1-4): old doors
@@ -76,6 +76,23 @@ describe("workspace hard-cut — old doors 404", () => {
     expect(existsSync("src/app/(app)/(operator)/staff/gc/finance/page.tsx")).toBe(true);
     expect(existsSync("src/app/(app)/(operator)/staff/gc/clients/page.tsx")).toBe(true);
     expect(existsSync("src/app/(app)/staff/queue/page.tsx")).toBe(false);
+  });
+
+  it("links staff ops at /staff, never at a retired door", () => {
+    // A bare /channels, /gc/*, /queue or /avails (or the old /aggregation/*
+    // staff doors) has no route and no redirect: it lands on not-found.
+    const OLD_DOOR = /["'`]\/(?:aggregation\/)?(?:channels|gc|queue|avails)(?:\/|["'`?])/;
+    const sources = readdirSync("src", { recursive: true, encoding: "utf8" })
+      .filter((file) => /\.(ts|tsx)$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .map((file) => `src/${file}`);
+    const offenders = sources.flatMap((file) =>
+      readFileSync(file, "utf8")
+        .split("\n")
+        .map((line, i) => ({ line, at: `${file}:${i + 1}` }))
+        .filter(({ line }) => !line.trim().startsWith("//") && OLD_DOOR.test(line))
+        .map(({ at, line }) => `${at}: ${line.trim()}`),
+    );
+    expect(offenders).toEqual([]);
   });
 
   it("keeps Next and Vercel off leftover workspace hops", () => {

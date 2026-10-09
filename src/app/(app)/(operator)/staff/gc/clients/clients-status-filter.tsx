@@ -6,6 +6,7 @@ import { HousePageSelect } from "@/components/chrome/house-page-select";
 import {
   CLIENTS_PAGE,
   CLIENT_DIRECTORY_FILTERS,
+  GC_CLIENTS_HREF,
   clientDirectoryFilterLabel,
   parseClientDirectoryFilter,
   type ClientDirectoryFilter,
@@ -36,7 +37,7 @@ export function ClientsStatusFilter({
         defaultOpen={defaultOpen}
         menuAlign="end"
         onPick={(key) => {
-          router.replace(filterHref("/gc/clients", parseClientDirectoryFilter(key)), {
+          router.replace(filterHref(GC_CLIENTS_HREF, parseClientDirectoryFilter(key)), {
             scroll: false,
           });
         }}

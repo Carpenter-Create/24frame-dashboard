@@ -1,10 +1,14 @@
 import type { Database } from "@/lib/supabase/database.types";
+import { staffPath } from "@/lib/workspace";
 
 // Client-safe Clients status lens. No server-only, no Node crypto, no
 // agreements. Client Components (clients-status-filter) import this module
 // only. Server/agreement grouping stays in clients.ts.
 
 export type OrgStatus = Database["public"]["Enums"]["org_status"];
+
+/** The Clients directory (Staff). Here so Client Components can link to it. */
+export const GC_CLIENTS_HREF = staffPath("gc/clients");
 
 export const CLIENTS_PAGE = {
   title: "Clients",

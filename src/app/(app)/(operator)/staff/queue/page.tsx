@@ -21,7 +21,7 @@ import {
   catalogSearchQuery,
   catalogStillSrc,
 } from "@/lib/titles-catalog";
-import { opsCatalogId } from "@/lib/title-public-id";
+import { opsCatalogId, titleOpsPath } from "@/lib/title-public-id";
 import type { TitleStatus } from "@/lib/titles";
 import {
   TitlesCatalogEmpty,
@@ -97,7 +97,7 @@ export default async function GcQueuePage({
     const submittedAt = queueSubmittedAt(t.created_at, submitAts.get(t.id) ?? null);
     return {
       key: t.id,
-      href: `/gc/titles/${t.id}`,
+      href: titleOpsPath(t.id),
       title: t.title,
       stillUrl: catalogStillSrc(posters.get(t.id)?.banner),
       status: t.status as TitleStatus,
