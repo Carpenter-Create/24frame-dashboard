@@ -10,14 +10,14 @@ The job picks the host. Phone and desktop are different hosts. A breakpoint does
 - Max height 90vh
 - Scrim ink 40%
 - No shadow
-- A window, with faces or one face (a post's caption), may take the full AppSheet (`APP_SHEET_FULL_HOST_CLASS`) on a phone instead of its own phone route: the same header, faces and ask, clear of the safe areas (the title's Metadata window; a post's caption; Edit profile keeps its sheet route). The 90vh cap is for card sheets
+- A window, with faces or one face (a post's caption), may take the full AppSheet (`APP_SHEET_FULL_HOST_CLASS`) on a phone instead of its own phone route: the same header, faces and ask, clear of the safe areas (the title's Metadata window; Deliver over Licensing Status; a post's caption; Edit profile keeps its sheet route). The 90vh cap is for card sheets
 
 ## Desktop — HouseDialog
 
 - Max width 400 for confirm
 - Max width 480 for a short form
-- Max width 600 for a window: one object edited over the page that shows it (the composer; Edit profile; a title's Metadata; a post's caption). Radius 24, no edge, no shadow. One geometry constant (`HOUSE_DIALOG_WINDOW_CLASS`) feeds every window
-- A window holds one height while open: the height it opens at, up to 80vh. Faces push inside it (220ms). Header: close or back · title · Done. One Done, one action; a part that saved stays saved
+- Max width 600 for a window: one object edited over the page that shows it (the composer; Edit profile; a title's Metadata; Deliver over Licensing Status; a post's caption). Radius 24, no edge, no shadow. One geometry constant (`HOUSE_DIALOG_WINDOW_CLASS`) feeds every window
+- A window holds one height while open: the height it opens at, up to 80vh. Faces push inside it (220ms). Header: close or back · title · Done. One Done, one action; a part that saved stays saved. A linear window (Deliver) keeps one action that names its step: Continue, then the commit ("Deliver · N"), then Done; its result face shows close, never back ([`staff-licensing-deliver-window-lock-v1.md`](staff-licensing-deliver-window-lock-v1.md))
 - A changed window asks before it closes, inside the window: Keep editing · Discard
 - Pad 24 (a window's header and body carry their own; the composer keeps its locked 16)
 - Button footer (a window's actions sit in its header)
