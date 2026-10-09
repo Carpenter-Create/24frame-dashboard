@@ -12,6 +12,18 @@ export const HOUSE_WINDOW_PANEL_CLASS = `${HOUSE_DIALOG_WINDOW_CLASS} relative f
 /** The frame holds the height it opens at (up to 80vh). */
 export const HOUSE_WINDOW_FRAME_CLASS = "flex max-h-[80vh] min-h-0 flex-col outline-none";
 
+// Optional parts, absent for every window before them
+// (docs/design-locks/social-comments-window-lock-v1.md). A window whose
+// content arrives after it opens fills 80vh and never takes the held px
+// height, so a resize never clips its pinned foot.
+export const HOUSE_WINDOW_FRAME_FILL_CLASS = "flex h-[80vh] min-h-0 flex-col outline-none";
+
+// A foot pinned under the scrolling body (the comments composer).
+export const HOUSE_WINDOW_FOOT_CLASS = "shrink-0 border-t border-hairline bg-surface";
+
+// A window with no Done: a 44 spacer (the X's size) keeps the title centred.
+export const HOUSE_WINDOW_HEADER_SPACER_CLASS = "size-[var(--header-control-size)] shrink-0";
+
 // Phone, for a window that opts in: the same header and body filling the
 // full AppSheet, clear of the status bar and the home indicator.
 export const HOUSE_WINDOW_SHEET_FRAME_CLASS = "flex h-full min-h-0 flex-col pt-[env(safe-area-inset-top)] outline-none";

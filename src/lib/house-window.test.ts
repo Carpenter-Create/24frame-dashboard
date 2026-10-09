@@ -4,8 +4,11 @@ import { HOUSE_DIALOG_WINDOW_CLASS } from "./house-overlay";
 import {
   HOUSE_WINDOW_ASK_STRIP_CLASS,
   HOUSE_WINDOW_FOCUSABLE,
+  HOUSE_WINDOW_FOOT_CLASS,
   HOUSE_WINDOW_FRAME_CLASS,
+  HOUSE_WINDOW_FRAME_FILL_CLASS,
   HOUSE_WINDOW_HEADER_CLASS,
+  HOUSE_WINDOW_HEADER_SPACER_CLASS,
   HOUSE_WINDOW_PANEL_CLASS,
   houseWindowClosedHref,
   houseWindowMotionClass,
@@ -25,6 +28,21 @@ describe("house window (lib/house-window)", () => {
     expect(HOUSE_WINDOW_FOCUSABLE).toContain("button:not([disabled])");
     expect(HOUSE_WINDOW_FOCUSABLE).toContain('input:not([disabled]):not([type="hidden"])');
     expect(HOUSE_WINDOW_FOCUSABLE).toContain('[tabindex]:not([tabindex="-1"])');
+  });
+
+  // docs/design-locks/social-comments-window-lock-v1.md: a window whose
+  // content arrives after it opens fills 80vh; its action sits in a pinned
+  // foot; with no Done, a 44 spacer keeps the title centred.
+  it("fills 80vh, pins a foot, and holds Done's place with a 44 spacer", () => {
+    const fill = HOUSE_WINDOW_FRAME_FILL_CLASS.split(" ");
+    expect(fill).toContain("h-[80vh]");
+    expect(fill).toContain("flex-col");
+    expect(fill).toContain("min-h-0");
+    expect(fill.some((token) => token.startsWith("max-h-"))).toBe(false);
+    const foot = HOUSE_WINDOW_FOOT_CLASS.split(" ");
+    expect(foot).toContain("shrink-0");
+    expect(foot).toContain("border-hairline");
+    expect(HOUSE_WINDOW_HEADER_SPACER_CLASS).toBe("size-[var(--header-control-size)] shrink-0");
   });
 
   it("slides a face in from the right and Back from the left", () => {

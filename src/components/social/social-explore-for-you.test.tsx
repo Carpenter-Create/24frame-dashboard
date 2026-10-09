@@ -224,6 +224,10 @@ describe("SocialExploreForYouStream", () => {
     expect(explore).not.toContain("useRouter");
     expect(explore).not.toContain("router.push");
     expect(comment).toContain("onClose={() => setOpen(false)}");
+    // The comments window's post is the item; no layer, so it mounts on the
+    // body above the scroller (social-comments-window-lock-v1).
+    expect(explore).toContain("preview: socialCommentsPostFromExplore(item)");
+    expect(explore).not.toMatch(/\slayer=\{/);
     expect(share).toContain("onClose={() => setOpen(false)}");
     expect(comment).not.toContain("router.push");
     expect(share).not.toContain("router.push");

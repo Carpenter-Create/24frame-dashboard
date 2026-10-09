@@ -1,12 +1,38 @@
 import { readFileSync } from "node:fs";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+
+import {
+  HOUSE_WINDOW_FOOT_CLASS,
+  HOUSE_WINDOW_FRAME_CLASS,
+  HOUSE_WINDOW_FRAME_FILL_CLASS,
+  HOUSE_WINDOW_HEADER_SPACER_CLASS,
+} from "@/lib/house-window";
 
 import { HouseWindowAsk, HouseWindowFrame, useHouseWindow } from "./house-window";
 
 const shellSrc = readFileSync("src/components/chrome/house-window.tsx", "utf8");
 
-function Host({ face = "index", busy = false, holdOpen = false }: { face?: string; busy?: boolean; holdOpen?: boolean }) {
+function Host({
+  face = "index",
+  busy = false,
+  holdOpen = false,
+  doneLabel = "Done",
+  foot,
+  fill,
+  asking = false,
+}: {
+  face?: string;
+  busy?: boolean;
+  holdOpen?: boolean;
+  /** null: the window draws no Done. */
+  doneLabel?: string | null;
+  foot?: ReactNode;
+  fill?: boolean;
+  /** Draw the frame as it is while the ask shows. */
+  asking?: boolean;
+}) {
   const [win, refs] = useHouseWindow({
     attr: "w",
     face,
@@ -21,16 +47,18 @@ function Host({ face = "index", busy = false, holdOpen = false }: { face?: strin
   });
   return (
     <HouseWindowFrame
-      win={win}
+      win={asking ? { ...win, asking: true } : win}
       refs={refs}
       title="Metadata"
       motion={null}
       closeLabel="Close"
       backLabel="Back"
-      doneLabel="Done"
+      doneLabel={doneLabel ?? undefined}
       closeIcon={<span>x</span>}
       backIcon={<span>‹</span>}
       ask={<div data-ask="" />}
+      foot={foot}
+      fill={fill}
     >
       <p>body</p>
     </HouseWindowFrame>
@@ -106,5 +134,57 @@ describe("house window shell (components/chrome/house-window)", () => {
     );
     // A window that stripped its query (it came with the page) runs it at once.
     expect(close).toContain("if (addressHasWindow()) strip();\n      after?.();");
+  });
+
+  // The optional parts (docs/design-locks/social-comments-window-lock-v1.md),
+  // absent for every window before them.
+  it("draws no Done when the window has none: a 44 spacer keeps the title centred", () => {
+    const html = renderToStaticMarkup(<Host doneLabel={null} />);
+    expect(html).not.toContain("data-w-done");
+    expect(html).toContain(`<span aria-hidden="true" class="${HOUSE_WINDOW_HEADER_SPACER_CLASS}"></span>`);
+    expect(html).toMatch(/<h2[^>]*>Metadata<\/h2><span aria-hidden="true"/);
+    expect(html).toContain('data-w-close=""');
+    // With a Done, no spacer.
+    expect(renderToStaticMarkup(<Host />)).not.toContain(HOUSE_WINDOW_HEADER_SPACER_CLASS);
+  });
+
+  it("pins a foot under the body, inert while busy", () => {
+    const html = renderToStaticMarkup(<Host doneLabel={null} foot={<form data-f="" />} />);
+    expect(html).toContain(`<div data-w-foot="" class="${HOUSE_WINDOW_FOOT_CLASS}"><form data-f=""></form></div>`);
+    expect(html.indexOf("<p>body</p>")).toBeLessThan(html.indexOf("data-w-foot"));
+    const busy = renderToStaticMarkup(<Host doneLabel={null} busy foot={<form data-f="" />} />);
+    expect(busy).toMatch(/<div data-w-foot=""[^>]*inert=""/);
+    // No foot: nothing drawn for it.
+    expect(renderToStaticMarkup(<Host />)).not.toContain("data-w-foot");
+  });
+
+  it("makes the foot inert while the ask shows, so Tab never reaches the field under the strip", () => {
+    const html = renderToStaticMarkup(<Host doneLabel={null} asking foot={<form data-f="" />} />);
+    expect(html).toMatch(/<div data-w-foot=""[^>]*inert=""/);
+    expect(html).toMatch(/<header[^>]*inert=""/);
+    expect(html).toMatch(/<div[^>]*inert=""[^>]*><div[^>]*><p>body<\/p>/);
+    // The ask is drawn after the foot, the one live part of the window.
+    expect(html.indexOf("data-w-foot")).toBeLessThan(html.indexOf("data-ask"));
+    // Not asking and not busy: the foot takes keys.
+    expect(renderToStaticMarkup(<Host doneLabel={null} foot={<form data-f="" />} />)).not.toContain("inert");
+  });
+
+  it("fills 80vh only when asked, and a filled frame never takes the held height", () => {
+    const filled = renderToStaticMarkup(<Host fill />);
+    expect(filled).toContain(`data-w-window="" class="${HOUSE_WINDOW_FRAME_FILL_CLASS}"`);
+    expect(filled).not.toContain(`class="${HOUSE_WINDOW_FRAME_CLASS}"`);
+    const plain = renderToStaticMarkup(<Host />);
+    expect(plain).toContain(`data-w-window="" class="${HOUSE_WINDOW_FRAME_CLASS}"`);
+    expect(shellSrc).toContain("style={onSheet || fill || win.held === null ? undefined : { height: win.held }}");
+  });
+
+  it("mounts in the layer that owns it, else the page body; never during a server render", () => {
+    expect(shellSrc).toContain('return typeof document === "undefined" ? host : createPortal(host, container ?? document.body);');
+  });
+
+  it("never runs Done behind the ask (⌘/Ctrl+Enter while asking does nothing)", () => {
+    const done = shellSrc.slice(shellSrc.indexOf("function done()"), shellSrc.indexOf("function discard()"));
+    expect(done).toContain("if (holdOpen || asking) return;");
+    expect(done.indexOf("if (holdOpen || asking) return;")).toBeLessThan(done.indexOf("onDone();"));
   });
 });

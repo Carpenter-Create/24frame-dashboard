@@ -167,6 +167,12 @@ describe("HouseOverlay dual-host lock v1", () => {
     expect(src("src/components/social/social-profile-edit-face.tsx")).not.toContain("HouseDrawerFrame");
     // Every object-edit window draws the one house window shell.
     expect(src("src/components/social/social-profile-edit-window.tsx")).toContain("HouseWindowFrame");
+    // Comments is a house window too; the 480 dialog thread is gone
+    // (social-comments-window-lock-v1).
+    expect(src("src/components/social/social-comments-window.tsx")).toContain("HouseWindowFrame");
+    const thread = src("src/components/social/social-comment-thread.tsx");
+    expect(thread).not.toContain("HouseOverlayHead");
+    expect(thread).not.toContain('size="form"');
     const deliver = src("src/components/licensing/deliver-window.tsx");
     expect(deliver).toContain("HouseWindowFrame");
     expect(deliver).not.toContain("fixed inset-0");

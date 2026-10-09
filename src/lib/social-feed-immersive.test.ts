@@ -26,6 +26,11 @@ describe("social feed immersive helpers", () => {
     expect(socialImmersiveEscapeDismisses("Escape", false)).toBe(true);
     expect(socialImmersiveEscapeDismisses("Escape", true)).toBe(false);
     expect(socialImmersiveEscapeDismisses("Tab", false)).toBe(false);
+    // An Escape an inner layer already handled (the comments window or the
+    // phone sheet closing) never also closes the stage, even once the layer
+    // is gone (social-comments-window-lock-v1).
+    expect(socialImmersiveEscapeDismisses("Escape", false, true)).toBe(false);
+    expect(socialImmersiveEscapeDismisses("Escape", false, false)).toBe(true);
     expect(SOCIAL_IMMERSIVE_NESTED_SHEET_SELECTOR).toContain(
       "[data-social-feed-immersive] [data-social-comment-thread]",
     );
