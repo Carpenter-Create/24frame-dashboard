@@ -177,7 +177,8 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(idle).not.toContain('aria-busy="true"');
     expect(windowSrc).toContain("const busy = edit.pending || waiting;");
     const done = shellSrc.slice(shellSrc.indexOf("function done()"), shellSrc.indexOf("function discard()"));
-    expect(done).toContain("if (holdOpen) return;");
+    // Done also never runs behind the ask (social-comments-window-lock-v1).
+    expect(done).toContain("if (holdOpen || asking) return;");
     const onDone = windowSrc.slice(windowSrc.indexOf("onDone: () =>"), windowSrc.indexOf("onBack: edit.backToIndex"));
     expect(onDone).toContain("onPersisting,");
     // The hook hands the island the persist once it is out.
@@ -202,7 +203,9 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(held).toContain("if (!frame || held !== null || !desktop) return;");
     expect(held).toContain("if (height > 0) setHeld(height);");
     expect(held).toContain("}, [held, desktop]);");
-    expect(shellSrc).toContain("style={onSheet || win.held === null ? undefined : { height: win.held }}");
+    // Edit profile never fills: it holds the height it opens at.
+    expect(shellSrc).toContain("style={onSheet || fill || win.held === null ? undefined : { height: win.held }}");
+    expect(windowSrc).not.toMatch(/^\s+fill\b/m);
     // Edit profile keeps its own phone route: its window is never the sheet.
     expect(windowSrc).not.toContain('phone: "sheet"');
     expect(shellSrc).toContain('if (event.key !== "Tab") return;');

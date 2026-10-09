@@ -229,11 +229,18 @@ export function persistSocialFollowLatest(
 export async function persistSocialComment(
   form: FormData,
 ): Promise<{ error?: string; id?: string; created_at?: string }> {
-  const res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
-    method: "POST",
-    body: form,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
+      method: "POST",
+      body: form,
+      cache: "no-store",
+    });
+  } catch {
+    // Offline or a dropped connection: the house line, never the
+    // browser's own network text (social-comments-window-lock-v1).
+    return { error: SOCIAL.post.commentFailed };
+  }
   const json = (await res.json().catch(() => null)) as {
     error?: string;
     id?: string;
@@ -369,11 +376,16 @@ export function saveSocialPostCaption(input: {
 }
 
 export async function persistSocialCommentDelete(form: FormData): Promise<{ error?: string }> {
-  const res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
-    method: "DELETE",
-    body: form,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
+      method: "DELETE",
+      body: form,
+      cache: "no-store",
+    });
+  } catch {
+    return { error: SOCIAL.post.commentDeleteFailed };
+  }
   const json = (await res.json().catch(() => null)) as { error?: string } | null;
   const error = typeof json?.error === "string" ? json.error.trim() : "";
   if (!res.ok || error) return { error: error || SOCIAL.post.commentDeleteFailed };

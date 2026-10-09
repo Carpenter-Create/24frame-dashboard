@@ -22,6 +22,7 @@ The job picks the host. Phone and desktop are different hosts. A breakpoint does
 - Pad 24 (a window's header and body carry their own; the composer keeps its locked 16)
 - Button footer (a window's actions sit in its header)
 - One shell draws every window, with faces or one: `lib/house-window` (classes, the query helpers) and `components/chrome/house-window` (`useHouseWindow`, `HouseWindowFrame`, `HouseWindowAsk`, `useHouseWindowEntry`). A new window brings its faces, copy and save; the header, Esc order, the ask, held height, focus and the history entry are the shell's. When a window opens from the page on an address that already carries its query, the shell puts the page under it and pushes its own entry, so Back always reaches the ask (social-post-caption-window-lock-v1)
+- A window may also show one object to read and add to (Comments). A window whose one action lives in its body (Post at a pinned foot) draws no Done, and ⌘/Ctrl+Enter runs that action. A window whose content arrives after it opens fills 80vh. A window opened from a layer that owns it (the immersive viewer, a full-screen viewer, not a HouseDialog) mounts inside that layer. ⌘/Ctrl+Enter does nothing while the ask is up. See [`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md)
 
 ## HouseDrawer
 

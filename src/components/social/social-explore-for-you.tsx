@@ -30,6 +30,7 @@ import {
   SOCIAL_POST_ACTION_HEART_NUDGE_CLASS,
   SOCIAL_POST_ACTION_HIT_CLASS,
 } from "@/lib/social-chrome";
+import { socialCommentsPostFromExplore } from "@/lib/social-comments-window";
 import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 
 // Vertical For You. Tap stays on this host (play/pause). Author is the
@@ -275,6 +276,7 @@ function SocialExploreForYouSlide({
             id: item.postId,
             commentCount: item.commentCount,
             canComment: item.canLike,
+            preview: socialCommentsPostFromExplore(item),
           }}
           icon
           tone="stage"

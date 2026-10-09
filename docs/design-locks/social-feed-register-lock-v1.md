@@ -112,6 +112,8 @@ One **44** row, no bar: the **44** avatar, **12**, the grey **"Share something"*
 
 > **Superseded (founder 2026-10-06, cards lock):** "the media is the card" and the credit row under the media are reversed. Every post kind is one soft grey card with the header on top, the words, the media inset 8 at radius 16 and the actions at the bottom; no screen and no band on a video. The table below is the H record. See [`social-feed-cards-lock-v1.md`](social-feed-cards-lock-v1.md).
 
+> **Amended (comments window, 2026-10-09):** on desktop, Comment opens the comments window over the page; the phone keeps its sheet. See [`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md).
+
 **The media is the card.** A grey card around the media read cheap (a grey frame, square media corners inside a round card, smaller media), so the media carries the large radius and fills the column; the register lands around it: round grey actions, a quiet credit, and a soft grey card for text-only posts. One face everywhere `SocialPostCard` renders (the Feed in both lanes, Profile activity, a member's posts, the permalink). **Role eyebrow:** the founder chose "Members choose one; no line until they do" — the main-role picker ships later, so posts render **no** role line now and keep a clean slot for it (the name stack, above the name).
 
 | Item | Lock |
@@ -219,7 +221,7 @@ One new token, `--screen` (§7): `--band` (#1b1f23) reads as charcoal grey aroun
 4. *(Superseded by the cards lock §8: the rail when the Feed container fits 1024; the column 680, centred.)* From 1280: the For you rail at 296 with its heading level with the slider; below 1280 the column alone at 600.
 5. Keyboard: Tab through the topics; a chip under the fade scrolls clear. At 390, Tab into a swipe post: the dots show on the band with the focus ring; Enter moves the slide and the chip reads "2 / 3"; Tab out and they hide.
 6. Posts at 390 and 1280, light and dark: a photo at its shape (radius 24 on desktop, edge to edge on phone) with its chips; a video on the screen with its band; a text post's grey card; the credit row and the round actions (beside on desktop, under the caption on phone); no ellipsis; phone hits 44.
-7. Posts behave: tap the media → the immersive; Like toggles and the count opens who liked; Comment opens the thread; Share opens the sheet; the owner's ⋯ edits and deletes; one Following video plays at a time.
+7. Posts behave: tap the media → the immersive; Like toggles and the count opens who liked; Comment opens the thread (desktop: the comments window); Share opens the sheet; the owner's ⋯ edits and deletes; one Following video plays at a time.
 
 ---
 

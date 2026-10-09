@@ -89,6 +89,9 @@ const FEED_SOURCES = [
   "src/components/social/social-feed-carousel.tsx",
   "src/components/social/social-comment-trigger.tsx",
   "src/components/social/social-engagement.tsx",
+  // The comments window (social-comments-window-lock-v1).
+  "src/components/social/social-comments-window.tsx",
+  "src/components/social/social-comment-row.tsx",
 ] as const;
 
 /** The Feed's skeletons (the Explore skeleton's stage hex is not this lock's). */
@@ -387,6 +390,10 @@ describe("Feed register lock v1 (H · Feed, founder 2026-10-05)", () => {
 
   it("stays in tokens: no hex, no shadow, no truncation, no reference-brand word in the Feed sources", () => {
     expect(FEED_BLOCK.length).toBeGreaterThan(1000);
+    // The comments window's block sits inside it (social-comments-window-lock-v1).
+    expect(FEED_BLOCK).toContain("export const SOCIAL_COMMENTS_WINDOW_POST_CLASS");
+    expect(FEED_BLOCK).toContain("export const SOCIAL_COMMENTS_WINDOW_NOTICE_CLASS");
+    expect(FEED_BLOCK).toContain("export const SOCIAL_COMMENT_FIELD_CLASS");
     expect(FEED_BLOCK).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     // The class strings themselves (comments may say "never truncated").
     const classes = [...FEED_BLOCK.matchAll(/"([^"]*)"|`([^`]*)`/g)].map((m) => m[1] ?? m[2]).join(" ");
