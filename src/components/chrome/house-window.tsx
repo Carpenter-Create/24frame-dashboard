@@ -336,7 +336,10 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
     }
     const field = body.querySelector<HTMLElement>("input:not([type=file]):not(.sr-only), textarea");
     (field ?? houseWindowFocusables(body)[0])?.focus();
-    // attr and indexFace are fixed for a window's life.
+    // attr and indexFace are fixed for a window's life, except that a linear
+    // window may move indexFace once to its closing face (Deliver's result),
+    // so ✕ and Esc close there and Back can never re-submit. This effect reads
+    // the current render's indexFace when face changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [face, cameFrom]);
 

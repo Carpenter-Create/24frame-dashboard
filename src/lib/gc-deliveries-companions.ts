@@ -2,7 +2,8 @@ import "server-only";
 
 import type { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
-import { UNPAGINATED_MAX, probeRange, splitProbe } from "@/lib/list-bounds";
+import { DELIVER_CHUNK, type DeliverTitleRow, type GrantChoice } from "@/lib/deliver-stepper";
+import { UNPAGINATED_MAX, probeRange, rangeFor, splitProbe } from "@/lib/list-bounds";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -162,4 +163,66 @@ export async function loadGcDeliveryCompanions(
   ]);
 
   return { grants, masters, links, sessions, events };
+}
+
+function deliverChunks(ids: readonly string[]): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < ids.length; i += DELIVER_CHUNK) out.push(ids.slice(i, i + DELIVER_CHUNK));
+  return out;
+}
+
+/**
+ * The Deliver window's selection (up to 500 titles): the titles (never a
+ * deleted one) and their current grants, each read per chunk of 50 ids. Every
+ * chunk checks its error, and each grant chunk is probed, so a failed or
+ * cut-off read is refused, never shown as "no grants". Database text goes to
+ * the server log only.
+ */
+export async function loadDeliverChoiceRows(
+  supabase: ServerClient,
+  titleIds: readonly string[],
+): Promise<{ titles: DeliverTitleRow[]; grants: GrantChoice[] } | { error: "load_failed" | "load_too_many" }> {
+  const chunks = deliverChunks(uniqueIds([...titleIds]));
+  const [titleReads, grantReads] = await Promise.all([
+    Promise.all(
+      chunks.map((chunk) =>
+        supabase
+          .from("titles")
+          .select("id, title, status")
+          .in("id", chunk)
+          .is("deleted_at", null)
+          .range(...rangeFor(DELIVER_CHUNK)),
+      ),
+    ),
+    Promise.all(
+      chunks.map((chunk) =>
+        supabase
+          .from("rights_grants")
+          .select("id, title_id, rights_type, territory_mode, territories, window_start, window_end")
+          .is("effective_to", null)
+          .in("title_id", chunk)
+          .range(...probeRange(UNPAGINATED_MAX)),
+      ),
+    ),
+  ]);
+
+  const titles: DeliverTitleRow[] = [];
+  for (const { data, error } of titleReads) {
+    if (error) {
+      console.error("[deliver] titles read failed", error.code, error.message);
+      return { error: "load_failed" };
+    }
+    titles.push(...(data ?? []));
+  }
+  const grants: GrantChoice[] = [];
+  for (const { data, error } of grantReads) {
+    if (error) {
+      console.error("[deliver] rights_grants read failed", error.code, error.message);
+      return { error: "load_failed" };
+    }
+    const part = splitProbe(data, UNPAGINATED_MAX);
+    if (part.truncated) return { error: "load_too_many" };
+    grants.push(...part.rows);
+  }
+  return { titles, grants };
 }

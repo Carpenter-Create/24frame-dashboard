@@ -129,6 +129,7 @@ describe("HouseOverlay dual-host lock v1", () => {
     const doc = src("docs/design-locks/house-overlay-dual-host-v1.md");
     expect(doc).toContain("Max width 600 for a window");
     expect(doc).toContain("No overlay over an empty page");
+    expect(doc).toContain("Deliver over Licensing Status");
     const out = doc.slice(doc.indexOf("## OUT"), doc.indexOf("## Why"));
     expect(out).not.toContain("No Dialog for durable settings");
     expect(out).toContain("No Dialog for a Settings index or a Settings destination");
@@ -172,6 +173,11 @@ describe("HouseOverlay dual-host lock v1", () => {
     const thread = src("src/components/social/social-comment-thread.tsx");
     expect(thread).not.toContain("HouseOverlayHead");
     expect(thread).not.toContain('size="form"');
+    const deliver = src("src/components/licensing/deliver-window.tsx");
+    expect(deliver).toContain("HouseWindowFrame");
+    expect(deliver).not.toContain("fixed inset-0");
+    // Deliver left its routed takeover (an overlay over an empty page).
+    expect(src("src/app/(app)/(operator)/staff/gc/deliveries/deliver/page.tsx")).not.toContain("fixed inset-0");
     const shell = src("src/components/chrome/house-window.tsx");
     expect(shell).toContain("HouseDialogFrame");
     expect(shell).toContain("panelClassName={HOUSE_WINDOW_PANEL_CLASS}");
