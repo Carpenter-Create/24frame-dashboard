@@ -5,8 +5,10 @@ import {
   HOUSE_PHONE_BAND_ROW_PX,
   HOUSE_PHONE_CHROME_DRAG_ZONE,
   HOUSE_PHONE_SHEET_AXIS_PX,
+  housePhoneDockAtRest,
   housePhoneSheetDragAxis,
   housePhoneSheetMovesPage,
+  housePhoneSheetPageY,
   housePhoneSheetOffset,
   housePhoneSheetPageTarget,
   housePhoneSheetSnapTarget,
@@ -235,5 +237,57 @@ describe("phone bar over the band (lock §5)", () => {
     expect(p.chrome.state().dockHidden).toBe(true);
     p.scrollTo(20);
     expect(p.chrome.state().dockHidden).toBe(false);
+  });
+});
+
+// Band lock v1.4 (Adam 2026-10-09: "Match bar at rest"; "Fix bugs, keep sheet").
+describe("phone bar over the band — v1.4", () => {
+  it("lands the dock with a covered bar at rest, though the scroll was under the dock's 8", () => {
+    const p = page();
+    p.scrollTo(400);
+    p.scrollTo(200); // open deep in the feed: the dock is back
+    expect(p.chrome.offset()).toBe(0);
+    expect(p.chrome.state().dockHidden).toBe(false);
+    p.scrollTo(205); // 5 down: the dock's own rule keeps it
+    expect(p.chrome.state().dockHidden).toBe(false);
+    p.chrome.settle(); // at rest the bar covers the way the page went
+    expect(p.chrome.offset()).toBe(BAND);
+    expect(p.chrome.state()).toEqual({ dockHidden: true, bandTucked: true });
+  });
+
+  it("lands the dock with an open bar at rest, though the scroll was under the dock's 8", () => {
+    const p = page();
+    p.scrollTo(400);
+    expect(p.chrome.state().dockHidden).toBe(true);
+    p.scrollTo(395); // 5 up: the dock's own rule keeps it hidden
+    expect(p.chrome.state().dockHidden).toBe(true);
+    p.chrome.settle(); // at rest the bar opens the way the page went
+    expect(p.chrome.offset()).toBe(0);
+    expect(p.chrome.state()).toEqual({ dockHidden: false, bandTucked: false });
+  });
+
+  it("never moves the bar or the dock on a rubber band at either end", () => {
+    const p = page({ range: 1000 });
+    p.scrollTo(-40); // the bounce above the top
+    expect(p.chrome.offset()).toBe(0);
+    expect(p.chrome.state().dockHidden).toBe(false);
+    p.scrollTo(1000); // the bottom: covered, dock hidden
+    expect(p.chrome.offset()).toBe(BAND);
+    expect(p.chrome.state().dockHidden).toBe(true);
+    p.scrollTo(1060); // the bounce past the bottom ...
+    p.scrollTo(1000); // ... and back: no scroll up as far as the bar knows
+    expect(p.chrome.offset()).toBe(BAND);
+    expect(p.chrome.state().dockHidden).toBe(true);
+  });
+
+  it("reads the page position clamped to the page, and lands the dock by the cover", () => {
+    expect(housePhoneSheetPageY(-12, 800)).toBe(0);
+    expect(housePhoneSheetPageY(420, 800)).toBe(420);
+    expect(housePhoneSheetPageY(860, 800)).toBe(800);
+    expect(housePhoneSheetPageY(30, -1)).toBe(0);
+    expect(housePhoneDockAtRest(BAND, false)).toBe(true);
+    expect(housePhoneDockAtRest(0, true)).toBe(false);
+    expect(housePhoneDockAtRest(20, true)).toBe(true);
+    expect(housePhoneDockAtRest(20, false)).toBe(false);
   });
 });

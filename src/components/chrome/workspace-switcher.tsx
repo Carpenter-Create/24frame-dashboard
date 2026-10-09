@@ -385,6 +385,7 @@ function WorkspaceBand({
           trackClass={WORKSPACE_BAND_TRACK_CLASS}
           thumbClass={WORKSPACE_BAND_THUMB_CLASS}
           durationMs={HOUSE_PHONE_NAV_THUMB_DURATION_MS}
+          rememberRail
           data-workspace-band-track=""
         >
           {({ selectedIndex }) =>
