@@ -16,7 +16,13 @@ import {
   metadataMaxYear,
   normalizeStoredMetadata,
 } from "./metadata";
-import { MERGE_TITLE_METADATA, metadataCheckField, metadataMergeArgs, metadataMergeMissing } from "./metadata-merge";
+import {
+  MERGE_TITLE_METADATA,
+  metadataCheckField,
+  metadataMergeArgs,
+  metadataMergeMissing,
+  submitRequiredMissing,
+} from "./metadata-merge";
 import { ISO_COUNTRIES } from "./territories";
 
 // The Metadata window's atomic save: the helpers the server action uses, and
@@ -128,6 +134,24 @@ describe("metadataCheckField", () => {
   });
 });
 
+describe("submitRequiredMissing", () => {
+  it("is true only for submit_title's empty required field refusal", () => {
+    expect(
+      submitRequiredMissing({ code: "P0001", message: 'Cannot submit: required metadata field "synopsis" is missing' }),
+    ).toBe(true);
+    for (const error of [
+      { code: "22023", message: 'Cannot submit: required metadata field "synopsis" is missing' },
+      { code: "P0001", message: "Title not found in this organization, or not in draft" },
+      { code: "P0001", message: 'x Cannot submit: required metadata field "synopsis" is missing' },
+      { code: "P0001" },
+      undefined,
+      null,
+    ]) {
+      expect(submitRequiredMissing(error), JSON.stringify(error)).toBe(false);
+    }
+  });
+});
+
 describe("merge_title_metadata SQL (draft, founder-applied)", () => {
   it("has the signature, gate and locks the action relies on, in its own body", () => {
     const merge = functionSql(MERGE_TITLE_METADATA);
@@ -156,6 +180,23 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
       expect(lock, name).toBeGreaterThan(0);
       expect(lock, name).toBeLessThan(body.indexOf("public.title_metadata"));
     }
+  });
+
+  it("submit_title refuses another org's title at the lock, then reads the record as the app does (Codex on #799)", () => {
+    const { body } = functionSql("submit_title");
+    // Refused at the lock, before the record is read.
+    expect(body).toMatch(
+      /for no key update;\s+if not found then\s+raise exception 'Title not found in this organization, or not in draft';/,
+    );
+    const read = body.indexOf("select data into v_data from public.title_metadata");
+    const normalize = body.indexOf("v_data := public.normalize_stored_title_metadata(v_data);");
+    expect(read).toBeGreaterThan(body.indexOf("if not found then"));
+    expect(normalize).toBeGreaterThan(read);
+    expect(normalize).toBeLessThan(body.indexOf("foreach v_key in array v_required"));
+    expect(normalize).toBeLessThan(body.indexOf("public.check_title_metadata(v_data)"));
+    // The refusal submitTitle reads as the required-fields notice.
+    const raised = /raise exception '(Cannot submit: required metadata field "%" is missing)'/.exec(body)?.[1] ?? "";
+    expect(submitRequiredMissing({ code: "P0001", message: raised.replace("%", "synopsis") })).toBe(true);
   });
 
   it("keeps the normalize helper internal and its registry equal to the app's", () => {

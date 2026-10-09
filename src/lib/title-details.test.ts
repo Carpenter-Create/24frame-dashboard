@@ -132,10 +132,14 @@ describe("title Metadata window (lib/title-details)", () => {
     expect(checkTitleDetails(draft, NOW)?.error).toBe("Choose one from the list.");
   });
 
-  it("names a Cast or Keywords entry over 200 characters with the text line, and too many entries with the list line", () => {
+  it("names a Cast or Keywords entry over 200 characters with the entry line, and too many entries with the list line", () => {
     const draft = draftOf();
     draft.metadata.cast = `Ada, ${"x".repeat(201)}`;
-    expect(checkTitleDetails(draft, NOW)).toEqual({ face: "recommended", field: "cast", error: "Up to 200 characters." });
+    expect(checkTitleDetails(draft, NOW)).toEqual({
+      face: "recommended",
+      field: "cast",
+      error: "Up to 200 characters per entry.",
+    });
     draft.metadata.cast = Array.from({ length: 51 }, (_, i) => `c${i}`).join(",");
     expect(checkTitleDetails(draft, NOW)).toEqual({ face: "recommended", field: "cast", error: "Up to 50 entries." });
   });

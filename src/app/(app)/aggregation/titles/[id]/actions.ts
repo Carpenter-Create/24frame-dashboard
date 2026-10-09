@@ -19,7 +19,12 @@ import {
   parseMetadata,
   requiredComplete,
 } from "@/lib/metadata";
-import { metadataCheckField, metadataMergeArgs, metadataMergeMissing } from "@/lib/metadata-merge";
+import {
+  metadataCheckField,
+  metadataMergeArgs,
+  metadataMergeMissing,
+  submitRequiredMissing,
+} from "@/lib/metadata-merge";
 import { checkReleaseInfo, releaseInfoSchema } from "@/lib/releases";
 import { getOrgContext } from "@/lib/supabase/context";
 import { RELEASE_FIELD, TITLE_DETAILS } from "@/lib/title-details";
@@ -304,7 +309,16 @@ export async function submitTitle(
   if (complete.filled < complete.total) return { error: TITLE_DETAIL.requiredNotice(complete.total) };
 
   const { error } = await supabase.rpc("submit_title", { p_org_id: orgId, p_title_id: titleId });
-  if (error) return { error: error.message };
+  if (error) {
+    // Database text stays on the server. A stored value the checks refuse
+    // reads as its field's approved line, a required field the database
+    // finds empty as the page's notice, anything else "Could not save.".
+    console.error("[title-details] submit_title failed", error.code, error.message);
+    const field = metadataCheckField(error);
+    if (field) return { error: metadataFieldError(field) };
+    if (submitRequiredMissing(error)) return { error: TITLE_DETAIL.requiredNotice(complete.total) };
+    return { error: TITLE_DETAILS.saveFailed };
+  }
 
   // §19: submit is a findings trigger too. The database refreshes findings
   // inside submit_title, from the stored record; the browser never supplies

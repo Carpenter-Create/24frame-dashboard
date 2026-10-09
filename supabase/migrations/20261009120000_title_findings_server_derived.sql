@@ -38,7 +38,11 @@
 --      title, checks the whole record and refreshes findings in one
 --      transaction. set_title_metadata and submit_title take the same title
 --      lock first, so every metadata writer serializes on the title and a
---      submit reads what the last save stored.
+--      submit reads what the last save stored. submit_title reads the stored
+--      record as the app does (normalize_stored_title_metadata), so a record
+--      the window shows as complete is never refused over an older stored
+--      shape, and it refuses a title outside the org before reading its
+--      record.
 --
 -- DESTRUCTIVE OPS (approved before apply): create or replace 4 existing
 -- functions (reconcile_title_findings, set_title_metadata,
@@ -46,18 +50,21 @@
 -- helpers, 1 internal refresh, 1 metadata check, and in section 8
 -- normalize_stored_title_metadata (internal) and merge_title_metadata); a
 -- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata and
--- submit_title; revoke/grant execute. No table, column, policy, trigger or
--- data change. Existing stored metadata is not rewritten or re-validated;
--- the next save of a title is checked. Apply as one transaction.
+-- submit_title; submit_title refuses a title outside the org at that lock
+-- and reads the stored record normalized; revoke/grant execute. No table,
+-- column, policy, trigger or data change. Existing stored metadata is not
+-- rewritten or re-validated; the next save of a title is checked. Apply as
+-- one transaction.
 --
 -- ROLLBACK: re-apply the previous bodies from 20260718000700_title_metadata.sql
 -- (set_title_metadata), 20260721000200_release_dates.sql (set_title_release_info),
 -- 20260719000700_export_and_submit_gate.sql (submit_title) and
 -- 20260727000100_gc_role_separation.sql (reconcile_title_findings); drop the
--- new functions. For the merge alone:
+-- new functions (submit_title's previous body first: this one calls
+-- normalize_stored_title_metadata). For the merge alone:
 --   drop function public.merge_title_metadata(uuid, uuid, jsonb, text[]);
---   drop function public.normalize_stored_title_metadata(jsonb);
--- The app then returns to read, merge and set by itself.
+-- and keep normalize_stored_title_metadata, which submit_title calls. The
+-- app then returns to read, merge and set by itself.
 --
 -- KEEP IN SYNC with src/lib/metadata.ts (METADATA_FIELDS, GENRES, RATINGS,
 -- computeMetadataFindings, METADATA_LOGIC_VERSION, normalizeStoredMetadata)
@@ -390,12 +397,22 @@ begin
   end if;
 
   -- The metadata writers' title lock: a save in flight finishes first, and
-  -- the read below sees what it stored.
+  -- the read below sees what it stored. A title outside p_org_id is refused
+  -- here, before its record is read, so no answer depends on it.
   perform 1 from public.titles t
    where t.id = p_title_id and t.org_id = p_org_id
    for no key update;
+  if not found then
+    raise exception 'Title not found in this organization, or not in draft';
+  end if;
 
   select data into v_data from public.title_metadata where title_id = p_title_id;
+  -- Read as the app and the merge read it (normalize_stored_title_metadata,
+  -- section 8; resolved when this runs): a stored empty value, a number
+  -- stored as text, a blank list entry or a key outside the registry never
+  -- blocks a submit the window shows as complete. The record is not
+  -- rewritten here.
+  v_data := public.normalize_stored_title_metadata(v_data);
   foreach v_key in array v_required loop
     if v_data is null or coalesce(btrim(v_data->>v_key), '') = '' then
       raise exception 'Cannot submit: required metadata field "%" is missing', v_key;
@@ -431,7 +448,8 @@ grant  execute on function public.submit_title(uuid, uuid) to authenticated;
 -- it as a number), and an exponent from 309 to 999 becomes a number (JS
 -- keeps the text). The shared fixtures in
 -- supabase/tests/title_metadata_merge_test.sql pin both sides. Internal: no
--- client role may execute it.
+-- client role may execute it; merge_title_metadata and submit_title (both
+-- definers) call it.
 create or replace function public.normalize_stored_title_metadata(p_data jsonb)
   returns jsonb
   language plpgsql immutable

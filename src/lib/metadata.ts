@@ -113,9 +113,10 @@ export function metadataFieldError(key: string, now: Date = new Date()): string 
 }
 
 /** What a field says for this value: as metadataFieldError, except that a
- *  Cast or Keywords entry over 200 characters reads the approved "Up to 200
- *  characters." (Bugbot on #801). Over 50 entries still reads "Up to 50
- *  entries.", and so does any other list problem. */
+ *  Cast or Keywords entry over 200 characters reads "Up to 200 characters per
+ *  entry." (Bugbot on #801; Adam 2026-10-09, "approved, use the defaults").
+ *  Over 50 entries still reads "Up to 50 entries.", and so does any other
+ *  list problem. */
 export function metadataValueError(key: string, value: unknown, now: Date = new Date()): string {
   const field = METADATA_FIELDS.find((f) => f.key === key);
   if (
@@ -124,7 +125,7 @@ export function metadataValueError(key: string, value: unknown, now: Date = new 
     value.length <= METADATA_LIST_MAX &&
     value.some((entry) => typeof entry === "string" && Array.from(entry).length > METADATA_TEXT_MAX)
   ) {
-    return METADATA_ERRORS.text;
+    return METADATA_ERRORS.listEntry;
   }
   return metadataFieldError(key, now);
 }
@@ -135,6 +136,7 @@ export const METADATA_ERRORS = {
   synopsis: "Up to 4,000 characters.",
   text: "Up to 200 characters.",
   list: "Up to 50 entries.",
+  listEntry: "Up to 200 characters per entry.",
   select: "Choose one from the list.",
   unknown: "Could not save.",
 } as const;
@@ -178,8 +180,9 @@ export function metadataTierCount(
 // is filled with a value the checks accept (read as the window reads it), so
 // a stored value the limits now refuse never lets a title be submitted
 // (Codex on #801). The database gate does the same only once the founder
-// applies the draft in #799 (submit_title runs check_title_metadata); until
-// then the submit_title RPC checks only that the fields are filled.
+// applies the draft in #799 (submit_title runs check_title_metadata on the
+// record read as here, normalize_stored_title_metadata); until then the
+// submit_title RPC checks only that the fields are filled.
 export function requiredComplete(data: Record<string, unknown> | null | undefined): { filled: number; total: number } {
   return metadataTierCount(normalizeStoredMetadata(data), "required");
 }

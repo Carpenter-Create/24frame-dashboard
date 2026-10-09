@@ -230,11 +230,17 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     expect(seen.rpc).toEqual([]);
   });
 
-  it("names a Cast or Keywords entry over 200 characters with the text line, and too many entries with the list line", async () => {
+  it("names a Cast or Keywords entry over 200 characters with the entry line, and too many entries with the list line", async () => {
     const seen = fake();
     expect(
       await saveTitleDetails({ titleId: TITLE, metadata: { cast: ["Ada", "x".repeat(201)] }, release: null }),
-    ).toEqual({ ok: false, part: "metadata", field: "cast", error: "Up to 200 characters.", metadataSaved: false });
+    ).toEqual({
+      ok: false,
+      part: "metadata",
+      field: "cast",
+      error: "Up to 200 characters per entry.",
+      metadataSaved: false,
+    });
     expect(
       await saveTitleDetails({
         titleId: TITLE,
@@ -440,6 +446,46 @@ describe("submitTitle (Codex on #801)", () => {
     const ok = fake();
     expect(await submitTitle(ORG, TITLE)).toEqual({});
     expect(ok.rpc[0]).toEqual({ name: "submit_title", args: { p_org_id: ORG, p_title_id: TITLE } });
+  });
+
+  it("names what the database refuses with an approved line, never its text", async () => {
+    // A stored value the checks refuse (22023 naming its field).
+    const refused = fake({
+      rpcErrors: { submit_title: { code: "22023", message: "director: 1 to 200 characters p_secret" } },
+    });
+    const result = await submitTitle(ORG, TITLE);
+    expect(result).toEqual({ error: "Up to 200 characters." });
+    expect(JSON.stringify(result)).not.toContain("p_secret");
+    expect(names(refused)).toEqual(["submit_title"]);
+    expect(console.error).toHaveBeenCalledWith(
+      "[title-details] submit_title failed",
+      "22023",
+      "director: 1 to 200 characters p_secret",
+    );
+
+    // A required field the database finds empty reads as the page's notice.
+    fake({
+      rpcErrors: {
+        submit_title: { code: "P0001", message: 'Cannot submit: required metadata field "synopsis" is missing' },
+      },
+    });
+    expect(await submitTitle(ORG, TITLE)).toEqual({
+      error: "Complete the 6 required metadata fields to submit this title for review.",
+    });
+
+    // Anything else is "Could not save.".
+    for (const error of [
+      { code: "P0001", message: "Title not found in this organization, or not in draft p_secret" },
+      { code: "P0001", message: "Not authorized to submit titles for this organization p_secret" },
+      { code: "22023", message: 'Unknown metadata field "p_secret"' },
+      { code: "22023", message: 'Cannot submit: required metadata field "p_secret" is missing' },
+      { code: "", message: "TypeError: fetch failed p_secret" },
+    ]) {
+      fake({ rpcErrors: { submit_title: error } });
+      const other = await submitTitle(ORG, TITLE);
+      expect(other, error.message).toEqual({ error: "Could not save." });
+      expect(JSON.stringify(other)).not.toContain("p_secret");
+    }
   });
 
   it("leaves findings to the database: one call, and no read after it", async () => {

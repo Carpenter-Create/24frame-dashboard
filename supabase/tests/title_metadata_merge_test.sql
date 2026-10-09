@@ -5,10 +5,11 @@
 -- lock pins on each function's source; merge, clear and first-save
 -- semantics; the audit rows; the shared normalize fixtures (also asserted by
 -- src/lib/metadata-merge.test.ts against normalizeStoredMetadata); refusals;
--- the no-op; findings; the auth matrix; a deleted title.
+-- the no-op; findings; the auth matrix; a deleted title; submit reading the
+-- stored record as the app does, and refusing another org's title first.
 
 begin;
-select plan(79);
+select plan(84);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -24,6 +25,8 @@ select set_config('t.tempty', gen_random_uuid()::text, false);  -- A, no record
 select set_config('t.tgone',  gen_random_uuid()::text, false);  -- A, deleted
 select set_config('t.tlegacy',gen_random_uuid()::text, false);  -- A, legacy stored values
 select set_config('t.tgenre', gen_random_uuid()::text, false);  -- A, stored genre the list refuses
+select set_config('t.tsub',   gen_random_uuid()::text, false);  -- A, complete, older stored shapes
+select set_config('t.tbad',   gen_random_uuid()::text, false);  -- A, complete, a value the checks refuse
 
 insert into auth.users (id) values
   (current_setting('t.owner')::uuid), (current_setting('t.deliv')::uuid),
@@ -46,7 +49,9 @@ insert into public.titles (id, org_id, title, status) values
   (current_setting('t.tempty')::uuid,  current_setting('t.org_a')::uuid, 'Empty',   'draft'),
   (current_setting('t.tgone')::uuid,   current_setting('t.org_a')::uuid, 'Gone',    'draft'),
   (current_setting('t.tlegacy')::uuid, current_setting('t.org_a')::uuid, 'Legacy',  'draft'),
-  (current_setting('t.tgenre')::uuid,  current_setting('t.org_a')::uuid, 'Genre',   'draft');
+  (current_setting('t.tgenre')::uuid,  current_setting('t.org_a')::uuid, 'Genre',   'draft'),
+  (current_setting('t.tsub')::uuid,    current_setting('t.org_a')::uuid, 'Submit',  'draft'),
+  (current_setting('t.tbad')::uuid,    current_setting('t.org_a')::uuid, 'Bad',     'draft');
 insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.ta')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"Jo"}'::jsonb),
@@ -54,7 +59,15 @@ insert into public.title_metadata (title_id, org_id, data) values
   -- Stored before the checks: empties, a number as text, a blank list entry, an unknown key.
   (current_setting('t.tlegacy')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"","runtime_minutes":"96","cast":["","Ada"],"director":null,"keywords":[],"genre":"drama","foo":"bar"}'::jsonb),
-  (current_setting('t.tgenre')::uuid, current_setting('t.org_a')::uuid, '{"synopsis":"x","genre":"Drama"}'::jsonb);
+  (current_setting('t.tgenre')::uuid, current_setting('t.org_a')::uuid, '{"synopsis":"x","genre":"Drama"}'::jsonb),
+  -- Complete, stored before the checks: a number as text, an empty value, a
+  -- blank list entry, an unknown key. The window shows it as complete.
+  (current_setting('t.tsub')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"A film.","runtime_minutes":"96","release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"","keywords":["","space"],"foo":"bar"}'::jsonb),
+  -- Complete, with a Director over 200 characters (stored before the limits).
+  (current_setting('t.tbad')::uuid, current_setting('t.org_a')::uuid,
+   jsonb_build_object('synopsis', 'A film.', 'runtime_minutes', 96, 'release_year', 2024, 'genre', 'drama',
+                      'primary_language', 'en', 'country_of_origin', 'US', 'director', repeat('x', 201)));
 update public.titles set deleted_at = now() where id = current_setting('t.tgone')::uuid;
 
 -- ===== structure, grants, lock pins (as postgres) =====
@@ -371,6 +384,27 @@ select is(
      from jsonb_array_elements(public.title_metadata_findings(
        (select data from public.title_metadata where title_id = current_setting('t.ta')::uuid))) f),
   'after submit, the open findings are exactly the stored record''s');
+
+-- Submit reads the stored record as the app does: a complete record in an
+-- older shape submits, and is not rewritten (Codex on #799).
+select lives_ok(
+  format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tsub')),
+  'a complete record stored in an older shape submits');
+select is((select status::text from public.titles where id = current_setting('t.tsub')::uuid),
+  'in_review', 'and the title is in review');
+select is((select data from public.title_metadata where title_id = current_setting('t.tsub')::uuid),
+  '{"synopsis":"A film.","runtime_minutes":"96","release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"","keywords":["","space"],"foo":"bar"}'::jsonb,
+  'submit never rewrites the stored record');
+-- A value the checks refuse still blocks submit, naming its field.
+select throws_like(
+  format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tbad')),
+  'director:%', 'a stored value the checks refuse still blocks submit');
+-- Another org's title is refused at the lock, before its record is read: the
+-- answer never depends on that record (org B's is incomplete).
+select throws_ok(
+  format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tb')),
+  'P0001', 'Title not found in this organization, or not in draft',
+  'SPOOF: own org, another org''s title is refused before its record is read');
 
 reset role;
 select * from finish();

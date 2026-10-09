@@ -169,12 +169,14 @@ against the approved limits, and adds `merge_title_metadata`: the title's
 Metadata window sends only the changed fields, and the database merges them
 under a lock on the title, checks the whole record and refreshes the title's
 findings in the same transaction. A failed findings refresh fails the save.
-It is founder-applied and **not applied**. Merge gate: the founder applies it,
-verifies on the PR preview, then merges. For the save, either order is safe:
+Submit reads the stored record as the app does, so an older stored shape the
+window shows as complete never blocks it. It is founder-applied and
+**not applied**. Merge gate: the founder applies it, verifies on the PR
+preview, then merges. For the save, either order is safe:
 until it is applied, the database reports `merge_title_metadata` missing and
 the save reads, merges and sets as before; no other error falls back.
-Rollback for the merge alone: drop `merge_title_metadata` and
-`normalize_stored_title_metadata`. Design lock:
+Rollback for the merge alone: drop `merge_title_metadata` and keep
+`normalize_stored_title_metadata`, which `submit_title` uses. Design lock:
 [`docs/design-locks/aggregation-title-details-window-lock-v1.md`](../design-locks/aggregation-title-details-window-lock-v1.md).
 
 ---

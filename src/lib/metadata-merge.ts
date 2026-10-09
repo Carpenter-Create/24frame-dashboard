@@ -5,7 +5,8 @@ import { METADATA_FIELDS } from "@/lib/metadata";
 // changed fields go to merge_title_metadata, which merges them onto the
 // stored record under a lock on the title, checks the whole record and
 // refreshes findings in one transaction (the title findings migration,
-// founder-applied). Pure helpers; the server action decides what to do.
+// founder-applied). Also what submit_title's refusals mean. Pure helpers;
+// the server actions decide what to do.
 
 export const MERGE_TITLE_METADATA = "merge_title_metadata";
 
@@ -38,6 +39,14 @@ export function metadataMergeMissing(error: DatabaseError): boolean {
   if (!error) return false;
   if (error.code !== "PGRST202" && error.code !== "42883") return false;
   return new RegExp(`\\b${MERGE_TITLE_METADATA}\\b`).test(error.message ?? "");
+}
+
+/** submit_title's refusal of a required field it finds empty (P0001,
+ *  'Cannot submit: required metadata field "<key>" is missing'). Only the
+ *  kind is used; the line shown comes from lib, never from the database. */
+export function submitRequiredMissing(error: DatabaseError): boolean {
+  if (!error || error.code !== "P0001") return false;
+  return /^Cannot submit: required metadata field "[a-z_]+" is missing/.test(error.message ?? "");
 }
 
 /** The registry field a database check refused (22023 whose first line is

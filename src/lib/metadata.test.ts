@@ -83,16 +83,16 @@ describe("metadata limits (Adam 2026-10-09, \"Add these limits\")", () => {
     expect(parseMetadata({ genre: "Drama" })).toEqual({ ok: false, field: "genre", error: "Choose one from the list." });
   });
 
-  it("names a list entry over 200 characters with the text line, and too many entries with the list line (Bugbot on #801)", () => {
+  it("names a list entry over 200 characters with the entry line, and too many entries with the list line (Bugbot on #801)", () => {
     expect(parseMetadata({ cast: ["Ada", "x".repeat(201)] })).toEqual({
       ok: false,
       field: "cast",
-      error: "Up to 200 characters.",
+      error: "Up to 200 characters per entry.",
     });
     expect(parseMetadata({ keywords: ["🎬".repeat(201)] })).toEqual({
       ok: false,
       field: "keywords",
-      error: "Up to 200 characters.",
+      error: "Up to 200 characters per entry.",
     });
     expect(parseMetadata({ keywords: ["🎬".repeat(200)] }).ok).toBe(true);
     // Too many entries is the count line, even when an entry is long too.
@@ -103,8 +103,10 @@ describe("metadata limits (Adam 2026-10-09, \"Add these limits\")", () => {
     });
     // Any other list problem keeps the list line.
     expect(parseMetadata({ cast: "Ada, Bob" })).toEqual({ ok: false, field: "cast", error: "Up to 50 entries." });
-    expect(metadataValueError("cast", ["x".repeat(201)])).toBe("Up to 200 characters.");
+    expect(metadataValueError("cast", ["x".repeat(201)])).toBe("Up to 200 characters per entry.");
+    // Only a list entry reads the entry line; a text field keeps its own.
     expect(metadataValueError("director", "x".repeat(201))).toBe("Up to 200 characters.");
+    expect(metadataValueError("keywords", ["ok"])).toBe("Up to 50 entries.");
     expect(metadataValueError("runtime_minutes", 0)).toBe("Enter whole minutes, 1 to 1,000.");
   });
 
