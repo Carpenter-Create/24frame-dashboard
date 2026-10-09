@@ -134,31 +134,16 @@ begin
   elsif v_decided is null then
     v_decided := now();
   end if;
+  -- Re-saving this exact pair clears superseded and leaves the scan as it was.
+  -- Blocked stays blocked, allowed stays allowed, pending stays pending.
+  -- No new scan, and no other row is touched.
   update public.social_music_scans as s
-  set status = v_status,
-      decided_at = case when v_status = 'pending' then null else coalesce(v_decided, now()) end,
-      next_attempt_at = case when v_status = 'pending' then now() else null end,
-      last_error = null,
-      attempt_count = 0,
-      upload_id = v_upload,
-      mux_ready_at = null,
-      scan_started_at = null,
-      duration_seconds = null,
-      window_results = '[]'::jsonb,
-      vendor = case when v_status = 'pending' then null else v_vendor end,
-      vendor_status_code = case when v_status = 'pending' then null else v_vendor_code end,
-      vendor_score = case when v_status = 'pending' then null else v_score end,
-      vendor_title = case when v_status = 'pending' then null else v_title end,
-      vendor_artist = case when v_status = 'pending' then null else v_artist end,
-      vendor_album = case when v_status = 'pending' then null else v_album end,
-      vendor_acrid = case when v_status = 'pending' then null else v_acrid end,
-      vendor_isrc = case when v_status = 'pending' then null else v_isrc end,
-      vendor_label = case when v_status = 'pending' then null else v_label end
+  set last_error = null
   where s.profile_id = new.id
+    and s.surface = 'welcome'
     and s.playback_id = new.welcome_mux_playback_id
     and s.asset_id = new.welcome_mux_asset_id
-    and s.last_error = 'superseded'
-    and s.status = 'pending';
+    and s.last_error = 'superseded';
   insert into public.social_music_scans (
     surface, post_id, story_id, profile_id, author_id,
     asset_id, playback_id, upload_id, status, decided_at, next_attempt_at,

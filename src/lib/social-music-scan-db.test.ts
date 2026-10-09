@@ -93,6 +93,56 @@ async function scansFor(id: string) {
   return result.rows;
 }
 
+async function bindWelcome(profile: string, upload: string, asset: string, play: string) {
+  await db.query(
+    `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+     values ($1, $2, $3, $4)`,
+    [profile, upload, asset, play],
+  );
+}
+
+async function setWelcome(profile: string, asset: string | null, play: string | null, upload: string | null) {
+  await db.query(
+    `update public.profiles
+     set welcome_mux_asset_id = $2,
+         welcome_mux_playback_id = $3,
+         welcome_mux_upload_id = $4
+     where id = $1`,
+    [profile, asset, play, upload],
+  );
+}
+
+async function welcomeNotices(profile: string): Promise<string[]> {
+  return asUser(profile, async () => {
+    const result = await db.query<{ notice: string }>(
+      `select notice from public.social_music_author_notices('{}'::uuid[], '{}'::uuid[])`,
+    );
+    return result.rows.map((row) => row.notice);
+  });
+}
+
+/** Same rule as welcomeVideoVisible for someone who is not the owner. */
+async function strangerSeesWelcome(profile: string, asset: string, play: string): Promise<boolean> {
+  const result = await db.query<{ visible: boolean }>(
+    `select (
+       not exists (
+         select 1 from public.social_music_scans
+         where asset_id = $2 and playback_id = $3 and status = 'blocked'
+       )
+       and exists (
+         select 1 from public.social_music_scans
+         where surface = 'welcome'
+           and profile_id = $1
+           and asset_id = $2
+           and playback_id = $3
+           and status = 'allowed'
+       )
+     ) as visible`,
+    [profile, asset, play],
+  );
+  return result.rows[0]?.visible === true;
+}
+
 async function setStatus(id: string, status: "pending" | "allowed" | "blocked") {
   await db.query(
     `update public.social_music_scans
@@ -454,6 +504,130 @@ describe("social music scan migration", () => {
        where asset_id = 'assetNEW00001' and playback_id = 'playNEW000001' and status = 'blocked'`,
     );
     expect(blockedNew.rows).toEqual([]);
+  });
+
+  it("restores a blocked welcome notice when the same pair is saved again", async () => {
+    const profile = "77777777-7777-4777-8777-777777777771";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await bindWelcome(profile, "uploadBLK0001", "assetBLK00001", "playBLK000001");
+    await setWelcome(profile, "assetBLK00001", "playBLK000001", "uploadBLK0001");
+    await db.query(
+      `update public.social_music_scans
+       set status = 'blocked',
+           decided_at = now(),
+           next_attempt_at = null,
+           attempt_count = 2,
+           vendor_score = 40,
+           window_results = '[{"kind":"match"}]'::jsonb
+       where profile_id = $1 and playback_id = 'playBLK000001'`,
+      [profile],
+    );
+    const scansBefore = await db.query<{ n: string }>(
+      `select count(*)::text as n from public.social_music_scans where profile_id = $1`,
+      [profile],
+    );
+    const assetsBefore = await db.query<{ n: string }>(
+      `select count(*)::text as n from public.social_mux_bindings where author_id = $1`,
+      [profile],
+    );
+    await setWelcome(profile, null, null, null);
+    await setWelcome(profile, "assetBLK00001", "playBLK000001", "uploadBLK0001");
+    const row = await db.query<{
+      last_error: string | null;
+      status: string;
+      attempt_count: number;
+      vendor_score: string | null;
+      windows: number;
+    }>(
+      `select last_error, status::text as status, attempt_count, vendor_score::text as vendor_score,
+              jsonb_array_length(window_results) as windows
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playBLK000001'`,
+      [profile],
+    );
+    expect(await welcomeNotices(profile)).toEqual(["blocked"]);
+    expect(await strangerSeesWelcome(profile, "assetBLK00001", "playBLK000001")).toBe(false);
+    expect(row.rows).toEqual([
+      { last_error: null, status: "blocked", attempt_count: 2, vendor_score: "40.00", windows: 1 },
+    ]);
+    const scansAfter = await db.query<{ n: string }>(
+      `select count(*)::text as n from public.social_music_scans where profile_id = $1`,
+      [profile],
+    );
+    const assetsAfter = await db.query<{ n: string }>(
+      `select count(*)::text as n from public.social_mux_bindings where author_id = $1`,
+      [profile],
+    );
+    expect(scansAfter.rows[0]?.n).toBe(scansBefore.rows[0]?.n);
+    expect(assetsAfter.rows[0]?.n).toBe(assetsBefore.rows[0]?.n);
+  });
+
+  it("shows an allowed welcome again when the same pair is saved again", async () => {
+    const profile = "77777777-7777-4777-8777-777777777772";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await bindWelcome(profile, "uploadALW0001", "assetALW00001", "playALW000001");
+    await setWelcome(profile, "assetALW00001", "playALW000001", "uploadALW0001");
+    await db.query(
+      `update public.social_music_scans
+       set status = 'allowed', decided_at = now(), next_attempt_at = null
+       where profile_id = $1 and playback_id = 'playALW000001'`,
+      [profile],
+    );
+    await setWelcome(profile, null, null, null);
+    await setWelcome(profile, "assetALW00001", "playALW000001", "uploadALW0001");
+    const row = await db.query<{ last_error: string | null; status: string }>(
+      `select last_error, status::text as status
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playALW000001'`,
+      [profile],
+    );
+    expect(row.rows).toEqual([{ last_error: null, status: "allowed" }]);
+    expect(await welcomeNotices(profile)).toEqual([]);
+    expect(await strangerSeesWelcome(profile, "assetALW00001", "playALW000001")).toBe(true);
+  });
+
+  it("leaves other superseded welcome rows superseded when one pair is saved again", async () => {
+    const profile = "77777777-7777-4777-8777-777777777773";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await bindWelcome(profile, "uploadOTH0001", "assetOTH00001", "playOTH000001");
+    await bindWelcome(profile, "uploadPND0001", "assetPND00001", "playPND000001");
+    await bindWelcome(profile, "uploadAGN0001", "assetAGN00001", "playAGN000001");
+    await setWelcome(profile, "assetOTH00001", "playOTH000001", "uploadOTH0001");
+    await db.query(
+      `update public.social_music_scans
+       set status = 'blocked', decided_at = now(), next_attempt_at = null
+       where profile_id = $1 and playback_id = 'playOTH000001'`,
+      [profile],
+    );
+    await setWelcome(profile, "assetPND00001", "playPND000001", "uploadPND0001");
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 4
+       where profile_id = $1 and playback_id = 'playPND000001'`,
+      [profile],
+    );
+    await setWelcome(profile, "assetAGN00001", "playAGN000001", "uploadAGN0001");
+    await db.query(
+      `update public.social_music_scans
+       set status = 'pending', next_attempt_at = null, attempt_count = 1
+       where profile_id = $1 and playback_id = 'playAGN000001'`,
+      [profile],
+    );
+    await setWelcome(profile, null, null, null);
+    await setWelcome(profile, "assetAGN00001", "playAGN000001", "uploadAGN0001");
+    const rows = await db.query<{ playback_id: string; last_error: string | null; status: string; attempt_count: number }>(
+      `select playback_id, last_error, status::text as status, attempt_count
+       from public.social_music_scans
+       where profile_id = $1
+       order by playback_id`,
+      [profile],
+    );
+    expect(rows.rows).toEqual([
+      { playback_id: "playAGN000001", last_error: null, status: "pending", attempt_count: 1 },
+      { playback_id: "playOTH000001", last_error: "superseded", status: "blocked", attempt_count: 0 },
+      { playback_id: "playPND000001", last_error: "superseded", status: "pending", attempt_count: 4 },
+    ]);
+    expect(await welcomeNotices(profile)).toEqual(["welcomePending"]);
   });
 
   it("does not backfill an expired story on either video path", async () => {
