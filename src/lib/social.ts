@@ -449,6 +449,16 @@ export function socialProfileEditTopicsHref(): string {
   return `${SOCIAL_ROUTES.profileEdit}?${SOCIAL_PROFILE_EDIT_FACE_PARAM}=topics`;
 }
 
+/** The desktop Edit profile window over the live profile: `?edit` opens it
+ *  on the index, `?edit=<face>` straight at that face. */
+export const SOCIAL_PROFILE_EDIT_WINDOW_PARAM = "edit";
+
+export function socialProfileEditWindowHref(face?: string | null, tab?: string | null): string {
+  const value = face && face !== "edit" ? `=${encodeURIComponent(face)}` : "";
+  const keep = tab ? `${SOCIAL_PROFILE_TAB_PARAM}=${encodeURIComponent(tab)}&` : "";
+  return `${SOCIAL_ROUTES.profile}?${keep}${SOCIAL_PROFILE_EDIT_WINDOW_PARAM}${value}`;
+}
+
 export function isLegacySocialProfilePostsTab(
   raw: string | string[] | undefined | null,
 ): boolean {
@@ -964,6 +974,17 @@ export const SOCIAL = {
     imdbHint: "A public link to your IMDb name page.",
     followedBy: "Followed by",
     followedByMore: "+{n} more",
+    // Edit profile window (docs/design-locks/social-profile-edit-window-lock-v1.md,
+    // Adam 2026-10-09, "build it"): leaving with changes asks inside the window.
+    discardTitle: "Discard changes?",
+    // "{fields} aren't saved." — fields are the row labels, in row order.
+    discardFieldsOne: "{fields} isn't saved.",
+    discardFieldsMany: "{fields} aren't saved.",
+    discardAnd: "and",
+    discardPhotoSaved: "Your new picture is already saved.",
+    discardVideoSaved: "Your new welcome video is already saved.",
+    discardKeep: "Keep editing",
+    discardConfirm: "Discard",
   },
   member: {
     title: "Member",

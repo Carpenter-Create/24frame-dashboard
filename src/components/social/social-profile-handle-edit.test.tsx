@@ -9,7 +9,7 @@ describe("SocialProfileHandleEditor", () => {
     const html = renderToStaticMarkup(
       <SocialProfileHandleEditor
         value="ada"
-        onSave={() => undefined}
+        onChange={() => undefined}
         onBack={() => undefined}
       />,
     );
@@ -23,8 +23,8 @@ describe("SocialProfileHandleEditor", () => {
     expect(html).not.toContain('value="@ada"');
     expect(html).not.toContain("data-social-handle-url");
     expect(html).not.toContain("https://24frame.co/@ada");
-    expect(html).toContain("data-social-profile-handle-done");
-    expect(html).toContain(SOCIAL.profile.done);
+    // One draft: the face writes through; Edit's one Done saves it.
+    expect(html).not.toContain("data-social-profile-handle-done");
     expect(html).not.toMatch(/id="social-edit-handle"[^>]*t-body-sm/);
   });
 });

@@ -38,8 +38,11 @@ describe("Profile Stage actions (docs/design-locks/social-profile-stage-lock-v1.
 
   it("puts the profile action pills on both profile routes", () => {
     const own = readFileSync("src/app/(app)/social/profile/page.tsx", "utf8");
-    expect(own).toContain("className={SOCIAL_PROFILE_ACTION_PILL_CLASS}");
+    expect(own).toContain("<SocialProfileEditEntry />");
     expect(own).toContain("<SocialShareButton handle={identity.handle} />");
+    const entry = readFileSync("src/components/social/social-profile-edit-entry.tsx", "utf8");
+    expect(entry).toContain('className={cn(SOCIAL_PROFILE_ACTION_PILL_CLASS, "md:hidden")}');
+    expect(entry).toContain('className={cn(SOCIAL_PROFILE_ACTION_PILL_CLASS, "max-md:hidden")}');
     const visitor = readFileSync("src/app/(app)/social/u/[handle]/page.tsx", "utf8");
     const follow = visitor.slice(visitor.indexOf("<SocialFollowButton"), visitor.indexOf("/>", visitor.indexOf("<SocialFollowButton")));
     expect(follow).toMatch(/\n\s+stretch\n\s+pill\n/);

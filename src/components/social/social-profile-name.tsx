@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
 import { SocialProfileEditFace } from "@/components/social/social-profile-edit-face";
-import { InlineNotice } from "@/components/ui/inline-notice";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import {
@@ -11,7 +8,7 @@ import {
   SOCIAL_PROFILE_EDIT_LABEL_CLASS,
   SOCIAL_PROFILE_EDIT_ROW_CLASS,
 } from "@/lib/social-chrome";
-import { SOCIAL, socialNameRequiredError } from "@/lib/social";
+import { SOCIAL } from "@/lib/social";
 
 export function SocialProfileNameFields({
   firstName,
@@ -80,59 +77,31 @@ export function SocialProfileNameFields({
   );
 }
 
+// The Name face writes into Edit's one draft as you type: Back keeps it,
+// and Done (in the header) is Edit's one save.
 export function SocialProfileNameEditor({
   firstName,
   middleName,
   lastName,
-  onSave,
+  onChange,
   onBack,
 }: {
   firstName: string;
   middleName: string;
   lastName: string;
-  onSave: (next: { firstName: string; middleName: string; lastName: string }) => void;
+  onChange: (next: { firstName: string; middleName: string; lastName: string }) => void;
   onBack: () => void;
 }) {
-  const [first, setFirst] = useState(firstName);
-  const [middle, setMiddle] = useState(middleName);
-  const [last, setLast] = useState(lastName);
-  const [error, setError] = useState("");
-
-  function onDone() {
-    const notice = socialNameRequiredError(first, last);
-    if (notice) {
-      setError(notice);
-      return;
-    }
-    onSave({ firstName: first, middleName: middle, lastName: last });
-    onBack();
-  }
-
   return (
-    <SocialProfileEditFace
-      face="name"
-      title={SOCIAL.profile.name}
-      onBack={onBack}
-      done={{
-        attr: "data-social-profile-name-done",
-        onClick: onDone,
-      }}
-    >
+    <SocialProfileEditFace face="name" title={SOCIAL.profile.name} onBack={onBack}>
       <SocialProfileNameFields
-        firstName={first}
-        middleName={middle}
-        lastName={last}
-        onFirstName={(next) => {
-          setFirst(next);
-          setError("");
-        }}
-        onMiddleName={setMiddle}
-        onLastName={(next) => {
-          setLast(next);
-          setError("");
-        }}
+        firstName={firstName}
+        middleName={middleName}
+        lastName={lastName}
+        onFirstName={(next) => onChange({ firstName: next, middleName, lastName })}
+        onMiddleName={(next) => onChange({ firstName, middleName: next, lastName })}
+        onLastName={(next) => onChange({ firstName, middleName, lastName: next })}
       />
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
     </SocialProfileEditFace>
   );
 }

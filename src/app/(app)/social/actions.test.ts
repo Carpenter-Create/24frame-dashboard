@@ -422,6 +422,48 @@ describe("social actions", () => {
     });
   });
 
+  it("saves Bio in Edit's one write when the form carries it, and leaves it alone when not", async () => {
+    // docs/design-locks/social-profile-edit-window-lock-v1.md: one draft, one save.
+    const { updates } = stub({
+      profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const form = new FormData();
+    form.set("handle", "ada");
+    form.set("first_name", "Ada");
+    form.set("last_name", "Lovelace");
+    form.set("bio", "Founder\nInvestor");
+    expect(await createSocialProfile(form)).toEqual({});
+    expect(updates[0]?.row).toMatchObject({ bio: "Founder\nInvestor" });
+
+    const cleared = new FormData();
+    cleared.set("handle", "ada");
+    cleared.set("first_name", "Ada");
+    cleared.set("last_name", "Lovelace");
+    cleared.set("bio", "   ");
+    expect(await createSocialProfile(cleared)).toEqual({});
+    expect(updates[1]?.row).toMatchObject({ bio: null });
+
+    const without = new FormData();
+    without.set("handle", "ada");
+    without.set("first_name", "Ada");
+    without.set("last_name", "Lovelace");
+    expect(await createSocialProfile(without)).toEqual({});
+    expect(updates[2]?.row).not.toHaveProperty("bio");
+  });
+
+  it("refuses a Bio over 150 characters and writes nothing", async () => {
+    const { updates } = stub({
+      profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const form = new FormData();
+    form.set("handle", "ada");
+    form.set("first_name", "Ada");
+    form.set("last_name", "Lovelace");
+    form.set("bio", "x".repeat(151));
+    expect(await createSocialProfile(form)).toEqual({ error: SOCIAL.profile.bioLimit });
+    expect(updates).toEqual([]);
+  });
+
   it("saves a normalized IMDb name URL and clears a blank claim", async () => {
     const { updates } = stub({
       profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },

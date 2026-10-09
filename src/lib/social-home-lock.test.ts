@@ -761,8 +761,12 @@ describe("Social Home miss list v1 P0 lock", () => {
     expect(profile).not.toContain("PageHeader");
     expect(profile).not.toContain("AccountProfileForm");
     expect(profile).toContain("SocialOwnProfileFace");
-    expect(profile).toContain("SOCIAL.profile.edit");
-    expect(profile).toContain("SOCIAL_ROUTES.profileEdit");
+    // The Edit profile pill is its own island: phone links to the sheet,
+    // desktop opens the window over this profile.
+    expect(profile).toContain("<SocialProfileEditEntry />");
+    const editEntry = readFileSync("src/components/social/social-profile-edit-entry.tsx", "utf8");
+    expect(editEntry).toContain("SOCIAL.profile.edit");
+    expect(editEntry).toContain("SOCIAL_ROUTES.profileEdit");
     const ownProfile = readFileSync("src/components/social/social-own-profile.tsx", "utf8");
     expect(profile).not.toContain("actions={(view)");
     expect(profile).not.toContain("actions={() =>");

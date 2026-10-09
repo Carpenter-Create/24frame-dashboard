@@ -2,27 +2,36 @@
 // 180:2004 / 180:2026. Own face 181:230 / 181:2000 has no dead ▶ Edit.
 // Sole entry is the primary Edit profile control. Share stays the sheet.
 // Bio Enter/Return inserts a newline (Adam amend). Soft newlines count
-// toward BIO_MAX as stored. Done is the Sporty Blue check only.
-// Edit picture reuses avatars/{userId}/avatar.
+// toward BIO_MAX as stored. Edit picture reuses avatars/{userId}/avatar.
 //
-// Save SoT: apply the draft to this overlay, paint the own face in the
-// already-mounted Social tree, leave Edit immediately, persist in the
-// background, roll back here on error. Memory + sessionStorage + a
-// short cookie keep the hop off the skeleton. Index is photo + Settings
-// drill-in rows only — nothing typed on the index. Name and Username
-// drill inward. Avatar opens the house app-sheet. Professions and
-// Topics share one chip-select face. IMDb, Links, and Bio are their
-// own faces. Selecting stays local draft until that one write.
+// One draft, one save (docs/design-locks/social-profile-edit-window-lock-v1.md,
+// Adam 2026-10-09). Index is photo + welcome video + drill-in rows only —
+// nothing typed on the index. Every face writes into the one draft as you
+// type, so Back keeps it. Done (on the index or any face) is the one save:
+// Name, Username, Professions, Topics, IMDb, Links and Bio in one write.
+// Photo and welcome video save the moment they are confirmed.
+//
+// Hosts: desktop is the window over the live profile (?edit); phone is
+// the full-screen sheet on /social/profile/edit. Both leave with changes
+// only through Keep editing · Discard.
+//
+// Save SoT: apply the draft to the overlay, paint the own face in the
+// already-mounted Social tree, leave Edit, persist in the background, roll
+// back here on error. A changed username waits for the server first (it is
+// the public URL, and "taken" is a common answer). Memory + sessionStorage
+// + a short cookie keep the phone hop off the skeleton.
 
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
 import { persistSocialMutation } from "@/lib/social-optimistic";
 import {
   BIO_MAX,
   SOCIAL,
+  SOCIAL_PROFILE_EDIT_WINDOW_PARAM,
   SOCIAL_ROUTES,
   bareHandle,
   composeSocialDisplayName,
   displayHandle,
+  normalizeBio,
   socialBioEnterSubmits,
   socialHandleInputError,
   socialNameRequiredError,
@@ -355,6 +364,20 @@ export function clearSocialProfileOptimistic(): void {
   emitSocialProfileOptimistic();
 }
 
+/** Discard after a failed save: the failed draft goes; what already saved
+ *  on confirm (picture, cover, welcome video) stays painted. */
+export function dropSocialProfileOptimisticDraft(): void {
+  if (!overlay || (!overlay.error && !overlay.handleError)) return;
+  const kept: SocialProfileOptimisticSnapshot = {};
+  if (overlay.photoUrl !== undefined) kept.photoUrl = overlay.photoUrl;
+  if (overlay.coverUrl !== undefined) kept.coverUrl = overlay.coverUrl;
+  if (overlay.welcomeVideoUrl !== undefined) kept.welcomeVideoUrl = overlay.welcomeVideoUrl;
+  overlay = Object.keys(kept).length > 0 ? kept : null;
+  hop = false;
+  writeSocialProfileOptimisticBridge(overlay);
+  emitSocialProfileOptimistic();
+}
+
 export function socialProfileSaveFieldError(error: string): "handle" | "form" {
   return HANDLE_FIELD_ERRORS.has(error) ? "handle" : "form";
 }
@@ -392,7 +415,99 @@ export function socialProfileEditFormData(draft: SocialProfileEditSaveDraft): Fo
   form.set("topics", JSON.stringify(parseSocialProfileTopics(draft.topics)));
   form.set("imdb_url", draft.imdbUrl);
   form.set("links", JSON.stringify(draft.links));
+  form.set("bio", draft.bio);
   return form;
+}
+
+/** `?edit` / `?edit=<face>` on the profile: the desktop window and its face. */
+export function parseSocialProfileEditWindow(search: string): SocialProfileEditFace | null {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  if (!params.has(SOCIAL_PROFILE_EDIT_WINDOW_PARAM)) return null;
+  return parseSocialProfileEditFace(params.get(SOCIAL_PROFILE_EDIT_WINDOW_PARAM));
+}
+
+/** The address with the window open at `face` (every other param kept, so
+ *  the profile tab behind it does not change). */
+export function socialProfileEditWindowOpenHref(
+  pathname: string,
+  search: string,
+  face: SocialProfileEditFace = "edit",
+): string {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  params.delete(SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
+  const rest = params.toString();
+  const value = face === "edit" ? "" : `=${encodeURIComponent(face)}`;
+  return `${pathname}?${rest ? `${rest}&` : ""}${SOCIAL_PROFILE_EDIT_WINDOW_PARAM}${value}`;
+}
+
+/** The address with the window's query removed (every other param kept). */
+export function socialProfileEditWindowClosedHref(pathname: string, search: string): string {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  params.delete(SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
+  const rest = params.toString();
+  return rest ? `${pathname}?${rest}` : pathname;
+}
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function filledLinks(links: readonly string[]): string[] {
+  return links.map((link) => link.trim()).filter(Boolean);
+}
+
+/** Row labels whose draft differs from where Edit opened, in row order.
+ *  Photo and welcome video save on confirm, so they are never listed. */
+export function socialProfileEditChangedFields(
+  seed: SocialProfileEditSaveDraft,
+  draft: SocialProfileEditSaveDraft,
+): string[] {
+  const changed: string[] = [];
+  if (
+    composeSocialDisplayName(seed.firstName, seed.lastName, seed.middleName) !==
+    composeSocialDisplayName(draft.firstName, draft.lastName, draft.middleName)
+  ) {
+    changed.push(SOCIAL.profile.name);
+  }
+  if (bareHandle(seed.username) !== bareHandle(draft.username)) changed.push(SOCIAL.profile.username);
+  if (!sameList(parseSocialProfileRoles(seed.crafts), parseSocialProfileRoles(draft.crafts))) {
+    changed.push(SOCIAL.profile.roles);
+  }
+  if (!sameList(parseSocialProfileTopics(seed.topics), parseSocialProfileTopics(draft.topics))) {
+    changed.push(SOCIAL.profile.topics);
+  }
+  if (seed.imdbUrl.trim() !== draft.imdbUrl.trim()) changed.push(SOCIAL.profile.imdb);
+  if (!sameList(filledLinks(seed.links), filledLinks(draft.links))) changed.push(SOCIAL.profile.links);
+  if ((normalizeBio(seed.bio) ?? seed.bio) !== (normalizeBio(draft.bio) ?? draft.bio)) {
+    changed.push(SOCIAL.profile.bio);
+  }
+  return changed;
+}
+
+/** "Name isn't saved." · "Name and Topics aren't saved." · "Name, Topics and Bio aren't saved." */
+export function socialProfileEditDiscardLine(fields: readonly string[]): string {
+  if (fields.length === 0) return "";
+  const joined =
+    fields.length === 1
+      ? fields[0]
+      : `${fields.slice(0, -1).join(", ")} ${SOCIAL.profile.discardAnd} ${fields[fields.length - 1]}`;
+  const template = fields.length === 1 ? SOCIAL.profile.discardFieldsOne : SOCIAL.profile.discardFieldsMany;
+  return template.replace("{fields}", joined);
+}
+
+/** The face a failed save belongs on, so Done can take the member there. */
+export function socialProfileEditFaceForError(error: string): SocialProfileEditFace | null {
+  if (HANDLE_FIELD_ERRORS.has(error)) return "handle";
+  if (error === SOCIAL.profile.firstNameRequired || error === SOCIAL.profile.lastNameRequired) return "name";
+  if (error === SOCIAL.profile.imdbInvalid) return "imdb";
+  if (error === SOCIAL.profile.linkInvalid || error === SOCIAL.profile.linkLimit) return "links";
+  if (error === SOCIAL.profile.bioLimit) return "bio";
+  return null;
+}
+
+/** A changed username waits for the server before Edit closes. */
+export function socialProfileEditHandleChanged(seedUsername: string, username: string): boolean {
+  return bareHandle(seedUsername) !== bareHandle(username);
 }
 
 export function checkSocialProfileEditSave(draft: SocialProfileEditSaveDraft): SocialProfileEditSaveCheck {

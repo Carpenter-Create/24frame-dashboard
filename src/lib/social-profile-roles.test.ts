@@ -478,7 +478,7 @@ describe("social profile roles", () => {
     expect(editSrc).toContain("SettingsDrillRow");
     expect(editSrc).toContain("socialProfileRolesRowSummary");
     expect(editSrc).toContain("SocialProfileRolesEditor");
-    expect(editSrc).toContain("onChange={setRoles}");
+    expect(editSrc).toContain("onChange={edit.setRoles}");
     expect(editSrc).not.toContain("SocialProfileRolesField");
     expect(editSrc).not.toContain("createSocialProfile");
     expect(editSrc).toContain("persistSocialProfileEdit");

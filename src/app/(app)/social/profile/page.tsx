@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { HouseLink } from "@/components/chrome/house-link";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { SocialProfileCreateForm } from "@/components/social/social-profile-create-form";
 import { SocialProfileTabPanels } from "@/components/social/social-profile-tab-panels";
@@ -12,11 +11,11 @@ import { signSocialForYouCourseCovers } from "@/components/social/social-for-you
 import { SocialDesktopForYouSlot } from "@/components/social/social-for-you-slot";
 import { SocialForYouSkeleton, SocialProfileCenterSkeleton } from "@/components/social/social-skeletons";
 import { SocialOwnProfileFace } from "@/components/social/social-own-profile";
+import { SocialProfileEditEntry } from "@/components/social/social-profile-edit-entry";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
 import {
   SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_PAGE_CLASS,
-  SOCIAL_PROFILE_ACTION_PILL_CLASS,
   SOCIAL_PROFILE_CENTER_CLASS,
 } from "@/lib/social-chrome";
 import {
@@ -191,9 +190,7 @@ async function SocialProfileMain({
         stats={counts ?? undefined}
         actions={
           <>
-            <HouseLink href={SOCIAL_ROUTES.profileEdit} className={SOCIAL_PROFILE_ACTION_PILL_CLASS}>
-              {SOCIAL.profile.edit}
-            </HouseLink>
+            <SocialProfileEditEntry />
             <SocialShareButton handle={identity.handle} />
           </>
         }

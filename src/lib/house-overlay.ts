@@ -27,6 +27,7 @@ export const HOUSE_OVERLAY_JOBS = [
   "confirm",
   "side-edit",
   "anchored",
+  "object-edit",
 ] as const;
 
 export type HouseOverlayJob = (typeof HOUSE_OVERLAY_JOBS)[number];
@@ -43,6 +44,9 @@ export const HOUSE_OVERLAY_JOB_HOST: Record<
   confirm: { phone: "app-sheet", desktop: "house-dialog" },
   "side-edit": { phone: "app-sheet", desktop: "house-drawer" },
   anchored: { phone: "app-sheet", desktop: "menu-surface" },
+  // One object edited over the page that shows it: the composer, Edit
+  // profile. Desktop is the HouseDialog window; phone is the full sheet.
+  "object-edit": { phone: "app-sheet", desktop: "house-dialog" },
 };
 
 export function houseOverlayHost(
@@ -72,6 +76,12 @@ export const APP_SHEET_FULL_HOST_CLASS =
 export const HOUSE_DIALOG_CONFIRM_CLASS = "w-[min(92vw,400px)]";
 
 export const HOUSE_DIALOG_FORM_CLASS = "w-[min(92vw,480px)]";
+
+// The window (amended 2026-10-09, Adam): HouseDialog's third width, for one
+// object edited over the page that shows it. 600 wide, radius 24, no edge,
+// no shadow. One geometry for every window — the composer and Edit profile
+// both compose from it, so they never drift.
+export const HOUSE_DIALOG_WINDOW_CLASS = "w-[min(92vw,600px)] rounded-[var(--radius-xl)] border-0";
 
 export const HOUSE_DIALOG_PANEL_CLASS =
   "m-auto h-fit max-h-[80vh] overflow-visible rounded-[16px] border border-hairline bg-surface p-[var(--space-6)] text-ink shadow-none backdrop:bg-ink/40";

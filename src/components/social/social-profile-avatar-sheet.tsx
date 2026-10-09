@@ -13,6 +13,7 @@ import {
   SOCIAL_PROFILE_AVATAR_SHEET_DANGER_CLASS,
   SOCIAL_PROFILE_AVATAR_SHEET_HANDLE_CLASS,
   SOCIAL_PROFILE_AVATAR_SHEET_HANDLE_HIT_CLASS,
+  SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS,
   SOCIAL_PROFILE_AVATAR_SHEET_LIST_CLASS,
   SOCIAL_PROFILE_AVATAR_SHEET_ROW_CLASS,
 } from "@/lib/social-chrome";
@@ -25,6 +26,7 @@ export function SocialProfileAvatarSheet({
   open,
   hasPhoto,
   pending = false,
+  placement = "viewport",
   onClose,
   onPick,
   onRemove,
@@ -32,6 +34,9 @@ export function SocialProfileAvatarSheet({
   open: boolean;
   hasPhoto: boolean;
   pending?: boolean;
+  /** inline: the desktop Edit profile window. The house menu drops under
+   *  Edit picture inside the window (the window owns Esc and scroll). */
+  placement?: "viewport" | "inline";
   onClose: () => void;
   onPick: (file: File | undefined) => void;
   onRemove: () => void;
@@ -41,9 +46,10 @@ export function SocialProfileAvatarSheet({
   const libraryRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const dragStartY = useRef<number | null>(null);
+  const inline = placement === "inline";
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || inline) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
@@ -54,7 +60,7 @@ export function SocialProfileAvatarSheet({
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
     };
-  }, [open, onClose]);
+  }, [open, inline, onClose]);
 
   if (!open) return null;
 
@@ -140,6 +146,37 @@ export function SocialProfileAvatarSheet({
       />
     </>
   );
+
+  if (inline) {
+    return (
+      <div
+        data-social-profile-avatar-sheet=""
+        data-social-profile-avatar-sheet-placement="inline"
+        data-house-overlay-host="menu-surface"
+        className={SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS}
+      >
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={SOCIAL.create.close}
+          className="fixed inset-0 cursor-default"
+          onClick={onClose}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className={`relative ${menuSurfaceContentClass(menuSurfaceDensityForCount(hasPhoto ? 3 : 2))}`}
+        >
+          <h2 id={titleId} className="sr-only">
+            {SOCIAL.profile.editPicture}
+          </h2>
+          {rows}
+          {inputs}
+        </div>
+      </div>
+    );
+  }
 
   const sheet = desktop ? (
     <div

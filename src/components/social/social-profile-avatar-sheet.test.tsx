@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { APP_SHEET_HOST_CLASS, APP_SHEET_SCRIM_CLASS } from "@/lib/house-sheet";
 import { SOCIAL } from "@/lib/social";
+import { SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS } from "@/lib/social-chrome";
 import { SocialProfileAvatarSheet } from "./social-profile-avatar-sheet";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -46,6 +47,9 @@ describe("SocialProfileAvatarSheet", () => {
     expect(src).not.toContain("MenuSurface");
     expect(src).not.toContain("absolute left-1/2");
     expect(src).not.toContain("popover");
+    // The anchored menu is the desktop Edit window's only (placement inline).
+    expect(html).not.toContain(SOCIAL_PROFILE_AVATAR_MENU_INLINE_CLASS);
+    expect(src).toContain('const inline = placement === "inline";');
   });
 
   it("shows Remove current picture only when a photo exists", () => {
