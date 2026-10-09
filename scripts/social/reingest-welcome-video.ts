@@ -57,10 +57,23 @@ async function loadCandidates(): Promise<SocialReingestCandidate[]> {
     assertOk(parent.error, "parent read");
     const media = Array.isArray(parent.data?.media) ? parent.data.media : [];
     const digest = scan.asset_id || scan.playback_id;
-    const key = typeof digest === "string" ? socialReingestKeyForDigest(media, digest) : null;
-    if (!key) continue;
     const expiresAt = parent.data && "expires_at" in parent.data ? parent.data.expires_at : null;
     const expired = surface === "story" && typeof expiresAt === "string" && Date.parse(expiresAt) <= Date.now();
+    const key = typeof digest === "string" ? socialReingestKeyForDigest(media, digest) : null;
+    if (!key) {
+      if (expired) continue;
+      rows.push({
+        surface,
+        parentId,
+        authorId: scan.author_id,
+        key: "",
+        expired: false,
+        assetId: null,
+        playbackId: null,
+        sourceGone: true,
+      });
+      continue;
+    }
     rows.push({
       surface,
       parentId,
@@ -251,7 +264,7 @@ async function main(): Promise<void> {
           .select("id")
           .eq(column, candidate.parentId)
           .is("next_attempt_at", null)
-          .in("last_error", ["s3_source_missing", "welcome_too_long", "welcome_source_missing", "reingest_failed"])
+          .in("last_error", ["s3_source_missing", "welcome_too_long", "welcome_source_missing"])
           .limit(1);
         assertOk(error, "unfinished read");
         return Boolean(data && data.length > 0);

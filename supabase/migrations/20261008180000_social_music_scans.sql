@@ -735,6 +735,8 @@ begin
   from grouped
   where grouped.blocked or grouped.pending_n > 0;
 
+  -- The pair stored on the profile. A replaced welcome row stays in the
+  -- table and must not decide the clip other people are shown.
   select case
     when bool_or(s.status = 'blocked') then 'blocked'
     when count(*) filter (where s.status = 'pending' and s.last_error = 's3_video_needs_mux') > 0 then 'welcomePending'
@@ -751,10 +753,13 @@ begin
   end
   into v_welcome
   from public.social_music_scans s
+  join public.profiles p on p.id = s.profile_id
   where s.author_id = (select auth.uid())
     and s.surface = 'welcome'
     and s.profile_id = (select auth.uid())
-    and s.last_error is distinct from 'superseded';
+    and s.last_error is distinct from 'superseded'
+    and s.asset_id = p.welcome_mux_asset_id
+    and s.playback_id = p.welcome_mux_playback_id;
 
   if v_welcome is not null then
     return query select null::uuid, null::uuid, v_welcome;

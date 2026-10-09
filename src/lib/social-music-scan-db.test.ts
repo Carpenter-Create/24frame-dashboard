@@ -387,6 +387,65 @@ describe("social music scan migration", () => {
     expect(welcome.rows).toMatchObject([{ status: "pending" }]);
   });
 
+  it("notices the welcome pair stored on the profile and ignores a replaced scan", async () => {
+    const profile = "88888888-8888-4888-8888-888888888888";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await db.query(
+      `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+       values
+         ($1, 'uploadOLD0001', 'assetOLD00001', 'playOLD000001'),
+         ($1, 'uploadNEW0001', 'assetNEW00001', 'playNEW000001')`,
+      [profile],
+    );
+    await db.query(
+      `update public.profiles
+       set welcome_mux_asset_id = 'assetOLD00001',
+           welcome_mux_playback_id = 'playOLD000001',
+           welcome_mux_upload_id = 'uploadOLD0001'
+       where id = $1`,
+      [profile],
+    );
+    await db.query(
+      `update public.social_music_scans
+       set status = 'blocked', decided_at = now(), next_attempt_at = null
+       where profile_id = $1 and playback_id = 'playOLD000001'`,
+      [profile],
+    );
+    await db.query(
+      `update public.profiles
+       set welcome_mux_asset_id = 'assetNEW00001',
+           welcome_mux_playback_id = 'playNEW000001',
+           welcome_mux_upload_id = 'uploadNEW0001'
+       where id = $1`,
+      [profile],
+    );
+    await db.query(
+      `insert into public.social_music_scans (
+         surface, profile_id, author_id, asset_id, playback_id, status, next_attempt_at, last_error
+       ) values (
+         'welcome', $1, $1, 's3digest000000000000000000000001', 's3digest000000000000000000000001',
+         'pending', null, 's3_video_needs_mux'
+       )`,
+      [profile],
+    );
+    const notice = async () => {
+      const result = await asUser(profile, () =>
+        db.query<{ notice: string }>(
+          `select notice from public.social_music_author_notices('{}'::uuid[], '{}'::uuid[])`,
+        ),
+      );
+      return result.rows.map((row) => row.notice);
+    };
+    expect(await notice()).toEqual(["welcomePending"]);
+    await db.query(
+      `update public.social_music_scans
+       set status = 'allowed', decided_at = now(), next_attempt_at = null
+       where profile_id = $1 and playback_id = 'playNEW000001'`,
+      [profile],
+    );
+    expect(await notice()).toEqual([]);
+  });
+
   it("does not backfill an expired story on either video path", async () => {
     const expired = await db.query(
       `select last_error from public.social_music_scans where story_id = $1`,

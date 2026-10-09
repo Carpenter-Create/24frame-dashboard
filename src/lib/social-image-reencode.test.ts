@@ -77,6 +77,30 @@ describe("reencodeSocialImage", () => {
     expect(socialImageRecheckPlan(clean, clean)).toBe("skip");
     expect(socialImageRecheckPlan(clean, null)).toBe("hide");
 
+    const unreadHidden: string[] = [];
+    const unread = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "post",
+          parentId: "post-unread",
+          key: "posts/a/missing.jpg",
+          original: new Uint8Array(),
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async () => {
+        throw new Error("should not store");
+      },
+      hide: async (parent) => {
+        unreadHidden.push(parent.parentId);
+      },
+    });
+    expect(unreadHidden).toEqual([]);
+    expect(unread).toMatchObject({ hide: 0, store: 0, reported: 0 });
+    const recheck = readFileSync("scripts/social/recheck-social-images.ts", "utf8");
+    expect(recheck).not.toContain("new Uint8Array()");
+
     const publish = readFileSync("src/lib/social-media-publish.ts", "utf8");
     const avatars = readFileSync("src/lib/s3-avatars.ts", "utf8");
     const actions = readFileSync("src/app/(app)/account/actions.ts", "utf8");

@@ -3,7 +3,7 @@ import { socialVideoDurationExceedsCap } from "@/lib/social-mux";
 
 // Founder-run re-ingest of S3 video onto Mux. Dry-run is the default.
 // Expired stories are skipped. A missing source becomes Unfinished.
-// Nothing here deletes an S3 object.
+// A thrown parent stays eligible for the next execute. Nothing here deletes an S3 object.
 
 export type SocialReingestSurface = "post" | "story" | "welcome";
 
@@ -16,6 +16,8 @@ export type SocialReingestCandidate = {
   /** Mux asset already created on an earlier pass. Null when this is the S3 digest row. */
   assetId: string | null;
   playbackId: string | null;
+  /** The parent no longer stores this S3 key. Retire the placeholder; do not create an asset. */
+  sourceGone?: boolean;
 };
 
 export type SocialReingestAsset = {
@@ -96,14 +98,6 @@ export async function reingestSocialS3Videos(input: {
       (input.deps.log ?? console.error)(
         `social s3 reingest parent ${parent?.surface ?? "unknown"} ${parent?.parentId ?? ""} failed: ${message}`,
       );
-      if (parent) {
-        try {
-          await input.deps.markUnfinished(parent, "reingest_failed");
-        } catch (markError) {
-          const markMessage = markError instanceof Error ? markError.message : "unfinished_failed";
-          (input.deps.log ?? console.error)(`social s3 reingest unfinished mark failed: ${markMessage}`);
-        }
-      }
       report.unfinished += 1;
     }
   }
@@ -117,14 +111,27 @@ async function reingestParent(
   report: SocialReingestReport,
 ): Promise<void> {
   const actionable: SocialReingestCandidate[] = [];
+  let live = 0;
+  let sourceGone = 0;
   for (const candidate of group) {
     if (candidate.surface === "story" && candidate.expired) {
       report.skippedExpired += 1;
       continue;
     }
+    live += 1;
+    if (candidate.sourceGone) {
+      sourceGone += 1;
+      continue;
+    }
     if (candidate.playbackId) continue;
     report.candidates += 1;
     actionable.push(candidate);
+  }
+  if (live > 0 && sourceGone === live) {
+    if (!execute) return;
+    const parent = group.find((candidate) => candidate.sourceGone) ?? group[0];
+    if (parent) await deps.retirePlaceholder(parent);
+    return;
   }
   if (!execute || actionable.length === 0) return;
   if (await deps.alreadyUnfinished(actionable[0]!)) return;

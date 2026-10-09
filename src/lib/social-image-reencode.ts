@@ -82,8 +82,9 @@ export type SocialImageRecheckReport = {
 /**
  * Dry-run is the default. A post or story that will not decode is hidden.
  * An avatar that will not decode is reported and left in place. One item
- * failure does not stop the next. Refuse is the notice-array rule; this
- * path hides or reports, it does not truncate a page.
+ * failure does not stop the next. An empty read is not a failed decode.
+ * Refuse is the notice-array rule; this path hides or reports, it does
+ * not truncate a page.
  */
 export async function runSocialImageRecheck(input: {
   execute: boolean;
@@ -105,6 +106,10 @@ export async function runSocialImageRecheck(input: {
   for (const item of input.items) {
     const parentKey = `${item.surface}:${item.parentId}`;
     if (hidden.has(parentKey)) continue;
+    if (item.original.byteLength === 0) {
+      input.report?.(`${item.surface} ${item.parentId} unread`);
+      continue;
+    }
     try {
       const encoded = await reencode(item.original, item.contentType);
       const plan = socialImageRecheckPlan(item.original, encoded);

@@ -414,6 +414,9 @@ describe("social music scan migration", () => {
     expect(notices).toContain("set search_path = ''");
     expect(notices).toContain("social music notices accept at most 500 ids");
     expect(notices).toContain("attempt_count >= 8");
+    expect(notices).toContain("join public.profiles p on p.id = s.profile_id");
+    expect(notices).toContain("s.asset_id = p.welcome_mux_asset_id");
+    expect(notices).toContain("s.playback_id = p.welcome_mux_playback_id");
     expect(sql).toContain("revoke all on function public.touch_social_music_scan() from public, anon, authenticated, service_role");
     expect(sql).toContain("revoke all on function public.enqueue_social_music_scan() from public, anon, authenticated, service_role");
     expect(sql).toContain("revoke all on function public.social_music_block_wins() from public, anon, authenticated, service_role");

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { socialVideoKeyDigest } from "@/lib/social-music-scan";
@@ -180,6 +182,7 @@ describe("reingestSocialS3Videos", () => {
     expect(saved[1]).toHaveLength(1);
     expect(report.unfinished).toBe(1);
     expect(report.bound).toBe(1);
+    expect(harness.calls).not.toContain("unfinished");
     const media = [
       { kind: "video", key: "posts/author-1/one.mp4" },
       { kind: "video", key: "posts/author-1/two.mp4" },
@@ -191,5 +194,56 @@ describe("reingestSocialS3Videos", () => {
     );
     const both = socialReingestMediaWithMux(media, saved[0] ?? []);
     expect(both.every((entry) => (entry as { provider?: string }).provider === "mux")).toBe(true);
+  });
+
+  it("retries a thrown parent and retires a source that is already gone", async () => {
+    let save = 0;
+    const marked: string[] = [];
+    const harness = deps({
+      saveParent: async () => {
+        save += 1;
+        if (save === 1) throw new Error("lock timeout");
+      },
+      markUnfinished: async (_candidate, reason) => {
+        marked.push(reason);
+      },
+    });
+    const first = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate()],
+      deps: harness,
+    });
+    expect(first.bound).toBe(0);
+    expect(first.unfinished).toBe(1);
+    expect(marked).toEqual([]);
+    const second = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate({ assetId: "assetREINGEST1" })],
+      deps: harness,
+    });
+    expect(second.bound).toBe(1);
+    expect(marked).toEqual([]);
+
+    const gone = deps();
+    const dry = await reingestSocialS3Videos({
+      execute: false,
+      candidates: [candidate({ sourceGone: true, key: "" })],
+      deps: gone,
+    });
+    expect(dry.bound).toBe(0);
+    expect(gone.calls).toEqual([]);
+    const retired = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate({ sourceGone: true, key: "" })],
+      deps: gone,
+    });
+    expect(retired.bound).toBe(0);
+    expect(retired.unfinished).toBe(0);
+    expect(gone.calls).toEqual(["retire"]);
+    const script = readFileSync("scripts/social/reingest-welcome-video.ts", "utf8");
+    expect(script).not.toContain("reingest_failed");
+    const library = readFileSync("src/lib/social-welcome-reingest.ts", "utf8");
+    const caught = library.slice(library.indexOf("} catch (error) {"), library.indexOf("return report;"));
+    expect(caught).not.toContain("markUnfinished");
   });
 });
