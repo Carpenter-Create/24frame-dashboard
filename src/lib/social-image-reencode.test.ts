@@ -17,6 +17,7 @@ vi.mock("@/lib/s3-social-media", async (importOriginal) => {
 
 import { publishSocialMediaItems } from "@/lib/social-media-publish";
 
+import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey, avatarServeKey } from "@/lib/account-avatar";
 import {
   blankSocialImageRecheckReport,
   recheckParentPages,
@@ -371,8 +372,8 @@ describe("reencodeSocialImage", () => {
     expect(script.split(".order(SOCIAL_IMAGE_RECHECK_ORDER)").length - 1).toBe(2);
     expect(script).toContain('.gt("id", afterId)');
     expect(script).not.toContain(".range(");
-    expect(script).toContain('.eq("media", current as never)');
-    expect(script.split('.eq("avatar_key", readKey ?? "")').length - 1).toBe(2);
+    expect(script).not.toContain('.eq("media", current as never)');
+    expect(script).not.toContain('.eq("avatar_key", readKey ?? "")');
     expect(script).toContain("orphanedKeys");
     expect(script).toContain("quarantineAvatarObject");
   });
@@ -533,5 +534,179 @@ describe("reencodeSocialImage", () => {
     expect(failed.unfinished).toBe(1);
     expect(failed.hide).toBe(0);
     expect(failed.orphanedKeys).toEqual(["posts/a/orphan.jpg"]);
+  });
+
+  it("records a hidden post id and a hidden story id from the recheck itself", async () => {
+    const report = await runSocialImageRecheck({
+      execute: false,
+      items: [
+        {
+          surface: "post",
+          parentId: "post-hide",
+          key: "posts/a/a.jpg",
+          original: new Uint8Array([0xff, 0xd8]),
+          contentType: "image/jpeg",
+        },
+        {
+          surface: "story",
+          parentId: "story-hide",
+          key: "stories/a/a.jpg",
+          original: new Uint8Array([0xff, 0xd8]),
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async () => {
+        throw new Error("hidden item was stored");
+      },
+      hide: async () => undefined,
+    });
+    expect(report.hiddenPosts).toEqual(["post-hide"]);
+    expect(report.hiddenStories).toEqual(["story-hide"]);
+    expect(report.hide).toBe(2);
+  });
+
+  it("repoints media with the JSON PostgREST filter and rejects a raw object", async () => {
+    const { pointParentAtRecheckedMedia } = await import("../../scripts/social/recheck-social-images");
+    const current = [{ kind: "image", key: "posts/a/old.jpg", contentType: "image/jpeg" }];
+    const next = [{ kind: "image", key: "posts/a/new.jpg", contentType: "image/jpeg" }];
+    const fake = (passRaw: boolean) => {
+      const params = new URLSearchParams();
+      const chain = {
+        from() {
+          return chain;
+        },
+        update() {
+          return chain;
+        },
+        eq(column: string, value: unknown) {
+          params.append(column, `eq.${value}`);
+          return chain;
+        },
+        select() {
+          const media = params.getAll("media");
+          if (media.some((entry) => entry.includes("[object Object]"))) {
+            return Promise.resolve({
+              data: null,
+              error: { code: "22P02", message: "invalid input syntax for type json" },
+            });
+          }
+          return Promise.resolve({ data: [{ id: "parent" }], error: null });
+        },
+      };
+      if (passRaw) {
+        return chain
+          .from()
+          .update()
+          .eq("id", "parent")
+          .eq("media", current)
+          .select();
+      }
+      return pointParentAtRecheckedMedia(chain, "posts", "parent", current, next);
+    };
+    const raw = await fake(true);
+    expect(raw.error).toMatchObject({ code: "22P02" });
+    const pointed = await fake(false);
+    expect(pointed.error).toBeNull();
+    expect(pointed.data).toEqual([{ id: "parent" }]);
+  });
+
+  it("quarantines a null legacy avatar and re-encodes a clean one onto a new pointer", async () => {
+    const { avatarRecheckTarget, writeAvatarPointer } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    expect(avatarRecheckTarget({ id: user, avatar_key: null })).toEqual({
+      kind: "canonical",
+      key: avatarObjectKey(user),
+    });
+    expect(avatarServeKey(user, null)).toBe(avatarObjectKey(user));
+    const match = (stored: string | null) => {
+      const filters: { op: string; value: unknown }[] = [];
+      const chain = {
+        from() {
+          return chain;
+        },
+        update() {
+          return chain;
+        },
+        eq(column: string, value: unknown) {
+          if (column === "avatar_key") filters.push({ op: "eq", value });
+          return chain;
+        },
+        is(column: string, value: unknown) {
+          if (column === "avatar_key") filters.push({ op: "is", value });
+          return chain;
+        },
+        select() {
+          const hit = filters.some((filter) => {
+            if (filter.op === "is" && filter.value === null) return stored === null;
+            return filter.op === "eq" && stored !== null && filter.value === stored;
+          });
+          return Promise.resolve(hit ? { data: [{ id: user }], error: null } : { data: [], error: null });
+        },
+      };
+      return chain;
+    };
+    const cleared = await writeAvatarPointer(match(null), user, null, AVATAR_CLEARED);
+    expect(cleared.data).toEqual([{ id: user }]);
+    expect(avatarServeKey(user, AVATAR_CLEARED)).toBeNull();
+    const quarantined: string[] = [];
+    const polyglot = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "avatar",
+          parentId: user,
+          key: avatarObjectKey(user),
+          original: new Uint8Array([0xff, 0xd8]),
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async () => {
+        throw new Error("polyglot was stored");
+      },
+      hide: async () => {
+        throw new Error("polyglot was hidden");
+      },
+      clearAvatar: async (parentId) => {
+        const wrote = await writeAvatarPointer(match(null), parentId, null, AVATAR_CLEARED);
+        if (!wrote.data?.length) return { skipped: true };
+        quarantined.push(parentId);
+      },
+    });
+    expect(quarantined).toEqual([user]);
+    expect(polyglot.clearedAvatars).toEqual([user]);
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const next = avatarRecheckObjectKey(user, objectId);
+    const stored = await writeAvatarPointer(match(null), user, null, next);
+    expect(stored.data).toEqual([{ id: user }]);
+    expect(avatarServeKey(user, next)).toBe(next);
+    const clean = await jpeg();
+    const trailer = new Uint8Array(clean.byteLength + 1);
+    trailer.set(clean);
+    trailer[clean.byteLength] = 1;
+    const kept: string[] = [];
+    const reencoded = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "avatar",
+          parentId: user,
+          key: avatarObjectKey(user),
+          original: trailer,
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async (_item, bytes) => {
+        expect(bytes.byteLength).toBeGreaterThan(0);
+        const wrote = await writeAvatarPointer(match(null), user, null, next);
+        if (!wrote.data?.length) return { skipped: true };
+        kept.push(next);
+      },
+      hide: async () => {
+        throw new Error("clean avatar was hidden");
+      },
+    });
+    expect(kept).toEqual([next]);
+    expect(reencoded.store).toBe(1);
+    expect(reencoded.clearedAvatars).toEqual([]);
   });
 });

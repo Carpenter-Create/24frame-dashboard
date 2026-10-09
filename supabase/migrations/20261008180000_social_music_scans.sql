@@ -188,6 +188,13 @@ create table if not exists public.social_music_scans (
   attempt_count integer not null default 0,
   next_attempt_at timestamptz default now(),
   last_error text,
+  -- True while this row should hold the author's playback. Superseded rows
+  -- stay pending. authenticated cannot select last_error, so the notice
+  -- fallback filters this column instead of last_error.
+  author_hold boolean generated always as (
+    (status = 'pending' or status = 'blocked')
+    and last_error is distinct from 'superseded'
+  ) stored,
   vendor text,
   vendor_status_code integer,
   vendor_score numeric(5, 2),
@@ -685,7 +692,8 @@ grant select (
   mux_ready_at,
   scan_started_at,
   decided_at,
-  created_at
+  created_at,
+  author_hold
 ) on public.social_music_scans to authenticated;
 
 grant select, insert, update on public.social_music_scans to service_role;
@@ -1139,6 +1147,9 @@ begin
       )
   ) then
     raise exception 'social_music_author_notices search_path must be empty';
+  end if;
+  if not has_column_privilege('authenticated', 'public.social_music_scans', 'author_hold', 'select') then
+    raise exception 'authenticated must select author_hold';
   end if;
   if has_column_privilege('authenticated', 'public.social_music_scans', 'last_error', 'select')
      or has_column_privilege('authenticated', 'public.social_music_scans', 'next_attempt_at', 'select')

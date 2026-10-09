@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -13,7 +14,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   AVATAR_SIGNED_URL_TTL_SECONDS,
   avatarObjectKey,
+  AVATAR_QUARANTINE_HOLD_TAG,
   avatarQuarantineObjectKey,
+  avatarQuarantinePrefix,
   avatarRecheckObjectKey,
   avatarServeKey,
   isAvatarContentType,
@@ -178,7 +181,29 @@ export async function readAvatarObject(
   return { bytes, contentType };
 }
 
-/** Delete the objects a successful replace left unreferenced. Quarantine stays. */
+/** Delete this member's quarantine copies. A foreign key under the listing is left. */
+export async function deleteAvatarQuarantineCopies(userId: string): Promise<void> {
+  const prefix = avatarQuarantinePrefix(userId);
+  const { bucket, s3 } = avatarsClient();
+  let token: string | undefined;
+  do {
+    const page = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    );
+    for (const object of page?.Contents ?? []) {
+      if (object.Key && isAvatarQuarantineKey(object.Key, userId)) {
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: object.Key }));
+      }
+    }
+    token = page?.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+}
+
+/** Delete the objects a successful replace left unreferenced, then this member's quarantine copies. */
 export async function deleteReplacedAvatarObjects(
   userId: string,
   previousKey: string | null,
@@ -188,6 +213,7 @@ export async function deleteReplacedAvatarObjects(
   for (const key of replacedAvatarObjectKeys(userId, previousKey, newKey)) {
     await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
   }
+  await deleteAvatarQuarantineCopies(userId);
 }
 
 export async function deleteAvatarObject(userId: string, storedKey?: string | null): Promise<void> {
@@ -201,6 +227,7 @@ export async function deleteAvatarObject(userId: string, storedKey?: string | nu
   ) {
     await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: storedKey }));
   }
+  await deleteAvatarQuarantineCopies(userId);
 }
 
 /**
@@ -218,6 +245,8 @@ export async function quarantineAvatarObject(userId: string, objectId: string): 
       Key: dest,
       CopySource: `${bucket}/${source.split("/").map(encodeURIComponent).join("/")}`,
       IfNoneMatch: "*",
+      TaggingDirective: "REPLACE",
+      Tagging: AVATAR_QUARANTINE_HOLD_TAG,
     }),
   );
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: source }));

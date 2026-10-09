@@ -506,9 +506,13 @@ async function captureNoticeFailure(error: unknown, captureException?: (error: u
  * The function returns only a notice word. The author select does not
  * include the columns that word is derived from. Ids are sent in calls of
  * at most 500. A failed call is logged and tried once more. If that also
- * fails, the page still renders: no notice is shown, and the viewer's own
- * pending or blocked video posts and stories are held so they do not play.
- * That scan read is paged by id until it is exhausted.
+ * fails, the page still renders: no notice is shown. The scan read is
+ * paged by id. It keeps the viewer's own pending or blocked rows and
+ * ignores a superseded row (author_hold is false; last_error stays
+ * ungranted). If that read fails, only ids the viewer authored on this
+ * page are held. If that ownership read also fails, nothing is held, so
+ * a mixed page such as Explore still renders. Mint and block_wins still
+ * deny blocked playback.
  */
 export async function loadOwnMusicNotices(
   supabase: SupabaseClient<Database>,
@@ -560,6 +564,33 @@ export async function loadOwnMusicNotices(
   return { posts, stories, welcome, withheldPostIds: new Set(), withheldStoryIds: new Set() };
 }
 
+async function withholdIdsTheViewerAuthored(
+  supabase: SupabaseClient<Database>,
+  viewerId: string,
+  postIds: readonly string[],
+  storyIds: readonly string[],
+): Promise<MusicNoticeMaps> {
+  const empty = emptyMusicNoticeMaps();
+  try {
+    const posts =
+      postIds.length === 0
+        ? { data: [] as { id: string }[], error: null }
+        : await supabase.from("posts").select("id").eq("author_id", viewerId).in("id", [...postIds]);
+    const stories =
+      storyIds.length === 0
+        ? { data: [] as { id: string }[], error: null }
+        : await supabase.from("stories").select("id").eq("author_id", viewerId).in("id", [...storyIds]);
+    if (posts.error || stories.error || !posts.data || !stories.data) return empty;
+    return {
+      ...empty,
+      withheldPostIds: new Set(posts.data.map((row) => row.id)),
+      withheldStoryIds: new Set(stories.data.map((row) => row.id)),
+    };
+  } catch {
+    return empty;
+  }
+}
+
 async function withholdOwnVideoOnNoticeFailure(
   supabase: SupabaseClient<Database>,
   viewerId: string,
@@ -567,11 +598,6 @@ async function withholdOwnVideoOnNoticeFailure(
   storyIds: readonly string[],
 ): Promise<MusicNoticeMaps> {
   const empty = emptyMusicNoticeMaps();
-  const withheldAll = {
-    ...empty,
-    withheldPostIds: new Set(postIds),
-    withheldStoryIds: new Set(storyIds),
-  };
   try {
     const withheldPostIds = new Set<string>();
     const withheldStoryIds = new Set<string>();
@@ -581,6 +607,7 @@ async function withholdOwnVideoOnNoticeFailure(
         .from("social_music_scans")
         .select("id, post_id, story_id, status")
         .eq("author_id", viewerId)
+        .eq("author_hold", true)
         .in("status", ["pending", "blocked"])
         .order("id", { ascending: true })
         .limit(MUSIC_NOTICE_SCAN_PAGE);
@@ -588,7 +615,9 @@ async function withholdOwnVideoOnNoticeFailure(
         data: { id: string; post_id: string | null; story_id: string | null; status: string }[] | null;
         error: { message: string } | null;
       } = await (afterId ? page.gt("id", afterId) : page);
-      if (scan.error || !scan.data) return withheldAll;
+      if (scan.error || !scan.data) {
+        return withholdIdsTheViewerAuthored(supabase, viewerId, postIds, storyIds);
+      }
       for (const row of scan.data) {
         if (row.status !== "pending" && row.status !== "blocked") continue;
         if (row.post_id && postIds.includes(row.post_id)) withheldPostIds.add(row.post_id);
@@ -596,15 +625,13 @@ async function withholdOwnVideoOnNoticeFailure(
       }
       if (scan.data.length < MUSIC_NOTICE_SCAN_PAGE) break;
       const lastId = scan.data[scan.data.length - 1]?.id;
-      if (!lastId || lastId === afterId) return withheldAll;
+      if (!lastId || lastId === afterId) {
+        return withholdIdsTheViewerAuthored(supabase, viewerId, postIds, storyIds);
+      }
       afterId = lastId;
     }
     return { ...empty, withheldPostIds, withheldStoryIds };
   } catch {
-    return {
-      ...empty,
-      withheldPostIds: new Set(postIds),
-      withheldStoryIds: new Set(storyIds),
-    };
+    return withholdIdsTheViewerAuthored(supabase, viewerId, postIds, storyIds);
   }
 }

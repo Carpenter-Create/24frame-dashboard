@@ -172,9 +172,9 @@ Deleting an account cascades scan and binding rows.
 
 ## Apply window
 
-Adam applies both files, in filename order, on prod. Do not apply from CI.
+Adam applies all three files, in filename order, on prod. Do not apply from CI.
 Do not reorder statements inside a file. `lock_timeout` is 3 seconds in
-both files. That caps how long a statement waits to acquire a lock. It
+all three files. That caps how long a statement waits to acquire a lock. It
 does not cap how long the lock is held after it is acquired. If the wait
 exceeds 3 seconds, the statement aborts. Retry in a quieter window.
 
@@ -239,6 +239,26 @@ select
   video backfill.
 - SHARE ROW EXCLUSIVE for `CREATE TRIGGER` is also held with the ACCESS
   EXCLUSIVE lock until commit. Expected hold: milliseconds once acquired.
+
+`20261009120000_avatar_key_and_story_media.sql` does not add
+`profiles.avatar_key`. That column already exists. `ADD COLUMN IF NOT
+EXISTS` would still take ACCESS EXCLUSIVE, so this file does not issue
+it. Each table gets one `CREATE OR REPLACE TRIGGER` (SHARE ROW EXCLUSIVE).
+There is no `DROP TRIGGER` and no second exclusive lock. `lock_timeout`
+is 3 seconds in this file too.
+
+The trigger is the enforcement. A column `REVOKE` does not override the
+table `UPDATE` grant, so this file does not revoke `avatar_key` and does
+not grant it back. `service_role` and the table owner (`postgres`,
+including the SQL editor) may set `avatar_key` and story `media`.
+`authenticated` and `anon` may not: an update is 42501. An insert by
+anyone else stores `avatar_key` null, so creating a profile still
+succeeds.
+
+`retire_superseded_music_scan` takes `FOR SHARE` on the parent row
+before it can mark a scan superseded. PGlite has one connection, so a
+test can see `RowShareLock` on `profiles`, `posts`, or `stories` and
+cannot interleave a second session. A two-session wait needs Postgres.
 
 Rollback restores `posts_select` and `stories_select` without the music
 predicate, so blocked videos are visible again. Revert the app in the same
@@ -334,7 +354,8 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
 
 1. Run the read-only video count above. Hand the two numbers to Adam before apply.
 2. Apply `supabase/migrations/20261008180000_social_music_scans.sql`, then
-   `supabase/migrations/20261008180100_profiles_welcome_mux.sql`.
+   `supabase/migrations/20261008180100_profiles_welcome_mux.sql`, then
+   `supabase/migrations/20261009120000_avatar_key_and_story_media.sql`.
 3. Dry-run the image recheck, then execute it. `--execute` writes each
    re-encoded image to a new key and points the post, story, or avatar at
    that key. It never overwrites the original under the same key. The
@@ -351,8 +372,10 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    `profiles.avatar_key` back to that previous key (`avatars/{user-id}/avatar`
    for a face that was rechecked off the canonical object). Do not delete
    either object as part of this reversal. `profiles.avatar_key` is
-   server-only: that write is service role. A member PATCH of the column
-   is 42501.
+   server-only. The trigger is what returns 42501. A column revoke does
+   not. `service_role` and the table owner (`postgres`) may set the
+   column. A member update of the column is 42501. A member insert stores
+   null.
 
    The report lists every hidden post id, hidden story id, and cleared
    avatar id. Set a hidden parent back to `active` to undo a hide. It also
@@ -366,15 +389,64 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    key. Nothing signs a quarantine key. Rollback: copy
    `avatars/{user-id}/quarantine/{object-id}` back to
    `avatars/{user-id}/avatar`, delete the quarantine object, then set
-   `profiles.avatar_key` to null with the service role. Removing a photo
-   clears the pointer, then deletes the canonical object and this member's
-   recheck or quarantine object. Uploading a replacement stores a new
-   object and confirms it, then swaps `profiles.avatar_key` only when it
-   still matches the value that was read, and only then deletes the
-   canonical object and this member's previous recheck object. A quarantine
-   object stays. A failure before the swap deletes nothing, so the old
-   face stays. A delete failure after the swap leaves the new face in
-   place and reports the leftover key. That is not this rollback.
+   `profiles.avatar_key` to null with the service role or the table owner.
+   Removing a photo clears the pointer, then deletes the canonical object
+   and this member's quarantine copies. Uploading a replacement stores a
+   new object and confirms it (Put ETag, or Head ETag when the put omits
+   one), then swaps `profiles.avatar_key` only when it still matches the
+   value that was read, including a null pointer (`is null`, not `eq ''`).
+   Only after that swap does it delete the canonical object, this member's
+   previous recheck object, and this member's quarantine copies. A failure
+   before the swap deletes nothing, so the old face stays. The new object
+   is unreferenced and is reported. A delete failure after the swap leaves
+   the new face in place and reports the leftover key. That is not this
+   rollback.
+
+   A null `avatar_key` is a legacy face. The recheck includes those rows
+   and reads `avatars/{user-id}/avatar`. Avatars are not in
+   `storage.objects`. Count the profiles, then list the canonical objects
+   and intersect them with those ids. Do not apply anything from this count.
+
+```sql
+select count(*) as null_avatar_pointers
+from public.profiles
+where avatar_key is null;
+```
+
+```sh
+aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
+  --query "Contents[?ends_with(Key, '/avatar')].Key" --output text
+```
+
+   A failed swap can leave a quarantine copy that the delete did not reach.
+   S3 lifecycle `Prefix` is a literal starts-with. `avatars/` would expire
+   live faces and recheck objects, and there is no prefix that means
+   `avatars/*/quarantine/`. Quarantine copies are tagged `gc-hold=quarantine`.
+   This bucket's lifecycle config is not in the repo. Adam applies this
+   rule. It replaces the whole lifecycle configuration: merge any rule
+   that is already on the avatars bucket before sending it. Do not run it
+   from CI. Do not point it at the title-asset bucket. The cleanup also
+   needs `s3:DeleteObject` and `s3:ListBucket` on this bucket.
+   `docs/infra/avatar-storage-setup.md` still grants only Get and Put.
+
+```sh
+cat > /tmp/avatars-lifecycle.json <<'JSON'
+{
+  "Rules": [
+    {
+      "ID": "avatars-quarantine-30d",
+      "Filter": { "Tag": { "Key": "gc-hold", "Value": "quarantine" } },
+      "Status": "Enabled",
+      "Expiration": { "Days": 30 }
+    }
+  ]
+}
+JSON
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket "$S3_AVATARS_BUCKET" \
+  --lifecycle-configuration file:///tmp/avatars-lifecycle.json
+aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET"
+```
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts

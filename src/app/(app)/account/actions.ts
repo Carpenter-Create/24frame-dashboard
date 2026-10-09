@@ -60,9 +60,9 @@ async function reportAvatarOrphan(keys: readonly string[], cause: unknown): Prom
 }
 
 // Photo bytes go to a new private object. The pointer moves only after that
-// object is confirmed. The previous canonical object and this member's
-// previous recheck object are deleted after the swap. A quarantine object
-// stays. Email is not touched.
+// object is confirmed. The previous canonical object, this member's previous
+// recheck object, and this member's quarantine copies are deleted after the
+// swap. A failure before the swap deletes nothing. Email is not touched.
 export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
@@ -121,7 +121,8 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
 }
 
 // Inverse of uploadAccountPhoto. The pointer is cleared first so a recheck
-// key stops being signed, then the canonical object is removed.
+// key stops being signed, then the canonical object and this member's
+// quarantine copies are removed.
 export async function removeAccountPhoto(): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };

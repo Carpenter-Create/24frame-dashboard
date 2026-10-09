@@ -279,7 +279,7 @@ describe("uploadAccountPhoto", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
   });
 
-  it("matches a null pointer with is(null) and keeps a quarantine object out of the delete", async () => {
+  it("matches a null pointer with is(null) and deletes quarantine copies only after the swap", async () => {
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     const absent = profileUpdateClient(null);
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});

@@ -250,19 +250,151 @@ describe("social video visibility", () => {
       omitHeldPosts([{ id: "post-1" }, { id: "post-2" }], degraded.posts, degraded.withheldPostIds).map((hit) => hit.id),
     ).toEqual(["post-2"]);
 
+    const owned = (ids: string[]) => {
+      const chain: Record<string, unknown> = {};
+      const finish = () => ({ data: ids.map((id) => ({ id })), error: null });
+      chain.select = () => chain;
+      chain.eq = () => chain;
+      chain.in = () => chain;
+      chain.then = (resolve: (value: ReturnType<typeof finish>) => void) => resolve(finish());
+      return chain;
+    };
     const blind = {
       rpc: async () => ({ data: null, error: { message: "still down" } }),
-      from: () => {
-        throw new Error("scans unreadable");
+      from: (table: string) => {
+        if (table === "social_music_scans") throw new Error("scans unreadable");
+        if (table === "posts") return owned(["post-9"]);
+        if (table === "stories") return owned(["story-9"]);
+        throw new Error(table);
       },
     };
     const held = await loadOwnMusicNotices(blind as never, "author-1", {
-      postIds: ["post-9"],
-      storyIds: ["story-9"],
+      postIds: ["post-9", "post-other"],
+      storyIds: ["story-9", "story-other"],
     });
     expect(held.posts.size).toBe(0);
     expect([...held.withheldPostIds]).toEqual(["post-9"]);
     expect([...held.withheldStoryIds]).toEqual(["story-9"]);
+    expect(
+      omitHeldPosts(
+        [{ id: "post-9" }, { id: "post-other" }],
+        held.posts,
+        held.withheldPostIds,
+      ).map((hit) => hit.id),
+    ).toEqual(["post-other"]);
+
+    const neither = {
+      rpc: async () => ({ data: null, error: { message: "still down" } }),
+      from: () => {
+        throw new Error("unreadable");
+      },
+    };
+    const open = await loadOwnMusicNotices(neither as never, "author-1", {
+      postIds: ["post-9", "post-other"],
+      storyIds: ["story-9"],
+    });
+    expect(open.posts.size).toBe(0);
+    expect([...open.withheldPostIds]).toEqual([]);
+    expect([...open.withheldStoryIds]).toEqual([]);
+    expect(
+      omitHeldPosts([{ id: "post-9" }, { id: "post-other" }], open.posts, open.withheldPostIds).map((hit) => hit.id),
+    ).toEqual(["post-9", "post-other"]);
+  });
+
+  it("keeps the author filter and ignores a superseded row when the scan read succeeds", async () => {
+    const supabase = {
+      rpc: async () => ({ data: null, error: { message: "still down" } }),
+      from: (table: string) => {
+        expect(table).toBe("social_music_scans");
+        const filters: [string, unknown][] = [];
+        const chain: Record<string, unknown> = {};
+        const finish = () => {
+          const scoped = filters.some(([column, value]) => column === "author_id" && value === "author-1");
+          const held = filters.some(([column, value]) => column === "author_hold" && value === true);
+          const rows = [{ id: "1", post_id: "mine", story_id: null, status: "pending" }];
+          if (!scoped) rows.push({ id: "2", post_id: "foreign", story_id: null, status: "pending" });
+          if (!held) rows.push({ id: "3", post_id: "superseded", story_id: null, status: "pending" });
+          return { data: rows, error: null };
+        };
+        chain.select = () => chain;
+        chain.eq = (column: string, value: unknown) => {
+          filters.push([column, value]);
+          return chain;
+        };
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.limit = () => chain;
+        chain.gt = () => chain;
+        chain.then = (resolve: (value: ReturnType<typeof finish>) => void) => resolve(finish());
+        return chain;
+      },
+    };
+    const maps = await loadOwnMusicNotices(supabase as never, "author-1", {
+      postIds: ["mine", "foreign", "superseded"],
+      storyIds: [],
+    });
+    expect([...maps.withheldPostIds]).toEqual(["mine"]);
+    expect(
+      omitHeldPosts(
+        [{ id: "mine" }, { id: "foreign" }, { id: "superseded" }],
+        maps.posts,
+        maps.withheldPostIds,
+      ).map((hit) => hit.id),
+    ).toEqual(["foreign", "superseded"]);
+  });
+
+  it("withholds only the viewer's ids when the scan read fails and still renders the rest", async () => {
+    const viewer = "author-1";
+    const supabase = {
+      rpc: async () => ({ data: null, error: { message: "still down" } }),
+      from: (table: string) => {
+        const filters: [string, unknown][] = [];
+        const chain: Record<string, unknown> = {};
+        const finish = () => {
+          if (table === "social_music_scans") return { data: null, error: { message: "scan down" } };
+          const scoped = filters.some(([column, value]) => column === "author_id" && value === viewer);
+          if (table === "posts") {
+            return {
+              data: scoped ? [{ id: "post-own" }] : [{ id: "post-own" }, { id: "post-other" }],
+              error: null,
+            };
+          }
+          if (table === "stories") {
+            return {
+              data: scoped ? [{ id: "story-own" }] : [{ id: "story-own" }, { id: "story-other" }],
+              error: null,
+            };
+          }
+          return { data: [], error: null };
+        };
+        chain.select = () => chain;
+        chain.eq = (column: string, value: unknown) => {
+          filters.push([column, value]);
+          return chain;
+        };
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.limit = () => chain;
+        chain.gt = () => chain;
+        chain.then = (resolve: (value: ReturnType<typeof finish>) => void) => resolve(finish());
+        return chain;
+      },
+    };
+    const maps = await loadOwnMusicNotices(supabase as never, viewer, {
+      postIds: ["post-own", "post-other"],
+      storyIds: ["story-own", "story-other"],
+    });
+    expect(maps.posts.size).toBe(0);
+    expect(maps.welcome).toBeNull();
+    expect([...maps.withheldPostIds]).toEqual(["post-own"]);
+    expect([...maps.withheldStoryIds]).toEqual(["story-own"]);
+    expect(
+      omitHeldPosts(
+        [{ id: "post-own" }, { id: "post-other" }],
+        maps.posts,
+        maps.withheldPostIds,
+      ).map((hit) => hit.id),
+    ).toEqual(["post-other"]);
   });
 
   it("withholds held videos past the first scan page", async () => {
@@ -576,6 +708,7 @@ describe("social music scan migration", () => {
       sql.indexOf("grant select ("),
       sql.indexOf(") on public.social_music_scans to authenticated"),
     );
+    expect(authorGrant).toContain("author_hold");
     expect(authorGrant).not.toContain("vendor_title");
     expect(authorGrant).not.toContain("last_error");
     expect(authorGrant).not.toContain("window_results");

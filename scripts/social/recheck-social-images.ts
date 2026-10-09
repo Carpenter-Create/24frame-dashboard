@@ -39,6 +39,108 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export { recheckWantsExecute };
 
+/**
+ * PostgREST serializes a filter as `eq.${value}`. An object becomes
+ * `[object Object]` and the write is 22P02. A JSON string matches jsonb.
+ */
+export function socialMediaEqualityFilter(current: unknown): string {
+  return JSON.stringify(current);
+}
+
+type MediaWriter = {
+  from: (table: "posts" | "stories") => {
+    update: (values: { media: unknown }) => {
+      eq: (
+        column: "id",
+        value: string,
+      ) => {
+        eq: (
+          column: "media",
+          value: string,
+        ) => {
+          select: (columns: "id") => PromiseLike<{
+            data: { id: string }[] | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+    };
+  };
+};
+
+/** Conditional repoint. The media filter is the JSON text of the value that was read. */
+export async function pointParentAtRecheckedMedia(
+  admin: MediaWriter,
+  table: "posts" | "stories",
+  parentId: string,
+  current: unknown,
+  next: unknown,
+): Promise<{ data: { id: string }[] | null; error: { message: string } | null }> {
+  return await admin
+    .from(table)
+    .update({ media: next })
+    .eq("id", parentId)
+    .eq("media", socialMediaEqualityFilter(current))
+    .select("id");
+}
+
+type AvatarPointerQuery = {
+  eq: (column: "avatar_key", value: string) => AvatarPointerQuery;
+  is: (column: "avatar_key", value: null) => AvatarPointerQuery;
+  select: (columns: "id") => PromiseLike<{
+    data: { id: string }[] | null;
+    error: { message: string } | null;
+  }>;
+};
+
+type AvatarPointerWriter = {
+  from: (table: "profiles") => {
+    update: (values: { avatar_key: string }) => {
+      eq: (column: "id", value: string) => AvatarPointerQuery;
+    };
+  };
+};
+
+/** NULL was read with is(null). A string was read with eq of that string. */
+export async function writeAvatarPointer(
+  admin: AvatarPointerWriter,
+  parentId: string,
+  readKey: string | null,
+  nextKey: string,
+): Promise<{ data: { id: string }[] | null; error: { message: string } | null }> {
+  const update = admin.from("profiles").update({ avatar_key: nextKey }).eq("id", parentId);
+  const filtered = readKey === null ? update.is("avatar_key", null) : update.eq("avatar_key", readKey);
+  return await filtered.select("id");
+}
+
+/** Include a null pointer. Exclude a cleared pointer. */
+export const AVATAR_RECHECK_PAGE_OR = `avatar_key.is.null,avatar_key.neq.${AVATAR_CLEARED}`;
+
+/**
+ * Null and the canonical key are read from avatars/{id}/avatar.
+ * This member's recheck key is only skipped once it already carries gc-reencoded.
+ * Anything else is not this member's face.
+ */
+export function avatarRecheckTarget(profile: {
+  id: string;
+  avatar_key: string | null;
+}): { kind: "canonical"; key: string } | { kind: "recheck"; key: string } | { kind: "skip"; note: string } {
+  let canonical = "";
+  try {
+    canonical = avatarObjectKey(profile.id);
+  } catch {
+    return { kind: "skip", note: "key is not a profile id" };
+  }
+  const stored = profile.avatar_key;
+  if (stored != null && isAvatarRecheckKey(stored, profile.id)) {
+    return { kind: "recheck", key: stored };
+  }
+  if (stored != null && stored !== canonical) {
+    return { kind: "skip", note: "key does not match the profile object" };
+  }
+  return { kind: "canonical", key: canonical };
+}
+
 /** The flag this process will use. Dry-run unless the argv contains --execute. */
 export const socialImageRecheckExecute = recheckWantsExecute(process.argv);
 
@@ -77,20 +179,20 @@ async function loadParentPage(
   return data ?? [];
 }
 
-async function loadAvatarPage(afterId: string | null): Promise<{ id: string; avatar_key: string }[]> {
+async function loadAvatarPage(afterId: string | null): Promise<{ id: string; avatar_key: string | null }[]> {
   const admin = createAdminClient();
   let query = admin
     .from("profiles")
     .select("id, avatar_key")
-    .not("avatar_key", "is", null)
-    .neq("avatar_key", AVATAR_CLEARED)
+    .or(AVATAR_RECHECK_PAGE_OR)
     .order(SOCIAL_IMAGE_RECHECK_ORDER);
   if (afterId) query = query.gt("id", afterId);
   const { data, error } = await query.limit(SOCIAL_IMAGE_RECHECK_PAGE);
   assertOk(error, "avatar profile read");
-  const rows: { id: string; avatar_key: string }[] = [];
+  const rows: { id: string; avatar_key: string | null }[] = [];
   for (const row of data ?? []) {
-    if (row.avatar_key) rows.push({ id: row.id, avatar_key: row.avatar_key });
+    if (row.avatar_key === AVATAR_CLEARED) continue;
+    rows.push({ id: row.id, avatar_key: row.avatar_key });
   }
   return rows;
 }
@@ -187,12 +289,13 @@ async function main(): Promise<void> {
                 contentType: item.contentType,
               });
               const next = pointSocialMediaAtRecheckedImage(current, item.key, nextKey);
-              const { data, error } = await admin
-                .from(table)
-                .update({ media: next })
-                .eq("id", item.parentId)
-                .eq("media", current as never)
-                .select("id");
+              const { data, error } = await pointParentAtRecheckedMedia(
+                admin as never,
+                table,
+                item.parentId,
+                current,
+                next,
+              );
               assertOk(error, "point media at rechecked image");
               if (!data || data.length === 0) {
                 return { skipped: true, orphanKey: nextKey };
@@ -239,34 +342,27 @@ async function main(): Promise<void> {
     loadParents: (afterId) => loadAvatarPage(afterId),
     recheck: async (parents) => {
       const items: SocialImageRecheckItem[] = [];
-      const avatarKeyByParent = new Map<string, string>();
+      const avatarKeyByParent = new Map<string, string | null>();
       for (const profile of parents) {
+        const target = avatarRecheckTarget(profile);
+        if (target.kind === "skip") {
+          logs.push(`avatar ${profile.id} ${target.note}`);
+          continue;
+        }
         avatarKeyByParent.set(profile.id, profile.avatar_key);
-        let canonical = "";
-        try {
-          canonical = avatarObjectKey(profile.id);
-        } catch {
-          logs.push(`avatar ${profile.id} key is not a profile id`);
-          continue;
-        }
-        const key = isAvatarRecheckKey(profile.avatar_key, profile.id) ? profile.avatar_key : canonical;
-        if (profile.avatar_key !== canonical && profile.avatar_key !== key) {
-          logs.push(`avatar ${profile.id} key does not match the profile object`);
-          continue;
-        }
-        const marked = await headAvatarRecheck(key);
+        const marked = await headAvatarRecheck(target.key);
         if (marked?.reencoded) {
           items.push({
             surface: "avatar",
             parentId: profile.id,
-            key,
+            key: target.key,
             original: new Uint8Array(),
             contentType: "image/jpeg",
             alreadyReencoded: true,
           });
           continue;
         }
-        if (profile.avatar_key !== canonical) {
+        if (target.kind === "recheck") {
           logs.push(`avatar ${profile.id} key does not match the profile object`);
           continue;
         }
@@ -276,7 +372,7 @@ async function main(): Promise<void> {
             items.push({
               surface: "avatar",
               parentId: profile.id,
-              key: canonical,
+              key: target.key,
               original: new Uint8Array(),
               contentType: "image/jpeg",
               readError: "read_empty",
@@ -286,7 +382,7 @@ async function main(): Promise<void> {
           items.push({
             surface: "avatar",
             parentId: profile.id,
-            key: canonical,
+            key: target.key,
             original: object.bytes,
             contentType: object.contentType ?? "image/jpeg",
           });
@@ -295,7 +391,7 @@ async function main(): Promise<void> {
           items.push({
             surface: "avatar",
             parentId: profile.id,
-            key: canonical,
+            key: target.key,
             original: new Uint8Array(),
             contentType: "image/jpeg",
             readError: message,
@@ -321,12 +417,8 @@ async function main(): Promise<void> {
               previousKey: item.key,
             });
             if (nextKey === item.key) throw new Error("Avatar recheck must not overwrite the original");
-            const { data, error } = await admin
-              .from("profiles")
-              .update({ avatar_key: nextKey })
-              .eq("id", item.parentId)
-              .eq("avatar_key", readKey ?? "")
-              .select("id");
+            if (readKey === undefined) throw new Error("avatar pointer was not read");
+            const { data, error } = await writeAvatarPointer(admin as never, item.parentId, readKey, nextKey);
             assertOk(error, "point avatar at rechecked image");
             if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey };
           } catch (error) {
@@ -339,12 +431,8 @@ async function main(): Promise<void> {
         },
         clearAvatar: async (parentId) => {
           const readKey = avatarKeyByParent.get(parentId);
-          const { data, error } = await admin
-            .from("profiles")
-            .update({ avatar_key: AVATAR_CLEARED })
-            .eq("id", parentId)
-            .eq("avatar_key", readKey ?? "")
-            .select("id");
+          if (readKey === undefined) throw new Error("avatar pointer was not read");
+          const { data, error } = await writeAvatarPointer(admin as never, parentId, readKey, AVATAR_CLEARED);
           assertOk(error, "clear avatar");
           if (!data || data.length === 0) return { skipped: true };
           const quarantineKey = await quarantineAvatarObject(parentId, randomUUID());

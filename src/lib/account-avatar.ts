@@ -59,6 +59,9 @@ export function isAvatarRecheckKey(key: string, userId: string): boolean {
   return match?.[1] === userId;
 }
 
+/** Tag Adam's 30-day lifecycle rule matches. A prefix of `avatars/` would expire live faces. */
+export const AVATAR_QUARANTINE_HOLD_TAG = "gc-hold=quarantine";
+
 /** Private hold for a face the recheck could not decode. Never signed. */
 export function avatarQuarantineObjectKey(userId: string, objectId: string): string {
   const user = userIdSchema.safeParse(userId);
@@ -67,6 +70,13 @@ export function avatarQuarantineObjectKey(userId: string, objectId: string): str
     throw new Error("Avatar key requires a UUID user id");
   }
   return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/${object.data}`;
+}
+
+/** Prefix for this member's quarantine copies. Not a lifecycle prefix: it still starts with `avatars/`. */
+export function avatarQuarantinePrefix(userId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  if (!user.success) throw new Error("Avatar key requires a UUID user id");
+  return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/`;
 }
 
 export function isAvatarQuarantineKey(key: string, userId?: string): boolean {
@@ -105,9 +115,9 @@ export function avatarServeKey(userId: string, stored: string | null | undefined
 }
 
 /**
- * Objects a successful replace may delete. The new key stays. A quarantine
- * object stays. The canonical face and this member's previous recheck key
- * are the ones that become unreferenced after the pointer moves.
+ * Known keys a successful replace may delete. The new key stays.
+ * Quarantine copies are not in this list. The delete lists this member's
+ * quarantine prefix after the swap and removes those objects there.
  */
 export function replacedAvatarObjectKeys(
   userId: string,

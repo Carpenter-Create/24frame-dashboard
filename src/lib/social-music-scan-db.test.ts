@@ -551,6 +551,7 @@ beforeAll(async () => {
   await db.exec(MIGRATION);
   await db.exec(PROFILES);
   await db.exec(`alter table public.stories add column if not exists body text`);
+  await db.exec(`alter table public.profiles add column if not exists avatar_key text`);
   await db.exec(AVATAR_STORY);
 }, 120_000);
 
@@ -2029,6 +2030,47 @@ describe("social music scan migration", () => {
     expect(row.rows[0]?.status).toBe("blocked");
   });
 
+  it("sets lock_timeout to 3s when the avatar migration is applied on its own", async () => {
+    await db.exec(`set lock_timeout = '0'`);
+    await db.exec(AVATAR_STORY);
+    const lock = await db.query<{ v: string }>(`select current_setting('lock_timeout') as v`);
+    expect(lock.rows[0]?.v).toBe("3s");
+    expect(AVATAR_STORY).toContain("set lock_timeout = '3s'");
+    expect(AVATAR_STORY).toContain("lock_timeout must be 3s");
+    expect(AVATAR_STORY).not.toContain("revoke update (avatar_key)");
+    expect(AVATAR_STORY).not.toContain("add column if not exists avatar_key");
+    const applied = AVATAR_STORY.replace(/--.*$/gm, "");
+    expect(applied).not.toContain("drop trigger if exists");
+    expect(AVATAR_STORY).toContain("before insert or update");
+    expect(AVATAR_STORY).toContain("current_user in ('service_role', 'postgres')");
+  });
+
+  it("marks author_hold false on a superseded pending row and keeps last_error ungranted", async () => {
+    await bind("assetHOLD0001", "playHOLD00001");
+    const id = await insertPost(vid("assetHOLD0001", "playHOLD00001"));
+    const pending = await db.query<{ author_hold: boolean }>(
+      `select author_hold from public.social_music_scans where post_id = $1`,
+      [id],
+    );
+    expect(pending.rows[0]?.author_hold).toBe(true);
+    await db.query(`update public.social_music_scans set last_error = 'superseded' where post_id = $1`, [id]);
+    const superseded = await db.query<{ author_hold: boolean; status: string }>(
+      `select author_hold, status::text as status from public.social_music_scans where post_id = $1`,
+      [id],
+    );
+    expect(superseded.rows[0]).toMatchObject({ author_hold: false, status: "pending" });
+    await asUser(A, async () => {
+      const visible = await db.query<{ author_hold: boolean }>(
+        `select author_hold from public.social_music_scans where post_id = $1`,
+        [id],
+      );
+      expect(visible.rows[0]?.author_hold).toBe(false);
+      await expect(
+        db.query(`select last_error from public.social_music_scans where post_id = $1`, [id]),
+      ).rejects.toThrow(/permission denied/);
+    });
+  });
+
   it("takes a row share lock on the parent before retire can see a restored pair", async () => {
     const seeded = await seedWelcomeState("pending queued");
     await db.exec("begin");
@@ -2041,6 +2083,50 @@ describe("social music scan migration", () => {
          where l.mode = 'RowShareLock'`,
       );
       expect(locks.rows.map((row) => row.relname)).toContain("profiles");
+    } finally {
+      await db.exec("rollback");
+    }
+  });
+
+  it("takes a row share lock on the post before retire", async () => {
+    await bind("assetLCKP00001", "playLCKP00001");
+    const post = await insertPost(vid("assetLCKP00001", "playLCKP00001"));
+    const scan = await db.query<{ id: string }>(
+      `select id::text as id from public.social_music_scans where post_id = $1`,
+      [post],
+    );
+    await db.exec("begin");
+    try {
+      await db.query(`select public.retire_superseded_music_scan($1::uuid)`, [scan.rows[0]!.id]);
+      const locks = await db.query<{ relname: string }>(
+        `select c.relname
+         from pg_locks l
+         join pg_class c on c.oid = l.relation
+         where l.mode = 'RowShareLock'`,
+      );
+      expect(locks.rows.map((row) => row.relname)).toContain("posts");
+    } finally {
+      await db.exec("rollback");
+    }
+  });
+
+  it("takes a row share lock on the story before retire", async () => {
+    await bind("assetLCKS00001", "playLCKS00001");
+    const story = await insertStory(vid("assetLCKS00001", "playLCKS00001"));
+    const scan = await db.query<{ id: string }>(
+      `select id::text as id from public.social_music_scans where story_id = $1`,
+      [story],
+    );
+    await db.exec("begin");
+    try {
+      await db.query(`select public.retire_superseded_music_scan($1::uuid)`, [scan.rows[0]!.id]);
+      const locks = await db.query<{ relname: string }>(
+        `select c.relname
+         from pg_locks l
+         join pg_class c on c.oid = l.relation
+         where l.mode = 'RowShareLock'`,
+      );
+      expect(locks.rows.map((row) => row.relname)).toContain("stories");
     } finally {
       await db.exec("rollback");
     }
@@ -2077,6 +2163,59 @@ describe("social music scan migration", () => {
       );
       expect(written.rows[0]?.avatar_key).toContain("/recheck/");
       await db.query(`update public.profiles set avatar_key = null where id = $1`, [A]);
+    } finally {
+      await db.exec(`reset role`);
+    }
+    await db.exec(`grant select, update on public.profiles to anon; set role anon;`);
+    try {
+      await expect(
+        db.query(`update public.profiles set avatar_key = $2 where id = $1`, [A, `avatars/${A}/avatar`]),
+      ).rejects.toMatchObject({ code: "42501", message: expect.stringMatching(/avatar_key is server-only/) });
+    } finally {
+      await db.exec(`reset role`);
+    }
+    const ownerKey = `avatars/${A}/recheck/33333333-3333-4333-8333-333333333333`;
+    await db.query(`update public.profiles set avatar_key = $2 where id = $1`, [A, ownerKey]);
+    const owned = await db.query<{ avatar_key: string | null }>(
+      `select avatar_key from public.profiles where id = $1`,
+      [A],
+    );
+    expect(owned.rows[0]?.avatar_key).toBe(ownerKey);
+    await db.query(`update public.profiles set avatar_key = null where id = $1`, [A]);
+    const story = await db.query<{ id: string; media: unknown }>(
+      `select id::text as id, media from public.stories limit 1`,
+    );
+    await db.query(`update public.stories set media = $2::jsonb where id = $1`, [
+      story.rows[0]!.id,
+      JSON.stringify([{ kind: "image", key: "stories/x/owner.jpg", contentType: "image/jpeg" }]),
+    ]);
+    const written = await db.query<{ key: string | null }>(
+      `select media->0->>'key' as key from public.stories where id = $1`,
+      [story.rows[0]!.id],
+    );
+    expect(written.rows[0]?.key).toBe("stories/x/owner.jpg");
+
+    const inserted = "12121212-1212-4121-8121-121212121212";
+    const planted = `avatars/${inserted}/recheck/22222222-2222-4222-8222-222222222222`;
+    await db.exec(`grant insert on public.profiles to authenticated`);
+    await asUser(A, () =>
+      db.query(`insert into public.profiles (id, avatar_key) values ($1, $2)`, [inserted, planted]),
+    );
+    const forced = await db.query<{ avatar_key: string | null }>(
+      `select avatar_key from public.profiles where id = $1`,
+      [inserted],
+    );
+    expect(forced.rows[0]?.avatar_key).toBeNull();
+
+    const repair = "13131313-1313-4131-8131-131313131313";
+    await db.exec(`set role service_role`);
+    try {
+      await db.query(`insert into public.profiles (id, avatar_key) values ($1, $2)`, [repair, planted]);
+      const written = await db.query<{ avatar_key: string | null }>(
+        `select avatar_key from public.profiles where id = $1`,
+        [repair],
+      );
+      expect(written.rows[0]?.avatar_key).toBe(planted);
     } finally {
       await db.exec(`reset role`);
     }

@@ -912,6 +912,7 @@ export type Database = {
           attempt_count: number
           next_attempt_at: string | null
           last_error: string | null
+          author_hold: boolean
           vendor: string | null
           vendor_status_code: number | null
           vendor_score: number | null

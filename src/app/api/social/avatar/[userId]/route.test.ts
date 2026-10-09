@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const profileRead = vi.hoisted(() => ({
-  current: { data: { avatar_key: null as string | null }, error: null as { message: string } | null },
+  current: {
+    data: { avatar_key: null as string | null } as { avatar_key: string | null } | null,
+    error: null as { message: string } | null,
+  },
 }));
 
 vi.mock("@/lib/supabase/auth", () => ({ getAuthUser: vi.fn() }));
@@ -60,6 +63,17 @@ describe("GET /api/social/avatar/[userId]", () => {
     expect(res.headers.get("Location")).toBe("https://s3.example/signed-avatar");
     expect(res.headers.get("Cache-Control")).toBe("private, max-age=300");
     expect(signedAvatarUrl).toHaveBeenCalledWith(UID, null);
+  });
+
+  it("is 404 when the profile row is not visible and does not sign the canonical object", async () => {
+    vi.mocked(getAuthUser).mockResolvedValue({ id: UID, email: "ada@example.com" });
+    profileRead.current = { data: null, error: null };
+    const res = await GET(new Request("http://local/api/social/avatar/" + UID), {
+      params: Promise.resolve({ userId: UID }),
+    });
+    expect(res.status).toBe(404);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(signedAvatarUrl).not.toHaveBeenCalled();
   });
 
   it("is 404 when the profile pointer cannot be read and does not sign the original", async () => {
