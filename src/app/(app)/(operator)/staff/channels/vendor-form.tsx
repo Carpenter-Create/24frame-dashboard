@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
+import { CHANNELS_HREF } from "@/lib/channel-card";
 import { saveVendor } from "./actions";
 
 export type VendorInitial = {
@@ -57,7 +58,7 @@ export function VendorForm({ initial }: { initial?: VendorInitial }) {
     // save. Reset create state in case the form stays mounted during the push.
     setSaving(false);
     if (!initial?.id) setV(EMPTY);
-    router.push(v.id ? `/channels/${v.id}` : "/channels");
+    router.push(v.id ? `${CHANNELS_HREF}/${v.id}` : CHANNELS_HREF);
     router.refresh();
   }
 
