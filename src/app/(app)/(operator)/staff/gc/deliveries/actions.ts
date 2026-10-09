@@ -32,19 +32,6 @@ export async function createDelivery(input: {
   return { id: data ?? undefined };
 }
 
-export async function createDeliveries(input: {
-  vendorId: string;
-  items: { titleId: string; grantId: string; territory: string }[];
-}): Promise<{ ids?: string[]; error?: string }> {
-  const ids: string[] = [];
-  for (const item of input.items) {
-    const res = await createDelivery({ ...item, vendorId: input.vendorId });
-    if (res.error) return { ids, error: res.error };
-    if (res.id) ids.push(res.id);
-  }
-  return { ids };
-}
-
 // Revoke ONE recipient's portal session (D3). Distinct from revokePortalLink, which cuts
 // the link and therefore every recipient on it — a portal link is not one-per-recipient
 // (verified: three live sessions from three addresses on a single link, all resolving).

@@ -42,6 +42,23 @@ export function licensingDeliverVisible(selectedCount: number): boolean {
 
 export const LICENSING_VENDOR_INDENT_CLASS = "pl-[var(--space-6)]";
 
+/** A channel sub-row Deliver just created fades in after the window leaves
+ *  (220ms; none under reduced motion). globals.css `licensing-row-paint`. */
+export const LICENSING_VENDOR_NEW_CLASS = "licensing-row-paint";
+
+/** The ticks once Deliver closes: delivered titles un-tick, and ids the list
+ *  does not draw (a hand-over's) drop. Failed, unsent and set-aside titles
+ *  stay ticked. */
+export function licensingPruneSelection(
+  selected: readonly string[],
+  groupIds: readonly string[],
+  deliveredIds: readonly string[],
+): string[] {
+  const shown = new Set(groupIds);
+  const delivered = new Set(deliveredIds);
+  return selected.filter((id) => shown.has(id) && !delivered.has(id));
+}
+
 export function licensingActivityDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const date = new Date(iso);
