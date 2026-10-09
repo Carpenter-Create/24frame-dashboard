@@ -5,7 +5,7 @@
 -- submitted.
 
 begin;
-select plan(24);
+select plan(26);
 
 select set_config('t.org',   gen_random_uuid()::text, false);
 select set_config('t.owner', gen_random_uuid()::text, false);
@@ -78,7 +78,16 @@ select throws_ok(
   '22023', 'runtime_minutes: expected a whole number', 'fractional runtime refused');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,'{"release_year":1887}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
-  '22023', format('release_year: 1888 to %s', extract(year from now())::int + 5), 'year before 1888 refused');
+  '22023', format('release_year: 1888 to %s', extract(year from now())::int + 6), 'year before 1888 refused');
+-- Next year plus five is the last year accepted.
+select lives_ok(
+  format($$ select public.set_title_metadata(%L,%L,%L::jsonb) $$, current_setting('t.org'), current_setting('t.title'),
+         json_build_object('release_year', extract(year from now())::int + 6)::text),
+  'next year plus five accepted');
+select throws_ok(
+  format($$ select public.set_title_metadata(%L,%L,%L::jsonb) $$, current_setting('t.org'), current_setting('t.title'),
+         json_build_object('release_year', extract(year from now())::int + 7)::text),
+  '22023', format('release_year: 1888 to %s', extract(year from now())::int + 6), 'a year past that refused');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,'{"genre":"opera"}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
   '22023', 'genre: not in the list', 'genre outside the list refused');

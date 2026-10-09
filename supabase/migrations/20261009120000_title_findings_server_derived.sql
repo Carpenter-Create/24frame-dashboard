@@ -114,7 +114,8 @@ declare
   v_text  text;
   v_num   numeric;
   v_item  jsonb;
-  v_max_year int := extract(year from now())::int + 5;
+  -- Next year plus five (2032 in 2026).
+  v_max_year int := extract(year from now())::int + 1 + 5;
 begin
   if jsonb_typeof(v_data) <> 'object' then
     raise exception 'Metadata must be an object' using errcode = '22023';
