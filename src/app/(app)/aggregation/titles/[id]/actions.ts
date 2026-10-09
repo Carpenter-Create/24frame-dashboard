@@ -90,8 +90,10 @@ export async function setScreenerSource(input: {
 // row security (another org's or a deleted title is never found), its org
 // comes from that row, view-as is refused, and only the title org's
 // operators write. Release is checked before anything is written; only the
-// changed metadata fields are merged onto the stored record, so a second
-// editor's untouched fields stay. Database text never reaches the browser.
+// changed metadata fields are merged onto the stored record as read just
+// before the write (the set RPC replaces the record, so two saves in the
+// same instant can still race; an atomic merge in the RPC is founder SQL).
+// Database text never reaches the browser.
 const titleDetailsInput = z.object({
   titleId: z.string().uuid(),
   // Changed fields only; null clears one.
@@ -156,11 +158,17 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
 
   let metadataSaved = false;
   if (Object.keys(changes).length > 0) {
-    const { data: row } = await supabase
+    const { data: row, error: readError } = await supabase
       .from("title_metadata")
       .select("data")
       .eq("title_id", title.id)
       .maybeSingle();
+    // A failed read is never "no record": merging onto nothing would store
+    // only the changed fields and drop every other one.
+    if (readError) {
+      console.error("[title-details] title_metadata read failed", readError.message);
+      return { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
+    }
     const merged: Record<string, unknown> = { ...((row?.data as Record<string, unknown> | null) ?? {}) };
     for (const [key, value] of Object.entries(changes)) {
       if (value === null) delete merged[key];

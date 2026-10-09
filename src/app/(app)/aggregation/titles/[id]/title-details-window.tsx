@@ -52,7 +52,7 @@ import {
   type TitleDetailsFace,
   type TitleDetailsProblem,
 } from "@/lib/title-details";
-import { saveTitleDetails } from "./actions";
+import { saveTitleDetails, type SaveTitleDetailsResult } from "./actions";
 
 // The title's Metadata window (docs/design-locks/aggregation-title-details-window-lock-v1.md):
 // the house window shell over the title page on a computer, the same window as
@@ -226,9 +226,19 @@ export function TitleDetailsWindow({
     }
     setProblem(null);
     setPending(true);
-    const result = await saveTitleDetails({ titleId, metadata: changes, release: releaseNext });
+    let result: SaveTitleDetailsResult;
+    try {
+      result = await saveTitleDetails({ titleId, metadata: changes, release: releaseNext });
+    } catch {
+      // The request itself failed (a dropped connection, a new deploy): what
+      // the server kept is unknown, so the page refreshes when the window
+      // closes, and the window is never left waiting.
+      savedRef.current = true;
+      result = { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
+    } finally {
+      if (mountedRef.current) setPending(false);
+    }
     if (!mountedRef.current) return;
-    setPending(false);
     if (result.ok) {
       onClose(true);
       return;

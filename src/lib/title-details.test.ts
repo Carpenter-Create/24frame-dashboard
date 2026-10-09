@@ -108,13 +108,16 @@ describe("title Metadata window (lib/title-details)", () => {
     draft.metadata.runtime_minutes = "1000";
     expect(checkTitleDetails(draft, NOW)).toEqual({ face: "recommended", field: "keywords", error: "Up to 50 entries." });
     draft.metadata.keywords = "";
-    draft.metadata.release_year = "2032";
-    expect(checkTitleDetails(draft, NOW)).toEqual({
+    // Next year plus five, from today's year (2032 in 2026).
+    const maxYear = new Date().getUTCFullYear() + 6;
+    draft.metadata.release_year = String(maxYear + 1);
+    expect(checkTitleDetails(draft)).toEqual({
       face: "required",
       field: "release_year",
-      error: "Enter a year from 1888 to 2031.",
+      error: `Enter a year from 1888 to ${maxYear}.`,
     });
-    draft.metadata.release_year = "2031";
+    draft.metadata.release_year = String(maxYear);
+    expect(checkTitleDetails(draft)).toBeNull();
     draft.metadata.synopsis = "x".repeat(4001);
     expect(checkTitleDetails(draft, NOW)?.error).toBe("Up to 4,000 characters.");
     draft.metadata.synopsis = "x".repeat(4000);

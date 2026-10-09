@@ -41,7 +41,8 @@ describe("computeMetadataFindings", () => {
 
 describe("metadata limits (Adam 2026-10-09, \"Add these limits\")", () => {
   it("refuses values past the approved limits, naming the field and its line", () => {
-    const year = new Date().getUTCFullYear() + 5;
+    // Next year plus five (2032 in 2026).
+    const year = new Date().getUTCFullYear() + 6;
     expect(parseMetadata({ runtime_minutes: 1 }).ok).toBe(true);
     expect(parseMetadata({ runtime_minutes: 1000 }).ok).toBe(true);
     expect(parseMetadata({ runtime_minutes: 0 })).toEqual({

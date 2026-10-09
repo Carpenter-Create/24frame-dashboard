@@ -116,6 +116,9 @@ describe("title Metadata window (aggregation-title-details-window-lock-v1)", () 
     expect(done.indexOf("checkTitleDetails(draft)")).toBeLessThan(done.indexOf("saveTitleDetails("));
     expect(done.indexOf("onClose(savedRef.current);")).toBeLessThan(done.indexOf("saveTitleDetails("));
     expect(done).toContain("if (pending) return;");
+    // A request that fails outright never leaves the window waiting.
+    expect(done).toContain("} catch {\n      // The request itself failed");
+    expect(done).toContain("} finally {\n      if (mountedRef.current) setPending(false);\n    }");
     // The browser sends no org: the action reads it from the title row.
     expect(done).toContain("saveTitleDetails({ titleId, metadata: changes, release: releaseNext })");
     expect(actionsSrc).not.toContain("export async function setTitleReleaseInfo");

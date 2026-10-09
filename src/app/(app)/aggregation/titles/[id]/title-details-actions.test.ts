@@ -38,10 +38,12 @@ function fake({
   title = { id: TITLE, org_id: ORG, catalog_id: CATALOG, release_type: "new_release", original_release_date: null },
   stored = STORED as Record<string, unknown> | null,
   rpcErrors = {} as Record<string, { message: string }>,
+  readError = null as { message: string } | null,
 }: {
   title?: Record<string, unknown> | null;
   stored?: Record<string, unknown> | null;
   rpcErrors?: Record<string, { message: string }>;
+  readError?: { message: string } | null;
 } = {}): Fake {
   const seen: Fake = { filters: [], rpc: [] };
   const client = {
@@ -55,7 +57,7 @@ function fake({
       }
       builder.maybeSingle = vi.fn(async () => {
         if (table === "titles") return { data: title };
-        if (table === "title_metadata") return { data: stored ? { data: stored } : null };
+        if (table === "title_metadata") return readError ? { data: null, error: readError } : { data: stored ? { data: stored } : null };
         return { data: null };
       });
       return builder;
@@ -266,5 +268,18 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
       "set_title_release_info",
     ]);
     expect(revalidatePath).toHaveBeenCalledWith(titleClientPath(CATALOG));
+  });
+
+  it("never takes a failed read of the stored record for an empty one", async () => {
+    const seen = fake({ readError: { message: "statement timeout" } });
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null })).toEqual({
+      ok: false,
+      part: "metadata",
+      field: null,
+      error: "Could not save.",
+      metadataSaved: false,
+    });
+    // Nothing is written, so no field is dropped.
+    expect(seen.rpc).toEqual([]);
   });
 });

@@ -53,9 +53,10 @@ export const METADATA_RUNTIME_MAX = 1000;
 export const METADATA_YEAR_MIN = 1888;
 export const METADATA_LIST_MAX = 50;
 
-/** The latest release year a title may carry: next year plus five. */
+/** The latest release year a title may carry: next year plus five (Adam,
+ *  "year 1888 to next year + 5"), so 2032 in 2026. */
 export function metadataMaxYear(now: Date = new Date()): number {
-  return now.getUTCFullYear() + 5;
+  return now.getUTCFullYear() + 1 + 5;
 }
 
 // Counted as the database counts (characters, not UTF-16 units).
