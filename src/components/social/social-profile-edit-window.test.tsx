@@ -177,7 +177,8 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(idle).not.toContain('aria-busy="true"');
     expect(windowSrc).toContain("const busy = edit.pending || waiting;");
     const done = shellSrc.slice(shellSrc.indexOf("function done()"), shellSrc.indexOf("function discard()"));
-    expect(done).toContain("if (holdOpen) return;");
+    // Done also never runs behind the ask (social-comments-window-lock-v1).
+    expect(done).toContain("if (holdOpen || asking) return;");
     const onDone = windowSrc.slice(windowSrc.indexOf("onDone: () =>"), windowSrc.indexOf("onBack: edit.backToIndex"));
     expect(onDone).toContain("onPersisting,");
     // The hook hands the island the persist once it is out.

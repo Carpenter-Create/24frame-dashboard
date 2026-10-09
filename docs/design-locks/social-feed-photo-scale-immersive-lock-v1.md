@@ -50,13 +50,13 @@
 | Bottom dock | Safe-area pad · scrim gradient up from black (~40% → 0 over **120**) for type legibility — **no** drop shadow cards |
 | Caption | At **bottom** above actions · `t-body` light · username medium · max **3** lines then truncate + more — house Geist |
 | Actions | Like · Comment · Share — **same** geometry as feed (40/24/gap-8) · light ink on dark · liked = Sporty Blue |
-| Comment | Opens comment thread / composer for this post (cite Share lock: Comment ≠ Share) |
+| Comment | Opens the comments window (desktop) or the comment sheet (phone) for this post (cite Share lock: Comment ≠ Share). Amended 2026-10-09, [`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md) |
 | Share | Opens existing Share sheet lock |
 | Desktop | Same fullscreen immersive (not a required FB right-rail clone). Optional trailing caption column **OUT** v1 — bottom caption+actions is the one SoT |
 | Desktop media vs dock (amended 2026-10-08) | Adam, in chat, on a video playing back: "on desktop, the icons are covering the player options at the bottom". On desktop (`md+`) the stage stacks: the media fills the stage above the dock, and the dock (caption, Like / Comment / Share) sits under it on the stage black, so the player bar (play, time, volume, PiP, fullscreen) is never under the dock. The phone is unchanged: the media full-bleed, the dock over its bottom on the scrim |
 | Motion | Open fade **180ms** · **no** bounce |
 
-**Stacking:** The stage portals to `document.body` at **`z-[45]`**. The comment thread mounts inside that stage (host **`z-50`**) and paints above the dock. The Share sheet stays the existing body portal at **`z-[60]`**, above the stage. Do not raise the stage over either sheet.
+**Stacking:** The stage portals to `document.body` at **`z-[45]`**. The comment thread mounts at the stage's root (host **`z-50`**), so it paints above the stage ✕ (z-30) and the dock (z-20); keys it handles are marked handled, so the stage leaves them alone (amended 2026-10-09, [`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md)). The Share sheet stays the existing body portal at **`z-[60]`**, above the stage. Do not raise the stage over either sheet.
 
 ---
 

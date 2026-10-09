@@ -24,6 +24,7 @@ The job picks the host. Phone and desktop are different hosts. A breakpoint does
 - One shell draws every window with faces: `lib/house-window` (classes, the query helpers) and `components/chrome/house-window` (`useHouseWindow`, `HouseWindowFrame`, `HouseWindowAsk`, `useHouseWindowEntry`). A new window brings its faces, copy and save; the header, Esc order, the ask, held height, focus and the history entry are the shell's
 - Tab and a face's first focus count only real Tab stops: an element with tabindex -1 is skipped (a list's roving options are reached with the arrows), and a radio group is one stop, as the browser has it (its checked radio, else its first)
 - A window whose faces hold long lists may open at 80vh (`fill`) instead of holding the height it opens at
+- A window may also show one object to read and add to (Comments). A window whose one action lives in its body (Post at a pinned foot) draws no Done, and ⌘/Ctrl+Enter runs that action. A window whose content arrives after it opens fills 80vh. A window opened from a layer that owns it (the immersive viewer, a full-screen viewer, not a HouseDialog) mounts inside that layer. ⌘/Ctrl+Enter does nothing while the ask is up. See [`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md)
 
 ## HouseDrawer
 

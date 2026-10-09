@@ -130,6 +130,16 @@ describe("SocialFeedImmersive", () => {
     expect(onKey).toContain("socialImmersiveTabWrapIndex");
     expect(onKey).toContain("event.preventDefault()");
     expect(onKey).not.toContain("socialImmersiveOutsideSheetOpen");
+    // A key the comments window or the phone sheet took is marked handled;
+    // the stage skips it (React 19 may have committed the close already),
+    // and leaves a Tab the window's own trap moved (social-comments-window-lock-v1).
+    expect(onKey).toContain(
+      "socialImmersiveEscapeDismisses(event.key, socialImmersiveNestedSheetOpen(document), event.defaultPrevented)",
+    );
+    expect(onKey).toContain('if (event.key !== "Tab" || event.defaultPrevented) return;');
+    // Comment mounts at the stage's root, with the viewer's item as its post.
+    expect(immersiveSrc).toContain("layer={dialogRef}");
+    expect(immersiveSrc).toContain("preview: socialCommentsPostFromCard(post, index)");
     expect(immersiveSrc).toContain("socialImmersiveMarkShellInert");
     expect(immersiveSrc).toContain("socialImmersiveClearShellInert");
     expect(immersiveSrc).toContain('querySelector<HTMLElement>("[data-social-feed-immersive-close]")');
