@@ -136,9 +136,11 @@ begin
   end if;
   -- Re-saving this exact pair clears superseded and leaves the scan as it was.
   -- Blocked stays blocked, allowed stays allowed, pending stays pending.
-  -- No new scan, and no other row is touched.
+  -- Supersede cleared next_attempt_at. Schedule a pending row again.
+  -- ON CONFLICT DO NOTHING cannot: this pair already has a row.
   update public.social_music_scans as s
-  set last_error = null
+  set last_error = null,
+      next_attempt_at = case when s.status = 'pending' then now() else s.next_attempt_at end
   where s.profile_id = new.id
     and s.surface = 'welcome'
     and s.playback_id = new.welcome_mux_playback_id

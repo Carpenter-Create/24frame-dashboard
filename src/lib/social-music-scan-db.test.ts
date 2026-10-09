@@ -630,6 +630,62 @@ describe("social music scan migration", () => {
     expect(await welcomeNotices(profile)).toEqual(["welcomePending"]);
   });
 
+  it("schedules a pending welcome again when the same pair is saved again", async () => {
+    const profile = "77777777-7777-4777-8777-777777777774";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await bindWelcome(profile, "uploadRTY0001", "assetRTY00001", "playRTY000001");
+    await bindWelcome(profile, "uploadRTY0002", "assetRTY00002", "playRTY000002");
+    await setWelcome(profile, "assetRTY00001", "playRTY000001", "uploadRTY0001");
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 2
+       where profile_id = $1 and playback_id = 'playRTY000001'`,
+      [profile],
+    );
+    await setWelcome(profile, null, null, null);
+    await setWelcome(profile, "assetRTY00001", "playRTY000001", "uploadRTY0001");
+    const cleared = await db.query<{
+      last_error: string | null;
+      status: string;
+      attempt_count: number;
+      next_attempt_at: string | null;
+    }>(
+      `select last_error, status::text as status, attempt_count, next_attempt_at::text as next_attempt_at
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playRTY000001'`,
+      [profile],
+    );
+    expect(cleared.rows).toEqual([
+      expect.objectContaining({ last_error: null, status: "pending", attempt_count: 2 }),
+    ]);
+    expect(cleared.rows[0]?.next_attempt_at).not.toBeNull();
+
+    await setWelcome(profile, "assetRTY00002", "playRTY000002", "uploadRTY0002");
+    await setWelcome(profile, "assetRTY00001", "playRTY000001", "uploadRTY0001");
+    const swapped = await db.query<{
+      last_error: string | null;
+      status: string;
+      attempt_count: number;
+      next_attempt_at: string | null;
+    }>(
+      `select last_error, status::text as status, attempt_count, next_attempt_at::text as next_attempt_at
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playRTY000001'`,
+      [profile],
+    );
+    expect(swapped.rows).toEqual([
+      expect.objectContaining({ last_error: null, status: "pending", attempt_count: 2 }),
+    ]);
+    expect(swapped.rows[0]?.next_attempt_at).not.toBeNull();
+    const other = await db.query<{ last_error: string | null; next_attempt_at: string | null }>(
+      `select last_error, next_attempt_at::text as next_attempt_at
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playRTY000002'`,
+      [profile],
+    );
+    expect(other.rows).toEqual([{ last_error: "superseded", next_attempt_at: null }]);
+  });
+
   it("does not backfill an expired story on either video path", async () => {
     const expired = await db.query(
       `select last_error from public.social_music_scans where story_id = $1`,
