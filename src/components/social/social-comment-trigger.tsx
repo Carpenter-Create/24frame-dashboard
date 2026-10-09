@@ -15,7 +15,11 @@ import {
 } from "@/lib/social-chrome";
 import { SOCIAL_ICON_SIZE_POST_ACTION } from "@/lib/social-icons";
 import { SOCIAL, socialCommentActionLabel, socialPostActionCount } from "@/lib/social";
-import { socialCommentReturnFocus, type SocialCommentsPost } from "@/lib/social-comments-window";
+import {
+  socialCommentReturnFocus,
+  socialCommentShouldReturnFocus,
+  type SocialCommentsPost,
+} from "@/lib/social-comments-window";
 
 const SocialCommentThread = dynamic(() =>
   import("./social-comment-thread").then((mod) => mod.SocialCommentThread),
@@ -67,7 +71,7 @@ export function SocialCommentTrigger({
 
   // Comment takes focus back when the thread closes.
   useEffect(() => {
-    if (wasOpen.current && !open) socialCommentReturnFocus(buttonRef.current);
+    if (socialCommentShouldReturnFocus(wasOpen.current, open)) socialCommentReturnFocus(buttonRef.current);
     wasOpen.current = open;
   }, [open]);
 

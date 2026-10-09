@@ -39,7 +39,7 @@ import { COMMENT_BODY_MAX } from "@/lib/social-comments";
 import {
   SOCIAL_COMMENTS_WINDOW_IMAGE_SIZES,
   socialCommentDraftDirty,
-  socialCommentsLeaveClick,
+  socialCommentsLeave,
   socialCommentsVideoFrame,
   type SocialCommentsPost,
 } from "@/lib/social-comments-window";
@@ -123,20 +123,17 @@ export function SocialCommentsWindow({
   }
 
   // A link out shares the close path: a modified click passes, typed text
-  // asks first, otherwise the window closes and the house link hops.
-  const leave: SocialCommentLeave = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
-    const next = socialCommentsLeaveClick({ modified: houseNavIgnorePendingClick(event), dirty });
-    if (next === "pass") return;
-    if (next === "ask") {
-      event.preventDefault();
-      win.ask(() => {
-        onClose();
-        router.push(href);
-      });
-      return;
-    }
-    onClose();
-  };
+  // holds the click and asks first, otherwise the window closes and the
+  // house link hops.
+  const leave: SocialCommentLeave = (event: MouseEvent<HTMLAnchorElement>, href: string) =>
+    socialCommentsLeave(event, {
+      modified: houseNavIgnorePendingClick(event),
+      dirty,
+      href,
+      ask: (go) => win.ask(go),
+      close: onClose,
+      push: (to) => router.push(to),
+    });
 
   const foot = (
     <>

@@ -9,6 +9,8 @@ import {
   SOCIAL_COMMENTS_WINDOW_IMAGE_SIZES,
   socialCommentDraftDirty,
   socialCommentReturnFocus,
+  socialCommentShouldReturnFocus,
+  socialCommentsLeave,
   socialCommentsLeaveClick,
   socialCommentsPostFromCard,
   socialCommentsPostFromExplore,
@@ -113,6 +115,58 @@ describe("comments window lib", () => {
     expect(socialCommentsLeaveClick({ modified: true, dirty: false })).toBe("pass");
     expect(socialCommentsLeaveClick({ modified: false, dirty: true })).toBe("ask");
     expect(socialCommentsLeaveClick({ modified: false, dirty: false })).toBe("close");
+  });
+
+  // Lock §2: a link click never drops typed text without asking, and a
+  // modified click leaves the window as it is.
+  function leaveWith(input: { modified: boolean; dirty: boolean }) {
+    const event = { preventDefault: vi.fn() };
+    const ask = vi.fn<(go: () => void) => void>();
+    const close = vi.fn();
+    const push = vi.fn();
+    socialCommentsLeave(event, { ...input, href: "/social/u/grace", ask, close, push });
+    return { event, ask, close, push };
+  }
+
+  it("holds a link click with typed text and asks; Discard closes, then goes", () => {
+    const { event, ask, close, push } = leaveWith({ modified: false, dirty: true });
+    // Held, so the house link does not hop under the ask.
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(close).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    // Discard runs the leave: the window closes, then the link's page.
+    const go = ask.mock.calls[0]![0];
+    go();
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/social/u/grace");
+    expect(close.mock.invocationCallOrder[0]!).toBeLessThan(push.mock.invocationCallOrder[0]!);
+  });
+
+  it("leaves a modified click alone, with or without typed text", () => {
+    for (const dirty of [true, false]) {
+      const { event, ask, close, push } = leaveWith({ modified: true, dirty });
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(ask).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
+      expect(push).not.toHaveBeenCalled();
+    }
+  });
+
+  it("closes on a clean click and lets the link go on its own", () => {
+    const { event, ask, close, push } = leaveWith({ modified: false, dirty: false });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
+    // The house link makes the hop; the window never pushes twice.
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("returns focus to Comment only on the render where the thread closes", () => {
+    expect(socialCommentShouldReturnFocus(true, false)).toBe(true);
+    expect(socialCommentShouldReturnFocus(false, true)).toBe(false);
+    expect(socialCommentShouldReturnFocus(true, true)).toBe(false);
+    expect(socialCommentShouldReturnFocus(false, false)).toBe(false);
   });
 
   it("returns focus without scrolling, and leaves a node without focus alone", () => {

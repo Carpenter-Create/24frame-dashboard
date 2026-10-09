@@ -91,6 +91,10 @@ describe("comment thread hosts (the window, the sheet, the page)", () => {
     expect(triggerSrc).toContain('aria-haspopup="dialog"');
     expect(triggerSrc.split("ref={buttonRef}").length - 1).toBe(2);
     expect(triggerSrc).toContain("socialCommentReturnFocus(buttonRef.current)");
+    // Only on the close edge (lib/social-comments-window covers the rule).
+    expect(triggerSrc).toContain(
+      "if (socialCommentShouldReturnFocus(wasOpen.current, open)) socialCommentReturnFocus(buttonRef.current);\n    wasOpen.current = open;",
+    );
     // The layer is read in the click, never in render, and never by a DOM walk.
     expect(triggerSrc).toContain("setHost(layer?.current ?? null);");
     expect(triggerSrc).not.toContain(".closest(");

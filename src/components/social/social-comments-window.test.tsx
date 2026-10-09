@@ -33,6 +33,7 @@ import type { SocialCommentThreadState } from "./use-social-comment-thread";
 // docs/design-locks/social-comments-window-lock-v1.md
 
 const windowSrc = readFileSync("src/components/social/social-comments-window.tsx", "utf8");
+const rowSrc = readFileSync("src/components/social/social-comment-row.tsx", "utf8");
 const PLAYBACK = "uNbxnGLKJ00yfbijDO8COxT";
 
 const card: SocialPostCardModel = {
@@ -249,6 +250,19 @@ describe("Comments window (social-comments-window-lock-v1)", () => {
     expect(ask).toContain("discardLabel={SOCIAL.profile.discardConfirm}");
     expect(ask).toContain("lines={[]}");
     expect(windowSrc).toContain("win.ask(");
+    // Every link out (the face, the name, the group, each commenter) takes
+    // the one leave path; lib/social-comments-window covers what it does.
+    const leave = windowSrc.slice(windowSrc.indexOf("const leave: SocialCommentLeave"), windowSrc.indexOf("const foot ="));
+    expect(leave).toContain("socialCommentsLeave(event, {");
+    expect(leave).toContain("modified: houseNavIgnorePendingClick(event),");
+    expect(leave).toMatch(/^\s+dirty,$/m);
+    expect(leave).toContain("ask: (go) => win.ask(go),");
+    expect(leave).toContain("close: onClose,");
+    expect(leave).toContain("push: (to) => router.push(to),");
+    expect(windowSrc.split("<HouseLink").length - 1).toBe(3);
+    expect(windowSrc.match(/onClick=\{\(event\) => onLeave\(event, (memberHref|groupHref)\)\}/g)).toHaveLength(3);
+    expect(windowSrc.split("onLeave={leave}").length - 1).toBe(2);
+    expect(rowSrc).toContain("onClick={(event) => onLeave(event, href)}");
     expect(windowSrc).toContain("useId");
     expect(windowSrc).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(windowSrc).not.toMatch(/\bshadow-/);

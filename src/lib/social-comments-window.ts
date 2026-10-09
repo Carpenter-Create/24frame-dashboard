@@ -3,7 +3,8 @@ import type { SocialExploreForYouItem } from "@/lib/social-explore-for-you";
 import { socialFeedVideoFrame, type SocialFeedVideoFrame } from "@/lib/social-media-display";
 
 // The comments window (desktop, phase 1): the post it shows, its one still,
-// when typed text would be lost, and how a link out leaves.
+// when typed text would be lost, how a link out leaves, and when Comment
+// takes focus back.
 // docs/design-locks/social-comments-window-lock-v1.md
 
 /** The post at the top of the window: display data the opener already
@@ -91,6 +92,40 @@ export function socialCommentsLeaveClick(input: { modified: boolean; dirty: bool
   if (input.modified) return "pass";
   if (input.dirty) return "ask";
   return "close";
+}
+
+/** What a click on a link inside the window does. A modified click is left
+ *  alone (a new tab; the window stays). Typed text holds the click so the
+ *  link does not go, and asks: Discard closes the window, then goes. With
+ *  nothing typed, the window closes and the link goes on its own. */
+export function socialCommentsLeave(
+  event: { preventDefault: () => void },
+  input: {
+    modified: boolean;
+    dirty: boolean;
+    href: string;
+    ask: (go: () => void) => void;
+    close: () => void;
+    push: (href: string) => void;
+  },
+): void {
+  const next = socialCommentsLeaveClick(input);
+  if (next === "pass") return;
+  if (next === "ask") {
+    event.preventDefault();
+    input.ask(() => {
+      input.close();
+      input.push(input.href);
+    });
+    return;
+  }
+  input.close();
+}
+
+/** Comment takes focus back on the render where the thread closes (open
+ *  before, closed now), and never while it opens or stays open. */
+export function socialCommentShouldReturnFocus(wasOpen: boolean, open: boolean): boolean {
+  return wasOpen && !open;
 }
 
 /** Focus back on the control that opened the thread, without scrolling.

@@ -21,6 +21,7 @@ function Host({
   doneLabel = "Done",
   foot,
   fill,
+  asking = false,
 }: {
   face?: string;
   busy?: boolean;
@@ -29,6 +30,8 @@ function Host({
   doneLabel?: string | null;
   foot?: ReactNode;
   fill?: boolean;
+  /** Draw the frame as it is while the ask shows. */
+  asking?: boolean;
 }) {
   const [win, refs] = useHouseWindow({
     attr: "w",
@@ -44,7 +47,7 @@ function Host({
   });
   return (
     <HouseWindowFrame
-      win={win}
+      win={asking ? { ...win, asking: true } : win}
       refs={refs}
       title="Metadata"
       motion={null}
@@ -153,6 +156,17 @@ describe("house window shell (components/chrome/house-window)", () => {
     expect(busy).toMatch(/<div data-w-foot=""[^>]*inert=""/);
     // No foot: nothing drawn for it.
     expect(renderToStaticMarkup(<Host />)).not.toContain("data-w-foot");
+  });
+
+  it("makes the foot inert while the ask shows, so Tab never reaches the field under the strip", () => {
+    const html = renderToStaticMarkup(<Host doneLabel={null} asking foot={<form data-f="" />} />);
+    expect(html).toMatch(/<div data-w-foot=""[^>]*inert=""/);
+    expect(html).toMatch(/<header[^>]*inert=""/);
+    expect(html).toMatch(/<div[^>]*inert=""[^>]*><div[^>]*><p>body<\/p>/);
+    // The ask is drawn after the foot, the one live part of the window.
+    expect(html.indexOf("data-w-foot")).toBeLessThan(html.indexOf("data-ask"));
+    // Not asking and not busy: the foot takes keys.
+    expect(renderToStaticMarkup(<Host doneLabel={null} foot={<form data-f="" />} />)).not.toContain("inert");
   });
 
   it("fills 80vh only when asked, and a filled frame never takes the held height", () => {

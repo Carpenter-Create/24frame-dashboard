@@ -11,15 +11,17 @@
 
 ## Founder direction (verbatim)
 
-The build:
-
-> 6) yes, please.
-
-(Adam, 2026-10-09: build the Comments window, phase 1.)
-
 The open questions, answered on 2026-10-09:
 
 > approved, use the defaults
+
+(Adam, 2026-10-09. The reply to one list of decisions for four builds: Edit caption, Add a right, Deliver and Comments. For Comments the list was Q1–Q7 below, each with its default, and no new copy. Every question's default is the decision, and the window is built on them.)
+
+The visual defaults, answered on 2026-10-09:
+
+> ok, approved
+
+(Adam, 2026-10-09. The reply to Comments' visual defaults: the still at its true shape (Q1), the window always 80vh (Q2), and a video as a still with the play disc and no player (Q6). The same reply also covered the Add a right sequencing, which is outside this lock.)
 
 | Question | Decision (the default) |
 |----------|------------------------|
@@ -105,13 +107,13 @@ Raised separately; none is changed by this lock:
 
 ## Gates
 
-- `house-window.test.tsx`: no Done and the spacer; the foot after the body, inert while busy; the fill class; the held-height guard; the mount target; ⌘/Ctrl+Enter never runs Done behind the ask.
+- `house-window.test.tsx`: no Done and the spacer; the foot after the body, inert while busy and while the ask shows; the fill class; the held-height guard; the mount target; ⌘/Ctrl+Enter never runs Done behind the ask.
 - `house-window.test.ts` (lib): the fill, foot and spacer classes.
-- `social-comments-window.test.ts` (lib): the dirty rule, both post builders, the video frame, the link rule, focus return.
+- `social-comments-window.test.ts` (lib): the dirty rule, both post builders, the video frame, the link rule and what a link click does (typed text: held and asked, Discard closes then goes; modified: left alone; clean: closes), focus return and its close edge.
 - `social-optimistic.test.ts`: a dropped request maps to the house line.
 - `social-feed-immersive.test.ts`: a handled Esc never closes the stage.
-- `social-comments-window.test.tsx`: the window, its order, the foot states, the house links, the still, the chip, Explore without a time, the face fill, and source pins (dirty, no hold, `fill`, no Done, the ask's copy).
-- `social-comment-thread.test.tsx`: the trigger (post, layer, aria-haspopup, focus return), the sheet owning Esc (marked handled) and the portal, no 480 dialog, the load and count deltas, the page thread's own field id and name.
+- `social-comments-window.test.tsx`: the window, its order, the foot states, the house links, the still, the chip, Explore without a time, the face fill, and source pins (dirty, no hold, `fill`, no Done, the ask's copy, every link out on the one leave path).
+- `social-comment-thread.test.tsx`: the trigger (post, layer, aria-haspopup, focus return on close), the sheet owning Esc (marked handled) and the portal, no 480 dialog, the load and count deltas, the page thread's own field id and name.
 - `social-feed-immersive.test.tsx`, `social-explore-for-you.test.tsx`, `social-ui.test.tsx`: the call sites.
 - `house-overlay.test.ts` (G5), `social-feed-register-lock.test.ts`, `social-ui-boundary.test.ts`: the shell, tokens only, and the lazy chunk.
 - Edit profile and Metadata: rendered to static markup before and after the shell change, byte-identical.
