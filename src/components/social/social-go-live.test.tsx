@@ -383,7 +383,12 @@ describe("Social Go live recorder", () => {
     expect(exit).toContain("const exit = takeSocialGoLiveExit(SOCIAL_ROUTES.profileEdit);");
     expect(exit).toContain("if (exit.fromOpener && isSocialProfileEditAddress(exit.href)) router.back();");
     expect(src).toContain("href={welcome ? SOCIAL_ROUTES.profileEdit : SOCIAL_ROUTES.home}");
-    expect(src).toContain("if (welcome) {\n                exitWelcome();\n                return;\n              }");
+    // X mid-upload cancels the welcome video and goes back (a post waits).
+    expect(src).toContain(
+      "if (welcome) {\n                welcomeAbortRef.current?.abort();\n                exitWelcome();\n                return;\n              }",
+    );
+    expect(src).toContain("aria-disabled={(posting && !welcome) || undefined}");
+    expect(src).toContain("if (posting && !welcome) {\n                event.preventDefault();\n                return;\n              }");
     // Saved, never posted: the round and the bar keep the welcome name.
     expect(src).toContain("aria-label={welcome ? SOCIAL.profile.welcomeAdd : SOCIAL.stories.posting}");
     // The "use a video" fallback is a post path: not offered for a welcome video.

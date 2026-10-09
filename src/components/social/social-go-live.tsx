@@ -812,11 +812,13 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
           <HouseLink
             href={welcome ? SOCIAL_ROUTES.profileEdit : SOCIAL_ROUTES.home}
             aria-label={SOCIAL.stories.close}
-            aria-disabled={posting || undefined}
+            // A post waits for its upload; the welcome video does not:
+            // closing the camera mid-upload cancels it (the Edit window lock §4).
+            aria-disabled={(posting && !welcome) || undefined}
             data-social-go-live-close=""
             className={SOCIAL_STORY_STUDIO_ICON_CLASS}
             onClick={(event) => {
-              if (posting) {
+              if (posting && !welcome) {
                 event.preventDefault();
                 return;
               }
@@ -831,6 +833,7 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
               }
               event.preventDefault();
               if (welcome) {
+                welcomeAbortRef.current?.abort();
                 exitWelcome();
                 return;
               }
