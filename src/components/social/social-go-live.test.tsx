@@ -380,6 +380,8 @@ describe("Social Go live recorder", () => {
     // lands on Edit (on a computer that hands over to the window).
     const exit = src.slice(src.indexOf("function exitWelcome()"), src.indexOf("async function saveWelcomeClip()"));
     expect(exit).toContain("markSocialProfileEditWelcomeReturn();");
+    // X and a save landing as X is pressed leave once (Bugbot on #798).
+    expect(exit).toContain("if (leftRef.current) return;\n    leftRef.current = true;");
     expect(exit).toContain("const exit = takeSocialGoLiveExit(SOCIAL_ROUTES.profileEdit);");
     expect(exit).toContain("if (exit.fromOpener && isSocialProfileEditAddress(exit.href)) router.back();");
     expect(src).toContain("href={welcome ? SOCIAL_ROUTES.profileEdit : SOCIAL_ROUTES.home}");

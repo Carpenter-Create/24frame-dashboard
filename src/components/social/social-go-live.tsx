@@ -192,6 +192,9 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
   const clipUrlRef = useRef<string | null>(null);
   // The welcome video's upload, cancelled if the camera closes under it.
   const welcomeAbortRef = useRef<AbortController | null>(null);
+  // The camera leaves once: X and a save that lands as X is pressed both
+  // exit, and the second must not replace Edit's entry.
+  const leftRef = useRef(false);
   const liveRef = useRef(0);
   const aliveRef = useRef(true);
   const attachPromiseRef = useRef<Promise<boolean> | null>(null);
@@ -725,6 +728,8 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
   // pushed on top of Edit, so going back reuses Edit's own history entry
   // (no second ?edit or sheet entry under it). A cold visit lands on Edit.
   function exitWelcome() {
+    if (leftRef.current) return;
+    leftRef.current = true;
     markSocialProfileEditWelcomeReturn();
     const exit = takeSocialGoLiveExit(SOCIAL_ROUTES.profileEdit);
     if (exit.fromOpener && isSocialProfileEditAddress(exit.href)) router.back();
