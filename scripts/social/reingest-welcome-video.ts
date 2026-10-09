@@ -13,6 +13,8 @@ import { createSocialMuxAssetFromUrl, deleteSocialMuxAsset, recordSocialMuxBindi
 import { socialVideoKeyDigest } from "@/lib/social-music-scan";
 import {
   reingestSocialS3Videos,
+  SOCIAL_REINGEST_RETRY_ERRORS,
+  SOCIAL_REINGEST_TERMINAL_ERRORS,
   socialReingestKeyForDigest,
   socialReingestMediaWithMux,
   type SocialReingestCandidate,
@@ -41,7 +43,7 @@ async function loadCandidates(): Promise<SocialReingestCandidate[]> {
   const { data: scans, error } = await admin
     .from("social_music_scans")
     .select("surface, post_id, story_id, profile_id, author_id, asset_id, playback_id, upload_id, last_error")
-    .eq("last_error", "s3_video_needs_mux")
+    .in("last_error", [...SOCIAL_REINGEST_RETRY_ERRORS])
     .eq("status", "pending");
   assertOk(error, "s3 scan read");
   const rows: SocialReingestCandidate[] = [];
@@ -110,7 +112,7 @@ async function retirePlaceholder(
     .from("social_music_scans")
     .update({ next_attempt_at: null, last_error: "superseded" })
     .eq(column, parentId)
-    .in("last_error", ["s3_video_needs_mux", "welcome_reingest_preparing"]);
+    .in("last_error", ["s3_video_needs_mux", "welcome_reingest_preparing", "reingest_failed"]);
   assertOk(error, "retire s3 scan");
 }
 
@@ -175,7 +177,7 @@ async function main(): Promise<void> {
           .from("social_music_scans")
           .update({ upload_id: assetId })
           .eq(column, candidate.parentId)
-          .eq("last_error", "s3_video_needs_mux")
+          .in("last_error", [...SOCIAL_REINGEST_RETRY_ERRORS])
           .eq("playback_id", digest)
           .eq("asset_id", digest);
         assertOk(updated.error, "s3 progress update");
@@ -241,7 +243,7 @@ async function main(): Promise<void> {
           .from("social_music_scans")
           .update({ next_attempt_at: null, last_error: reason })
           .eq(column, candidate.parentId)
-          .eq("last_error", "s3_video_needs_mux");
+          .in("last_error", [...SOCIAL_REINGEST_RETRY_ERRORS]);
         assertOk(updated.error, "s3 unfinished update");
       },
       alreadyUnfinished: async (candidate) => {
@@ -251,7 +253,7 @@ async function main(): Promise<void> {
           .select("id")
           .eq(column, candidate.parentId)
           .is("next_attempt_at", null)
-          .in("last_error", ["s3_source_missing", "welcome_too_long", "welcome_source_missing", "reingest_failed"])
+          .in("last_error", [...SOCIAL_REINGEST_TERMINAL_ERRORS])
           .limit(1);
         assertOk(error, "unfinished read");
         return Boolean(data && data.length > 0);

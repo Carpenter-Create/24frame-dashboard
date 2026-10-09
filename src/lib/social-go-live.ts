@@ -27,6 +27,33 @@ export function goLiveReachedCap(
   return goLiveRemainingMs(elapsedMs, capMs) === 0 && elapsedMs >= capMs;
 }
 
+/**
+ * Stop at 479s from the timer or from recorder.ondataavailable, whichever
+ * fires first. A stalled timer still stops when a chunk arrives.
+ */
+export function bindGoLiveRecorderStop<T extends { data: Blob }>(input: {
+  recorder: { ondataavailable: ((event: T) => void) | null };
+  now: () => number;
+  startedAt: number;
+  isRecording: () => boolean;
+  stop: () => void;
+  takeChunk: (event: T) => void;
+}): { onTick: () => void } {
+  const capped = () => goLiveReachedCap(input.now() - input.startedAt) && input.isRecording();
+  input.recorder.ondataavailable = (event) => {
+    if (capped()) {
+      input.stop();
+      return;
+    }
+    input.takeChunk(event);
+  };
+  return {
+    onTick: () => {
+      if (capped()) input.stop();
+    },
+  };
+}
+
 export function formatGoLiveClock(ms: number): string {
   return formatStoryRecorderClock(ms);
 }

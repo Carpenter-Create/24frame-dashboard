@@ -49,10 +49,10 @@ import {
   type SocialVideoContentType,
 } from "@/lib/social-media";
 import {
+  bindGoLiveRecorderStop,
   formatGoLiveClock,
   goLiveFileName,
   goLiveFitsByteCap,
-  goLiveReachedCap,
   goLiveRecorderOptions,
   findGoLiveCamera,
   goLiveCameras,
@@ -172,6 +172,7 @@ export function SocialGoLive() {
   const chunksRef = useRef<BlobPart[]>([]);
   const clockStartedRef = useRef(0);
   const clockTimerRef = useRef<number | null>(null);
+  const stopTickRef = useRef<(() => void) | null>(null);
   const mimeRef = useRef<SocialVideoContentType>("video/webm");
   const recordingRef = useRef(false);
   const clipUrlRef = useRef<string | null>(null);
@@ -527,9 +528,7 @@ export function SocialGoLive() {
     clockTimerRef.current = window.setInterval(() => {
       const elapsed = Date.now() - clockStartedRef.current;
       setClock(formatGoLiveClock(goLiveRemainingMs(elapsed)));
-      if (goLiveReachedCap(elapsed) && recordingRef.current) {
-        stopRecording();
-      }
+      stopTickRef.current?.();
     }, 250);
   }
 
@@ -565,23 +564,6 @@ export function SocialGoLive() {
         }
       }
     }
-    recorder.ondataavailable = (event) => {
-      const elapsed = Date.now() - clockStartedRef.current;
-      if (goLiveReachedCap(elapsed) && recordingRef.current) {
-        stopRecording();
-        return;
-      }
-      if (event.data.size <= 0) return;
-      const used = chunksRef.current.reduce(
-        (sum, part) => sum + (part instanceof Blob ? part.size : 0),
-        0,
-      );
-      if (!goLiveFitsByteCap(used + event.data.size, SOCIAL_VIDEO_MAX_BYTES)) {
-        if (recordingRef.current) stopRecording();
-        return;
-      }
-      chunksRef.current.push(event.data);
-    };
     recorder.onstop = () => {
       stopCut();
       if (!storyStudioIsLive(liveRef.current, live)) return;
@@ -611,6 +593,26 @@ export function SocialGoLive() {
     recorderRef.current = recorder;
     recordingRef.current = true;
     startClock();
+    const stopWatch = bindGoLiveRecorderStop({
+      recorder,
+      now: () => Date.now(),
+      startedAt: clockStartedRef.current,
+      isRecording: () => recordingRef.current,
+      stop: () => stopRecording(),
+      takeChunk: (event) => {
+        if (event.data.size <= 0) return;
+        const used = chunksRef.current.reduce(
+          (sum, part) => sum + (part instanceof Blob ? part.size : 0),
+          0,
+        );
+        if (!goLiveFitsByteCap(used + event.data.size, SOCIAL_VIDEO_MAX_BYTES)) {
+          if (recordingRef.current) stopRecording();
+          return;
+        }
+        chunksRef.current.push(event.data);
+      },
+    });
+    stopTickRef.current = stopWatch.onTick;
     recorder.start(1000);
     setPhase("recording");
   }

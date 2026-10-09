@@ -21,7 +21,16 @@
 -- policies re-exposes blocked videos. Revert the app in the same window.
 -- ============================================================================
 
+set lock_timeout = '0';
 set lock_timeout = '3s';
+
+do $lock_timeout$
+begin
+  if current_setting('lock_timeout') is distinct from '3s' then
+    raise exception 'lock_timeout must be 3s';
+  end if;
+end
+$lock_timeout$;
 
 alter table public.profiles
   add column if not exists welcome_mux_asset_id text,
@@ -71,6 +80,17 @@ begin
      and new.welcome_mux_upload_id is not distinct from old.welcome_mux_upload_id then
     return new;
   end if;
+  -- The previous pair no longer decides visibility or the author notice.
+  update public.social_music_scans
+  set last_error = 'superseded',
+      next_attempt_at = null
+  where profile_id = new.id
+    and surface = 'welcome'
+    and last_error is distinct from 'superseded'
+    and (
+      asset_id is distinct from new.welcome_mux_asset_id
+      or playback_id is distinct from new.welcome_mux_playback_id
+    );
   if new.welcome_mux_asset_id is null
      and new.welcome_mux_playback_id is null
      and new.welcome_mux_upload_id is null then

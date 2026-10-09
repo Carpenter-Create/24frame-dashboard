@@ -1,7 +1,15 @@
-import { readFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { sliceSocialMusicAudio, socialMusicAudioDurationSeconds, socialMusicWindowRms } from "@/lib/social-music-m4a";
+import {
+  decodeAacToPcm,
+  sliceSocialMusicAudio,
+  socialMusicAudioDurationSeconds,
+  socialMusicPcmRms,
+  socialMusicWindowRms,
+} from "@/lib/social-music-m4a";
 
 function u32(value: number): Uint8Array {
   const out = new Uint8Array(4);
@@ -118,10 +126,34 @@ describe("sliceSocialMusicAudio", () => {
   });
 
   it("times out a stuck ffmpeg decode instead of treating it as silence", () => {
-    const source = readFileSync("src/lib/social-music-m4a.ts", "utf8");
-    const body = source.slice(source.indexOf("function decodeAacToPcm"), source.indexOf("export function socialMusicWindowRms"));
-    expect(body).toContain("timeout: 10_000");
-    expect(body).toContain("result.error");
+    const dir = mkdtempSync(join(tmpdir(), "ffmpeg-hang-"));
+    const pidFile = join(dir, "pid");
+    const ffmpeg = join(dir, "ffmpeg");
+    writeFileSync(
+      ffmpeg,
+      `#!/usr/bin/env node
+const fs = require("node:fs");
+fs.writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));
+Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
+process.stdout.write(Buffer.alloc(400));
+`,
+    );
+    chmodSync(ffmpeg, 0o755);
+    const previous = process.env.PATH;
+    process.env.PATH = `${dir}:${previous ?? ""}`;
+    try {
+      const started = Date.now();
+      const decoded = decodeAacToPcm(new Uint8Array([1, 2, 3, 4]), 400);
+      expect(decoded).toBeNull();
+      expect(Date.now() - started).toBeLessThan(2000);
+      expect(socialMusicPcmRms(new Uint8Array(400))).toBe(0);
+      const pid = Number(readFileSync(pidFile, "utf8"));
+      expect(pid).toBeGreaterThan(0);
+      expect(() => process.kill(pid, 0)).toThrow();
+    } finally {
+      process.env.PATH = previous;
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("does not read an AAC payload as PCM when decode fails", () => {

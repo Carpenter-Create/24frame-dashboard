@@ -145,6 +145,14 @@
 
 set lock_timeout = '3s';
 
+do $lock_timeout$
+begin
+  if current_setting('lock_timeout') is distinct from '3s' then
+    raise exception 'lock_timeout must be 3s';
+  end if;
+end
+$lock_timeout$;
+
 do $$ begin
   create type public.social_music_scan_surface as enum ('post', 'story', 'welcome');
 exception when duplicate_object then null; end $$;

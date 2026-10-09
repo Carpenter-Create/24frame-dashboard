@@ -397,10 +397,6 @@ describe("social music scan migration", () => {
     expect(sql).toContain("s.story_id = p_id");
     expect(sql).toContain("private.social_video_released");
     expect(sql).toContain("social music scan requires a Mux asset id and playback id");
-    expect(sql).toMatch(/^set lock_timeout = '3s';/m);
-    expect(readFileSync("supabase/migrations/20261008180100_profiles_welcome_mux.sql", "utf8")).toMatch(
-      /^set lock_timeout = '3s';/m,
-    );
     const blockWins = sql.slice(
       sql.indexOf("function public.social_music_block_wins"),
       sql.indexOf("revoke all on function public.social_music_block_wins"),

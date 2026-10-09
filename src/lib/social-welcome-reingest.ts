@@ -5,6 +5,16 @@ import { socialVideoDurationExceedsCap } from "@/lib/social-mux";
 // Expired stories are skipped. A missing source becomes Unfinished.
 // Nothing here deletes an S3 object.
 
+/** A rerun picks these up. reingest_failed is a retry, not a final hold. */
+export const SOCIAL_REINGEST_RETRY_ERRORS = ["s3_video_needs_mux", "reingest_failed"] as const;
+
+/** These stay Unfinished. A rerun does not pick them up. */
+export const SOCIAL_REINGEST_TERMINAL_ERRORS = [
+  "s3_source_missing",
+  "welcome_too_long",
+  "welcome_source_missing",
+] as const;
+
 export type SocialReingestSurface = "post" | "story" | "welcome";
 
 export type SocialReingestCandidate = {
@@ -289,7 +299,7 @@ export async function retireS3MusicPlaceholder(
     `update public.social_music_scans
      set next_attempt_at = null, last_error = 'superseded'
      where ${column} = $1::uuid
-       and last_error in ('s3_video_needs_mux', 'welcome_reingest_preparing')`,
+       and last_error in ('s3_video_needs_mux', 'welcome_reingest_preparing', 'reingest_failed')`,
     [input.parentId],
   );
 }

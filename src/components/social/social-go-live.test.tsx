@@ -45,14 +45,8 @@ describe("Social Go live recorder", () => {
     expect(src).toContain("runSocialOptimisticMutation");
     expect(src).toContain("uploadSocialPostMedia");
     expect(src).toContain('intent: "live"');
-    expect(src).toContain("goLiveReachedCap");
-    const clock = src.slice(src.indexOf("function startClock()"), src.indexOf("function beginRecording"));
-    expect(clock).toContain("goLiveReachedCap");
-    expect(clock).toContain("stopRecording()");
-    const dataAt = src.indexOf("recorder.ondataavailable = (event)");
-    const chunks = src.slice(dataAt, src.indexOf("recorder.onstop", dataAt));
-    expect(chunks).toContain("goLiveReachedCap");
-    expect(chunks).toContain("stopRecording()");
+    expect(src).toContain("bindGoLiveRecorderStop");
+    expect(src).toContain("stopTickRef.current?.()");
     expect(src).toContain("goLiveFitsByteCap(used + event.data.size");
     expect(src).toContain("new MediaRecorder(stream, { mimeType: probed.raw })");
     expect(src).toContain("aliveRef");

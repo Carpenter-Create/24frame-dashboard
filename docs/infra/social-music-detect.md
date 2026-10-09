@@ -291,8 +291,9 @@ scan table is a follow-up. It is not part of this change.
 2. Apply `supabase/migrations/20261008180000_social_music_scans.sql`, then
    `supabase/migrations/20261008180100_profiles_welcome_mux.sql`.
 3. Dry-run the image recheck, then execute it. A post or story whose image
-   will not decode is hidden. An avatar that will not decode is reported
-   and left in place.
+   will not decode is hidden. A read error is unfinished: reported, not
+   hidden, and tried again on the next run. An avatar that will not decode
+   is reported and left in place.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts

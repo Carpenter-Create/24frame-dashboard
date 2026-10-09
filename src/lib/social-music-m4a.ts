@@ -434,7 +434,7 @@ export function socialMusicPcmRms(payload: Uint8Array): number | null {
  * Decode an AAC window to s16le PCM. Null when ffmpeg is missing or the
  * file will not decode. Null is not silence.
  */
-function decodeAacToPcm(file: Uint8Array): Uint8Array | null {
+export function decodeAacToPcm(file: Uint8Array, timeoutMs = 10_000): Uint8Array | null {
   let dir: string | null = null;
   try {
     dir = mkdtempSync(join(tmpdir(), "music-rms-"));
@@ -443,7 +443,7 @@ function decodeAacToPcm(file: Uint8Array): Uint8Array | null {
     const result = spawnSync(
       "ffmpeg",
       ["-v", "error", "-i", input, "-f", "s16le", "-ac", "1", "pipe:1"],
-      { maxBuffer: 8 * 1024 * 1024, timeout: 10_000 },
+      { maxBuffer: 8 * 1024 * 1024, timeout: timeoutMs },
     );
     if (result.error || result.status !== 0 || !result.stdout || result.stdout.byteLength < 2) return null;
     return new Uint8Array(result.stdout);

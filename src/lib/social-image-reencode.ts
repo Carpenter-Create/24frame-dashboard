@@ -69,6 +69,8 @@ export type SocialImageRecheckItem = {
   key: string;
   original: Uint8Array;
   contentType: string;
+  /** Set when the object could not be read. Not a decode failure. */
+  readError?: string;
 };
 
 export type SocialImageRecheckReport = {
@@ -77,13 +79,15 @@ export type SocialImageRecheckReport = {
   store: number;
   hide: number;
   reported: number;
+  /** A read failed. The parent stays active so the next run tries again. */
+  unfinished: number;
 };
 
 /**
  * Dry-run is the default. A post or story that will not decode is hidden.
- * An avatar that will not decode is reported and left in place. One item
- * failure does not stop the next. Refuse is the notice-array rule; this
- * path hides or reports, it does not truncate a page.
+ * A read error is unfinished: reported, not hidden, and still active so
+ * the next run tries it again. An avatar that will not decode is reported
+ * and left in place. One item failure does not stop the next.
  */
 export async function runSocialImageRecheck(input: {
   execute: boolean;
@@ -100,11 +104,17 @@ export async function runSocialImageRecheck(input: {
     store: 0,
     hide: 0,
     reported: 0,
+    unfinished: 0,
   };
   const hidden = new Set<string>();
   for (const item of input.items) {
     const parentKey = `${item.surface}:${item.parentId}`;
     if (hidden.has(parentKey)) continue;
+    if (item.readError) {
+      report.unfinished += 1;
+      input.report?.(`${item.surface} ${item.parentId} unfinished: ${item.readError}`);
+      continue;
+    }
     try {
       const encoded = await reencode(item.original, item.contentType);
       const plan = socialImageRecheckPlan(item.original, encoded);

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { socialVideoKeyDigest } from "@/lib/social-music-scan";
 import {
   reingestSocialS3Videos,
+  SOCIAL_REINGEST_RETRY_ERRORS,
+  SOCIAL_REINGEST_TERMINAL_ERRORS,
   socialReingestKeyForDigest,
   socialReingestMediaWithMux,
   socialReingestVideoKey,
@@ -191,5 +193,66 @@ describe("reingestSocialS3Videos", () => {
     );
     const both = socialReingestMediaWithMux(media, saved[0] ?? []);
     expect(both.every((entry) => (entry as { provider?: string }).provider === "mux")).toBe(true);
+  });
+
+  it("retries a reingest_failed parent once, without a second asset, and still isolates the next failure", async () => {
+    expect(SOCIAL_REINGEST_RETRY_ERRORS).toContain("reingest_failed");
+    expect(SOCIAL_REINGEST_TERMINAL_ERRORS).not.toContain("reingest_failed");
+    let creates = 0;
+    const reasons: string[] = [];
+    const failed = deps({
+      createAsset: async () => {
+        creates += 1;
+        return { assetId: "assetRETRY0001" };
+      },
+      saveParent: async () => {
+        throw new Error("save failed");
+      },
+      markUnfinished: async (_candidate, reason) => {
+        reasons.push(reason);
+      },
+    });
+    const first = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate(), candidate({ parentId: "post-2", key: "posts/author-1/other.mp4" })],
+      deps: failed,
+    });
+    expect(first.unfinished).toBe(2);
+    expect(reasons).toEqual(["reingest_failed", "reingest_failed"]);
+    expect(creates).toBe(2);
+
+    const retry = deps({
+      createAsset: async () => {
+        creates += 1;
+        return { assetId: "assetSHOULDNOT1" };
+      },
+      alreadyUnfinished: async () =>
+        (SOCIAL_REINGEST_TERMINAL_ERRORS as readonly string[]).includes("reingest_failed"),
+    });
+    const second = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [
+        candidate({ assetId: "assetRETRY0001" }),
+        candidate({ parentId: "post-2", key: "posts/author-1/other.mp4", assetId: "assetRETRY0002" }),
+      ],
+      deps: retry,
+    });
+    expect(second.bound).toBe(2);
+    expect(second.unfinished).toBe(0);
+    expect(creates).toBe(2);
+
+    const again = deps({
+      createAsset: async () => {
+        creates += 1;
+        return { assetId: "assetSHOULDNOT2" };
+      },
+    });
+    const third = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate({ assetId: "assetRETRY0001", playbackId: "playRETRY00001" })],
+      deps: again,
+    });
+    expect(third.bound).toBe(0);
+    expect(creates).toBe(2);
   });
 });

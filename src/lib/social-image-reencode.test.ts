@@ -84,4 +84,69 @@ describe("reencodeSocialImage", () => {
     expect(avatars).toContain("reencodeSocialImage");
     expect(actions).not.toContain("socialImageBytesMatchContentType");
   });
+
+  it("hides a decode failure and retries a read error on the next run", async () => {
+    const clean = await jpeg();
+    const hidden: string[] = [];
+    const notes: string[] = [];
+    const first = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "post",
+          parentId: "bad-file",
+          key: "posts/a/bad.jpg",
+          original: new Uint8Array([1, 2, 3, 4]),
+          contentType: "image/jpeg",
+        },
+        {
+          surface: "post",
+          parentId: "dropped-read",
+          key: "posts/a/net.jpg",
+          original: new Uint8Array(),
+          contentType: "image/jpeg",
+          readError: "socket hang up",
+        },
+      ],
+      store: async () => {
+        throw new Error("store should not run");
+      },
+      hide: async (parent) => {
+        hidden.push(parent.parentId);
+      },
+      report: (line) => {
+        notes.push(line);
+      },
+    });
+    expect(hidden).toEqual(["bad-file"]);
+    expect(first).toMatchObject({ hide: 1, unfinished: 1, store: 0 });
+    expect(notes.some((line) => line.includes("dropped-read") && line.includes("socket hang up"))).toBe(true);
+
+    const trailer = new Uint8Array(clean.byteLength + 4);
+    trailer.set(clean);
+    trailer.set([9, 8, 7, 6], clean.byteLength);
+    const stored: string[] = [];
+    const second = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        {
+          surface: "post",
+          parentId: "dropped-read",
+          key: "posts/a/net.jpg",
+          original: trailer,
+          contentType: "image/jpeg",
+        },
+      ],
+      store: async (item) => {
+        stored.push(item.parentId);
+      },
+      hide: async (parent) => {
+        hidden.push(parent.parentId);
+      },
+    });
+    expect(stored).toEqual(["dropped-read"]);
+    expect(second.hide).toBe(0);
+    expect(second.unfinished).toBe(0);
+    expect(hidden).toEqual(["bad-file"]);
+  });
 });

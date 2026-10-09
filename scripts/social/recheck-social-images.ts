@@ -2,6 +2,7 @@
  * Recheck published Social images and avatars.
  * Dry-run is the default. Pass --execute to store the re-encoded bytes.
  * A post or story whose image will not decode is set to hidden.
+ * A read error is unfinished: reported, not hidden, and retried on the next run.
  * An avatar that will not decode is reported and left in place.
  * Do not run this against production from CI. Adam runs it after the SQL is applied.
  *
@@ -86,22 +87,33 @@ async function main(): Promise<void> {
       for (const image of imageKeys(parent.media)) {
         try {
           const object = await readSocialMediaObject(image.key);
+          if (!object || object.bytes.byteLength === 0) {
+            items.push({
+              surface,
+              parentId: parent.id,
+              key: image.key,
+              original: new Uint8Array(),
+              contentType: image.contentType,
+              readError: "read_empty",
+            });
+            continue;
+          }
           items.push({
             surface,
             parentId: parent.id,
             key: image.key,
-            original: object?.bytes ?? new Uint8Array(),
-            contentType: object?.contentType ?? image.contentType,
+            original: object.bytes,
+            contentType: object.contentType ?? image.contentType,
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : "read_failed";
-          logs.push(`${surface} ${parent.id} read failed: ${message}`);
           items.push({
             surface,
             parentId: parent.id,
             key: image.key,
             original: new Uint8Array(),
             contentType: image.contentType,
+            readError: message,
           });
         }
       }
@@ -121,22 +133,33 @@ async function main(): Promise<void> {
     }
     try {
       const object = await readAvatarObject(profile.id);
+      if (!object || object.bytes.byteLength === 0) {
+        items.push({
+          surface: "avatar",
+          parentId: profile.id,
+          key: expected,
+          original: new Uint8Array(),
+          contentType: "image/jpeg",
+          readError: "read_empty",
+        });
+        continue;
+      }
       items.push({
         surface: "avatar",
         parentId: profile.id,
         key: expected,
-        original: object?.bytes ?? new Uint8Array(),
-        contentType: object?.contentType ?? "image/jpeg",
+        original: object.bytes,
+        contentType: object.contentType ?? "image/jpeg",
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "read_failed";
-      logs.push(`avatar ${profile.id} read failed: ${message}`);
       items.push({
         surface: "avatar",
         parentId: profile.id,
         key: expected,
         original: new Uint8Array(),
         contentType: "image/jpeg",
+        readError: message,
       });
     }
   }
