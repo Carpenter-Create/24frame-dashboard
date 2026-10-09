@@ -672,7 +672,11 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
     if (winRef.current?.key !== key) return;
     winRef.current = null;
     setWin(null);
-    if (addressHasWindow() && pushedRef.current) {
+    // Cleared before `after` runs: a window it opens at once (a failed save
+    // reopening) keeps the entry it pushed, so its close goes Back.
+    const pushed = pushedRef.current;
+    pushedRef.current = false;
+    if (addressHasWindow() && pushed) {
       closingRef.current = true;
       // After the router's own popstate work, so `after` sees the page.
       if (after) window.addEventListener("popstate", () => window.setTimeout(after, 0), { once: true });
@@ -681,7 +685,6 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
       if (addressHasWindow()) strip();
       after?.();
     }
-    pushedRef.current = false;
     window.requestAnimationFrame(() => returnFocus?.()?.focus());
   }
 

@@ -25,7 +25,21 @@ Asked to build the window audit's recommendations (recommendation #3, Edit capti
 
 > make sure we do your recommendations above, resolve any flaw or security issues, and let me know if you still need me to answer anything that I may have missed.
 
-The open questions, answered on 2026-10-09:
+The first plan's seven questions, answered on 2026-10-09 (relayed):
+
+> 1) approved. 2) approved. 3) what do I need to do? 4) yes, please. 5) approved, but tell me if you need me to do something specific. 6) yes, please. 7) yes.
+
+| # | First plan's question | Answer | Decision |
+|---|-----------------------|--------|----------|
+| 1 | Approve the lock: Edit caption becomes the house window (✕ · Edit caption · Done), retiring Save and Cancel here | "approved." | LOCKED as written. |
+| 2 | Phone: the same window as the full AppSheet, or keep the AppSheet card with Cancel / Save and no ask | "approved." | The full AppSheet through the shell. |
+| 3 | The ask: title and buttons only, or add a line "Caption isn't saved." (new copy) | "what do I need to do?" | Nothing to do: no line, so no new copy. |
+| 4 | Save: optimistic (the words show at once; a failure reopens with the draft), or wait for the server | "yes, please." | Optimistic. |
+| 5 | Media: every item stacked, or only the first | "approved, but tell me if you need me to do something specific." | Every item stacked, read-only. Nothing is needed from the founder: no SQL, setting or deploy step. |
+| 6 | Also stop Delete sending database text to the browser, in this PR | "yes, please." | Yes, in this PR. |
+| 7 | File two gaps as follow-ups: `posts.body` has no database length limit; a post still being published shows ⋯ and its edit fails | "yes." | Both filed below. |
+
+The open questions after the independent review, answered on 2026-10-09:
 
 > approved, use the defaults
 
@@ -34,14 +48,11 @@ The open questions, answered on 2026-10-09:
 | After the independent review the build changed underneath, with no change to copy or look: one caption host for all of Social (one caption window at a time; a failure that lands while another post's window is open reopens after it closes); the edited words also show in Explore and the Feed's reel tiles; the shared window shell gets a three-line fix so Back always asks. Proceed in this PR? | Yes, in this PR. Each item is covered by tests and recorded here. |
 | Eight more places in the same server file still send database text to the browser (follow, like, story send, comment delete). Fix them here or as a follow-up? | A follow-up, listed below with the other two. This PR stays one lock row. |
 
-The defaults the plan built, approved with the same answer:
-- the phone gets the same window as the full AppSheet;
-- the ask has its title and two buttons, and no line under the title;
-- Done shows the words at once and saves in the background;
-- every media item is shown, stacked and read-only;
-- Delete's database error text is fixed in this PR.
+The same answer confirms the reading of the seven relayed answers above.
 
 Refined after independent review, engineering only, no copy or look change: one window at a time; the edited words also show in Explore and the Feed's reels; a leftover window address gets its own Back entry.
+
+Refined after the second review, engineering only, no copy or look change: Edit opens at once on a profile tab or activity pill (those never load in Next, so only a Home lane still loading holds it); a window that reopens while browser Back closes another keeps its own entry, so its close goes Back.
 
 ---
 
@@ -90,6 +101,7 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 - Browser Back and the phone back gesture close the window, asking first when there are changes.
 - An address that arrives with `?caption` opens nothing (a reload has no draft). The next Edit puts the page under it and pushes the window's own entry, so Back still asks.
 - An Edit chosen while a Home lane is still loading, or while the last window's Back is still landing, opens once that lands, if its post is still on the page. A failed save waits for the same.
+- A profile tab or activity pill (Posts, Photos, Videos, Comments), yours or a member's, never holds an Edit: the shell keeps those pills client-only, so Next's address stays behind them by design. The window opens at once over the pill and keeps its query.
 
 ## 6) Who
 
@@ -129,9 +141,10 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 - `src/lib/social-optimistic.test.ts`: a dropped connection, the save runner, and the order and rollback of two edits.
 - `src/lib/social-post-own-input.test.ts`: the request parser.
 - `src/app/(app)/social/post-own-actions.test.ts`: a malformed id or an over-long body is refused before any read; no database text reaches the browser; an invalid group still saves.
-- `src/lib/social-feed-reels.test.ts`, `src/lib/house-client-shell.test.ts`: the reel tile and the settled address.
+- `src/lib/social-feed-reels.test.ts`, `src/lib/house-client-shell.test.ts`: the reel tile and the settled address (a Home lane or period still loading is not settled; a profile tab or activity pill is).
 - `src/components/social/social-post-caption-window.test.tsx`: both hosts, the contents, the media, the error wiring, the shell.
-- `src/components/social/social-post-caption-host.test.tsx`: the one entry, the queues, the failure routing, the window loading on first use.
+- `src/components/social/social-post-caption-host.test.tsx`: the one entry on the layout, the window loading on first use, no page refresh.
+- `src/components/social/social-post-caption-host.client.test.tsx`: the host driven over the real window entry, a browser history and Next's address: it opens at once, and at once over a profile pill; it waits for a Home lane or a landing close; a queued Edit whose card left opens nothing; a failure reopens with the draft, in place, or after another post's window closes; a removed post never reopens; a window reopened as Back closes another goes Back on close.
 - `src/components/social/social-post-owner.test.tsx`, `social-post-card-owner.test.tsx`: Delete's copy, the retired keys, the menu's request.
 - `social-feed-immersive.test.tsx`, `social-explore-for-you.test.tsx`, `social-feed-reel-rail.test.tsx`: each reads the owner's edit.
 - `social-ui-boundary.test.ts`: the window stays off the layout, the card and the menu.

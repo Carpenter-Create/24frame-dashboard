@@ -70,6 +70,8 @@ export function SocialPostCaptionHost({ children }: { children: ReactNode }) {
   const mountedRef = useRef(false);
   // The ⋯ of the window that just closed: focus goes back to it.
   const returnRef = useRef<HTMLElement | null>(null);
+  // False only while a Home lane change loads. A profile tab or activity
+  // pill is client-only, so Next stays behind there by design: settled.
   const settled = house ? houseAddressSettled(house.href, `${house.nextPathname}${house.nextSearch}`) : true;
 
   const entry = useHouseWindowEntry<SocialPostCaptionFace>({

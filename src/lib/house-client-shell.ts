@@ -85,10 +85,14 @@ export function houseExactHref(href: string): string {
   return `${housePathname(pathname)}${search}`;
 }
 
-/** The shell's address and Next's agree: no owned hop (a Home lane or
- *  topic change) is still loading. */
+/** No owned hop is still loading: the browser's address is the shell's.
+ *  Only a Home lane/topic or Home period hop runs ahead of Next (the click
+ *  owns the href with no pushState, and Next still has to load it). A
+ *  profile ?tab= / ?activity= hop pushStates and stays client-only, so
+ *  Next's address stays behind for as long as that pill is on; it is
+ *  settled. */
 export function houseAddressSettled(href: string, nextHref: string): boolean {
-  return houseExactHref(href) === houseExactHref(nextHref);
+  return !houseSocialHomePanelHop(nextHref, href) && !houseHomePeriodHop(nextHref, href);
 }
 
 export function houseScreenKey(pathname: string, search = ""): string {

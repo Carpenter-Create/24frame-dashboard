@@ -50,36 +50,8 @@ describe("Edit caption host (social-post-caption-window-lock-v1)", () => {
     expect(hostSrc).not.toContain("opensOnArrival: () => true");
   });
 
-  it("opens one window at a time and waits for a moving address or a landing close", () => {
-    expect(hostSrc).toContain("houseAddressSettled(house.href, `${house.nextPathname}${house.nextSearch}`)");
-    const open = section("function open(request", "function close(key");
-    expect(open).toContain("if (targetRef.current) return;");
-    expect(open).toContain("if (!latest.current.settled || closingRef.current) {");
-    expect(open).toContain("queuedRef.current = request;");
-    // The baseline is taken once, as the caption shows on this device.
-    expect(open).toContain("socialPostLiveBody(request.postId, request.serverBody)");
-    // A queued open runs only while its card is still on the page.
-    const drain = section("function drain()", "function fail(");
-    expect(drain).toContain("if (queued?.trigger?.isConnected) open(queued);");
-  });
-
-  it("routes a failed save: skip a removed post, reopen in place, or wait for the open window", () => {
-    const fail = section("function fail(", "function save(");
-    expect(fail).toContain("if (!mountedRef.current) return;");
-    expect(fail).toContain("if (readSocialPostHidden(request.postId)) return;");
-    expect(fail).toContain("if (current?.postId === request.postId) {");
-    expect(fail).toContain('entry.reopenAfterFailure("caption");');
-    expect(fail).toContain("failedRef.current.push(next);");
-    // The queue drains once the close's Back has landed (never racing it).
-    const close = section("function close(key", "function landed()");
-    expect(close).toContain("entry.close(key, landed);");
-    const landed = section("function landed()", "function drain()");
-    expect(landed).toContain("closingRef.current = false;");
-    expect(landed).toContain("latest.current.drain();");
-    const drain = section("function drain()", "function fail(");
-    expect(drain).toContain("failedRef.current.shift()");
-    expect(drain).toContain("if (readSocialPostHidden(failed.postId)) continue;");
-  });
+  // Opening, the queues and the failure routing are driven in
+  // social-post-caption-host.client.test.tsx.
 
   it("saves through the Latest runner, then closes; no page refresh", () => {
     const save = section("function save(", "// Latest handlers");
