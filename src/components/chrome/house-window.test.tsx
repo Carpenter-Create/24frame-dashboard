@@ -99,6 +99,19 @@ describe("house window shell (components/chrome/house-window)", () => {
     expect(shellSrc).toContain("if (!shown) return undefined;");
   });
 
+  it("keeps Tab inside by real stops (a radio group is one) and opens a face on its first real field", () => {
+    const trap = shellSrc.slice(shellSrc.indexOf('if (event.key !== "Tab") return;'), shellSrc.indexOf("document.addEventListener(\"keydown\", onKey);"));
+    expect(trap).toContain(
+      "const target = houseWindowTabTarget(houseWindowFocusables(frame), active, event.shiftKey, frame.contains(active));",
+    );
+    expect(trap).not.toContain("active === last");
+    expect(trap).not.toContain("active === first");
+    const focus = shellSrc.slice(shellSrc.indexOf("const firstFace = useRef(true);"), shellSrc.indexOf("const state: HouseWindowState"));
+    expect(focus).toContain("houseWindowFirstField(body)?.focus();");
+    // Never the first input in the markup (an unchosen radio of a group).
+    expect(focus).not.toContain('"input:not([type=file]):not(.sr-only), textarea"');
+  });
+
   it("runs a close's follow-up once Back has landed on the page", () => {
     const close = shellSrc.slice(shellSrc.indexOf("function close(key: number, after?"), shellSrc.indexOf("function reopenAfterFailure("));
     expect(close).toContain(

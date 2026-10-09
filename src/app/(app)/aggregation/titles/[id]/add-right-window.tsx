@@ -20,6 +20,7 @@ import {
   ADD_RIGHT,
   ADD_RIGHT_CHOICE_CLASS,
   ADD_RIGHT_CHOICES_CLASS,
+  ADD_RIGHT_COUNTRIES_CLASS,
   ADD_RIGHT_NOTE_CLASS,
   ADD_RIGHT_ROWS,
   ADD_RIGHT_SEARCH_CLASS,
@@ -414,14 +415,16 @@ export function AddRightTerritoryFace({
             />
           </div>
           {groups.length > 0 ? (
-            <HousePageSelectOptions
-              inline={{ id: `${ids}-countries`, "aria-describedby": describedBy }}
-              multiple
-              values={codes}
-              groups={groups}
-              ariaLabel={TERRITORY_MODE_LABEL[draft.mode]}
-              onPick={onToggle}
-            />
+            <div data-add-right-countries="" className={ADD_RIGHT_COUNTRIES_CLASS}>
+              <HousePageSelectOptions
+                inline={{ id: `${ids}-countries`, "aria-describedby": describedBy }}
+                multiple
+                values={codes}
+                groups={groups}
+                ariaLabel={TERRITORY_MODE_LABEL[draft.mode]}
+                onPick={onToggle}
+              />
+            </div>
           ) : (
             <p data-add-right-no-match="" className={ADD_RIGHT_NOTE_CLASS}>
               {ADD_RIGHT.noMatch}

@@ -68,6 +68,11 @@ export const ADD_RIGHT_TERRITORY_LINE_CLASS = `${HOUSE_PHONE_WRAP_CLASS} t-body-
 // body is the scroll container on both hosts).
 export const ADD_RIGHT_SEARCH_CLASS = "sticky top-0 z-10 bg-bg py-[var(--space-2)]";
 
+// The countries under that search: an option the keys move to (↑, Home,
+// typing; scrolled to the nearest edge) stops below the search, never under
+// it. 4.5rem clears the search (58px) and the focus ring (5px).
+export const ADD_RIGHT_COUNTRIES_CLASS = "[&_[data-house-page-select-option]]:scroll-mt-18";
+
 export const ADD_RIGHT_NOTE_CLASS = "t-body-sm text-ink-3";
 
 export function parseAddRightFace(value: string | null): AddRightFace {

@@ -34,8 +34,10 @@ import {
   HOUSE_WINDOW_SHEET_BODY_CLASS,
   HOUSE_WINDOW_SHEET_FRAME_CLASS,
   HOUSE_WINDOW_TITLE_CLASS,
+  houseWindowFirstField,
   houseWindowFocusables,
   houseWindowMotionClass,
+  houseWindowTabTarget,
   type HouseWindowMotion,
 } from "@/lib/house-window";
 
@@ -271,17 +273,12 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
       if (event.key !== "Tab") return;
       const frame = frameRef.current;
       if (!frame) return;
-      const items = houseWindowFocusables(frame);
-      if (items.length === 0) return;
-      const first = items[0]!;
-      const last = items[items.length - 1]!;
+      // A radio group is one stop: Tab from any of its radios leaves it.
       const active = document.activeElement;
-      if (event.shiftKey && (active === first || !frame.contains(active))) {
+      const target = houseWindowTabTarget(houseWindowFocusables(frame), active, event.shiftKey, frame.contains(active));
+      if (target) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (active === last || !frame.contains(active))) {
-        event.preventDefault();
-        first.focus();
+        target.focus();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -327,8 +324,7 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
       row?.focus();
       return;
     }
-    const field = body.querySelector<HTMLElement>("input:not([type=file]):not(.sr-only), textarea");
-    (field ?? houseWindowFocusables(body)[0])?.focus();
+    houseWindowFirstField(body)?.focus();
     // attr and indexFace are fixed for a window's life, except that a linear
     // window may move indexFace once to its closing face (Deliver's result),
     // so ✕ and Esc close there and Back can never re-submit. This effect reads

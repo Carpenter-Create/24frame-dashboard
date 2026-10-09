@@ -125,6 +125,10 @@ describe("title Add right window (aggregation-add-right-window-lock-v1)", () => 
       /<div data-add-right-search="" class="sticky top-0 z-10 bg-bg[^"]*"><input[^>]*type="search"[^>]*aria-label="Search countries"[^>]*placeholder="Search countries"/,
     );
     expect(html).toContain('aria-multiselectable="true"');
+    // A keyed-to country stops below the sticky search (its scroll margin).
+    expect(html).toContain(
+      '<div data-add-right-countries="" class="[&amp;_[data-house-page-select-option]]:scroll-mt-18"><div role="listbox"',
+    );
     expect(html).toContain('aria-label="Only these countries"');
     expect(optionTag(html, "GB")).toContain('aria-selected="true"');
     expect(optionTag(html, "IE")).toContain('aria-selected="true"');

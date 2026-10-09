@@ -4,6 +4,7 @@ import {
   ADD_RIGHT,
   ADD_RIGHT_CHOICE_CLASS,
   ADD_RIGHT_CHOICES_CLASS,
+  ADD_RIGHT_COUNTRIES_CLASS,
   ADD_RIGHT_SEARCH_CLASS,
   ADD_RIGHT_TERRITORY_LINE_CLASS,
   EMPTY_ADD_RIGHT,
@@ -216,5 +217,13 @@ describe("Add right window (lib/add-right)", () => {
     expect(ADD_RIGHT_CHOICE_CLASS).toContain("min-h-11");
     expect(ADD_RIGHT_SEARCH_CLASS).toContain("sticky top-0");
     expect(ADD_RIGHT_SEARCH_CLASS).toContain("bg-bg");
+  });
+
+  it("stops a keyed-to country below the sticky search, never under it", () => {
+    // The search is py-[var(--space-2)] around a 42px field (58px), and the
+    // focus ring reaches 5px above a row: an option scrolled to the top edge
+    // keeps 4.5rem (72px) clear.
+    expect(ADD_RIGHT_SEARCH_CLASS).toContain("py-[var(--space-2)]");
+    expect(ADD_RIGHT_COUNTRIES_CLASS).toBe("[&_[data-house-page-select-option]]:scroll-mt-18");
   });
 });

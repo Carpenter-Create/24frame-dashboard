@@ -31,6 +31,8 @@ On building this window after PR 1 and the Comments window's height change:
 
 > ok, approved
 
+(Adam, 2026-10-09. The same reply approved the Comments window's visual defaults; that part is outside this lock.)
+
 Each question below was decided by "approved, use the defaults": the default is the decision.
 
 | Question | Decision (the default) |
@@ -69,7 +71,7 @@ The house window shell (`components/chrome/house-window`) over the title page. T
 | Motion | A face slides in from the right; Back slides the index in from the left. 220ms; none under reduced motion. |
 | Esc | The shell's order: the ask (Keep editing), then a face (Back), then the window. A list is never a house menu, so Esc on a face goes Back. A double Esc never discards. |
 | Keys | ⌘/Ctrl+Enter is Done. Tab stays inside the window and counts only real Tab stops (shell line, below). |
-| Focus | Rights type lands on the chosen right, or the first. Territory and Exclusivity land on their first radio (the shell's first-field rule). |
+| Focus | Rights type lands on the chosen right, or the first. Territory lands on its chosen mode; Exclusivity on its first radio while none is chosen (the shell's first-field rule: real Tab stops only). |
 
 ## 2) Phone — the same window as the full sheet
 
@@ -125,7 +127,7 @@ The same ask as Metadata and Edit profile, naming the changed rows ("Rights type
 
 ## Shell lines (amended into `house-overlay-dual-host-v1.md`)
 
-- Tab and a face's first focus count only real Tab stops: an element with tabindex -1 is skipped (`houseWindowFocusables`).
+- Tab and a face's first focus count only real Tab stops: an element with tabindex -1 is skipped, and a radio group is one stop, as the browser has it: its checked radio, else its first (`houseWindowFocusables`, `houseWindowTabTarget`, `houseWindowFirstField`). Tab from any radio of a face's last group wraps inside the window, so faces that end with radios (Territory at Worldwide, Exclusivity, Metadata's Release) keep focus in.
 - A window whose faces hold long lists may open at 80vh (`fill`; the Comments window's prop and class).
 
 ## Follow-ups (founder)
@@ -153,10 +155,12 @@ Optional, test only: pgTAP cases in `supabase/tests/rights_grants_test.sql` (del
 - The line on a face sits above its list (under the Territory radios), not after it: the lists run to 21 and 249 rows, and the line must be in view when Done lands on the face.
 - The "{grant}" line names countries in name order (the index review's full line), where the ledger row behind keeps `describeTerritory` (code order, four names then "+N", shared with the staff page and the deliver stepper).
 - The Tab-trap change also skips one existing non-input tabindex -1 control: the avatar menu's dismiss scrim inside Edit profile. It was never meant to be a Tab stop.
+- Review fixes: the trap counted every radio of a group, but the browser stops on one, so Tab from a face that ends with radios left the window; it now counts the group as one stop. A face opened with a mode already chosen (Territory at Only these countries, Metadata's Release at Re-release) lands on that radio, not the first. A country the keys move to (↑, Home, typing) stops below the sticky search (`ADD_RIGHT_COUNTRIES_CLASS`, a 4.5rem scroll margin), never under it.
 
 ## Gates
 
-- `house-window.test.ts`: the selector pins hold; the trap counts only real Tab stops (not tabindex -1, an .sr-only input, or anything inert); closing strips a list of params and one param behaves as before; the fill class is 80vh.
+- `house-window.test.ts`: the selector pins hold; the trap counts only real Tab stops (not tabindex -1, an .sr-only input, or anything inert; a radio group once, by name and form); Tab wraps from any radio of the last group and Shift+Tab from the first stop; a face opens on its chosen radio, never an unchosen one; closing strips a list of params and one param behaves as before; the fill class is 80vh.
+- `house-window.test.tsx`: the shell's trap and first focus read those helpers.
 - `house-page-select.test.tsx` (PR 1's guard): an inline list has a caller only now that the trap skips tabindex -1.
 - `social-profile-edit-window.test.tsx`: Edit profile never fills; it still holds the height it opens at (the pin reads the shell's `fill` branch, as the Comments window's branch writes it).
 - `title-details.test.ts`: Metadata's closed address strips `?add-right` too; both params are in `TITLE_PAGE_WINDOW_PARAMS`.
@@ -164,7 +168,8 @@ Optional, test only: pgTAP cases in `supabase/tests/rights_grants_test.sql` (del
 - `rights.test.ts`: the rights codes equal the database enum exactly once; every right has a label and description; the exclusivity labels.
 - `territories.test.ts`: the modes equal the database enum; continents partition the 249 countries; the groups are in order and by name; the search; the full line; `resolveTerritories`; `describeTerritory` unchanged; `dashboard-register` still resolves territory references.
 - `add-right-actions.test.ts`: a malformed request, a signed-out caller and view-as are refused with no read; a deleted or missing title, a viewer, legal and another org are refused; the org comes from the row, one right, server time, no window; the territory is checked first; Worldwide sends no countries; the same scope (either exclusivity, any order) adds nothing and names the grant; a failed read adds nothing; database text never reaches the browser; the catalog path, the layout and the staff title page are revalidated.
-- `add-right-window.test.tsx`: both hosts, the 80vh frame, the header, rows and summaries, the faces (inline lists, one Tab stop, per-mode picks, the sticky search, no match, no pre-chosen exclusivity), unique ids, the entry, the one add path from the index only, the page wiring, and that the old form is gone.
+- `add-right-window.test.tsx`: both hosts, the 80vh frame, the header, rows and summaries, the faces (inline lists, one Tab stop, per-mode picks, the sticky search and the countries' scroll margin under it, no match, no pre-chosen exclusivity), unique ids, the entry, the one add path from the index only, the page wiring, and that the old form is gone.
+- `add-right-window.client.test.tsx` (mounted, a fake `addRights`): Done walks the faces in order and sends nothing from a face; on the index it sends one grant with no org, waits (busy, held open, a second Done sends nothing) and closes with a refresh; a grant already on the title stays open on the index with its line and closing refreshes; a request that fails outright shows "Could not save." and closing refreshes; a refusal at a face goes to that face and closing does not refresh.
 - `house-overlay.test.ts` G4 and G5: the window draws `HouseWindowFrame`, never `HouseDrawerFrame`; the amended lock keeps its pinned lines.
 
 ## Verify on ship

@@ -61,14 +61,65 @@ export const HOUSE_WINDOW_ASK_BUTTON_CLASS = "min-h-11 px-5 focus-visible:rounde
 export const HOUSE_WINDOW_FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+type HouseWindowControl = HTMLElement & { type?: string; name?: string; checked?: boolean; form?: unknown };
+
+/** A named radio: one of a group the browser treats as one Tab stop. */
+function namedRadio(node: unknown): HouseWindowControl | null {
+  const control = node as HouseWindowControl | null;
+  return control?.type === "radio" && control.name ? control : null;
+}
+
+/** The same Tab stop: the same node, or two radios of one group (the same
+ *  name and form). Tab leaves a radio group after any of its radios. */
+export function houseWindowSameStop(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  const radioA = namedRadio(a);
+  const radioB = namedRadio(b);
+  return radioA !== null && radioB !== null && radioA.name === radioB.name && radioA.form === radioB.form;
+}
+
 /** The window's real Tab stops, in order: never under [inert], never an
  *  .sr-only input, and never tabindex="-1" (a roving list's other options,
- *  reached with the arrows; HousePageSelectOptions `inline`). */
+ *  reached with the arrows; HousePageSelectOptions `inline`). A radio group
+ *  is one stop, as the browser has it: its checked radio, else its first. */
 export function houseWindowFocusables(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(HOUSE_WINDOW_FOCUSABLE)].filter(
+  const nodes = [...root.querySelectorAll<HTMLElement>(HOUSE_WINDOW_FOCUSABLE)].filter(
     (node) =>
       !node.closest("[inert]") && !node.classList.contains("sr-only") && node.getAttribute("tabindex") !== "-1",
   );
+  return nodes.filter((node) => {
+    if (!namedRadio(node)) return true;
+    const group = nodes.filter((other) => houseWindowSameStop(other, node));
+    return (group.find((radio) => (radio as HouseWindowControl).checked) ?? group[0]) === node;
+  });
+}
+
+/** Where Tab goes when it would leave the window (from its last stop, or
+ *  Shift+Tab from its first, or from outside it), or null to let the
+ *  browser move between stops inside. */
+export function houseWindowTabTarget(
+  stops: readonly HTMLElement[],
+  active: unknown,
+  shift: boolean,
+  inside: boolean,
+): HTMLElement | null {
+  const first = stops[0];
+  const last = stops[stops.length - 1];
+  if (!first || !last) return null;
+  if (shift) return !inside || houseWindowSameStop(active, first) ? last : null;
+  return !inside || houseWindowSameStop(active, last) ? first : null;
+}
+
+/** A face's first field: the first real Tab stop that is an input (never a
+ *  file input) or a textarea, else its first stop. A radio group offers its
+ *  checked radio (its first while none is checked), so a face never opens on
+ *  an unchosen radio beside the chosen one. */
+export function houseWindowFirstField(root: HTMLElement): HTMLElement | null {
+  const stops = houseWindowFocusables(root);
+  const field = stops.find(
+    (node) => node.tagName === "TEXTAREA" || (node.tagName === "INPUT" && (node as HouseWindowControl).type !== "file"),
+  );
+  return field ?? stops[0] ?? null;
 }
 
 export type HouseWindowMotion = "push" | "pop" | null;

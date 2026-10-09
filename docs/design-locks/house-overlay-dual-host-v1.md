@@ -22,7 +22,7 @@ The job picks the host. Phone and desktop are different hosts. A breakpoint does
 - Pad 24 (a window's header and body carry their own; the composer keeps its locked 16)
 - Button footer (a window's actions sit in its header)
 - One shell draws every window with faces: `lib/house-window` (classes, the query helpers) and `components/chrome/house-window` (`useHouseWindow`, `HouseWindowFrame`, `HouseWindowAsk`, `useHouseWindowEntry`). A new window brings its faces, copy and save; the header, Esc order, the ask, held height, focus and the history entry are the shell's
-- Tab and a face's first focus count only real Tab stops: an element with tabindex -1 is skipped (a list's roving options are reached with the arrows)
+- Tab and a face's first focus count only real Tab stops: an element with tabindex -1 is skipped (a list's roving options are reached with the arrows), and a radio group is one stop, as the browser has it (its checked radio, else its first)
 - A window whose faces hold long lists may open at 80vh (`fill`) instead of holding the height it opens at
 
 ## HouseDrawer
