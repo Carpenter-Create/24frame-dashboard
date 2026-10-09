@@ -160,11 +160,14 @@ describe("Social Go live recorder", () => {
     expect(review).toContain("aria-label={SOCIAL.create.liveRetake}");
     expect(review).toContain('name="arrow-up"');
     expect(review).toContain(
-      "posting ? SOCIAL.stories.posting : welcome ? SOCIAL.profile.welcomeAdd : SOCIAL.create.livePost",
+      "welcome ? SOCIAL.profile.welcomeAdd : posting ? SOCIAL.stories.posting : SOCIAL.create.livePost",
     );
-    // No words on the buttons: the glyphs, and the bar while posting.
+    // No words on the buttons: the glyphs, and the bar while posting. The
+    // save round's only child is its arrow glyph.
     expect(review).not.toMatch(/>\s*\{SOCIAL\.create\.liveRetake\}\s*</);
-    expect(review).not.toMatch(/>\s*\{posting \? SOCIAL\.stories\.posting : SOCIAL\.create\.livePost\}\s*</);
+    const post = review.slice(review.indexOf("data-social-go-live-post"), review.indexOf("</button>", review.indexOf("data-social-go-live-post")));
+    expect(post.slice(post.lastIndexOf(">") + 1).trim()).toBe("");
+    expect(post).toMatch(/>\s*<SocialIcon weight="bold" name="arrow-up" size=\{SOCIAL_ICON_SIZE_STORY_STUDIO\} \/>\s*$/);
     expect(review).toContain('role="progressbar"');
     expect(review).toContain("aria-valuenow={postPercent}");
     expect(review).toContain("className={SOCIAL_GO_LIVE_PROGRESS_FILL_CLASS} style={{ width: `${postPercent}%` }}");
@@ -350,12 +353,39 @@ describe("Social Go live recorder", () => {
     // Saved as the profile's welcome video (S3, never a post), painted from
     // this device, then back to where Edit opened the camera.
     const save = src.slice(src.indexOf("async function saveWelcomeClip()"), src.indexOf("const mirrored ="));
-    expect(save).toContain("uploadSocialWelcomeVideoFile(clip.file");
-    expect(save).toContain("saveSocialWelcomeVideo(save)");
-    expect(save.indexOf("saveSocialWelcomeVideo(save)")).toBeLessThan(save.indexOf("patchSocialProfileOptimistic({ welcomeVideoUrl: clip.url })"));
-    expect(save).toContain("router.replace(takeSocialGoLiveExitHref())");
+    expect(save).toContain("upload: uploadSocialWelcomeVideoFile,");
+    expect(save).toContain("save: saveSocialWelcomeVideo,");
+    // The save flow (lib/social-go-live-welcome) never throws; a failure
+    // gives the camera its controls back and keeps the clip for a retry.
+    const fail = save.slice(save.indexOf("if (!outcome.ok) {"), save.indexOf("// Saved:"));
+    expect(fail).toContain("setPosting(false);");
+    expect(fail).toContain("clipUrlRef.current = clip.url;");
+    expect(fail).toContain("if (!outcome.aborted) setError(outcome.error);");
+    // Painted only once saved, even if the camera closed meanwhile; an
+    // earlier clip saved from here is let go; then back to Edit.
+    expect(save).toContain("patchSocialProfileOptimistic({ welcomeVideoUrl: clip.url });");
+    expect(save.indexOf("if (!outcome.ok) {")).toBeGreaterThan(-1);
+    expect(save.indexOf("if (!outcome.ok) {")).toBeLessThan(save.indexOf("patchSocialProfileOptimistic({ welcomeVideoUrl: clip.url });"));
+    expect(save).not.toMatch(/if \(!aliveRef\.current\)[^\n]*\n\s*patchSocialProfileOptimistic/);
+    expect(save).toContain('if (previous && previous !== clip.url && previous.startsWith("blob:")) URL.revokeObjectURL(previous);');
+    expect(save).toContain("if (aliveRef.current) exitWelcome();");
+    // The save owns the clip's URL, so closing the camera does not revoke it.
+    expect(save.indexOf("clipUrlRef.current = null;")).toBeGreaterThan(-1);
+    expect(save.indexOf("clipUrlRef.current = null;")).toBeLessThan(save.indexOf("await saveSocialWelcomeClip("));
+    // Closing the camera cancels an upload still running.
+    expect(src).toContain("welcomeAbortRef.current?.abort();");
     expect(save).not.toContain("beginSocialPostPublish");
     expect(save).not.toContain("persistSocialPost");
+    // Back to Edit's own entry when Edit opened the camera; a cold visit
+    // lands on Edit (on a computer that hands over to the window).
+    const exit = src.slice(src.indexOf("function exitWelcome()"), src.indexOf("async function saveWelcomeClip()"));
+    expect(exit).toContain("markSocialProfileEditWelcomeReturn();");
+    expect(exit).toContain("const exit = takeSocialGoLiveExit(SOCIAL_ROUTES.profileEdit);");
+    expect(exit).toContain("if (exit.fromOpener && isSocialProfileEditAddress(exit.href)) router.back();");
+    expect(src).toContain("href={welcome ? SOCIAL_ROUTES.profileEdit : SOCIAL_ROUTES.home}");
+    expect(src).toContain("if (welcome) {\n                exitWelcome();\n                return;\n              }");
+    // Saved, never posted: the round and the bar keep the welcome name.
+    expect(src).toContain("aria-label={welcome ? SOCIAL.profile.welcomeAdd : SOCIAL.stories.posting}");
     // The "use a video" fallback is a post path: not offered for a welcome video.
     const notice = src.slice(src.indexOf("{error ? ("));
     expect(notice).toContain("{welcome ? null : (");

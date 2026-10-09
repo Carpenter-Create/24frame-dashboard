@@ -30,7 +30,7 @@ import {
 import { SOCIAL_ICON_SIZE_HEADER } from "@/lib/social-icons";
 import { SOCIAL } from "@/lib/social";
 import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
-import type { SocialProfileEditFace } from "@/lib/social-profile-edit";
+import { socialProfileEditIndexHref, type SocialProfileEditFace } from "@/lib/social-profile-edit";
 
 // Desktop Edit profile: the house window over the live profile
 // (docs/design-locks/social-profile-edit-window-lock-v1.md, Adam 2026-10-09,
@@ -97,34 +97,49 @@ export function SocialProfileEditWindow({
   const askTitleId = useId();
   useSocialProfileEditLeaveGuard(edit.dirty);
 
-  // Where focus goes back to when the ask or the photo menu closes.
+  // Where focus goes back to when the ask or the photo menu closes. Only an
+  // element inside the window counts (a scrim click leaves focus outside).
   const returnFocusRef = useRef<HTMLElement | null>(null);
-
-  function restoreFocus(fallback?: string) {
-    const target =
-      returnFocusRef.current?.isConnected && !returnFocusRef.current.closest("[inert]")
-        ? returnFocusRef.current
-        : fallback
-          ? frameRef.current?.querySelector<HTMLElement>(fallback)
-          : null;
-    returnFocusRef.current = null;
-    window.requestAnimationFrame(() => (target ?? frameRef.current)?.focus());
+  function rememberFocus() {
+    const active = document.activeElement;
+    returnFocusRef.current =
+      active instanceof HTMLElement && frameRef.current?.contains(active) ? active : null;
   }
 
+  function restoreFocus(fallback?: string) {
+    const saved = returnFocusRef.current;
+    returnFocusRef.current = null;
+    // Chosen after React commits: the ask closing lifts the body's inert
+    // only on that render.
+    window.requestAnimationFrame(() => {
+      const target =
+        saved?.isConnected && !saved.closest("[inert]")
+          ? saved
+          : fallback
+            ? frameRef.current?.querySelector<HTMLElement>(fallback)
+            : null;
+      (target ?? frameRef.current)?.focus();
+    });
+  }
+
+  // A picture or video still uploading saves on its own: leaving (or Done)
+  // waits for it, so it never runs on after Edit has closed.
+  const holdOpen = busy || edit.uploading;
+
   function requestClose(): boolean {
-    if (busy) return false;
+    if (holdOpen) return false;
     if (!edit.dirty) {
       onClose();
       return true;
     }
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    rememberFocus();
     setLeaveHref(null);
     setAsking(true);
     return false;
   }
 
   function done() {
-    if (busy) return;
+    if (holdOpen) return;
     edit.save({
       leave: onClose,
       // The window stays on the mounted profile: no save-hop cover.
@@ -138,7 +153,7 @@ export function SocialProfileEditWindow({
     edit.discard();
     setAsking(false);
     if (leaveHref) {
-      rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+      rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));
       router.push(leaveHref);
       return;
     }
@@ -158,8 +173,8 @@ export function SocialProfileEditWindow({
 
   /** Leaving Edit for another screen (the camera) with changes: ask first. */
   function askLeave(href: string) {
-    if (busy) return;
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (holdOpen) return;
+    rememberFocus();
     setLeaveHref(href);
     setAsking(true);
   }
@@ -241,12 +256,15 @@ export function SocialProfileEditWindow({
   }, [desktop]);
 
   // One still frame: it takes the height it opens at (up to 80vh) and
-  // holds it, so a face never makes the window jump.
+  // holds it, so a face never makes the window jump. Measured only while
+  // shown: a window opened below md (a failed save reopening it) is hidden
+  // and measures 0, so it takes its height when it first shows.
   useLayoutEffect(() => {
     const frame = frameRef.current;
-    if (!frame || held !== null) return;
-    setHeld(Math.ceil(frame.getBoundingClientRect().height));
-  }, [held]);
+    if (!frame || held !== null || !desktop) return;
+    const height = Math.ceil(frame.getBoundingClientRect().height);
+    if (height > 0) setHeld(height);
+  }, [held, desktop]);
 
   // A pushed face focuses its first field; Back returns to the row it left.
   // A window that opens on a face (Interests' Topics, a failed save) focuses
@@ -325,7 +343,7 @@ export function SocialProfileEditWindow({
           </h2>
           <Button
             data-social-profile-edit-done=""
-            disabled={busy || edit.cropOpen}
+            disabled={holdOpen || edit.cropOpen}
             aria-busy={busy}
             className={SOCIAL_PROFILE_EDIT_WINDOW_DONE_CLASS}
             onClick={done}

@@ -122,7 +122,7 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(close).toContain("if (!edit.dirty) {\n      onClose();\n      return true;\n    }");
     expect(close).toContain("setAsking(true);");
     // A changed username is with the server: nothing leaves until it answers.
-    expect(close).toContain("if (busy) return false;\n    if (!edit.dirty) {");
+    expect(close).toContain("if (holdOpen) return false;\n    if (!edit.dirty) {");
     expect(windowSrc).toContain("inert={asking || busy}");
     // X, the scrim and browser Back all take requestClose.
     expect(windowSrc).toContain("onClose={() => {\n        requestClose();\n      }}");
@@ -141,7 +141,7 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(done).toContain("onPersistFailed");
     expect(editSrc).toContain("applySocialProfileOptimistic(snapshot, { hop: !host.stayOnPage });");
     expect(windowSrc).toContain('event.key === "Enter" && (event.metaKey || event.ctrlKey)');
-    expect(windowSrc).toContain("disabled={busy || edit.cropOpen}");
+    expect(windowSrc).toContain("disabled={holdOpen || edit.cropOpen}");
     expect(windowSrc).toContain("aria-busy={busy}");
   });
 
@@ -167,7 +167,7 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(idle).not.toContain('aria-busy="true"');
     expect(windowSrc).toContain("const busy = edit.pending || waiting;");
     const done = windowSrc.slice(windowSrc.indexOf("function done()"), windowSrc.indexOf("function discard()"));
-    expect(done).toContain("if (busy) return;");
+    expect(done).toContain("if (holdOpen) return;");
     expect(done).toContain("onPersisting,");
     // The hook hands the island the persist once it is out.
     const save = editSrc.slice(editSrc.indexOf("function save(host"), editSrc.indexOf("function discard()"));
@@ -182,7 +182,12 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
   });
 
   it("holds one height while open and keeps focus inside", () => {
-    expect(windowSrc).toContain("setHeld(Math.ceil(frame.getBoundingClientRect().height))");
+    // Measured only while shown, and never as 0 (a window reopened below md
+    // is hidden until it shows at md+).
+    const held = windowSrc.slice(windowSrc.indexOf("// One still frame"), windowSrc.indexOf("// A pushed face focuses"));
+    expect(held).toContain("if (!frame || held !== null || !desktop) return;");
+    expect(held).toContain("if (height > 0) setHeld(height);");
+    expect(held).toContain("}, [held, desktop]);");
     expect(windowSrc).toContain("style={held === null ? undefined : { height: held }}");
     expect(windowSrc).toContain('if (event.key !== "Tab") return;');
     expect(windowSrc).toContain('document.body.style.overflow = "hidden"');
@@ -259,10 +264,39 @@ describe("Edit profile pill (social-profile-edit-entry)", () => {
     const discard = windowSrc.slice(windowSrc.indexOf("function discard()"), windowSrc.indexOf("function keepEditing()"));
     expect(discard).toContain("if (leaveHref) {");
     expect(discard).toContain("router.push(leaveHref)");
+    expect(discard).toContain("edit.discard();");
     expect(discard.indexOf("edit.discard();")).toBeLessThan(discard.indexOf("router.push(leaveHref)"));
+    // The camera remembers Edit's index, never a face.
+    expect(discard).toContain(
+      "rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));",
+    );
     // Never while the server has the save; Keep editing returns focus to Live.
     const ask = windowSrc.slice(windowSrc.indexOf("function askLeave("), windowSrc.indexOf("function onEscape()"));
-    expect(ask).toContain("if (busy) return;");
-    expect(ask).toContain("returnFocusRef.current = document.activeElement");
+    expect(ask).toContain("if (holdOpen) return;");
+    expect(ask).toContain("rememberFocus();");
+  });
+
+  it("waits for an upload, keeps focus inside, and chooses it after the ask closes (review fixes)", () => {
+    // A picture or video still uploading: X, Esc, the scrim, Back and Done wait.
+    expect(windowSrc).toContain("const holdOpen = busy || edit.uploading;");
+    // Only an element inside the window is remembered (a scrim click is not).
+    const remember = windowSrc.slice(windowSrc.indexOf("function rememberFocus()"), windowSrc.indexOf("function restoreFocus("));
+    expect(remember).toContain("frameRef.current?.contains(active) ? active : null;");
+    // The target is chosen after React commits (the ask's inert is gone then).
+    const restore = windowSrc.slice(windowSrc.indexOf("function restoreFocus("), windowSrc.indexOf("const holdOpen"));
+    expect(restore.indexOf("window.requestAnimationFrame(() => {")).toBeGreaterThan(-1);
+    expect(restore.indexOf("window.requestAnimationFrame(() => {")).toBeLessThan(restore.indexOf('saved.closest("[inert]")'));
+  });
+
+  it("opens Topics through Edit's own entry, not the shell's", () => {
+    // The shell's click owner skips a house link, so the link's handler runs
+    // and writes an entry Next can see.
+    const topics = entrySrc.slice(entrySrc.indexOf("export function SocialProfileEditTopicsLink"));
+    expect(topics).toContain('data-house-link=""');
+    expect(topics).toContain('pushEditEntry("topics");');
+    // A shell entry is not taken for one Edit pushed.
+    const check = entrySrc.slice(entrySrc.indexOf("function isEditEntry()"), entrySrc.indexOf("export function pushEditEntry"));
+    expect(check).toContain("return state?.socialProfileEdit === true;");
+    expect(check).not.toContain("houseClient");
   });
 });

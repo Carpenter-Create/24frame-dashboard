@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
 
@@ -86,6 +86,7 @@ import { useAppQueryClient } from "@/components/query-provider";
 import {
   applySocialProfileOptimistic,
   checkSocialProfileEditSave,
+  clearSocialProfileEditWelcomeReturn,
   dropSocialProfileOptimisticDraft,
   patchSocialProfileOptimistic,
   persistSocialProfileEdit,
@@ -94,7 +95,10 @@ import {
   socialProfileEditDiscardLine,
   socialProfileEditFaceForError,
   socialProfileEditHandleChanged,
+  socialProfileEditIndexHref,
+  socialProfileEditLiveClick,
   socialProfileEditSeed,
+  peekSocialProfileEditWelcomeReturn,
   socialProfileHandleRowSummary,
   socialProfileNameRowSummary,
   socialProfileOptimisticFail,
@@ -209,7 +213,13 @@ export function useSocialProfileEditDraft({
   const [cropPreview, setCropPreview] = useState<string | null>(null);
   const [cropSize, setCropSize] = useState<{ width: number; height: number } | null>(null);
   const [avatarSheet, setAvatarSheet] = useState(false);
-  const [face, setFace] = useState<SocialProfileEditFace>(initialFace);
+  // Back from the welcome camera, Edit opens on its index (the welcome card).
+  const [face, setFace] = useState<SocialProfileEditFace>(() =>
+    peekSocialProfileEditWelcomeReturn() ? "edit" : initialFace,
+  );
+  useEffect(() => {
+    clearSocialProfileEditWelcomeReturn();
+  }, []);
   // push: a face slides in from the right; pop: the index returns from the left.
   const [motion, setMotion] = useState<"push" | "pop" | null>(null);
   const [cameFrom, setCameFrom] = useState<SocialProfileEditFace | null>(null);
@@ -318,7 +328,12 @@ export function useSocialProfileEditDraft({
     setPreviewPhoto(null);
     patchSocialProfileOptimistic({ photoUrl: null });
     setUploading(true);
-    const result = await removeAccountPhoto();
+    let result: { error?: string };
+    try {
+      result = await removeAccountPhoto();
+    } catch {
+      result = { error: ACCOUNT_PROFILE.saveFailed };
+    }
     setUploading(false);
     if (result.error) {
       setPreviewPhoto(previous);
@@ -338,50 +353,49 @@ export function useSocialProfileEditDraft({
     setWelcomePreview(previewUrl);
     patchSocialProfileOptimistic({ welcomeVideoUrl: previewUrl });
     setUploading(true);
-    const body = new FormData();
-    body.set("content_type", file.type);
-    body.set("byte_length", String(file.size));
-    body.set("lane", "posts");
-    const signed = await presignSocialMediaUpload(body);
-    if (signed.error || !signed.url || !signed.key || !signed.kind || !signed.contentType) {
+    // Any failure (refused, or a step that throws) puts the old video back.
+    const rollback = (message: string) => {
+      setWelcomePreview(previous);
+      patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
+      URL.revokeObjectURL(previewUrl);
+      setError(message);
+    };
+    try {
+      const body = new FormData();
+      body.set("content_type", file.type);
+      body.set("byte_length", String(file.size));
+      body.set("lane", "posts");
+      const signed = await presignSocialMediaUpload(body);
+      if (signed.error || !signed.url || !signed.key || !signed.kind || !signed.contentType) {
+        rollback(signed.error ?? SOCIAL.home.uploadFailed);
+        return;
+      }
+      const put = await fetch(signed.url, {
+        method: "PUT",
+        headers: { "Content-Type": signed.contentType },
+        body: file,
+      });
+      if (!put.ok) {
+        rollback(SOCIAL.home.uploadFailed);
+        return;
+      }
+      const save = new FormData();
+      save.set(
+        "media",
+        JSON.stringify([{ kind: signed.kind, key: signed.key, contentType: signed.contentType }]),
+      );
+      const result = await saveSocialWelcomeVideo(save);
+      if (result.error) {
+        rollback(result.error);
+        return;
+      }
+      setVideoSaved(true);
+    } catch {
+      rollback(SOCIAL.home.uploadFailed);
+    } finally {
       setUploading(false);
-      setWelcomePreview(previous);
-      patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
-      URL.revokeObjectURL(previewUrl);
       reset?.();
-      setError(signed.error ?? SOCIAL.home.uploadFailed);
-      return;
     }
-    const put = await fetch(signed.url, {
-      method: "PUT",
-      headers: { "Content-Type": signed.contentType },
-      body: file,
-    });
-    if (!put.ok) {
-      setUploading(false);
-      setWelcomePreview(previous);
-      patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
-      URL.revokeObjectURL(previewUrl);
-      reset?.();
-      setError(SOCIAL.home.uploadFailed);
-      return;
-    }
-    const save = new FormData();
-    save.set(
-      "media",
-      JSON.stringify([{ kind: signed.kind, key: signed.key, contentType: signed.contentType }]),
-    );
-    const result = await saveSocialWelcomeVideo(save);
-    setUploading(false);
-    reset?.();
-    if (result.error) {
-      setWelcomePreview(previous);
-      patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
-      URL.revokeObjectURL(previewUrl);
-      setError(result.error);
-      return;
-    }
-    setVideoSaved(true);
   }
 
   async function onWelcomeRemove() {
@@ -391,7 +405,12 @@ export function useSocialProfileEditDraft({
     setWelcomePreview(null);
     patchSocialProfileOptimistic({ welcomeVideoUrl: null });
     setUploading(true);
-    const result = await clearSocialWelcomeVideo();
+    let result: { error?: string };
+    try {
+      result = await clearSocialWelcomeVideo();
+    } catch {
+      result = { error: ACCOUNT_PROFILE.saveFailed };
+    }
     setUploading(false);
     if (result.error) {
       setWelcomePreview(previous);
@@ -599,6 +618,7 @@ export function SocialProfileEditIndexBody({
   onLeave?: (href: string) => void;
 }) {
   const welcomeRef = useRef<HTMLInputElement>(null);
+  const welcomeLabelId = useId();
   const name = composeSocialDisplayName(edit.firstName, edit.lastName, edit.middleName);
   return (
     <>
@@ -661,7 +681,9 @@ export function SocialProfileEditIndexBody({
       </div>
       <div data-social-profile-edit-welcome="" className={SOCIAL_PROFILE_EDIT_CARD_CLASS}>
         <div className={`${SOCIAL_PROFILE_EDIT_ROW_CLASS} flex-col gap-2`}>
-          <p className={SOCIAL_PROFILE_EDIT_LABEL_CLASS}>{SOCIAL.profile.welcomeVideo}</p>
+          <p id={welcomeLabelId} className={SOCIAL_PROFILE_EDIT_LABEL_CLASS}>
+            {SOCIAL.profile.welcomeVideo}
+          </p>
           {edit.welcomePreview && isLocalMediaPreviewSrc(edit.welcomePreview) ? (
             <video
               src={edit.welcomePreview}
@@ -676,7 +698,12 @@ export function SocialProfileEditIndexBody({
           {/* The + fan's Media and Live (Adam 2026-10-09): upload a video or
               record one with the 24Frame camera. Round grey 44s, as in the
               composer's tool row. */}
-          <div data-social-profile-edit-welcome-actions="" className={SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS}>
+          <div
+            data-social-profile-edit-welcome-actions=""
+            role="group"
+            aria-labelledby={welcomeLabelId}
+            className={SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS}
+          >
             <button
               type="button"
               disabled={edit.uploading}
@@ -698,17 +725,22 @@ export function SocialProfileEditIndexBody({
               aria-disabled={edit.uploading || undefined}
               className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
               onClick={(event) => {
-                if (edit.uploading) {
+                const next = socialProfileEditLiveClick({
+                  uploading: edit.uploading,
+                  dirty: edit.dirty,
+                  canAsk: Boolean(onLeave),
+                });
+                if (next === "block") {
                   event.preventDefault();
                   return;
                 }
                 // Leaving Edit with changes asks first (Keep editing · Discard).
-                if (edit.dirty && onLeave) {
+                if (next === "ask") {
                   event.preventDefault();
-                  onLeave(socialGoLiveWelcomeHref());
+                  onLeave?.(socialGoLiveWelcomeHref());
                   return;
                 }
-                rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+                rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));
               }}
             >
               <SocialIcon
@@ -733,6 +765,8 @@ export function SocialProfileEditIndexBody({
             type="file"
             accept={SOCIAL_VIDEO_CONTENT_TYPES.join(",")}
             className="sr-only"
+            // The Media round is the keyboard path; the input is not a Tab stop.
+            tabIndex={-1}
             aria-label={edit.welcomePreview ? SOCIAL.profile.welcomeReplace : SOCIAL.profile.welcomeAdd}
             onChange={(e) =>
               void edit.onWelcomePick(e.target.files?.[0], () => {
@@ -958,9 +992,13 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   // Set when the ask is for leaving Edit to another screen (the camera).
   const [leaveHref, setLeaveHref] = useState<string | null>(null);
   const askTitleId = "social-profile-edit-discard-title";
+  // Where focus goes back to when Keep editing closes the ask (Live).
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   useSocialProfileEditLeaveGuard(edit.dirty);
 
   function onDone() {
+    // A picture or video still uploading saves on its own: wait for it.
+    if (edit.uploading) return;
     edit.save({
       leave: () => router.push(SOCIAL_ROUTES.profile),
       onPersistFailed: () => router.replace(SOCIAL_ROUTES.profileEdit),
@@ -971,7 +1009,7 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
     edit.discard();
     setAsking(false);
     if (leaveHref) {
-      rememberSocialGoLiveOpener(`${window.location.pathname}${window.location.search}`);
+      rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));
       router.push(leaveHref);
       return;
     }
@@ -981,6 +1019,11 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   function keepEditing() {
     setAsking(false);
     setLeaveHref(null);
+    const target = returnFocusRef.current;
+    returnFocusRef.current = null;
+    window.requestAnimationFrame(() => {
+      if (target?.isConnected) target.focus();
+    });
   }
 
   useEffect(() => {
@@ -995,7 +1038,13 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   if (edit.face !== "edit") {
     return (
       <SocialProfileEditFaceHostProvider
-        value={{ kind: "sheet", error: edit.error, pending: edit.pending || edit.cropOpen, onDone }}
+        value={{
+          kind: "sheet",
+          error: edit.error,
+          pending: edit.pending || edit.cropOpen,
+          doneWaits: edit.uploading,
+          onDone,
+        }}
       >
         <SocialProfileEditFaceSwitch edit={edit} />
       </SocialProfileEditFaceHostProvider>
@@ -1012,8 +1061,9 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
               className={SOCIAL_PROFILE_EDIT_BACK_CLASS}
               aria-label={SOCIAL.profile.back}
               onClick={(event) => {
-                // A changed username is with the server: stay until it answers.
-                if (edit.pending) {
+                // A changed username is with the server, or a picture or
+                // video is uploading: stay until it answers.
+                if (edit.pending || edit.uploading) {
                   event.preventDefault();
                   return;
                 }
@@ -1030,8 +1080,8 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
             <button
               type="button"
               data-social-profile-edit-done=""
-              disabled={edit.pending || edit.cropOpen}
-              aria-busy={edit.pending}
+              disabled={edit.pending || edit.cropOpen || edit.uploading}
+              aria-busy={edit.pending || edit.uploading}
               onClick={onDone}
               className={SOCIAL_PROFILE_EDIT_DONE_CLASS}
             >
@@ -1042,6 +1092,7 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
             <SocialProfileEditIndexBody
               edit={edit}
               onLeave={(href) => {
+                returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
                 setLeaveHref(href);
                 setAsking(true);
               }}
