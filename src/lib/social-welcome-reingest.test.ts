@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { socialVideoKeyDigest } from "@/lib/social-music-scan";
 import {
   reingestSocialS3Videos,
+  socialReingestKeyForDigest,
+  socialReingestMediaWithMux,
   socialReingestVideoKey,
   type SocialReingestCandidate,
   type SocialReingestDeps,
+  type SocialReingestSettled,
 } from "@/lib/social-welcome-reingest";
 
 function candidate(overrides: Partial<SocialReingestCandidate> = {}): SocialReingestCandidate {
@@ -146,5 +150,46 @@ describe("reingestSocialS3Videos", () => {
     expect(created).toBe(1);
     expect(socialReingestVideoKey({ contentType: "video/mp4", key: "posts/a/clip.mp4" })).toBe("posts/a/clip.mp4");
     expect(socialReingestVideoKey({ kind: "image", contentType: "image/jpeg", key: "posts/a/still.jpg" })).toBeNull();
+  });
+
+  it("saves every video on one parent together and continues after a parent failure", async () => {
+    let n = 0;
+    const saved: SocialReingestSettled[][] = [];
+    const harness = deps({
+      createAsset: async () => {
+        n += 1;
+        return { assetId: `assetRE000000${n}` };
+      },
+      loadAsset: async (assetId) => ({ playbackId: `playRE000000${assetId.slice(-1)}`, duration: 8, status: "ready" }),
+      saveParent: async (_parent, settled) => {
+        saved.push([...settled]);
+        if (saved.length === 1) throw new Error("half");
+      },
+    });
+    const report = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [
+        candidate({ key: "posts/author-1/one.mp4" }),
+        candidate({ key: "posts/author-1/two.mp4" }),
+        candidate({ parentId: "post-2", key: "posts/author-1/three.mp4" }),
+      ],
+      deps: harness,
+    });
+    expect(saved[0]).toHaveLength(2);
+    expect(saved[0]?.map((row) => row.candidate.key)).toEqual(["posts/author-1/one.mp4", "posts/author-1/two.mp4"]);
+    expect(saved[1]).toHaveLength(1);
+    expect(report.unfinished).toBe(1);
+    expect(report.bound).toBe(1);
+    const media = [
+      { kind: "video", key: "posts/author-1/one.mp4" },
+      { kind: "video", key: "posts/author-1/two.mp4" },
+    ];
+    const second = socialVideoKeyDigest("posts/author-1/two.mp4");
+    expect(socialReingestKeyForDigest(media, second)).toBe("posts/author-1/two.mp4");
+    expect(socialReingestKeyForDigest(media, socialVideoKeyDigest("posts/author-1/one.mp4"))).not.toBe(
+      "posts/author-1/two.mp4",
+    );
+    const both = socialReingestMediaWithMux(media, saved[0] ?? []);
+    expect(both.every((entry) => (entry as { provider?: string }).provider === "mux")).toBe(true);
   });
 });

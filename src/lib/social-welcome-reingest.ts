@@ -1,3 +1,4 @@
+import { socialVideoKeyDigest } from "@/lib/social-music-scan";
 import { socialVideoDurationExceedsCap } from "@/lib/social-mux";
 
 // Founder-run re-ingest of S3 video onto Mux. Dry-run is the default.
@@ -23,6 +24,13 @@ export type SocialReingestAsset = {
   status: string;
 };
 
+export type SocialReingestSettled = {
+  candidate: SocialReingestCandidate;
+  assetId: string;
+  playbackId: string;
+  uploadId: string;
+};
+
 export type SocialReingestDeps = {
   head: (key: string) => Promise<boolean>;
   presign: (key: string) => Promise<string>;
@@ -30,15 +38,17 @@ export type SocialReingestDeps = {
   loadAsset: (assetId: string) => Promise<SocialReingestAsset>;
   deleteAsset: (assetId: string) => Promise<void>;
   bind: (input: { authorId: string; uploadId: string; assetId: string; playbackId: string }) => Promise<void>;
+  /** One write for every S3 video on the parent. A half-updated post trips the Mux trigger. */
   saveParent: (
-    candidate: SocialReingestCandidate,
-    ids: { assetId: string; playbackId: string; uploadId: string },
+    parent: { surface: SocialReingestSurface; parentId: string; authorId: string },
+    settled: readonly SocialReingestSettled[],
   ) => Promise<void>;
   /** The S3 placeholder must not stay Unfinished after the Mux parent is bound. */
   retirePlaceholder: (candidate: SocialReingestCandidate) => Promise<void>;
   saveInProgress: (candidate: SocialReingestCandidate, assetId: string) => Promise<void>;
   markUnfinished: (candidate: SocialReingestCandidate, error: string) => Promise<void>;
   alreadyUnfinished: (candidate: SocialReingestCandidate) => Promise<boolean>;
+  log?: (message: string) => void;
 };
 
 export type SocialReingestReport = {
@@ -54,38 +64,108 @@ function empty(dryRun: boolean): SocialReingestReport {
   return { dryRun, candidates: 0, skippedExpired: 0, bound: 0, unfinished: 0, preparing: 0 };
 }
 
-/** Count first. Writes only when execute is true. */
+function parentKey(candidate: SocialReingestCandidate): string {
+  return `${candidate.surface}:${candidate.parentId}`;
+}
+
+/** Count first. Writes only when execute is true. One parent failure does not stop the next. */
 export async function reingestSocialS3Videos(input: {
   execute: boolean;
   candidates: readonly SocialReingestCandidate[];
   deps: SocialReingestDeps;
 }): Promise<SocialReingestReport> {
   const report = empty(!input.execute);
+  const groups: SocialReingestCandidate[][] = [];
+  const index = new Map<string, number>();
   for (const candidate of input.candidates) {
+    const key = parentKey(candidate);
+    const found = index.get(key);
+    if (found === undefined) {
+      index.set(key, groups.length);
+      groups.push([candidate]);
+    } else {
+      groups[found]?.push(candidate);
+    }
+  }
+  for (const group of groups) {
+    try {
+      await reingestParent(group, input.execute, input.deps, report);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "reingest_failed";
+      const parent = group[0];
+      (input.deps.log ?? console.error)(
+        `social s3 reingest parent ${parent?.surface ?? "unknown"} ${parent?.parentId ?? ""} failed: ${message}`,
+      );
+      if (parent) {
+        try {
+          await input.deps.markUnfinished(parent, "reingest_failed");
+        } catch (markError) {
+          const markMessage = markError instanceof Error ? markError.message : "unfinished_failed";
+          (input.deps.log ?? console.error)(`social s3 reingest unfinished mark failed: ${markMessage}`);
+        }
+      }
+      report.unfinished += 1;
+    }
+  }
+  return report;
+}
+
+async function reingestParent(
+  group: readonly SocialReingestCandidate[],
+  execute: boolean,
+  deps: SocialReingestDeps,
+  report: SocialReingestReport,
+): Promise<void> {
+  const actionable: SocialReingestCandidate[] = [];
+  for (const candidate of group) {
     if (candidate.surface === "story" && candidate.expired) {
       report.skippedExpired += 1;
       continue;
     }
     if (candidate.playbackId) continue;
     report.candidates += 1;
-    if (!input.execute) continue;
-    if (await input.deps.alreadyUnfinished(candidate)) continue;
-    if (candidate.assetId) {
-      await settleAsset(candidate, candidate.assetId, input.deps, report);
-      continue;
-    }
-    const present = await input.deps.head(candidate.key).catch(() => false);
-    if (!present) {
-      await input.deps.markUnfinished(candidate, "s3_source_missing");
-      report.unfinished += 1;
-      continue;
-    }
-    const url = await input.deps.presign(candidate.key);
-    const created = await input.deps.createAsset(url);
-    await input.deps.saveInProgress(candidate, created.assetId);
-    await settleAsset(candidate, created.assetId, input.deps, report);
+    actionable.push(candidate);
   }
-  return report;
+  if (!execute || actionable.length === 0) return;
+  if (await deps.alreadyUnfinished(actionable[0]!)) return;
+
+  const settled: SocialReingestSettled[] = [];
+  let preparing = false;
+  for (const candidate of actionable) {
+    const outcome = await prepareCandidate(candidate, deps, report);
+    if (outcome === "preparing") {
+      preparing = true;
+      continue;
+    }
+    if (outcome === "unfinished") return;
+    settled.push(outcome);
+  }
+  if (preparing || settled.length !== actionable.length) return;
+  const parent = actionable[0]!;
+  await deps.saveParent(
+    { surface: parent.surface, parentId: parent.parentId, authorId: parent.authorId },
+    settled,
+  );
+  await deps.retirePlaceholder(parent);
+  report.bound += settled.length;
+}
+
+async function prepareCandidate(
+  candidate: SocialReingestCandidate,
+  deps: SocialReingestDeps,
+  report: SocialReingestReport,
+): Promise<SocialReingestSettled | "preparing" | "unfinished"> {
+  if (candidate.assetId) return settleAsset(candidate, candidate.assetId, deps, report);
+  const present = await deps.head(candidate.key).catch(() => false);
+  if (!present) {
+    await deps.markUnfinished(candidate, "s3_source_missing");
+    report.unfinished += 1;
+    return "unfinished";
+  }
+  const url = await deps.presign(candidate.key);
+  const created = await deps.createAsset(url);
+  await deps.saveInProgress(candidate, created.assetId);
+  return settleAsset(candidate, created.assetId, deps, report);
 }
 
 async function settleAsset(
@@ -93,22 +173,22 @@ async function settleAsset(
   assetId: string,
   deps: SocialReingestDeps,
   report: SocialReingestReport,
-): Promise<void> {
+): Promise<SocialReingestSettled | "preparing" | "unfinished"> {
   const asset = await deps.loadAsset(assetId);
   const playbackId = asset.playbackId;
   if (!playbackId || asset.status !== "ready") {
     report.preparing += 1;
-    return;
+    return "preparing";
   }
   if (socialVideoDurationExceedsCap(asset.duration)) {
     await deps.deleteAsset(assetId);
     await deps.markUnfinished(candidate, "welcome_too_long");
     report.unfinished += 1;
-    return;
+    return "unfinished";
   }
   if (typeof asset.duration !== "number" || !Number.isFinite(asset.duration) || asset.duration <= 0) {
     report.preparing += 1;
-    return;
+    return "preparing";
   }
   await deps.bind({
     authorId: candidate.authorId,
@@ -116,9 +196,37 @@ async function settleAsset(
     assetId,
     playbackId,
   });
-  await deps.saveParent(candidate, { assetId, playbackId, uploadId: assetId });
-  await deps.retirePlaceholder(candidate);
-  report.bound += 1;
+  return { candidate, assetId, playbackId, uploadId: assetId };
+}
+
+/** The scan row's own key. The first video on the post is not reused for the next row. */
+export function socialReingestKeyForDigest(media: readonly unknown[], digest: string): string | null {
+  for (const entry of media) {
+    const key = socialReingestVideoKey(entry);
+    if (key && socialVideoKeyDigest(key) === digest) return key;
+  }
+  return null;
+}
+
+/** Every settled S3 video becomes Mux in the same array, so one update is complete. */
+export function socialReingestMediaWithMux(
+  media: readonly unknown[],
+  settled: readonly SocialReingestSettled[],
+): unknown[] {
+  const byKey = new Map(settled.map((row) => [row.candidate.key, row]));
+  return media.map((entry) => {
+    const key = socialReingestVideoKey(entry);
+    const ids = key ? byKey.get(key) : undefined;
+    if (!ids || !entry || typeof entry !== "object") return entry;
+    return {
+      ...(entry as Record<string, unknown>),
+      kind: "video",
+      provider: "mux",
+      assetId: ids.assetId,
+      playbackId: ids.playbackId,
+      uploadId: ids.uploadId,
+    };
+  });
 }
 
 export type SqlQueryable = {

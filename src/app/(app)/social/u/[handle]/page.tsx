@@ -237,7 +237,7 @@ export default async function SocialPublicProfilePage({
             ) : undefined
           }
         />
-        {welcomeSet ? <SocialWelcomeVideo present /> : null}
+        {welcomeSet ? <SocialWelcomeVideo present notice={isSelf ? music.welcome : null} /> : null}
         <SocialProfileTabPanels
           baseHref={profileHref}
           seedTab={tab}

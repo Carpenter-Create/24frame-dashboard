@@ -191,6 +191,7 @@ async function SocialProfileMain({
         websiteUrl={identity.websiteUrl}
         imdbUrl={identity.imdbUrl}
         welcomeVideoUrl={identity.welcomeVideoUrl}
+        welcomeNotice={music.welcome}
         ring={liveStories.length > 0 ? "live" : null}
         profileId={profile.id}
         stats={counts ?? undefined}

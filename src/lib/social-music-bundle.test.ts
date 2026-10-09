@@ -34,6 +34,9 @@ beforeAll(async () => {
 describe("social music Lambda bundle", () => {
   it("is built with the Dockerfile's esbuild command", () => {
     expect(DOCKERFILE.replace(/\s*\\\r?\n\s*/g, " ")).toContain(ESBUILD_COMMAND);
+    expect(DOCKERFILE).toContain(
+      "mwader/static-ffmpeg:7.1.1@sha256:11a44711684c0b9f754c047dcd64235b8b52deab251bd0e0a86f22faa160749c",
+    );
   });
 
   it("needs only files the image copies in", () => {

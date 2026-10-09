@@ -14,7 +14,7 @@ import {
   avatarObjectKey,
   isAvatarContentType,
 } from "@/lib/account-avatar";
-import { socialImageBytesMatchContentType } from "@/lib/social-media";
+import { reencodeSocialImage } from "@/lib/social-image-reencode";
 import { socialAvatarFaces } from "@/lib/social-edge";
 import { privateMaxAgeCacheControl, stablePresignOptions } from "@/lib/signing-window";
 
@@ -48,7 +48,31 @@ export async function putAvatarObject(
   body: Uint8Array,
   contentType: string,
 ): Promise<void> {
-  if (!isAvatarContentType(contentType) || !socialImageBytesMatchContentType(body, contentType)) {
+  if (!isAvatarContentType(contentType)) {
+    throw new Error("Unsupported avatar content type");
+  }
+  const { bucket, s3 } = avatarsClient();
+  const encoded = await reencodeSocialImage(body, contentType);
+  if (!encoded) throw new Error("Unsupported avatar content type");
+  const key = avatarObjectKey(userId);
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: encoded,
+      ContentType: contentType,
+      CacheControl: "private, max-age=300",
+    }),
+  );
+}
+
+/** Bytes already re-encoded. Recheck writes these. Upload still goes through putAvatarObject. */
+export async function replaceAvatarObject(
+  userId: string,
+  body: Uint8Array,
+  contentType: string,
+): Promise<void> {
+  if (!isAvatarContentType(contentType) || body.byteLength === 0) {
     throw new Error("Unsupported avatar content type");
   }
   const key = avatarObjectKey(userId);
@@ -62,6 +86,19 @@ export async function putAvatarObject(
       CacheControl: "private, max-age=300",
     }),
   );
+}
+
+export async function readAvatarObject(
+  userId: string,
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  const key = avatarObjectKey(userId);
+  const { bucket, s3 } = avatarsClient();
+  const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const bytes = await response.Body?.transformToByteArray();
+  if (!bytes || bytes.byteLength === 0) return null;
+  const contentType = response.ContentType?.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!isAvatarContentType(contentType)) return null;
+  return { bytes, contentType };
 }
 
 export async function deleteAvatarObject(userId: string): Promise<void> {

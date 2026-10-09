@@ -10,9 +10,11 @@
  * match ON CONFLICT (profile_id, playback_id). Every Supabase error is thrown.
  */
 import { createSocialMuxAssetFromUrl, deleteSocialMuxAsset, recordSocialMuxBinding, retrieveSocialMuxAsset, signedPlaybackIdFromAsset } from "@/lib/social-mux-server";
+import { socialVideoKeyDigest } from "@/lib/social-music-scan";
 import {
   reingestSocialS3Videos,
-  socialReingestVideoKey,
+  socialReingestKeyForDigest,
+  socialReingestMediaWithMux,
   type SocialReingestCandidate,
   type SocialReingestSurface,
 } from "@/lib/social-welcome-reingest";
@@ -54,7 +56,8 @@ async function loadCandidates(): Promise<SocialReingestCandidate[]> {
         : await admin.from("posts").select("media").eq("id", parentId).maybeSingle();
     assertOk(parent.error, "parent read");
     const media = Array.isArray(parent.data?.media) ? parent.data.media : [];
-    const key = media.map(socialReingestVideoKey).find((value): value is string => Boolean(value));
+    const digest = scan.asset_id || scan.playback_id;
+    const key = typeof digest === "string" ? socialReingestKeyForDigest(media, digest) : null;
     if (!key) continue;
     const expiresAt = parent.data && "expires_at" in parent.data ? parent.data.expires_at : null;
     const expired = surface === "story" && typeof expiresAt === "string" && Date.parse(expiresAt) <= Date.now();
@@ -167,15 +170,20 @@ async function main(): Promise<void> {
           return;
         }
         const column = candidate.surface === "post" ? "post_id" : "story_id";
+        const digest = socialVideoKeyDigest(candidate.key);
         const updated = await admin
           .from("social_music_scans")
           .update({ upload_id: assetId })
           .eq(column, candidate.parentId)
-          .eq("last_error", "s3_video_needs_mux");
+          .eq("last_error", "s3_video_needs_mux")
+          .eq("playback_id", digest)
+          .eq("asset_id", digest);
         assertOk(updated.error, "s3 progress update");
       },
-      saveParent: async (candidate, ids) => {
-        if (candidate.surface === "welcome") {
+      saveParent: async (parent, settled) => {
+        if (parent.surface === "welcome") {
+          const ids = settled[0];
+          if (!ids) return;
           const updated = await admin
             .from("profiles")
             .update({
@@ -184,27 +192,16 @@ async function main(): Promise<void> {
               welcome_mux_upload_id: ids.uploadId,
               welcome_video_key: null,
             })
-            .eq("id", candidate.parentId);
+            .eq("id", parent.parentId);
           assertOk(updated.error, "welcome parent update");
           return;
         }
-        const table = candidate.surface === "post" ? "posts" : "stories";
-        const loaded = await admin.from(table).select("media").eq("id", candidate.parentId).maybeSingle();
+        const table = parent.surface === "post" ? "posts" : "stories";
+        const loaded = await admin.from(table).select("media").eq("id", parent.parentId).maybeSingle();
         assertOk(loaded.error, "parent media read");
         const media = Array.isArray(loaded.data?.media) ? loaded.data.media : [];
-        const next = media.map((entry) => {
-          if (socialReingestVideoKey(entry) !== candidate.key) return entry;
-          if (!entry || typeof entry !== "object") return entry;
-          return {
-            ...(entry as Record<string, unknown>),
-            kind: "video",
-            provider: "mux",
-            assetId: ids.assetId,
-            playbackId: ids.playbackId,
-            uploadId: ids.uploadId,
-          };
-        });
-        const updated = await admin.from(table).update({ media: next }).eq("id", candidate.parentId);
+        const next = socialReingestMediaWithMux(media, settled);
+        const updated = await admin.from(table).update({ media: JSON.parse(JSON.stringify(next)) }).eq("id", parent.parentId);
         assertOk(updated.error, "parent media update");
       },
       retirePlaceholder: (candidate) => retirePlaceholder(admin, candidate.surface, candidate.parentId),
@@ -254,7 +251,7 @@ async function main(): Promise<void> {
           .select("id")
           .eq(column, candidate.parentId)
           .is("next_attempt_at", null)
-          .in("last_error", ["s3_source_missing", "welcome_too_long", "welcome_source_missing"])
+          .in("last_error", ["s3_source_missing", "welcome_too_long", "welcome_source_missing", "reingest_failed"])
           .limit(1);
         assertOk(error, "unfinished read");
         return Boolean(data && data.length > 0);

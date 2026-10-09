@@ -47,6 +47,8 @@ vi.mock("@/lib/s3-social-media", () => ({
   presignSocialMediaPut: vi.fn(),
   headSocialMediaObject: vi.fn(async () => ({ bytes: 1200, contentType: null, etag: '"e1"' })),
   copySocialMediaObject: vi.fn(async () => undefined),
+  readSocialMediaObjectIfMatch: vi.fn(async () => new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
+  putPublishedSocialImage: vi.fn(async () => undefined),
   readSocialMediaPrefix: vi.fn(async (key: string) =>
     key.endsWith(".png")
       ? new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -56,6 +58,10 @@ vi.mock("@/lib/s3-social-media", () => ({
           ? new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])
           : new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
   ),
+}));
+
+vi.mock("@/lib/social-image-reencode", () => ({
+  reencodeSocialImage: vi.fn(async () => new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
 }));
 
 vi.mock("@/lib/social-mux-server", () => ({
@@ -68,7 +74,7 @@ vi.mock("@/lib/social-mux-server", () => ({
   })),
 }));
 
-import { copySocialMediaObject, headSocialMediaObject, presignSocialMediaPut } from "@/lib/s3-social-media";
+import { copySocialMediaObject, headSocialMediaObject, presignSocialMediaPut, putPublishedSocialImage } from "@/lib/s3-social-media";
 import { isOwnedSocialMediaKey } from "@/lib/social-media";
 import {
   createSocialMuxDirectUpload,
@@ -92,7 +98,7 @@ function user() {
 
 // Publish draws a random id, so read back the key the server copied to.
 function publishedCopyKey(call = 0): string {
-  return vi.mocked(copySocialMediaObject).mock.calls[call]?.[0].destinationKey ?? "";
+  return vi.mocked(putPublishedSocialImage).mock.calls[call]?.[0].key ?? "";
 }
 
 function stub({
@@ -547,12 +553,12 @@ describe("social actions", () => {
     const published = publishedCopyKey();
     expect(isOwnedSocialMediaKey(published, author, "posts")).toBe(true);
     expect(headSocialMediaObject).toHaveBeenCalledWith(upload, expect.any(Function));
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: published,
+      body: expect.any(Uint8Array),
       contentType: "image/jpeg",
     });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     // A cover with no original (an older client, or an original too large to keep)
     // clears any stored original and framing so the pair never goes stale.
     expect(updates).toEqual([
@@ -573,7 +579,7 @@ describe("social actions", () => {
     expect(await saveSocialProfileCover(stored)).toEqual({ error: SOCIAL.stories.mediaType });
     vi.mocked(headSocialMediaObject).mockResolvedValueOnce(null);
     expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.home.mediaMissing });
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(1);
     expect(updates).toHaveLength(1);
   });
 
@@ -593,10 +599,11 @@ describe("social actions", () => {
     expect(await saveSocialProfileCover(form)).toEqual({});
     expect(headSocialMediaObject).toHaveBeenCalledWith(croppedUpload, expect.any(Function));
     expect(headSocialMediaObject).toHaveBeenCalledWith(sourceUpload, expect.any(Function));
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(2);
-    const copies = vi.mocked(copySocialMediaObject).mock.calls.map(([input]) => input);
-    const coverCopy = copies.find((copy) => copy.sourceKey === croppedUpload)!.destinationKey;
-    const sourceCopy = copies.find((copy) => copy.sourceKey === sourceUpload)!.destinationKey;
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(2);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    const puts = vi.mocked(putPublishedSocialImage).mock.calls.map(([input]) => input);
+    const coverCopy = puts.find((put) => put.contentType === "image/jpeg")!.key;
+    const sourceCopy = puts.find((put) => put.contentType === "image/png")!.key;
     expect(isOwnedSocialMediaKey(coverCopy, author, "posts")).toBe(true);
     expect(isOwnedSocialMediaKey(sourceCopy, author, "posts")).toBe(true);
     expect(sourceCopy).toMatch(/\.png$/);
@@ -699,7 +706,8 @@ describe("social actions", () => {
     form.set("cover_source_key", `posts/${other}/66666666-6666-4666-8666-666666666666.jpg`);
     expect(await saveSocialProfileCover(form)).toEqual({});
     expect(selects).toContain("cover_key, cover_source_key");
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(1);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     const published = publishedCopyKey();
     expect(updates).toEqual([{ cover_key: published, cover_crop: crop }]);
     // The update lands only on the cover the editor opened and its original.
@@ -713,7 +721,7 @@ describe("social actions", () => {
 
     // No stored original (a cover saved before originals were kept): refuse
     // before publishing anything.
-    vi.mocked(copySocialMediaObject).mockClear();
+    vi.mocked(putPublishedSocialImage).mockClear();
     updates.length = 0;
     storedRow = {
       id: author,
@@ -733,7 +741,7 @@ describe("social actions", () => {
       cover_source_key: `posts/${other}/55555555-5555-4555-8555-555555555555.jpg`,
     };
     expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.profile.coverCropFailed });
-    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(putPublishedSocialImage).not.toHaveBeenCalled();
     expect(updates).toEqual([]);
   });
 
@@ -1436,13 +1444,13 @@ describe("social actions", () => {
     expect(isOwnedSocialMediaKey(published, author, "posts")).toBe(true);
     expect(headSocialMediaObject).toHaveBeenCalledTimes(1);
     expect(headSocialMediaObject).toHaveBeenCalledWith(upload, expect.any(Function));
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(1);
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: published,
+      body: expect.any(Uint8Array),
       contentType: "image/jpeg",
     });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     expect(inserts).toEqual([
       {
         table: "posts",
@@ -1511,7 +1519,7 @@ describe("social actions", () => {
       "media",
       JSON.stringify([{ kind: "image", key: `posts/upload/${author}/${object}.jpg`, contentType: "image/jpeg" }]),
     );
-    vi.mocked(copySocialMediaObject).mockRejectedValueOnce(
+    vi.mocked(putPublishedSocialImage).mockRejectedValueOnce(
       Object.assign(new Error("Access Denied"), { name: "AccessDenied", $metadata: { httpStatusCode: 403 } }),
     );
     vi.mocked(headSocialMediaObject)
@@ -1619,12 +1627,12 @@ describe("social actions", () => {
     expect(await createSocialStory(form)).toEqual({});
     const published = publishedCopyKey();
     expect(isOwnedSocialMediaKey(published, author, "stories")).toBe(true);
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: published,
+      body: expect.any(Uint8Array),
       contentType: "image/jpeg",
     });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     expect(inserts).toHaveLength(1);
     expect(inserts[0]).toMatchObject({
       table: "stories",

@@ -635,6 +635,26 @@ describe("processMusicScan", () => {
     });
     await expect(processMusicScan(scan(), musicLike)).resolves.toBe("retried");
 
+    const moved55 = deps({
+      identify: async () => ({ kind: "error", code: "2004", retryable: true }),
+      windowRms: () => 0.00176,
+    });
+    await expect(processMusicScan(scan(), moved55)).resolves.toBe("retried");
+    expect(moved55.saves.at(-1)?.lastError).toBe("2004");
+
+    const moved58 = deps({
+      identify: async () => ({ kind: "error", code: "2004", retryable: true }),
+      windowRms: () => 0.0011,
+    });
+    await expect(processMusicScan(scan(), moved58)).resolves.toBe("retried");
+    expect(moved58.saves.at(-1)?.lastError).toBe("2004");
+
+    const justUnder = deps({
+      identify: async () => ({ kind: "error", code: "2004", retryable: true }),
+      windowRms: () => 0.00099,
+    });
+    await expect(processMusicScan(scan(), justUnder)).resolves.toBe("allowed");
+
     const undecoded = deps({
       identify: async () => ({ kind: "error", code: "2004", retryable: true }),
       windowRms: () => null,
@@ -662,11 +682,42 @@ describe("processMusicScan", () => {
     const ambiguous = deps({
       loadAsset: async () => ({
         ...READY,
+        tracks: [],
         static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
       }),
     });
     await expect(processMusicScan(scan(), ambiguous)).resolves.toBe("retried");
     expect(ambiguous.saves.at(-1)?.lastError).toBe("mux_audio_errored");
+
+    const mismatch = deps({
+      loadAsset: async () => ({
+        ...READY,
+        tracks: [{ type: "video" }],
+        playback_ids: [{ id: "otherplay999", policy: "signed" }],
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    });
+    await expect(processMusicScan(scan(), mismatch)).resolves.toBe("held");
+    expect(mismatch.saves.at(-1)?.lastError).toBe("mux_playback_mismatch");
+
+    const overCap = deps({
+      loadAsset: async () => ({
+        ...READY,
+        duration: 481,
+        tracks: [{ type: "video" }],
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    });
+    await expect(processMusicScan(scan(), overCap)).resolves.toBe("retried");
+    expect(overCap.saves.at(-1)?.lastError).toBe("duration_over_cap");
+
+    const tail = deps({
+      loadAsset: async () => ({ ...READY, duration: 12.0063 }),
+      measureAudioDuration: () => 12.0063,
+      sliceWindow: () => new Uint8Array([9, 9, 9]),
+    });
+    await expect(processMusicScan(scan(), tail)).resolves.toBe("allowed");
+    expect(tail.saves.at(-1)?.lastError ?? null).toBeNull();
 
     const unmeasured = deps({
       loadAsset: async () => ({

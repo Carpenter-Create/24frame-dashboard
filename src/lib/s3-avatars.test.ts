@@ -20,6 +20,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 }));
 
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import sharp from "sharp";
 
 import {
   deleteAvatarObject,
@@ -44,7 +45,12 @@ describe("s3-avatars dedicated bucket", () => {
 
   it("PUTs to S3_AVATARS_BUCKET under avatars/{uid}/avatar, not S3_BUCKET", async () => {
     mockSend.mockResolvedValueOnce({});
-    const body = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const jpeg = new Uint8Array(
+      await sharp({ create: { width: 2, height: 2, channels: 3, background: { r: 1, g: 2, b: 3 } } }).jpeg().toBuffer(),
+    );
+    const body = new Uint8Array(jpeg.byteLength + 13);
+    body.set(jpeg);
+    body.set(new TextEncoder().encode("TRAILER-AUDIO"), jpeg.byteLength);
     await putAvatarObject(UID, body, "image/jpeg");
     expect(mockSend).toHaveBeenCalledTimes(1);
     const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
@@ -54,6 +60,7 @@ describe("s3-avatars dedicated bucket", () => {
     expect(cmd.input.Key).toBe(KEY);
     expect(cmd.input.ContentType).toBe("image/jpeg");
     expect(cmd.input.ACL).toBeUndefined();
+    expect(Buffer.from(cmd.input.Body as Uint8Array).includes(Buffer.from("TRAILER-AUDIO"))).toBe(false);
   });
 
   it("refuses when S3_AVATARS_BUCKET is the title bucket", async () => {

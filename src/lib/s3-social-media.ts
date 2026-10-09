@@ -168,6 +168,71 @@ export async function presignSocialMediaGet(key: string): Promise<string> {
   );
 }
 
+/** Whole object, only when the ETag still matches the HEAD. Null on a miss or a changed object. */
+export async function readSocialMediaObjectIfMatch(key: string, etag: string): Promise<Uint8Array | null> {
+  if (isForbiddenMediaKey(key) || !etag) return null;
+  try {
+    const { bucket, s3 } = mediaClient();
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        IfMatch: etag,
+      }),
+    );
+    const bytes = await response.Body?.transformToByteArray();
+    if (!bytes || bytes.byteLength === 0) return null;
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+/** Store a re-encoded image at a published posts/ or stories/ key. Does not copy the upload. */
+export async function putPublishedSocialImage(input: {
+  key: string;
+  body: Uint8Array;
+  contentType: SocialMediaContentType;
+}): Promise<void> {
+  const destination = parseSocialMediaObjectKey(input.key);
+  if (!destination || socialMediaKindFor(input.contentType) !== "image" || input.body.byteLength === 0) {
+    throw new Error("Media copy is not allowed");
+  }
+  const { bucket, s3 } = mediaClient();
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: input.key,
+      Body: input.body,
+      ContentType: input.contentType,
+      CacheControl: "private, max-age=300",
+      IfNoneMatch: "*",
+    }),
+  );
+}
+
+/** Replace a published image in place. Recheck uses this after a decode. Publish does not. */
+export async function overwritePublishedSocialImage(input: {
+  key: string;
+  body: Uint8Array;
+  contentType: string;
+}): Promise<void> {
+  const destination = parseSocialMediaObjectKey(input.key);
+  if (!destination || socialMediaKindFor(input.contentType) !== "image" || input.body.byteLength === 0) {
+    throw new Error("Media copy is not allowed");
+  }
+  const { bucket, s3 } = mediaClient();
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: input.key,
+      Body: input.body,
+      ContentType: input.contentType,
+      CacheControl: "private, max-age=300",
+    }),
+  );
+}
+
 /** Leading bytes of one object. Null when the key is closed, empty, or the read fails. */
 export async function readSocialMediaPrefix(key: string, length = 4096): Promise<Uint8Array | null> {
   if (isForbiddenMediaKey(key) || !Number.isInteger(length) || length <= 0) return null;

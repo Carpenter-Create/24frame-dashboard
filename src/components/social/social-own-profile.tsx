@@ -15,6 +15,7 @@ import {
   useSocialProfileSaveHop,
 } from "@/components/social/use-social-profile-optimistic";
 import { HOUSE_PAGE_CANVAS_CLASS } from "@/lib/house-shell";
+import type { SocialMusicNotice } from "@/lib/social";
 import { SOCIAL_QUERY_STALE_MS, socialProfileQueryKey } from "@/lib/social-cache-keys";
 import { SOCIAL_HOME_LAYOUT_CLASS, SOCIAL_PROFILE_CENTER_CLASS } from "@/lib/social-chrome";
 import type { CoverFraming } from "@/lib/social-profile-cover-frame";
@@ -36,6 +37,7 @@ type OwnProfileFace = SocialProfileIdentityView & {
   fallbackBio?: string;
   ring?: "unseen" | "live" | null;
   profileId?: string;
+  welcomeNotice?: SocialMusicNotice | null;
   stats?: { posts: number; followers: number; following: number };
   actions?: ReactNode;
 };
@@ -95,6 +97,7 @@ function SocialOwnProfileFaceView({
   fallbackBio = "",
   ring = null,
   profileId,
+  welcomeNotice = null,
   stats,
   actions,
   handle,
@@ -179,7 +182,7 @@ function SocialOwnProfileFaceView({
         stats={stats}
         actions={actions}
       />
-      {merged.welcomeVideoUrl ? <SocialWelcomeVideo present /> : null}
+      {merged.welcomeVideoUrl ? <SocialWelcomeVideo present notice={welcomeNotice} /> : null}
     </>
   );
 }

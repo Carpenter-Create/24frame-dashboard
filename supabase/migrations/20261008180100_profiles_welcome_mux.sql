@@ -7,12 +7,14 @@
 -- Adam applies this. Do not apply from CI. The migration is unapplied.
 --
 -- LOCKS (lock_timeout 3s is the wait to acquire, not the hold):
---   public.profiles — ACCESS EXCLUSIVE for ADD COLUMN (three nullable
---     columns, no rewrite) and ADD CONSTRAINT ... NOT VALID. Expected
---     hold: milliseconds once the lock is acquired.
---   public.profiles — SHARE UPDATE EXCLUSIVE for VALIDATE CONSTRAINT.
---     Expected hold: one pass over profiles. Not the video backfill.
---   public.profiles — SHARE ROW EXCLUSIVE for CREATE TRIGGER. Milliseconds.
+--   public.profiles: ACCESS EXCLUSIVE for ADD COLUMN (three nullable
+--     columns, no rewrite) and ADD CONSTRAINT ... NOT VALID.
+--   VALIDATE CONSTRAINT runs in this same transaction, so it runs while
+--   that ACCESS EXCLUSIVE lock is still held. It is not a separate
+--   SHARE UPDATE EXCLUSIVE window. Expected hold: the ADD plus one pass
+--   over profiles. Not the video backfill.
+--   public.profiles: SHARE ROW EXCLUSIVE for CREATE TRIGGER is also held
+--   with the ACCESS EXCLUSIVE lock until commit. Milliseconds once acquired.
 --
 -- ROLLBACK: drop the trigger and function, drop the constraint, drop the
 -- three columns. Do this with the scans rollback. Restoring the old
@@ -112,6 +114,31 @@ begin
   elsif v_decided is null then
     v_decided := now();
   end if;
+  update public.social_music_scans as s
+  set status = v_status,
+      decided_at = case when v_status = 'pending' then null else coalesce(v_decided, now()) end,
+      next_attempt_at = case when v_status = 'pending' then now() else null end,
+      last_error = null,
+      attempt_count = 0,
+      upload_id = v_upload,
+      mux_ready_at = null,
+      scan_started_at = null,
+      duration_seconds = null,
+      window_results = '[]'::jsonb,
+      vendor = case when v_status = 'pending' then null else v_vendor end,
+      vendor_status_code = case when v_status = 'pending' then null else v_vendor_code end,
+      vendor_score = case when v_status = 'pending' then null else v_score end,
+      vendor_title = case when v_status = 'pending' then null else v_title end,
+      vendor_artist = case when v_status = 'pending' then null else v_artist end,
+      vendor_album = case when v_status = 'pending' then null else v_album end,
+      vendor_acrid = case when v_status = 'pending' then null else v_acrid end,
+      vendor_isrc = case when v_status = 'pending' then null else v_isrc end,
+      vendor_label = case when v_status = 'pending' then null else v_label end
+  where s.profile_id = new.id
+    and s.playback_id = new.welcome_mux_playback_id
+    and s.asset_id = new.welcome_mux_asset_id
+    and s.last_error = 'superseded'
+    and s.status = 'pending';
   insert into public.social_music_scans (
     surface, post_id, story_id, profile_id, author_id,
     asset_id, playback_id, upload_id, status, decided_at, next_attempt_at,
@@ -144,10 +171,18 @@ begin
 end;
 $$;
 
-revoke all on function public.enqueue_welcome_music_scan() from public;
+revoke all on function public.enqueue_welcome_music_scan() from public, anon, authenticated, service_role;
 
 drop trigger if exists profiles_enqueue_welcome_music_scan on public.profiles;
 create trigger profiles_enqueue_welcome_music_scan
   after insert or update of welcome_mux_asset_id, welcome_mux_playback_id, welcome_mux_upload_id
   on public.profiles
   for each row execute function public.enqueue_welcome_music_scan();
+
+do $$
+begin
+  if has_function_privilege('anon', 'public.enqueue_welcome_music_scan()', 'execute')
+     or has_function_privilege('authenticated', 'public.enqueue_welcome_music_scan()', 'execute') then
+    raise exception 'enqueue_welcome_music_scan must not be executable by anon or authenticated';
+  end if;
+end $$;

@@ -1,20 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const STORED = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+
 vi.mock("@/lib/s3-social-media", () => ({
   headSocialMediaObject: vi.fn(),
   copySocialMediaObject: vi.fn(),
-  readSocialMediaPrefix: vi.fn(async (key: string) =>
-    key.endsWith(".png")
-      ? new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-      : key.endsWith(".gif")
-        ? new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
-        : key.endsWith(".webp")
-          ? new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])
-          : new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
-  ),
+  readSocialMediaObjectIfMatch: vi.fn(),
+  putPublishedSocialImage: vi.fn(),
 }));
 
-import { copySocialMediaObject, headSocialMediaObject, readSocialMediaPrefix } from "@/lib/s3-social-media";
+vi.mock("@/lib/social-image-reencode", () => ({
+  reencodeSocialImage: vi.fn(),
+}));
+
+import { copySocialMediaObject, headSocialMediaObject, putPublishedSocialImage, readSocialMediaObjectIfMatch } from "@/lib/s3-social-media";
+import { reencodeSocialImage } from "@/lib/social-image-reencode";
 import { isOwnedSocialMediaKey, type SocialMediaItem } from "@/lib/social-media";
 import { publishSocialMediaItems } from "./social-media-publish";
 
@@ -58,16 +58,12 @@ describe("social media publish", () => {
     vi.mocked(headSocialMediaObject).mockReset();
     vi.mocked(copySocialMediaObject).mockReset();
     vi.mocked(copySocialMediaObject).mockResolvedValue(undefined);
-    vi.mocked(readSocialMediaPrefix).mockReset();
-    vi.mocked(readSocialMediaPrefix).mockImplementation(async (key: string) =>
-      key.endsWith(".png")
-        ? new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-        : key.endsWith(".gif")
-          ? new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
-          : key.endsWith(".webp")
-            ? new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])
-            : new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
-    );
+    vi.mocked(readSocialMediaObjectIfMatch).mockReset();
+    vi.mocked(readSocialMediaObjectIfMatch).mockResolvedValue(STORED);
+    vi.mocked(putPublishedSocialImage).mockReset();
+    vi.mocked(putPublishedSocialImage).mockResolvedValue(undefined);
+    vi.mocked(reencodeSocialImage).mockReset();
+    vi.mocked(reencodeSocialImage).mockResolvedValue(STORED);
     errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(PUBLISHED_ID);
   });
@@ -89,7 +85,8 @@ describe("social media publish", () => {
       expect(key).not.toBe(STAGING);
       expect(isOwnedSocialMediaKey(key, USER, "posts")).toBe(true);
     }
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(3);
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(3);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
   });
 
   it("copies each upload to its own new key with that item's HEAD ETag", async () => {
@@ -104,17 +101,16 @@ describe("social media publish", () => {
     expect(isOwnedSocialMediaKey(PUBLISHED, USER, "posts")).toBe(true);
     expect(isOwnedSocialMediaKey(secondKey, USER, "posts")).toBe(true);
     expect(PUBLISHED).not.toBe(STAGING);
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(2);
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: STAGING,
-      etag: '"abc"',
-      destinationKey: PUBLISHED,
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(2);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: PUBLISHED,
+      body: STORED,
       contentType: "image/jpeg",
     });
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: second,
-      etag: '"def"',
-      destinationKey: secondKey,
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: secondKey,
+      body: STORED,
       contentType: "image/png",
     });
   });
@@ -131,8 +127,9 @@ describe("social media publish", () => {
   it("returns Mux items untouched, never HEADed or copied", async () => {
     expect(await publishSocialMediaItems([MUX], USER, "posts")).toEqual({ ok: true, items: [MUX] });
     expect(headSocialMediaObject).not.toHaveBeenCalled();
-    expect(readSocialMediaPrefix).not.toHaveBeenCalled();
+    expect(readSocialMediaObjectIfMatch).not.toHaveBeenCalled();
     expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(putPublishedSocialImage).not.toHaveBeenCalled();
 
     vi.mocked(headSocialMediaObject).mockResolvedValue(head('"abc"'));
     expect(await publishSocialMediaItems([MUX, image(STAGING)], USER, "posts")).toEqual({
@@ -141,29 +138,28 @@ describe("social media publish", () => {
     });
     expect(headSocialMediaObject).toHaveBeenCalledTimes(1);
     expect(headSocialMediaObject).toHaveBeenCalledWith(STAGING, expect.any(Function));
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(1);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
   });
 
   it("refuses an image upload whose bytes are a video container", async () => {
     vi.mocked(headSocialMediaObject).mockResolvedValue(head('"abc"'));
-    const ftyp = new Uint8Array(16);
-    ftyp.set([0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70], 0);
-    vi.mocked(readSocialMediaPrefix).mockResolvedValueOnce(ftyp);
+    vi.mocked(reencodeSocialImage).mockResolvedValueOnce(null);
     expect(await publishSocialMediaItems([image(STAGING)], USER, "posts")).toEqual({
       ok: false,
       error: "type",
       kind: "image",
     });
-    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(putPublishedSocialImage).not.toHaveBeenCalled();
 
     vi.mocked(headSocialMediaObject).mockResolvedValue(head('"abc"'));
-    vi.mocked(readSocialMediaPrefix).mockResolvedValueOnce(null);
+    vi.mocked(readSocialMediaObjectIfMatch).mockResolvedValueOnce(null);
     expect(await publishSocialMediaItems([image(STAGING)], USER, "posts")).toEqual({
       ok: false,
       error: "missing",
       kind: "image",
     });
-    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(putPublishedSocialImage).not.toHaveBeenCalled();
   });
 
   it("copies nothing unless every upload passes HEAD", async () => {
@@ -191,12 +187,14 @@ describe("social media publish", () => {
       kind: "image",
     });
     expect(headSocialMediaObject).toHaveBeenCalledWith(second, expect.any(Function));
-    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(putPublishedSocialImage).not.toHaveBeenCalled();
   });
 
   it("accepts a failed copy when the published key already holds the checked object (a retried copy)", async () => {
-    vi.mocked(headSocialMediaObject).mockResolvedValueOnce(head('"abc"')).mockResolvedValueOnce(head('"other"'));
-    vi.mocked(copySocialMediaObject).mockRejectedValueOnce(preconditionFailed());
+    vi.mocked(headSocialMediaObject)
+      .mockResolvedValueOnce(head('"abc"'))
+      .mockResolvedValueOnce(head('"other"', STORED.byteLength));
+    vi.mocked(putPublishedSocialImage).mockRejectedValueOnce(preconditionFailed());
     expect(await publishSocialMediaItems([image(STAGING)], USER, "posts")).toEqual({
       ok: true,
       items: [image(PUBLISHED)],
@@ -206,17 +204,22 @@ describe("social media publish", () => {
   });
 
   it("fails as 'store' when a failed copy left nothing matching at the published key", async () => {
-    const destinations = [null, head('"x"', 1201), head('"x"', 1200, "image/png"), head('"x"', 1200, null)];
+    const destinations = [
+      null,
+      head('"x"', STORED.byteLength + 1),
+      head('"x"', STORED.byteLength, "image/png"),
+      head('"x"', STORED.byteLength, null),
+    ];
     for (const destination of destinations) {
       vi.mocked(headSocialMediaObject).mockResolvedValueOnce(head('"abc"')).mockResolvedValueOnce(destination);
-      vi.mocked(copySocialMediaObject).mockRejectedValueOnce(preconditionFailed());
+      vi.mocked(putPublishedSocialImage).mockRejectedValueOnce(preconditionFailed());
       expect(await publishSocialMediaItems([image(STAGING)], USER, "posts")).toEqual({ ok: false, error: "store" });
     }
   });
 
   it("logs one line per failed copy, with no key, ETag, or message", async () => {
     vi.mocked(headSocialMediaObject).mockResolvedValueOnce(head('"abc"')).mockResolvedValueOnce(null);
-    vi.mocked(copySocialMediaObject).mockRejectedValueOnce(
+    vi.mocked(putPublishedSocialImage).mockRejectedValueOnce(
       Object.assign(new Error(`Access Denied for ${STAGING}`), {
         name: "AccessDenied",
         $metadata: { httpStatusCode: 403 },

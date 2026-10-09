@@ -1,4 +1,4 @@
-# 24Frame Social music scan — AWS Lambda container image (x86_64).
+# 24Frame Social music scan. AWS Lambda container image (x86_64).
 # Build from repo root (founder / CoS; never from CI):
 #   SHA=$(git rev-parse HEAD)
 #   docker build --platform linux/amd64 --provenance=false \
@@ -23,7 +23,8 @@ RUN pnpm exec esbuild workers/social-music/handler.ts \
 FROM public.ecr.aws/lambda/nodejs:22
 # Static ffmpeg so AAC windows decode to PCM. A debian ffmpeg binary
 # from the build stage does not run on this image.
-COPY --from=mwader/static-ffmpeg:7.1.1 /ffmpeg /usr/local/bin/ffmpeg
+# Pinned index digest for mwader/static-ffmpeg:7.1.1 (multi-arch).
+COPY --from=mwader/static-ffmpeg:7.1.1@sha256:11a44711684c0b9f754c047dcd64235b8b52deab251bd0e0a86f22faa160749c /ffmpeg /usr/local/bin/ffmpeg
 COPY --from=build /out/ ${LAMBDA_TASK_ROOT}/
 RUN node -e "require(process.env.LAMBDA_TASK_ROOT + '/index.js')"
 ARG GIT_SHA=unknown

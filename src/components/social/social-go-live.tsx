@@ -566,6 +566,11 @@ export function SocialGoLive() {
       }
     }
     recorder.ondataavailable = (event) => {
+      const elapsed = Date.now() - clockStartedRef.current;
+      if (goLiveReachedCap(elapsed) && recordingRef.current) {
+        stopRecording();
+        return;
+      }
       if (event.data.size <= 0) return;
       const used = chunksRef.current.reduce(
         (sum, part) => sum + (part instanceof Blob ? part.size : 0),
@@ -603,10 +608,10 @@ export function SocialGoLive() {
       releaseCamera();
       setPhase("review");
     };
-    recorder.start(1000);
     recorderRef.current = recorder;
     recordingRef.current = true;
     startClock();
+    recorder.start(1000);
     setPhase("recording");
   }
 

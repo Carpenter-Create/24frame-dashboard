@@ -117,6 +117,13 @@ describe("sliceSocialMusicAudio", () => {
     expect(anchoredDuration).toBeLessThan(12.5);
   });
 
+  it("times out a stuck ffmpeg decode instead of treating it as silence", () => {
+    const source = readFileSync("src/lib/social-music-m4a.ts", "utf8");
+    const body = source.slice(source.indexOf("function decodeAacToPcm"), source.indexOf("export function socialMusicWindowRms"));
+    expect(body).toContain("timeout: 10_000");
+    expect(body).toContain("result.error");
+  });
+
   it("does not read an AAC payload as PCM when decode fails", () => {
     const file = new Uint8Array(readFileSync("src/lib/social-music-fixtures/tone-12.3.m4a"));
     expect(socialMusicWindowRms(file, () => null)).toBeNull();

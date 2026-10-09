@@ -109,15 +109,36 @@
 -- Do not apply from CI. lock_timeout is 3s (wait to acquire, not hold time).
 --
 -- LOCKS IN THIS FILE (held until this transaction commits):
---   public.posts — ACCESS EXCLUSIVE from the posts_select swap, held through
+--   public.posts: ACCESS EXCLUSIVE from the posts_select swap, held through
 --     the post backfill. Duration: one scan row per existing post video.
---   public.stories — ACCESS EXCLUSIVE from the stories_select swap, held
+--   public.stories: ACCESS EXCLUSIVE from the stories_select swap, held
 --     through the story backfill. Duration: one scan row per non-expired
 --     story video.
---   public.social_music_scans — ACCESS EXCLUSIVE on CREATE TABLE (milliseconds),
+--   public.social_music_scans: ACCESS EXCLUSIVE on CREATE TABLE (milliseconds),
 --     then ROW EXCLUSIVE for the backfill inserts (same commit).
---   public.social_mux_bindings — ACCESS EXCLUSIVE on CREATE TABLE (milliseconds).
+--   public.social_mux_bindings: ACCESS EXCLUSIVE on CREATE TABLE (milliseconds).
 -- This file does not lock public.profiles.
+--
+-- READ-ONLY count before apply (hand to Adam). One row per video item the
+-- backfill will insert. Pending inserts do not take an advisory lock.
+-- select
+--   (select count(*) from public.posts p
+--     cross join lateral jsonb_array_elements(
+--       case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
+--     ) as item
+--     where lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+--        or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+--   ) as post_video_items,
+--   (select count(*) from public.stories st
+--     cross join lateral jsonb_array_elements(
+--       case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
+--     ) as item
+--     where st.expires_at > now()
+--       and (
+--         lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+--         or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+--       )
+--   ) as live_story_video_items;
 --
 -- ROLLBACK re-exposes blocked videos. Revert the app in the same window.
 -- ============================================================================
@@ -480,6 +501,36 @@ begin
     elsif v_decided is null then
       v_decided := now();
     end if;
+    -- A superseded pending row for this parent and playback is reset.
+    -- ON CONFLICT DO NOTHING would leave it pending with next_attempt_at null.
+    update public.social_music_scans as s
+    set status = v_status,
+        decided_at = case when v_status = 'pending' then null else coalesce(v_decided, now()) end,
+        next_attempt_at = case when v_status = 'pending' then now() else null end,
+        last_error = null,
+        attempt_count = 0,
+        upload_id = v_upload,
+        mux_ready_at = null,
+        scan_started_at = null,
+        duration_seconds = null,
+        window_results = '[]'::jsonb,
+        vendor = case when v_status = 'pending' then null else v_vendor end,
+        vendor_status_code = case when v_status = 'pending' then null else v_vendor_code end,
+        vendor_score = case when v_status = 'pending' then null else v_score end,
+        vendor_title = case when v_status = 'pending' then null else v_title end,
+        vendor_artist = case when v_status = 'pending' then null else v_artist end,
+        vendor_album = case when v_status = 'pending' then null else v_album end,
+        vendor_acrid = case when v_status = 'pending' then null else v_acrid end,
+        vendor_isrc = case when v_status = 'pending' then null else v_isrc end,
+        vendor_label = case when v_status = 'pending' then null else v_label end
+    where s.last_error = 'superseded'
+      and s.status = 'pending'
+      and s.asset_id = v_asset
+      and s.playback_id = v_playback
+      and (
+        (tg_table_name = 'posts' and s.post_id = new.id)
+        or (tg_table_name = 'stories' and s.story_id = new.id)
+      );
     insert into public.social_music_scans (
       surface,
       post_id,
@@ -527,8 +578,8 @@ begin
 end;
 $$;
 
-revoke all on function public.touch_social_music_scan() from public;
-revoke all on function public.enqueue_social_music_scan() from public;
+revoke all on function public.touch_social_music_scan() from public, anon, authenticated, service_role;
+revoke all on function public.enqueue_social_music_scan() from public, anon, authenticated, service_role;
 
 drop trigger if exists social_music_scans_touch on public.social_music_scans;
 create trigger social_music_scans_touch
@@ -544,6 +595,11 @@ language plpgsql
 set search_path to 'public'
 as $$
 begin
+  -- Pending rows cannot violate the allow-over-block rule. Skip the lock so
+  -- a backfill of many pending rows does not exhaust the shared lock table.
+  if new.status = 'pending' then
+    return new;
+  end if;
   perform pg_advisory_xact_lock(hashtext(new.asset_id), hashtext(new.playback_id));
   if new.status = 'allowed' and exists (
     select 1
@@ -560,7 +616,7 @@ begin
 end;
 $$;
 
-revoke all on function public.social_music_block_wins() from public;
+revoke all on function public.social_music_block_wins() from public, anon, authenticated, service_role;
 
 drop trigger if exists social_music_scans_block_wins on public.social_music_scans;
 create trigger social_music_scans_block_wins
@@ -615,24 +671,36 @@ grant select, insert, update on public.social_music_scans to service_role;
 -- Author notices. The authenticated grant above does not include last_error
 -- or next_attempt_at. This function reads those columns as its owner and
 -- returns only the notice word. 8 matches MUSIC_SCAN_MAX_ATTEMPTS.
+-- Each array is refused above 500 ids (callers pass a page). search_path
+-- is empty; every name below is schema-qualified.
 create or replace function public.social_music_author_notices(
   p_post_ids uuid[],
   p_story_ids uuid[]
 )
 returns table (post_id uuid, story_id uuid, notice text)
-language sql
+language plpgsql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
+declare
+  v_welcome text;
+begin
+  if coalesce(cardinality(p_post_ids), 0) > 500
+     or coalesce(cardinality(p_story_ids), 0) > 500 then
+    raise exception 'social music notices accept at most 500 ids'
+      using errcode = '22023';
+  end if;
+
+  return query
   with live as (
-    select s.post_id, s.story_id, s.status, s.attempt_count, s.next_attempt_at
+    select s.post_id, s.story_id, s.status, s.attempt_count, s.next_attempt_at, s.last_error
     from public.social_music_scans s
     where s.author_id = (select auth.uid())
       and s.last_error is distinct from 'superseded'
       and (
-        (s.post_id is not null and s.post_id = any(coalesce(p_post_ids, '{}'::uuid[])))
-        or (s.story_id is not null and s.story_id = any(coalesce(p_story_ids, '{}'::uuid[])))
+        (s.post_id is not null and s.post_id = any (coalesce(p_post_ids, '{}'::uuid[])))
+        or (s.story_id is not null and s.story_id = any (coalesce(p_story_ids, '{}'::uuid[])))
       )
   ),
   grouped as (
@@ -642,10 +710,15 @@ as $$
       bool_or(live.status = 'blocked') as blocked,
       count(*) filter (where live.status = 'pending') as pending_n,
       count(*) filter (
+        where live.status = 'pending' and live.last_error = 's3_video_needs_mux'
+      ) as legacy_n,
+      count(*) filter (
         where live.status = 'pending'
-          and live.attempt_count >= 8
-          and live.next_attempt_at is null
-      ) as exhausted_n
+          and (
+            (live.attempt_count >= 8 and live.next_attempt_at is null)
+            or live.last_error = 'mux_id_malformed'
+          )
+      ) as terminal_n
     from live
     group by live.post_id, live.story_id
   )
@@ -654,12 +727,39 @@ as $$
     grouped.story_id,
     case
       when grouped.blocked then 'blocked'
-      when grouped.pending_n > 0 and grouped.pending_n = grouped.exhausted_n then 'malformed'
+      when grouped.legacy_n > 0 then 'legacyHeld'
+      when grouped.pending_n > 0 and grouped.pending_n = grouped.terminal_n then 'malformed'
       when grouped.pending_n > 0 then 'pending'
       else null
     end as notice
   from grouped
   where grouped.blocked or grouped.pending_n > 0;
+
+  select case
+    when bool_or(s.status = 'blocked') then 'blocked'
+    when count(*) filter (where s.status = 'pending' and s.last_error = 's3_video_needs_mux') > 0 then 'welcomePending'
+    when count(*) filter (where s.status = 'pending') > 0
+      and count(*) filter (where s.status = 'pending') = count(*) filter (
+        where s.status = 'pending'
+          and (
+            (s.attempt_count >= 8 and s.next_attempt_at is null)
+            or s.last_error = 'mux_id_malformed'
+          )
+      ) then 'malformed'
+    when count(*) filter (where s.status = 'pending') > 0 then 'welcomePending'
+    else null
+  end
+  into v_welcome
+  from public.social_music_scans s
+  where s.author_id = (select auth.uid())
+    and s.surface = 'welcome'
+    and s.profile_id = (select auth.uid())
+    and s.last_error is distinct from 'superseded';
+
+  if v_welcome is not null then
+    return query select null::uuid, null::uuid, v_welcome;
+  end if;
+end;
 $$;
 
 revoke all on function public.social_music_author_notices(uuid[], uuid[]) from public, anon, authenticated;
@@ -908,5 +1008,39 @@ begin
       and qual like '%social_video_released%'
   ) then
     raise exception 'stories_select must call social_video_released';
+  end if;
+  if has_function_privilege('anon', 'public.social_music_author_notices(uuid[], uuid[])', 'execute') then
+    raise exception 'anon must not execute social_music_author_notices';
+  end if;
+  if not has_function_privilege('authenticated', 'public.social_music_author_notices(uuid[], uuid[])', 'execute') then
+    raise exception 'authenticated must execute social_music_author_notices';
+  end if;
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'social_music_author_notices'
+      and exists (
+        select 1 from unnest(p.proconfig) as cfg
+        where cfg like 'search_path=%'
+          and cfg not like '%public%'
+      )
+  ) then
+    raise exception 'social_music_author_notices search_path must be empty';
+  end if;
+  if has_column_privilege('authenticated', 'public.social_music_scans', 'last_error', 'select')
+     or has_column_privilege('authenticated', 'public.social_music_scans', 'next_attempt_at', 'select')
+     or has_column_privilege('authenticated', 'public.social_music_scans', 'vendor_title', 'select')
+     or has_column_privilege('authenticated', 'public.social_music_scans', 'window_results', 'select') then
+    raise exception 'authenticated must not select hidden scan columns';
+  end if;
+  if has_function_privilege('anon', 'public.social_music_block_wins()', 'execute')
+     or has_function_privilege('authenticated', 'public.social_music_block_wins()', 'execute')
+     or has_function_privilege('anon', 'public.enqueue_social_music_scan()', 'execute')
+     or has_function_privilege('authenticated', 'public.enqueue_social_music_scan()', 'execute')
+     or has_function_privilege('anon', 'public.touch_social_music_scan()', 'execute')
+     or has_function_privilege('authenticated', 'public.touch_social_music_scan()', 'execute') then
+    raise exception 'trigger functions must not be executable by anon or authenticated';
   end if;
 end $$;

@@ -131,6 +131,14 @@ describe("social video visibility", () => {
       ]),
     ).toBeNull();
     expect(musicNoticeFromScans([{ status: "pending", lastError: "superseded" }])).toBeNull();
+    expect(musicNoticeFromScans([{ status: "pending", lastError: "s3_video_needs_mux" }])).toBe("legacyHeld");
+    expect(musicNoticeFromScans([{ status: "pending", lastError: "s3_video_needs_mux" }], "welcome")).toBe(
+      "welcomePending",
+    );
+    expect(musicNoticeFromScans([{ status: "pending" }], "welcome")).toBe("welcomePending");
+    expect(musicNoticeFromScans([{ status: "pending", lastError: "mux_id_malformed" }])).toBe("malformed");
+    expect(musicNoticeFromScans([{ status: "pending", attemptCount: 0, nextAttemptAt: null }])).toBe("pending");
+    expect(musicNoticeFromScans([{ status: "blocked" }], "welcome")).toBe("blocked");
   });
 
   it("maps the server notice and does not select last_error", async () => {
@@ -149,6 +157,8 @@ describe("social video visibility", () => {
             { post_id: "post-2", story_id: null, notice: "malformed" },
             { post_id: null, story_id: "story-1", notice: "pending" },
             { post_id: "post-1", story_id: null, notice: "allowed" },
+            { post_id: null, story_id: null, notice: "welcomePending" },
+            { post_id: null, story_id: null, notice: "legacyHeld" },
           ],
           error: null,
         };
@@ -161,6 +171,7 @@ describe("social video visibility", () => {
     expect(maps.posts.get("post-1")).toBe("blocked");
     expect(maps.posts.get("post-2")).toBe("malformed");
     expect(maps.stories.get("story-1")).toBe("pending");
+    expect(maps.welcome).toBe("legacyHeld");
   });
 
   it("skips a welcome or media row that no longer stores the scanned pair", () => {
@@ -313,6 +324,7 @@ describe("music scan windows", () => {
       { startSeconds: 0, endSeconds: 12 },
       { startSeconds: 0.3, endSeconds: 12.3 },
     ]);
+    expect(musicScanWindows(12.0063)).toEqual([{ startSeconds: 0, endSeconds: 12.006 }]);
     const frame = 24 + 1 / 30;
     const framed = musicScanWindows(frame);
     expect(framed.at(-1)).toEqual({
@@ -385,6 +397,26 @@ describe("social music scan migration", () => {
     expect(sql).toContain("s.story_id = p_id");
     expect(sql).toContain("private.social_video_released");
     expect(sql).toContain("social music scan requires a Mux asset id and playback id");
+    expect(sql).toMatch(/^set lock_timeout = '3s';/m);
+    expect(readFileSync("supabase/migrations/20261008180100_profiles_welcome_mux.sql", "utf8")).toMatch(
+      /^set lock_timeout = '3s';/m,
+    );
+    const blockWins = sql.slice(
+      sql.indexOf("function public.social_music_block_wins"),
+      sql.indexOf("revoke all on function public.social_music_block_wins"),
+    );
+    expect(blockWins.indexOf("if new.status = 'pending'")).toBeGreaterThan(-1);
+    expect(blockWins.indexOf("if new.status = 'pending'")).toBeLessThan(blockWins.indexOf("pg_advisory_xact_lock"));
+    const notices = sql.slice(
+      sql.indexOf("function public.social_music_author_notices"),
+      sql.indexOf("revoke all on function public.social_music_author_notices"),
+    );
+    expect(notices).toContain("set search_path = ''");
+    expect(notices).toContain("social music notices accept at most 500 ids");
+    expect(notices).toContain("attempt_count >= 8");
+    expect(sql).toContain("revoke all on function public.touch_social_music_scan() from public, anon, authenticated, service_role");
+    expect(sql).toContain("revoke all on function public.enqueue_social_music_scan() from public, anon, authenticated, service_role");
+    expect(sql).toContain("revoke all on function public.social_music_block_wins() from public, anon, authenticated, service_role");
     expect(sql).toContain("on conflict do nothing");
     expect(sql).not.toContain("on conflict (asset_id)");
     expect(sql).not.toContain("grant execute on function public.social_video_released");
@@ -405,6 +437,12 @@ describe("social music scan migration", () => {
     expect(rollback.indexOf("drop schema if exists private")).toBeGreaterThan(dropPrivate);
     expect(sql).not.toContain("is_gc_staff(");
     expect(sql).toContain("Staff review only");
-    expect(sql).not.toMatch(/grant select \([\s\S]*vendor_title/);
+    const authorGrant = sql.slice(
+      sql.indexOf("grant select ("),
+      sql.indexOf(") on public.social_music_scans to authenticated"),
+    );
+    expect(authorGrant).not.toContain("vendor_title");
+    expect(authorGrant).not.toContain("last_error");
+    expect(authorGrant).not.toContain("window_results");
   });
 });

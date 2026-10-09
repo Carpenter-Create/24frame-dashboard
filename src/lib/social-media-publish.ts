@@ -1,10 +1,10 @@
 import "server-only";
 
-import { copySocialMediaObject, headSocialMediaObject, readSocialMediaPrefix } from "@/lib/s3-social-media";
+import { copySocialMediaObject, headSocialMediaObject, putPublishedSocialImage, readSocialMediaObjectIfMatch } from "@/lib/s3-social-media";
+import { reencodeSocialImage } from "@/lib/social-image-reencode";
 import {
   isOwnedSocialMediaStagingKey,
   isSocialMuxMediaItem,
-  socialImageBytesMatchContentType,
   socialMediaObjectKey,
   storedSocialMediaRejection,
   type SocialMediaItem,
@@ -41,6 +41,7 @@ export async function publishSocialMediaItems(
     }
   }
 
+  const cleaned = new Map<number, Uint8Array>();
   const heads = await Promise.all(
     items.map((item) =>
       isSocialMuxMediaItem(item)
@@ -55,14 +56,14 @@ export async function publishSocialMediaItems(
     const rejection = storedSocialMediaRejection(item, head);
     if (rejection) return { ok: false, error: rejection, kind: item.kind };
     if (!head?.etag) return { ok: false, error: "missing", kind: item.kind };
-    // HeadObject does not return bytes. The stored object must be a real
-    // image of the declared type before the copy.
+    // HeadObject does not return bytes. Read the whole image, decode it,
+    // and keep only the re-encoded file. A trailer after the image is dropped.
     if (item.kind === "image") {
-      const prefix = await readSocialMediaPrefix(item.key);
-      if (!prefix) return { ok: false, error: "missing", kind: item.kind };
-      if (!socialImageBytesMatchContentType(prefix, item.contentType)) {
-        return { ok: false, error: "type", kind: item.kind };
-      }
+      const bytes = await readSocialMediaObjectIfMatch(item.key, head.etag);
+      if (!bytes) return { ok: false, error: "missing", kind: item.kind };
+      const encoded = await reencodeSocialImage(bytes, item.contentType);
+      if (!encoded) return { ok: false, error: "type", kind: item.kind };
+      cleaned.set(index, encoded);
     }
   }
 
@@ -71,18 +72,24 @@ export async function publishSocialMediaItems(
       const head = heads[index];
       if (isSocialMuxMediaItem(item) || !head?.etag) return item;
       const key = socialMediaObjectKey(userId, crypto.randomUUID(), item.contentType, lane);
+      const encoded = cleaned.get(index);
       try {
-        await copySocialMediaObject({
-          sourceKey: item.key,
-          etag: head.etag,
-          destinationKey: key,
-          contentType: item.contentType,
-        });
+        if (encoded) {
+          await putPublishedSocialImage({ key, body: encoded, contentType: item.contentType });
+        } else {
+          await copySocialMediaObject({
+            sourceKey: item.key,
+            etag: head.etag,
+            destinationKey: key,
+            contentType: item.contentType,
+          });
+        }
       } catch (error) {
         // 412 or 409 when the SDK retries a copy whose response was lost:
         // only this copy writes the key, so a match is ours.
         const existing = await headSocialMediaObject(key);
-        if (!existing || existing.bytes !== head.bytes || existing.contentType !== item.contentType) {
+        const expectedBytes = encoded ? encoded.byteLength : head.bytes;
+        if (!existing || existing.bytes !== expectedBytes || existing.contentType !== item.contentType) {
           logPublishFailure(lane, "copy", error);
           return null;
         }

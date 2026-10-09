@@ -443,7 +443,7 @@ function decodeAacToPcm(file: Uint8Array): Uint8Array | null {
     const result = spawnSync(
       "ffmpeg",
       ["-v", "error", "-i", input, "-f", "s16le", "-ac", "1", "pipe:1"],
-      { maxBuffer: 8 * 1024 * 1024 },
+      { maxBuffer: 8 * 1024 * 1024, timeout: 10_000 },
     );
     if (result.error || result.status !== 0 || !result.stdout || result.stdout.byteLength < 2) return null;
     return new Uint8Array(result.stdout);

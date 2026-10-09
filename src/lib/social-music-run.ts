@@ -8,6 +8,7 @@ import {
   MUSIC_SCAN_PREP_DELAY_MS,
   MUSIC_SCAN_PREP_MAX_MS,
   MUSIC_SCAN_SILENCE_RMS,
+  MUSIC_SCAN_TAIL_CLAMP_SECONDS,
   musicIdentifyIsNoFingerprint,
   musicIdentifyIsRateLimit,
   musicScanBackoff,
@@ -372,6 +373,13 @@ async function scanOne(
       return recordFailure(scan, deps, book, "window_implausible", muxReadyAt, scanStartedAt);
     }
     if (seen.some((row) => sameBytes(row, audio))) {
+      const duplicateTail = coverage.windows.some(
+        (other) =>
+          other !== window &&
+          Math.abs(other.startSeconds - window.startSeconds) <= MUSIC_SCAN_TAIL_CLAMP_SECONDS &&
+          Math.abs(other.endSeconds - window.endSeconds) <= MUSIC_SCAN_TAIL_CLAMP_SECONDS,
+      );
+      if (duplicateTail) continue;
       return recordFailure(scan, deps, book, "window_not_distinct", muxReadyAt, scanStartedAt);
     }
     seen.push(audio);

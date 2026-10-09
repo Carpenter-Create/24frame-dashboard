@@ -61,6 +61,11 @@ export type MusicScanDecision = "allow" | "block" | "retry";
  * per window, at most forty per clip. A longer clip is not sampled.
  */
 export const MUSIC_SCAN_WINDOW_SECONDS = 12;
+/**
+ * A tail this close to the previous 12s window is the same slice.
+ * 12.0063s must not plan a second window.
+ */
+export const MUSIC_SCAN_TAIL_CLAMP_SECONDS = 0.02;
 export const MUSIC_SCAN_MAX_WINDOWS = 40;
 /**
  * Same cap as upload, including the shared tolerance. A longer Social video
@@ -106,7 +111,7 @@ export function planMusicScanCoverage(durationSeconds: number | null | undefined
   }
   const span = MUSIC_SCAN_WINDOW_SECONDS;
   const end = durationSeconds;
-  if (end <= span) {
+  if (end <= span + MUSIC_SCAN_TAIL_CLAMP_SECONDS) {
     const endSeconds = roundWindowSeconds(end);
     if (endSeconds <= 0) return { kind: "unknown" };
     return { kind: "cover", windows: [{ startSeconds: 0, endSeconds }] };
@@ -123,7 +128,10 @@ export function planMusicScanCoverage(durationSeconds: number | null | undefined
   const lastEnd = roundWindowSeconds(end);
   if (lastEnd <= lastStart) return windows.length > 0 ? { kind: "cover", windows } : { kind: "unknown" };
   const previous = windows[windows.length - 1];
-  if (!previous || previous.startSeconds !== lastStart || previous.endSeconds !== lastEnd) {
+  const tailShift = previous ? Math.abs(lastStart - previous.startSeconds) : Infinity;
+  const tailSpan = previous ? Math.abs(lastEnd - previous.endSeconds) : Infinity;
+  const clampedTail = tailShift <= MUSIC_SCAN_TAIL_CLAMP_SECONDS && tailSpan <= MUSIC_SCAN_TAIL_CLAMP_SECONDS;
+  if (!clampedTail && (!previous || previous.startSeconds !== lastStart || previous.endSeconds !== lastEnd)) {
     windows.push({ startSeconds: lastStart, endSeconds: lastEnd });
   }
   if (windows.length === 0 || windows.length > MUSIC_SCAN_MAX_WINDOWS) return { kind: "unknown" };
@@ -268,9 +276,10 @@ export type SocialPlaybackScan = {
 };
 
 /**
- * Mint for one playback id. Any blocked or pending row for that id denies,
- * including a row on a parent the caller did not list. A visible parent
- * still needs its own allowed scan. No row is not a release.
+ * Mint for one playback id. A blocked row for that id denies the mint,
+ * including a row on a parent the caller did not list. A pending row on
+ * another parent does not. The parent being played still needs its own
+ * allowed scan. No row is not a release.
  */
 export function socialMuxPlaybackMusicReleased(
   playbackId: string,
@@ -318,7 +327,7 @@ export function socialVideoVisibleToViewer(input: {
   return socialVideoVisibleToOthers(input.scans);
 }
 
-/** Blocked wins. An exhausted pending row is the malformed line. A retry still in progress stays pending. */
+/** Blocked wins. Legacy S3 is legacyHeld. A welcome hold is welcomePending. An exhausted or malformed-id row is malformed. */
 export function musicNoticeFromScans(
   scans: readonly {
     status: MusicScanVisibility;
@@ -326,20 +335,25 @@ export function musicNoticeFromScans(
     nextAttemptAt?: string | null;
     lastError?: string | null;
   }[],
+  surface: "post" | "story" | "welcome" = "post",
 ): SocialMusicNotice | null {
   const live = scans.filter((scan) => scan.lastError !== "superseded");
   if (live.some((scan) => scan.status === "blocked")) return "blocked";
   const pending = live.filter((scan) => scan.status === "pending");
   if (pending.length === 0) return null;
-  const exhausted =
-    pending.every((scan) => typeof scan.attemptCount === "number") &&
-    pending.every(
-      (scan) =>
-        (scan.attemptCount ?? 0) >= MUSIC_SCAN_MAX_ATTEMPTS &&
-        (scan.nextAttemptAt == null || scan.nextAttemptAt === ""),
+  if (pending.some((scan) => scan.lastError === "s3_video_needs_mux")) {
+    return surface === "welcome" ? "welcomePending" : "legacyHeld";
+  }
+  const terminal = pending.every((scan) => {
+    if (scan.lastError === "mux_id_malformed") return true;
+    return (
+      typeof scan.attemptCount === "number" &&
+      scan.attemptCount >= MUSIC_SCAN_MAX_ATTEMPTS &&
+      (scan.nextAttemptAt == null || scan.nextAttemptAt === "")
     );
-  if (exhausted) return "malformed";
-  return "pending";
+  });
+  if (terminal) return "malformed";
+  return surface === "welcome" ? "welcomePending" : "pending";
 }
 
 /**
@@ -426,18 +440,25 @@ export function omitHeldPosts<T extends { id: string }>(
 export type MusicNoticeMaps = {
   posts: Map<string, SocialMusicNotice>;
   stories: Map<string, SocialMusicNotice>;
+  welcome: SocialMusicNotice | null;
 };
 
 function isMusicNotice(value: string | null): value is SocialMusicNotice {
-  return value === "pending" || value === "blocked" || value === "malformed";
+  return (
+    value === "pending" ||
+    value === "blocked" ||
+    value === "malformed" ||
+    value === "legacyHeld" ||
+    value === "welcomePending"
+  );
 }
 
 /**
  * The signed-in author's notice, from social_music_author_notices.
- * That function reads last_error and next_attempt_at as its owner and
- * returns only pending, blocked, or malformed. The author select does
- * not include those columns. A missing function (migration not applied
- * yet) returns empty maps so the feed does not 500.
+ * The function returns only a notice word. The author select does not
+ * include the columns that word is derived from. A missing function
+ * (migration not applied yet) returns empty maps so the feed does not 500.
+ * More than 500 ids is refused by the function.
  */
 export async function loadOwnMusicNotices(
   supabase: SupabaseClient<Database>,
@@ -446,8 +467,12 @@ export async function loadOwnMusicNotices(
 ): Promise<MusicNoticeMaps> {
   const postIds = [...new Set((ids.postIds ?? []).filter(Boolean))];
   const storyIds = [...new Set((ids.storyIds ?? []).filter(Boolean))];
-  const empty = { posts: new Map<string, SocialMusicNotice>(), stories: new Map<string, SocialMusicNotice>() };
-  if (!viewerId || (postIds.length === 0 && storyIds.length === 0)) return empty;
+  const empty = {
+    posts: new Map<string, SocialMusicNotice>(),
+    stories: new Map<string, SocialMusicNotice>(),
+    welcome: null,
+  };
+  if (!viewerId) return empty;
 
   const { data, error } = await supabase.rpc("social_music_author_notices", {
     p_post_ids: postIds,
@@ -459,10 +484,15 @@ export async function loadOwnMusicNotices(
   }
   const posts = new Map<string, SocialMusicNotice>();
   const stories = new Map<string, SocialMusicNotice>();
+  let welcome: SocialMusicNotice | null = null;
   for (const row of data ?? []) {
     if (!isMusicNotice(row.notice)) continue;
+    if (!row.post_id && !row.story_id) {
+      welcome = row.notice;
+      continue;
+    }
     if (row.post_id && postIds.includes(row.post_id)) posts.set(row.post_id, row.notice);
     if (row.story_id && storyIds.includes(row.story_id)) stories.set(row.story_id, row.notice);
   }
-  return { posts, stories };
+  return { posts, stories, welcome };
 }

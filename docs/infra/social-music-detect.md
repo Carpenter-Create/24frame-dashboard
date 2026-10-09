@@ -180,29 +180,55 @@ exceeds 3 seconds, the statement aborts. Retry in a quieter window.
 
 `20261008180000_social_music_scans.sql` locks:
 
-- `public.posts` — ACCESS EXCLUSIVE when `posts_select` is replaced, held
+- `public.posts`: ACCESS EXCLUSIVE when `posts_select` is replaced, held
   until the transaction commits, which includes the post video backfill.
   Expected hold: the time to insert one scan row per existing post video.
-  Count those rows before apply.
-- `public.stories` — ACCESS EXCLUSIVE when `stories_select` is replaced,
+  Count those rows before apply. Pending backfill rows do not take an
+  advisory lock.
+- `public.stories`: ACCESS EXCLUSIVE when `stories_select` is replaced,
   held through the story video backfill. Expected hold: one scan row per
   non-expired story video.
-- `public.social_music_scans` — ACCESS EXCLUSIVE for CREATE TABLE
+- `public.social_music_scans`: ACCESS EXCLUSIVE for CREATE TABLE
   (milliseconds; the table is new), then ROW EXCLUSIVE for the backfill
   inserts in the same transaction.
-- `public.social_mux_bindings` — ACCESS EXCLUSIVE for CREATE TABLE
+- `public.social_mux_bindings`: ACCESS EXCLUSIVE for CREATE TABLE
   (milliseconds; the table is new).
 
 This file does not lock `public.profiles`.
 
+Read-only count before apply. One row per video item the backfill inserts:
+
+```sql
+select
+  (select count(*) from public.posts p
+    cross join lateral jsonb_array_elements(
+      case when jsonb_typeof(p.media) = 'array' then p.media else '[]'::jsonb end
+    ) as item
+    where lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+       or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+  ) as post_video_items,
+  (select count(*) from public.stories st
+    cross join lateral jsonb_array_elements(
+      case when jsonb_typeof(st.media) = 'array' then st.media else '[]'::jsonb end
+    ) as item
+    where st.expires_at > now()
+      and (
+        lower(btrim(coalesce(item->>'kind', ''))) = 'video'
+        or lower(btrim(split_part(coalesce(item->>'contentType', ''), ';', 1))) like 'video/%'
+      )
+  ) as live_story_video_items;
+```
+
 `20261008180100_profiles_welcome_mux.sql` locks only `public.profiles`:
 
 - ACCESS EXCLUSIVE for `ADD COLUMN` (three nullable columns, no table
-  rewrite) and `ADD CONSTRAINT ... NOT VALID`. Expected hold: milliseconds
-  once the lock is acquired.
-- SHARE UPDATE EXCLUSIVE for `VALIDATE CONSTRAINT profiles_welcome_mux_ids`.
-  Expected hold: one pass over `profiles`. This is not the video backfill.
-- SHARE ROW EXCLUSIVE for `CREATE TRIGGER`. Expected hold: milliseconds.
+  rewrite) and `ADD CONSTRAINT ... NOT VALID`. VALIDATE CONSTRAINT runs
+  in this same transaction, so it runs while that ACCESS EXCLUSIVE lock
+  is still held. It is not a separate SHARE UPDATE EXCLUSIVE window.
+  Expected hold: the ADD plus one pass over `profiles`. This is not the
+  video backfill.
+- SHARE ROW EXCLUSIVE for `CREATE TRIGGER` is also held with the ACCESS
+  EXCLUSIVE lock until commit. Expected hold: milliseconds once acquired.
 
 Rollback restores `posts_select` and `stories_select` without the music
 predicate, so blocked videos are visible again. Revert the app in the same
@@ -261,10 +287,23 @@ scan table is a follow-up. It is not part of this change.
 
 ## Order
 
-1. Apply `supabase/migrations/20261008180000_social_music_scans.sql`.
-2. Deploy the app (the author notice and the staff page).
-3. Build and create the Lambda, set env, then the disabled schedule.
-4. Dry run. Enable the rule when the dry run is `ok`.
+1. Run the read-only video count above. Hand the two numbers to Adam before apply.
+2. Apply `supabase/migrations/20261008180000_social_music_scans.sql`, then
+   `supabase/migrations/20261008180100_profiles_welcome_mux.sql`.
+3. Dry-run the image recheck, then execute it. A post or story whose image
+   will not decode is hidden. An avatar that will not decode is reported
+   and left in place.
+
+```sh
+pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts
+pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts --execute
+```
+
+4. Deploy the app (the author notice and the staff page).
+5. Build and create the Lambda, set env, then the disabled schedule.
+6. Dry run the worker. Enable the rule when the dry run is `ok`.
+   S3 video re-ingest stays a separate founder step:
+   `scripts/social/reingest-welcome-video.ts`.
 
 Apply the SQL before the app. A missing scan table denies playback and
 video-key signing for anyone who is not previewing only their own row.
