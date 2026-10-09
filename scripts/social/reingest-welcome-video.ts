@@ -15,8 +15,10 @@ import {
   reingestSocialS3Videos,
   SOCIAL_REINGEST_RETRY_ERRORS,
   SOCIAL_REINGEST_TERMINAL_ERRORS,
+  WELCOME_REINGEST_PROGRESS_ERRORS,
   socialReingestKeyForDigest,
   socialReingestMediaWithMux,
+  welcomeProfileReingestCandidate,
   type SocialReingestCandidate,
   type SocialReingestSurface,
 } from "@/lib/social-welcome-reingest";
@@ -84,20 +86,19 @@ async function loadCandidates(): Promise<SocialReingestCandidate[]> {
       .from("social_music_scans")
       .select("upload_id")
       .eq("profile_id", profile.id)
-      .eq("last_error", "welcome_reingest_preparing")
+      .in("last_error", [...WELCOME_REINGEST_PROGRESS_ERRORS])
       .not("upload_id", "is", null)
       .limit(1)
       .maybeSingle();
     assertOk(progress.error, "welcome progress read");
-    rows.push({
-      surface: "welcome",
-      parentId: profile.id,
-      authorId: profile.id,
-      key: profile.welcome_video_key,
-      expired: false,
-      assetId: muxId(profile.welcome_mux_asset_id) ?? muxId(progress.data?.upload_id),
-      playbackId: profile.welcome_mux_playback_id,
+    const candidate = welcomeProfileReingestCandidate({
+      id: profile.id,
+      welcomeVideoKey: profile.welcome_video_key,
+      welcomeMuxAssetId: profile.welcome_mux_asset_id,
+      welcomeMuxPlaybackId: profile.welcome_mux_playback_id,
+      progressUploadId: progress.data?.upload_id ?? null,
     });
+    if (candidate) rows.push(candidate);
   }
   return rows;
 }

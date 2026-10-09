@@ -78,6 +78,19 @@ begin
      and new.welcome_mux_asset_id is not distinct from old.welcome_mux_asset_id
      and new.welcome_mux_playback_id is not distinct from old.welcome_mux_playback_id
      and new.welcome_mux_upload_id is not distinct from old.welcome_mux_upload_id then
+    -- A clear of an S3 welcome writes nulls that were already null. Without
+    -- this, the digest stays pending and the author keeps a welcome notice
+    -- after the video is gone. An unchanged Mux pair still returns here.
+    if new.welcome_mux_asset_id is null
+       and new.welcome_mux_playback_id is null
+       and new.welcome_mux_upload_id is null then
+      update public.social_music_scans
+      set last_error = 'superseded',
+          next_attempt_at = null
+      where profile_id = new.id
+        and surface = 'welcome'
+        and last_error is distinct from 'superseded';
+    end if;
     return new;
   end if;
   -- The previous pair no longer decides visibility or the author notice.
@@ -134,11 +147,16 @@ begin
   elsif v_decided is null then
     v_decided := now();
   end if;
-  -- Re-saving this exact pair clears superseded and leaves the scan as it was.
-  -- Blocked stays blocked, allowed stays allowed, pending stays pending.
-  -- No new scan, and no other row is touched.
+  -- Re-saving this exact pair clears superseded. A pending row is put back
+  -- on the worker (next_attempt_at = now()) on the same row and the same
+  -- asset. Saved windows stay. Blocked and allowed rows are not requeued.
+  -- No other row is touched.
   update public.social_music_scans as s
-  set last_error = null
+  set last_error = null,
+      next_attempt_at = case
+        when s.status = 'pending' then now()
+        else s.next_attempt_at
+      end
   where s.profile_id = new.id
     and s.surface = 'welcome'
     and s.playback_id = new.welcome_mux_playback_id

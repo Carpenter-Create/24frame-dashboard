@@ -3,12 +3,15 @@ import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { socialVideoKeyDigest } from "@/lib/social-music-scan";
+import { bindGoLiveRecorderStop, SOCIAL_GO_LIVE_MAX_MS } from "@/lib/social-go-live";
+import { socialMusicParentStillHasScan, socialVideoKeyDigest, type MusicWindowRecord } from "@/lib/social-music-scan";
+import { runSocialMusicBatch, type MusicScanPatch, type PendingMusicScan } from "@/lib/social-music-run";
 import {
   reingestSocialS3Videos,
   rememberWelcomeReingestAsset,
   retireS3MusicPlaceholder,
   socialReingestMediaWithMux,
+  welcomeProfileReingestCandidate,
   welcomeReingestAssetId,
   type SocialReingestCandidate,
   type SocialReingestSettled,
@@ -142,6 +145,318 @@ async function strangerSeesWelcome(profile: string, asset: string, play: string)
   );
   return result.rows[0]?.visible === true;
 }
+
+const STORED_WINDOW: MusicWindowRecord[] = [
+  { startSeconds: 0, endSeconds: 8, result: { kind: "no_match", code: 1001 } },
+];
+
+type WelcomeRowState =
+  | "pending queued"
+  | "pending mid-scan"
+  | "pending backing off"
+  | "allowed"
+  | "blocked"
+  | "reingest_failed"
+  | "superseded";
+
+let welcomeTag = 0;
+
+type SeededWelcome = {
+  profile: string;
+  asset: string;
+  play: string;
+  upload: string;
+  siblingPlay: string;
+  scanId: string;
+};
+
+async function seedWelcomeState(state: WelcomeRowState): Promise<SeededWelcome> {
+  welcomeTag += 1;
+  const tag = String(welcomeTag).padStart(4, "0");
+  const profile = `55555555-5555-4555-8555-${tag.padStart(12, "0")}`;
+  const asset = `assetST${tag}`;
+  const play = `playST${tag}a`;
+  const upload = `upldST${tag}a`;
+  const siblingAsset = `assetSB${tag}`;
+  const siblingPlay = `playSB${tag}a`;
+  await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+  await db.exec(`alter table public.profiles add column if not exists welcome_video_key text`);
+  if (state === "reingest_failed") {
+    const digest = profile.replace(/-/g, "").slice(0, 32);
+    const remembered = `assetRM${tag}`;
+    await db.query(
+      `insert into public.social_music_scans (
+         surface, profile_id, author_id, asset_id, playback_id, upload_id, status, next_attempt_at, last_error
+       ) values ('welcome', $1, $1, $2, $2, $3, 'pending', null, 'reingest_failed')`,
+      [profile, digest, remembered],
+    );
+    await db.query(`update public.profiles set welcome_video_key = $2 where id = $1`, [
+      profile,
+      `posts/${profile}/welcome.mp4`,
+    ]);
+    await db.query(
+      `insert into public.social_music_scans (
+         surface, profile_id, author_id, asset_id, playback_id, status, next_attempt_at, last_error, attempt_count
+       ) values ('welcome', $1, $1, $2, $3, 'pending', null, 'superseded', 2)`,
+      [profile, siblingAsset, siblingPlay],
+    );
+    const scan = await db.query<{ id: string }>(
+      `select id::text as id from public.social_music_scans where profile_id = $1 and playback_id = $2`,
+      [profile, digest],
+    );
+    return { profile, asset: digest, play: digest, upload: remembered, siblingPlay, scanId: scan.rows[0]!.id };
+  }
+  await bindWelcome(profile, upload, asset, play);
+  await setWelcome(profile, asset, play, upload);
+  if (state === "pending mid-scan" || state === "superseded") {
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 1, window_results = $3::jsonb
+       where profile_id = $1 and playback_id = $2`,
+      [profile, play, JSON.stringify(STORED_WINDOW)],
+    );
+  }
+  if (state === "pending backing off") {
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 1, last_error = 'acr_rate_limit:1', next_attempt_at = now() + interval '30 minutes'
+       where profile_id = $1 and playback_id = $2`,
+      [profile, play],
+    );
+  }
+  if (state === "allowed" || state === "blocked") {
+    await db.query(
+      `update public.social_music_scans
+       set status = $3::public.social_music_scan_status, decided_at = now(), next_attempt_at = null
+       where profile_id = $1 and playback_id = $2`,
+      [profile, play, state],
+    );
+  }
+  await db.query(
+    `insert into public.social_music_scans (
+       surface, profile_id, author_id, asset_id, playback_id, status, next_attempt_at, last_error, attempt_count
+     ) values ('welcome', $1, $1, $2, $3, 'pending', null, 'superseded', 2)`,
+    [profile, siblingAsset, siblingPlay],
+  );
+  if (state === "superseded") await setWelcome(profile, null, null, null);
+  const scan = await db.query<{ id: string }>(
+    `select id::text as id from public.social_music_scans where profile_id = $1 and playback_id = $2`,
+    [profile, play],
+  );
+  return { profile, asset, play, upload, siblingPlay, scanId: scan.rows[0]!.id };
+}
+
+async function clearWelcomeProfile(profile: string) {
+  await db.query(
+    `update public.profiles
+     set welcome_video_key = null,
+         welcome_mux_asset_id = null,
+         welcome_mux_playback_id = null,
+         welcome_mux_upload_id = null
+     where id = $1`,
+    [profile],
+  );
+}
+
+async function welcomeScan(profile: string, play: string) {
+  const result = await db.query<{
+    id: string;
+    asset_id: string;
+    last_error: string | null;
+    status: string;
+    attempt_count: number;
+    due: boolean;
+    later: boolean;
+    windows: number;
+  }>(
+    `select id::text as id, asset_id, last_error, status::text as status, attempt_count,
+            (next_attempt_at is not null and next_attempt_at <= now()) as due,
+            (next_attempt_at is not null and next_attempt_at > now()) as later,
+            jsonb_array_length(window_results) as windows
+     from public.social_music_scans
+     where profile_id = $1 and playback_id = $2`,
+    [profile, play],
+  );
+  return result.rows[0]!;
+}
+
+async function scanCount(profile: string) {
+  const result = await db.query<{ n: number }>(
+    `select count(*)::int as n from public.social_music_scans where profile_id = $1`,
+    [profile],
+  );
+  return result.rows[0]!.n;
+}
+
+async function bindingCount(profile: string) {
+  const result = await db.query<{ n: number }>(
+    `select count(*)::int as n from public.social_mux_bindings where author_id = $1`,
+    [profile],
+  );
+  return result.rows[0]!.n;
+}
+
+async function othersSeeCurrentWelcome(profile: string) {
+  const current = await db.query<{ asset: string | null; play: string | null }>(
+    `select welcome_mux_asset_id as asset, welcome_mux_playback_id as play from public.profiles where id = $1`,
+    [profile],
+  );
+  const row = current.rows[0]!;
+  if (!row.asset || !row.play) return false;
+  return strangerSeesWelcome(profile, row.asset, row.play);
+}
+
+async function siblingStillOff(profile: string, siblingPlay: string) {
+  const row = await welcomeScan(profile, siblingPlay);
+  expect(row.last_error).toBe("superseded");
+  expect(row.due).toBe(false);
+  expect(row.later).toBe(false);
+}
+
+function parseWindows(value: unknown): MusicWindowRecord[] {
+  const rows = typeof value === "string" ? (JSON.parse(value) as unknown) : value;
+  if (!Array.isArray(rows)) return [];
+  return rows.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const record = row as MusicWindowRecord;
+    if (typeof record.startSeconds !== "number" || typeof record.endSeconds !== "number") return [];
+    if (!record.result || typeof record.result !== "object" || !("kind" in record.result)) return [];
+    return [record];
+  });
+}
+
+async function saveWelcomePatch(id: string, patch: MusicScanPatch) {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  const add = (column: string, value: unknown, cast = "") => {
+    params.push(value);
+    sets.push(`${column} = $${params.length}${cast}`);
+  };
+  if (patch.status !== undefined) add("status", patch.status, "::public.social_music_scan_status");
+  if (patch.attemptCount !== undefined) add("attempt_count", patch.attemptCount);
+  if (patch.nextAttemptAt !== undefined) add("next_attempt_at", patch.nextAttemptAt);
+  if (patch.lastError !== undefined) add("last_error", patch.lastError);
+  if (patch.vendor !== undefined) add("vendor", patch.vendor);
+  if (patch.vendorStatusCode !== undefined) add("vendor_status_code", patch.vendorStatusCode);
+  if (patch.vendorScore !== undefined) add("vendor_score", patch.vendorScore);
+  if (patch.vendorTitle !== undefined) add("vendor_title", patch.vendorTitle);
+  if (patch.vendorArtist !== undefined) add("vendor_artist", patch.vendorArtist);
+  if (patch.vendorAlbum !== undefined) add("vendor_album", patch.vendorAlbum);
+  if (patch.vendorAcrid !== undefined) add("vendor_acrid", patch.vendorAcrid);
+  if (patch.vendorIsrc !== undefined) add("vendor_isrc", patch.vendorIsrc);
+  if (patch.vendorLabel !== undefined) add("vendor_label", patch.vendorLabel);
+  if (patch.muxReadyAt !== undefined) add("mux_ready_at", patch.muxReadyAt);
+  if (patch.scanStartedAt !== undefined) add("scan_started_at", patch.scanStartedAt);
+  if (patch.decidedAt !== undefined) add("decided_at", patch.decidedAt);
+  if (patch.durationSeconds !== undefined) add("duration_seconds", patch.durationSeconds);
+  if (patch.windowResults !== undefined) add("window_results", JSON.stringify(patch.windowResults), "::jsonb");
+  if (sets.length === 0) return;
+  params.push(id);
+  await db.query(
+    `update public.social_music_scans set ${sets.join(", ")} where id = $${params.length}::uuid and status = 'pending'`,
+    params,
+  );
+}
+
+async function dueWelcomeScans(profile: string, now: Date): Promise<PendingMusicScan[]> {
+  const result = await db.query<{
+    id: string;
+    asset_id: string;
+    playback_id: string;
+    attempt_count: number;
+    created_at: string;
+    mux_ready_at: string | null;
+    scan_started_at: string | null;
+    window_results: unknown;
+    last_error: string | null;
+    welcome_asset: string | null;
+    welcome_play: string | null;
+  }>(
+    `select s.id::text as id, s.asset_id, s.playback_id, s.attempt_count,
+            s.created_at::text as created_at, s.mux_ready_at::text as mux_ready_at,
+            s.scan_started_at::text as scan_started_at, s.window_results, s.last_error,
+            p.welcome_mux_asset_id as welcome_asset, p.welcome_mux_playback_id as welcome_play
+     from public.social_music_scans s
+     join public.profiles p on p.id = s.profile_id
+     where s.profile_id = $1
+       and s.status = 'pending'
+       and s.next_attempt_at is not null
+       and s.next_attempt_at <= $2::timestamptz
+     order by s.next_attempt_at`,
+    [profile, now.toISOString()],
+  );
+  const current: PendingMusicScan[] = [];
+  for (const row of result.rows) {
+    if (
+      !socialMusicParentStillHasScan(
+        { surface: "welcome", assetId: row.asset_id, playbackId: row.playback_id },
+        { welcomeAssetId: row.welcome_asset, welcomePlaybackId: row.welcome_play },
+      )
+    ) {
+      await db.query(
+        `update public.social_music_scans
+         set next_attempt_at = null, last_error = 'superseded'
+         where id = $1::uuid and status = 'pending'`,
+        [row.id],
+      );
+      continue;
+    }
+    current.push({
+      id: row.id,
+      surface: "welcome",
+      assetId: row.asset_id,
+      playbackId: row.playback_id,
+      attemptCount: row.attempt_count,
+      createdAt: row.created_at,
+      muxReadyAt: row.mux_ready_at,
+      scanStartedAt: row.scan_started_at,
+      lastError: row.last_error,
+      windows: parseWindows(row.window_results),
+    });
+  }
+  return current;
+}
+
+async function tickWelcome(profile: string, play: string) {
+  let identified = 0;
+  let sliced = 0;
+  const now = new Date(Date.now() + 60_000);
+  const summary = await runSocialMusicBatch({
+    now,
+    clock: () => now.getTime(),
+    budgetMs: 60_000,
+    listPending: () => dueWelcomeScans(profile, now),
+    loadAsset: async () => ({
+      status: "ready",
+      duration: 8,
+      playback_ids: [{ id: play, policy: "signed" }],
+      static_renditions: { files: [{ resolution: "audio-only", status: "ready" }] },
+    }),
+    requestAudioRendition: async () => undefined,
+    downloadAudio: async () => new Uint8Array([1, 2, 3]),
+    measureAudioDuration: () => 8,
+    sliceWindow: () => {
+      sliced += 1;
+      return new Uint8Array([4, 5, 6]);
+    },
+    identify: async () => {
+      identified += 1;
+      return { kind: "no_match", code: 1001 };
+    },
+    save: (id, patch) => saveWelcomePatch(id, patch),
+  });
+  return { summary, identified, sliced };
+}
+
+const WELCOME_STATES: WelcomeRowState[] = [
+  "pending queued",
+  "pending mid-scan",
+  "pending backing off",
+  "allowed",
+  "blocked",
+  "reingest_failed",
+  "superseded",
+];
 
 async function setStatus(id: string, status: "pending" | "allowed" | "blocked") {
   await db.query(
@@ -538,9 +853,10 @@ describe("social music scan migration", () => {
       attempt_count: number;
       vendor_score: string | null;
       windows: number;
+      next_attempt_at: string | null;
     }>(
       `select last_error, status::text as status, attempt_count, vendor_score::text as vendor_score,
-              jsonb_array_length(window_results) as windows
+              jsonb_array_length(window_results) as windows, next_attempt_at::text as next_attempt_at
        from public.social_music_scans
        where profile_id = $1 and playback_id = 'playBLK000001'`,
       [profile],
@@ -548,7 +864,14 @@ describe("social music scan migration", () => {
     expect(await welcomeNotices(profile)).toEqual(["blocked"]);
     expect(await strangerSeesWelcome(profile, "assetBLK00001", "playBLK000001")).toBe(false);
     expect(row.rows).toEqual([
-      { last_error: null, status: "blocked", attempt_count: 2, vendor_score: "40.00", windows: 1 },
+      {
+        last_error: null,
+        status: "blocked",
+        attempt_count: 2,
+        vendor_score: "40.00",
+        windows: 1,
+        next_attempt_at: null,
+      },
     ]);
     const scansAfter = await db.query<{ n: string }>(
       `select count(*)::text as n from public.social_music_scans where profile_id = $1`,
@@ -575,13 +898,13 @@ describe("social music scan migration", () => {
     );
     await setWelcome(profile, null, null, null);
     await setWelcome(profile, "assetALW00001", "playALW000001", "uploadALW0001");
-    const row = await db.query<{ last_error: string | null; status: string }>(
-      `select last_error, status::text as status
+    const row = await db.query<{ last_error: string | null; status: string; next_attempt_at: string | null }>(
+      `select last_error, status::text as status, next_attempt_at::text as next_attempt_at
        from public.social_music_scans
        where profile_id = $1 and playback_id = 'playALW000001'`,
       [profile],
     );
-    expect(row.rows).toEqual([{ last_error: null, status: "allowed" }]);
+    expect(row.rows).toEqual([{ last_error: null, status: "allowed", next_attempt_at: null }]);
     expect(await welcomeNotices(profile)).toEqual([]);
     expect(await strangerSeesWelcome(profile, "assetALW00001", "playALW000001")).toBe(true);
   });
@@ -615,17 +938,24 @@ describe("social music scan migration", () => {
     );
     await setWelcome(profile, null, null, null);
     await setWelcome(profile, "assetAGN00001", "playAGN000001", "uploadAGN0001");
-    const rows = await db.query<{ playback_id: string; last_error: string | null; status: string; attempt_count: number }>(
-      `select playback_id, last_error, status::text as status, attempt_count
+    const rows = await db.query<{
+      playback_id: string;
+      last_error: string | null;
+      status: string;
+      attempt_count: number;
+      due: boolean;
+    }>(
+      `select playback_id, last_error, status::text as status, attempt_count,
+              (next_attempt_at is not null) as due
        from public.social_music_scans
        where profile_id = $1
        order by playback_id`,
       [profile],
     );
     expect(rows.rows).toEqual([
-      { playback_id: "playAGN000001", last_error: null, status: "pending", attempt_count: 1 },
-      { playback_id: "playOTH000001", last_error: "superseded", status: "blocked", attempt_count: 0 },
-      { playback_id: "playPND000001", last_error: "superseded", status: "pending", attempt_count: 4 },
+      { playback_id: "playAGN000001", last_error: null, status: "pending", attempt_count: 1, due: true },
+      { playback_id: "playOTH000001", last_error: "superseded", status: "blocked", attempt_count: 0, due: false },
+      { playback_id: "playPND000001", last_error: "superseded", status: "pending", attempt_count: 4, due: false },
     ]);
     expect(await welcomeNotices(profile)).toEqual(["welcomePending"]);
   });
@@ -1091,5 +1421,326 @@ describe("social music scan migration", () => {
     });
     expect(again.bound).toBe(0);
     expect(creates).toBe(3);
+  });
+
+  it("finishes a cleared pending welcome when the same pair is saved again", async () => {
+    const seeded = await seedWelcomeState("pending mid-scan");
+    const scansBefore = await scanCount(seeded.profile);
+    const bindingsBefore = await bindingCount(seeded.profile);
+    await clearWelcomeProfile(seeded.profile);
+    await setWelcome(seeded.profile, seeded.asset, seeded.play, seeded.upload);
+    const tick = await tickWelcome(seeded.profile, seeded.play);
+    const row = await welcomeScan(seeded.profile, seeded.play);
+    expect(row.status).toBe("allowed");
+    expect(row.id).toBe(seeded.scanId);
+    expect(row.asset_id).toBe(seeded.asset);
+    expect(row.windows).toBe(1);
+    expect(row.last_error).toBeNull();
+    expect(row.due).toBe(false);
+    expect(row.later).toBe(false);
+    expect(tick.identified).toBe(0);
+    expect(tick.sliced).toBe(0);
+    expect(tick.summary.allowed).toBe(1);
+    expect(await scanCount(seeded.profile)).toBe(scansBefore);
+    expect(await bindingCount(seeded.profile)).toBe(bindingsBefore);
+    expect(await welcomeNotices(seeded.profile)).toEqual([]);
+    expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(true);
+    await siblingStillOff(seeded.profile, seeded.siblingPlay);
+  });
+
+  it("welcome state: save a new pair", async () => {
+    for (const state of WELCOME_STATES) {
+      const seeded = await seedWelcomeState(state);
+      const scansBefore = await scanCount(seeded.profile);
+      const suffix = seeded.profile.slice(-4);
+      const nextAsset = `assetNX${suffix}`;
+      const nextPlay = `playNX${suffix}a`;
+      const nextUpload = `upldNX${suffix}a`;
+      await bindWelcome(seeded.profile, nextUpload, nextAsset, nextPlay);
+      await db.query(
+        `update public.profiles
+         set welcome_mux_asset_id = $2,
+             welcome_mux_playback_id = $3,
+             welcome_mux_upload_id = $4,
+             welcome_video_key = null
+         where id = $1`,
+        [seeded.profile, nextAsset, nextPlay, nextUpload],
+      );
+      const old = await welcomeScan(seeded.profile, seeded.play);
+      const created = await welcomeScan(seeded.profile, nextPlay);
+      expect(old.id).toBe(seeded.scanId);
+      expect(old.asset_id).toBe(seeded.asset);
+      expect(old.last_error).toBe("superseded");
+      expect(old.due).toBe(false);
+      expect(old.later).toBe(false);
+      expect(created.status).toBe("pending");
+      expect(created.last_error).toBeNull();
+      expect(created.due).toBe(true);
+      expect(await welcomeNotices(seeded.profile)).toEqual(["welcomePending"]);
+      expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      expect(await scanCount(seeded.profile)).toBe(scansBefore + 1);
+      expect(await bindingCount(seeded.profile)).toBe(state === "reingest_failed" ? 1 : 2);
+      await siblingStillOff(seeded.profile, seeded.siblingPlay);
+    }
+  });
+
+  it("welcome state: clear", async () => {
+    for (const state of WELCOME_STATES) {
+      const seeded = await seedWelcomeState(state);
+      const scansBefore = await scanCount(seeded.profile);
+      const bindingsBefore = await bindingCount(seeded.profile);
+      await clearWelcomeProfile(seeded.profile);
+      const row = await welcomeScan(seeded.profile, seeded.play);
+      expect(row.id).toBe(seeded.scanId);
+      expect(row.last_error).toBe("superseded");
+      expect(row.due).toBe(false);
+      expect(row.later).toBe(false);
+      expect(await welcomeNotices(seeded.profile)).toEqual([]);
+      expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      expect(await scanCount(seeded.profile)).toBe(scansBefore);
+      expect(await bindingCount(seeded.profile)).toBe(bindingsBefore);
+      await siblingStillOff(seeded.profile, seeded.siblingPlay);
+    }
+  });
+
+  it("welcome state: re-save the same pair", async () => {
+    for (const state of WELCOME_STATES) {
+      const seeded = await seedWelcomeState(state);
+      const scansBefore = await scanCount(seeded.profile);
+      const bindingsBefore = await bindingCount(seeded.profile);
+      if (state === "reingest_failed") {
+        const row = await welcomeScan(seeded.profile, seeded.play);
+        expect(row.last_error).toBe("reingest_failed");
+        expect(row.due).toBe(false);
+        expect(row.later).toBe(false);
+        expect(await scanCount(seeded.profile)).toBe(scansBefore);
+        expect(await bindingCount(seeded.profile)).toBe(bindingsBefore);
+        await siblingStillOff(seeded.profile, seeded.siblingPlay);
+        continue;
+      }
+      await clearWelcomeProfile(seeded.profile);
+      await setWelcome(seeded.profile, seeded.asset, seeded.play, seeded.upload);
+      const row = await welcomeScan(seeded.profile, seeded.play);
+      expect(row.id).toBe(seeded.scanId);
+      expect(row.asset_id).toBe(seeded.asset);
+      expect(row.last_error).toBeNull();
+      expect(await scanCount(seeded.profile)).toBe(scansBefore);
+      expect(await bindingCount(seeded.profile)).toBe(bindingsBefore);
+      await siblingStillOff(seeded.profile, seeded.siblingPlay);
+      if (state === "allowed") {
+        expect(row.status).toBe("allowed");
+        expect(row.due).toBe(false);
+        expect(row.later).toBe(false);
+        expect(await welcomeNotices(seeded.profile)).toEqual([]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(true);
+      } else if (state === "blocked") {
+        expect(row.status).toBe("blocked");
+        expect(row.due).toBe(false);
+        expect(row.later).toBe(false);
+        expect(await welcomeNotices(seeded.profile)).toEqual(["blocked"]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      } else {
+        expect(row.status).toBe("pending");
+        expect(row.due).toBe(true);
+        expect(row.later).toBe(false);
+        expect(row.windows).toBe(state === "pending mid-scan" || state === "superseded" ? 1 : 0);
+        expect(await welcomeNotices(seeded.profile)).toEqual(["welcomePending"]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      }
+    }
+  });
+
+  it("welcome state: worker tick", async () => {
+    for (const state of WELCOME_STATES) {
+      const seeded = await seedWelcomeState(state);
+      const scansBefore = await scanCount(seeded.profile);
+      const tick = await tickWelcome(seeded.profile, seeded.play);
+      const row = await welcomeScan(seeded.profile, seeded.play);
+      expect(row.id).toBe(seeded.scanId);
+      expect(await scanCount(seeded.profile)).toBe(scansBefore);
+      await siblingStillOff(seeded.profile, seeded.siblingPlay);
+      if (state === "pending queued") {
+        expect(row.status).toBe("allowed");
+        expect(tick.identified).toBe(1);
+        expect(row.due).toBe(false);
+        expect(await welcomeNotices(seeded.profile)).toEqual([]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(true);
+      } else if (state === "pending mid-scan") {
+        expect(row.status).toBe("allowed");
+        expect(tick.identified).toBe(0);
+        expect(tick.sliced).toBe(0);
+        expect(row.windows).toBe(1);
+        expect(await welcomeNotices(seeded.profile)).toEqual([]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(true);
+      } else if (state === "pending backing off") {
+        expect(row.status).toBe("pending");
+        expect(row.later).toBe(true);
+        expect(row.last_error).toBe("acr_rate_limit:1");
+        expect(tick.identified).toBe(0);
+        expect(await welcomeNotices(seeded.profile)).toEqual(["welcomePending"]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      } else if (state === "allowed") {
+        expect(row.status).toBe("allowed");
+        expect(tick.identified).toBe(0);
+        expect(await welcomeNotices(seeded.profile)).toEqual([]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(true);
+      } else if (state === "blocked") {
+        expect(row.status).toBe("blocked");
+        expect(tick.identified).toBe(0);
+        expect(await welcomeNotices(seeded.profile)).toEqual(["blocked"]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      } else if (state === "reingest_failed") {
+        expect(row.last_error).toBe("reingest_failed");
+        expect(row.due).toBe(false);
+        expect(row.later).toBe(false);
+        expect(tick.identified).toBe(0);
+        expect(await welcomeNotices(seeded.profile)).toEqual(["welcomePending"]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      } else {
+        expect(row.last_error).toBe("superseded");
+        expect(row.due).toBe(false);
+        expect(row.later).toBe(false);
+        expect(tick.identified).toBe(0);
+        expect(await welcomeNotices(seeded.profile)).toEqual([]);
+        expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      }
+    }
+  });
+
+  it("welcome state: re-ingest rerun", async () => {
+    for (const state of WELCOME_STATES) {
+      const seeded = await seedWelcomeState(state);
+      const key = await db.query<{ key: string | null }>(
+        `select welcome_video_key as key from public.profiles where id = $1`,
+        [seeded.profile],
+      );
+      const remembered = await welcomeReingestAssetId(
+        { query: (text, params) => db.query(text, params ? [...params] : []) },
+        seeded.profile,
+      );
+      const candidate = welcomeProfileReingestCandidate({
+        id: seeded.profile,
+        welcomeVideoKey: key.rows[0]?.key ?? null,
+        welcomeMuxAssetId: state === "reingest_failed" ? null : seeded.asset,
+        welcomeMuxPlaybackId: state === "reingest_failed" ? null : seeded.play,
+        progressUploadId: remembered,
+      });
+      if (state !== "reingest_failed") {
+        expect(candidate).toBeNull();
+        const before = await welcomeScan(seeded.profile, seeded.play);
+        expect(before.id).toBe(seeded.scanId);
+        await siblingStillOff(seeded.profile, seeded.siblingPlay);
+        continue;
+      }
+      expect(remembered).toBe(seeded.upload);
+      expect(candidate?.assetId).toBe(seeded.upload);
+      expect(candidate?.playbackId).toBeNull();
+      const playback = `playRM${seeded.profile.slice(-4)}a`;
+      let creates = 0;
+      const sql = {
+        query: <T extends Record<string, unknown>>(text: string, params?: readonly unknown[]) =>
+          db.query<T>(text, params ? [...params] : []),
+      };
+      const report = await reingestSocialS3Videos({
+        execute: true,
+        candidates: [candidate!],
+        deps: {
+          head: async () => true,
+          presign: async () => "https://example.test/welcome",
+          createAsset: async () => {
+            creates += 1;
+            return { assetId: "assetSHOULDNO" };
+          },
+          loadAsset: async () => ({ playbackId: playback, duration: 8, status: "ready" }),
+          deleteAsset: async () => undefined,
+          bind: async (input) => {
+            await db.query(
+              `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+               values ($1, $2, $3, $4)`,
+              [input.authorId, input.uploadId, input.assetId, input.playbackId],
+            );
+          },
+          saveInProgress: async () => undefined,
+          saveParent: async (parent, settled) => {
+            const ids = settled[0];
+            if (!ids) return;
+            await db.query(
+              `update public.profiles
+               set welcome_mux_asset_id = $2,
+                   welcome_mux_playback_id = $3,
+                   welcome_mux_upload_id = $4,
+                   welcome_video_key = null
+               where id = $1`,
+              [parent.parentId, ids.assetId, ids.playbackId, ids.uploadId],
+            );
+          },
+          retirePlaceholder: (row) => retireS3MusicPlaceholder(sql, { surface: row.surface, parentId: row.parentId }),
+          markUnfinished: async () => undefined,
+          alreadyUnfinished: async () => false,
+        },
+      });
+      expect(creates).toBe(0);
+      expect(report.bound).toBe(1);
+      const digest = await welcomeScan(seeded.profile, seeded.play);
+      expect(digest.id).toBe(seeded.scanId);
+      expect(digest.last_error).toBe("superseded");
+      expect(digest.due).toBe(false);
+      const created = await welcomeScan(seeded.profile, playback);
+      expect(created.asset_id).toBe(seeded.upload);
+      expect(created.status).toBe("pending");
+      expect(created.due).toBe(true);
+      expect(await welcomeNotices(seeded.profile)).toEqual(["welcomePending"]);
+      expect(await othersSeeCurrentWelcome(seeded.profile)).toBe(false);
+      await siblingStillOff(seeded.profile, seeded.siblingPlay);
+    }
+  });
+
+  it("welcome state: 8 min stop", async () => {
+    const seeded = await Promise.all(WELCOME_STATES.map((state) => seedWelcomeState(state)));
+    const ids = seeded.map((row) => row.profile);
+    const before = await db.query(
+      `select id::text as id, status::text as status, last_error, next_attempt_at::text as next_attempt_at,
+              attempt_count, asset_id, playback_id
+       from public.social_music_scans
+       where profile_id = any($1::uuid[])
+       order by id`,
+      [ids],
+    );
+    const noticesBefore = await Promise.all(seeded.map((row) => welcomeNotices(row.profile)));
+    const visibleBefore = await Promise.all(seeded.map((row) => othersSeeCurrentWelcome(row.profile)));
+    let now = 0;
+    let recording = true;
+    const recorder = {
+      ondataavailable: null as ((event: { data: Blob }) => void) | null,
+      stopped: false,
+    };
+    const watch = bindGoLiveRecorderStop({
+      recorder,
+      now: () => now,
+      startedAt: 0,
+      isRecording: () => recording,
+      stop: () => {
+        recorder.stopped = true;
+        recording = false;
+      },
+      takeChunk: () => undefined,
+    });
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    watch.onTick();
+    expect(recorder.stopped).toBe(true);
+    const after = await db.query(
+      `select id::text as id, status::text as status, last_error, next_attempt_at::text as next_attempt_at,
+              attempt_count, asset_id, playback_id
+       from public.social_music_scans
+       where profile_id = any($1::uuid[])
+       order by id`,
+      [ids],
+    );
+    expect(after.rows).toEqual(before.rows);
+    const noticesAfter = await Promise.all(seeded.map((row) => welcomeNotices(row.profile)));
+    const visibleAfter = await Promise.all(seeded.map((row) => othersSeeCurrentWelcome(row.profile)));
+    expect(noticesAfter).toEqual(noticesBefore);
+    expect(visibleAfter).toEqual(visibleBefore);
+    for (const row of seeded) await siblingStillOff(row.profile, row.siblingPlay);
   });
 });

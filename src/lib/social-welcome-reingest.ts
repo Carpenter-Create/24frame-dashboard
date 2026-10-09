@@ -1,5 +1,5 @@
 import { socialVideoKeyDigest } from "@/lib/social-music-scan";
-import { socialVideoDurationExceedsCap } from "@/lib/social-mux";
+import { isSocialMuxId, socialVideoDurationExceedsCap } from "@/lib/social-mux";
 
 // Founder-run re-ingest of S3 video onto Mux. Dry-run is the default.
 // Expired stories are skipped. A missing source becomes Unfinished.
@@ -7,6 +7,13 @@ import { socialVideoDurationExceedsCap } from "@/lib/social-mux";
 
 /** A rerun picks these up. reingest_failed is a retry, not a final hold. */
 export const SOCIAL_REINGEST_RETRY_ERRORS = ["s3_video_needs_mux", "reingest_failed"] as const;
+
+/**
+ * Welcome progress lives on the digest row. A failed save overwrites
+ * welcome_reingest_preparing with reingest_failed and keeps upload_id.
+ * A rerun must read that upload and not create a second Mux asset.
+ */
+export const WELCOME_REINGEST_PROGRESS_ERRORS = ["welcome_reingest_preparing", "reingest_failed"] as const;
 
 /** These stay Unfinished. A rerun does not pick them up. */
 export const SOCIAL_REINGEST_TERMINAL_ERRORS = [
@@ -209,6 +216,34 @@ async function settleAsset(
   return { candidate, assetId, playbackId, uploadId: assetId };
 }
 
+/** A profile with no S3 key is not a welcome re-ingest candidate. */
+export function welcomeProfileReingestCandidate(profile: {
+  id: string;
+  welcomeVideoKey: string | null;
+  welcomeMuxAssetId: string | null;
+  welcomeMuxPlaybackId: string | null;
+  progressUploadId: string | null;
+}): SocialReingestCandidate | null {
+  if (!profile.welcomeVideoKey) return null;
+  const muxAsset =
+    profile.welcomeMuxAssetId && isSocialMuxId(profile.welcomeMuxAssetId) ? profile.welcomeMuxAssetId : null;
+  const remembered =
+    profile.progressUploadId && isSocialMuxId(profile.progressUploadId) ? profile.progressUploadId : null;
+  const playback =
+    profile.welcomeMuxPlaybackId && isSocialMuxId(profile.welcomeMuxPlaybackId)
+      ? profile.welcomeMuxPlaybackId
+      : null;
+  return {
+    surface: "welcome",
+    parentId: profile.id,
+    authorId: profile.id,
+    key: profile.welcomeVideoKey,
+    expired: false,
+    assetId: muxAsset ?? remembered,
+    playbackId: playback,
+  };
+}
+
 /** The scan row's own key. The first video on the post is not reused for the next row. */
 export function socialReingestKeyForDigest(media: readonly unknown[], digest: string): string | null {
   for (const entry of media) {
@@ -280,7 +315,7 @@ export async function welcomeReingestAssetId(db: SqlQueryable, profileId: string
     `select upload_id
      from public.social_music_scans
      where profile_id = $1::uuid
-       and last_error = 'welcome_reingest_preparing'
+       and last_error in ('welcome_reingest_preparing', 'reingest_failed')
        and upload_id is not null
      limit 1`,
     [profileId],
