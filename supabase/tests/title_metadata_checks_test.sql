@@ -1,11 +1,12 @@
 -- title_metadata_checks_test.sql
 -- 20261009120000: set_title_metadata accepts only the field registry with
--- its types and limits (Adam 2026-10-09, "Add these limits"); a cleared
--- field is dropped; a soft-deleted title cannot be written, reconciled or
--- submitted.
+-- its types and limits (Adam 2026-10-09, "Add these limits"), and a language
+-- or country only from the app's lists (LANGUAGES, ISO_COUNTRIES; Codex on
+-- #799); a cleared field is dropped; a soft-deleted title cannot be written,
+-- reconciled or submitted.
 
 begin;
-select plan(27);
+select plan(30);
 
 select set_config('t.org',   gen_random_uuid()::text, false);
 select set_config('t.owner', gen_random_uuid()::text, false);
@@ -102,10 +103,20 @@ select throws_ok(
   '22023', 'rating: not in the list', 'rating outside the list refused');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,'{"primary_language":"english"}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
-  '22023', 'primary_language: a two-letter language code', 'language not a code refused');
+  '22023', 'primary_language: not in the list', 'language not a code refused');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,'{"country_of_origin":"us"}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
-  '22023', 'country_of_origin: a two-letter country code', 'country not a code refused');
+  '22023', 'country_of_origin: not in the list', 'country not a code refused');
+-- Two letters are not enough: only the app's lists (Codex on #799).
+select throws_ok(
+  format($$ select public.set_title_metadata(%L,%L,'{"primary_language":"zz"}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
+  '22023', 'primary_language: not in the list', 'a two-letter language outside LANGUAGES refused');
+select throws_ok(
+  format($$ select public.set_title_metadata(%L,%L,'{"country_of_origin":"ZZ"}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
+  '22023', 'country_of_origin: not in the list', 'a two-letter country outside ISO_COUNTRIES refused');
+select lives_ok(
+  format($$ select public.set_title_metadata(%L,%L,'{"primary_language":"fr","country_of_origin":"GB"}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
+  'a language and a country from the lists are accepted');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,%L::jsonb) $$, current_setting('t.org'), current_setting('t.title'),
          json_build_object('cast', (select json_agg('x' || g) from generate_series(1, 51) g))::text),

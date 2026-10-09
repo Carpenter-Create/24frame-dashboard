@@ -7,9 +7,13 @@
 -- src/lib/metadata-merge.test.ts against normalizeStoredMetadata); refusals;
 -- the no-op; findings; the auth matrix; a deleted title; submit reading the
 -- stored record as the app does, and refusing another org's title first.
+-- Codex on #799: submit checks only the required tier (a refused Director
+-- submits, a refused required value does not); a stored country outside the
+-- app's list is named on the next save and corrected in it; reconcile takes
+-- the same title lock.
 
 begin;
-select plan(84);
+select plan(95);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -26,7 +30,9 @@ select set_config('t.tgone',  gen_random_uuid()::text, false);  -- A, deleted
 select set_config('t.tlegacy',gen_random_uuid()::text, false);  -- A, legacy stored values
 select set_config('t.tgenre', gen_random_uuid()::text, false);  -- A, stored genre the list refuses
 select set_config('t.tsub',   gen_random_uuid()::text, false);  -- A, complete, older stored shapes
-select set_config('t.tbad',   gen_random_uuid()::text, false);  -- A, complete, a value the checks refuse
+select set_config('t.tbad',   gen_random_uuid()::text, false);  -- A, complete, a recommended value the checks refuse
+select set_config('t.tlang',  gen_random_uuid()::text, false);  -- A, complete, a language outside the list
+select set_config('t.toff',   gen_random_uuid()::text, false);  -- A, complete, a country outside the list
 
 insert into auth.users (id) values
   (current_setting('t.owner')::uuid), (current_setting('t.deliv')::uuid),
@@ -51,7 +57,9 @@ insert into public.titles (id, org_id, title, status) values
   (current_setting('t.tlegacy')::uuid, current_setting('t.org_a')::uuid, 'Legacy',  'draft'),
   (current_setting('t.tgenre')::uuid,  current_setting('t.org_a')::uuid, 'Genre',   'draft'),
   (current_setting('t.tsub')::uuid,    current_setting('t.org_a')::uuid, 'Submit',  'draft'),
-  (current_setting('t.tbad')::uuid,    current_setting('t.org_a')::uuid, 'Bad',     'draft');
+  (current_setting('t.tbad')::uuid,    current_setting('t.org_a')::uuid, 'Bad',     'draft'),
+  (current_setting('t.tlang')::uuid,   current_setting('t.org_a')::uuid, 'Lang',    'draft'),
+  (current_setting('t.toff')::uuid,    current_setting('t.org_a')::uuid, 'Country', 'draft');
 insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.ta')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"Jo"}'::jsonb),
@@ -64,10 +72,17 @@ insert into public.title_metadata (title_id, org_id, data) values
   -- blank list entry, an unknown key. The window shows it as complete.
   (current_setting('t.tsub')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","runtime_minutes":"96","release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"","keywords":["","space"],"foo":"bar"}'::jsonb),
-  -- Complete, with a Director over 200 characters (stored before the limits).
+  -- Complete, with a Director over 200 characters (stored before the limits):
+  -- a recommended value, so it never blocks submit.
   (current_setting('t.tbad')::uuid, current_setting('t.org_a')::uuid,
    jsonb_build_object('synopsis', 'A film.', 'runtime_minutes', 96, 'release_year', 2024, 'genre', 'drama',
-                      'primary_language', 'en', 'country_of_origin', 'US', 'director', repeat('x', 201)));
+                      'primary_language', 'en', 'country_of_origin', 'US', 'director', repeat('x', 201))),
+  -- Complete, with two letters that are not in LANGUAGES (a required value).
+  (current_setting('t.tlang')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"zz","country_of_origin":"US"}'::jsonb),
+  -- Complete, with two letters that are not in ISO_COUNTRIES (stored before the lists).
+  (current_setting('t.toff')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"ZZ"}'::jsonb);
 update public.titles set deleted_at = now() where id = current_setting('t.tgone')::uuid;
 
 -- ===== structure, grants, lock pins (as postgres) =====
@@ -132,6 +147,24 @@ select ok(
      from pg_proc p
     where p.oid = 'public.submit_title(uuid, uuid)'::regprocedure),
   'submit_title locks the title before it reads the record');
+select ok(
+  (select p.prosrc ~* 'from\s+jsonb_each\s*\(\s*v_data\s*\)\s+e\s+where\s+e\.key\s*=\s*any\s*\(\s*v_required\s*\)'
+      and p.prosrc ~* 'public\.check_title_metadata\s*\(\s*v_required_values\s*\)'
+      and p.prosrc !~* 'public\.check_title_metadata\s*\(\s*v_data\s*\)'
+     from pg_proc p
+    where p.oid = 'public.submit_title(uuid, uuid)'::regprocedure),
+  'submit_title checks only the required tier''s values (Codex on #799)');
+select ok(
+  (select p.prosrc from pg_proc p
+    where p.oid = 'public.reconcile_title_findings(uuid, uuid, jsonb, text)'::regprocedure)
+  ~* 'from\s+public\.titles\s+t\s+where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+and\s+t\.deleted_at\s+is\s+null\s+for\s+no\s+key\s+update',
+  'reconcile_title_findings takes the same title lock (Codex on #799)');
+select ok(
+  (select strpos(p.prosrc, 'for no key update') > 0
+      and strpos(p.prosrc, 'for no key update') < strpos(p.prosrc, 'perform public.refresh_title_findings')
+     from pg_proc p
+    where p.oid = 'public.reconcile_title_findings(uuid, uuid, jsonb, text)'::regprocedure),
+  'reconcile_title_findings locks the title before it refreshes findings');
 
 -- ===== normalize parity (as postgres) =====
 -- One row per line: (input, sql_expected, js_expected). vitest parses this
@@ -272,6 +305,21 @@ select throws_like(
   'genre:%', 'a stored genre outside the list is named');
 select is((select data from public.title_metadata where title_id = current_setting('t.tgenre')::uuid),
   '{"synopsis":"x","genre":"Drama"}'::jsonb, 'and the record is unchanged');
+-- So is a stored country outside ISO_COUNTRIES (Codex on #799), and the save
+-- that picks one from the list stores both changes.
+select throws_like(
+  format($$ select public.merge_title_metadata(%L, %L, '{"director":"X"}'::jsonb, '{}'::text[]) $$,
+         current_setting('t.org_a'), current_setting('t.toff')),
+  'country_of_origin:%', 'a stored country outside the list is named on a save of another field');
+select is((select data->>'country_of_origin' from public.title_metadata where title_id = current_setting('t.toff')::uuid),
+  'ZZ', 'and the record is unchanged');
+select lives_ok(
+  format($$ select public.merge_title_metadata(%L, %L, '{"country_of_origin":"GB","director":"X"}'::jsonb, '{}'::text[]) $$,
+         current_setting('t.org_a'), current_setting('t.toff')),
+  'the same save with a country from the list succeeds');
+select is((select data from public.title_metadata where title_id = current_setting('t.toff')::uuid),
+  '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"GB","director":"X"}'::jsonb,
+  'it stores the corrected country and the change');
 
 -- ===== a legacy record merges as the app reads it =====
 select lives_ok(
@@ -395,10 +443,23 @@ select is((select status::text from public.titles where id = current_setting('t.
 select is((select data from public.title_metadata where title_id = current_setting('t.tsub')::uuid),
   '{"synopsis":"A film.","runtime_minutes":"96","release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"","keywords":["","space"],"foo":"bar"}'::jsonb,
   'submit never rewrites the stored record');
--- A value the checks refuse still blocks submit, naming its field.
-select throws_like(
+-- Only the required tier is checked (Codex on #799; docs/domain-spec.md §12,
+-- required blocks delivery): a Director over 200 characters, stored before
+-- the limits, never blocks a submit, and is not rewritten.
+select lives_ok(
   format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tbad')),
-  'director:%', 'a stored value the checks refuse still blocks submit');
+  'six valid required fields and a refused Director: submits');
+select is((select status::text from public.titles where id = current_setting('t.tbad')::uuid),
+  'in_review', 'and the title is in review');
+select is((select char_length(data->>'director') from public.title_metadata where title_id = current_setting('t.tbad')::uuid),
+  201, 'and the stored Director is not rewritten');
+-- A required value the checks refuse still blocks submit, naming its field:
+-- two letters outside LANGUAGES.
+select throws_like(
+  format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tlang')),
+  'primary_language:%', 'a required language outside the list still blocks submit');
+select is((select status::text from public.titles where id = current_setting('t.tlang')::uuid),
+  'draft', 'and the title stays in draft');
 -- Another org's title is refused at the lock, before its record is read: the
 -- answer never depends on that record (org B's is incomplete).
 select throws_ok(

@@ -27,8 +27,10 @@
 --      registry's keys, each with its type and the limits Adam approved
 --      (2026-10-09, "Add these limits"): text 200, synopsis 4,000, runtime
 --      1–1,000 minutes, release year 1888 to next year + 5, lists of up to
---      50. A cleared (null) field is dropped. It refreshes findings in the
---      same transaction, so findings always match what was stored.
+--      50; genre, rating, primary language and country of origin only from
+--      the app's lists (GENRES, RATINGS, LANGUAGES, ISO_COUNTRIES). A cleared
+--      (null) field is dropped. It refreshes findings in the same
+--      transaction, so findings always match what was stored.
 --   3. A soft-deleted title (deleted_at set) can no longer be written through
 --      set_title_metadata, set_title_release_info, reconcile_title_findings
 --      or submit_title.
@@ -36,25 +38,33 @@
 --      (merge_title_metadata): the app sends only the changed fields; the
 --      database merges them onto the stored record under a lock on the
 --      title, checks the whole record and refreshes findings in one
---      transaction. set_title_metadata and submit_title take the same title
---      lock first, so every metadata writer serializes on the title and a
---      submit reads what the last save stored. submit_title reads the stored
---      record as the app does (normalize_stored_title_metadata), so a record
---      the window shows as complete is never refused over an older stored
---      shape, and it refuses a title outside the org before reading its
---      record.
+--      transaction. set_title_metadata, submit_title and
+--      reconcile_title_findings take the same title lock first, so every
+--      caller of the findings refresh serializes on the title, a submit
+--      reads what the last save stored, and a reconcile never writes
+--      findings from a record a later save replaced. submit_title reads the
+--      stored record as the app does (normalize_stored_title_metadata), so a
+--      record the window shows as complete is never refused over an older
+--      stored shape, and it refuses a title outside the org before reading
+--      its record. It checks only the required tier's values, as the app
+--      counts them (required blocks delivery, docs/domain-spec.md §12): a
+--      refused recommended or optional value never blocks a submit.
 --
 -- DESTRUCTIVE OPS (approved before apply): create or replace 4 existing
 -- functions (reconcile_title_findings, set_title_metadata,
 -- set_title_release_info, submit_title); create 6 new functions (2 pure
 -- helpers, 1 internal refresh, 1 metadata check, and in section 8
 -- normalize_stored_title_metadata (internal) and merge_title_metadata); a
--- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata and
--- submit_title; submit_title refuses a title outside the org at that lock
--- and reads the stored record normalized; revoke/grant execute. No table,
--- column, policy, trigger or data change. Existing stored metadata is not
--- rewritten or re-validated; the next save of a title is checked. Apply as
--- one transaction.
+-- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata,
+-- submit_title and reconcile_title_findings; submit_title refuses a title
+-- outside the org at that lock, reads the stored record normalized and
+-- checks only its required fields; revoke/grant execute. No table, column,
+-- policy, trigger or data change. Existing stored metadata is not rewritten
+-- or re-validated; the next save of a title checks its whole record, so a
+-- stored value the checks refuse (including a language or country outside
+-- the app's lists) blocks that save, named on its field, until it is
+-- corrected in the same save, and a refused required value blocks submit.
+-- Count those rows read-only before applying. Apply as one transaction.
 --
 -- ROLLBACK: re-apply the previous bodies from 20260718000700_title_metadata.sql
 -- (set_title_metadata), 20260721000200_release_dates.sql (set_title_release_info),
@@ -67,8 +77,10 @@
 -- app then returns to read, merge and set by itself.
 --
 -- KEEP IN SYNC with src/lib/metadata.ts (METADATA_FIELDS, GENRES, RATINGS,
--- computeMetadataFindings, METADATA_LOGIC_VERSION, normalizeStoredMetadata)
--- and the limits there; src/lib/metadata-merge.test.ts pins them.
+-- computeMetadataFindings, METADATA_LOGIC_VERSION, normalizeStoredMetadata,
+-- requiredComplete) and the limits there, src/lib/languages.ts (LANGUAGES)
+-- and src/lib/territories.ts (ISO_COUNTRIES); src/lib/metadata-merge.test.ts
+-- pins them.
 -- ============================================================================
 
 -- ---- 1. Pure helpers ---------------------------------------------------------
@@ -195,15 +207,37 @@ begin
         end if;
 
       when 'primary_language' then
-        -- ISO 639-1 (the app checks the exact list).
-        if jsonb_typeof(v_val) <> 'string' or (v_val #>> '{}') !~ '^[a-z]{2}$' then
-          raise exception 'primary_language: a two-letter language code' using errcode = '22023';
+        -- LANGUAGES (src/lib/languages.ts), in order: the app's exact list,
+        -- not any two letters (Codex on #799).
+        if jsonb_typeof(v_val) <> 'string' or (v_val #>> '{}') not in (
+          'en','es','fr','de','it','pt','nl','sv','no','da','fi','pl','ru','uk','cs','el','tr',
+          'ar','he','hi','bn','ta','ur','fa','zh','ja','ko','th','vi','id','ms','tl','sw','af',
+          'hu','ro','bg','hr','sr','sk'
+        ) then
+          raise exception 'primary_language: not in the list' using errcode = '22023';
         end if;
 
       when 'country_of_origin' then
-        -- ISO 3166-1 alpha-2 (the app checks the exact list).
-        if jsonb_typeof(v_val) <> 'string' or (v_val #>> '{}') !~ '^[A-Z]{2}$' then
-          raise exception 'country_of_origin: a two-letter country code' using errcode = '22023';
+        -- ISO_COUNTRIES keys (src/lib/territories.ts), in order: the app's
+        -- exact list, not any two letters (Codex on #799).
+        if jsonb_typeof(v_val) <> 'string' or (v_val #>> '{}') not in (
+          'DZ','AO','BJ','BW','BF','BI','CV','CM','CF','TD','KM','CG','CD','CI','DJ','EG','GQ',
+          'ER','SZ','ET','GA','GM','GH','GN','GW','KE','LS','LR','LY','MG','MW','ML','MR','MU',
+          'YT','MA','MZ','NA','NE','NG','RE','RW','SH','ST','SN','SC','SL','SO','ZA','SS','SD',
+          'TZ','TG','TN','UG','EH','ZM','ZW','AF','AM','AZ','BH','BD','BT','BN','KH','CN','CY',
+          'GE','HK','IN','ID','IR','IQ','IL','JP','JO','KZ','KW','KG','LA','LB','MO','MY','MV',
+          'MN','MM','NP','KP','OM','PK','PS','PH','QA','SA','SG','KR','LK','SY','TW','TJ','TH',
+          'TL','TR','TM','AE','UZ','VN','YE','AX','AL','AD','AT','BY','BE','BA','BG','HR','CZ',
+          'DK','EE','FO','FI','FR','DE','GI','GR','GG','HU','IS','IE','IM','IT','JE','LV','LI',
+          'LT','LU','MT','MD','MC','ME','NL','MK','NO','PL','PT','RO','RU','SM','RS','SK','SI',
+          'ES','SJ','SE','CH','UA','GB','VA','AI','AG','AW','BS','BB','BZ','BM','BQ','VG','CA',
+          'KY','CR','CU','CW','DM','DO','SV','GL','GD','GP','GT','HT','HN','JM','MQ','MX','MS',
+          'NI','PA','PR','BL','KN','LC','MF','PM','VC','SX','TT','TC','US','VI','AR','BO','BR',
+          'CL','CO','EC','FK','GF','GY','PY','PE','SR','UY','VE','AS','AU','CX','CC','CK','FJ',
+          'PF','GU','KI','MH','FM','NR','NC','NZ','NU','NF','MP','PW','PG','PN','WS','SB','TK',
+          'TO','TV','VU','WF','AQ','BV','IO','TF','HM','GS','UM'
+        ) then
+          raise exception 'country_of_origin: not in the list' using errcode = '22023';
         end if;
 
       when 'cast', 'keywords' then
@@ -281,7 +315,7 @@ $$;
 
 revoke execute on function public.refresh_title_findings(uuid, uuid) from public, anon, authenticated;
 
--- ---- 4. reconcile_title_findings: same signature, payload ignored ------------
+-- ---- 4. reconcile_title_findings: same signature, payload ignored, title lock -
 
 create or replace function public.reconcile_title_findings(
   p_org_id uuid, p_title_id uuid, p_findings jsonb, p_logic_version text
@@ -293,6 +327,16 @@ begin
   if auth.uid() is null then raise exception 'Not authenticated'; end if;
   if not (public.gc_can(auth.uid(), 'operate') or public.member_can(auth.uid(), p_org_id, 'operate')) then
     raise exception 'Not authorized';
+  end if;
+  -- The metadata writers' title lock, taken first as they take it: a save in
+  -- flight commits before the refresh reads the record, so a refresh never
+  -- writes findings from a record a later save replaced (Codex on #799). A
+  -- spoofed p_org_id or a deleted title matches no row and is refused here.
+  perform 1 from public.titles t
+   where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
+   for no key update;
+  if not found then
+    raise exception 'Title not found in this organization';
   end if;
   -- p_findings and p_logic_version are ignored: findings come from the
   -- stored metadata, never from the caller.
@@ -381,7 +425,7 @@ $$;
 revoke execute on function public.set_title_release_info(uuid, uuid, public.release_type, date) from public, anon;
 grant  execute on function public.set_title_release_info(uuid, uuid, public.release_type, date) to authenticated;
 
--- ---- 7. submit_title: never a deleted title; findings refreshed --------------
+-- ---- 7. submit_title: never a deleted title; required tier; findings refreshed
 
 create or replace function public.submit_title(p_org_id uuid, p_title_id uuid)
   returns void language plpgsql security definer set search_path = public as $$
@@ -390,6 +434,8 @@ declare
   v_key  text;
   -- REQUIRED tier from src/lib/metadata.ts METADATA_FIELDS — keep in sync.
   v_required text[] := array['synopsis','runtime_minutes','release_year','genre','primary_language','country_of_origin'];
+  -- The required tier's values alone: what the delivery gate checks.
+  v_required_values jsonb;
 begin
   if auth.uid() is null then raise exception 'Not authenticated'; end if;
   if not public.member_can(auth.uid(), p_org_id, 'operate') then
@@ -418,9 +464,17 @@ begin
       raise exception 'Cannot submit: required metadata field "%" is missing', v_key;
     end if;
   end loop;
-  -- Filled is not enough: a stored value the checks refuse (runtime 0 from
+  -- Filled is not enough: a required value the checks refuse (runtime 0 from
   -- before the limits) does not submit (Codex on #801; the app checks first).
-  perform public.check_title_metadata(v_data);
+  -- Only the required tier is checked, as the app's requiredComplete counts
+  -- it: required blocks delivery, the rest feed the health score
+  -- (docs/domain-spec.md §12), so a recommended or optional value stored
+  -- before the limits (a 201-character Director) never blocks a submit
+  -- (Codex on #799). The next save of that title still names it.
+  select coalesce(jsonb_object_agg(e.key, e.value), '{}'::jsonb) into v_required_values
+    from jsonb_each(v_data) e
+   where e.key = any (v_required);
+  perform public.check_title_metadata(v_required_values);
 
   update public.titles
     set status = 'in_review'
@@ -510,9 +564,10 @@ revoke execute on function public.normalize_stored_title_metadata(jsonb) from pu
 -- p_clear is ignored. Same-field edits stay last-writer-wins, and a list is
 -- replaced whole.
 --
--- Lock order for every metadata writer (this, set_title_metadata,
--- submit_title): the title row (FOR NO KEY UPDATE), then the title_metadata
--- row, then findings. NO KEY UPDATE, not SHARE: two merges never share the
+-- Lock order for every metadata writer and every caller of the findings
+-- refresh (this, set_title_metadata, submit_title, reconcile_title_findings):
+-- the title row (FOR NO KEY UPDATE), then the title_metadata row, then
+-- findings. NO KEY UPDATE, not SHARE: two merges never share the
 -- row and then upgrade (no deadlock), and the KEY SHARE lock a title_metadata
 -- insert takes for its foreign key is still allowed. A delete that commits
 -- first is re-checked under the lock and refused.

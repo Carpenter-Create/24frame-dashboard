@@ -1,10 +1,11 @@
 -- findings_test.sql
 -- reconcile_title_findings (operate/GC-gated; derived from stored metadata, the
--- caller's payload ignored; upsert + auto-resolve; validator-only) + my_findings +
--- RLS (own-org only) for the findings store (§19).
+-- caller's payload ignored; under the title lock, so another org's title is
+-- refused; upsert + auto-resolve; validator-only) + my_findings + RLS (own-org
+-- only) for the findings store (§19).
 
 begin;
-select plan(16);
+select plan(17);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -93,6 +94,12 @@ select lives_ok(
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('t.ownerB'),'role','authenticated')::text, true);
 select is((select count(*) from public.findings where entity_id=current_setting('t.title')::uuid)::int, 0,
   'org B owner cannot see org A findings (RLS)');
+-- The title lock (20261009120000, Codex on #799) matches only a live title in
+-- p_org_id: org B's owner, under org B, cannot reconcile org A's title.
+select throws_ok(
+  format($$ select public.reconcile_title_findings(%L,%L,'[]'::jsonb,'metadata-v1') $$,
+         current_setting('t.orgB'), current_setting('t.title')),
+  'P0001', 'Title not found in this organization', 'SPOOF: own org, another org''s title is refused at the title lock');
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('t.ownerA'),'role','authenticated')::text, true);
 select ok((select count(*) from public.my_findings()) >= 1,
   'owner A my_findings returns own open findings');

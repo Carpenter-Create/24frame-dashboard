@@ -446,21 +446,33 @@ describe("submitTitle (Codex on #801)", () => {
     const ok = fake();
     expect(await submitTitle(ORG, TITLE)).toEqual({});
     expect(ok.rpc[0]).toEqual({ name: "submit_title", args: { p_org_id: ORG, p_title_id: TITLE } });
+
+    // Two letters are not enough: a required code must be on the app's list.
+    const offList = fake({ stored: { ...STORED, country_of_origin: "ZZ" } });
+    expect((await submitTitle(ORG, TITLE)).error).toContain("required metadata fields");
+    expect(offList.rpc).toEqual([]);
+  });
+
+  it("never lets a refused recommended or optional value block submit (Codex on #799)", async () => {
+    // Required blocks delivery; the rest feed the health score (domain-spec §12).
+    const legacy = fake({ stored: { ...STORED, director: "x".repeat(201), alternate_title: "y".repeat(201) } });
+    expect(await submitTitle(ORG, TITLE)).toEqual({});
+    expect(legacy.rpc).toEqual([{ name: "submit_title", args: { p_org_id: ORG, p_title_id: TITLE } }]);
   });
 
   it("names what the database refuses with an approved line, never its text", async () => {
-    // A stored value the checks refuse (22023 naming its field).
+    // A stored required value the checks refuse (22023 naming its field).
     const refused = fake({
-      rpcErrors: { submit_title: { code: "22023", message: "director: 1 to 200 characters p_secret" } },
+      rpcErrors: { submit_title: { code: "22023", message: "runtime_minutes: 1 to 1000 p_secret" } },
     });
     const result = await submitTitle(ORG, TITLE);
-    expect(result).toEqual({ error: "Up to 200 characters." });
+    expect(result).toEqual({ error: "Enter whole minutes, 1 to 1,000." });
     expect(JSON.stringify(result)).not.toContain("p_secret");
     expect(names(refused)).toEqual(["submit_title"]);
     expect(console.error).toHaveBeenCalledWith(
       "[title-details] submit_title failed",
       "22023",
-      "director: 1 to 200 characters p_secret",
+      "runtime_minutes: 1 to 1000 p_secret",
     );
 
     // A required field the database finds empty reads as the page's notice.

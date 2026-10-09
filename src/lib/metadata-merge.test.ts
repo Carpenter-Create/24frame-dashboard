@@ -15,6 +15,7 @@ import {
   RATINGS,
   metadataMaxYear,
   normalizeStoredMetadata,
+  requiredComplete,
 } from "./metadata";
 import {
   MERGE_TITLE_METADATA,
@@ -182,6 +183,29 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     }
   });
 
+  it("gives every caller of the findings refresh that title lock before it refreshes (Codex on #799)", () => {
+    const names = [...MIGRATION.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]);
+    const callers = names.filter(
+      (name) => name !== "refresh_title_findings" && functionSql(name).body.includes("public.refresh_title_findings("),
+    );
+    expect([...callers].sort()).toEqual([
+      "merge_title_metadata",
+      "reconcile_title_findings",
+      "set_title_metadata",
+      "submit_title",
+    ]);
+    for (const name of callers) {
+      const { body } = functionSql(name);
+      const lock = body.search(/from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id[^;]*for no key update;/);
+      expect(lock, name).toBeGreaterThan(0);
+      expect(lock, name).toBeLessThan(body.indexOf("public.refresh_title_findings("));
+    }
+    // reconcile: a live title in p_org_id only, refused at the lock.
+    expect(functionSql("reconcile_title_findings").body).toMatch(
+      /from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title not found in this organization';\s+end if;/,
+    );
+  });
+
   it("submit_title refuses another org's title at the lock, then reads the record as the app does (Codex on #799)", () => {
     const { body } = functionSql("submit_title");
     // Refused at the lock, before the record is read.
@@ -193,10 +217,37 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     expect(read).toBeGreaterThan(body.indexOf("if not found then"));
     expect(normalize).toBeGreaterThan(read);
     expect(normalize).toBeLessThan(body.indexOf("foreach v_key in array v_required"));
-    expect(normalize).toBeLessThan(body.indexOf("public.check_title_metadata(v_data)"));
+    expect(normalize).toBeLessThan(body.indexOf("public.check_title_metadata(v_required_values)"));
     // The refusal submitTitle reads as the required-fields notice.
     const raised = /raise exception '(Cannot submit: required metadata field "%" is missing)'/.exec(body)?.[1] ?? "";
     expect(submitRequiredMissing({ code: "P0001", message: raised.replace("%", "synopsis") })).toBe(true);
+  });
+
+  it("submit_title checks only the required tier's values, as requiredComplete counts them (Codex on #799)", () => {
+    const { body } = functionSql("submit_title");
+    const subset = body.search(
+      /select coalesce\(jsonb_object_agg\(e\.key, e\.value\), '\{\}'::jsonb\) into v_required_values\s+from jsonb_each\(v_data\) e\s+where e\.key = any \(v_required\);/,
+    );
+    const check = body.indexOf("perform public.check_title_metadata(v_required_values);");
+    expect(subset).toBeGreaterThan(body.indexOf("v_data := public.normalize_stored_title_metadata(v_data);"));
+    expect(check).toBeGreaterThan(subset);
+    expect(body).not.toMatch(/check_title_metadata\(\s*v_data\s*\)/);
+    // The app's side of the same gate: a refused recommended or optional
+    // value never counts against the required tier; a refused required one does.
+    const required = {
+      synopsis: "A film.",
+      runtime_minutes: 96,
+      release_year: 2024,
+      genre: "drama",
+      primary_language: "en",
+      country_of_origin: "US",
+    };
+    expect(requiredComplete({ ...required, director: "x".repeat(201), alternate_title: "y".repeat(201) })).toEqual({
+      filled: 6,
+      total: 6,
+    });
+    expect(requiredComplete({ ...required, primary_language: "zz" })).toEqual({ filled: 5, total: 6 });
+    expect(requiredComplete({ ...required, country_of_origin: "ZZ" })).toEqual({ filled: 5, total: 6 });
   });
 
   it("keeps the normalize helper internal and its registry equal to the app's", () => {
@@ -237,17 +288,24 @@ describe("check_title_metadata matches the app's registry and limits", () => {
     expect([...keys].sort()).toEqual(METADATA_FIELDS.map((f) => f.key).sort());
   });
 
-  it("accepts every value the app's lists offer", () => {
+  it("accepts exactly the values the app's lists offer (Codex on #799)", () => {
     const listAfter = (key: string) => {
       const match = new RegExp(`when '${key}' then[\\s\\S]*?not in \\(([\\s\\S]*?)\\)`).exec(body);
       return (match?.[1] ?? "").split(",").map((s) => s.trim().replace(/^'|'$/g, ""));
     };
     expect(listAfter("genre")).toEqual(GENRES.map((g) => g.value));
     expect(listAfter("rating")).toEqual(RATINGS.map((r) => r.value));
-    expect(body).toContain("!~ '^[a-z]{2}$'");
-    expect(body).toContain("!~ '^[A-Z]{2}$'");
-    for (const language of LANGUAGES) expect(language.value).toMatch(/^[a-z]{2}$/);
-    for (const country of Object.keys(ISO_COUNTRIES)) expect(country).toMatch(/^[A-Z]{2}$/);
+    expect(listAfter("primary_language")).toEqual(LANGUAGES.map((l) => l.value));
+    expect(listAfter("country_of_origin")).toEqual(Object.keys(ISO_COUNTRIES));
+    // Each list is the vocabulary the app's schema enforces for that field.
+    for (const key of ["genre", "primary_language", "country_of_origin", "rating"]) {
+      const vocab = METADATA_FIELDS.find((f) => f.key === key)?.vocab?.map((v) => v.value) ?? [];
+      expect(vocab.length, key).toBeGreaterThan(0);
+      expect(new Set(listAfter(key)).size, key).toBe(listAfter(key).length);
+      expect([...listAfter(key)].sort(), key).toEqual([...vocab].sort());
+    }
+    // No shape check stands in for a list.
+    expect(body).not.toContain("!~");
   });
 
   it("holds the approved limits, counting raw characters without trimming", () => {
