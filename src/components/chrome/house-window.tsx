@@ -27,8 +27,11 @@ import {
   HOUSE_WINDOW_BODY_CLASS,
   HOUSE_WINDOW_DONE_CLASS,
   HOUSE_WINDOW_FACE_CLASS,
+  HOUSE_WINDOW_FOOT_CLASS,
   HOUSE_WINDOW_FRAME_CLASS,
+  HOUSE_WINDOW_FRAME_FILL_CLASS,
   HOUSE_WINDOW_HEADER_CLASS,
+  HOUSE_WINDOW_HEADER_SPACER_CLASS,
   HOUSE_WINDOW_PANEL_CLASS,
   HOUSE_WINDOW_SHEET_BODY_CLASS,
   HOUSE_WINDOW_SHEET_FRAME_CLASS,
@@ -48,6 +51,12 @@ import {
 // is Done; Tab stays inside. Below md the window is hidden and holds no
 // keys and no scroll lock (a phone host draws its own sheet), unless it
 // opts into the phone sheet: then the same window fills the full AppSheet.
+// Four options, absent for every window before them (so their markup is
+// unchanged; social-comments-window-lock-v1): no Done (doneLabel left out:
+// a 44 spacer keeps the title centred, and ⌘/Ctrl+Enter still runs onDone),
+// a foot pinned under the body, a frame that fills 80vh (fill: never the
+// held px), and a container other than the page body (a layer that owns
+// the window). ⌘/Ctrl+Enter does nothing while the ask is up.
 
 /** While the draft has changes, reloading or closing the tab raises the
  *  browser's own prompt. */
@@ -190,7 +199,8 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
   }
 
   function done() {
-    if (holdOpen) return;
+    // ⌘/Ctrl+Enter never runs Done behind the ask.
+    if (holdOpen || asking) return;
     onDone();
   }
 
@@ -365,6 +375,9 @@ export function HouseWindowFrame({
   backIcon,
   doneDisabled = false,
   ask,
+  foot,
+  fill = false,
+  container,
   children,
 }: {
   win: HouseWindowState;
@@ -373,13 +386,21 @@ export function HouseWindowFrame({
   motion: HouseWindowMotion;
   closeLabel: string;
   backLabel: string;
-  doneLabel: string;
+  /** Left out: no Done (the window's one action lives in its body or foot);
+   *  a 44 spacer keeps the title centred. */
+  doneLabel?: string;
   closeIcon: ReactNode;
   backIcon: ReactNode;
   /** Done waits for something else too (a crop still open). */
   doneDisabled?: boolean;
   /** The ask, drawn while the window asks. */
   ask: ReactNode;
+  /** Pinned under the scrolling body; inert while the window asks or is busy. */
+  foot?: ReactNode;
+  /** The frame fills 80vh and never takes the held px height. */
+  fill?: boolean;
+  /** Where the window mounts: a layer that owns it, else the page body. */
+  container?: Element | null;
   children: ReactNode;
 }) {
   const a = win.attr;
@@ -390,8 +411,8 @@ export function HouseWindowFrame({
       ref={frameRef}
       tabIndex={-1}
       {...{ [`data-${a}`]: "", [`data-${a}-window`]: "" }}
-      className={onSheet ? HOUSE_WINDOW_SHEET_FRAME_CLASS : HOUSE_WINDOW_FRAME_CLASS}
-      style={onSheet || win.held === null ? undefined : { height: win.held }}
+      className={onSheet ? HOUSE_WINDOW_SHEET_FRAME_CLASS : fill ? HOUSE_WINDOW_FRAME_FILL_CLASS : HOUSE_WINDOW_FRAME_CLASS}
+      style={onSheet || fill || win.held === null ? undefined : { height: win.held }}
     >
       <header {...{ [`data-${a}-header`]: "" }} className={HOUSE_WINDOW_HEADER_CLASS} inert={win.asking || win.busy}>
         {win.atIndex ? (
@@ -420,15 +441,19 @@ export function HouseWindowFrame({
         <h2 id={win.titleId} className={HOUSE_WINDOW_TITLE_CLASS}>
           {title}
         </h2>
-        <Button
-          {...{ [`data-${a}-done`]: "" }}
-          disabled={win.holdOpen || doneDisabled}
-          aria-busy={win.busy}
-          className={HOUSE_WINDOW_DONE_CLASS}
-          onClick={win.done}
-        >
-          {doneLabel}
-        </Button>
+        {doneLabel === undefined ? (
+          <span aria-hidden className={HOUSE_WINDOW_HEADER_SPACER_CLASS} />
+        ) : (
+          <Button
+            {...{ [`data-${a}-done`]: "" }}
+            disabled={win.holdOpen || doneDisabled}
+            aria-busy={win.busy}
+            className={HOUSE_WINDOW_DONE_CLASS}
+            onClick={win.done}
+          >
+            {doneLabel}
+          </Button>
+        )}
       </header>
       <div
         ref={bodyRef}
@@ -440,6 +465,11 @@ export function HouseWindowFrame({
           {children}
         </div>
       </div>
+      {foot ? (
+        <div {...{ [`data-${a}-foot`]: "" }} className={HOUSE_WINDOW_FOOT_CLASS} inert={win.asking || win.busy}>
+          {foot}
+        </div>
+      ) : null}
       {win.asking ? ask : null}
     </div>
   );
@@ -462,7 +492,7 @@ export function HouseWindowFrame({
     </HouseDialogFrame>
   );
 
-  return typeof document === "undefined" ? host : createPortal(host, document.body);
+  return typeof document === "undefined" ? host : createPortal(host, container ?? document.body);
 }
 
 /** The ask before changes are lost: a strip at the window's foot (Discard,

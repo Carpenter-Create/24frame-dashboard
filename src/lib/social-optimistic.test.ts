@@ -21,6 +21,8 @@ import {
   mergeSocialOptimisticPosts,
   nextSocialLikeState,
   persistSocialLike,
+  persistSocialComment,
+  persistSocialCommentDelete,
   persistSocialMutation,
   persistSocialPost,
   readOptimisticLike,
@@ -289,6 +291,24 @@ describe("Social optimistic mutation SoT", () => {
       mergeSocialOptimisticPosts([{ id: "old", body: "earlier", authorHandle: "ada" }], readOptimisticSocialPosts()),
     ).toHaveLength(1);
     expect(socialOptimisticNotice(readOptimisticSocialPosts())).toBe(ACCOUNT_PROFILE.saveFailed);
+  });
+
+  // Offline posting showed the browser's raw "Failed to fetch"; it shows
+  // the house line now (social-comments-window-lock-v1).
+  it("maps a dropped comment request to the house line, never the browser's own text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    const form = new FormData();
+    form.set("post_id", "p1");
+    form.set("body", "hi");
+    await expect(persistSocialComment(form)).resolves.toEqual({ error: SOCIAL.post.commentFailed });
+    const remove = new FormData();
+    remove.set("comment_id", "c1");
+    await expect(persistSocialCommentDelete(remove)).resolves.toEqual({ error: SOCIAL.post.commentDeleteFailed });
   });
 
   it("persists like and post over fetch so the tree does not refresh", async () => {

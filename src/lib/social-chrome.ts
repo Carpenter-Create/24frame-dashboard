@@ -436,9 +436,11 @@ export const SOCIAL_POST_ACTIONS_ROW_CLASS =
 // #0A0A0B has no house token (--band is #1b1f23). One class, same
 // precedent as the story stage. Desktop uses this same fullscreen
 // stage — a trailing caption column is out.
-// z-[45] is the stage on document.body. The comment host (z-50) mounts
-// inside this stage and paints above the dock. The Share sheet is a
-// separate body portal at z-[60], above the stage. Do not raise this.
+// z-[45] is the stage on document.body. The comment host (z-50: the
+// desktop comments window or the phone sheet) mounts at the stage's root,
+// so it paints above the stage X (z-30) and the dock (z-20); keys it
+// handles are marked handled (social-comments-window-lock-v1). The Share
+// sheet is a separate body portal at z-[60], above the stage. Do not raise this.
 // Desktop (md+) stacks the stage: the media above, the dock below it. A
 // video's player bar (play, time, volume, PiP, fullscreen) sits at the
 // bottom of the media, so laid under the dock it lost those controls to
@@ -1272,7 +1274,7 @@ export const SOCIAL_POST_LIKE_CLASS = "relative inline-flex shrink-0 items-cente
 export const SOCIAL_POST_MORE_CLASS =
   "-mr-3 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-hairline md:-mr-2.5 md:size-10";
 
-// Comment rows (the permalink and the sheet): the 32 face, the name
+// Comment rows (the permalink, the sheet and the comments window): the 32 face, the name
 // 13 / 600 over the body 15 / 420 body ink, the time 13 ink-2 (ink-3 on
 // the grey card fails AA).
 export const SOCIAL_COMMENT_ROW_AVATAR_CLASS = "size-8";
@@ -1290,6 +1292,31 @@ export const SOCIAL_COMMENT_NEED_PROFILE_CLASS = "px-4 py-3 t-body-sm text-ink-2
 export const SOCIAL_COMMENT_NEED_PROFILE_IN_CARD_CLASS = "pt-3 t-body-sm text-ink-2";
 // Profile activity's "You commented" line inside the post's card.
 export const SOCIAL_ACTIVITY_COMMENTED_LABEL_CLASS = "t-label text-ink-2";
+// The comment field, in every composer (the window, the sheet, the page).
+export const SOCIAL_COMMENT_FIELD_CLASS = "min-h-9 min-w-0 flex-1 resize-none px-0 py-1";
+
+// Comments window (desktop; docs/design-locks/social-comments-window-lock-v1.md).
+// The house window's body (the page canvas, pad 24) holds the post, then a
+// hairline and the thread; the composer is the window's pinned foot. The
+// post: the 40 face, the name over "time · Group", the caption at the
+// card's desktop words (never clamped), one still at its true shape. Rows
+// reuse the comment row classes; the name and meta reuse the post card's.
+export const SOCIAL_COMMENTS_WINDOW_POST_CLASS = "flex flex-col gap-[var(--space-3)]";
+export const SOCIAL_COMMENTS_WINDOW_HEAD_CLASS = "flex min-w-0 items-center gap-[var(--space-3)]";
+export const SOCIAL_COMMENTS_WINDOW_WORDS_CLASS =
+  "whitespace-pre-wrap break-words text-[length:var(--text-base)] leading-normal [font-weight:var(--type-body-weight)] text-body";
+export const SOCIAL_COMMENTS_WINDOW_MEDIA_CLASS =
+  "relative w-full overflow-hidden rounded-[var(--radius-lg)] bg-surface-muted";
+// The face with no photo: the card's in-card fill is the white surface,
+// which would vanish on the window's white body.
+export const SOCIAL_COMMENTS_WINDOW_AVATAR_EMPTY_CLASS = "bg-surface-muted";
+export const SOCIAL_COMMENTS_WINDOW_THREAD_CLASS = "flex flex-col gap-[var(--space-3)]";
+// Only between the post and the thread.
+export const SOCIAL_COMMENTS_WINDOW_RULE_CLASS = "border-t border-hairline";
+export const SOCIAL_COMMENTS_WINDOW_COMPOSER_CLASS =
+  "flex items-end gap-[var(--space-2)] px-[var(--space-6)] py-[var(--space-3)]";
+export const SOCIAL_COMMENTS_WINDOW_NEED_PROFILE_CLASS = "px-[var(--space-6)] py-[var(--space-3)] t-body-sm text-ink-2";
+export const SOCIAL_COMMENTS_WINDOW_NOTICE_CLASS = "px-[var(--space-6)] pt-[var(--space-3)]";
 
 export const SOCIAL_FIRST_WIN_CLASS =
   "flex flex-col items-center justify-center gap-2.5 rounded-[8px] border border-hairline bg-surface px-5 pb-4 pt-5 text-center";

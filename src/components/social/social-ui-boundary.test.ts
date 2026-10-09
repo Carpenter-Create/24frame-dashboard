@@ -35,6 +35,11 @@ const FEED_HEAVY = [
   "src/components/social/social-mux-player.tsx",
   "src/components/social/social-mux-player-mount.tsx",
   "src/components/social/social-comment-thread.tsx",
+  // The comments window and its parts ride in the thread's lazy chunk
+  // (social-comments-window-lock-v1).
+  "src/components/social/social-comments-window.tsx",
+  "src/components/social/social-comment-row.tsx",
+  "src/components/social/use-social-comment-thread.ts",
   "src/components/social/social-post-share-sheet.tsx",
 ] as const;
 

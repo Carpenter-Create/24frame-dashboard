@@ -63,7 +63,7 @@
 | Open / tap | **Stay in immersive** · deepen chrome or play/pause · **NEVER** route to Home feed post face / caption-above feed unit |
 | Actions | Mute · Like · Comment · Share — geometry cite post-actions (40/24/gap-8) · TikTok-class **trailing** rail on the media · liked = Sporty Blue · light ink on dark |
 | Caption / meta | Bottom-leading on media · scrim (~40%→0 over **120**) · username + caption · house Geist · never-truncate by stacking (mobile gospel) |
-| Comment | Sheet / thread **over** immersive · dismiss returns to same For You item · does **not** leave Explore for Home |
+| Comment | Sheet / thread **over** immersive · dismiss returns to same For You item · does **not** leave Explore for Home · Desktop: the comments window on body over the stage; dismiss returns to the same item ([`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md), 2026-10-09) |
 | Share | Existing Share sheet lock · over immersive |
 | Author | Tap avatar/name → profile (allowed leave) · media open itself does **not** become Home feed |
 
