@@ -3,6 +3,7 @@
 **Date:** 2026-10-01
 **Status:** **LOCKED** · Adam course-correct · phone dock + drops the Create sheet
 **Amended 2026-10-08:** [`social-desktop-create-composer-lock-v1.md`](social-desktop-create-composer-lock-v1.md) (Adam, "Open the composer"). Desktop Create no longer opens the Create dialog: it opens the composer window, with Media and Go live in its tool row. The phone fan is unchanged.
+**Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Match the fan"; the label, 2026-10-09: "Live / Not record", everywhere). The tile label "Go live" is now "Live".
 **Arc:** 2026-10-01 tighten · Adam PASS · 90° cluster over the +, scrim and label pills stay
 **Route:** 2026-10-01 Go live opens `/social/live` directly. It is not a child of write compose.
 **Supersedes:** the bottom-nav + row in `share-something-text-write-direct-lock-v1.md`, `share-something-write-compose-sheet-lock-v1.md`, and `write-compose-immersive-icons-lock-v1.md`. Share something, Photo, and Camera stay on those locks.

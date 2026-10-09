@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { socialCreateTile } from "@/lib/social-create-sheet";
+
 const rail = readFileSync("src/lib/nav.ts", "utf8");
 const settingsRail = readFileSync("src/components/chrome/settings-rail.tsx", "utf8");
 const settingsLead = readFileSync("src/components/settings/settings-page-lead.tsx", "utf8");
@@ -82,11 +84,14 @@ describe("Aggregation chrome Phosphor lock + Design miss list", () => {
     expect(socialComposer).not.toContain("<SocialWriteComposeSheet");
     expect(socialComposer).not.toContain('socialCreateHref("text")');
     expect(socialComposer).not.toContain("SocialCreateSheet");
-    // Density lock v1.1: Photo and Camera on the composer use Social V1 glyphs.
+    // Density lock v1.1: the composer's rounds use Social V1 glyphs. Since
+    // "Match the fan" (Adam 2026-10-08) they are the fan's Media and Live
+    // tiles, glyphs from the tile list (image, broadcast).
     expect(socialComposer).toContain("SocialIcon");
-    expect(socialComposer).toContain('icon="image"');
-    expect(socialComposer).toContain('icon="camera"');
-    expect(socialComposer).not.toContain('icon="broadcast"');
+    expect(socialComposer).toContain("name={MEDIA_TILE.icon}");
+    expect(socialComposer).toContain("name={LIVE_TILE.icon}");
+    expect(socialCreateTile("media")?.icon).toBe("image");
+    expect(socialCreateTile("live")?.icon).toBe("broadcast");
     expect(socialComposer).not.toContain('from "lucide-react"');
     expect(readFileSync("src/components/social/social-create-compose.tsx", "utf8")).toContain("SocialIcon");
     expect(leadSearch).toContain("MagnifyingGlass");

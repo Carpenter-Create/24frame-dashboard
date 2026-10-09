@@ -5,6 +5,7 @@
 **Surface:** `/social/live` camera face
 **Amended 2026-10-08:** §Desktop frame (twice more: Full fills the window; then the shapes, 16:9 · 9:16), §Review, §Posted clip and §Camera picker below (Adam, in chat). The camera face above is unchanged, except that on a computer the picker takes flip's place.
 
+**Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Match the fan"; the label, 2026-10-09: "Live / Not record", everywhere). The header reads "Live" (Adam, 2026-10-09, asked whether it should stay "Go live": first "Record", then "Actually / Live / Not record", everywhere). This supersedes "Header | Go live" and the OUT on renaming below.
 ## One lock
 
 The Go live camera has no duration hint over the viewfinder. Header, flip, record, and exit stay.
