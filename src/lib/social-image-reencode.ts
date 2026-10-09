@@ -131,6 +131,8 @@ export type SocialImageRecheckReport = {
   reported: number;
   /** A read failed. The parent stays active so the next run tries again. */
   unfinished: number;
+  /** Canonical avatar keys that are not in the bucket. Skipped, not unfinished. */
+  no_object: number;
   /** Hidden post ids. A later run can set status back to active. */
   hiddenPosts: string[];
   /** Hidden story ids. */
@@ -153,6 +155,7 @@ export function blankSocialImageRecheckReport(dryRun: boolean): SocialImageReche
     hide: 0,
     reported: 0,
     unfinished: 0,
+    no_object: 0,
     hiddenPosts: [],
     hiddenStories: [],
     clearedAvatars: [],
@@ -168,6 +171,7 @@ function addRecheckReport(total: SocialImageRecheckReport, page: SocialImageRech
   total.hide += page.hide;
   total.reported += page.reported;
   total.unfinished += page.unfinished;
+  total.no_object += page.no_object ?? 0;
   total.hiddenPosts.push(...(page.hiddenPosts ?? []));
   total.hiddenStories.push(...(page.hiddenStories ?? []));
   total.clearedAvatars.push(...(page.clearedAvatars ?? []));

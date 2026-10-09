@@ -709,4 +709,110 @@ describe("reencodeSocialImage", () => {
     expect(reencoded.store).toBe(1);
     expect(reencoded.clearedAvatars).toEqual([]);
   });
+
+  it("counts a 404 or NoSuchKey on the canonical avatar as no_object and skips it", async () => {
+    const { readCanonicalAvatarForRecheck } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const key = avatarObjectKey(user);
+    const stored: string[] = [];
+    const cleared: string[] = [];
+    const missing = [
+      Object.assign(new Error("The specified key does not exist."), {
+        name: "NoSuchKey",
+        $metadata: { httpStatusCode: 404 },
+      }),
+      Object.assign(new Error("NotFound"), { name: "NotFound", $metadata: { httpStatusCode: 404 } }),
+    ];
+    for (const error of missing) {
+      const report = await recheckParentPages({
+        execute: true,
+        pageSize: 2,
+        loadParents: async (afterId) => (afterId ? [] : [{ id: user }]),
+        recheck: async () => {
+          const outcome = await readCanonicalAvatarForRecheck(user, key, async () => {
+            throw error;
+          });
+          const items = outcome === "no_object" ? [] : [outcome];
+          const page = await runSocialImageRecheck({
+            execute: true,
+            items,
+            store: async () => {
+              stored.push(user);
+            },
+            hide: async () => {
+              throw new Error("missing avatar was hidden");
+            },
+            clearAvatar: async () => {
+              cleared.push(user);
+            },
+          });
+          if (outcome === "no_object") page.no_object += 1;
+          return page;
+        },
+      });
+      expect(report.no_object).toBe(1);
+      expect(report.unfinished).toBe(0);
+      expect(report.store).toBe(0);
+      expect(report.clearedAvatars).toEqual([]);
+    }
+    expect(stored).toEqual([]);
+    expect(cleared).toEqual([]);
+  });
+
+  it("counts a 500 on the canonical avatar as unfinished and retries it", async () => {
+    const { readCanonicalAvatarForRecheck } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const key = avatarObjectKey(user);
+    const clean = await jpeg();
+    const trailer = new Uint8Array(clean.byteLength + 1);
+    trailer.set(clean);
+    trailer[clean.byteLength] = 1;
+    let attempt = 0;
+    const stored: string[] = [];
+    const read = async () => {
+      attempt += 1;
+      if (attempt === 1) {
+        throw Object.assign(new Error("Internal Server Error"), {
+          name: "InternalError",
+          $metadata: { httpStatusCode: 500 },
+        });
+      }
+      return { bytes: trailer, contentType: "image/jpeg" };
+    };
+    const run = () =>
+      recheckParentPages({
+        execute: true,
+        pageSize: 2,
+        loadParents: async (afterId) => (afterId ? [] : [{ id: user }]),
+        recheck: async () => {
+          const outcome = await readCanonicalAvatarForRecheck(user, key, read);
+          const items = outcome === "no_object" ? [] : [outcome];
+          const page = await runSocialImageRecheck({
+            execute: true,
+            items,
+            store: async (item) => {
+              stored.push(item.parentId);
+            },
+            hide: async () => {
+              throw new Error("avatar read error was hidden");
+            },
+            clearAvatar: async () => {
+              throw new Error("avatar read error was cleared");
+            },
+          });
+          if (outcome === "no_object") page.no_object += 1;
+          return page;
+        },
+      });
+    const first = await run();
+    expect(first.unfinished).toBe(1);
+    expect(first.no_object).toBe(0);
+    expect(first.store).toBe(0);
+    expect(stored).toEqual([]);
+    const second = await run();
+    expect(stored).toEqual([user]);
+    expect(second.unfinished).toBe(0);
+    expect(second.no_object).toBe(0);
+    expect(second.store).toBe(1);
+  });
 });

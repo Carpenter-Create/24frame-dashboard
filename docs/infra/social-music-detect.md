@@ -363,7 +363,11 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    names the new key, so the run can be reversed. A post or story whose
    image will not decode is hidden. A read error or a store error is
    unfinished: reported, not hidden, and tried again on the next run
-   (the run loads `status = active` only). An avatar that will not decode
+   (the run loads `status = active` only). A 404 or NoSuchKey on the
+   canonical avatar key is `no_object`: that profile has no face, the
+   recheck skips it, and it is not unfinished. A 500, a timeout, or a
+   network error on that key stays unfinished and is tried again.
+   An avatar that will not decode
    is cleared so the default face shows, and the canonical object is moved
    to a private quarantine prefix. A second execute skips objects that already carry `gc-reencoded`.
 
@@ -404,8 +408,11 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
 
    A null `avatar_key` is a legacy face. The recheck includes those rows
    and reads `avatars/{user-id}/avatar`. Avatars are not in
-   `storage.objects`. Count the profiles, then list the canonical objects
-   and intersect them with those ids. Do not apply anything from this count.
+   `storage.objects`. `profiles` has no uploads table and no
+   `avatar_updated_at`, so the SQL count is an upper bound: every null
+   pointer, including a profile that never stored a face. The S3 listing
+   is the real count of canonical objects. Intersect that listing with
+   these ids. Do not apply anything from this count.
 
 ```sql
 select count(*) as null_avatar_pointers
