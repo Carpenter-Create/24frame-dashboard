@@ -59,6 +59,13 @@ async function reportAvatarOrphan(keys: readonly string[], cause: unknown): Prom
   Sentry.captureException(reported);
 }
 
+async function reportNewerAvatarKept(readKey: string | null): Promise<void> {
+  const reported = new Error("newer face was kept");
+  console.error("avatar remove kept newer face", readKey, reported.message);
+  const Sentry = await import("@sentry/nextjs");
+  Sentry.captureException(reported);
+}
+
 // Photo bytes go to a new private object. The pointer moves only after that
 // object is confirmed. The previous canonical object, this member's previous
 // recheck object, and this member's quarantine copies are deleted after the
@@ -120,9 +127,10 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
   return {};
 }
 
-// Inverse of uploadAccountPhoto. The pointer is cleared first so a recheck
-// key stops being signed, then the canonical object and this member's
-// quarantine copies are removed.
+// Inverse of uploadAccountPhoto. The clear matches the avatar_key that was
+// read. Only then are that key's canonical and recheck objects, and this
+// member's quarantine copies, deleted. Zero rows means a newer face was
+// kept: report it and delete nothing.
 export async function removeAccountPhoto(): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
@@ -133,8 +141,14 @@ export async function removeAccountPhoto(): Promise<{ error?: string }> {
     if (previous.error || !previous.data) return { error: previous.error?.message || ACCOUNT_PROFILE.photoRemoveFailed };
     const previousKey = previous.data.avatar_key;
     const admin = createAdminClient();
-    const { error } = await admin.from("profiles").update({ avatar_key: AVATAR_CLEARED }).eq("id", ctx.user.id);
+    const update = admin.from("profiles").update({ avatar_key: AVATAR_CLEARED }).eq("id", ctx.user.id);
+    const filtered = previousKey == null ? update.is("avatar_key", null) : update.eq("avatar_key", previousKey);
+    const { data, error } = await filtered.select("id");
     if (error) return { error: error.message || ACCOUNT_PROFILE.photoRemoveFailed };
+    if (!data || data.length === 0) {
+      await reportNewerAvatarKept(previousKey);
+      return {};
+    }
     await deleteAvatarObject(ctx.user.id, previousKey);
   } catch (e) {
     return {

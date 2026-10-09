@@ -8,19 +8,29 @@ vi.mock("@/lib/s3-avatars", () => ({
   deleteAvatarObject: vi.fn(),
   storeAvatarReplacement: vi.fn(),
   deleteReplacedAvatarObjects: vi.fn(),
+  signedAvatarUrl: vi.fn(),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+vi.mock("@/lib/supabase/auth", () => ({ getAuthUser: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgContext } from "@/lib/supabase/context";
 import { revalidatePath } from "next/cache";
-import { deleteAvatarObject, deleteReplacedAvatarObjects, storeAvatarReplacement } from "@/lib/s3-avatars";
+import { deleteAvatarObject, deleteReplacedAvatarObjects, signedAvatarUrl, storeAvatarReplacement } from "@/lib/s3-avatars";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { captureException } from "@sentry/nextjs";
 
 import { ACCOUNT_NAME_MAX, ACCOUNT_PROFILE, COMPANY_PROFILE } from "@/lib/account-profile";
-import { AVATAR_CLEARED, AVATAR_MAX_BYTES, avatarObjectKey, avatarQuarantineObjectKey } from "@/lib/account-avatar";
+import {
+  AVATAR_CLEARED,
+  AVATAR_MAX_BYTES,
+  avatarObjectKey,
+  avatarQuarantineObjectKey,
+  avatarServeKey,
+} from "@/lib/account-avatar";
+import { GET as getAccountPhoto } from "@/app/api/account/photo/route";
 import { removeAccountPhoto, saveAccountName, saveCompanyName, uploadAccountPhoto } from "./actions";
 
 const USER = { id: "11111111-1111-4111-8111-111111111111", email: "ada@example.com", name: "Ada" };
@@ -323,22 +333,127 @@ describe("uploadAccountPhoto", () => {
 
 describe("removeAccountPhoto", () => {
   const previousKey = `avatars/${USER.id}/recheck/22222222-2222-4222-8222-222222222222`;
+  const newerKey = `avatars/${USER.id}/recheck/33333333-3333-4333-8333-333333333333`;
   let adminUpdate: ReturnType<typeof profileUpdateClient>["adminUpdate"];
+  let filters: ReturnType<typeof profileUpdateClient>["filters"];
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
     vi.mocked(deleteAvatarObject).mockResolvedValue(undefined);
-    adminUpdate = profileUpdateClient(previousKey).adminUpdate;
+    const client = profileUpdateClient(previousKey);
+    adminUpdate = client.adminUpdate;
+    filters = client.filters;
   });
 
   it("DELETEs the session user's face and does not touch email", async () => {
     await expect(removeAccountPhoto()).resolves.toEqual({});
     expect(adminUpdate).toHaveBeenCalledWith({ avatar_key: AVATAR_CLEARED });
+    expect(filters).toContainEqual(["eq", "id", USER.id]);
+    expect(filters).toContainEqual(["eq", "avatar_key", previousKey]);
+    const clearOrder = adminUpdate.mock.invocationCallOrder[0] ?? 0;
+    const deleteOrder = vi.mocked(deleteAvatarObject).mock.invocationCallOrder[0] ?? 0;
+    expect(clearOrder).toBeLessThan(deleteOrder);
     expect(deleteAvatarObject).toHaveBeenCalledTimes(1);
     expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey);
     expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("matches a null pointer with is(null) and deletes only after that clear", async () => {
+    const absent = profileUpdateClient(null);
+    await expect(removeAccountPhoto()).resolves.toEqual({});
+    expect(absent.filters).toContainEqual(["is", "avatar_key", null]);
+    const clearOrder = absent.adminUpdate.mock.invocationCallOrder[0] ?? 0;
+    const deleteOrder = vi.mocked(deleteAvatarObject).mock.invocationCallOrder[0] ?? 0;
+    expect(clearOrder).toBeLessThan(deleteOrder);
+    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, null);
+  });
+
+  it("keeps a newer face when a remove races an upload, and the avatar route signs that key", async () => {
+    let current: string | null = previousKey;
+    let reads = 0;
+    const from = vi.fn((table: string) => {
+      if (table !== "profiles") throw new Error(`unexpected from(${table})`);
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => {
+              reads += 1;
+              if (reads === 1) {
+                const seen = current;
+                current = newerKey;
+                return { data: { avatar_key: seen }, error: null };
+              }
+              return { data: { avatar_key: current }, error: null };
+            },
+          }),
+        }),
+      };
+    });
+    const raceFilters: [string, string, unknown][] = [];
+    const chain = {
+      eq: vi.fn((column: string, value: unknown) => {
+        raceFilters.push(["eq", column, value]);
+        return chain;
+      }),
+      is: vi.fn((column: string, value: unknown) => {
+        raceFilters.push(["is", column, value]);
+        return chain;
+      }),
+      select: vi.fn(() => chain),
+      then: (
+        onFulfilled: (value: { data: { id: string }[] | null; error: { message: string } | null }) => unknown,
+        onRejected?: (reason: unknown) => unknown,
+      ) => {
+        const snapshot = raceFilters.splice(0);
+        const idMatch = snapshot.some(([op, column, value]) => op === "eq" && column === "id" && value === USER.id);
+        const keyEq = snapshot.find(([op, column]) => op === "eq" && column === "avatar_key");
+        const keyIs = snapshot.find(([op, column]) => op === "is" && column === "avatar_key");
+        const keyMatched = keyEq
+          ? current === keyEq[2]
+          : keyIs
+            ? current == null && keyIs[2] == null
+            : true;
+        const matches = idMatch && keyMatched;
+        if (matches) current = AVATAR_CLEARED;
+        const result = matches
+          ? { data: [{ id: USER.id }], error: null }
+          : { data: [] as { id: string }[], error: null };
+        return Promise.resolve(result).then(onFulfilled, onRejected);
+      },
+    };
+    const raceUpdate = vi.fn(() => chain);
+    vi.mocked(createClient).mockResolvedValue({ from } as never);
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => {
+        if (table !== "profiles") throw new Error(`unexpected admin from(${table})`);
+        return { update: raceUpdate };
+      },
+    } as never);
+    vi.mocked(signedAvatarUrl).mockImplementation(async (userId: string, stored?: string | null) => {
+      const key = avatarServeKey(userId, stored);
+      return key ? `https://s3.example/signed/${encodeURIComponent(key)}` : null;
+    });
+    vi.mocked(getAuthUser).mockResolvedValue({ id: USER.id, email: USER.email });
+
+    await expect(removeAccountPhoto()).resolves.toEqual({});
+    expect(current).toBe(newerKey);
+    expect(deleteAvatarObject).not.toHaveBeenCalled();
+    expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({
+      message: "newer face was kept",
+    });
+
+    const served = await getAccountPhoto();
+    expect(current).toBe(newerKey);
+    expect(served.status).toBe(302);
+    expect(served.headers.get("Location")).toBe(`https://s3.example/signed/${encodeURIComponent(newerKey)}`);
+    expect(signedAvatarUrl).toHaveBeenCalledWith(USER.id, newerKey);
+    expect(avatarServeKey(USER.id, current)).toBe(newerKey);
+    expect(deleteAvatarObject).not.toHaveBeenCalled();
   });
 
   it("does not write when there is no session", async () => {
