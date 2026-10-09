@@ -1,9 +1,10 @@
 -- findings_test.sql
--- reconcile_title_findings (operate/GC-gated; upsert + auto-resolve; validator-only) +
--- my_findings + RLS (own-org only) for the findings store (§19).
+-- reconcile_title_findings (operate/GC-gated; derived from stored metadata, the
+-- caller's payload ignored; upsert + auto-resolve; validator-only) + my_findings +
+-- RLS (own-org only) for the findings store (§19).
 
 begin;
-select plan(14);
+select plan(16);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -39,23 +40,33 @@ select throws_ok(
          current_setting('t.orgA'), current_setting('t.title'), current_setting('t.two')),
   'P0001', 'Not authorized', 'viewer cannot reconcile findings');
 
+-- Findings come from the stored metadata, never from the caller's payload
+-- (20261009120000). No metadata yet: all 6 required + 4 recommended missing.
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('t.ownerA'),'role','authenticated')::text, true);
 select lives_ok(
   format($$ select public.reconcile_title_findings(%L,%L,%L::jsonb,'metadata-v1') $$,
          current_setting('t.orgA'), current_setting('t.title'), current_setting('t.two')),
-  'owner reconciles two findings');
-select is((select count(*) from public.findings where entity_id=current_setting('t.title')::uuid and status='open')::int, 2,
-  'two open findings after first reconcile');
+  'owner reconciles (the two-finding payload is ignored)');
+select is((select count(*) from public.findings where entity_id=current_setting('t.title')::uuid and status='open')::int, 10,
+  'ten open findings, derived from the (empty) stored metadata');
 
--- ---- upsert + auto-resolve: re-run with the subset -------------------------
+-- ---- a forged empty payload cannot clear findings ---------------------------
 select lives_ok(
-  format($$ select public.reconcile_title_findings(%L,%L,%L::jsonb,'metadata-v1') $$,
-         current_setting('t.orgA'), current_setting('t.title'), current_setting('t.one')),
-  'owner reconciles subset');
+  format($$ select public.reconcile_title_findings(%L,%L,'[]'::jsonb,'forged') $$,
+         current_setting('t.orgA'), current_setting('t.title')),
+  'owner reconciles with an empty payload');
+select is((select count(*) from public.findings where entity_id=current_setting('t.title')::uuid and status='open')::int, 10,
+  'an empty payload does not resolve anything');
+
+-- ---- saving metadata refreshes findings in the same call ---------------------
+select lives_ok(
+  format($$ select public.set_title_metadata(%L,%L,'{"synopsis":"A film.","genre":"drama"}'::jsonb) $$,
+         current_setting('t.orgA'), current_setting('t.title')),
+  'owner saves synopsis and genre');
 select is((select status::text from public.findings where entity_id=current_setting('t.title')::uuid and code='metadata.missing.synopsis'),
-  'resolved', 'dropped code auto-resolved');
-select is((select status::text from public.findings where entity_id=current_setting('t.title')::uuid and code='metadata.missing.genre'),
-  'open', 'remaining code still open');
+  'resolved', 'filled field auto-resolved');
+select is((select status::text from public.findings where entity_id=current_setting('t.title')::uuid and code='metadata.missing.runtime_minutes'),
+  'open', 'missing field still open');
 
 -- ---- AI findings are never touched by validator reconcile ------------------
 reset role;
@@ -67,7 +78,7 @@ select set_config('request.jwt.claims', json_build_object('sub', current_setting
 select lives_ok(
   format($$ select public.reconcile_title_findings(%L,%L,'[]'::jsonb,'metadata-v1') $$,
          current_setting('t.orgA'), current_setting('t.title')),
-  'owner reconciles empty set');
+  'owner reconciles again');
 select is((select status::text from public.findings where code='ai.genre_mismatch'),
   'open', 'AI finding untouched by validator reconcile');
 
