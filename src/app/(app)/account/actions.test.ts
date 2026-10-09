@@ -27,7 +27,9 @@ import { ACCOUNT_NAME_MAX, ACCOUNT_PROFILE, COMPANY_PROFILE } from "@/lib/accoun
 import {
   AVATAR_CLEARED,
   AVATAR_MAX_BYTES,
+  avatarKeysReadForRemove,
   avatarObjectKey,
+  avatarPointerNamesKey,
   avatarQuarantineObjectKey,
   avatarServeKey,
   replacedAvatarObjectKeys,
@@ -218,16 +220,16 @@ describe("uploadAccountPhoto", () => {
     filters = client.filters;
   });
 
-  it("stores the new face, swaps the pointer, and only then deletes the old objects", async () => {
+  it("stores the new face, releases the hold, and only then swaps the pointer", async () => {
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});
     const storedOrder = vi.mocked(storeAvatarReplacement).mock.invocationCallOrder[0];
-    const swapOrder = adminUpdate.mock.invocationCallOrder[0];
     const releaseOrder = vi.mocked(releaseAvatarHoldTag).mock.invocationCallOrder[0];
+    const swapOrder = adminUpdate.mock.invocationCallOrder[0];
     const deleteOrder = vi.mocked(deleteReplacedAvatarObjects).mock.invocationCallOrder[0];
-    expect(storedOrder).toBeLessThan(swapOrder ?? 0);
-    expect(swapOrder).toBeLessThan(releaseOrder ?? 0);
-    expect(releaseOrder).toBeLessThan(deleteOrder ?? 0);
+    expect(storedOrder).toBeLessThan(releaseOrder ?? 0);
+    expect(releaseOrder).toBeLessThan(swapOrder ?? 0);
+    expect(swapOrder).toBeLessThan(deleteOrder ?? 0);
     expect(storeAvatarReplacement).toHaveBeenCalledTimes(1);
     const stored = vi.mocked(storeAvatarReplacement).mock.calls[0]?.[0];
     expect(stored?.userId).toBe(USER.id);
@@ -236,7 +238,12 @@ describe("uploadAccountPhoto", () => {
     expect(adminUpdate).toHaveBeenCalledWith({ avatar_key: nextKey });
     expect(filters).toContainEqual(["eq", "id", USER.id]);
     expect(filters).toContainEqual(["eq", "avatar_key", previousKey]);
-    expect(deleteReplacedAvatarObjects).toHaveBeenCalledWith(USER.id, previousKey, nextKey);
+    expect(deleteReplacedAvatarObjects).toHaveBeenCalledWith(
+      USER.id,
+      previousKey,
+      nextKey,
+      expect.any(Function),
+    );
     expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
     expect(deleteAvatarObject).not.toHaveBeenCalled();
     expect(createAdminClient).toHaveBeenCalled();
@@ -263,8 +270,8 @@ describe("uploadAccountPhoto", () => {
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
     expect(client.adminUpdate).toHaveBeenCalled();
+    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
-    expect(releaseAvatarHoldTag).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
     expect(revalidatePath).not.toHaveBeenCalled();
@@ -277,8 +284,8 @@ describe("uploadAccountPhoto", () => {
       error: ACCOUNT_PROFILE.photoFailed,
     });
     expect(client.filters).toContainEqual(["eq", "avatar_key", previousKey]);
+    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
-    expect(releaseAvatarHoldTag).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
   });
@@ -287,7 +294,12 @@ describe("uploadAccountPhoto", () => {
     vi.mocked(deleteReplacedAvatarObjects).mockRejectedValue(new Error("delete failed"));
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});
-    expect(deleteReplacedAvatarObjects).toHaveBeenCalledWith(USER.id, previousKey, nextKey);
+    expect(deleteReplacedAvatarObjects).toHaveBeenCalledWith(
+      USER.id,
+      previousKey,
+      nextKey,
+      expect.any(Function),
+    );
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({
       orphanKeys: [avatarObjectKey(USER.id), previousKey],
@@ -295,18 +307,35 @@ describe("uploadAccountPhoto", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
   });
 
-  it("matches a null pointer with is(null) and deletes quarantine copies only after the swap", async () => {
+  it("does not move the pointer when the hold release fails", async () => {
+    vi.mocked(releaseAvatarHoldTag).mockRejectedValueOnce(new Error("tag delete failed"));
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "tag delete failed" });
+    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(createAdminClient).not.toHaveBeenCalled();
+    expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("matches a null pointer with is(null) and deletes the old keys only after the swap", async () => {
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     const absent = profileUpdateClient(null);
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});
     expect(absent.filters).toContainEqual(["is", "avatar_key", null]);
-    expect(deleteReplacedAvatarObjects).toHaveBeenCalledWith(USER.id, null, nextKey);
+    expect(deleteReplacedAvatarObjects).toHaveBeenCalledWith(USER.id, null, nextKey, expect.any(Function));
 
     const quarantine = avatarQuarantineObjectKey(USER.id, "22222222-2222-4222-8222-222222222222");
     const held = profileUpdateClient(quarantine);
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});
     expect(held.filters).toContainEqual(["eq", "avatar_key", quarantine]);
-    expect(deleteReplacedAvatarObjects).toHaveBeenLastCalledWith(USER.id, quarantine, nextKey);
+    expect(deleteReplacedAvatarObjects).toHaveBeenLastCalledWith(
+      USER.id,
+      quarantine,
+      nextKey,
+      expect.any(Function),
+    );
     expect(deleteAvatarObject).not.toHaveBeenCalled();
   });
 
@@ -361,7 +390,7 @@ describe("removeAccountPhoto", () => {
     const deleteOrder = vi.mocked(deleteAvatarObject).mock.invocationCallOrder[0] ?? 0;
     expect(clearOrder).toBeLessThan(deleteOrder);
     expect(deleteAvatarObject).toHaveBeenCalledTimes(1);
-    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey);
+    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey, expect.any(Function));
     expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
@@ -369,7 +398,7 @@ describe("removeAccountPhoto", () => {
   it("reports the leftover key when the delete throws after the clear", async () => {
     vi.mocked(deleteAvatarObject).mockRejectedValueOnce(new Error("s3 down"));
     await expect(removeAccountPhoto()).resolves.toEqual({});
-    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey);
+    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey, expect.any(Function));
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({
       orphanKeys: replacedAvatarObjectKeys(USER.id, previousKey, AVATAR_CLEARED),
@@ -384,7 +413,83 @@ describe("removeAccountPhoto", () => {
     const clearOrder = absent.adminUpdate.mock.invocationCallOrder[0] ?? 0;
     const deleteOrder = vi.mocked(deleteAvatarObject).mock.invocationCallOrder[0] ?? 0;
     expect(clearOrder).toBeLessThan(deleteOrder);
-    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, null);
+    expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, null, expect.any(Function));
+  });
+
+  it("keeps a newer face stored during the delete, and the avatar route still signs it", async () => {
+    let current: string | null = previousKey;
+    let reads = 0;
+    const from = vi.fn((table: string) => {
+      if (table !== "profiles") throw new Error(`unexpected from(${table})`);
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => {
+              reads += 1;
+              if (reads > 1) current = newerKey;
+              return { data: { avatar_key: reads === 1 ? previousKey : current }, error: null };
+            },
+          }),
+        }),
+      };
+    });
+    const raceFilters: [string, string, unknown][] = [];
+    const chain = {
+      eq: vi.fn((column: string, value: unknown) => {
+        raceFilters.push(["eq", column, value]);
+        return chain;
+      }),
+      is: vi.fn((column: string, value: unknown) => {
+        raceFilters.push(["is", column, value]);
+        return chain;
+      }),
+      select: vi.fn(() => chain),
+      then: (
+        onFulfilled: (value: { data: { id: string }[] | null; error: { message: string } | null }) => unknown,
+        onRejected?: (reason: unknown) => unknown,
+      ) => {
+        const snapshot = raceFilters.splice(0);
+        const idMatch = snapshot.some(([op, column, value]) => op === "eq" && column === "id" && value === USER.id);
+        const keyEq = snapshot.find(([op, column]) => op === "eq" && column === "avatar_key");
+        const matches = idMatch && keyEq?.[2] === current;
+        if (matches) current = AVATAR_CLEARED;
+        const result = matches
+          ? { data: [{ id: USER.id }], error: null }
+          : { data: [] as { id: string }[], error: null };
+        return Promise.resolve(result).then(onFulfilled, onRejected);
+      },
+    };
+    vi.mocked(createClient).mockResolvedValue({ from } as never);
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => {
+        if (table !== "profiles") throw new Error(`unexpected admin from(${table})`);
+        return { update: vi.fn(() => chain) };
+      },
+    } as never);
+    const removed: string[] = [];
+    vi.mocked(deleteAvatarObject).mockImplementation(async (userId, storedKey, readPointer) => {
+      for (const key of avatarKeysReadForRemove(userId, storedKey ?? null)) {
+        const pointer = await readPointer();
+        if (!avatarPointerNamesKey(userId, pointer, key)) removed.push(key);
+      }
+    });
+    vi.mocked(signedAvatarUrl).mockImplementation(async (userId: string, stored?: string | null) => {
+      const key = avatarServeKey(userId, stored);
+      return key ? `https://s3.example/signed/${encodeURIComponent(key)}` : null;
+    });
+    vi.mocked(getAuthUser).mockResolvedValue({ id: USER.id, email: USER.email });
+
+    await expect(removeAccountPhoto()).resolves.toEqual({});
+    expect(current).toBe(newerKey);
+    expect(removed).not.toContain(newerKey);
+    expect(removed).toContain(previousKey);
+    expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
+
+    const served = await getAccountPhoto();
+    expect(served.status).toBe(302);
+    expect(served.headers.get("Location")).toBe(`https://s3.example/signed/${encodeURIComponent(newerKey)}`);
+    expect(signedAvatarUrl).toHaveBeenCalledWith(USER.id, newerKey);
+    expect(avatarServeKey(USER.id, current)).toBe(newerKey);
   });
 
   it("keeps a newer face when a remove races an upload, and the avatar route signs that key", async () => {

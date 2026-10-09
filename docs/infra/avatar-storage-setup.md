@@ -37,23 +37,26 @@ bucket as a CloudFront origin.
 
 2) Least-privilege on the **existing** app IAM user (`gc-assets-app`) — same
 credentials the title-asset path already uses. Pre-deploy, before the image
-recheck: GetObject, PutObject, DeleteObject, and PutObjectTagging on
-`avatars/*`, plus ListBucket on this bucket only when the prefix is
-`avatars/`. Do not grant `/*` on this bucket. Do not grant this prefix on
-`S3_BUCKET`.
+recheck: GetObject, PutObject, DeleteObject, PutObjectTagging,
+DeleteObjectTagging, and GetObjectTagging on `avatars/*`, plus ListBucket
+on this bucket only when the prefix is `avatars/`. Do not grant `/*` on
+this bucket. Do not grant this prefix on `S3_BUCKET`.
 
-Remove photo lists and deletes objects under `avatars/{id}/recheck/` and
-`avatars/{id}/quarantine/`. Recheck and quarantine copies are tagged
-`gc-hold=quarantine`. Apply the 30-day expiry rule in
-`docs/infra/social-music-detect.md` in the same pre-deploy step. A prefix
-of `avatars/` would expire live faces. The tag is the rule.
+Remove photo deletes only the exact keys that read named. It reads
+`profiles.avatar_key` again before each delete and does not delete the key
+that read names. It does not list a prefix. Recheck and quarantine copies
+are tagged `gc-hold=quarantine` on the put or copy. The app then sends
+DeleteObjectTagging and confirms with GetObjectTagging that no `gc-hold`
+tag remains. The pointer moves only after that confirm. Apply the 30-day
+expiry rule in `docs/infra/social-music-detect.md` in the same pre-deploy
+step. A prefix of `avatars/` would expire live faces. The tag is the rule.
 
     aws iam put-user-policy --user-name gc-assets-app --policy-name gc-avatars-s3 --policy-document '{
       "Version": "2012-10-17",
       "Statement": [
         {
           "Effect": "Allow",
-          "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:PutObjectTagging"],
+          "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:PutObjectTagging","s3:DeleteObjectTagging","s3:GetObjectTagging"],
           "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'/avatars/*"
         },
         {

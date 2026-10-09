@@ -72,14 +72,14 @@ export function avatarQuarantineObjectKey(userId: string, objectId: string): str
   return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/${object.data}`;
 }
 
-/** Prefix for this member's quarantine copies. Not a lifecycle prefix: it still starts with `avatars/`. */
+/** Prefix for this member's quarantine copies. Not a delete prefix and not a lifecycle prefix. */
 export function avatarQuarantinePrefix(userId: string): string {
   const user = userIdSchema.safeParse(userId);
   if (!user.success) throw new Error("Avatar key requires a UUID user id");
   return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/`;
 }
 
-/** Prefix for this member's recheck copies. Same shape as quarantine: list, then delete own keys only. */
+/** Prefix for this member's recheck copies. Not a delete prefix. */
 export function avatarRecheckPrefix(userId: string): string {
   const user = userIdSchema.safeParse(userId);
   if (!user.success) throw new Error("Avatar key requires a UUID user id");
@@ -122,9 +122,39 @@ export function avatarServeKey(userId: string, stored: string | null | undefined
 }
 
 /**
+ * True when this pointer is the object `key`. A null pointer names the
+ * canonical face. A cleared pointer names nothing.
+ */
+export function avatarPointerNamesKey(
+  userId: string,
+  pointer: string | null | undefined,
+  key: string,
+): boolean {
+  if (pointer === key) return true;
+  return avatarServeKey(userId, pointer) === key;
+}
+
+/**
+ * Exact objects a remove may delete: the key that was read, and the canonical
+ * object when that read named a different key. Nothing from a listing.
+ */
+export function avatarKeysReadForRemove(userId: string, previousKey: string | null): string[] {
+  const canonical = avatarObjectKey(userId);
+  const keys: string[] = [];
+  if (
+    typeof previousKey === "string" &&
+    previousKey !== canonical &&
+    (isAvatarRecheckKey(previousKey, userId) || isAvatarQuarantineKey(previousKey, userId))
+  ) {
+    keys.push(previousKey);
+  }
+  keys.push(canonical);
+  return keys;
+}
+
+/**
  * Known keys a successful replace may delete. The new key stays.
- * Quarantine copies are not in this list. The delete lists this member's
- * quarantine prefix after the swap and removes those objects there.
+ * Quarantine copies are not in this list. They expire on the hold tag.
  */
 export function replacedAvatarObjectKeys(
   userId: string,

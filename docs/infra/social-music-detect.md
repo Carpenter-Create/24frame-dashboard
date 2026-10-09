@@ -394,18 +394,25 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    `avatars/{user-id}/quarantine/{object-id}` back to
    `avatars/{user-id}/avatar`, delete the quarantine object, then set
    `profiles.avatar_key` to null with the service role or the table owner.
-   Removing a photo clears the pointer, then deletes the canonical object,
-   every object under `avatars/{id}/recheck/`, and this member's quarantine
-   copies. Uploading a replacement stores a
-   new object and confirms it (Put ETag, or Head ETag when the put omits
-   one), then swaps `profiles.avatar_key` only when it still matches the
-   value that was read, including a null pointer (`is null`, not `eq ''`).
-   Only after that swap does it delete the canonical object, this member's
-   previous recheck object, and this member's quarantine copies. A failure
-   before the swap deletes nothing, so the old face stays. The new object
-   is unreferenced and is reported. A delete failure after the swap leaves
-   the new face in place and reports the leftover key. That is not this
-   rollback.
+   Removing a photo clears the pointer only when it still matches the key
+   that was read. It then deletes only those exact keys: the object that
+   read named, and the canonical object when that is a different key. Before
+   each delete it reads `profiles.avatar_key` again and does not delete the
+   key that read names. It does not list a prefix. A newer face stored and
+   pointed in that window stays, and the avatar route still signs it.
+   Uploading a replacement stores a new object and confirms it (Put ETag, or
+   Head ETag when the put omits one). That object is tagged
+   `gc-hold=quarantine`. The app sends DeleteObjectTagging and reads the
+   tags back. The pointer moves only when that read has no `gc-hold` tag,
+   and only when `profiles.avatar_key` still matches the value that was
+   read, including a null pointer (`is null`, not `eq ''`). If the tag
+   delete or the tag read fails, the pointer stays and the new key is
+   reported. After the pointer moves, it deletes the canonical object and
+   this member's previous recheck object, reading the pointer again before
+   each delete. Quarantine copies stay until the 30-day rule expires them.
+   A failure before the pointer moves deletes nothing, so the old face
+   stays. A delete failure after the pointer moves leaves the new face in
+   place and reports the leftover key. That is not this rollback.
 
    A null `avatar_key` is a legacy face. The recheck includes those rows
    and reads `avatars/{user-id}/avatar`. Avatars are not in
@@ -430,12 +437,14 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
    delete did not reach. S3 lifecycle `Prefix` is a literal starts-with.
    `avatars/` would expire live faces, and there is no prefix that means
    `avatars/*/quarantine/` or `avatars/*/recheck/`. Quarantine copies and
-   recheck copies are tagged `gc-hold=quarantine`. The tag is cleared on
-   the recheck object once `profiles.avatar_key` names it. This bucket's
-   lifecycle config is not in the repo. Adam's pre-deploy step, before the
-   recheck, is this 30-day rule plus the IAM policy in
-   `docs/infra/avatar-storage-setup.md`: `s3:DeleteObject` and
-   `s3:PutObjectTagging` on `avatars/*`, and `s3:ListBucket` only when the
+   recheck copies are tagged `gc-hold=quarantine`. The tag is cleared with
+   DeleteObjectTagging, and GetObjectTagging must show no `gc-hold` tag,
+   before `profiles.avatar_key` names that object. If either call fails, the
+   pointer stays on the old face. This bucket's lifecycle config is not in
+   the repo. Adam's pre-deploy step, before the recheck, is this 30-day rule
+   plus the IAM policy in `docs/infra/avatar-storage-setup.md`:
+   `s3:DeleteObject`, `s3:PutObjectTagging`, `s3:DeleteObjectTagging`, and
+   `s3:GetObjectTagging` on `avatars/*`, and `s3:ListBucket` only when the
    prefix is `avatars/`. The rule replaces the whole lifecycle
    configuration: merge any rule that is already on the avatars bucket
    before sending it. Do not run it from CI. Do not point it at the

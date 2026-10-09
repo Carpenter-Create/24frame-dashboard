@@ -71,10 +71,18 @@ async function reportNewerAvatarKept(readKey: string | null): Promise<void> {
   Sentry.captureException(reported);
 }
 
-// Photo bytes go to a new private object. The pointer moves only after that
-// object is confirmed. The previous canonical object, this member's previous
-// recheck object, and this member's quarantine copies are deleted after the
-// swap. A failure before the swap deletes nothing. Email is not touched.
+async function readOwnAvatarKey(userId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const row = await supabase.from("profiles").select("avatar_key").eq("id", userId).maybeSingle();
+  if (row.error || !row.data) throw row.error ?? new Error("avatar pointer was not read");
+  return row.data.avatar_key;
+}
+
+// Photo bytes go to a new private object. The hold tag is removed and the
+// read confirms it is gone. Only then does the pointer move. The previous
+// canonical object and this member's previous recheck object are deleted
+// after that, and the pointer is read again before each delete. A failure
+// before the pointer moves deletes nothing. Email is not touched.
 export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
@@ -106,6 +114,12 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
       }
       return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
     }
+    try {
+      await releaseAvatarHoldTag(ctx.user.id, stored.key);
+    } catch (e) {
+      await reportAvatarOrphan([stored.key], e);
+      return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
+    }
     const admin = createAdminClient();
     const update = admin.from("profiles").update({ avatar_key: stored.key }).eq("id", ctx.user.id);
     const filtered = previousKey == null ? update.is("avatar_key", null) : update.eq("avatar_key", previousKey);
@@ -115,12 +129,7 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
       return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
     }
     try {
-      await releaseAvatarHoldTag(ctx.user.id, stored.key);
-    } catch (e) {
-      await reportAvatarOrphan([stored.key], e);
-    }
-    try {
-      await deleteReplacedAvatarObjects(ctx.user.id, previousKey, stored.key);
+      await deleteReplacedAvatarObjects(ctx.user.id, previousKey, stored.key, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
       await reportAvatarOrphan(replacedAvatarObjectKeys(ctx.user.id, previousKey, stored.key), e);
     }
@@ -138,9 +147,9 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
 }
 
 // Inverse of uploadAccountPhoto. The clear matches the avatar_key that was
-// read. Only then are the canonical object, every object under
-// avatars/{id}/recheck/, and this member's quarantine copies deleted.
-// Zero rows means a newer face was kept: report it and delete nothing.
+// read. Only then are those exact keys deleted. The pointer is read again
+// before each delete, and the key that read names is left. Zero rows means
+// a newer face was kept: report it and delete nothing.
 export async function removeAccountPhoto(): Promise<{ error?: string }> {
   const ctx = await getOrgContext();
   if (!ctx) return { error: ACCOUNT_PROFILE.signedOut };
@@ -160,7 +169,7 @@ export async function removeAccountPhoto(): Promise<{ error?: string }> {
       return {};
     }
     try {
-      await deleteAvatarObject(ctx.user.id, previousKey);
+      await deleteAvatarObject(ctx.user.id, previousKey, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
       await reportAvatarOrphan(replacedAvatarObjectKeys(ctx.user.id, previousKey, AVATAR_CLEARED), e);
     }

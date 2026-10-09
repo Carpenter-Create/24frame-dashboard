@@ -3,26 +3,25 @@ import "server-only";
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectTaggingCommand,
   GetObjectCommand,
+  GetObjectTaggingCommand,
   HeadObjectCommand,
-  ListObjectsV2Command,
   PutObjectCommand,
-  PutObjectTaggingCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import {
   AVATAR_SIGNED_URL_TTL_SECONDS,
+  avatarKeysReadForRemove,
   avatarObjectKey,
+  avatarPointerNamesKey,
   AVATAR_QUARANTINE_HOLD_TAG,
   avatarQuarantineObjectKey,
-  avatarQuarantinePrefix,
-  avatarRecheckPrefix,
   avatarRecheckObjectKey,
   avatarServeKey,
   isAvatarContentType,
-  isAvatarQuarantineKey,
   isAvatarRecheckKey,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
@@ -58,6 +57,47 @@ function avatarsRegion(): string {
 
 function avatarsClient(): { bucket: string; s3: S3Client } {
   return { bucket: avatarsBucket(), s3: new S3Client({ region: avatarsRegion() }) };
+}
+
+export type AvatarPointerReader = () => Promise<string | null>;
+
+const AVATAR_HOLD_TAG_KEY = "gc-hold";
+const AVATAR_HOLD_TAG_VALUE = "quarantine";
+
+function holdTagPresent(tagSet: { Key?: string; Value?: string }[] | undefined): boolean {
+  return (tagSet ?? []).some(
+    (tag) => tag.Key === AVATAR_HOLD_TAG_KEY && tag.Value === AVATAR_HOLD_TAG_VALUE,
+  );
+}
+
+function holdTagRemains(tagSet: { Key?: string; Value?: string }[] | undefined): boolean {
+  return (tagSet ?? []).some((tag) => tag.Key === AVATAR_HOLD_TAG_KEY);
+}
+
+function noSuchTagSet(error: unknown): boolean {
+  const name = (error as { name?: string; Code?: string }).name;
+  const code = (error as { name?: string; Code?: string }).Code;
+  return name === "NoSuchTagSet" || code === "NoSuchTagSet";
+}
+
+async function readObjectTags(
+  s3: S3Client,
+  bucket: string,
+  key: string,
+): Promise<{ Key?: string; Value?: string }[]> {
+  try {
+    const out = await s3.send(new GetObjectTaggingCommand({ Bucket: bucket, Key: key }));
+    return out.TagSet ?? [];
+  } catch (error) {
+    if (noSuchTagSet(error)) return [];
+    throw error;
+  }
+}
+
+/** The put or copy claimed this tag. Refuse to continue when the read does not show it. */
+async function assertHoldTagStored(s3: S3Client, bucket: string, key: string): Promise<void> {
+  const tags = await readObjectTags(s3, bucket, key);
+  if (!holdTagPresent(tags)) throw new Error("Avatar hold tag was not stored");
 }
 
 export async function putAvatarObject(
@@ -120,11 +160,14 @@ export async function storeAvatarReplacement(input: {
     }),
   );
   const putEtag = put.ETag?.trim();
-  if (putEtag) return { key, etag: putEtag };
-  const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-  const headEtag = head.ETag?.trim();
-  if (!headEtag) throw new Error("Avatar replace did not confirm the new object");
-  return { key, etag: headEtag };
+  let etag = putEtag ?? "";
+  if (!etag) {
+    const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    etag = head.ETag?.trim() ?? "";
+  }
+  if (!etag) throw new Error("Avatar replace did not confirm the new object");
+  await assertHoldTagStored(s3, bucket, key);
+  return { key, etag };
 }
 
 /**
@@ -159,20 +202,20 @@ export async function putAvatarRecheckObject(input: {
       },
     }),
   );
+  await assertHoldTagStored(s3, bucket, key);
   return key;
 }
 
-/** The pointer now names this recheck object, so the 30-day hold must not expire it. */
+/**
+ * Remove gc-hold and confirm the read has no gc-hold tag.
+ * Callers move the pointer only after this returns. A throw leaves the old face in place.
+ */
 export async function releaseAvatarHoldTag(userId: string, key: string): Promise<void> {
   if (!isAvatarRecheckKey(key, userId)) throw new Error("Avatar hold tag is only cleared on this member's recheck key");
   const { bucket, s3 } = avatarsClient();
-  await s3.send(
-    new PutObjectTaggingCommand({
-      Bucket: bucket,
-      Key: key,
-      Tagging: { TagSet: [] },
-    }),
-  );
+  await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: key }));
+  const tags = await readObjectTags(s3, bucket, key);
+  if (holdTagRemains(tags)) throw new Error("Avatar hold tag remains");
 }
 
 export async function headAvatarRecheck(key: string): Promise<{ reencoded: boolean } | null> {
@@ -198,68 +241,40 @@ export async function readAvatarObject(
   return { bytes, contentType };
 }
 
-async function deleteOwnedAvatarCopies(
+/**
+ * Delete these exact keys. Read the pointer immediately before each delete
+ * and leave the key that read names. A read failure deletes nothing further.
+ */
+async function deleteExactAvatarKeys(
   userId: string,
-  prefix: string,
-  owns: (key: string, userId: string) => boolean,
+  keys: readonly string[],
+  readPointer: AvatarPointerReader,
 ): Promise<void> {
   const { bucket, s3 } = avatarsClient();
-  let token: string | undefined;
-  do {
-    const page = await s3.send(
-      new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: prefix,
-        ContinuationToken: token,
-      }),
-    );
-    for (const object of page?.Contents ?? []) {
-      if (object.Key && owns(object.Key, userId)) {
-        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: object.Key }));
-      }
-    }
-    token = page?.IsTruncated ? page.NextContinuationToken : undefined;
-  } while (token);
+  for (const key of keys) {
+    const current = await readPointer();
+    if (avatarPointerNamesKey(userId, current, key)) continue;
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  }
 }
 
-/** Delete this member's recheck copies. A foreign key under the listing is left. */
-export async function deleteAvatarRecheckCopies(userId: string): Promise<void> {
-  await deleteOwnedAvatarCopies(userId, avatarRecheckPrefix(userId), isAvatarRecheckKey);
-}
-
-/** Delete this member's quarantine copies. A foreign key under the listing is left. */
-export async function deleteAvatarQuarantineCopies(userId: string): Promise<void> {
-  await deleteOwnedAvatarCopies(userId, avatarQuarantinePrefix(userId), (key, ownerId) =>
-    isAvatarQuarantineKey(key, ownerId),
-  );
-}
-
-/** Delete the objects a successful replace left unreferenced, then this member's quarantine copies. */
+/** Delete the exact keys a successful replace left unreferenced. The new key stays. */
 export async function deleteReplacedAvatarObjects(
   userId: string,
   previousKey: string | null,
   newKey: string,
+  readPointer: AvatarPointerReader,
 ): Promise<void> {
-  const { bucket, s3 } = avatarsClient();
-  for (const key of replacedAvatarObjectKeys(userId, previousKey, newKey)) {
-    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-  }
-  await deleteAvatarQuarantineCopies(userId);
+  await deleteExactAvatarKeys(userId, replacedAvatarObjectKeys(userId, previousKey, newKey), readPointer);
 }
 
-export async function deleteAvatarObject(userId: string, storedKey?: string | null): Promise<void> {
-  const key = avatarObjectKey(userId);
-  const { bucket, s3 } = avatarsClient();
-  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-  if (
-    typeof storedKey === "string" &&
-    storedKey !== key &&
-    (isAvatarRecheckKey(storedKey, userId) || isAvatarQuarantineKey(storedKey, userId))
-  ) {
-    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: storedKey }));
-  }
-  await deleteAvatarRecheckCopies(userId);
-  await deleteAvatarQuarantineCopies(userId);
+/** Delete only the exact keys `storedKey` named. Re-read the pointer before each one. */
+export async function deleteAvatarObject(
+  userId: string,
+  storedKey: string | null | undefined,
+  readPointer: AvatarPointerReader,
+): Promise<void> {
+  await deleteExactAvatarKeys(userId, avatarKeysReadForRemove(userId, storedKey ?? null), readPointer);
 }
 
 /**
@@ -267,7 +282,11 @@ export async function deleteAvatarObject(userId: string, storedKey?: string | nu
  * The quarantine key is never signed. Rollback copies it back to the
  * canonical key and deletes the quarantine object.
  */
-export async function quarantineAvatarObject(userId: string, objectId: string): Promise<string> {
+export async function quarantineAvatarObject(
+  userId: string,
+  objectId: string,
+  readPointer: AvatarPointerReader,
+): Promise<string> {
   const source = avatarObjectKey(userId);
   const dest = avatarQuarantineObjectKey(userId, objectId);
   const { bucket, s3 } = avatarsClient();
@@ -281,6 +300,9 @@ export async function quarantineAvatarObject(userId: string, objectId: string): 
       Tagging: AVATAR_QUARANTINE_HOLD_TAG,
     }),
   );
+  await assertHoldTagStored(s3, bucket, dest);
+  const current = await readPointer();
+  if (avatarPointerNamesKey(userId, current, source)) return dest;
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: source }));
   return dest;
 }

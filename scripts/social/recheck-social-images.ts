@@ -121,6 +121,24 @@ export async function writeAvatarPointer(
   return await filtered.select("id");
 }
 
+/**
+ * Release the hold, confirm it, then move the pointer.
+ * A failed release throws and the pointer stays on the face that was read.
+ */
+export async function commitRecheckedAvatar(
+  admin: AvatarPointerWriter,
+  parentId: string,
+  readKey: string | null,
+  nextKey: string,
+  releaseHold: (userId: string, key: string) => Promise<void> = releaseAvatarHoldTag,
+): Promise<{ skipped: true; orphanKey: string } | Record<string, never>> {
+  await releaseHold(parentId, nextKey);
+  const { data, error } = await writeAvatarPointer(admin, parentId, readKey, nextKey);
+  assertOk(error, "point avatar at rechecked image");
+  if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey };
+  return {};
+}
+
 /** Include a null pointer. Exclude a cleared pointer. */
 export const AVATAR_RECHECK_PAGE_OR = `avatar_key.is.null,avatar_key.neq.${AVATAR_CLEARED}`;
 
@@ -461,15 +479,7 @@ async function main(): Promise<void> {
             });
             if (nextKey === item.key) throw new Error("Avatar recheck must not overwrite the original");
             if (readKey === undefined) throw new Error("avatar pointer was not read");
-            const { data, error } = await writeAvatarPointer(admin as never, item.parentId, readKey, nextKey);
-            assertOk(error, "point avatar at rechecked image");
-            if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey };
-            try {
-              await releaseAvatarHoldTag(item.parentId, nextKey);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : "hold tag remains";
-              logs.push(`avatar ${item.parentId} hold tag remains on ${nextKey}: ${message}`);
-            }
+            return await commitRecheckedAvatar(admin as never, item.parentId, readKey, nextKey);
           } catch (error) {
             const failure = error instanceof Error ? error : new Error("recheck_failed");
             throw Object.assign(failure, { orphanKey: nextKey });
@@ -484,7 +494,11 @@ async function main(): Promise<void> {
           const { data, error } = await writeAvatarPointer(admin as never, parentId, readKey, AVATAR_CLEARED);
           assertOk(error, "clear avatar");
           if (!data || data.length === 0) return { skipped: true };
-          const quarantineKey = await quarantineAvatarObject(parentId, randomUUID());
+          const quarantineKey = await quarantineAvatarObject(parentId, randomUUID(), async () => {
+            const read = await admin.from("profiles").select("avatar_key").eq("id", parentId).maybeSingle();
+            if (read.error || !read.data) throw read.error ?? new Error("avatar pointer was not read");
+            return read.data.avatar_key;
+          });
           logs.push(`avatar ${parentId} quarantined ${quarantineKey}`);
         },
       });

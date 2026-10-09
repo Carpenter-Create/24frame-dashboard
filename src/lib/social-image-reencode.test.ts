@@ -629,11 +629,56 @@ describe("reencodeSocialImage", () => {
     const stale = await pointParentAtRecheckedMedia(writer(changed), "posts", "parent", current, next);
     expect(stale.error).toBeNull();
     expect(stale.data).toEqual([]);
-    const avatarStore = source.slice(source.indexOf("point avatar at rechecked image"));
-    const landed = avatarStore.indexOf("if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey }");
-    const release = avatarStore.indexOf("await releaseAvatarHoldTag(item.parentId, nextKey)");
-    expect(landed).toBeGreaterThan(-1);
-    expect(release).toBeGreaterThan(landed);
+    const commit = source.slice(
+      source.indexOf("export async function commitRecheckedAvatar"),
+      source.indexOf("/** Include a null pointer"),
+    );
+    const release = commit.indexOf("await releaseHold(parentId, nextKey)");
+    const write = commit.indexOf("await writeAvatarPointer(admin, parentId, readKey, nextKey)");
+    expect(release).toBeGreaterThan(-1);
+    expect(write).toBeGreaterThan(release);
+    const avatarStore = source.slice(source.lastIndexOf("store: async (item, bytes)"));
+    expect(avatarStore).toContain("return await commitRecheckedAvatar(");
+    expect(avatarStore.slice(0, avatarStore.indexOf("hide: async"))).not.toContain("writeAvatarPointer");
+  });
+
+  it("releases the avatar hold before the pointer moves and leaves the old face when the release fails", async () => {
+    const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(user, "33333333-3333-4333-8333-333333333333");
+    const events: string[] = [];
+    const writer = {
+      from() {
+        return writer;
+      },
+      update() {
+        events.push("swap");
+        return writer;
+      },
+      eq() {
+        return writer;
+      },
+      is() {
+        return writer;
+      },
+      select() {
+        return Promise.resolve({ data: [{ id: user }], error: null });
+      },
+    };
+    const committed = await commitRecheckedAvatar(writer, user, previous, next, async () => {
+      events.push("release");
+    });
+    expect(committed).toEqual({});
+    expect(events).toEqual(["release", "swap"]);
+    events.length = 0;
+    await expect(
+      commitRecheckedAvatar(writer, user, previous, next, async () => {
+        events.push("release");
+        throw new Error("tag delete failed");
+      }),
+    ).rejects.toThrow(/tag delete failed/);
+    expect(events).toEqual(["release"]);
   });
 
   it("quarantines a null legacy avatar and re-encodes a clean one onto a new pointer", async () => {
