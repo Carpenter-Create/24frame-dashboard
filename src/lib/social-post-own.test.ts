@@ -100,6 +100,13 @@ describe("Edit caption window: address, dirty and Done", () => {
     });
     expect(socialPostCaptionDone("  hello ", "hello", false)).toEqual({ kind: "unchanged" });
     expect(socialPostCaptionDone("", null, true)).toEqual({ kind: "unchanged" });
+    // A media post stored with an empty or blank caption: Done with no words
+    // sends nothing (Bugbot on #804), the same reading as socialPostCaptionDirty.
+    expect(socialPostCaptionDone("", "", true)).toEqual({ kind: "unchanged" });
+    expect(socialPostCaptionDone("  ", " \n ", true)).toEqual({ kind: "unchanged" });
+    expect(socialPostCaptionDirty("", "")).toBe(false);
+    // Words around a stored blank still save.
+    expect(socialPostCaptionDone("new words", "  ", true)).toEqual({ kind: "save", body: "new words" });
     expect(socialPostCaptionDone("  revised ", "hello", false)).toEqual({ kind: "save", body: "revised" });
     expect(SOCIAL_POST_CAPTION_RAW_MAX).toBe(POST_BODY_MAX * 2);
   });

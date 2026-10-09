@@ -179,6 +179,9 @@ export function socialPostCaptionDone(
 ): SocialPostCaptionDone {
   const written = postCaptionWrite(draft, hasMedia);
   if ("error" in written) return { kind: "invalid", error: written.error };
-  if ((baseline ?? null) === written.body) return { kind: "unchanged" };
+  // The stored words read as the write would store them (an empty or
+  // blank caption is none), the same reading as socialPostCaptionDirty.
+  const before = (baseline ?? "").trim() || null;
+  if (before === written.body) return { kind: "unchanged" };
   return { kind: "save", body: written.body };
 }
