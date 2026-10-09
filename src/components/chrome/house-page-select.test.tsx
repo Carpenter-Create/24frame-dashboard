@@ -1,15 +1,27 @@
 import { createElement } from "react";
 import { existsSync, readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}));
 
 import {
+  HOUSE_PAGE_SELECT_INLINE_LIST_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS,
+  HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS,
   HOUSE_PAGE_SELECT_PANEL_CLASS,
   HOUSE_PAGE_SELECT_SHEET_HOST_CLASS,
   HOUSE_PAGE_SELECT_TRIGGER_CLASS,
+  housePageSelectGroupLabelId,
+  housePageSelectInlineOptionClass,
+  housePageSelectTabStop,
+  type HousePageSelectGroup,
 } from "@/lib/house-page-select";
-import { HousePageSelect } from "./house-page-select";
+import { stripSourceComments } from "@/test/strip-source-comments";
+import { housePageSelectPinRenders } from "@/test/house-page-select-pins";
+import { HousePageSelect, HousePageSelectOptions } from "./house-page-select";
 
 describe("HousePageSelect", () => {
   it("is the house standard in-page select with desktop menu + phone sheet", () => {
@@ -72,5 +84,181 @@ describe("HousePageSelect", () => {
       expect(src, path).not.toContain("@/components/layout/status-filter");
       expect(src, path).not.toContain("import { StatusFilter }");
     }
+  });
+});
+
+// Today's callers draw exactly what they drew before the opt-in props
+// (origin/main 553a53a): the primitive in every branch, and every consumer
+// that can render open. The deliver stepper's closed select is the
+// "no-match-open" case's props.
+describe("HousePageSelect default markup is pinned", () => {
+  const pinned = JSON.parse(
+    readFileSync("src/components/chrome/house-page-select.pin.json", "utf8"),
+  ) as Record<string, string>;
+  const now = housePageSelectPinRenders();
+
+  it("pins the same cases", () => {
+    expect(Object.keys(now)).toEqual(Object.keys(pinned));
+    expect(Object.keys(pinned).filter((key) => key.startsWith("consumer:"))).toHaveLength(7);
+  });
+
+  for (const name of Object.keys(pinned)) {
+    it(`renders ${name} byte for byte`, () => {
+      expect(now[name]).toBe(pinned[name]);
+    });
+  }
+
+  it("draws no inline markers by default", () => {
+    for (const html of Object.values(now)) {
+      expect(html).not.toContain('role="group"');
+      expect(html).not.toContain("tabindex");
+      expect(html).not.toContain("aria-multiselectable");
+      expect(html).not.toContain("aria-labelledby");
+      expect(html).not.toContain("data-house-page-select-option-detail");
+      expect(html).not.toContain(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS);
+    }
+  });
+});
+
+const GROUPS: readonly HousePageSelectGroup[] = [
+  {
+    id: "North America",
+    label: "North America",
+    options: [
+      { key: "CA", label: "Canada", detail: "First detail line." },
+      { key: "US", label: "United States" },
+    ],
+  },
+  {
+    id: "europe",
+    label: "Europe",
+    options: [
+      { key: "IE", label: "Ireland", detail: "Second detail line." },
+      { key: "GB", label: "United Kingdom" },
+    ],
+  },
+];
+
+function inlineList(props: Partial<Parameters<typeof HousePageSelectOptions>[0]> = {}): string {
+  return renderToStaticMarkup(
+    createElement(HousePageSelectOptions, {
+      groups: GROUPS,
+      ariaLabel: "Countries",
+      onPick: () => undefined,
+      inline: { id: "pick", "aria-describedby": "pick-error" },
+      ...props,
+    }),
+  );
+}
+
+function optionTag(html: string, key: string): string {
+  const at = html.indexOf(`data-house-page-select-option="${key}"`);
+  return html.slice(html.lastIndexOf("<button", at), html.indexOf(">", at) + 1);
+}
+
+describe("HousePageSelectOptions inline", () => {
+  it("is the listbox laid flat, with labelled groups and one Tab stop", () => {
+    const html = inlineList({ value: "IE" });
+    const listbox = html.slice(0, html.indexOf(">") + 1);
+    expect(listbox).toContain('role="listbox"');
+    expect(listbox).toContain('id="pick"');
+    expect(listbox).toContain('aria-label="Countries"');
+    expect(listbox).toContain('aria-describedby="pick-error"');
+    expect(listbox).toContain(`class="${HOUSE_PAGE_SELECT_INLINE_LIST_CLASS}"`);
+    expect(listbox).not.toContain("aria-multiselectable");
+
+    // Each labelled group is a role=group named by its label.
+    expect(html.match(/role="group"/g)).toHaveLength(2);
+    const na = housePageSelectGroupLabelId("pick", "North America");
+    expect(na).toBe("pick-North-America");
+    expect(html).toContain(`role="group" aria-labelledby="${na}"`);
+    expect(html).toContain(`id="${na}"`);
+    expect(html).toContain('role="group" aria-labelledby="pick-europe"');
+    expect(html).toContain('id="pick-europe"');
+
+    // Roving tabindex: the chosen option is the one stop.
+    expect(html.match(/tabindex="0"/g)).toHaveLength(1);
+    expect(html.match(/tabindex="-1"/g)).toHaveLength(3);
+    expect(optionTag(html, "IE")).toContain('tabindex="0"');
+    expect(optionTag(html, "IE")).toContain('aria-selected="true"');
+    for (const key of ["CA", "US", "GB"]) {
+      expect(optionTag(html, key)).toContain('tabindex="-1"');
+      expect(optionTag(html, key)).toContain('aria-selected="false"');
+    }
+    expect(optionTag(html, "IE")).toContain(`class="${housePageSelectInlineOptionClass(true)}"`);
+    expect(optionTag(html, "US")).toContain(`class="${housePageSelectInlineOptionClass(false)}"`);
+    expect(html.match(/data-appearance-check/g)).toHaveLength(1);
+
+    // Detail lines stack under their labels.
+    expect(html).toContain(
+      `Canada<span data-house-page-select-option-detail="" class="${HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS}">First detail line.</span>`,
+    );
+    expect(html).toContain("Second detail line.");
+    expect(html.match(/data-house-page-select-option-detail/g)).toHaveLength(2);
+
+    // A bare list: no menu, no sheet, no native select, no form-select Esc owner.
+    expect(html).not.toContain("data-house-form-select-menu");
+    expect(html).not.toContain("data-house-page-select-sheet");
+    expect(html).not.toContain("data-house-page-select-menu");
+    expect(html).not.toContain("<select");
+  });
+
+  it("makes the first option the stop when nothing is chosen", () => {
+    const html = inlineList();
+    expect(html.match(/tabindex="0"/g)).toHaveLength(1);
+    expect(optionTag(html, "CA")).toContain('tabindex="0"');
+    expect(html).not.toContain('aria-selected="true"');
+    expect(html).not.toContain("data-appearance-check");
+  });
+
+  it("chooses many in multiple mode", () => {
+    const html = inlineList({ multiple: true, values: ["GB", "US"], value: "CA" });
+    expect(html.slice(0, html.indexOf(">") + 1)).toContain('aria-multiselectable="true"');
+    expect(html.match(/aria-selected="true"/g)).toHaveLength(2);
+    expect(optionTag(html, "US")).toContain('aria-selected="true"');
+    expect(optionTag(html, "GB")).toContain('aria-selected="true"');
+    expect(optionTag(html, "CA")).toContain('aria-selected="false"');
+    expect(html.match(/data-appearance-check/g)).toHaveLength(2);
+    // The first chosen option in order holds the stop.
+    expect(optionTag(html, "US")).toContain('tabindex="0"');
+    expect(html.match(/tabindex="0"/g)).toHaveLength(1);
+  });
+
+  it("leaves an unlabelled group without role=group", () => {
+    const html = inlineList({
+      groups: [{ id: "options", label: "", hideLabel: true, options: GROUPS[0]!.options }],
+    });
+    expect(html).not.toContain('role="group"');
+    expect(html).not.toContain("aria-labelledby");
+    expect(html).not.toContain("data-house-page-select-group-label");
+    expect(html.match(/tabindex="0"/g)).toHaveLength(1);
+  });
+
+  it("moves the stop with focus while the option is drawn", () => {
+    const chosen = (key: string) => key === "IE";
+    expect(housePageSelectTabStop(GROUPS, chosen, null)).toBe("IE");
+    expect(housePageSelectTabStop(GROUPS, chosen, "GB")).toBe("GB");
+    // A focused option filtered out of the list hands the stop back.
+    expect(housePageSelectTabStop(GROUPS, chosen, "FR")).toBe("IE");
+    expect(housePageSelectTabStop(GROUPS, () => false, null)).toBe("CA");
+    expect(housePageSelectTabStop([], () => false, null)).toBeNull();
+  });
+
+  it("wires the keys and owns no Esc, portal or sheet", () => {
+    const src = stripSourceComments(
+      readFileSync("src/components/chrome/house-page-select.tsx", "utf8"),
+    );
+    const list = src.slice(
+      src.indexOf("export function HousePageSelectOptions"),
+      src.indexOf("function HousePageSelectSheet"),
+    );
+    expect(list).toContain("onKeyDown={inline ? onListKey : undefined}");
+    expect(list).toContain("houseFormSelectListKey(");
+    expect(list).toContain("onFocus={inline ? () => setFocused(option.key) : undefined}");
+    expect(list).toContain("tabIndex={inline ? (option.key === stop ? 0 : -1) : undefined}");
+    expect(list).not.toContain("addEventListener");
+    expect(list).not.toContain("createPortal");
+    expect(list).not.toContain("Escape");
+    expect(list).not.toContain("data-house-form-select-menu");
   });
 });

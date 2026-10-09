@@ -17,6 +17,7 @@ Design locks land in this directory before CoS undrafts a UI pull request.
 
 - [`mobile-menu-family-tree-v1.md`](mobile-menu-family-tree-v1.md) — families A–D, OUT, parks
 - [`house-dual-host-primitive-audit-v1.md`](house-dual-host-primitive-audit-v1.md) — primitive rows
+- [`house-dual-host-primitive-audit-v1.md`](house-dual-host-primitive-audit-v1.md) row "Extend HousePageSelect" — opened 2026-10-09 (Adam, "approved, use the defaults"; Add right, PR 1 of 2): `HousePageSelectOptions` is exported with opt-in `inline` (flat in a page or window, one Tab stop, the form Select's keys, 44 rows), `multiple` and an option `detail` line. Every current caller draws the same markup, pinned byte for byte. No second select; `ui/select.tsx` is unchanged
 - [`house-overlay-dual-host-v1.md`](house-overlay-dual-host-v1.md) — overlay geometry
 - [`preferences-settings-row-grammar-lock-v1.md`](preferences-settings-row-grammar-lock-v1.md) — Preferences block types (PrefDrillGroup vs PrefControlSection) and type steps
 - [`preferences-settings-row-grammar-lock-v2.md`](preferences-settings-row-grammar-lock-v2.md) — Preferences row geometry. Supersedes v1 geometry only (row layout, chevron alignment, inter-row rhythm, column width). Block types and type steps from v1 stay.

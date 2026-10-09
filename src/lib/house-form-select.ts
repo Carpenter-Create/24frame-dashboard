@@ -5,6 +5,7 @@ import {
   HOUSE_PAGE_SELECT_CHEVRON_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_GUTTER_CLASS,
+  HOUSE_PAGE_SELECT_OPTION_HOVER_CLASS,
   HOUSE_PAGE_SELECT_OPTION_LABEL_CLASS,
   housePageSelectOptionClass,
 } from "@/lib/house-page-select";
@@ -31,8 +32,8 @@ export const HOUSE_FORM_SELECT_CHEVRON_CLASS = HOUSE_PAGE_SELECT_CHEVRON_CLASS;
 export const HOUSE_FORM_SELECT_PANEL_CLASS =
   "absolute left-0 right-0 top-full z-50 mt-[var(--space-2)] flex max-h-80 flex-col overflow-y-auto rounded-[12px] border border-hairline bg-surface py-[var(--space-2)] shadow-none";
 
-export const HOUSE_FORM_SELECT_OPTION_HOVER_CLASS =
-  "hover:bg-surface-muted focus-visible:bg-surface-muted focus-visible:outline-none";
+// Moved to lib/house-page-select (the inline list shares it); same value.
+export const HOUSE_FORM_SELECT_OPTION_HOVER_CLASS = HOUSE_PAGE_SELECT_OPTION_HOVER_CLASS;
 
 export const HOUSE_FORM_SELECT_OPTION_LABEL_CLASS = HOUSE_PAGE_SELECT_OPTION_LABEL_CLASS;
 
@@ -63,7 +64,7 @@ export function houseFormSelectStep(index: number, key: string, count: number): 
 /** Type-ahead: the first option after `from` whose label starts with what was
  *  typed (a repeated letter cycles through that letter's options). */
 export function houseFormSelectMatch(
-  options: readonly HouseFormSelectOption[],
+  options: readonly { label: string }[],
   typed: string,
   from: number,
 ): number | null {
@@ -77,4 +78,39 @@ export function houseFormSelectMatch(
     if (options[at].label.toLocaleLowerCase().startsWith(needle)) return at;
   }
   return null;
+}
+
+// Keys on an inline house list (HousePageSelectOptions `inline`), the same
+// grammar as the form Select's open menu (ui/select.tsx): ↓ ↑ Home End move
+// (wrapping), typing jumps to a label while the keys come within 500ms of
+// each other, and Space picks unless a word is being typed. Enter and a
+// picking Space stay the option button's own click.
+export const HOUSE_FORM_SELECT_TYPE_AHEAD_MS = 500;
+
+export type HouseFormSelectTyped = { text: string; at: number };
+
+export type HouseFormSelectListKey = {
+  /** The option index to focus, or null to leave focus where it is. */
+  focus: number | null;
+  /** True when the key was used here (the caller prevents its default). */
+  handled: boolean;
+  /** The type-ahead buffer to keep for the next key. */
+  typed: HouseFormSelectTyped;
+};
+
+export function houseFormSelectListKey(
+  options: readonly { label: string }[],
+  index: number,
+  key: string,
+  modified: boolean,
+  typed: HouseFormSelectTyped,
+  now: number,
+): HouseFormSelectListKey {
+  const step = houseFormSelectStep(index, key, options.length);
+  if (step !== null) return { focus: step, handled: true, typed };
+  if (key.length !== 1 || modified) return { focus: null, handled: false, typed };
+  const text = now - typed.at > HOUSE_FORM_SELECT_TYPE_AHEAD_MS ? "" : typed.text;
+  if (key === " " && text === "") return { focus: null, handled: false, typed: { text, at: typed.at } };
+  const next = { text: text + key, at: now };
+  return { focus: houseFormSelectMatch(options, next.text, index), handled: true, typed: next };
 }

@@ -9,6 +9,8 @@ import {
   HOUSE_FORM_SELECT_PANEL_CLASS,
   HOUSE_FORM_SELECT_TRIGGER_CLASS,
   HOUSE_FORM_SELECT_TRIGGER_LABEL_CLASS,
+  HOUSE_FORM_SELECT_TYPE_AHEAD_MS,
+  houseFormSelectListKey,
   houseFormSelectMatch,
   houseFormSelectOptionClass,
   houseFormSelectStep,
@@ -17,8 +19,13 @@ import { housePhoneForbidsTruncate } from "./house-phone-stack";
 import { stripSourceComments } from "@/test/strip-source-comments";
 import {
   HOUSE_PAGE_SELECT_CHEVRON_CLASS,
+  HOUSE_PAGE_SELECT_INLINE_LIST_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS,
+  HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS,
+  HOUSE_PAGE_SELECT_OPTION_HOVER_CLASS,
   HOUSE_PAGE_SELECT_PANEL_CLASS,
+  housePageSelectInlineOptionClass,
+  housePageSelectOptionClass,
 } from "./house-page-select";
 
 const invite = readFileSync("src/components/settings/team-invite-form.tsx", "utf8");
@@ -118,5 +125,117 @@ describe("house form Select keys", () => {
     // Esc closes back to the field; picking returns focus to it.
     expect(select).toContain("if (inside) triggerRef.current?.focus();");
     expect(select).toContain("onChange(next);\n    triggerRef.current?.focus();");
+  });
+});
+
+describe("house inline list (HousePageSelectOptions inline)", () => {
+  it("keeps the form hover's value where it moved", () => {
+    // The literal from before the move (lib/house-form-select.ts:34-35).
+    expect(HOUSE_FORM_SELECT_OPTION_HOVER_CLASS).toBe(
+      "hover:bg-surface-muted focus-visible:bg-surface-muted focus-visible:outline-none",
+    );
+    expect(HOUSE_PAGE_SELECT_OPTION_HOVER_CLASS).toBe(HOUSE_FORM_SELECT_OPTION_HOVER_CLASS);
+    expect(houseFormSelectOptionClass(true)).toBe(
+      `${housePageSelectOptionClass(true)} ${HOUSE_FORM_SELECT_OPTION_HOVER_CLASS}`,
+    );
+  });
+
+  it("draws 44 rows with the form hover, never cut", () => {
+    for (const selected of [true, false]) {
+      const row = housePageSelectInlineOptionClass(selected);
+      expect(row.split(" ")).toContain("min-h-11");
+      expect(row).toContain(HOUSE_PAGE_SELECT_OPTION_HOVER_CLASS);
+      expect(row).toContain(housePageSelectOptionClass(selected));
+      expect(housePhoneForbidsTruncate(row)).toBe(true);
+    }
+    expect(housePageSelectInlineOptionClass(true)).toContain("bg-surface-muted");
+    expect(HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS).toContain("t-body-sm");
+    expect(HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS).toContain("text-ink-3");
+    expect(HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS).toContain("break-words");
+    expect(housePhoneForbidsTruncate(HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS)).toBe(true);
+  });
+
+  it("lays the panel surface flat: no float, no own scroll", () => {
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).toContain("bg-surface");
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).toContain("border-hairline");
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).toContain("shadow-none");
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).not.toContain("absolute");
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).not.toContain("max-h");
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).not.toContain("overflow");
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).not.toContain("z-50");
+    expect(HOUSE_PAGE_SELECT_INLINE_LIST_CLASS).not.toMatch(/#[0-9a-fA-F]{3,6}/);
+  });
+
+  it("types ahead over page-select options too", () => {
+    const keyed = [
+      { key: "CA", label: "Canada" },
+      { key: "CI", label: "Côte d'Ivoire" },
+      { key: "GB", label: "United Kingdom" },
+    ];
+    expect(houseFormSelectMatch(keyed, "u", 0)).toBe(2);
+    expect(houseFormSelectMatch(keyed, "c", 0)).toBe(1);
+  });
+
+  it("moves, types ahead and leaves Enter and a picking Space to the button", () => {
+    const options = [
+      { label: "Canada" },
+      { label: "China" },
+      { label: "Colombia" },
+      { label: "United States" },
+    ];
+    const idle = { text: "", at: 0 };
+    const t0 = 10_000;
+
+    // Arrows wrap; Home and End jump; the buffer is kept.
+    expect(houseFormSelectListKey(options, 3, "ArrowDown", false, idle, t0)).toEqual({
+      focus: 0,
+      handled: true,
+      typed: idle,
+    });
+    expect(houseFormSelectListKey(options, 0, "ArrowUp", false, idle, t0).focus).toBe(3);
+    expect(houseFormSelectListKey(options, 2, "Home", false, idle, t0).focus).toBe(0);
+    expect(houseFormSelectListKey(options, 0, "End", false, idle, t0).focus).toBe(3);
+
+    // Enter, Tab and modified keys pass through.
+    for (const key of ["Enter", "Tab", "Escape"]) {
+      expect(houseFormSelectListKey(options, 0, key, false, idle, t0)).toEqual({
+        focus: null,
+        handled: false,
+        typed: idle,
+      });
+    }
+    expect(houseFormSelectListKey(options, 0, "u", true, idle, t0).handled).toBe(false);
+
+    // Space with nothing typed is the button's own click.
+    expect(houseFormSelectListKey(options, 0, " ", false, idle, t0).handled).toBe(false);
+
+    // Typing jumps; keys within the buffer build a word.
+    const u = houseFormSelectListKey(options, 0, "u", false, idle, t0);
+    expect(u).toEqual({ focus: 3, handled: true, typed: { text: "u", at: t0 } });
+    const co = houseFormSelectListKey(
+      options,
+      0,
+      "o",
+      false,
+      { text: "c", at: t0 },
+      t0 + HOUSE_FORM_SELECT_TYPE_AHEAD_MS,
+    );
+    expect(co.focus).toBe(2);
+    expect(co.typed.text).toBe("co");
+
+    // Space inside a word is typed, not a pick.
+    const space = houseFormSelectListKey(options, 3, " ", false, { text: "united", at: t0 }, t0 + 100);
+    expect(space.handled).toBe(true);
+    expect(space.typed.text).toBe("united ");
+
+    // After the buffer lapses, the word starts again and Space picks.
+    const late = t0 + HOUSE_FORM_SELECT_TYPE_AHEAD_MS + 1;
+    expect(houseFormSelectListKey(options, 0, "o", false, { text: "c", at: t0 }, late).typed.text).toBe("o");
+    expect(houseFormSelectListKey(options, 0, " ", false, { text: "c", at: t0 }, late)).toEqual({
+      focus: null,
+      handled: false,
+      typed: { text: "", at: t0 },
+    });
+    expect(HOUSE_FORM_SELECT_TYPE_AHEAD_MS).toBe(500);
   });
 });
