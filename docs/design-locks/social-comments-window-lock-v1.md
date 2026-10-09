@@ -11,11 +11,15 @@
 
 ## Founder direction (verbatim)
 
+Asked whether to build the Comments window (phase 1), item 6 of a numbered list of decisions on 2026-10-09:
+
+> 6) yes, please.
+
 The open questions, answered on 2026-10-09:
 
 > approved, use the defaults
 
-(Adam, 2026-10-09. The reply to one list of decisions for four builds: Edit caption, Add a right, Deliver and Comments. For Comments the list was Q1–Q7 below, each with its default, and no new copy. Every question's default is the decision, and the window is built on them.)
+(Adam, 2026-10-09, replying to the open decisions for four builds: Edit caption, Add a right, Deliver and Comments. For Comments that message named no new copy and the phone sheet unchanged in phase 1; the answer adopts every default in the table below as the decision.)
 
 The visual defaults, answered on 2026-10-09:
 
