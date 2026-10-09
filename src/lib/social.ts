@@ -1066,8 +1066,6 @@ export const SOCIAL = {
     overflow: "Post options",
     edit: "Edit",
     editTitle: "Edit caption",
-    editSave: "Save",
-    editCancel: "Cancel",
     editFailed: "Could not save that caption.",
     editTooLong: "That caption is too long.",
     delete: "Delete",

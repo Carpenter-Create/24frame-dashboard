@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialStoryMuxThumb } from "@/components/social/social-story-mux-thumb";
+import { useSocialPostOwnVersion } from "@/components/social/use-social-optimistic";
 import { HOUSE_CLIENT_SHELL } from "@/lib/house-client-shell";
 import { houseNavIgnorePendingClick } from "@/lib/house-nav-pending";
 import {
@@ -28,10 +29,12 @@ import {
   rememberSocialFeedReelReturn,
   SOCIAL_FEED_REEL_NEAR_ROOT_MARGIN,
   SOCIAL_FEED_REEL_STEP_PX,
+  socialFeedReelTileLive,
   takeSocialFeedReelScroll,
   type SocialFeedReelTile,
 } from "@/lib/social-feed-reels";
 import { SOCIAL } from "@/lib/social";
+import { readSocialPostCaption } from "@/lib/social-post-own";
 
 import { useSocialRowEdges } from "./use-social-row-edges";
 
@@ -79,6 +82,9 @@ export function SocialFeedReelRail({
 }) {
   const { ref: trackRef, start: atStart, end: atEnd, measure } = useSocialRowEdges<HTMLUListElement>();
   const { ref: sectionRef, near } = useRailNear();
+  // An owner's edited caption shows on its tile at once (no refresh): one
+  // subscription, then each tile reads its own.
+  useSocialPostOwnVersion();
 
   // Back from Explore: the rail returns to where the tap left it.
   useLayoutEffect(() => {
@@ -132,55 +138,58 @@ export function SocialFeedReelRail({
         </div>
       </div>
       <ul ref={trackRef} data-social-feed-reels-track="" className={SOCIAL_FEED_REELS_TRACK_CLASS}>
-        {tiles.map((tile) => (
-          <li key={tile.postId} className={SOCIAL_FEED_REELS_ITEM_CLASS}>
-            <Link
-              href={tile.href}
-              prefetch={false}
-              aria-label={tile.label}
-              data-social-feed-reel={tile.postId}
-              className={SOCIAL_FEED_REEL_TILE_CLASS}
-              onClick={(event) => {
-                // A modified click opens a new tab and this tab stays put:
-                // no note, or a later remount would jump to a stale spot.
-                if (event.defaultPrevented || houseNavIgnorePendingClick(event)) return;
-                rememberSocialFeedReelReturn({
-                  explore: tile.href,
-                  rail,
-                  left: trackRef.current?.scrollLeft ?? 0,
-                });
-              }}
-            >
-              {near ? (
-                <SocialStoryMuxThumb
-                  playbackId={tile.playbackId}
-                  playbackPolicy={tile.playbackPolicy}
-                  url=""
-                />
-              ) : (
-                <span data-social-feed-reel-still="held" className="absolute inset-0" />
-              )}
-              <span className={SOCIAL_FEED_REEL_VIGNETTE_CLASS} />
-              <span className={SOCIAL_FEED_REEL_SCRIM_CLASS}>
-                <span className={SOCIAL_FEED_REEL_AUTHOR_CLASS}>
-                  {/* Portrait waits with the still; eager once near (iOS
-                      Safari drops lazy images in a sideways scroller). */}
-                  <SocialAvatar
-                    name={tile.authorName}
-                    photoUrl={near ? tile.authorPhotoUrl : null}
-                    size="sm"
-                    loading="eager"
-                    className={SOCIAL_FEED_REEL_FACE_CLASS}
+        {tiles.map((tile) => {
+          const live = socialFeedReelTileLive(tile, readSocialPostCaption(tile.postId));
+          return (
+            <li key={tile.postId} className={SOCIAL_FEED_REELS_ITEM_CLASS}>
+              <Link
+                href={tile.href}
+                prefetch={false}
+                aria-label={live.label}
+                data-social-feed-reel={tile.postId}
+                className={SOCIAL_FEED_REEL_TILE_CLASS}
+                onClick={(event) => {
+                  // A modified click opens a new tab and this tab stays put:
+                  // no note, or a later remount would jump to a stale spot.
+                  if (event.defaultPrevented || houseNavIgnorePendingClick(event)) return;
+                  rememberSocialFeedReelReturn({
+                    explore: tile.href,
+                    rail,
+                    left: trackRef.current?.scrollLeft ?? 0,
+                  });
+                }}
+              >
+                {near ? (
+                  <SocialStoryMuxThumb
+                    playbackId={tile.playbackId}
+                    playbackPolicy={tile.playbackPolicy}
+                    url=""
                   />
-                  <span className={SOCIAL_FEED_REEL_NAME_CLASS}>{tile.authorName}</span>
+                ) : (
+                  <span data-social-feed-reel-still="held" className="absolute inset-0" />
+                )}
+                <span className={SOCIAL_FEED_REEL_VIGNETTE_CLASS} />
+                <span className={SOCIAL_FEED_REEL_SCRIM_CLASS}>
+                  <span className={SOCIAL_FEED_REEL_AUTHOR_CLASS}>
+                    {/* Portrait waits with the still; eager once near (iOS
+                        Safari drops lazy images in a sideways scroller). */}
+                    <SocialAvatar
+                      name={tile.authorName}
+                      photoUrl={near ? tile.authorPhotoUrl : null}
+                      size="sm"
+                      loading="eager"
+                      className={SOCIAL_FEED_REEL_FACE_CLASS}
+                    />
+                    <span className={SOCIAL_FEED_REEL_NAME_CLASS}>{tile.authorName}</span>
+                  </span>
+                  {live.caption ? (
+                    <span className={SOCIAL_FEED_REEL_CAPTION_CLASS}>{live.caption}</span>
+                  ) : null}
                 </span>
-                {tile.caption ? (
-                  <span className={SOCIAL_FEED_REEL_CAPTION_CLASS}>{tile.caption}</span>
-                ) : null}
-              </span>
-            </Link>
-          </li>
-        ))}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

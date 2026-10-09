@@ -180,8 +180,11 @@ export function SocialPostCard({
         {post.owned ? (
           <SocialPostOwnerMenu
             postId={post.id}
-            body={post.body}
+            serverBody={post.body}
             hasMedia={postHasMedia(post.media)}
+            media={media}
+            authorName={post.authorName}
+            authorPhotoUrl={post.authorPhotoUrl}
             groupSlug={post.groupSlug}
           />
         ) : null}

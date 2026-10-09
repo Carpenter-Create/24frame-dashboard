@@ -9,6 +9,7 @@ import { SocialFeedVideo } from "@/components/social/social-feed-video";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialMediaImage } from "@/components/social/social-media-image";
 import { SocialPostShareButton } from "@/components/social/social-post-share-button";
+import { useSocialPostLiveBody } from "@/components/social/use-social-optimistic";
 import type { SocialPostCardModel } from "@/lib/social-author-post-card";
 import { cn } from "@/lib/cn";
 import { displayHandle, SOCIAL } from "@/lib/social";
@@ -53,7 +54,8 @@ export function SocialFeedImmersive({
   const [expanded, setExpanded] = useState(false);
   const [muted, setMuted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const body = post.body?.trim() ?? "";
+  // The caption as this device shows it (an owner's edit, no refresh).
+  const body = useSocialPostLiveBody(post.id, post.body)?.trim() ?? "";
   const needsMore = body.length > 0 && socialImmersiveCaptionNeedsMore(body);
   const handle = post.authorHandle ? displayHandle(post.authorHandle).slice(1) : post.authorName;
   const label = item?.kind === "video" ? SOCIAL.post.viewVideo : SOCIAL.post.viewPhoto;

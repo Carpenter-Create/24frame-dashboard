@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  houseAddressSettled,
   houseClientHistoryState,
   houseExactHref,
   houseHomePeriodHop,
@@ -180,5 +181,19 @@ describe("houseHop — only panel query stays on the shell", () => {
     expect(provider).toContain('if (hop === "next") return false;');
     expect(provider).not.toContain("houseCommitHop");
     expect(provider).not.toContain("housePaintedKeys");
+  });
+});
+
+// An Edit caption chosen while a Home lane change is still loading waits for
+// it (docs/design-locks/social-post-caption-window-lock-v1.md §5).
+describe("houseAddressSettled", () => {
+  it("is true when the shell's address and Next's are the same exact href", () => {
+    expect(houseAddressSettled("/social?lane=for-you", "/social?lane=for-you")).toBe(true);
+    expect(houseAddressSettled("/social/", "/social")).toBe(true);
+  });
+
+  it("is false while an owned lane change is ahead of Next", () => {
+    expect(houseAddressSettled("/social?lane=for-you", "/social")).toBe(false);
+    expect(houseAddressSettled("/social?lane=for-you", "/social?lane=following")).toBe(false);
   });
 });

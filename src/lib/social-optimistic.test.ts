@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
 import { SOCIAL } from "@/lib/social";
@@ -37,7 +37,16 @@ import {
   socialOptimisticPostCard,
   socialOptimisticPostMatches,
   socialOptimisticPostsFor,
+  persistSocialPostCaption,
+  persistSocialPostDelete,
+  saveSocialPostCaption,
 } from "@/lib/social-optimistic";
+import {
+  readSocialPostCaption,
+  readSocialPostCaptionSaving,
+  resetSocialPostOwnForTests,
+  socialPostLiveBody,
+} from "@/lib/social-post-own";
 
 describe("Social optimistic mutation SoT", () => {
   afterEach(() => {
@@ -378,5 +387,137 @@ describe("Social optimistic mutation SoT", () => {
     expect(topics).not.toContain("persistSocial");
     expect(edit).toContain("checkSocialProfileEditSave");
     expect(edit).toContain("persistSocialProfileEdit");
+  });
+});
+
+// Edit caption saves in the background (docs/design-locks/social-post-caption-window-lock-v1.md):
+// the like/follow "Latest" pattern per post, and a dropped connection never
+// throws or shows the browser's own line.
+describe("Edit caption: persist and the Latest save runner", () => {
+  beforeEach(() => {
+    resetSocialOptimisticForTests();
+    resetSocialPostOwnForTests();
+  });
+  afterEach(() => {
+    resetSocialOptimisticForTests();
+    resetSocialPostOwnForTests();
+    vi.unstubAllGlobals();
+  });
+
+  function answer(error?: string): Response {
+    return new Response(JSON.stringify(error ? { error } : {}), { status: error ? 400 : 200 });
+  }
+
+  /** fetch that waits for the test to answer each call, in order. */
+  function heldFetch() {
+    const answers: Array<(res: Response) => void> = [];
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => answers.push(resolve)));
+    vi.stubGlobal("fetch", fetchMock);
+    return { fetchMock, answers };
+  }
+
+  function bodyOf(fetchMock: ReturnType<typeof vi.fn>, call: number): FormData {
+    return (fetchMock.mock.calls[call] as unknown as [string, { body: FormData }])[1].body;
+  }
+
+  it("maps a dropped connection to the action's own line, never a throw or 'Failed to fetch'", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    const form = new FormData();
+    form.set("post_id", "p1");
+    await expect(persistSocialPostCaption(form)).resolves.toEqual({ error: SOCIAL.post.editFailed });
+    await expect(persistSocialPostDelete(form)).resolves.toEqual({ error: SOCIAL.post.deleteFailed });
+  });
+
+  it("shows the new words before any await, sends post_id, body and group_slug, and settles", async () => {
+    const fetchMock = vi.fn(async () => answer());
+    vi.stubGlobal("fetch", fetchMock);
+    const onSaved = vi.fn();
+    const onFailed = vi.fn();
+    const settled = saveSocialPostCaption({ postId: "p1", body: "revised", groupSlug: "film-club", onSaved, onFailed });
+    expect(readSocialPostCaption("p1")).toBe("revised");
+    expect(socialPostLiveBody("p1", "hello")).toBe("revised");
+    expect(readSocialPostCaptionSaving("p1")).toBe(true);
+    await settled;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [href, init] = fetchMock.mock.calls[0] as unknown as [string, { method: string; body: FormData }];
+    expect(href).toBe(SOCIAL_OPTIMISTIC_LOCK.postOwnHref);
+    expect(init.method).toBe("PATCH");
+    expect(init.body.get("post_id")).toBe("p1");
+    expect(init.body.get("body")).toBe("revised");
+    expect(init.body.get("group_slug")).toBe("film-club");
+    expect(readSocialPostCaption("p1")).toBe("revised");
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onFailed).not.toHaveBeenCalled();
+    expect(readSocialPostCaptionSaving("p1")).toBe(false);
+  });
+
+  it("a refused save brings the server caption back and reports the server's line", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer(SOCIAL.post.notAuthor)));
+    const onFailed = vi.fn();
+    await saveSocialPostCaption({ postId: "p1", body: "revised", groupSlug: null, onFailed });
+    expect(readSocialPostCaption("p1")).toBeUndefined();
+    expect(socialPostLiveBody("p1", "hello")).toBe("hello");
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    expect(onFailed).toHaveBeenCalledWith(SOCIAL.post.notAuthor);
+    expect(readSocialPostCaptionSaving("p1")).toBe(false);
+  });
+
+  it("sends one post's saves one after another; A fails, B saves: B shows and nothing reopens", async () => {
+    const { fetchMock, answers } = heldFetch();
+    const onFailed = vi.fn();
+    const a = saveSocialPostCaption({ postId: "p1", body: "A", groupSlug: null, onFailed });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const b = saveSocialPostCaption({ postId: "p1", body: "B", groupSlug: null, onFailed });
+    expect(readSocialPostCaption("p1")).toBe("B");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    answers[0]!(answer(SOCIAL.post.editFailed));
+    await a;
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(bodyOf(fetchMock, 1).get("body")).toBe("B");
+    answers[1]!(answer());
+    await b;
+    expect(readSocialPostCaption("p1")).toBe("B");
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  it("both fail: the server caption shows and only the latest edit reports", async () => {
+    const { fetchMock, answers } = heldFetch();
+    const onFailed = vi.fn();
+    const a = saveSocialPostCaption({ postId: "p1", body: "A", groupSlug: null, onFailed });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const b = saveSocialPostCaption({ postId: "p1", body: "B", groupSlug: null, onFailed });
+    answers[0]!(answer(SOCIAL.post.editFailed));
+    await a;
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    answers[1]!(answer(SOCIAL.post.notAuthor));
+    await b;
+    expect(readSocialPostCaption("p1")).toBeUndefined();
+    expect(socialPostLiveBody("p1", "hello")).toBe("hello");
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    expect(onFailed).toHaveBeenCalledWith(SOCIAL.post.notAuthor);
+  });
+
+  it("A saves, B fails: the caption the server holds (A) comes back", async () => {
+    const { fetchMock, answers } = heldFetch();
+    const onFailed = vi.fn();
+    const a = saveSocialPostCaption({ postId: "p1", body: "A", groupSlug: null, onFailed });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const b = saveSocialPostCaption({ postId: "p1", body: "B", groupSlug: null, onFailed });
+    answers[0]!(answer());
+    await a;
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    answers[1]!(answer(SOCIAL.post.editFailed));
+    await b;
+    expect(readSocialPostCaption("p1")).toBe("A");
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    expect(onFailed).toHaveBeenCalledWith(SOCIAL.post.editFailed);
+    expect(readSocialPostCaptionSaving("p1")).toBe(false);
   });
 });

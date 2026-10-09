@@ -85,6 +85,12 @@ export function houseExactHref(href: string): string {
   return `${housePathname(pathname)}${search}`;
 }
 
+/** The shell's address and Next's agree: no owned hop (a Home lane or
+ *  topic change) is still loading. */
+export function houseAddressSettled(href: string, nextHref: string): boolean {
+  return houseExactHref(href) === houseExactHref(nextHref);
+}
+
 export function houseScreenKey(pathname: string, search = ""): string {
   const path = housePathname(pathname);
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);

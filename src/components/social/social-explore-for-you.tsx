@@ -9,6 +9,7 @@ import { SocialIcon } from "@/components/social/social-icon";
 import { SocialMuxPlayer } from "@/components/social/social-mux-player";
 import { SocialPostShareButton } from "@/components/social/social-post-share-button";
 import { SocialAvatar } from "@/components/social/social-avatar";
+import { useSocialPostLiveBody } from "@/components/social/use-social-optimistic";
 import { cn } from "@/lib/cn";
 import { SOCIAL, socialMemberHref, socialPersonIdentity } from "@/lib/social";
 import {
@@ -183,6 +184,8 @@ function SocialExploreForYouSlide({
     : null;
   const profileHref = person?.handle ? socialMemberHref(person.handle) : null;
   const username = person?.handleLabel || item.authorName;
+  // The caption as this device shows it (an owner's edit, no refresh).
+  const body = useSocialPostLiveBody(item.postId, item.body);
 
   return (
     <article
@@ -234,8 +237,8 @@ function SocialExploreForYouSlide({
         ) : username ? (
           <span className="t-body font-medium text-band-ink break-words">{username}</span>
         ) : null}
-        {item.body ? (
-          <p className={cn(SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS, "whitespace-pre-wrap")}>{item.body}</p>
+        {body ? (
+          <p className={cn(SOCIAL_FEED_IMMERSIVE_CAPTION_CLASS, "whitespace-pre-wrap")}>{body}</p>
         ) : null}
       </div>
       <div data-social-explore-rail="" className={SOCIAL_EXPLORE_FOR_YOU_RAIL_CLASS}>

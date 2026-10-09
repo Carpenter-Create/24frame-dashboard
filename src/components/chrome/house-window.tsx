@@ -565,7 +565,9 @@ export function HouseWindowAsk({
 // browser's own history calls and no shell marker for Next to skip, so Next
 // keeps it as its address: a server action under the window never writes a
 // stale address back. A window always has the page without its query under
-// it, so Back reaches the ask and never leaves the page with the draft.
+// it, so Back reaches the ask and never leaves the page with the draft: one
+// opened from the page on an address that already carries its query (a
+// reload, a pasted link) first puts the page under it and pushes its own.
 
 /** Push a window's own entry: the browser's own call with the window's flag
  *  and no shell marker, so Next keeps the query as its address. A link
@@ -653,6 +655,14 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
 
   function openFromPage(face: F) {
     if (winRef.current) return;
+    // The address already carries the query on an entry that is not the
+    // window's own (a reload, a pasted link): the page goes under it and the
+    // window pushes its own, so Back reaches the ask.
+    if (addressHasWindow() && !isOwnEntry()) {
+      install(face);
+      open(face, true);
+      return;
+    }
     const pushed = !addressHasWindow();
     if (pushed) push(face);
     open(face, pushed);

@@ -78,6 +78,14 @@ export const SOCIAL_WRITE_COMPOSE_DIALOG_FIELD_CLASS =
 export const SOCIAL_WRITE_COMPOSE_DIALOG_PREVIEW_CLASS =
   "relative h-[min(40vh,320px)] w-full overflow-hidden rounded-[var(--radius-lg)] bg-surface-muted";
 
+// Edit caption (docs/design-locks/social-post-caption-window-lock-v1.md):
+// the house window over the post draws the composer's avatar row (no scroll
+// or pad of its own: the window's body scrolls and pads 24) and its preview
+// list, read-only. AVATAR / COLUMN / FIELD / PREVIEW above are reused.
+export const SOCIAL_POST_CAPTION_WINDOW_ROW_CLASS = "flex min-w-0 gap-[var(--space-3)]";
+
+export const SOCIAL_POST_CAPTION_WINDOW_MEDIA_CLASS = "flex flex-col gap-[var(--space-2)]";
+
 export const SOCIAL_WRITE_COMPOSE_DIALOG_TOOLS_CLASS =
   "flex shrink-0 items-center gap-[var(--space-2)] border-t border-hairline pt-[var(--space-3)]";
 

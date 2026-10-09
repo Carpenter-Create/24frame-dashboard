@@ -166,6 +166,7 @@ describe("HouseOverlay dual-host lock v1", () => {
     expect(src("src/components/social/social-profile-edit-face.tsx")).not.toContain("HouseDrawerFrame");
     // Every object-edit window draws the one house window shell.
     expect(src("src/components/social/social-profile-edit-window.tsx")).toContain("HouseWindowFrame");
+    expect(src("src/components/social/social-post-caption-window.tsx")).toContain("HouseWindowFrame");
     const shell = src("src/components/chrome/house-window.tsx");
     expect(shell).toContain("HouseDialogFrame");
     expect(shell).toContain("panelClassName={HOUSE_WINDOW_PANEL_CLASS}");

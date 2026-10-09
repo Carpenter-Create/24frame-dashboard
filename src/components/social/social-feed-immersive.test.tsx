@@ -114,6 +114,16 @@ describe("SocialFeedImmersive", () => {
     expect(long).toContain("line-clamp-3");
   });
 
+  // Edit caption saves with no page refresh (social-post-caption-window-lock-v1):
+  // the immersive reads the caption as it shows on this device. A static
+  // render takes the server caption; the overlay is covered in lib.
+  it("reads the caption through the owner's overlay, not post.body directly", () => {
+    expect(immersiveSrc).toContain("useSocialPostLiveBody(post.id, post.body)");
+    expect(immersiveSrc).not.toContain("post.body?.trim()");
+    const html = renderToStaticMarkup(<SocialFeedImmersive post={post} index={0} onClose={() => undefined} />);
+    expect(html).toContain("hello from the dock");
+  });
+
   it("keeps Escape on the open sheet and traps focus in the dialog", () => {
     const onKey = immersiveSrc.slice(
       immersiveSrc.indexOf("const onKey"),

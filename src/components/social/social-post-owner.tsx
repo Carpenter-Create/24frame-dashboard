@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { DotsThree, PencilSimple, Trash } from "@phosphor-icons/react";
 
@@ -9,22 +9,21 @@ import {
   ThreadPopoverItem,
 } from "@/components/chrome/menu-surface";
 import { useAppQueryClient } from "@/components/query-provider";
+import { useSocialPostCaptionWindow } from "@/components/social/social-post-caption-context";
+import { useSocialPostLiveBody } from "@/components/social/use-social-optimistic";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InlineNotice } from "@/components/ui/inline-notice";
-import { Textarea } from "@/components/ui/textarea";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
-import { POST_BODY_MAX, SOCIAL } from "@/lib/social";
+import { SOCIAL } from "@/lib/social";
+import { type SocialPostMediaItem } from "@/lib/social-author-post-card";
 import { SOCIAL_POST_MORE_CLASS } from "@/lib/social-chrome";
 import { THREAD_POPOVER_DELETE_ICON_CLASS, THREAD_POPOVER_ICON_CLASS } from "@/lib/house-sheet";
-import { persistSocialPostCaption, persistSocialPostDelete } from "@/lib/social-optimistic";
+import { persistSocialPostDelete } from "@/lib/social-optimistic";
 import {
   hideSocialPost,
-  postCaptionWrite,
   readSocialPostHidden,
-  rememberSocialPostCaption,
-  socialPostLiveBody,
   subscribeSocialPostOwn,
 } from "@/lib/social-post-own";
 
@@ -63,11 +62,7 @@ export function SocialPostCaptionPlace({
   /** Drawn in the words' place while the live body is empty. */
   empty?: ReactNode;
 }) {
-  const body = useSyncExternalStore(
-    subscribeSocialPostOwn,
-    () => socialPostLiveBody(postId, serverBody),
-    () => serverBody,
-  );
+  const body = useSocialPostLiveBody(postId, serverBody);
   // Under the header, the words alone (the name sits just above, so no
   // handle prefix). Wraps; never clamped. Plain text: the permalink is the
   // time's 44 hit, so the words are no sub-44 phone target. The live body
@@ -83,61 +78,56 @@ export function SocialPostCaptionPlace({
 
 export function SocialPostOwnerMenu({
   postId,
-  body,
+  serverBody,
   hasMedia,
+  media,
+  authorName,
+  authorPhotoUrl,
   groupSlug,
 }: {
   postId: string;
-  body: string | null;
+  /** The caption the server sent with the card. */
+  serverBody: string | null;
+  /** The stored media, as the server counts it. */
   hasMedia: boolean;
+  /** The media the card draws: shown read-only in the caption window. */
+  media: readonly SocialPostMediaItem[];
+  authorName: string;
+  authorPhotoUrl: string | null;
   groupSlug: string | null;
 }) {
   const router = useRouter();
   const queryClient = useAppQueryClient();
-  const liveBody = useSyncExternalStore(
-    subscribeSocialPostOwn,
-    () => socialPostLiveBody(postId, body),
-    () => body,
-  );
-  const [mode, setMode] = useState<"edit" | "delete" | null>(null);
-  const [draft, setDraft] = useState(liveBody ?? "");
+  // Edit opens the caption window over the post: the one host on the Social
+  // layout (docs/design-locks/social-post-caption-window-lock-v1.md). No host,
+  // no Edit (never a dead control).
+  const caption = useSocialPostCaptionWindow();
+  const [mode, setMode] = useState<"delete" | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Edit opened the window: the menu must not take focus back to the ⋯.
+  const openingRef = useRef(false);
 
   function openEdit() {
-    setDraft(liveBody ?? "");
-    setError("");
-    setMode("edit");
+    if (!caption) return;
+    openingRef.current = true;
+    caption.open({
+      postId,
+      serverBody,
+      hasMedia,
+      media,
+      authorName,
+      authorPhotoUrl,
+      groupSlug,
+      trigger: triggerRef.current,
+    });
   }
 
   function close() {
     if (pending) return;
     setMode(null);
     setError("");
-  }
-
-  async function saveCaption() {
-    const written = postCaptionWrite(draft, hasMedia);
-    if ("error" in written) {
-      setError(written.error);
-      return;
-    }
-    setPending(true);
-    setError("");
-    const form = new FormData();
-    form.set("post_id", postId);
-    form.set("body", written.body ?? "");
-    if (groupSlug) form.set("group_slug", groupSlug);
-    const result = await persistSocialPostCaption(form);
-    setPending(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    rememberSocialPostCaption(postId, written.body);
-    setMode(null);
-    void queryClient?.invalidateQueries({ queryKey: ["social", "following-wall"] });
-    router.refresh();
   }
 
   async function removePost() {
@@ -158,13 +148,16 @@ export function SocialPostOwnerMenu({
     router.refresh();
   }
 
-  const saveDisabled = pending || (!hasMedia && draft.trim().length === 0);
-
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) caption?.warm();
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <button
+            ref={triggerRef}
             type="button"
             data-social-post-owner=""
             aria-label={SOCIAL.post.overflow}
@@ -173,51 +166,28 @@ export function SocialPostOwnerMenu({
             <DotsThree className="size-5" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
           </button>
         </DropdownMenuTrigger>
-        <ThreadPopoverContent align="end">
-          <ThreadPopoverItem data-social-post-owner-edit="" onSelect={openEdit}>
-            <PencilSimple className={THREAD_POPOVER_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-            {SOCIAL.post.edit}
-          </ThreadPopoverItem>
+        <ThreadPopoverContent
+          align="end"
+          onCloseAutoFocus={(event) => {
+            // Edit opened the window: focus goes to its field. A plain
+            // dismiss still returns focus to the ⋯.
+            if (!openingRef.current) return;
+            event.preventDefault();
+            openingRef.current = false;
+          }}
+        >
+          {caption ? (
+            <ThreadPopoverItem data-social-post-owner-edit="" onSelect={openEdit}>
+              <PencilSimple className={THREAD_POPOVER_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
+              {SOCIAL.post.edit}
+            </ThreadPopoverItem>
+          ) : null}
           <ThreadPopoverItem data-social-post-owner-delete="" danger onSelect={() => setMode("delete")}>
             <Trash className={THREAD_POPOVER_DELETE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
             {SOCIAL.post.delete}
           </ThreadPopoverItem>
         </ThreadPopoverContent>
       </DropdownMenu>
-      {mode === "edit" ? (
-      <Dialog open onClose={close} title={SOCIAL.post.editTitle} size="md">
-        <form
-          className="flex flex-col gap-[var(--space-3)]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void saveCaption();
-          }}
-        >
-          <label className="sr-only" htmlFor={`social-post-caption-${postId}`}>
-            {SOCIAL.post.editTitle}
-          </label>
-          <Textarea
-            id={`social-post-caption-${postId}`}
-            value={draft}
-            maxLength={POST_BODY_MAX}
-            rows={4}
-            variant="bare"
-            placeholder={SOCIAL.home.captionPlaceholder}
-            className="min-h-24 whitespace-pre-wrap break-words"
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={close}>
-              {SOCIAL.post.editCancel}
-            </Button>
-            <Button type="submit" data-social-post-owner-save="" disabled={saveDisabled}>
-              {SOCIAL.post.editSave}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Dialog>
-      ) : null}
       {mode === "delete" ? (
       <Dialog open onClose={close} title={SOCIAL.post.deleteTitle} size="sm">
         <p className="t-body-sm text-ink-2">{SOCIAL.post.deleteBody}</p>
