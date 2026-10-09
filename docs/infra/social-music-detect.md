@@ -229,6 +229,23 @@ select
   ) as live_story_video_items;
 ```
 
+Read-only count of welcome videos a camera stored on the S3 posts lane.
+`#798` presigned `posts/upload/{user}/{object}.webm` (or `.mp4` / `.mov` when
+the camera's type was that), then `saveSocialWelcomeVideo` published
+`posts/{user}/{object}.{ext}` into `welcome_video_key` and left the Mux
+columns null. New clips upload to Mux. Re-ingest moves the rows already
+stored that way onto Mux. Count them before apply:
+
+```sql
+select count(*) as welcome_s3_posts_lane
+from public.profiles
+where welcome_video_key is not null
+  and welcome_mux_asset_id is null
+  and welcome_mux_playback_id is null
+  and welcome_mux_upload_id is null
+  and welcome_video_key ~ '^posts/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(webm|mp4|mov)$';
+```
+
 `20261008180100_profiles_welcome_mux.sql` locks only `public.profiles`:
 
 - ACCESS EXCLUSIVE for `ADD COLUMN` (three nullable columns, no table

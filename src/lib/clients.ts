@@ -1,9 +1,9 @@
-import { staffPath } from "@/lib/workspace";
 import { TIER_META, type Tier } from "@/lib/agreements";
 import { ORG_ROLE_LABELS, type OrgRole } from "@/lib/org-roles";
 import {
   CLIENTS_PAGE,
   CLIENT_DIRECTORY_FILTERS,
+  GC_CLIENTS_HREF,
   ORG_STATUS_LABELS,
   clientDirectoryFilterLabel,
   filterClientOrgs,
@@ -72,7 +72,7 @@ export const CLIENT_PROFILE = {
   termEnds: "Term ends",
 } as const;
 
-export const GC_CLIENTS_HREF = staffPath("gc/clients");
+export { GC_CLIENTS_HREF };
 
 export function clientOrgHref(orgId: string): string {
   return `${GC_CLIENTS_HREF}/${orgId}`;

@@ -5,6 +5,8 @@
 // only enters original_release_date, and only for a re-release. The Dashboard's
 // pipeline reads release_date; the "original" shown in metadata falls back to it.
 
+import { z } from "zod";
+
 export type ReleaseType = "new_release" | "re_release";
 
 export type ReleaseFields = {
@@ -17,6 +19,36 @@ export const RELEASE_TYPE_LABEL: Record<ReleaseType, string> = {
   new_release: "New release",
   re_release: "Re-release",
 };
+
+// The client's half of release info, as the title window saves it.
+export type ReleaseInfo = { releaseType: ReleaseType; originalReleaseDate: string | null };
+
+export const releaseInfoSchema = z.object({
+  releaseType: z.enum(["new_release", "re_release"]),
+  originalReleaseDate: z.iso.date().nullable(),
+});
+
+export const RELEASE_ERRORS = {
+  originalRequired: "Original release date is required for a re-release.",
+  // Adam 2026-10-09: "Yes, app check now". The database check is a later
+  // founder-applied migration.
+  originalPast: "Choose a date in the past.",
+} as const;
+
+/** The latest original release date accepted: today wherever it is already
+ *  today (UTC+14), so no one's own today is refused. */
+export function latestOriginalReleaseDate(now: Date = new Date()): string {
+  return new Date(now.getTime() + 14 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** The first problem with release info, or null. A new release keeps no
+ *  original date. */
+export function checkReleaseInfo(info: ReleaseInfo, now: Date = new Date()): string | null {
+  if (info.releaseType !== "re_release") return null;
+  if (!info.originalReleaseDate) return RELEASE_ERRORS.originalRequired;
+  if (info.originalReleaseDate > latestOriginalReleaseDate(now)) return RELEASE_ERRORS.originalPast;
+  return null;
+}
 
 // Pipeline windows (adjustable). "New" = released within this many days; "Just in"
 // = added to the catalog within this many days (independent of release date).

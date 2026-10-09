@@ -32,11 +32,10 @@ export const HOUSE_LEAD_SCROLL_TO_TOP_MEDIA = "(pointer: coarse)";
 /** Extra html headroom holding the 1px window-scroll bridge. */
 export const HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT = "calc(100dvh + 1px)";
 
-/** html's overflow-anchor while the bridge holds window at 1. The phone
- *  workspace band folds its row (shell-phone-workspace-band-lock-v1 §5);
- *  with scroll anchoring on (Chromium, so Android), that layout shift
- *  pulls the window from 1 to 0, which reads as a status-bar tap and
- *  sends the page to the top. */
+/** html's overflow-anchor while the bridge holds window at 1. With
+ *  scroll anchoring on (Chromium, so Android), a layout shift in the
+ *  phone chrome can pull the window from 1 to 0, which would read as a
+ *  status-bar tap and send the page to the top. */
 export const HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR = "none";
 
 export const HOUSE_LEAD_SCROLL_TO_TOP = {
@@ -47,9 +46,20 @@ export const HOUSE_LEAD_SCROLL_TO_TOP = {
   overflowAnchor: HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR,
 } as const;
 
+/** A window at 0 this soon after a finger lifted came from the finger
+ *  (a drag that reached the document, or its momentum), not the status
+ *  bar: the OS tap sends no touch to the page. */
+export const HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_GRACE_MS = 400;
+
+/** A finger counted down longer than this is stale: its lift ended on an
+ *  element removed mid-gesture, which never reaches the window. */
+export const HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_STALE_MS = 10_000;
+
 /** Pure predicate — returns `true` when a scroll event indicates iOS
  *  Safari forced the window back to y = 0 (status-bar tap). Any other
- *  window scroll position leaves the bridge inert. */
-export function houseLeadScrollToTopIsTap(scrollY: number): boolean {
-  return scrollY === 0;
+ *  window scroll position leaves the bridge inert, and so does a 0 that a
+ *  finger on the page made (`fingerRecent`): pulling the phone bar down
+ *  must never send the feed to the top. */
+export function houseLeadScrollToTopIsTap(scrollY: number, fingerRecent = false): boolean {
+  return scrollY === 0 && !fingerRecent;
 }

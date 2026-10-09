@@ -25,7 +25,14 @@ import { SOCIAL, SOCIAL_ROUTES } from "@/lib/social";
 // No host: a standalone face (the Home prompt's Bio route) with its own save.
 export type SocialProfileEditFaceHost =
   | { kind: "window"; error: string }
-  | { kind: "sheet"; error: string; pending: boolean; onDone: () => void };
+  | {
+      kind: "sheet";
+      error: string;
+      pending: boolean;
+      /** Done waits (a picture or video uploading) while the face stays editable. */
+      doneWaits?: boolean;
+      onDone: () => void;
+    };
 
 const FaceHostContext = createContext<SocialProfileEditFaceHost | null>(null);
 
@@ -92,8 +99,8 @@ export function SocialProfileEditFace({
       <button
         type="button"
         data-social-profile-edit-face-done=""
-        disabled={host.pending}
-        aria-busy={host.pending}
+        disabled={host.pending || host.doneWaits}
+        aria-busy={host.pending || host.doneWaits}
         onClick={host.onDone}
         className={SOCIAL_PROFILE_EDIT_DONE_CLASS}
       >

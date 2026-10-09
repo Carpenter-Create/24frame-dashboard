@@ -245,8 +245,10 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     );
     expect(HOUSE_PHONE_BOTTOM_NAV.label).toBe("Destinations");
     // One pb-[max(...)]: house-phone-dock reads the float from this class.
+    // Band lock v1.4: the dock takes sideways pans only, so a vertical drag
+    // on it never scrolls the document or starts Safari's pull-to-refresh.
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toBe(
-      "fixed inset-x-0 bottom-0 z-40 flex justify-center px-[var(--space-4)] pb-[max(16px,env(safe-area-inset-bottom))] transition-transform duration-200 ease-out md:hidden",
+      "fixed inset-x-0 bottom-0 z-40 flex justify-center px-[var(--space-4)] pb-[max(16px,env(safe-area-inset-bottom))] transition-transform duration-200 ease-out touch-pan-x touch-pinch-zoom md:hidden",
     );
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("md:hidden");
     expect(HOUSE_PHONE_BOTTOM_NAV_CLASS).toContain("z-40");

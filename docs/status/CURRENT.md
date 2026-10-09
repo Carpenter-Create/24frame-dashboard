@@ -81,6 +81,7 @@ Lock: [`docs/design-locks/shell-unified-chrome-lock-v1.md`](../design-locks/shel
 Screening-room face (text lanes, tile-less side menu, named phone switch, ink dock dot): [`docs/design-locks/shell-screening-chrome-lock-v1.md`](../design-locks/shell-screening-chrome-lock-v1.md).
 Coinbase register (pill slider, round grey controls, brand mark in the full-height side menu, filled accent current, 56 dock): [`docs/design-locks/shell-coinbase-register-lock-v1.md`](../design-locks/shell-coinbase-register-lock-v1.md).
 Header height (founder decision, match Facebook): the header is 56 in every workspace on desktop and phone, and the side menu's top band with it; recorded in the Feed cards lock §8 and marked in [`docs/design-locks/shell-coinbase-register-lock-v1.md`](../design-locks/shell-coinbase-register-lock-v1.md). Home's News rail pins 16 under the header (the cards lock §8).
+Phone chrome (Adam lock): the Sporty Blue workspace band above the bar, the bar a sheet that slides over it with the scroll, and the dock landing with it at rest: [`docs/design-locks/shell-phone-workspace-band-lock-v1.md`](../design-locks/shell-phone-workspace-band-lock-v1.md) (the phone bar is 64 with its handle strip, the founder's exception to the 56 above) and [`docs/design-locks/shell-phone-nav-motion-lock-v1.md`](../design-locks/shell-phone-nav-motion-lock-v1.md).
 
 ---
 

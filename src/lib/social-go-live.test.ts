@@ -26,6 +26,9 @@ import {
   SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
   SOCIAL_GO_LIVE_VIDEO_BITS_PER_SECOND,
+  SOCIAL_GO_LIVE_PURPOSE_PARAM,
+  parseSocialGoLivePurpose,
+  socialGoLiveWelcomeHref,
 } from "./social-go-live";
 
 describe("Go live duration cap", () => {
@@ -319,5 +322,16 @@ describe("Go live duration cap", () => {
     // 16:10: 1920×1200 → 1920×1080.
     expect(goLiveFrameCut(1920, 1200, "full")).toEqual({ sx: 0, sy: 60, sw: 1920, sh: 1080, dw: 1920, dh: 1080 });
     expect(SOCIAL_GO_LIVE_FRAME_SIZE).toEqual({ full: { width: 1920, height: 1080 }, reel: { width: 1080, height: 1920 } });
+  });
+});
+
+describe("Live for the welcome video (social-profile-edit-window-lock-v1 §Welcome video)", () => {
+  it("opens the camera with ?for=welcome and reads anything else as a post", () => {
+    expect(SOCIAL_GO_LIVE_PURPOSE_PARAM).toBe("for");
+    expect(socialGoLiveWelcomeHref()).toBe("/social/live?for=welcome");
+    expect(parseSocialGoLivePurpose("welcome")).toBe("welcome");
+    expect(parseSocialGoLivePurpose(["welcome"])).toBe("welcome");
+    expect(parseSocialGoLivePurpose(undefined)).toBe("post");
+    expect(parseSocialGoLivePurpose("cover")).toBe("post");
   });
 });

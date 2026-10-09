@@ -10,8 +10,10 @@ import {
   HOUSE_LEAD_STACK_CLASS,
   HOUSE_LEAD_UNDER_NAV_CLASS,
   HOUSE_PHONE_CHROME_SPACER_CLASS,
+  HOUSE_PHONE_CHROME_TOUCH_CLASS,
   HOUSE_PHONE_SHEET_MOTION_CLASS,
 } from "./house-lead-chrome";
+import { HOUSE_PHONE_BOTTOM_NAV_CLASS } from "./house-phone-shell";
 import {
   HOUSE_PHONE_BAND_ROW_PX,
   HOUSE_PHONE_CHROME_DRAG_ZONE,
@@ -251,5 +253,59 @@ describe("phone workspace band lock v1", () => {
     for (const file of ["src/lib/dashboard-craft.ts", "src/lib/reports-craft.ts", "src/lib/news-sticky.ts"]) {
       expect(readFileSync(file, "utf8"), file).toContain("max-md:top-[var(--house-phone-chrome-visible,0px)]");
     }
+  });
+
+  // v1.4 (Adam 2026-10-09: "Fix bugs, keep sheet", "Match bar at rest",
+  // "Keep slide, stop jumps").
+  it("G11: the chrome and the dock take sideways pans only; the document never rubber-bands", () => {
+    const touch = ["touch-pan-x", "touch-pinch-zoom"];
+    for (const [name, cls] of [
+      ["band", WORKSPACE_BAND_CLASS],
+      ["bar", HOUSE_LEAD_CHROME_CLASS],
+      ["search row", HOUSE_LEAD_UNDER_NAV_CLASS],
+    ] as const) {
+      expect(cls, name).toContain(HOUSE_PHONE_CHROME_TOUCH_CLASS);
+    }
+    expect(HOUSE_PHONE_CHROME_TOUCH_CLASS).toContain("max-md:pointer-events-auto");
+    for (const t of touch) {
+      expect(HOUSE_PHONE_CHROME_TOUCH_CLASS).toContain(`max-md:${t}`);
+      // The row is its own scroller, so its own touch-action counts inside it.
+      expect(classes(WORKSPACE_BAND_ROW_CLASS)).toContain(t);
+      expect(classes(HOUSE_PHONE_BOTTOM_NAV_CLASS)).toContain(t);
+    }
+    // The covered strip is the page's: the stack lets taps through.
+    expect(classes(HOUSE_LEAD_STACK_CLASS)).toContain("max-md:pointer-events-none");
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const rule = (sel: string) => css.slice(css.indexOf(`\n${sel} {`), css.indexOf("}", css.indexOf(`\n${sel} {`)));
+    expect(rule("html")).toContain("overscroll-behavior-y: none;");
+    expect(rule("body")).toContain("overscroll-behavior-y: none;");
+    expect(lock).toContain("| Pull-to-refresh | (v1.4) None.");
+  });
+
+  it("G12: the dock lands with the bar at rest; ends are clamped; a lost finger-up still ends", () => {
+    const motion = readFileSync("src/lib/house-phone-chrome.ts", "utf8");
+    const settle = motion.slice(motion.indexOf("    settle() {"), motion.indexOf("    dragStart() {"));
+    expect(settle).toContain("landDock();");
+    expect(motion).toContain("const dockHidden = housePhoneDockAtRest(offset, state.dockHidden, band);");
+    expect(motion).toContain("const pageY = () => housePhoneSheetPageY(readY(), readRange());");
+    expect(motion).not.toContain("Math.max(0, readY())");
+    // The finger-up lands on the touched element when it is removed mid-gesture.
+    expect(trackerSrc).toContain('el.addEventListener("touchend", onDetachedEnd, { passive: true });');
+    expect(trackerSrc).toContain("if (el && !el.isConnected && event instanceof TouchEvent) onTouchEnd(event);");
+    expect(trackerSrc).toContain("releaseEndTarget();\n      swaps?.disconnect();");
+    // A stack hidden by the immersive feed keeps the last measured height.
+    expect(trackerSrc).toContain("if (stack && stack.getClientRects().length === 0) return;");
+    expect(lock).toContain("At rest it lands the way the bar did");
+  });
+
+  it("G13: the band reopens where it was slid", () => {
+    expect(switcherSrc).toMatch(/persistKey=\{SEGMENTED_TRACK_PERSIST\.workspaceBand\}[\s\S]*?rememberRail/);
+    const track = readFileSync("src/components/ui/segmented-track.tsx", "utf8");
+    // Restored before the reveal (layout effects run in order).
+    expect(track.indexOf("readSegmentedRailScroll(persistKey)")).toBeGreaterThan(-1);
+    expect(track.indexOf("readSegmentedRailScroll(persistKey)")).toBeLessThan(
+      track.indexOf('if (revealActive) active.scrollIntoView({ block: "nearest", inline: "nearest" });'),
+    );
+    expect(classes(WORKSPACE_BAND_ROW_CLASS)).toContain("scroll-px-[var(--space-4)]");
   });
 });

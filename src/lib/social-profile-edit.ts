@@ -22,6 +22,7 @@
 // + a short cookie keep the phone hop off the skeleton.
 
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
+import { houseWindowClosedHref, houseWindowOpenHref, parseHouseWindowParam } from "@/lib/house-window";
 import { persistSocialMutation } from "@/lib/social-optimistic";
 import {
   BIO_MAX,
@@ -35,6 +36,7 @@ import {
   socialBioEnterSubmits,
   socialHandleInputError,
   socialNameRequiredError,
+  SOCIAL_PROFILE_EDIT_FACE_PARAM,
 } from "@/lib/social";
 import { parseSocialImdbInput } from "@/lib/social-imdb";
 import {
@@ -427,9 +429,7 @@ export function socialProfileEditFormData(draft: SocialProfileEditSaveDraft): Fo
 
 /** `?edit` / `?edit=<face>` on the profile: the desktop window and its face. */
 export function parseSocialProfileEditWindow(search: string): SocialProfileEditFace | null {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  if (!params.has(SOCIAL_PROFILE_EDIT_WINDOW_PARAM)) return null;
-  return parseSocialProfileEditFace(params.get(SOCIAL_PROFILE_EDIT_WINDOW_PARAM));
+  return parseHouseWindowParam(search, SOCIAL_PROFILE_EDIT_WINDOW_PARAM, parseSocialProfileEditFace);
 }
 
 /** The address with the window open at `face` (every other param kept, so
@@ -439,19 +439,68 @@ export function socialProfileEditWindowOpenHref(
   search: string,
   face: SocialProfileEditFace = "edit",
 ): string {
+  return houseWindowOpenHref(pathname, search, SOCIAL_PROFILE_EDIT_WINDOW_PARAM, face, "edit");
+}
+
+/** Edit's index address for the page it is on: the window (`?edit`) or the
+ *  phone sheet (no `?face`). The welcome camera remembers this, never a
+ *  face, so it comes back to the card it was opened from. */
+export function socialProfileEditIndexHref(pathname: string, search: string): string {
+  if (parseSocialProfileEditWindow(search) !== null) {
+    return socialProfileEditWindowOpenHref(pathname, search, "edit");
+  }
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  params.delete(SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
+  params.delete(SOCIAL_PROFILE_EDIT_FACE_PARAM);
   const rest = params.toString();
-  const value = face === "edit" ? "" : `=${encodeURIComponent(face)}`;
-  return `${pathname}?${rest ? `${rest}&` : ""}${SOCIAL_PROFILE_EDIT_WINDOW_PARAM}${value}`;
+  return rest ? `${pathname}?${rest}` : pathname;
+}
+
+/** Live on the welcome card: blocked while a picture or video is uploading;
+ *  with changes in the draft (and a host that can ask), the ask comes first;
+ *  otherwise straight to the camera. */
+export function socialProfileEditLiveClick({
+  uploading,
+  dirty,
+  canAsk,
+}: {
+  uploading: boolean;
+  dirty: boolean;
+  canAsk: boolean;
+}): "block" | "ask" | "go" {
+  if (uploading) return "block";
+  if (dirty && canAsk) return "ask";
+  return "go";
+}
+
+/** An address Edit profile lives at: the window (`/social/profile?edit…`)
+ *  or the phone sheet (`/social/profile/edit…`). */
+export function isSocialProfileEditAddress(href: string): boolean {
+  const [path, query = ""] = href.split("#")[0].split("?");
+  const clean = path.endsWith("/") && path !== "/" ? path.slice(0, -1) : path;
+  if (clean === SOCIAL_ROUTES.profileEdit) return true;
+  return clean === SOCIAL_ROUTES.profile && parseSocialProfileEditWindow(query) !== null;
+}
+
+// Back from the welcome camera, Edit opens on its index (where the welcome
+// card is), whatever face its address names. One-shot: Edit reads it as it
+// opens and clears it once mounted.
+let welcomeReturn = false;
+
+export function markSocialProfileEditWelcomeReturn(): void {
+  welcomeReturn = true;
+}
+
+export function peekSocialProfileEditWelcomeReturn(): boolean {
+  return welcomeReturn;
+}
+
+export function clearSocialProfileEditWelcomeReturn(): void {
+  welcomeReturn = false;
 }
 
 /** The address with the window's query removed (every other param kept). */
 export function socialProfileEditWindowClosedHref(pathname: string, search: string): string {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  params.delete(SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
-  const rest = params.toString();
-  return rest ? `${pathname}?${rest}` : pathname;
+  return houseWindowClosedHref(pathname, search, SOCIAL_PROFILE_EDIT_WINDOW_PARAM);
 }
 
 function sameList(a: readonly string[], b: readonly string[]): boolean {

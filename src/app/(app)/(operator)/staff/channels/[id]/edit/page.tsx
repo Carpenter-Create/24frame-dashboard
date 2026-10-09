@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
-import { VENDOR_PROFILE } from "@/lib/vendor-profile";
+import { VENDOR_PROFILE, vendorProfileHref } from "@/lib/vendor-profile";
 import { VendorForm } from "../../vendor-form";
 
 export default async function EditVendorPage({
@@ -26,7 +26,7 @@ export default async function EditVendorPage({
       <PageHeader
         title={vn.name}
         subtitle={VENDOR_PROFILE.editVendor}
-        backLink={{ href: `/channels/${vn.id}`, label: vn.name }}
+        backLink={{ href: vendorProfileHref(vn.id), label: vn.name }}
       />
       <VendorForm
         initial={{

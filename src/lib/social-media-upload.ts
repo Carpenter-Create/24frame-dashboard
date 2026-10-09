@@ -30,6 +30,8 @@ export type SocialPostUploadOptions = {
   onProgress?: (progress: SocialUploadProgress) => void;
   /** Test seam. Production reads the file's own metadata. */
   durationSeconds?: number | null;
+  /** Test seam. Production uses XMLHttpRequest. */
+  createXhr?: () => SocialUploadXhr;
 };
 
 export type SocialMediaUploadResult = {
@@ -276,10 +278,11 @@ export async function uploadSocialMuxVideoFile(
     return { error: created.error ?? SOCIAL.home.uploadFailed };
   }
   try {
-    if (options.onProgress) {
+    if (options.onProgress || options.createXhr) {
       await putSocialMediaWithProgress(created.url, file, created.contentType, {
         signal: options.signal,
         onProgress: options.onProgress,
+        createXhr: options.createXhr,
       });
     } else {
       const put = await fetch(created.url, {

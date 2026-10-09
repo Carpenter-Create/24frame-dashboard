@@ -49,6 +49,12 @@ import {
   socialProfileEditHandleChanged,
   socialProfileEditWindowClosedHref,
   socialProfileEditWindowOpenHref,
+  socialProfileEditIndexHref,
+  socialProfileEditLiveClick,
+  isSocialProfileEditAddress,
+  markSocialProfileEditWelcomeReturn,
+  peekSocialProfileEditWelcomeReturn,
+  clearSocialProfileEditWelcomeReturn,
   type SocialProfileEditSaveDraft,
 } from "@/lib/social-profile-edit";
 import { socialProfileEditWindowHref } from "@/lib/social";
@@ -599,5 +605,88 @@ describe("Edit profile window: one draft, one save (social-profile-edit-window-l
     expect(welcomeSave).toContain("welcome_mux_asset_id: item.assetId");
     expect(welcomeSave).toContain("welcome_video_key: null");
     expect(welcomeSave).not.toContain("avatar_key");
+  });
+});
+
+// Welcome video: Media or Live (lock §4), fixes from the independent review.
+describe("Edit profile — welcome video, Media and Live", () => {
+  it("remembers Edit's index for the camera, never a face", () => {
+    expect(socialProfileEditIndexHref("/social/profile", "?tab=interests&edit=topics")).toBe(
+      "/social/profile?tab=interests&edit",
+    );
+    expect(socialProfileEditIndexHref("/social/profile", "?edit")).toBe("/social/profile?edit");
+    expect(socialProfileEditIndexHref("/social/profile/edit", "?face=topics")).toBe("/social/profile/edit");
+    expect(socialProfileEditIndexHref("/social/profile/edit", "?face=name&x=1")).toBe("/social/profile/edit?x=1");
+    expect(socialProfileEditIndexHref("/social/profile/edit", "")).toBe("/social/profile/edit");
+  });
+
+  it("decides Live: blocked while uploading, asks with changes, otherwise goes", () => {
+    expect(socialProfileEditLiveClick({ uploading: true, dirty: true, canAsk: true })).toBe("block");
+    expect(socialProfileEditLiveClick({ uploading: true, dirty: false, canAsk: false })).toBe("block");
+    expect(socialProfileEditLiveClick({ uploading: false, dirty: true, canAsk: true })).toBe("ask");
+    expect(socialProfileEditLiveClick({ uploading: false, dirty: true, canAsk: false })).toBe("go");
+    expect(socialProfileEditLiveClick({ uploading: false, dirty: false, canAsk: true })).toBe("go");
+  });
+
+  it("knows Edit's addresses, so the camera goes back only to Edit", () => {
+    expect(isSocialProfileEditAddress("/social/profile?edit")).toBe(true);
+    expect(isSocialProfileEditAddress("/social/profile?tab=interests&edit=topics")).toBe(true);
+    expect(isSocialProfileEditAddress("/social/profile/edit")).toBe(true);
+    expect(isSocialProfileEditAddress("/social/profile/edit/")).toBe(true);
+    expect(isSocialProfileEditAddress("/social/profile")).toBe(false);
+    expect(isSocialProfileEditAddress("/social")).toBe(false);
+    expect(isSocialProfileEditAddress("/social/explore?edit")).toBe(false);
+  });
+
+  it("opens on the index once after the camera, then forgets", () => {
+    clearSocialProfileEditWelcomeReturn();
+    expect(peekSocialProfileEditWelcomeReturn()).toBe(false);
+    markSocialProfileEditWelcomeReturn();
+    expect(peekSocialProfileEditWelcomeReturn()).toBe(true);
+    clearSocialProfileEditWelcomeReturn();
+    expect(peekSocialProfileEditWelcomeReturn()).toBe(false);
+    // The draft hook reads it as Edit opens and clears it once mounted.
+    expect(edit).toContain('peekSocialProfileEditWelcomeReturn() ? "edit" : initialFace');
+    expect(edit).toContain("clearSocialProfileEditWelcomeReturn();\n  }, []);");
+  });
+
+  it("puts the old video back whatever fails, and always frees the card (Media)", () => {
+    const pick = edit.slice(edit.indexOf("async function onWelcomePick("), edit.indexOf("async function onWelcomeRemove("));
+    expect(pick).toContain("const rollback = (message: string) => {");
+    expect(pick).toContain("} catch {\n      rollback(SOCIAL.home.uploadFailed);\n    } finally {\n      setUploading(false);");
+    expect(pick.indexOf("try {")).toBeGreaterThan(-1);
+    expect(pick.indexOf("try {")).toBeLessThan(pick.indexOf('uploadSocialMuxVideoFile(file, { lane: "posts" })'));
+    expect(pick).not.toContain("presignSocialMediaUpload");
+    // Remove (video and picture) never leaves the card stuck either.
+    const remove = edit.slice(edit.indexOf("async function onWelcomeRemove("), edit.indexOf("// A save the server"));
+    expect(remove).toContain("result = await clearSocialWelcomeVideo();\n    } catch {");
+    expect(edit).toContain("result = await removeAccountPhoto();\n    } catch {");
+  });
+
+  it("names the rounds as one group, keeps the file input off the Tab order, and asks through the host", () => {
+    expect(edit).toContain('role="group"\n            aria-labelledby={welcomeLabelId}');
+    expect(edit).toContain("<p id={welcomeLabelId} className={SOCIAL_PROFILE_EDIT_LABEL_CLASS}>");
+    const input = edit.slice(edit.indexOf("ref={welcomeRef}"), edit.indexOf("onChange=", edit.indexOf("ref={welcomeRef}")));
+    expect(input).toContain("tabIndex={-1}");
+    const live = edit.slice(edit.indexOf("data-social-profile-edit-welcome-live"), edit.indexOf("</HouseLink>", edit.indexOf("data-social-profile-edit-welcome-live")));
+    expect(live).toContain("const next = socialProfileEditLiveClick({");
+    expect(live).toContain("onLeave?.(socialGoLiveWelcomeHref());");
+    expect(live).toContain("rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));");
+  });
+
+  it("phone sheet: Done and Back wait for an upload; Keep editing returns focus to Live", () => {
+    const form = edit.slice(edit.indexOf("export function SocialProfileEditForm("));
+    expect(form).toContain("if (edit.uploading) return;\n    edit.save({");
+    expect(form).toContain("disabled={edit.pending || edit.cropOpen || edit.uploading}");
+    expect(form).toContain("if (edit.pending || edit.uploading) {");
+    expect(form).toContain("doneWaits: edit.uploading,");
+    const face = readFileSync("src/components/social/social-profile-edit-face.tsx", "utf8");
+    expect(face).toContain("disabled={host.pending || host.doneWaits}");
+    expect(form).toContain("returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;");
+    const keep = form.slice(form.indexOf("function keepEditing()"), form.indexOf("useEffect(", form.indexOf("function keepEditing()")));
+    expect(keep).toContain("if (target?.isConnected) target.focus();");
+    expect(form).toContain(
+      "rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));",
+    );
   });
 });

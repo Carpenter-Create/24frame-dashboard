@@ -734,6 +734,27 @@ describe("welcomeVideoVisible", () => {
   }
 
   it("denies other people unless this welcome pair is allowed and no block exists", async () => {
+    const webm = `posts/${profile}/99999999-9999-4999-8999-999999999999.webm`;
+    vi.mocked(createAdminClient).mockReturnValue(welcomeQuery([]) as never);
+    await expect(
+      welcomeVideoVisible({
+        viewerId: profile,
+        profileId: profile,
+        welcomeVideoKey: webm,
+        assetId: null,
+        playbackId: null,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      welcomeVideoVisible({
+        viewerId: USER,
+        profileId: profile,
+        welcomeVideoKey: webm,
+        assetId: null,
+        playbackId: null,
+      }),
+    ).resolves.toBe(false);
+
     vi.mocked(createAdminClient).mockReturnValue(welcomeQuery([]) as never);
     await expect(
       welcomeVideoVisible({

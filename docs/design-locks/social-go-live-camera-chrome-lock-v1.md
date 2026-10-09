@@ -6,6 +6,7 @@
 **Amended 2026-10-08:** §Desktop frame (twice more: Full fills the window; then the shapes, 16:9 · 9:16), §Review, §Posted clip and §Camera picker below (Adam, in chat). The camera face above is unchanged, except that on a computer the picker takes flip's place.
 
 **Amended 2026-10-08 (create matches the fan):** [`social-create-match-fan-lock-v1.md`](social-create-match-fan-lock-v1.md) (Adam, "Match the fan"; the label, 2026-10-09: "Live / Not record", everywhere). The header reads "Live" (Adam, 2026-10-09, asked whether it should stay "Go live": first "Record", then "Actually / Live / Not record", everywhere). This supersedes "Header | Go live" and the OUT on renaming below.
+**Amended 2026-10-09 (the welcome video):** Edit profile's Live round opens this camera for the profile's welcome video (`?for=welcome`, [`social-profile-edit-window-lock-v1.md`](social-profile-edit-window-lock-v1.md) §4): header "Welcome video", no caption on the review, the save round named "Add welcome video", saved to the profile (not posted) and back to Edit.
 ## One lock
 
 The Go live camera has no duration hint over the viewfinder. Header, flip, record, and exit stay.

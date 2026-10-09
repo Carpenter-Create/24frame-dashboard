@@ -1610,6 +1610,111 @@ describe("social music scan migration", () => {
     expect(creates).toBe(3);
   });
 
+  it("moves a camera welcome on the posts lane onto Mux and keeps it hidden until the scan allows it", async () => {
+    const profile = "98989898-9898-4989-8989-989898989898";
+    const objectId = "99999999-9999-4999-8999-999999999999";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await db.exec(`alter table public.profiles add column if not exists welcome_video_key text`);
+    // #798's camera presigns posts/upload/{user}/{object}.webm, then
+    // saveSocialWelcomeVideo publishes posts/{user}/{object}.webm
+    // (content type video/webm) into welcome_video_key. Mux columns stay null.
+    const key = `posts/${profile}/${objectId}.webm`;
+    await db.query(
+      `update public.profiles
+       set welcome_video_key = $2,
+           welcome_mux_asset_id = null,
+           welcome_mux_playback_id = null,
+           welcome_mux_upload_id = null
+       where id = $1`,
+      [profile, key],
+    );
+    const candidate = welcomeProfileReingestCandidate({
+      id: profile,
+      welcomeVideoKey: key,
+      welcomeMuxAssetId: null,
+      welcomeMuxPlaybackId: null,
+      progressUploadId: null,
+    });
+    expect(candidate).toMatchObject({
+      surface: "welcome",
+      parentId: profile,
+      authorId: profile,
+      key,
+      assetId: null,
+      playbackId: null,
+    });
+    const assetId = "assetCAM00001";
+    const playbackId = "playCAM000001";
+    const sql = {
+      query: <T extends Record<string, unknown>>(text: string, params?: readonly unknown[]) =>
+        db.query<T>(text, params ? [...params] : []),
+    };
+    const report = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate!],
+      deps: {
+        head: async () => true,
+        presign: async (objectKey) => {
+          expect(objectKey).toBe(key);
+          return "https://example.test/welcome.webm";
+        },
+        createAsset: async () => ({ assetId }),
+        loadAsset: async () => ({ playbackId, duration: 12, status: "ready" }),
+        deleteAsset: async () => undefined,
+        bind: async (input) => {
+          await db.query(
+            `insert into public.social_mux_bindings (author_id, upload_id, asset_id, playback_id)
+             values ($1, $2, $3, $4)`,
+            [input.authorId, input.uploadId, input.assetId, input.playbackId],
+          );
+        },
+        saveInProgress: async () => undefined,
+        saveParent: async (parent, settled) => {
+          const ids = settled[0];
+          if (!ids) return;
+          await db.query(
+            `update public.profiles
+             set welcome_mux_asset_id = $2,
+                 welcome_mux_playback_id = $3,
+                 welcome_mux_upload_id = $4,
+                 welcome_video_key = null
+             where id = $1`,
+            [parent.parentId, ids.assetId, ids.playbackId, ids.uploadId],
+          );
+        },
+        retirePlaceholder: (row) => retireS3MusicPlaceholder(sql, { surface: row.surface, parentId: row.parentId }),
+        markUnfinished: async () => undefined,
+        alreadyUnfinished: async () => false,
+      },
+    });
+    expect(report.bound).toBe(1);
+    expect(await bindingCount(profile)).toBe(1);
+    const stored = await db.query<{
+      key: string | null;
+      asset: string | null;
+      play: string | null;
+      upload: string | null;
+    }>(
+      `select welcome_video_key as key,
+              welcome_mux_asset_id as asset,
+              welcome_mux_playback_id as play,
+              welcome_mux_upload_id as upload
+       from public.profiles where id = $1`,
+      [profile],
+    );
+    expect(stored.rows[0]).toEqual({ key: null, asset: assetId, play: playbackId, upload: assetId });
+    expect(await welcomeNotices(profile)).toEqual(["welcomePending"]);
+    expect(await othersSeeCurrentWelcome(profile)).toBe(false);
+    await db.query(
+      `update public.social_music_scans
+       set status = 'allowed', next_attempt_at = null, decided_at = now()
+       where profile_id = $1 and playback_id = $2`,
+      [profile, playbackId],
+    );
+    expect(await welcomeNotices(profile)).toEqual([]);
+    expect(await othersSeeCurrentWelcome(profile)).toBe(true);
+  });
+
   it("finishes a cleared pending welcome when the same pair is saved again", async () => {
     const seeded = await seedWelcomeState("pending mid-scan");
     const scansBefore = await scanCount(seeded.profile);

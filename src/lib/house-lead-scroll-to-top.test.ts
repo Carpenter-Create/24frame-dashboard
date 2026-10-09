@@ -32,6 +32,7 @@ import {
   HOUSE_LEAD_SCROLL_TO_TOP_OFFSET,
   HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR,
   HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR,
+  HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_GRACE_MS,
   houseLeadScrollToTopIsTap,
 } from "./house-lead-scroll-to-top";
 
@@ -73,9 +74,9 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
   });
 
   it("turns off html scroll anchoring while it holds the window at 1", () => {
-    // The phone workspace band folds its row (shell-phone-workspace-band-
-    // lock-v1 §5). With anchoring on, that shift pulls the window to 0,
-    // which reads as a status-bar tap and scrolls the page to the top.
+    // With anchoring on (Chromium, so Android), a layout shift in the phone
+    // chrome pulls the window to 0, which would read as a status-bar tap
+    // and scroll the page to the top.
     expect(HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR).toBe("none");
     const bridge = readFileSync("src/components/chrome/house-lead-scroll-to-top.tsx", "utf8");
     expect(bridge).toContain("root.style.overflowAnchor = HOUSE_LEAD_SCROLL_TO_TOP_OVERFLOW_ANCHOR;");
@@ -92,6 +93,23 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
     );
     expect(houseLeadScrollToTopIsTap(2)).toBe(false);
     expect(houseLeadScrollToTopIsTap(1200)).toBe(false);
+    // Band lock v1.4: a 0 a finger made (a drag that reached the document,
+    // or its momentum) is not a status-bar tap; the OS tap sends no touch.
+    expect(houseLeadScrollToTopIsTap(0, true)).toBe(false);
+    expect(houseLeadScrollToTopIsTap(0, false)).toBe(true);
+  });
+
+  it("ignores a window at 0 that a finger made, and puts the window back either way", () => {
+    expect(HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_GRACE_MS).toBe(400);
+    expect(componentSrc).toContain("if (houseLeadScrollToTopIsTap(window.scrollY, fingerRecent())) {");
+    expect(componentSrc).toContain('window.addEventListener("touchstart", onTouch, { passive: true, capture: true });');
+    expect(componentSrc).toContain('window.addEventListener("touchend", onTouch, { passive: true, capture: true });');
+    expect(componentSrc).toContain("HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_STALE_MS");
+    const onScroll = componentSrc.slice(componentSrc.indexOf("const onScroll = () => {"), componentSrc.indexOf('window.addEventListener("scroll"'));
+    // The restore to 1 sits outside the tap branch.
+    expect(onScroll.lastIndexOf("window.scrollTo(0, HOUSE_LEAD_SCROLL_TO_TOP_OFFSET);")).toBeGreaterThan(
+      onScroll.indexOf("      }\n"),
+    );
   });
 
   it("mounts inside HousePhoneAppShell so every workspace answers a tap", () => {
@@ -119,7 +137,7 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
     expect(componentSrc).toContain("HOUSE_LEAD_SCROLL_TO_TOP_MEDIA");
     expect(componentSrc).toContain("window.scrollTo(0, HOUSE_LEAD_SCROLL_TO_TOP_OFFSET)");
     expect(componentSrc).toContain(
-      'document\n        .querySelectorAll<HTMLElement>(HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR)',
+      'document\n          .querySelectorAll<HTMLElement>(HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR)',
     );
     expect(componentSrc).toContain(
       'scroller.scrollTo({ top: 0, behavior: "smooth" })',
@@ -145,7 +163,7 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
   });
 
   it("keeps the bottom-nav scroll-hide reading the same nested scroller", () => {
-    // Bottom nav hides (and the workspace band folds) on scroll-down of
+    // Bottom nav hides (and the bar covers the workspace band) on scroll-down of
     // `[data-house-lead-scroll]`. The shell's one tracker reads it
     // (shell-phone-workspace-band-lock-v1 §5). The bridge must not change
     // that read path — a workspace fork there would drop the hide

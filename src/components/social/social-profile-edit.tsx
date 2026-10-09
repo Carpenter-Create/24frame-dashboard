@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
 
 import { removeAccountPhoto, uploadAccountPhoto } from "@/app/(app)/account/actions";
-import { AppSheetCard, AppSheetFrame, HouseScrim } from "@/components/chrome/house-overlay";
+import { HouseWindowAsk, useHouseLeaveGuard } from "@/components/chrome/house-window";
 import { HouseLink } from "@/components/chrome/house-link";
 import { clearSocialWelcomeVideo, saveSocialWelcomeVideo } from "@/app/(app)/social/actions";
 import { AccountAvatarCrop } from "@/components/account/account-avatar-crop";
@@ -21,7 +21,6 @@ import { SocialProfileNameEditor } from "@/components/social/social-profile-name
 import { SocialProfileRolesEditor } from "@/components/social/social-profile-roles";
 import { SocialProfileTopicsEditor } from "@/components/social/social-profile-topics";
 import { SocialIcon } from "@/components/social/social-icon";
-import { Button } from "@/components/ui/button";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { ACCOUNT_PROFILE } from "@/lib/account-profile";
 import {
@@ -33,18 +32,19 @@ import {
 import { cn } from "@/lib/cn";
 import { SOCIAL_VIDEO_CONTENT_TYPES } from "@/lib/social-media";
 import { SOCIAL_WELCOME_VIDEO_PRESENT } from "@/lib/social-query";
+import { socialCreateTile } from "@/lib/social-create-sheet";
+import { socialGoLiveWelcomeHref } from "@/lib/social-go-live";
+import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
+import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
 import {
+  SOCIAL_COMPOSER_AFFORDANCE_GLYPH,
+  SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS,
+  SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS,
   SOCIAL_PROFILE_EDIT_AVATAR_CLASS,
   SOCIAL_PROFILE_EDIT_AVATAR_DROPPING_CLASS,
   SOCIAL_PROFILE_EDIT_BACK_CLASS,
   SOCIAL_PROFILE_EDIT_BODY_CLASS,
   SOCIAL_PROFILE_EDIT_CARD_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_ACTIONS_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_LINE_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_SHEET_ACTIONS_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_STRIP_CLASS,
-  SOCIAL_PROFILE_EDIT_DISCARD_TITLE_CLASS,
   SOCIAL_PROFILE_EDIT_DONE_CLASS,
   SOCIAL_PROFILE_EDIT_HEADER_CLASS,
   SOCIAL_PROFILE_EDIT_HOST_CLASS,
@@ -76,6 +76,7 @@ import { useAppQueryClient } from "@/components/query-provider";
 import {
   applySocialProfileOptimistic,
   checkSocialProfileEditSave,
+  clearSocialProfileEditWelcomeReturn,
   dropSocialProfileOptimisticDraft,
   patchSocialProfileOptimistic,
   persistSocialProfileEdit,
@@ -84,7 +85,10 @@ import {
   socialProfileEditDiscardLine,
   socialProfileEditFaceForError,
   socialProfileEditHandleChanged,
+  socialProfileEditIndexHref,
+  socialProfileEditLiveClick,
   socialProfileEditSeed,
+  peekSocialProfileEditWelcomeReturn,
   socialProfileHandleRowSummary,
   socialProfileNameRowSummary,
   socialProfileOptimisticFail,
@@ -199,7 +203,13 @@ export function useSocialProfileEditDraft({
   const [cropPreview, setCropPreview] = useState<string | null>(null);
   const [cropSize, setCropSize] = useState<{ width: number; height: number } | null>(null);
   const [avatarSheet, setAvatarSheet] = useState(false);
-  const [face, setFace] = useState<SocialProfileEditFace>(initialFace);
+  // Back from the welcome camera, Edit opens on its index (the welcome card).
+  const [face, setFace] = useState<SocialProfileEditFace>(() =>
+    peekSocialProfileEditWelcomeReturn() ? "edit" : initialFace,
+  );
+  useEffect(() => {
+    clearSocialProfileEditWelcomeReturn();
+  }, []);
   // push: a face slides in from the right; pop: the index returns from the left.
   const [motion, setMotion] = useState<"push" | "pop" | null>(null);
   const [cameFrom, setCameFrom] = useState<SocialProfileEditFace | null>(null);
@@ -308,7 +318,12 @@ export function useSocialProfileEditDraft({
     setPreviewPhoto(null);
     patchSocialProfileOptimistic({ photoUrl: null });
     setUploading(true);
-    const result = await removeAccountPhoto();
+    let result: { error?: string };
+    try {
+      result = await removeAccountPhoto();
+    } catch {
+      result = { error: ACCOUNT_PROFILE.saveFailed };
+    }
     setUploading(false);
     if (result.error) {
       setPreviewPhoto(previous);
@@ -323,30 +338,48 @@ export function useSocialProfileEditDraft({
   async function onWelcomePick(file: File | undefined, reset?: () => void) {
     if (!file || uploading) return;
     setError("");
+    const previewUrl = URL.createObjectURL(file);
     const previous = welcomePreview;
+    setWelcomePreview(previewUrl);
+    patchSocialProfileOptimistic({ welcomeVideoUrl: previewUrl });
     setUploading(true);
-    const { uploadSocialMuxVideoFile } = await import("@/lib/social-media-upload");
-    const uploaded = await uploadSocialMuxVideoFile(file, { lane: "posts" });
-    if (uploaded.error || uploaded.aborted || !uploaded.item) {
-      setUploading(false);
-      reset?.();
-      if (!uploaded.aborted) setError(uploaded.error ?? SOCIAL.home.uploadFailed);
-      return;
-    }
-    const save = new FormData();
-    save.set("media", JSON.stringify([uploaded.item]));
-    const result = await saveSocialWelcomeVideo(save);
-    setUploading(false);
-    reset?.();
-    if (result.error) {
+    // Any failure (refused, or a step that throws) puts the old video back.
+    const rollback = (message: string) => {
       setWelcomePreview(previous);
       patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
-      setError(result.error);
-      return;
+      URL.revokeObjectURL(previewUrl);
+      setError(message);
+    };
+    try {
+      const { uploadSocialMuxVideoFile } = await import("@/lib/social-media-upload");
+      const uploaded = await uploadSocialMuxVideoFile(file, { lane: "posts" });
+      if (uploaded.aborted) {
+        setWelcomePreview(previous);
+        patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
+        URL.revokeObjectURL(previewUrl);
+        return;
+      }
+      if (uploaded.error || !uploaded.item) {
+        rollback(uploaded.error ?? SOCIAL.home.uploadFailed);
+        return;
+      }
+      const save = new FormData();
+      save.set("media", JSON.stringify([uploaded.item]));
+      const result = await saveSocialWelcomeVideo(save);
+      if (result.error) {
+        rollback(result.error);
+        return;
+      }
+      URL.revokeObjectURL(previewUrl);
+      setWelcomePreview(SOCIAL_WELCOME_VIDEO_PRESENT);
+      patchSocialProfileOptimistic({ welcomeVideoUrl: SOCIAL_WELCOME_VIDEO_PRESENT });
+      setVideoSaved(true);
+    } catch {
+      rollback(SOCIAL.home.uploadFailed);
+    } finally {
+      setUploading(false);
+      reset?.();
     }
-    setWelcomePreview(SOCIAL_WELCOME_VIDEO_PRESENT);
-    patchSocialProfileOptimistic({ welcomeVideoUrl: SOCIAL_WELCOME_VIDEO_PRESENT });
-    setVideoSaved(true);
   }
 
   async function onWelcomeRemove() {
@@ -356,7 +389,12 @@ export function useSocialProfileEditDraft({
     setWelcomePreview(null);
     patchSocialProfileOptimistic({ welcomeVideoUrl: null });
     setUploading(true);
-    const result = await clearSocialWelcomeVideo();
+    let result: { error?: string };
+    try {
+      result = await clearSocialWelcomeVideo();
+    } catch {
+      result = { error: ACCOUNT_PROFILE.saveFailed };
+    }
     setUploading(false);
     if (result.error) {
       setWelcomePreview(previous);
@@ -537,27 +575,27 @@ export function useSocialProfileEditDraft({
 export type SocialProfileEditDraft = ReturnType<typeof useSocialProfileEditDraft>;
 
 /** The browser's own prompt while the draft has changes (reload, close tab). */
-export function useSocialProfileEditLeaveGuard(dirty: boolean) {
-  useEffect(() => {
-    if (!dirty) return undefined;
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
-}
+/** While the draft has changes, reloading or closing the tab raises the
+ *  browser's own prompt (the house window shell's guard). */
+export const useSocialProfileEditLeaveGuard = useHouseLeaveGuard;
 
 /** Photo, welcome video and the drill rows: nothing typed on the index. */
+const WELCOME_MEDIA_TILE = socialCreateTile("media")!;
+const WELCOME_LIVE_TILE = socialCreateTile("live")!;
+
 export function SocialProfileEditIndexBody({
   edit,
   avatarMenu = null,
+  onLeave,
 }: {
   edit: SocialProfileEditDraft;
   /** The window's anchored photo menu, dropped under Edit picture. */
   avatarMenu?: ReactNode;
+  /** Leaving Edit for another screen (the camera) with changes: the host asks first. */
+  onLeave?: (href: string) => void;
 }) {
   const welcomeRef = useRef<HTMLInputElement>(null);
+  const welcomeLabelId = useId();
   const name = composeSocialDisplayName(edit.firstName, edit.lastName, edit.middleName);
   return (
     <>
@@ -620,7 +658,9 @@ export function SocialProfileEditIndexBody({
       </div>
       <div data-social-profile-edit-welcome="" className={SOCIAL_PROFILE_EDIT_CARD_CLASS}>
         <div className={`${SOCIAL_PROFILE_EDIT_ROW_CLASS} flex-col gap-2`}>
-          <p className={SOCIAL_PROFILE_EDIT_LABEL_CLASS}>{SOCIAL.profile.welcomeVideo}</p>
+          <p id={welcomeLabelId} className={SOCIAL_PROFILE_EDIT_LABEL_CLASS}>
+            {SOCIAL.profile.welcomeVideo}
+          </p>
           {edit.welcomePreview && isLocalMediaPreviewSrc(edit.welcomePreview) ? (
             <video
               src={edit.welcomePreview}
@@ -632,21 +672,66 @@ export function SocialProfileEditIndexBody({
           ) : edit.welcomePreview ? (
             <div data-social-video-closed="" className="aspect-video w-full bg-surface-muted" />
           ) : null}
-          <div className="flex flex-col gap-2">
+          {/* The + fan's Media and Live (Adam 2026-10-09): upload a video or
+              record one with the 24Frame camera. Round grey 44s, as in the
+              composer's tool row. */}
+          <div
+            data-social-profile-edit-welcome-actions=""
+            role="group"
+            aria-labelledby={welcomeLabelId}
+            className={SOCIAL_PROFILE_EDIT_WELCOME_ACTIONS_CLASS}
+          >
             <button
               type="button"
               disabled={edit.uploading}
+              data-social-profile-edit-welcome-media=""
+              aria-label={WELCOME_MEDIA_TILE.label}
+              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
               onClick={() => welcomeRef.current?.click()}
-              className={SOCIAL_PROFILE_EDIT_PICTURE_CLASS}
             >
-              {edit.welcomePreview ? SOCIAL.profile.welcomeReplace : SOCIAL.profile.welcomeAdd}
+              <SocialIcon
+                name={WELCOME_MEDIA_TILE.icon}
+                size={SOCIAL_COMPOSER_AFFORDANCE_GLYPH}
+                className={SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS}
+              />
             </button>
+            <HouseLink
+              href={socialGoLiveWelcomeHref()}
+              data-social-profile-edit-welcome-live=""
+              aria-label={WELCOME_LIVE_TILE.label}
+              aria-disabled={edit.uploading || undefined}
+              className={HOUSE_HEADER_ROUND_BUTTON_CLASS}
+              onClick={(event) => {
+                const next = socialProfileEditLiveClick({
+                  uploading: edit.uploading,
+                  dirty: edit.dirty,
+                  canAsk: Boolean(onLeave),
+                });
+                if (next === "block") {
+                  event.preventDefault();
+                  return;
+                }
+                // Leaving Edit with changes asks first (Keep editing · Discard).
+                if (next === "ask") {
+                  event.preventDefault();
+                  onLeave?.(socialGoLiveWelcomeHref());
+                  return;
+                }
+                rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));
+              }}
+            >
+              <SocialIcon
+                name={WELCOME_LIVE_TILE.icon}
+                size={SOCIAL_COMPOSER_AFFORDANCE_GLYPH}
+                className={SOCIAL_COMPOSER_AFFORDANCE_GLYPH_CLASS}
+              />
+            </HouseLink>
             {edit.welcomePreview ? (
               <button
                 type="button"
                 disabled={edit.uploading}
                 onClick={() => void edit.onWelcomeRemove()}
-                className="t-body-sm font-medium text-ink-2"
+                className="ml-auto t-body-sm font-medium text-ink-2"
               >
                 {SOCIAL.profile.welcomeRemove}
               </button>
@@ -657,7 +742,9 @@ export function SocialProfileEditIndexBody({
             type="file"
             accept={SOCIAL_VIDEO_CONTENT_TYPES.join(",")}
             className="sr-only"
-            aria-label={SOCIAL.profile.welcomeAdd}
+            // The Media round is the keyboard path; the input is not a Tab stop.
+            tabIndex={-1}
+            aria-label={edit.welcomePreview ? SOCIAL.profile.welcomeReplace : SOCIAL.profile.welcomeAdd}
             onChange={(e) =>
               void edit.onWelcomePick(e.target.files?.[0], () => {
                 if (welcomeRef.current) welcomeRef.current.value = "";
@@ -782,94 +869,23 @@ export function SocialProfileEditDiscardAsk({
   onKeep: () => void;
   onDiscard: () => void;
 }) {
-  const keepRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    keepRef.current?.focus();
-  }, []);
-  const notes = [
+  const lines = [
     socialProfileEditDiscardLine(edit.changed),
     edit.photoSaved ? SOCIAL.profile.discardPhotoSaved : "",
     edit.videoSaved ? SOCIAL.profile.discardVideoSaved : "",
   ].filter(Boolean);
-  const body = (
-    <>
-      <h2 id={titleId} className={SOCIAL_PROFILE_EDIT_DISCARD_TITLE_CLASS}>
-        {SOCIAL.profile.discardTitle}
-      </h2>
-      {notes.map((note) => (
-        <p key={note} className={SOCIAL_PROFILE_EDIT_DISCARD_LINE_CLASS}>
-          {note}
-        </p>
-      ))}
-      <div
-        className={
-          variant === "strip" ? SOCIAL_PROFILE_EDIT_DISCARD_ACTIONS_CLASS : SOCIAL_PROFILE_EDIT_DISCARD_SHEET_ACTIONS_CLASS
-        }
-      >
-        {variant === "strip" ? (
-          <>
-            <Button
-              variant="secondary"
-              data-social-profile-edit-discard=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onDiscard}
-            >
-              {SOCIAL.profile.discardConfirm}
-            </Button>
-            <Button
-              ref={keepRef}
-              data-social-profile-edit-keep=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onKeep}
-            >
-              {SOCIAL.profile.discardKeep}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              ref={keepRef}
-              data-social-profile-edit-keep=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onKeep}
-            >
-              {SOCIAL.profile.discardKeep}
-            </Button>
-            <Button
-              variant="secondary"
-              data-social-profile-edit-discard=""
-              className={SOCIAL_PROFILE_EDIT_DISCARD_BUTTON_CLASS}
-              onClick={onDiscard}
-            >
-              {SOCIAL.profile.discardConfirm}
-            </Button>
-          </>
-        )}
-      </div>
-    </>
-  );
-  if (variant === "strip") {
-    return (
-      <div
-        data-social-profile-edit-discard-ask=""
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={SOCIAL_PROFILE_EDIT_DISCARD_STRIP_CLASS}
-      >
-        {body}
-      </div>
-    );
-  }
   return (
-    <AppSheetFrame span="card" titleId={titleId}>
-      <HouseScrim label={SOCIAL.profile.discardKeep} onClose={onKeep} />
-      <AppSheetCard className="gap-[var(--space-3)]">
-        <div data-social-profile-edit-discard-ask="" className="flex flex-col gap-[var(--space-3)]">
-          {body}
-        </div>
-      </AppSheetCard>
-    </AppSheetFrame>
+    <HouseWindowAsk
+      attr="social-profile-edit"
+      variant={variant}
+      titleId={titleId}
+      title={SOCIAL.profile.discardTitle}
+      lines={lines}
+      keepLabel={SOCIAL.profile.discardKeep}
+      discardLabel={SOCIAL.profile.discardConfirm}
+      onKeep={onKeep}
+      onDiscard={onDiscard}
+    />
   );
 }
 
@@ -879,10 +895,16 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   const router = useRouter();
   const edit = useSocialProfileEditDraft(props);
   const [asking, setAsking] = useState(false);
+  // Set when the ask is for leaving Edit to another screen (the camera).
+  const [leaveHref, setLeaveHref] = useState<string | null>(null);
   const askTitleId = "social-profile-edit-discard-title";
+  // Where focus goes back to when Keep editing closes the ask (Live).
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   useSocialProfileEditLeaveGuard(edit.dirty);
 
   function onDone() {
+    // A picture or video still uploading saves on its own: wait for it.
+    if (edit.uploading) return;
     edit.save({
       leave: () => router.push(SOCIAL_ROUTES.profile),
       onPersistFailed: () => router.replace(SOCIAL_ROUTES.profileEdit),
@@ -892,13 +914,28 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   function onDiscard() {
     edit.discard();
     setAsking(false);
+    if (leaveHref) {
+      rememberSocialGoLiveOpener(socialProfileEditIndexHref(window.location.pathname, window.location.search));
+      router.push(leaveHref);
+      return;
+    }
     router.push(SOCIAL_ROUTES.profile);
+  }
+
+  function keepEditing() {
+    setAsking(false);
+    setLeaveHref(null);
+    const target = returnFocusRef.current;
+    returnFocusRef.current = null;
+    window.requestAnimationFrame(() => {
+      if (target?.isConnected) target.focus();
+    });
   }
 
   useEffect(() => {
     if (!asking) return undefined;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAsking(false);
+      if (event.key === "Escape") keepEditing();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -907,7 +944,13 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
   if (edit.face !== "edit") {
     return (
       <SocialProfileEditFaceHostProvider
-        value={{ kind: "sheet", error: edit.error, pending: edit.pending || edit.cropOpen, onDone }}
+        value={{
+          kind: "sheet",
+          error: edit.error,
+          pending: edit.pending || edit.cropOpen,
+          doneWaits: edit.uploading,
+          onDone,
+        }}
       >
         <SocialProfileEditFaceSwitch edit={edit} />
       </SocialProfileEditFaceHostProvider>
@@ -924,14 +967,16 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
               className={SOCIAL_PROFILE_EDIT_BACK_CLASS}
               aria-label={SOCIAL.profile.back}
               onClick={(event) => {
-                // A changed username is with the server: stay until it answers.
-                if (edit.pending) {
+                // A changed username is with the server, or a picture or
+                // video is uploading: stay until it answers.
+                if (edit.pending || edit.uploading) {
                   event.preventDefault();
                   return;
                 }
                 // With changes, leaving asks first (Keep editing · Discard).
                 if (!edit.dirty) return;
                 event.preventDefault();
+                setLeaveHref(null);
                 setAsking(true);
               }}
             >
@@ -941,8 +986,8 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
             <button
               type="button"
               data-social-profile-edit-done=""
-              disabled={edit.pending || edit.cropOpen}
-              aria-busy={edit.pending}
+              disabled={edit.pending || edit.cropOpen || edit.uploading}
+              aria-busy={edit.pending || edit.uploading}
               onClick={onDone}
               className={SOCIAL_PROFILE_EDIT_DONE_CLASS}
             >
@@ -950,7 +995,14 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
             </button>
           </header>
           <div className={SOCIAL_PROFILE_EDIT_BODY_CLASS} inert={edit.pending} aria-busy={edit.pending || undefined}>
-            <SocialProfileEditIndexBody edit={edit} />
+            <SocialProfileEditIndexBody
+              edit={edit}
+              onLeave={(href) => {
+                returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+                setLeaveHref(href);
+                setAsking(true);
+              }}
+            />
           </div>
         </div>
       </div>
@@ -967,7 +1019,7 @@ export function SocialProfileEditForm(props: SocialProfileEditProps) {
           edit={edit}
           variant="sheet"
           titleId={askTitleId}
-          onKeep={() => setAsking(false)}
+          onKeep={keepEditing}
           onDiscard={onDiscard}
         />
       ) : null}
