@@ -5,12 +5,13 @@
 -- submitted.
 
 begin;
-select plan(26);
+select plan(27);
 
 select set_config('t.org',   gen_random_uuid()::text, false);
 select set_config('t.owner', gen_random_uuid()::text, false);
 select set_config('t.title', gen_random_uuid()::text, false);
 select set_config('t.gone',  gen_random_uuid()::text, false);
+select set_config('t.bad',   gen_random_uuid()::text, false);
 
 insert into auth.users (id) values (current_setting('t.owner')::uuid);
 insert into public.organizations (id, name, status) values (current_setting('t.org')::uuid, 'Org', 'active');
@@ -18,7 +19,12 @@ insert into public.memberships (user_id, org_id, role) values
   (current_setting('t.owner')::uuid, current_setting('t.org')::uuid, 'account_owner');
 insert into public.titles (id, org_id, title, status) values
   (current_setting('t.title')::uuid, current_setting('t.org')::uuid, 'Film', 'draft'),
-  (current_setting('t.gone')::uuid,  current_setting('t.org')::uuid, 'Gone', 'draft');
+  (current_setting('t.gone')::uuid,  current_setting('t.org')::uuid, 'Gone', 'draft'),
+  (current_setting('t.bad')::uuid,   current_setting('t.org')::uuid, 'Bad',  'draft');
+-- Every required field filled, but runtime 0 (stored before the limits).
+insert into public.title_metadata (title_id, org_id, data) values
+  (current_setting('t.bad')::uuid, current_setting('t.org')::uuid,
+   '{"synopsis":"x","runtime_minutes":0,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US"}'::jsonb);
 -- The deleted title has complete required metadata, so only its deletion
 -- can refuse a submit.
 insert into public.title_metadata (title_id, org_id, data) values
@@ -121,6 +127,11 @@ select throws_ok(
 select throws_ok(
   format($$ select public.submit_title(%L,%L) $$, current_setting('t.org'), current_setting('t.gone')),
   'P0001', 'Title not found in this organization, or not in draft', 'deleted title: submit refused');
+
+-- Filled is not enough: a stored value the checks refuse does not submit.
+select throws_ok(
+  format($$ select public.submit_title(%L,%L) $$, current_setting('t.org'), current_setting('t.bad')),
+  '22023', 'runtime_minutes: 1 to 1000', 'filled but refused required value: submit refused');
 
 -- The internal refresh is not callable by a client.
 select throws_ok(

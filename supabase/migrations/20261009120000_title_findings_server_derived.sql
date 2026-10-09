@@ -372,6 +372,9 @@ begin
       raise exception 'Cannot submit: required metadata field "%" is missing', v_key;
     end if;
   end loop;
+  -- Filled is not enough: a stored value the checks refuse (runtime 0 from
+  -- before the limits) does not submit (Codex on #801; the app checks first).
+  perform public.check_title_metadata(v_data);
 
   update public.titles
     set status = 'in_review'
