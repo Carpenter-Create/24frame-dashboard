@@ -69,7 +69,7 @@ export type MusicScanPatch = {
   muxReadyAt?: string | null;
   scanStartedAt?: string | null;
   decidedAt?: string | null;
-  /** Written only when finite and within the upload cap. */
+  /** Written only when positive, finite, and within the upload cap. */
   durationSeconds?: number | null;
   windowResults?: MusicWindowRecord[];
 };
@@ -269,7 +269,10 @@ async function scanOne(
     if (socialVideoDurationExceedsCap(asset.duration)) {
       return recordFailure(scan, deps, book, "duration_over_cap", muxReadyAt, scan.scanStartedAt);
     }
-    const seconds = typeof asset.duration === "number" && Number.isFinite(asset.duration) ? asset.duration : 0;
+    const seconds =
+      typeof asset.duration === "number" && Number.isFinite(asset.duration) && asset.duration > 0
+        ? asset.duration
+        : Number.NaN;
     return writeDecision(
       scan,
       deps,
@@ -442,9 +445,10 @@ async function writeDecision(
   const match = result.kind === "match" ? result : null;
   const blocked = decision === "block" && match !== null;
   const staffPriority: MusicStaffPriority | null = blocked && match ? musicStaffPriority(match.score) : null;
+  const rounded = Math.round(audioSeconds * 1000) / 1000;
   const durationSeconds =
-    Number.isFinite(audioSeconds) && !socialVideoDurationExceedsCap(audioSeconds)
-      ? Math.round(audioSeconds * 1000) / 1000
+    Number.isFinite(audioSeconds) && rounded > 0 && !socialVideoDurationExceedsCap(audioSeconds)
+      ? rounded
       : null;
   const patch: MusicScanPatch = {
     status: blocked ? "blocked" : "allowed",

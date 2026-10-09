@@ -125,6 +125,28 @@ describe("social video visibility", () => {
     ).toBe("blocked");
   });
 
+  it("drops a superseded placeholder so an allowed scan clears the author notice", () => {
+    expect(
+      musicNoticeFromScans([
+        { status: "pending", lastError: "superseded" },
+        { status: "allowed" },
+      ]),
+    ).toBeNull();
+    expect(musicNoticeFromScans([{ status: "pending", lastError: "superseded" }])).toBeNull();
+    expect(
+      musicNoticeFromScans([
+        { status: "pending", lastError: "superseded" },
+        { status: "pending", attemptCount: 1, nextAttemptAt: "2026-10-08T18:00:30.000Z" },
+      ]),
+    ).toBe("pending");
+    expect(
+      musicNoticeFromScans([
+        { status: "pending", lastError: "s3_video_needs_mux" },
+        { status: "allowed" },
+      ]),
+    ).toBe("pending");
+  });
+
   it("skips a welcome or media row that no longer stores the scanned pair", () => {
     const scan = { surface: "welcome" as const, assetId: "asset12345678", playbackId: "play12345678" };
     expect(socialMusicParentStillHasScan(scan, null)).toBe(false);
@@ -368,5 +390,12 @@ describe("social music scan migration", () => {
     expect(sql).not.toContain("is_gc_staff(");
     expect(sql).toContain("Staff review only");
     expect(sql).not.toMatch(/grant select \([\s\S]*vendor_title/);
+    const authorGrant = sql.slice(
+      sql.indexOf("grant select ("),
+      sql.indexOf(") on public.social_music_scans to authenticated"),
+    );
+    expect(authorGrant).toContain("next_attempt_at");
+    expect(authorGrant).toContain("last_error");
+    expect(authorGrant).not.toContain("vendor_title");
   });
 });

@@ -668,6 +668,19 @@ describe("processMusicScan", () => {
     await expect(processMusicScan(scan(), ambiguous)).resolves.toBe("retried");
     expect(ambiguous.saves.at(-1)?.lastError).toBe("mux_audio_errored");
   });
+
+  it("allows a silent clip when Mux reports no duration", async () => {
+    const run = deps({
+      loadAsset: async () => ({
+        ...READY,
+        duration: null,
+        tracks: [{ type: "video" }],
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("allowed");
+    expect(run.saves.at(-1)).toMatchObject({ status: "allowed", durationSeconds: null });
+  });
 });
 
 describe("runSocialMusicBatch", () => {

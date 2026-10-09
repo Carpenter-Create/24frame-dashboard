@@ -594,6 +594,8 @@ create policy social_music_scans_select_author on public.social_music_scans
 -- client after the app's gc_staff check.
 
 revoke all on public.social_music_scans from anon, authenticated;
+-- next_attempt_at distinguishes a retry from a held scan. last_error lets the
+-- author notice skip a superseded placeholder. Vendor columns stay withheld.
 grant select (
   id,
   surface,
@@ -604,6 +606,8 @@ grant select (
   playback_id,
   status,
   attempt_count,
+  next_attempt_at,
+  last_error,
   mux_ready_at,
   scan_started_at,
   decided_at,
