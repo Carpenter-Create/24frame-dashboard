@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { socialVideoKeyDigest, type MusicWindowRecord } from "@/lib/social-music-scan";
+import {
+  socialMuxPlaybackMusicReleased,
+  socialVideoKeyDigest,
+  type MusicWindowRecord,
+  type SocialPlaybackScan,
+} from "@/lib/social-music-scan";
 import { runSocialMusicBatch, type MusicScanPatch, type PendingMusicScan } from "@/lib/social-music-run";
 import {
   reingestSocialS3Videos,
@@ -886,6 +891,170 @@ describe("social music scan migration", () => {
     );
     expect(scansAfter.rows[0]?.n).toBe(scansBefore.rows[0]?.n);
     expect(assetsAfter.rows[0]?.n).toBe(assetsBefore.rows[0]?.n);
+  });
+
+  it("copies a sibling block onto a re-saved welcome and denies the mint", async () => {
+    const profile = "77777777-7777-4777-8777-777777777774";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    await bindWelcome(profile, "uploadSIB0001", "assetSIB00001", "playSIB000001");
+    await setWelcome(profile, "assetSIB00001", "playSIB000001", "uploadSIB0001");
+    await db.query(
+      `update public.social_music_scans
+       set attempt_count = 4, window_results = '[{"kind":"match"}]'::jsonb
+       where profile_id = $1 and playback_id = 'playSIB000001'`,
+      [profile],
+    );
+    const before = await db.query<{ id: string }>(
+      `select id::text as id from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playSIB000001'`,
+      [profile],
+    );
+    await db.query(
+      `insert into public.social_music_scans (
+         surface, profile_id, author_id, asset_id, playback_id, status, next_attempt_at, last_error
+       ) values ('welcome', $1, $1, 'assetOTH00001', 'playOTH000001', 'pending', null, 'superseded')`,
+      [profile],
+    );
+    await setWelcome(profile, null, null, null);
+    const post = await db.query<{ id: string }>(
+      `insert into public.posts (author_id, media)
+       values ($1, $2::jsonb) returning id::text as id`,
+      [profile, vid("assetSIB00001", "playSIB000001")],
+    );
+    const postId = post.rows[0]!.id;
+    await db.query(
+      `update public.social_music_scans
+       set status = 'blocked',
+           decided_at = now(),
+           next_attempt_at = null,
+           vendor = 'acrcloud',
+           vendor_status_code = 0,
+           vendor_score = 55,
+           vendor_title = 'Held Song',
+           vendor_artist = 'Held Artist'
+       where post_id = $1`,
+      [postId],
+    );
+    const scansBefore = await db.query<{ n: string }>(
+      `select count(*)::text as n from public.social_music_scans where author_id = $1`,
+      [profile],
+    );
+    await setWelcome(profile, "assetSIB00001", "playSIB000001", "uploadSIB0001");
+    const row = await db.query<{
+      id: string;
+      last_error: string | null;
+      status: string;
+      attempt_count: number;
+      vendor: string | null;
+      vendor_score: string | null;
+      vendor_title: string | null;
+      vendor_artist: string | null;
+      windows: number;
+      next_attempt_at: string | null;
+    }>(
+      `select id::text as id, last_error, status::text as status, attempt_count, vendor,
+              vendor_score::text as vendor_score, vendor_title, vendor_artist,
+              jsonb_array_length(window_results) as windows,
+              next_attempt_at::text as next_attempt_at
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playSIB000001'`,
+      [profile],
+    );
+    expect(row.rows).toEqual([
+      {
+        id: before.rows[0]!.id,
+        last_error: null,
+        status: "blocked",
+        attempt_count: 4,
+        vendor: "acrcloud",
+        vendor_score: "55.00",
+        vendor_title: "Held Song",
+        vendor_artist: "Held Artist",
+        windows: 1,
+        next_attempt_at: null,
+      },
+    ]);
+    expect(await welcomeNotices(profile)).toEqual(["blocked"]);
+    const other = await db.query<{ last_error: string; status: string; due: boolean }>(
+      `select last_error, status::text as status, (next_attempt_at is not null) as due
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playOTH000001'`,
+      [profile],
+    );
+    expect(other.rows).toEqual([{ last_error: "superseded", status: "pending", due: false }]);
+    const sibling = await db.query<{ status: string; due: boolean }>(
+      `select status::text as status, (next_attempt_at is not null) as due
+       from public.social_music_scans where post_id = $1`,
+      [postId],
+    );
+    expect(sibling.rows).toEqual([{ status: "blocked", due: false }]);
+    const scansAfter = await db.query<{ n: string }>(
+      `select count(*)::text as n from public.social_music_scans where author_id = $1`,
+      [profile],
+    );
+    expect(scansAfter.rows[0]?.n).toBe(scansBefore.rows[0]?.n);
+    const loaded = await db.query<{
+      playback_id: string;
+      status: "pending" | "blocked" | "allowed";
+      post_id: string | null;
+      story_id: string | null;
+    }>(
+      `select playback_id, status::text as status, post_id::text as post_id, story_id::text as story_id
+       from public.social_music_scans
+       where playback_id = 'playSIB000001'`,
+    );
+    const mintScans: SocialPlaybackScan[] = loaded.rows.map((scan) => ({
+      playbackId: scan.playback_id,
+      status: scan.status,
+      postId: scan.post_id,
+      storyId: scan.story_id,
+    }));
+    expect(socialMuxPlaybackMusicReleased("playSIB000001", [{ id: postId, surface: "post" }], mintScans)).toBe(false);
+    await expect(
+      db.query(
+        `update public.social_music_scans
+         set status = 'allowed', decided_at = now(), next_attempt_at = null
+         where id = $1`,
+        [before.rows[0]!.id],
+      ),
+    ).rejects.toThrow(/blocked/);
+    const released = await db.query<{ released: boolean }>(
+      `select private.social_video_released('post', $1) as released`,
+      [postId],
+    );
+    expect(released.rows[0]?.released).toBe(false);
+    expect(await strangerSeesWelcome(profile, "assetSIB00001", "playSIB000001")).toBe(false);
+
+    const playbackOnly = "77777777-7777-4777-8777-777777777775";
+    await db.query(`insert into public.profiles (id) values ($1)`, [playbackOnly]);
+    await bindWelcome(playbackOnly, "uploadPLY0001", "assetPLY00001", "playPLY000001");
+    await setWelcome(playbackOnly, "assetPLY00001", "playPLY000001", "uploadPLY0001");
+    await setWelcome(playbackOnly, null, null, null);
+    await db.query(
+      `insert into public.social_music_scans (
+         surface, post_id, author_id, asset_id, playback_id,
+         status, decided_at, next_attempt_at, vendor, vendor_score, vendor_title
+       ) values (
+         'post', $2, $1, 'assetOTHER001', 'playPLY000001',
+         'blocked', now(), null, 'acrcloud', 61, 'Other Song'
+       )`,
+      [playbackOnly, postId],
+    );
+    await setWelcome(playbackOnly, "assetPLY00001", "playPLY000001", "uploadPLY0001");
+    const carried = await db.query<{ status: string; vendor_title: string | null; vendor_score: string | null }>(
+      `select status::text as status, vendor_title, vendor_score::text as vendor_score
+       from public.social_music_scans
+       where profile_id = $1 and playback_id = 'playPLY000001'`,
+      [playbackOnly],
+    );
+    expect(carried.rows).toEqual([{ status: "blocked", vendor_title: "Other Song", vendor_score: "61.00" }]);
+    expect(await welcomeNotices(playbackOnly)).toEqual(["blocked"]);
+    const untouched = await db.query<{ status: string; last_error: string | null }>(
+      `select status::text as status, last_error
+       from public.social_music_scans
+       where asset_id = 'assetOTHER001' and playback_id = 'playPLY000001'`,
+    );
+    expect(untouched.rows).toEqual([{ status: "blocked", last_error: null }]);
   });
 
   it("shows an allowed welcome again when the same pair is saved again", async () => {

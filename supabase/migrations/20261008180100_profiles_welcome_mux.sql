@@ -72,6 +72,7 @@ declare
   v_acrid text;
   v_isrc text;
   v_label text;
+  v_blocked boolean;
 begin
   if tg_op = 'UPDATE'
      and new.welcome_mux_asset_id is not distinct from old.welcome_mux_asset_id
@@ -146,21 +147,77 @@ begin
   elsif v_decided is null then
     v_decided := now();
   end if;
-  -- Re-saving this exact pair clears superseded. A pending row is put back
-  -- on the worker (next_attempt_at = now()) on the same row and the same
-  -- asset, with attempt_count reset to 0 so an exhausted row is not one
-  -- failure from malformed again. Saved windows stay. Blocked and allowed
-  -- rows are not requeued and keep their attempt count. No other row is touched.
+  -- Blocked wins for this pair and for this playback id. The insert below
+  -- does not run when the welcome row already exists, so the verdict is
+  -- written on the update. A row that is already blocked keeps its own
+  -- verdict. A pending row with no block goes back on the worker.
+  v_blocked := exists (
+    select 1
+    from public.social_music_scans s
+    where s.status = 'blocked'
+      and s.playback_id = new.welcome_mux_playback_id
+  );
+  if v_blocked then
+    select s.decided_at, s.vendor, s.vendor_status_code, s.vendor_score,
+           s.vendor_title, s.vendor_artist, s.vendor_album, s.vendor_acrid,
+           s.vendor_isrc, s.vendor_label
+      into v_decided, v_vendor, v_vendor_code, v_score,
+           v_title, v_artist, v_album, v_acrid, v_isrc, v_label
+    from public.social_music_scans s
+    where s.status = 'blocked'
+      and s.playback_id = new.welcome_mux_playback_id
+    order by
+      case
+        when s.surface = 'welcome'
+         and s.profile_id = new.id
+         and s.asset_id = new.welcome_mux_asset_id then 0
+        when s.asset_id = new.welcome_mux_asset_id then 1
+        else 2
+      end,
+      s.decided_at desc nulls last
+    limit 1;
+    v_status := 'blocked';
+    if v_decided is null then
+      v_decided := now();
+    end if;
+  end if;
+  -- Re-saving this exact pair clears superseded on this row only. A pending
+  -- row with no block is put back on the worker (next_attempt_at = now())
+  -- on the same row and the same asset, with attempt_count reset to 0 so
+  -- an exhausted row is not one failure from malformed again. Saved windows
+  -- stay. When any blocked row exists for this pair or this playback id,
+  -- this row becomes blocked and copies that verdict. It is not requeued.
+  -- A row that is already blocked keeps its verdict. Blocked and allowed
+  -- rows keep their attempt count. Other superseded rows stay superseded.
   update public.social_music_scans as s
-  set last_error = null,
+  set status = case
+        when s.status = 'blocked' or v_blocked then 'blocked'::public.social_music_scan_status
+        else s.status
+      end,
+      decided_at = case
+        when s.status = 'blocked' then s.decided_at
+        when v_blocked then v_decided
+        else s.decided_at
+      end,
+      last_error = null,
       attempt_count = case
-        when s.status = 'pending' then 0
+        when s.status = 'pending' and not v_blocked then 0
         else s.attempt_count
       end,
       next_attempt_at = case
-        when s.status = 'pending' then now()
+        when s.status = 'pending' and not v_blocked then now()
+        when s.status = 'blocked' or v_blocked then null
         else s.next_attempt_at
-      end
+      end,
+      vendor = case when s.status = 'blocked' or not v_blocked then s.vendor else v_vendor end,
+      vendor_status_code = case when s.status = 'blocked' or not v_blocked then s.vendor_status_code else v_vendor_code end,
+      vendor_score = case when s.status = 'blocked' or not v_blocked then s.vendor_score else v_score end,
+      vendor_title = case when s.status = 'blocked' or not v_blocked then s.vendor_title else v_title end,
+      vendor_artist = case when s.status = 'blocked' or not v_blocked then s.vendor_artist else v_artist end,
+      vendor_album = case when s.status = 'blocked' or not v_blocked then s.vendor_album else v_album end,
+      vendor_acrid = case when s.status = 'blocked' or not v_blocked then s.vendor_acrid else v_acrid end,
+      vendor_isrc = case when s.status = 'blocked' or not v_blocked then s.vendor_isrc else v_isrc end,
+      vendor_label = case when s.status = 'blocked' or not v_blocked then s.vendor_label else v_label end
   where s.profile_id = new.id
     and s.surface = 'welcome'
     and s.playback_id = new.welcome_mux_playback_id
