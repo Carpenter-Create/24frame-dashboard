@@ -62,7 +62,6 @@ import {
   rememberGoLiveCamera,
   goLiveRemainingMs,
   SOCIAL_GO_LIVE_DEFAULT_FRAME,
-  SOCIAL_GO_LIVE_FRAME_ASPECT,
   SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
   type GoLiveCamera,
@@ -106,29 +105,32 @@ function stopStream(stream: MediaStream | null) {
 
 type FrameRecording = { stream: MediaStream; stop: () => void };
 
-/** On a computer the clip is the shape the switch names (16:9 or 9:16):
- *  draw that centre cut of each camera frame into a canvas and record it.
+/** On a computer the clip is the shape the switch names (16:9 or 9:16), at
+ *  its standard size when the camera has the detail: draw that centre cut of
+ *  each camera frame into a canvas (scaled down, never up) and record it.
  *  The camera's audio rides along. Null when the camera already has the
- *  shape, or where a canvas cannot be captured: the camera records as is. */
+ *  shape and size, or where a canvas cannot be captured: the camera records
+ *  as is. */
 function frameRecording(
   source: MediaStream,
   video: HTMLVideoElement | null,
-  aspect: number,
+  shape: GoLiveFrame,
 ): FrameRecording | null {
   if (!video || typeof document === "undefined") return null;
-  const crop = goLiveFrameCut(video.videoWidth, video.videoHeight, aspect);
+  const crop = goLiveFrameCut(video.videoWidth, video.videoHeight, shape);
   if (!crop) return null;
   const canvas = document.createElement("canvas");
-  canvas.width = crop.sw;
-  canvas.height = crop.sh;
+  canvas.width = crop.dw;
+  canvas.height = crop.dh;
   const context = canvas.getContext("2d");
   if (!context || typeof canvas.captureStream !== "function") return null;
+  context.imageSmoothingQuality = "high";
   let stopped = false;
   let frame = 0;
   const frameCallback = typeof video.requestVideoFrameCallback === "function";
   const draw = () => {
     if (stopped) return;
-    context.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh);
+    context.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.dw, crop.dh);
     frame = frameCallback ? video.requestVideoFrameCallback(draw) : requestAnimationFrame(draw);
   };
   draw();
@@ -185,6 +187,8 @@ export function SocialGoLive() {
   const author = useSocialCompose()?.author;
   const desktop = useHouseDesktop();
   const [frameChoice, setFrameChoice] = useState<GoLiveFrame>(SOCIAL_GO_LIVE_DEFAULT_FRAME);
+  // The frame the camera is asked for (16:9 HD, or up to 4K for 9:16).
+  const frameRef = useRef<GoLiveFrame>(SOCIAL_GO_LIVE_DEFAULT_FRAME);
   // The frame switch is desktop only; the phone records its own portrait frame.
   const frame: GoLiveFrame = desktop ? frameChoice : "full";
 
@@ -297,13 +301,13 @@ export function SocialGoLive() {
     // Read at call time: the first client render does not know the host yet.
     const desktopNow = isHouseDesktop();
     try {
-      return await openCamera(goLiveVideoConstraints(nextFacing, desktopNow, deviceId));
+      return await openCamera(goLiveVideoConstraints(nextFacing, desktopNow, deviceId, frameRef.current));
     } catch (failure) {
       if (!desktopNow || !deviceId || !orDefault) throw failure;
       // The remembered camera is gone (an iPhone out of reach): open the
       // default. A camera picked now that fails rejects instead, so the
       // picker can bring the last camera back.
-      return openCamera(goLiveVideoConstraints(nextFacing, desktopNow));
+      return openCamera(goLiveVideoConstraints(nextFacing, desktopNow, null, frameRef.current));
     }
   }
 
@@ -484,6 +488,38 @@ export function SocialGoLive() {
     );
   }
 
+  // A frame asks the camera for its own size (16:9 HD, 9:16 up to 4K), so a
+  // switch reopens the camera through the one tracked open.
+  async function chooseFrame(next: GoLiveFrame) {
+    if (next === frameChoice || phase !== "preview" || recordingRef.current || attachPromiseRef.current) return;
+    const previous = frameChoice;
+    setFrameChoice(next);
+    frameRef.current = next;
+    // No camera yet (access pending or refused): the next open asks for it.
+    if (!streamRef.current) return;
+    const live = liveRef.current;
+    await trackOpen(
+      (async () => {
+        try {
+          return await attachPreview(facing, live);
+        } catch {
+          // The camera did not reopen with that ask: the last frame and its
+          // ask come back, so the viewfinder is never left dark.
+          setFrameChoice(previous);
+          frameRef.current = previous;
+          if (!storyStudioIsLive(liveRef.current, live)) return false;
+          try {
+            return await attachPreview(facing, live);
+          } catch {
+            releasePreview();
+            setError(SOCIAL.stories.permission);
+            return false;
+          }
+        }
+      })(),
+    );
+  }
+
   function startClock() {
     clockStartedRef.current = Date.now();
     clearClock();
@@ -511,7 +547,7 @@ export function SocialGoLive() {
     stopCut();
     // The phone records its own frame; a computer records the switch's shape.
     cutRef.current = desktop
-      ? frameRecording(source, videoRef.current, SOCIAL_GO_LIVE_FRAME_ASPECT[frame])
+      ? frameRecording(source, videoRef.current, frame)
       : null;
     const stream = cutRef.current?.stream ?? source;
     let recorder: MediaRecorder;
@@ -796,7 +832,8 @@ export function SocialGoLive() {
                     aria-checked={frame === option}
                     data-social-go-live-frame-option={option}
                     className={SOCIAL_GO_LIVE_FRAME_OPTION_CLASS}
-                    onClick={() => setFrameChoice(option)}
+                    disabled={opening}
+                    onClick={() => void chooseFrame(option)}
                   >
                     {option === "full" ? SOCIAL.create.liveFrameFull : SOCIAL.create.liveFrameReel}
                   </button>
