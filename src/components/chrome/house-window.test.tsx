@@ -140,6 +140,22 @@ describe("house window shell (components/chrome/house-window)", () => {
   // not the window's own (a reload, a pasted link): opening from the page
   // puts the page under it and pushes the window's own entry, so Back
   // reaches the ask (social-post-caption-window-lock-v1; dual-host lock).
+  // Bugbot on #804: Back while a window's code is still loading. With no
+  // handler yet nothing is typed, so the window closes instead of appearing
+  // later with no entry (the next Back would then leave the page).
+  it("closes a window Back reaches before it has mounted", () => {
+    const effect = shellSrc.slice(
+      shellSrc.indexOf("if (addressFace === null && prev !== null) {"),
+      shellSrc.indexOf("push(indexFace);\n      pushedRef.current = true;"),
+    );
+    const guard = effect.indexOf("if (!requestRef.current) {\n        close(winRef.current.key);\n        return;\n      }");
+    expect(guard).toBeGreaterThan(-1);
+    // After the checks that this is Back on a live window, before asking it.
+    expect(effect.indexOf("if (addressHasWindow()) return;")).toBeLessThan(guard);
+    expect(guard).toBeLessThan(effect.indexOf("const closed = requestRef.current();"));
+    expect(effect).not.toContain("requestRef.current ? requestRef.current() : true");
+  });
+
   it("opens from the page over a leftover query with its own entry", () => {
     const openFromPage = shellSrc.slice(
       shellSrc.indexOf("function openFromPage(face: F)"),

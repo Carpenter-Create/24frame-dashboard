@@ -768,7 +768,14 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
       if (!winRef.current) return;
       // Still on the query: the entry going in underneath, not Back.
       if (addressHasWindow()) return;
-      const closed = requestRef.current ? requestRef.current() : true;
+      // Back before the window has mounted (its code still loading): nothing
+      // is typed yet, so it closes here; left open, it would appear with no
+      // entry and the next Back would leave the page.
+      if (!requestRef.current) {
+        close(winRef.current.key);
+        return;
+      }
+      const closed = requestRef.current();
       if (closed) return;
       push(indexFace);
       pushedRef.current = true;
