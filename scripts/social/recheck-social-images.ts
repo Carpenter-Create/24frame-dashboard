@@ -15,7 +15,8 @@
  * It is not skipped.
  * An avatar that will not decode is cleared so the default face shows. The
  * canonical object is moved to avatars/{id}/quarantine/{objectId}. That
- * prefix is never signed. Rollback copies it back to avatars/{id}/avatar.
+ * prefix is never signed. Rollback is restoreQuarantinedAvatar: the copy
+ * replaces tags, and the pointer is set only after gc-hold is gone.
  * One page is read, rechecked, and dropped before the next page.
  * Do not run this against production from CI. Adam runs it after the SQL is applied.
  *
@@ -26,6 +27,7 @@ import { randomUUID } from "node:crypto";
 
 import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey, isAvatarRecheckKey } from "@/lib/account-avatar";
 import {
+  applyAvatarHoldTag,
   headAvatarRecheck,
   putAvatarRecheckObject,
   quarantineAvatarObject,
@@ -134,11 +136,15 @@ export async function commitRecheckedAvatar(
   readKey: string | null,
   nextKey: string,
   releaseHold: (userId: string, key: string) => Promise<void> = releaseAvatarHoldTag,
+  rehold: (userId: string, key: string) => Promise<void> = applyAvatarHoldTag,
 ): Promise<{ skipped: true; orphanKey: string } | Record<string, never>> {
   await releaseHold(parentId, nextKey);
   const { data, error } = await writeAvatarPointer(admin, parentId, readKey, nextKey);
   assertOk(error, "point avatar at rechecked image");
-  if (!data || data.length === 0) return { skipped: true, orphanKey: nextKey };
+  if (!data || data.length === 0) {
+    await rehold(parentId, nextKey);
+    return { skipped: true, orphanKey: nextKey };
+  }
   return {};
 }
 

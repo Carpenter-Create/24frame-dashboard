@@ -9,6 +9,8 @@ import {
   socialMediaObjectKey,
   socialMediaStagingKey,
   welcomeS3ApplyCountSql,
+  welcomeS3PreApplyCountSql,
+  welcomeS3PreApplyUnmatchedPrefixSql,
   welcomeS3UnmatchedPrefixSql,
   welcomeS3VideoKeySqlPattern,
 } from "@/lib/social-media";
@@ -91,6 +93,12 @@ describe("welcome s3 key shape", () => {
       const matched = await db.query<{ ok: boolean }>("select $1 ~ $2 as ok", [key, pattern]);
       expect(matched.rows[0]?.ok, key).toBe(false);
     }
+    expect(NOTES).toContain("Run before the migration.");
+    expect(NOTES).toContain("Run after the migration, before re-ingest.");
+    expect(NOTES).toContain(welcomeS3PreApplyCountSql());
+    expect(NOTES).toContain(welcomeS3PreApplyUnmatchedPrefixSql());
+    expect(welcomeS3PreApplyCountSql()).not.toContain("welcome_mux");
+    expect(welcomeS3PreApplyUnmatchedPrefixSql()).not.toContain("welcome_mux");
     expect(NOTES).toContain(welcomeS3ApplyCountSql());
     expect(NOTES).toContain(welcomeS3UnmatchedPrefixSql());
     await db.exec(`
@@ -135,4 +143,21 @@ describe("welcome s3 key shape", () => {
   },
     30_000,
   );
+
+  it("runs the pre-apply counts on a table that has only welcome_video_key", async () => {
+    const db = new PGlite();
+    await db.exec("create table public.profiles (welcome_video_key text)");
+    await db.query("insert into public.profiles (welcome_video_key) values ($1), ($2)", [
+      socialMediaObjectKey(USER, OBJECT, "video/webm"),
+      "welcome/clip.mp4",
+    ]);
+    const counts = await db.query<{ welcome_s3_matching: number; welcome_s3_any: number }>(
+      welcomeS3PreApplyCountSql(),
+    );
+    expect(Number(counts.rows[0]?.welcome_s3_matching)).toBe(1);
+    expect(Number(counts.rows[0]?.welcome_s3_any)).toBe(2);
+    const prefixes = await db.query<{ key_prefix: string; n: number }>(welcomeS3PreApplyUnmatchedPrefixSql());
+    expect(prefixes.rows).toEqual([{ key_prefix: "welcome", n: 1 }]);
+    expect(prefixes.rows.map((row) => row.key_prefix).join("\n")).not.toContain(USER);
+  }, 30_000);
 });

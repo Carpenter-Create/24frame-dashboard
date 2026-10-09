@@ -229,16 +229,45 @@ select
   ) as live_story_video_items;
 ```
 
-Read-only counts before apply. A welcome clip with no Mux ids is still an
-S3 key. Re-ingest moves a row only when that key is one the posts builders
-emit: `socialMediaObjectKey` (`posts/{user}/{object}.webm` for a published
-camera clip, and the same shape for `.mp4` / `.mov`) or
+Welcome counts. Re-ingest moves a row only when that key is one the posts
+builders emit: `socialMediaObjectKey` (`posts/{user}/{object}.webm` for a
+published camera clip, and the same shape for `.mp4` / `.mov`) or
 `socialMediaStagingKey` (`posts/upload/{user}/{object}.{mp4|mov|webm}`, the
 Media upload key). `welcome_s3_matching` is that set.
-`welcome_s3_any` is every `welcome_video_key` with no Mux ids. The pattern
+`welcome_s3_any` is every `welcome_video_key` in the filter. The pattern
 is `welcomeS3VideoKeySqlPattern()` in `src/lib/social-media.ts`, the same
 check `welcomeProfileReingestCandidate` uses. Rows in any but not matching
-stay hidden. The second query lists those rows by key prefix only.
+stay hidden. The prefix query lists those rows by key prefix only. It does
+not select a user id or a full key.
+
+Run before the migration. `welcome_mux_asset_id` is not on the table yet.
+These statements use only `welcome_video_key`.
+
+```sql
+select
+  count(*) filter (where welcome_video_key ~ '^posts/(upload/)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)\.(mp4|mov|webm)$') as welcome_s3_matching,
+  count(*) as welcome_s3_any
+from public.profiles
+where welcome_video_key is not null;
+```
+
+```sql
+select
+  case
+    when split_part(welcome_video_key, '/', 1) ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-' then '(id)'
+    when split_part(welcome_video_key, '/', 2) = 'upload' then split_part(welcome_video_key, '/', 1) || '/upload'
+    else split_part(welcome_video_key, '/', 1)
+  end as key_prefix,
+  count(*) as n
+from public.profiles
+where welcome_video_key is not null
+  and welcome_video_key !~ '^posts/(upload/)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)\.(mp4|mov|webm)$'
+group by 1
+order by 1;
+```
+
+Run after the migration, before re-ingest. A row that already has Mux ids
+is left in place.
 
 ```sql
 select
@@ -430,10 +459,34 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    A face that will not decode is not left at `avatars/{user-id}/avatar`.
    The recheck copies that object to
    `avatars/{user-id}/quarantine/{object-id}` and deletes the canonical
-   key. Nothing signs a quarantine key. Rollback: copy
-   `avatars/{user-id}/quarantine/{object-id}` back to
-   `avatars/{user-id}/avatar`, delete the quarantine object, then set
-   `profiles.avatar_key` to null with the service role or the table owner.
+   key. Nothing signs a quarantine key. Rollback is
+   `restoreQuarantinedAvatar`. It copies
+   `avatars/{user-id}/quarantine/{object-id}` onto
+   `avatars/{user-id}/avatar` with `TaggingDirective: REPLACE` and an empty
+   tag set, sends DeleteObjectTagging, and reads the tags back. It deletes
+   the quarantine object only when that read has no `gc-hold` tag. Set
+   `profiles.avatar_key` to null with the service role or the table owner
+   only after `restoreQuarantinedAvatar` returns. A plain CopyObject keeps
+   `gc-hold`, and the restored face would expire. The same order with the CLI:
+
+```sh
+aws s3api copy-object \
+  --bucket "$S3_AVATARS_BUCKET" \
+  --key "avatars/${USER_ID}/avatar" \
+  --copy-source "${S3_AVATARS_BUCKET}/avatars/${USER_ID}/quarantine/${OBJECT_ID}" \
+  --tagging-directive REPLACE \
+  --tagging ""
+aws s3api delete-object-tagging \
+  --bucket "$S3_AVATARS_BUCKET" \
+  --key "avatars/${USER_ID}/avatar"
+aws s3api get-object-tagging \
+  --bucket "$S3_AVATARS_BUCKET" \
+  --key "avatars/${USER_ID}/avatar"
+```
+
+   Stop when that tag read still shows `gc-hold`. Do not set
+   `profiles.avatar_key`. When the tag read has no `gc-hold` tag, delete
+   `avatars/${USER_ID}/quarantine/${OBJECT_ID}`, then set the pointer.
    Removing a photo clears the pointer only when it still matches the key
    that was read. It then deletes only those exact keys: the object that
    read named, and the canonical object when that is a different key. Before
@@ -483,9 +536,10 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
    pointer stays on the old face. This bucket's lifecycle config is not in
    the repo. Adam's pre-deploy step, before the recheck, is this 30-day rule
    plus the IAM policy in `docs/infra/avatar-storage-setup.md`:
-   `s3:DeleteObject`, `s3:PutObjectTagging`, `s3:DeleteObjectTagging`, and
-   `s3:GetObjectTagging` on `avatars/*`, and `s3:ListBucket` only when the
-   prefix is `avatars/`. The rule replaces the whole lifecycle
+   `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:GetObjectTagging`,
+   `s3:PutObjectTagging`, and `s3:DeleteObjectTagging` on `avatars/*`, and
+   `s3:ListBucket` on the avatars bucket with no `s3:prefix` condition.
+   The rule replaces the whole lifecycle
    configuration: merge any rule that is already on the avatars bucket
    before sending it. Do not run it from CI. Do not point it at the
    title-asset bucket.

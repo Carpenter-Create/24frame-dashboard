@@ -9,6 +9,7 @@ vi.mock("@/lib/s3-avatars", () => ({
   storeAvatarReplacement: vi.fn(),
   deleteReplacedAvatarObjects: vi.fn(),
   releaseAvatarHoldTag: vi.fn(),
+  applyAvatarHoldTag: vi.fn(),
   signedAvatarUrl: vi.fn(),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
@@ -19,7 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgContext } from "@/lib/supabase/context";
 import { revalidatePath } from "next/cache";
-import { deleteAvatarObject, deleteReplacedAvatarObjects, releaseAvatarHoldTag, signedAvatarUrl, storeAvatarReplacement } from "@/lib/s3-avatars";
+import { applyAvatarHoldTag, deleteAvatarObject, deleteReplacedAvatarObjects, releaseAvatarHoldTag, signedAvatarUrl, storeAvatarReplacement } from "@/lib/s3-avatars";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { captureException } from "@sentry/nextjs";
 
@@ -32,7 +33,6 @@ import {
   avatarPointerNamesKey,
   avatarQuarantineObjectKey,
   avatarServeKey,
-  replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
 import { GET as getAccountPhoto } from "@/app/api/account/photo/route";
 import { removeAccountPhoto, saveAccountName, saveCompanyName, uploadAccountPhoto } from "./actions";
@@ -271,6 +271,7 @@ describe("uploadAccountPhoto", () => {
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
     expect(client.adminUpdate).toHaveBeenCalled();
     expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(applyAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
@@ -285,6 +286,7 @@ describe("uploadAccountPhoto", () => {
     });
     expect(client.filters).toContainEqual(["eq", "avatar_key", previousKey]);
     expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(applyAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
@@ -395,14 +397,24 @@ describe("removeAccountPhoto", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
 
-  it("reports the leftover key when the delete throws after the clear", async () => {
-    vi.mocked(deleteAvatarObject).mockRejectedValueOnce(new Error("s3 down"));
-    await expect(removeAccountPhoto()).resolves.toEqual({});
+  it("does not report success when the removed key is still there", async () => {
+    vi.mocked(deleteAvatarObject).mockRejectedValueOnce(
+      Object.assign(new Error("avatar delete left objects"), { leftoverKeys: [previousKey] }),
+    );
+    await expect(removeAccountPhoto()).resolves.toEqual({ error: "avatar delete left objects" });
     expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey, expect.any(Function));
     expect(captureException).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({
-      orphanKeys: replacedAvatarObjectKeys(USER.id, previousKey, AVATAR_CLEARED),
-    });
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [previousKey] });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("reports a tagged leftover when the removed key itself is gone", async () => {
+    const canonical = avatarObjectKey(USER.id);
+    vi.mocked(deleteAvatarObject).mockRejectedValueOnce(
+      Object.assign(new Error("avatar delete left objects"), { leftoverKeys: [canonical] }),
+    );
+    await expect(removeAccountPhoto()).resolves.toEqual({});
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [canonical] });
     expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
   });
 

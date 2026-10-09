@@ -37,10 +37,20 @@ bucket as a CloudFront origin.
 
 2) Least-privilege on the **existing** app IAM user (`gc-assets-app`) — same
 credentials the title-asset path already uses. Pre-deploy, before the image
-recheck: GetObject, PutObject, DeleteObject, PutObjectTagging,
-DeleteObjectTagging, and GetObjectTagging on `avatars/*`, plus ListBucket
-on this bucket only when the prefix is `avatars/`. Do not grant `/*` on
-this bucket. Do not grant this prefix on `S3_BUCKET`.
+recheck: GetObject, PutObject, DeleteObject, GetObjectTagging,
+PutObjectTagging, and DeleteObjectTagging on `avatars/*`, plus ListBucket
+on this bucket with no `s3:prefix` condition. HeadObject and GetObject on a
+missing key return 404 only when ListBucket applies to that request. A
+prefix condition does not apply to Head or Get, so S3 answers 403 and a
+missing face is not `no_object`. This bucket holds only faces, so the list
+is the avatar set. Do not grant `/*` on this bucket. Do not grant this
+prefix on `S3_BUCKET`.
+
+Before the recheck, confirm the grant. A missing `avatars/` key must return
+404. 403 means the prefix condition is still on the ListBucket statement.
+
+    aws s3api head-object --bucket "$AVATARS_BUCKET" \
+      --key "avatars/00000000-0000-0000-0000-000000000000/missing"
 
 Remove photo deletes only the exact keys that read named. It reads
 `profiles.avatar_key` again before each delete and does not delete the key
@@ -62,8 +72,7 @@ step. A prefix of `avatars/` would expire live faces. The tag is the rule.
         {
           "Effect": "Allow",
           "Action": ["s3:ListBucket"],
-          "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'",
-          "Condition": { "StringLike": { "s3:prefix": ["avatars/*"] } }
+          "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'"
         }
       ]
     }'

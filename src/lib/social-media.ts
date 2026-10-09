@@ -349,7 +349,37 @@ const WELCOME_S3_NO_MUX = `welcome_video_key is not null
   and welcome_mux_playback_id is null
   and welcome_mux_upload_id is null`;
 
-/** Rows re-ingest will move, and every welcome key that still has no Mux ids. */
+/** Same counts before the mux columns exist. Uses only welcome_video_key. */
+export function welcomeS3PreApplyCountSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  count(*) filter (where welcome_video_key ~ '${pattern}') as welcome_s3_matching,
+  count(*) as welcome_s3_any
+from public.profiles
+where welcome_video_key is not null;`;
+}
+
+/**
+ * Unmatched welcome keys before the mux columns exist, grouped by prefix.
+ * A leading id is `(id)`. No user id and no full key.
+ */
+export function welcomeS3PreApplyUnmatchedPrefixSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  case
+    when split_part(welcome_video_key, '/', 1) ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-' then '(id)'
+    when split_part(welcome_video_key, '/', 2) = '${SOCIAL_MEDIA_STAGING_SEGMENT}' then split_part(welcome_video_key, '/', 1) || '/${SOCIAL_MEDIA_STAGING_SEGMENT}'
+    else split_part(welcome_video_key, '/', 1)
+  end as key_prefix,
+  count(*) as n
+from public.profiles
+where welcome_video_key is not null
+  and welcome_video_key !~ '${pattern}'
+group by 1
+order by 1;`;
+}
+
+/** Rows re-ingest will move, and every welcome key that still has no Mux ids. Run after the migration, before re-ingest. */
 export function welcomeS3ApplyCountSql(): string {
   const pattern = welcomeS3VideoKeySqlPattern();
   return `select

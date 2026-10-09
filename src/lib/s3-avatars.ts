@@ -8,6 +8,7 @@ import {
   GetObjectTaggingCommand,
   HeadObjectCommand,
   PutObjectCommand,
+  PutObjectTaggingCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -22,6 +23,7 @@ import {
   avatarRecheckObjectKey,
   avatarServeKey,
   isAvatarContentType,
+  isAvatarQuarantineKey,
   isAvatarRecheckKey,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
@@ -98,6 +100,28 @@ async function readObjectTags(
 async function assertHoldTagStored(s3: S3Client, bucket: string, key: string): Promise<void> {
   const tags = await readObjectTags(s3, bucket, key);
   if (!holdTagPresent(tags)) throw new Error("Avatar hold tag was not stored");
+}
+
+async function writeHoldTag(s3: S3Client, bucket: string, key: string): Promise<void> {
+  await s3.send(
+    new PutObjectTaggingCommand({
+      Bucket: bucket,
+      Key: key,
+      Tagging: { TagSet: [{ Key: AVATAR_HOLD_TAG_KEY, Value: AVATAR_HOLD_TAG_VALUE }] },
+    }),
+  );
+  await assertHoldTagStored(s3, bucket, key);
+}
+
+/** Put gc-hold back on this member's face so the 30-day rule can expire an object the pointer does not name. */
+export async function applyAvatarHoldTag(userId: string, key: string): Promise<void> {
+  const allowed =
+    key === avatarObjectKey(userId) ||
+    isAvatarRecheckKey(key, userId) ||
+    isAvatarQuarantineKey(key, userId);
+  if (!allowed) throw new Error("Avatar hold tag is only set on this member's face");
+  const { bucket, s3 } = avatarsClient();
+  await writeHoldTag(s3, bucket, key);
 }
 
 export async function putAvatarObject(
@@ -214,8 +238,15 @@ export async function releaseAvatarHoldTag(userId: string, key: string): Promise
   if (!isAvatarRecheckKey(key, userId)) throw new Error("Avatar hold tag is only cleared on this member's recheck key");
   const { bucket, s3 } = avatarsClient();
   await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: key }));
-  const tags = await readObjectTags(s3, bucket, key);
-  if (holdTagRemains(tags)) throw new Error("Avatar hold tag remains");
+  try {
+    const tags = await readObjectTags(s3, bucket, key);
+    if (!holdTagRemains(tags)) return;
+  } catch (error) {
+    await writeHoldTag(s3, bucket, key).catch(() => undefined);
+    throw error;
+  }
+  await writeHoldTag(s3, bucket, key);
+  throw new Error("Avatar hold tag remains");
 }
 
 /**
@@ -251,10 +282,19 @@ async function deleteExactAvatarKeys(
   readPointer: AvatarPointerReader,
 ): Promise<void> {
   const { bucket, s3 } = avatarsClient();
+  const leftovers: string[] = [];
   for (const key of keys) {
     const current = await readPointer();
     if (avatarPointerNamesKey(userId, current, key)) continue;
-    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    try {
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    } catch {
+      leftovers.push(key);
+      await writeHoldTag(s3, bucket, key).catch(() => undefined);
+    }
+  }
+  if (leftovers.length > 0) {
+    throw Object.assign(new Error("avatar delete left objects"), { leftoverKeys: leftovers });
   }
 }
 
@@ -279,8 +319,9 @@ export async function deleteAvatarObject(
 
 /**
  * Move avatars/{id}/avatar to avatars/{id}/quarantine/{objectId}.
- * The quarantine key is never signed. Rollback copies it back to the
- * canonical key and deletes the quarantine object.
+ * The quarantine key is never signed. Rollback is restoreQuarantinedAvatar:
+ * the copy back replaces tags, the hold is confirmed gone, and only then
+ * may the pointer name the canonical key.
  */
 export async function quarantineAvatarObject(
   userId: string,
@@ -303,6 +344,31 @@ export async function quarantineAvatarObject(
   await assertHoldTagStored(s3, bucket, dest);
   const current = await readPointer();
   if (avatarPointerNamesKey(userId, current, source)) return dest;
+  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: source }));
+  return dest;
+}
+
+/**
+ * Copy a quarantine object back to the canonical key without gc-hold.
+ * The quarantine object is deleted only after the canonical key's tag read
+ * has no gc-hold. The caller sets profiles.avatar_key only after this returns.
+ */
+export async function restoreQuarantinedAvatar(userId: string, objectId: string): Promise<string> {
+  const source = avatarQuarantineObjectKey(userId, objectId);
+  const dest = avatarObjectKey(userId);
+  const { bucket, s3 } = avatarsClient();
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: dest,
+      CopySource: `${bucket}/${source.split("/").map(encodeURIComponent).join("/")}`,
+      TaggingDirective: "REPLACE",
+      Tagging: "",
+    }),
+  );
+  await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: dest }));
+  const tags = await readObjectTags(s3, bucket, dest);
+  if (holdTagRemains(tags)) throw new Error("Avatar hold tag remains");
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: source }));
   return dest;
 }

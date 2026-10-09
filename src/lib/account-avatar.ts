@@ -135,6 +135,22 @@ export function avatarPointerNamesKey(
 }
 
 /**
+ * The object the pointer named. Remove reports success only after this key is gone.
+ * A null pointer names the canonical face.
+ */
+export function avatarKeyNamedForRemove(userId: string, previousKey: string | null): string {
+  const canonical = avatarObjectKey(userId);
+  if (
+    typeof previousKey === "string" &&
+    previousKey !== canonical &&
+    (isAvatarRecheckKey(previousKey, userId) || isAvatarQuarantineKey(previousKey, userId))
+  ) {
+    return previousKey;
+  }
+  return canonical;
+}
+
+/**
  * Exact objects a remove may delete: the key that was read, and the canonical
  * object when that read named a different key. Nothing from a listing.
  */

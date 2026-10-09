@@ -13,10 +13,12 @@ import {
 import {
   AVATAR_CLEARED,
   AVATAR_MAX_BYTES,
+  avatarKeyNamedForRemove,
   isAvatarContentType,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
 import {
+  applyAvatarHoldTag,
   deleteAvatarObject,
   deleteReplacedAvatarObjects,
   releaseAvatarHoldTag,
@@ -125,6 +127,11 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
     const filtered = previousKey == null ? update.is("avatar_key", null) : update.eq("avatar_key", previousKey);
     const { data, error } = await filtered.select("id");
     if (error || !data || data.length === 0) {
+      try {
+        await applyAvatarHoldTag(ctx.user.id, stored.key);
+      } catch (holdError) {
+        await reportAvatarOrphan([stored.key], holdError);
+      }
       await reportAvatarOrphan([stored.key], error ?? new Error("avatar_key changed before replace"));
       return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
     }
@@ -171,7 +178,17 @@ export async function removeAccountPhoto(): Promise<{ error?: string }> {
     try {
       await deleteAvatarObject(ctx.user.id, previousKey, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
-      await reportAvatarOrphan(replacedAvatarObjectKeys(ctx.user.id, previousKey, AVATAR_CLEARED), e);
+      const own = avatarKeyNamedForRemove(ctx.user.id, previousKey);
+      const leftovers =
+        e && typeof e === "object" && "leftoverKeys" in e && Array.isArray(e.leftoverKeys)
+          ? e.leftoverKeys.filter((key): key is string => typeof key === "string")
+          : [own];
+      await reportAvatarOrphan(leftovers, e);
+      if (leftovers.includes(own)) {
+        return {
+          error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoRemoveFailed,
+        };
+      }
     }
   } catch (e) {
     return {
