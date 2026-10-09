@@ -121,6 +121,10 @@ export type SocialImageRecheckStoreResult =
       /** The parent changed after the page was read. The new object is an orphan. */
       skipped?: boolean;
       orphanKey?: string;
+      /** The pointer names this key. It is not an orphan. */
+      liveKey?: string;
+      /** The pointer read failed. It is not an orphan. */
+      unverifiedKey?: string;
     };
 
 export type SocialImageRecheckReport = {
@@ -141,8 +145,12 @@ export type SocialImageRecheckReport = {
   clearedAvatars: string[];
   /** Parents whose media or avatar pointer changed before the write. */
   skippedParents: string[];
-  /** New keys written when the parent update did not land. Clean these up. */
+  /** New keys a successful pointer read does not name. Clean these up only through the orphan script. */
   orphanedKeys: string[];
+  /** Keys the pointer names. Never delete these as orphans. */
+  liveKeys: string[];
+  /** Keys whose pointer read failed. Never delete these as orphans. */
+  unverifiedKeys: string[];
   /** Posts that still carry a non-Mux video. Counted once, not unfinished. */
   legacyS3Video: number;
 };
@@ -161,8 +169,26 @@ export function blankSocialImageRecheckReport(dryRun: boolean): SocialImageReche
     clearedAvatars: [],
     skippedParents: [],
     orphanedKeys: [],
+    liveKeys: [],
+    unverifiedKeys: [],
     legacyS3Video: 0,
   };
+}
+
+function recordRecheckKey(
+  report: SocialImageRecheckReport,
+  row: { orphanKey?: string; liveKey?: string; unverifiedKey?: string } | null | undefined | void,
+): void {
+  if (!row) return;
+  if (typeof row.liveKey === "string" && row.liveKey) {
+    report.liveKeys.push(row.liveKey);
+    return;
+  }
+  if (typeof row.unverifiedKey === "string" && row.unverifiedKey) {
+    report.unverifiedKeys.push(row.unverifiedKey);
+    return;
+  }
+  if (typeof row.orphanKey === "string" && row.orphanKey) report.orphanedKeys.push(row.orphanKey);
 }
 
 function addRecheckReport(total: SocialImageRecheckReport, page: SocialImageRecheckReport): void {
@@ -177,6 +203,8 @@ function addRecheckReport(total: SocialImageRecheckReport, page: SocialImageRech
   total.clearedAvatars.push(...(page.clearedAvatars ?? []));
   total.skippedParents.push(...(page.skippedParents ?? []));
   total.orphanedKeys.push(...(page.orphanedKeys ?? []));
+  total.liveKeys.push(...(page.liveKeys ?? []));
+  total.unverifiedKeys.push(...(page.unverifiedKeys ?? []));
   total.legacyS3Video += page.legacyS3Video ?? 0;
 }
 
@@ -229,7 +257,7 @@ export async function runSocialImageRecheck(input: {
           input.report?.(`avatar ${item.parentId} did not decode`);
           if (input.execute) {
             const cleared = await input.clearAvatar?.(item.parentId);
-            if (cleared?.orphanKey) report.orphanedKeys.push(cleared.orphanKey);
+            recordRecheckKey(report, cleared);
             if (cleared?.skipped) {
               report.skippedParents.push(`avatar:${item.parentId}`);
               input.report?.(`avatar ${item.parentId} skipped; pointer changed`);
@@ -249,7 +277,7 @@ export async function runSocialImageRecheck(input: {
       }
       if (input.execute) {
         const stored = await input.store(item, encoded);
-        if (stored?.orphanKey) report.orphanedKeys.push(stored.orphanKey);
+        recordRecheckKey(report, stored);
         if (stored?.skipped) {
           report.skippedParents.push(`${item.surface}:${item.parentId}`);
           input.report?.(`${item.surface} ${item.parentId} skipped; media changed`);
@@ -259,11 +287,7 @@ export async function runSocialImageRecheck(input: {
       report.store += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : "recheck_failed";
-      const orphanKey =
-        error && typeof error === "object" && "orphanKey" in error && typeof error.orphanKey === "string"
-          ? error.orphanKey
-          : "";
-      if (orphanKey) report.orphanedKeys.push(orphanKey);
+      recordRecheckKey(report, error as { orphanKey?: string; liveKey?: string; unverifiedKey?: string });
       input.report?.(`${item.surface} ${item.parentId} failed: ${message}`);
       report.unfinished += 1;
     }

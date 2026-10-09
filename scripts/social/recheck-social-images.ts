@@ -56,6 +56,7 @@ import {
   type SocialImageRecheckReport,
 } from "@/lib/social-image-reencode";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { runUnholdLiveAvatars } from "./unhold-live-avatars";
 
 export { recheckWantsExecute };
 
@@ -171,7 +172,8 @@ export async function commitRecheckedAvatar(
   nextKey: string,
   releaseHold: (userId: string, key: string) => Promise<void> = (userId, key) =>
     releaseAvatarHoldTag(userId, key, () => readProfileAvatarKey(admin, userId)),
-  rehold: (userId: string, key: string) => Promise<void> = applyAvatarHoldTag,
+  rehold: (userId: string, key: string) => Promise<void | "held" | "live"> = (userId, key) =>
+    applyAvatarHoldTag(userId, key, () => readProfileAvatarKey(admin, userId)),
   readPointer: () => Promise<string | null> = () => readProfileAvatarKey(admin, parentId),
 ): Promise<{ skipped: true; orphanKey: string } | Record<string, never>> {
   await releaseHold(parentId, nextKey);
@@ -182,7 +184,7 @@ export async function commitRecheckedAvatar(
     live = await readPointer();
   } catch (readError) {
     const failure = readError instanceof Error ? readError : new Error("avatar pointer was not read");
-    throw Object.assign(failure, { orphanKey: nextKey });
+    throw Object.assign(failure, { unverifiedKey: nextKey });
   }
   const decision = avatarSwapFailureDecision({ error, data, live, userId: parentId, key: nextKey });
   if (decision === "committed") {
@@ -190,12 +192,23 @@ export async function commitRecheckedAvatar(
     return {};
   }
   if (decision === "rehold") {
-    await rehold(parentId, nextKey);
+    const held = await rehold(parentId, nextKey);
+    if (held === "live") return {};
     assertOk(error, "point avatar at rechecked image");
     return { skipped: true, orphanKey: nextKey };
   }
   const unfinished = new Error(error?.message || "avatar swap did not prove a rollback");
   throw Object.assign(unfinished, { orphanKey: nextKey });
+}
+
+/** A store error keeps a classification it already has. Otherwise the pointer was not read, so the key is unverified. */
+export function classifyRecheckFailure(error: unknown, nextKey: string): Error {
+  const failure = error instanceof Error ? error : new Error("recheck_failed");
+  const row = failure as Error & { orphanKey?: unknown; liveKey?: unknown; unverifiedKey?: unknown };
+  if (typeof row.orphanKey === "string" || typeof row.liveKey === "string" || typeof row.unverifiedKey === "string") {
+    return failure;
+  }
+  return Object.assign(failure, { unverifiedKey: nextKey });
 }
 
 /** Include a null pointer. Exclude a cleared pointer. */
@@ -492,6 +505,11 @@ async function main(): Promise<void> {
   const hidden = new Set<string>();
   const report: SocialImageRecheckReport = blankSocialImageRecheckReport(!execute);
 
+  if (execute) {
+    const unholdStart = await runUnholdLiveAvatars(true);
+    logs.push(JSON.stringify({ msg: "unhold live avatars", when: "start", ...unholdStart }));
+  }
+
   for (const surface of ["post", "story"] as const) {
     const table = surface === "post" ? "posts" : "stories";
     const page = await recheckParentPages({
@@ -575,6 +593,8 @@ async function main(): Promise<void> {
     report.clearedAvatars.push(...page.clearedAvatars);
     report.skippedParents.push(...page.skippedParents);
     report.orphanedKeys.push(...page.orphanedKeys);
+    report.liveKeys.push(...page.liveKeys);
+    report.unverifiedKeys.push(...page.unverifiedKeys);
     report.legacyS3Video += page.legacyS3Video;
   }
 
@@ -607,13 +627,13 @@ async function main(): Promise<void> {
               body: bytes,
               contentType: item.contentType,
               previousKey: item.key,
+              readPointer: () => readProfileAvatarKey(admin as never, item.parentId),
             });
             if (nextKey === item.key) throw new Error("Avatar recheck must not overwrite the original");
             if (readKey === undefined) throw new Error("avatar pointer was not read");
             return await commitRecheckedAvatar(admin as never, item.parentId, readKey, nextKey);
           } catch (error) {
-            const failure = error instanceof Error ? error : new Error("recheck_failed");
-            throw Object.assign(failure, { orphanKey: nextKey });
+            throw classifyRecheckFailure(error, nextKey);
           }
         },
         hide: async () => {
@@ -648,7 +668,14 @@ async function main(): Promise<void> {
   report.clearedAvatars.push(...avatars.clearedAvatars);
   report.skippedParents.push(...avatars.skippedParents);
   report.orphanedKeys.push(...avatars.orphanedKeys);
+  report.liveKeys.push(...avatars.liveKeys);
+  report.unverifiedKeys.push(...avatars.unverifiedKeys);
   report.legacyS3Video += avatars.legacyS3Video;
+
+  if (execute) {
+    const unholdEnd = await runUnholdLiveAvatars(true);
+    logs.push(JSON.stringify({ msg: "unhold live avatars", when: "end", ...unholdEnd }));
+  }
 
   console.log(JSON.stringify({ msg: "social image recheck", ...report, notes: logs }));
 }

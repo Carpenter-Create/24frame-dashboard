@@ -376,6 +376,13 @@ describe("reencodeSocialImage", () => {
     expect(script).not.toContain('.eq("avatar_key", readKey ?? "")');
     expect(script).toContain("orphanedKeys");
     expect(script).toContain("quarantineAvatarObject");
+    expect(script.split("runUnholdLiveAvatars(").length - 1).toBe(2);
+    const unholdStart = script.indexOf("runUnholdLiveAvatars(");
+    const unholdEnd = script.lastIndexOf("runUnholdLiveAvatars(");
+    const firstPage = script.indexOf("recheckParentPages(");
+    const lastPage = script.lastIndexOf("recheckParentPages(");
+    expect(unholdStart).toBeLessThan(firstPage);
+    expect(lastPage).toBeLessThan(unholdEnd);
   });
 
   it("visits every later row when the first page is hidden", async () => {
@@ -534,6 +541,34 @@ describe("reencodeSocialImage", () => {
     expect(failed.unfinished).toBe(1);
     expect(failed.hide).toBe(0);
     expect(failed.orphanedKeys).toEqual(["posts/a/orphan.jpg"]);
+
+    const named = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        { surface: "avatar", parentId: "a", key: "avatars/a/avatar", original: trailer, contentType: "image/jpeg" },
+      ],
+      store: async () => {
+        throw Object.assign(new Error("pointer names the key"), { liveKey: "avatars/a/new" });
+      },
+      hide: async () => undefined,
+    });
+    expect(named.liveKeys).toEqual(["avatars/a/new"]);
+    expect(named.orphanedKeys).toEqual([]);
+    expect(named.unverifiedKeys).toEqual([]);
+
+    const unread = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        { surface: "avatar", parentId: "a", key: "avatars/a/avatar", original: trailer, contentType: "image/jpeg" },
+      ],
+      store: async () => {
+        throw Object.assign(new Error("pointer was not read"), { unverifiedKey: "avatars/a/new" });
+      },
+      hide: async () => undefined,
+    });
+    expect(unread.unverifiedKeys).toEqual(["avatars/a/new"]);
+    expect(unread.orphanedKeys).toEqual([]);
+    expect(unread.liveKeys).toEqual([]);
   });
 
   it("records a hidden post id and a hidden story id from the recheck itself", async () => {
@@ -637,6 +672,9 @@ describe("reencodeSocialImage", () => {
     const write = commit.indexOf("await writeAvatarPointer(admin, parentId, readKey, nextKey)");
     expect(release).toBeGreaterThan(-1);
     expect(write).toBeGreaterThan(release);
+    expect(commit).toContain("releaseAvatarHoldTag(userId, key, () => readProfileAvatarKey(admin, userId))");
+    expect(commit).toContain("applyAvatarHoldTag(userId, key, () => readProfileAvatarKey(admin, userId))");
+    expect(commit).toContain("{ unverifiedKey: nextKey }");
     const avatarStore = source.slice(source.lastIndexOf("store: async (item, bytes)"));
     expect(avatarStore).toContain("return await commitRecheckedAvatar(");
     expect(avatarStore.slice(0, avatarStore.indexOf("hide: async"))).not.toContain("writeAvatarPointer");
@@ -863,6 +901,50 @@ describe("reencodeSocialImage", () => {
       },
     };
     const held: string[] = [];
+    const pending = commitRecheckedAvatar(
+      writer,
+      user,
+      previous,
+      next,
+      async () => undefined,
+      async (_userId, key) => {
+        held.push(key);
+      },
+      async () => {
+        throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
+      },
+    );
+    await expect(pending).rejects.toMatchObject({
+      name: "TimeoutError",
+      message: "socket timeout",
+      unverifiedKey: next,
+    });
+    await expect(pending).rejects.not.toHaveProperty("orphanKey");
+    expect(held).toEqual([]);
+  });
+
+  it("treats a post-tag live face as a committed recheck", async () => {
+    const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(user, "33333333-3333-4333-8333-333333333333");
+    const writer = {
+      from() {
+        return writer;
+      },
+      update() {
+        return writer;
+      },
+      eq() {
+        return writer;
+      },
+      is() {
+        return writer;
+      },
+      select() {
+        return Promise.resolve({ data: [], error: null });
+      },
+    };
     await expect(
       commitRecheckedAvatar(
         writer,
@@ -870,15 +952,24 @@ describe("reencodeSocialImage", () => {
         previous,
         next,
         async () => undefined,
-        async (_userId, key) => {
-          held.push(key);
-        },
-        async () => {
-          throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
-        },
+        async () => "live",
+        async () => previous,
       ),
-    ).rejects.toMatchObject({ name: "TimeoutError", message: "socket timeout", orphanKey: next });
-    expect(held).toEqual([]);
+    ).resolves.toEqual({});
+  });
+
+  it("keeps an unverified recheck key out of the orphan list", async () => {
+    const { classifyRecheckFailure } = await import("../../scripts/social/recheck-social-images");
+    const next = "avatars/11111111-1111-4111-8111-111111111111/recheck/33333333-3333-4333-8333-333333333333";
+    const plain = classifyRecheckFailure(new Error("store failed"), next);
+    expect(plain).toMatchObject({ unverifiedKey: next });
+    expect(plain).not.toHaveProperty("orphanKey");
+    const already = classifyRecheckFailure(Object.assign(new Error("unread"), { unverifiedKey: next }), next);
+    expect(already).toMatchObject({ unverifiedKey: next });
+    expect(already).not.toHaveProperty("orphanKey");
+    const live = classifyRecheckFailure(Object.assign(new Error("named"), { liveKey: next }), next);
+    expect(live).toMatchObject({ liveKey: next });
+    expect(live).not.toHaveProperty("orphanKey");
   });
 
   it("treats a recheck pointer that already names the new key as committed", async () => {

@@ -38,6 +38,9 @@ export function avatarObjectKey(userId: string): string {
 /** Profile pointer after a recheck that could not decode the face. The object stays; nothing signs it. */
 export const AVATAR_CLEARED = "cleared";
 
+const AVATAR_CANONICAL_KEY =
+  /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/avatar$/;
+
 const AVATAR_RECHECK_KEY =
   /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/recheck\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
 
@@ -52,6 +55,16 @@ export function avatarRecheckObjectKey(userId: string, objectId: string): string
     throw new Error("Avatar key requires a UUID user id");
   }
   return `${AVATAR_KEY_PREFIX}/${user.data}/recheck/${object.data}`;
+}
+
+/** The profile id in a canonical, recheck, or quarantine avatar key. Anything else is null. */
+export function avatarKeyOwner(key: string): string | null {
+  return (
+    AVATAR_RECHECK_KEY.exec(key)?.[1] ??
+    AVATAR_QUARANTINE_KEY.exec(key)?.[1] ??
+    AVATAR_CANONICAL_KEY.exec(key)?.[1] ??
+    null
+  );
 }
 
 export function isAvatarRecheckKey(key: string, userId: string): boolean {

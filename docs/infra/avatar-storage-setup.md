@@ -72,24 +72,24 @@ expiry rule is step 3 of this file, before the env var. A prefix of
     }'
 
 Pre-deploy check, after the policy above is on `gc-assets-app`, and before
-the recheck and before the env var below. Run the head as `gc-assets-app`,
-with the same `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` the app uses.
-Do not run it as an admin principal. An admin head can return 404 while the
-app user still gets 403. Head a missing `avatars/` key. It must return 404.
-403 means the prefix condition is still on the ListBucket statement, and a
-missing face is not `no_object`. Do not continue while the head returns 403.
+deploying this PR and before recheck --execute. Run the head as
+`gc-assets-app`, with `--profile gc-assets-app` and the same
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` the app uses. Do not run it as an admin principal. An admin head can return 404 while the app user still
+gets 403. Head a missing `avatars/` key. It must return 404. 403 means the
+prefix condition is still on the ListBucket statement, and a missing face is
+not `no_object`. Do not continue while the head returns 403.
 
-    aws s3api head-object --bucket "$AVATARS_BUCKET" \
+    aws s3api head-object --profile gc-assets-app --bucket "$AVATARS_BUCKET" \
       --key "avatars/00000000-0000-0000-0000-000000000000/missing"
 
 The app PUTs server-side. Browser CORS on this bucket is not required.
 
-3) Pre-deploy gate, before the env var in the next step. Quarantine copies
-have no other cleanup. This 30-day rule on tag `gc-hold=quarantine` is the
-only one. A prefix of `avatars/` would expire live faces. The rule replaces
-the whole lifecycle configuration: merge any rule already on the bucket
-before sending it. Do not run it from CI. Do not point it at the title-asset
-bucket.
+3) Pre-deploy gate, before deploying this PR and before recheck --execute.
+Quarantine copies have no other cleanup. This 30-day rule on tag
+`gc-hold=quarantine` is the only one. The filter has no prefix. A prefix of
+`avatars/` would expire live faces. The rule replaces the whole lifecycle
+configuration: merge any rule already on the bucket before sending it. Do
+not run it from CI. Do not point it at the title-asset bucket.
 
 ```sh
 cat > /tmp/avatars-lifecycle.json <<'JSON'
@@ -110,12 +110,13 @@ aws s3api put-bucket-lifecycle-configuration \
 ```
 
 Read-only check. Stop when rule `avatars-quarantine-30d` is missing, not
-Enabled, filtered on a tag other than `gc-hold=quarantine`, or set to an
-expiration other than 30 days. Do not set `S3_AVATARS_BUCKET` until this
+Enabled, has a prefix, filtered on a tag other than `gc-hold=quarantine`, or
+set to an expiration other than 30 days. Run this before deploying this PR
+and before recheck --execute. Do not set `S3_AVATARS_BUCKET` until this
 returns that rule.
 
     aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET" \
-      --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
+      --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Prefix==null && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
 
 4) Set env vars (server-only) locally (`.env.local`) and in Vercel (all
 environments). Add the **name** to `.env.example` (agents cannot edit

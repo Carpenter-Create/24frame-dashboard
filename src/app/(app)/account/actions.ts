@@ -13,11 +13,11 @@ import {
 import {
   AVATAR_CLEARED,
   AVATAR_MAX_BYTES,
-  avatarKeyNamedForRemove,
   avatarKeysReadForRemove,
   isAvatarContentType,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
+import { bucketAvatarKeys } from "@/lib/avatar-key-report";
 import { avatarSwapFailureDecision } from "@/lib/avatar-swap-rollback";
 import {
   applyAvatarHoldTag,
@@ -60,12 +60,37 @@ export async function saveAccountName(name: unknown): Promise<{ error?: string }
   return {};
 }
 
-async function reportAvatarOrphan(keys: readonly string[], cause: unknown): Promise<void> {
+async function reportAvatarKeys(
+  buckets: { orphanKeys?: readonly string[]; liveKeys?: readonly string[]; unverifiedKeys?: readonly string[] },
+  cause: unknown,
+): Promise<void> {
   const failure = cause instanceof Error ? cause : new Error("avatar replace orphan");
-  const reported = Object.assign(failure, { orphanKeys: [...keys] });
-  console.error("avatar replace orphan", reported.orphanKeys, reported.message);
+  const liveKeys = [...(buckets.liveKeys ?? [])];
+  const unverifiedKeys = [...(buckets.unverifiedKeys ?? [])];
+  const named = new Set([...liveKeys, ...unverifiedKeys]);
+  const orphanKeys = [...(buckets.orphanKeys ?? [])].filter((key) => !named.has(key));
+  const reported = Object.assign(failure, { orphanKeys, liveKeys, unverifiedKeys });
+  console.error("avatar key report", reported.orphanKeys, reported.liveKeys, reported.unverifiedKeys, reported.message);
   const Sentry = await import("@sentry/nextjs");
   Sentry.captureException(reported);
+}
+
+/** A fresh pointer read. Do not use this after a read that already failed. */
+async function reportClassifiedAvatarKeys(userId: string, keys: readonly string[], cause: unknown): Promise<void> {
+  let read: { ok: true; pointer: string | null } | { ok: false };
+  try {
+    read = { ok: true, pointer: await readOwnAvatarKey(userId) };
+  } catch {
+    read = { ok: false };
+  }
+  await reportAvatarKeys(bucketAvatarKeys(userId, keys, read), cause);
+}
+
+function stringList(value: unknown, field: string): string[] | null {
+  if (!value || typeof value !== "object" || !(field in value)) return null;
+  const raw = (value as Record<string, unknown>)[field];
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((key): key is string => typeof key === "string");
 }
 
 async function reportNewerAvatarKept(readKey: string | null): Promise<void> {
@@ -111,6 +136,7 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
         objectId: randomUUID(),
         body,
         contentType: file.type,
+        readPointer: () => readOwnAvatarKey(ctx.user.id),
       });
     } catch (e) {
       if (e instanceof Error && e.message === "Unsupported avatar content type") {
@@ -121,7 +147,7 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
     try {
       await releaseAvatarHoldTag(ctx.user.id, stored.key, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
-      await reportAvatarOrphan([stored.key], e);
+      await reportClassifiedAvatarKeys(ctx.user.id, [stored.key], e);
       return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
     }
     const admin = createAdminClient();
@@ -134,7 +160,8 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
       try {
         live = await readOwnAvatarKey(ctx.user.id);
       } catch (readError) {
-        await reportAvatarOrphan([stored.key], readError);
+        // The pointer read already failed. Do not read it again.
+        await reportAvatarKeys(bucketAvatarKeys(ctx.user.id, [stored.key], { ok: false }), readError);
         return {
           error: readError instanceof Error && readError.message ? readError.message : ACCOUNT_PROFILE.photoFailed,
         };
@@ -150,21 +177,36 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
         swapLanded = true;
       } else if (decision === "rehold") {
         try {
-          await applyAvatarHoldTag(ctx.user.id, stored.key);
+          const held = await applyAvatarHoldTag(ctx.user.id, stored.key, () => readOwnAvatarKey(ctx.user.id));
+          if (held === "live") {
+            swapLanded = true;
+          } else {
+            await reportAvatarKeys(
+              bucketAvatarKeys(ctx.user.id, [stored.key], { ok: true, pointer: live }),
+              error ?? new Error("avatar_key changed before replace"),
+            );
+            return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
+          }
         } catch (holdError) {
-          await reportAvatarOrphan([stored.key], holdError);
+          await reportClassifiedAvatarKeys(ctx.user.id, [stored.key], holdError);
+          return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
         }
-        await reportAvatarOrphan([stored.key], error ?? new Error("avatar_key changed before replace"));
-        return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
       } else {
-        await reportAvatarOrphan([stored.key], error ?? new Error("avatar swap did not prove a rollback"));
+        await reportAvatarKeys(
+          bucketAvatarKeys(ctx.user.id, [stored.key], { ok: true, pointer: live }),
+          error ?? new Error("avatar swap did not prove a rollback"),
+        );
         return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
       }
     }
     try {
       await deleteReplacedAvatarObjects(ctx.user.id, previousKey, stored.key, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
-      await reportAvatarOrphan(replacedAvatarObjectKeys(ctx.user.id, previousKey, stored.key), e);
+      await reportClassifiedAvatarKeys(
+        ctx.user.id,
+        replacedAvatarObjectKeys(ctx.user.id, previousKey, stored.key),
+        e,
+      );
     }
   } catch (e) {
     return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
@@ -204,18 +246,23 @@ export async function removeAccountPhoto(): Promise<{ error?: string }> {
     try {
       await deleteAvatarObject(ctx.user.id, previousKey, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
-      const read = avatarKeysReadForRemove(ctx.user.id, previousKey);
-      const own = avatarKeyNamedForRemove(ctx.user.id, previousKey);
-      const leftovers =
-        e && typeof e === "object" && "leftoverKeys" in e && Array.isArray(e.leftoverKeys)
-          ? e.leftoverKeys.filter((key): key is string => typeof key === "string")
-          : read;
-      await reportAvatarOrphan(read, e);
-      if (leftovers.includes(own)) {
-        return {
-          error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoRemoveFailed,
-        };
+      const candidates = avatarKeysReadForRemove(ctx.user.id, previousKey);
+      const leftovers = stringList(e, "leftoverKeys");
+      const tagged = stringList(e, "taggedLeftoverKeys") ?? [];
+      const message = e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoRemoveFailed;
+      if (!leftovers) {
+        await reportAvatarKeys(bucketAvatarKeys(ctx.user.id, candidates, { ok: false }), e);
+        return { error: message };
       }
+      let read: { ok: true; pointer: string | null } | { ok: false };
+      try {
+        read = { ok: true, pointer: await readOwnAvatarKey(ctx.user.id) };
+      } catch {
+        read = { ok: false };
+      }
+      await reportAvatarKeys(bucketAvatarKeys(ctx.user.id, leftovers, read), e);
+      const untagged = leftovers.filter((key) => !tagged.includes(key));
+      if (untagged.length > 0) return { error: message };
     }
   } catch (e) {
     return {

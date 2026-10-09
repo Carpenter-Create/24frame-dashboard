@@ -425,17 +425,18 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
 2. Apply `supabase/migrations/20261008180000_social_music_scans.sql`, then
    `supabase/migrations/20261008180100_profiles_welcome_mux.sql`, then
    `supabase/migrations/20261009120000_avatar_key_and_story_media.sql`.
-3. Pre-deploy gate, before `S3_AVATARS_BUCKET` is set and before the
-   recheck. Quarantine copies have no other cleanup. The 30-day rule on
-   tag `gc-hold=quarantine` is the only one. Apply it from
-   `docs/infra/avatar-storage-setup.md`, then run this read-only check.
-   Stop when that rule is missing, not Enabled, filtered on a tag other
-   than `gc-hold=quarantine`, or set to an expiration other than 30 days.
-   Do not set the env var until the check shows it.
+3. Pre-deploy gate, before deploying this PR and before recheck --execute.
+   Quarantine copies have no other cleanup. The 30-day rule on tag
+   `gc-hold=quarantine` is the only one, and the filter has no prefix.
+   Apply it from `docs/infra/avatar-storage-setup.md`, then run this
+   read-only check. Stop when that rule is missing, not Enabled, has a
+   prefix, filtered on a tag other than `gc-hold=quarantine`, or set to an
+   expiration other than 30 days. Do not set the env var until the check
+   shows it.
 
 ```sh
 aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET" \
-  --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
+  --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Prefix==null && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
 ```
 
 4. Dry-run the image recheck, then execute it. `--execute` writes each
@@ -465,9 +466,21 @@ aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET" \
 
    The report lists every hidden post id, hidden story id, and cleared
    avatar id. Set a hidden parent back to `active` to undo a hide. It also
-   lists `orphanedKeys`: new objects written when the parent update did not
-   land. Delete those keys. They are not referenced. A post that still has
-   a non-Mux video is `legacyS3Video`, counted once, and is not unfinished.
+   lists `orphanedKeys`, `liveKeys`, and `unverifiedKeys`. `orphanedKeys`
+   are new objects written when the parent update did not land, and a
+   successful pointer read does not name them. `liveKeys` are keys a
+   pointer names. `unverifiedKeys` are keys whose pointer read failed.
+   Do not delete any of those keys by hand. Orphans are deleted only by
+   `scripts/social/delete-avatar-orphans.ts`. Dry-run is the default.
+   `--execute` deletes. Immediately before each delete the script reads
+   `profiles.avatar_key` again. A key the pointer names, and a key whose
+   pointer read fails, are not deleted. A post that still has a non-Mux
+   video is `legacyS3Video`, counted once, and is not unfinished.
+
+```sh
+pnpm exec tsx --conditions=react-server scripts/social/delete-avatar-orphans.ts <key>
+pnpm exec tsx --conditions=react-server scripts/social/delete-avatar-orphans.ts --execute <key>
+```
 
    A face that will not decode is not left at `avatars/{user-id}/avatar`.
    The recheck copies that object to
@@ -554,15 +567,26 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
    `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:GetObjectTagging`,
    `s3:PutObjectTagging`, and `s3:DeleteObjectTagging` on `avatars/*`, and
    `s3:ListBucket` on the avatars bucket with no `s3:prefix` condition.
-   The missing-key head in that file runs as `gc-assets-app`, with the same
-   `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` the app uses. Do not run
-   that head as an admin principal. An admin head can return 404 while the
-   app user still gets 403.
+   The missing-key head in that file runs as `gc-assets-app`, with
+   `--profile gc-assets-app` and the same `AWS_ACCESS_KEY_ID` and
+   `AWS_SECRET_ACCESS_KEY` the app uses. Do not run that head as an admin principal.
+   An admin head can return 404 while the app user still gets 403.
    The apply and the read-only check are in
    `docs/infra/avatar-storage-setup.md`, before `S3_AVATARS_BUCKET` is set.
    Do not run them from CI. Do not point them at the title-asset bucket.
 
+   After `20261009120000_avatar_key_and_story_media.sql` is applied, and
+   before recheck `--execute`, dry-run the live-face unhold. It pages
+   `profiles` by id and reads tags for every non-null `avatar_key`. A key
+   that still carries `gc-hold` (any value) is reported. The script does
+   not write unless `--execute` is passed. Recheck `--execute` runs the
+   same script at the start and at the end. Backlog: schedule
+   `unhold-live-avatars.ts --execute` daily or weekly, well inside the
+   30-day expiry. This PR does not install that schedule.
+
 ```sh
+pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts
+pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts --execute
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts --execute
 ```

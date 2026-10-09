@@ -96,6 +96,25 @@ async function readObjectTags(
   }
 }
 
+export async function readAvatarObjectTags(key: string): Promise<{ Key?: string; Value?: string }[]> {
+  const { bucket, s3 } = avatarsClient();
+  return readObjectTags(s3, bucket, key);
+}
+
+/** Remove gc-hold from a live face and confirm the read has no gc-hold tag. */
+export async function clearAvatarHoldTag(key: string): Promise<void> {
+  const { bucket, s3 } = avatarsClient();
+  await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: key }));
+  const tags = await readObjectTags(s3, bucket, key);
+  if (holdTagRemains(tags)) throw new Error("Avatar hold tag remains on a live face");
+}
+
+/** Delete one object the caller has already proven is not a live pointer. */
+export async function deleteUnreferencedAvatarObject(key: string): Promise<void> {
+  const { bucket, s3 } = avatarsClient();
+  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
 /** The put or copy claimed this tag. Refuse to continue when the read does not show it. */
 async function assertHoldTagStored(s3: S3Client, bucket: string, key: string): Promise<void> {
   const tags = await readObjectTags(s3, bucket, key);
@@ -114,11 +133,43 @@ async function writeHoldTag(s3: S3Client, bucket: string, key: string): Promise<
 }
 
 /**
- * Put gc-hold back on this member's face so the 30-day rule can expire an object the pointer does not name.
- * This write does not read the pointer. Callers tag only after they have proof the swap or tag-delete
- * did not commit, and after the existing pointer re-read shows this key is not live.
+ * After a gc-hold tag is stored, read the pointer again. When that read names
+ * this key, the face is live: remove the tag and confirm it is gone.
+ * A failed pointer read does not remove the tag. The unhold script is the net.
  */
-export async function applyAvatarHoldTag(userId: string, key: string): Promise<void> {
+async function stripHoldTagIfPointerNamesKey(
+  s3: S3Client,
+  bucket: string,
+  userId: string,
+  key: string,
+  readPointer: AvatarPointerReader,
+): Promise<boolean> {
+  let current: string | null;
+  try {
+    current = await readPointer();
+  } catch {
+    return false;
+  }
+  if (!avatarPointerNamesKey(userId, current, key)) return false;
+  await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: key }));
+  const tags = await readObjectTags(s3, bucket, key);
+  if (holdTagRemains(tags)) throw new Error("Avatar hold tag remains on a live face");
+  return true;
+}
+
+/**
+ * Put gc-hold back on this member's face so the 30-day rule can expire an object the pointer does not name.
+ * Callers tag only after they have proof the swap or tag-delete did not commit, and after a pointer
+ * read shows this key is not live. This write then reads the pointer again and strips the tag when
+ * that read names the key. Returns "live" when the tag was stripped.
+ */
+export async function applyAvatarHoldTag(
+  userId: string,
+  key: string,
+  readPointer: AvatarPointerReader = async () => {
+    throw new Error("avatar pointer was not read");
+  },
+): Promise<"held" | "live"> {
   const allowed =
     key === avatarObjectKey(userId) ||
     isAvatarRecheckKey(key, userId) ||
@@ -126,6 +177,8 @@ export async function applyAvatarHoldTag(userId: string, key: string): Promise<v
   if (!allowed) throw new Error("Avatar hold tag is only set on this member's face");
   const { bucket, s3 } = avatarsClient();
   await writeHoldTag(s3, bucket, key);
+  const live = await stripHoldTagIfPointerNamesKey(s3, bucket, userId, key, readPointer);
+  return live ? "live" : "held";
 }
 
 export async function putAvatarObject(
@@ -165,6 +218,7 @@ export async function storeAvatarReplacement(input: {
   objectId: string;
   body: Uint8Array;
   contentType: string;
+  readPointer?: AvatarPointerReader;
 }): Promise<{ key: string; etag: string }> {
   if (!isAvatarContentType(input.contentType)) {
     throw new Error("Unsupported avatar content type");
@@ -195,6 +249,7 @@ export async function storeAvatarReplacement(input: {
   }
   if (!etag) throw new Error("Avatar replace did not confirm the new object");
   await assertHoldTagStored(s3, bucket, key);
+  if (input.readPointer) await stripHoldTagIfPointerNamesKey(s3, bucket, input.userId, key, input.readPointer);
   return { key, etag };
 }
 
@@ -208,6 +263,7 @@ export async function putAvatarRecheckObject(input: {
   body: Uint8Array;
   contentType: string;
   previousKey: string;
+  readPointer?: AvatarPointerReader;
 }): Promise<string> {
   if (!isAvatarContentType(input.contentType) || input.body.byteLength === 0) {
     throw new Error("Unsupported avatar content type");
@@ -231,6 +287,7 @@ export async function putAvatarRecheckObject(input: {
     }),
   );
   await assertHoldTagStored(s3, bucket, key);
+  if (input.readPointer) await stripHoldTagIfPointerNamesKey(s3, bucket, input.userId, key, input.readPointer);
   return key;
 }
 
@@ -260,6 +317,7 @@ export async function releaseAvatarHoldTag(
     }
     if (avatarPointerNamesKey(userId, current, key)) return;
     await writeHoldTag(s3, bucket, key);
+    await stripHoldTagIfPointerNamesKey(s3, bucket, userId, key, readPointer);
   };
   await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: key }));
   const tags = await readObjectTags(s3, bucket, key);
@@ -304,18 +362,27 @@ async function deleteExactAvatarKeys(
   readPointer: AvatarPointerReader,
 ): Promise<void> {
   const { bucket, s3 } = avatarsClient();
-  const leftovers: string[] = [];
+  const leftovers: { key: string; tagged: boolean }[] = [];
   for (const key of keys) {
     const current = await readPointer();
     if (avatarPointerNamesKey(userId, current, key)) continue;
     try {
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     } catch {
-      leftovers.push(key);
+      let tagged = false;
+      try {
+        tagged = holdTagRemains(await readObjectTags(s3, bucket, key));
+      } catch {
+        tagged = false;
+      }
+      leftovers.push({ key, tagged });
     }
   }
   if (leftovers.length > 0) {
-    throw Object.assign(new Error("avatar delete left objects"), { leftoverKeys: leftovers });
+    throw Object.assign(new Error("avatar delete left objects"), {
+      leftoverKeys: leftovers.map((row) => row.key),
+      taggedLeftoverKeys: leftovers.filter((row) => row.tagged).map((row) => row.key),
+    });
   }
 }
 
@@ -364,6 +431,11 @@ export async function quarantineAvatarObject(
   );
   await assertHoldTagStored(s3, bucket, dest);
   const current = await readPointer();
+  if (avatarPointerNamesKey(userId, current, dest)) {
+    await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: dest }));
+    const tags = await readObjectTags(s3, bucket, dest);
+    if (holdTagRemains(tags)) throw new Error("Avatar hold tag remains on a live face");
+  }
   if (avatarPointerNamesKey(userId, current, source)) return dest;
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: source }));
   return dest;
