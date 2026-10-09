@@ -470,6 +470,33 @@ export function validateMediaUpload(input: {
   return { ok: true, kind, contentType: input.contentType };
 }
 
+function imageBytesStart(bytes: Uint8Array, expected: readonly number[]): boolean {
+  if (bytes.length < expected.length) return false;
+  return expected.every((value, index) => bytes[index] === value);
+}
+
+/**
+ * True only when the leading bytes are a real image of the declared type.
+ * A video container, an empty prefix, or a different image type is false.
+ */
+export function socialImageBytesMatchContentType(bytes: Uint8Array, contentType: string): boolean {
+  const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (type === "image/jpeg" || type === "image/jpg") return imageBytesStart(bytes, [0xff, 0xd8, 0xff]);
+  if (type === "image/png") return imageBytesStart(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (type === "image/gif") {
+    if (bytes.length < 6) return false;
+    const head = String.fromCharCode(...bytes.subarray(0, 6));
+    return head === "GIF87a" || head === "GIF89a";
+  }
+  if (type === "image/webp") {
+    if (bytes.length < 12) return false;
+    const riff = String.fromCharCode(...bytes.subarray(0, 4));
+    const webp = String.fromCharCode(...bytes.subarray(8, 12));
+    return riff === "RIFF" && webp === "WEBP";
+  }
+  return false;
+}
+
 /** HeadObject must match the post or story row. Missing, empty, oversized, or a different type fails closed. */
 export function storedSocialMediaRejection(
   item: { kind: SocialMediaKind; contentType: string },

@@ -10,6 +10,7 @@ import {
 } from "@/lib/account-profile";
 import { AVATAR_MAX_BYTES, isAvatarContentType } from "@/lib/account-avatar";
 import { deleteAvatarObject, putAvatarObject } from "@/lib/s3-avatars";
+import { socialImageBytesMatchContentType } from "@/lib/social-media";
 import { getOrgContext } from "@/lib/supabase/context";
 import { createClient } from "@/lib/supabase/server";
 
@@ -58,6 +59,7 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
 
   try {
     const body = new Uint8Array(await file.arrayBuffer());
+    if (!socialImageBytesMatchContentType(body, file.type)) return { error: ACCOUNT_PROFILE.photoType };
     await putAvatarObject(ctx.user.id, body, file.type);
   } catch (e) {
     return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };

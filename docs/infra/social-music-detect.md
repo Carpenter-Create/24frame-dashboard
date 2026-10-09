@@ -57,13 +57,14 @@ from CI. Adam applies the SQL on prod.
   blocked row for that playback id denies the mint. A missing scan table,
   a missing relation, or any scan read error denies the mint for someone
   else. The author can still preview a video that only they can see.
-  `/api/social/media` does not sign an `mp4`, `mov`, `webm`, or `m4v` key
-  on a visible post or story unless that item has an allowed scan,
-  including when the viewer is the author.
+  `/api/social/media` does not sign an `mp4`, `mov`, `webm`, or `m4v` key.
+  Social video plays through Mux. An image key is signed only when the
+  stored bytes are a real image of the declared type.
 - A new profile welcome video uses the same Mux upload, binding, scan,
   and eight-minute cap as a post or story. S3 does not accept a new
   video in any lane. The public band stays presence only. Other people
-  see a welcome video only after that profile has an allowed scan. The
+  see a welcome video only after that profile has an allowed scan, and
+  not when any row for that asset and playback is blocked. The
   owner still sees their own marker. A legacy S3 key stays hidden from
   other people. Clearing the welcome video clears the key and the Mux
   ids. The stored object is not deleted.
@@ -91,7 +92,9 @@ from CI. Adam applies the SQL on prod.
     over eight minutes is a backstop only (`duration_over_cap`): one
     attempt, then retry, then hold. It is not an immediate staff hold
     and it is not sampled. Upload creation, Mux asset ready, and
-    publish verify already refuse a clip over 480 seconds. If the m4a
+    publish verify already refuse a clip over 480.5 seconds. Go live stops
+    the recorder at 479 seconds so a full take stays inside that line.
+    If the m4a
     length and Mux duration differ by more than one second, the scan
     holds (`mux_audio_duration_mismatch`).
   - The worker downloads `audio.m4a` once (signed, no Mux time range, cap
@@ -108,11 +111,21 @@ from CI. Adam applies the SQL on prod.
     counts that attempt and does not count it twice if the failure path
     also runs. A throw before the lease still counts once, from the
     batch. Preparing and rendition polls do not lease.
-  - Vendor error, timeout, or a bad sample: stay `pending`. Backoff is
-    30s, 1m, 2m, 5m, 10m, 30m, 1h. After 8 attempts, `next_attempt_at` is
-    null and the video stays hidden. A Mux asset error holds immediately.
-    Nothing is published on error. A skipped or missing audio rendition
-    stays pending. Phase 0 does not allow a silent clip.
+  - Vendor error, timeout, or a bad sample: stay `pending`. That error
+    window is not stored. The next attempt calls identify again. A stored
+    match or no-match window is kept. Backoff is 30s, 1m, 2m, 5m, 10m,
+    30m, 1h. After 8 attempts, `next_attempt_at` is null, the owner sees
+    the malformed line, and other people still do not see the video. A
+    Mux asset error holds immediately. Nothing is published on error.
+  - A skipped audio rendition is allowed only when Mux returns a track
+    list and none of the tracks are audio. A missing track list or an
+    errored rendition stays pending, then holds. ACRCloud 2004 is clean
+    only when the decoded window's RMS is under 0.001 (about -60 dBFS).
+    A null RMS is not silence. The Lambda image includes ffmpeg so an
+    AAC window can be decoded.
+  - A vendor HTTP 429 or ACRCloud 3003 uses that same backoff, does not
+    burn an attempt, and stops the batch. The next row waits for the
+    next invocation.
 - Each decision logs `social music scan` with `mux_ready_at`,
   `scan_started_at`, `decided_at`, and `mux_ready_to_decision_ms`. The log
   line does not include the song title or artist.
@@ -129,9 +142,13 @@ from CI. Adam applies the SQL on prod.
 On apply, those items fail closed: pending, hidden, Unfinished. The
 re-ingest script creates a Mux asset from a short-lived presigned S3
 URL, records a binding, and leaves the scan pending until an allowed
-verdict. It covers post, story, and welcome videos. Expired stories
-and missing objects are Unfinished and are not retried. Default is a
-dry run that prints counts. `--execute` writes. Do not run it from CI.
+verdict. It covers post, story, and welcome videos, including an item
+whose content type is `video/*` without `kind: video`. A second run
+reuses the Mux asset already recorded and does not create another one.
+After the parent is bound, the old S3 scan row is marked `superseded`
+so Music review does not list it as Unfinished. Expired stories and
+missing objects are Unfinished and are not retried. Default is a dry
+run that prints counts. `--execute` writes. Do not run it from CI.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/reingest-welcome-video.ts
@@ -155,8 +172,42 @@ Deleting an account cascades scan and binding rows.
 
 ## Apply window
 
-Apply during low traffic. The migration takes an exclusive lock through
-the backfill of existing video rows. Do not reorder that SQL.
+Adam applies both files, in filename order, on prod. Do not apply from CI.
+Do not reorder statements inside a file. `lock_timeout` is 3 seconds in
+both files. That caps how long a statement waits to acquire a lock. It
+does not cap how long the lock is held after it is acquired. If the wait
+exceeds 3 seconds, the statement aborts. Retry in a quieter window.
+
+`20261008180000_social_music_scans.sql` locks:
+
+- `public.posts` — ACCESS EXCLUSIVE when `posts_select` is replaced, held
+  until the transaction commits, which includes the post video backfill.
+  Expected hold: the time to insert one scan row per existing post video.
+  Count those rows before apply.
+- `public.stories` — ACCESS EXCLUSIVE when `stories_select` is replaced,
+  held through the story video backfill. Expected hold: one scan row per
+  non-expired story video.
+- `public.social_music_scans` — ACCESS EXCLUSIVE for CREATE TABLE
+  (milliseconds; the table is new), then ROW EXCLUSIVE for the backfill
+  inserts in the same transaction.
+- `public.social_mux_bindings` — ACCESS EXCLUSIVE for CREATE TABLE
+  (milliseconds; the table is new).
+
+This file does not lock `public.profiles`.
+
+`20261008180100_profiles_welcome_mux.sql` locks only `public.profiles`:
+
+- ACCESS EXCLUSIVE for `ADD COLUMN` (three nullable columns, no table
+  rewrite) and `ADD CONSTRAINT ... NOT VALID`. Expected hold: milliseconds
+  once the lock is acquired.
+- SHARE UPDATE EXCLUSIVE for `VALIDATE CONSTRAINT profiles_welcome_mux_ids`.
+  Expected hold: one pass over `profiles`. This is not the video backfill.
+- SHARE ROW EXCLUSIVE for `CREATE TRIGGER`. Expected hold: milliseconds.
+
+Rollback restores `posts_select` and `stories_select` without the music
+predicate, so blocked videos are visible again. Revert the app in the same
+window. Leaving the new app on the old database denies Mux playback and
+video signing except for the author. The SQL and the app move together.
 
 ## Allowlist
 

@@ -14,6 +14,7 @@ import {
   avatarObjectKey,
   isAvatarContentType,
 } from "@/lib/account-avatar";
+import { socialImageBytesMatchContentType } from "@/lib/social-media";
 import { socialAvatarFaces } from "@/lib/social-edge";
 import { privateMaxAgeCacheControl, stablePresignOptions } from "@/lib/signing-window";
 
@@ -47,7 +48,7 @@ export async function putAvatarObject(
   body: Uint8Array,
   contentType: string,
 ): Promise<void> {
-  if (!isAvatarContentType(contentType)) {
+  if (!isAvatarContentType(contentType) || !socialImageBytesMatchContentType(body, contentType)) {
     throw new Error("Unsupported avatar content type");
   }
   const key = avatarObjectKey(userId);

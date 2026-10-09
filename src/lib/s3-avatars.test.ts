@@ -44,7 +44,7 @@ describe("s3-avatars dedicated bucket", () => {
 
   it("PUTs to S3_AVATARS_BUCKET under avatars/{uid}/avatar, not S3_BUCKET", async () => {
     mockSend.mockResolvedValueOnce({});
-    const body = new Uint8Array([1, 2, 3]);
+    const body = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
     await putAvatarObject(UID, body, "image/jpeg");
     expect(mockSend).toHaveBeenCalledTimes(1);
     const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
@@ -58,7 +58,7 @@ describe("s3-avatars dedicated bucket", () => {
 
   it("refuses when S3_AVATARS_BUCKET is the title bucket", async () => {
     process.env.S3_AVATARS_BUCKET = process.env.S3_BUCKET;
-    await expect(putAvatarObject(UID, new Uint8Array([1]), "image/jpeg")).rejects.toThrow(
+    await expect(putAvatarObject(UID, new Uint8Array([0xff, 0xd8, 0xff]), "image/jpeg")).rejects.toThrow(
       /dedicated bucket/,
     );
     expect(mockSend).not.toHaveBeenCalled();

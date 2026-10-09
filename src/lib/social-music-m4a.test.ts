@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { sliceSocialMusicAudio, socialMusicAudioDurationSeconds } from "@/lib/social-music-m4a";
+import { sliceSocialMusicAudio, socialMusicAudioDurationSeconds, socialMusicWindowRms } from "@/lib/social-music-m4a";
 
 function u32(value: number): Uint8Array {
   const out = new Uint8Array(4);
@@ -115,5 +115,10 @@ describe("sliceSocialMusicAudio", () => {
     const anchoredDuration = socialMusicAudioDurationSeconds(anchored);
     expect(anchoredDuration).toBeGreaterThan(11.5);
     expect(anchoredDuration).toBeLessThan(12.5);
+  });
+
+  it("does not read an AAC payload as PCM when decode fails", () => {
+    const file = new Uint8Array(readFileSync("src/lib/social-music-fixtures/tone-12.3.m4a"));
+    expect(socialMusicWindowRms(file, () => null)).toBeNull();
   });
 });

@@ -55,6 +55,20 @@ describe("muxAudioRenditionState", () => {
         static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
       }),
     ).toBe("rendition_errored");
+    expect(
+      muxAudioRenditionState({
+        status: "ready",
+        tracks: [{ type: "video" }],
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    ).toBe("no_audio");
+    expect(
+      muxAudioRenditionState({
+        status: "ready",
+        tracks: [{ type: "video" }, { type: "audio" }],
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    ).toBe("rendition_errored");
   });
 
   it("treats an existing or in-progress rendition request as settled", () => {

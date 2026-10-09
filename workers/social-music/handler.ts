@@ -15,7 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyAcrProbe, createAcrCloudAdapter, silenceWav } from "../../src/lib/social-music-acrcloud";
 import { readBoundedBody, SOCIAL_MUSIC_FULL_AUDIO_MAX_BYTES } from "../../src/lib/social-music-audio";
 import { sliceSocialMusicAudio } from "../../src/lib/social-music-m4a";
-import type { MusicWindowRecord } from "../../src/lib/social-music-scan";
+import { socialMusicParentStillHasScan, type MusicWindowRecord } from "../../src/lib/social-music-scan";
 import {
   runSocialMusicBatch,
   type MusicScanPatch,
@@ -31,7 +31,9 @@ import { createAdminClient } from "../../src/lib/supabase/admin";
 import type { Database } from "../../src/lib/supabase/database.types";
 
 const BATCH_LIMIT = 8;
-/** One invocation, under the 300s Lambda timeout. Not reset per scan. */
+/** Lambda timeout for this function. The run budget stays at or under it. */
+export const SOCIAL_MUSIC_LAMBDA_TIMEOUT_MS = 300_000;
+/** One invocation, under the Lambda timeout. Not reset per scan. */
 export const SOCIAL_MUSIC_RUN_BUDGET_MS = 270_000;
 /** A block pulls allowed and still-pending siblings of the same pair. */
 export const SOCIAL_MUSIC_SIBLING_BLOCK_STATUSES = ["allowed", "pending"] as const;
@@ -90,7 +92,7 @@ async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]>
   const { data, error } = await admin
     .from("social_music_scans")
     .select(
-      "id, surface, asset_id, playback_id, attempt_count, created_at, mux_ready_at, scan_started_at, window_results",
+      "id, surface, asset_id, playback_id, attempt_count, created_at, mux_ready_at, scan_started_at, window_results, post_id, story_id, profile_id, last_error",
     )
     .eq("status", "pending")
     .not("next_attempt_at", "is", null)
@@ -98,17 +100,68 @@ async function listPending(admin: Admin, now: Date): Promise<PendingMusicScan[]>
     .order("next_attempt_at", { ascending: true })
     .limit(BATCH_LIMIT);
   if (error) throw new Error(`Music scan read failed: ${error.message}`);
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    surface: row.surface,
-    assetId: row.asset_id,
-    playbackId: row.playback_id,
-    attemptCount: row.attempt_count,
-    createdAt: row.created_at,
-    muxReadyAt: row.mux_ready_at,
-    scanStartedAt: row.scan_started_at,
-    windows: parseWindowResults(row.window_results),
-  }));
+  const current: PendingMusicScan[] = [];
+  for (const row of data ?? []) {
+    const parent = await loadScanParent(admin, row);
+    if (
+      !socialMusicParentStillHasScan(
+        { surface: row.surface, assetId: row.asset_id, playbackId: row.playback_id },
+        parent,
+      )
+    ) {
+      await retireSupersededScan(admin, row.id);
+      continue;
+    }
+    current.push({
+      id: row.id,
+      surface: row.surface,
+      assetId: row.asset_id,
+      playbackId: row.playback_id,
+      attemptCount: row.attempt_count,
+      createdAt: row.created_at,
+      muxReadyAt: row.mux_ready_at,
+      scanStartedAt: row.scan_started_at,
+      lastError: row.last_error,
+      windows: parseWindowResults(row.window_results),
+    });
+  }
+  return current;
+}
+
+async function loadScanParent(
+  admin: Admin,
+  row: { surface: "post" | "story" | "welcome"; post_id: string | null; story_id: string | null; profile_id: string | null },
+): Promise<{ media?: unknown; welcomeAssetId?: string | null; welcomePlaybackId?: string | null } | null> {
+  if (row.surface === "welcome") {
+    if (!row.profile_id) return null;
+    const { data, error } = await admin
+      .from("profiles")
+      .select("welcome_mux_asset_id, welcome_mux_playback_id")
+      .eq("id", row.profile_id)
+      .maybeSingle();
+    if (error) throw new Error(`Music scan parent read failed: ${error.message}`);
+    if (!data) return null;
+    return { welcomeAssetId: data.welcome_mux_asset_id, welcomePlaybackId: data.welcome_mux_playback_id };
+  }
+  if (row.surface === "post") {
+    if (!row.post_id) return null;
+    const { data, error } = await admin.from("posts").select("media").eq("id", row.post_id).maybeSingle();
+    if (error) throw new Error(`Music scan parent read failed: ${error.message}`);
+    return data ? { media: data.media } : null;
+  }
+  if (!row.story_id) return null;
+  const { data, error } = await admin.from("stories").select("media").eq("id", row.story_id).maybeSingle();
+  if (error) throw new Error(`Music scan parent read failed: ${error.message}`);
+  return data ? { media: data.media } : null;
+}
+
+async function retireSupersededScan(admin: Admin, id: string): Promise<void> {
+  const { error } = await admin
+    .from("social_music_scans")
+    .update({ next_attempt_at: null, last_error: "superseded" })
+    .eq("id", id)
+    .eq("status", "pending");
+  if (error) throw new Error(`Music scan retire failed: ${error.message}`);
 }
 
 function parseWindowResults(value: unknown): MusicWindowRecord[] {

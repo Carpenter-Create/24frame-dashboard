@@ -1,9 +1,10 @@
 import "server-only";
 
-import { copySocialMediaObject, headSocialMediaObject } from "@/lib/s3-social-media";
+import { copySocialMediaObject, headSocialMediaObject, readSocialMediaPrefix } from "@/lib/s3-social-media";
 import {
   isOwnedSocialMediaStagingKey,
   isSocialMuxMediaItem,
+  socialImageBytesMatchContentType,
   socialMediaObjectKey,
   storedSocialMediaRejection,
   type SocialMediaItem,
@@ -54,6 +55,15 @@ export async function publishSocialMediaItems(
     const rejection = storedSocialMediaRejection(item, head);
     if (rejection) return { ok: false, error: rejection, kind: item.kind };
     if (!head?.etag) return { ok: false, error: "missing", kind: item.kind };
+    // HeadObject does not return bytes. The stored object must be a real
+    // image of the declared type before the copy.
+    if (item.kind === "image") {
+      const prefix = await readSocialMediaPrefix(item.key);
+      if (!prefix) return { ok: false, error: "missing", kind: item.kind };
+      if (!socialImageBytesMatchContentType(prefix, item.contentType)) {
+        return { ok: false, error: "type", kind: item.kind };
+      }
+    }
   }
 
   const published = await Promise.all(

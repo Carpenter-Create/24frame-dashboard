@@ -48,6 +48,7 @@ import {
   readSocialMediaObject,
   readSocialMediaObjectFrom,
   readSocialMediaObjectOrThrow,
+  readSocialMediaPrefix,
 } from "./s3-social-media";
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -129,6 +130,7 @@ describe("s3-social-media isolated lane", () => {
     expect(getCmd).toBeInstanceOf(GetObjectCommand);
     expect(getCmd.input.Bucket).toBe("test-media-source-bucket");
     expect(getCmd.input.ResponseCacheControl).toBe("private, max-age=300");
+    expect(getCmd.input.ResponseContentType).toBe("image/jpeg");
     expect(getOpts.expiresIn).toBe(600);
     expect(getOpts.signingDate).toBeInstanceOf(Date);
   });
@@ -155,8 +157,9 @@ describe("s3-social-media isolated lane", () => {
     );
     await expect(presignSocialMediaPut(STAGING_KEY, "image/jpeg", 0)).rejects.toThrow(/content length/);
     await expect(presignSocialMediaPut(STAGING_KEY, "image/jpeg", 1.5)).rejects.toThrow(/content length/);
+    await expect(presignSocialMediaPut(videoKey, "video/mp4", 1200)).rejects.toThrow(/content type/);
     await expect(presignSocialMediaPut(videoKey, "video/mp4", 250 * 1024 * 1024 + 1)).rejects.toThrow(
-      /content length/,
+      /content type/,
     );
     expect(mockGetSignedUrl).not.toHaveBeenCalled();
   });
@@ -217,6 +220,27 @@ describe("s3-social-media isolated lane", () => {
       etag: '"abc"',
     });
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads a short prefix and signs image GETs with an image content type", async () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    mockSend.mockResolvedValueOnce({ Body: { transformToByteArray: async () => jpeg } });
+    await expect(readSocialMediaPrefix(STAGING_KEY)).resolves.toEqual(jpeg);
+    const cmd = mockSend.mock.calls.at(-1)?.[0] as GetObjectCommand;
+    expect(cmd).toBeInstanceOf(GetObjectCommand);
+    expect(cmd.input.Range).toBe("bytes=0-4095");
+    expect(cmd.input.Key).toBe(STAGING_KEY);
+
+    mockSend.mockResolvedValueOnce({ Body: { transformToByteArray: async () => new Uint8Array() } });
+    await expect(readSocialMediaPrefix(STAGING_KEY)).resolves.toBeNull();
+    mockSend.mockRejectedValueOnce(new Error("NoSuchKey"));
+    await expect(readSocialMediaPrefix(STAGING_KEY)).resolves.toBeNull();
+    await expect(readSocialMediaPrefix(`orgs/${USER}/titles/${OBJECT}/master/a.mov`)).resolves.toBeNull();
+
+    mockGetSignedUrl.mockResolvedValueOnce("https://s3.example/mp4");
+    await presignSocialMediaGet(`posts/${USER}/${OBJECT}.mp4`);
+    const videoCmd = mockGetSignedUrl.mock.calls.at(-1)?.[1] as GetObjectCommand;
+    expect(videoCmd.input.ResponseContentType).toBeUndefined();
   });
 
   it("copies an upload to its published key pinned to the checked ETag, and nothing else", async () => {

@@ -3,7 +3,14 @@ import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import {
+  rememberWelcomeReingestAsset,
+  retireS3MusicPlaceholder,
+  welcomeReingestAssetId,
+} from "@/lib/social-welcome-reingest";
+
 const MIGRATION = readFileSync("supabase/migrations/20261008180000_social_music_scans.sql", "utf8");
+const PROFILES = readFileSync("supabase/migrations/20261008180100_profiles_welcome_mux.sql", "utf8");
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
 
@@ -163,6 +170,7 @@ beforeAll(async () => {
     [A, JSON.stringify([{ kind: "video", key: `stories/${A}/expired.mp4`, contentType: "video/mp4" }])],
   );
   await db.exec(MIGRATION);
+  await db.exec(PROFILES);
 }, 120_000);
 
 describe("social music scan migration", () => {
@@ -297,12 +305,12 @@ describe("social music scan migration", () => {
     ).rejects.toThrow();
   });
 
-  it("stores a duration at the cap and rejects one second past it", async () => {
+  it("stores a duration inside the tolerance and rejects 480.6", async () => {
     await bind("assetDUR000001", "playDUR000001");
     const id = await insertPost(vid("assetDUR000001", "playDUR000001"));
-    await db.query(`update public.social_music_scans set duration_seconds = 480 where post_id = $1`, [id]);
+    await db.query(`update public.social_music_scans set duration_seconds = 480.021 where post_id = $1`, [id]);
     await expect(
-      db.query(`update public.social_music_scans set duration_seconds = 481 where post_id = $1`, [id]),
+      db.query(`update public.social_music_scans set duration_seconds = 480.6 where post_id = $1`, [id]),
     ).rejects.toThrow(/duration/);
   });
 
@@ -386,5 +394,116 @@ describe("social music scan migration", () => {
        )`,
     );
     expect(s3.rows).toEqual([]);
+    const retry = await db.query<{ next_attempt_at: string | null }>(
+      `select next_attempt_at from public.social_music_scans where last_error = 's3_video_needs_mux' and post_id = $1`,
+      [legacyS3],
+    );
+    expect(retry.rows[0]?.next_attempt_at).toBeNull();
+  });
+
+  it("cascades a post delete and a story delete", async () => {
+    await bind("assetPOSTCASC1", "playPOSTCASC1");
+    const postId = await insertPost(vid("assetPOSTCASC1", "playPOSTCASC1"));
+    expect((await scansFor(postId)).length).toBeGreaterThan(0);
+    await db.query(`delete from public.posts where id = $1`, [postId]);
+    expect((await scansFor(postId)).length).toBe(0);
+
+    await bind("assetSTRYCASC1", "playSTRYCASC1", "uploadSTRYCASC");
+    const storyId = await insertStory(vid("assetSTRYCASC1", "playSTRYCASC1"));
+    expect((await scansFor(storyId)).length).toBeGreaterThan(0);
+    await db.query(`delete from public.stories where id = $1`, [storyId]);
+    expect((await scansFor(storyId)).length).toBe(0);
+  });
+
+  it("refuses an allow once that playback is blocked, including two writers", async () => {
+    await bind("assetRACE00001", "playRACE00001");
+    const first = await insertPost(vid("assetRACE00001", "playRACE00001"));
+    const second = await insertPost(vid("assetRACE00001", "playRACE00001"));
+    await setStatus(first, "blocked");
+    await expect(setStatus(second, "allowed")).rejects.toThrow(/blocked/);
+    const released = await db.query<{ released: boolean }>(
+      `select private.social_video_released('post', $1) as released`,
+      [first],
+    );
+    expect(released.rows[0]?.released).toBe(false);
+    await db.query(`alter table public.social_music_scans disable trigger social_music_scans_block_wins`);
+    await setStatus(second, "allowed");
+    const slipped = await db.query<{ released: boolean }>(
+      `select private.social_video_released('post', $1) as released`,
+      [second],
+    );
+    expect(slipped.rows[0]?.released).toBe(false);
+    await db.query(`alter table public.social_music_scans enable trigger social_music_scans_block_wins`);
+
+    await bind("assetRACE00002", "playRACE00002", "uploadRACE0002");
+    const left = await insertPost(vid("assetRACE00002", "playRACE00002"));
+    const right = await insertPost(vid("assetRACE00002", "playRACE00002"));
+    const raced = await Promise.allSettled([
+      db.query(
+        `update public.social_music_scans set status = 'blocked', next_attempt_at = null, decided_at = now() where post_id = $1`,
+        [left],
+      ),
+      db.query(
+        `update public.social_music_scans set status = 'allowed', next_attempt_at = null, decided_at = now() where post_id = $1`,
+        [right],
+      ),
+    ]);
+    expect(raced.some((row) => row.status === "fulfilled")).toBe(true);
+    const visible = await db.query<{ released: boolean }>(
+      `select private.social_video_released('post', id) as released
+       from public.posts where id = $1 or id = $2`,
+      [left, right],
+    );
+    expect(visible.rows.every((row) => row.released === false)).toBe(true);
+  });
+
+  it("enqueues a welcome scan on insert and validates the profile constraint", async () => {
+    const fresh = "44444444-4444-4444-8444-444444444444";
+    await expect(
+      db.query(
+        `insert into public.profiles (id, welcome_mux_asset_id, welcome_mux_playback_id, welcome_mux_upload_id)
+         values ($1, 'assetINS00001', 'playINS000001', 'uploadINS0001')`,
+        [fresh],
+      ),
+    ).rejects.toThrow(/not bound/);
+    const validated = await db.query<{ convalidated: boolean }>(
+      `select convalidated from pg_constraint where conname = 'profiles_welcome_mux_ids'`,
+    );
+    expect(validated.rows[0]?.convalidated).toBe(true);
+    expect(PROFILES.toLowerCase()).toMatch(/\)\s*not valid\s*;/);
+    expect(PROFILES.toLowerCase()).toContain("validate constraint");
+    expect(PROFILES).toContain("lock_timeout");
+    expect(PROFILES).toContain("after insert or update");
+  });
+
+  it("reuses one welcome asset and retires the s3 placeholder", async () => {
+    const profile = "66666666-6666-4666-8666-666666666666";
+    await db.query(`insert into public.profiles (id) values ($1)`, [profile]);
+    const digest = profile.replace(/-/g, "").slice(0, 32);
+    await db.query(
+      `insert into public.social_music_scans (
+         surface, profile_id, author_id, asset_id, playback_id, status, next_attempt_at, last_error
+       ) values ('welcome', $1, $1, $2, $2, 'pending', null, 's3_video_needs_mux')`,
+      [profile, digest],
+    );
+    const sql = {
+      query: <T extends Record<string, unknown>>(text: string, params?: readonly unknown[]) =>
+        db.query<T>(text, params ? [...params] : []),
+    };
+    await rememberWelcomeReingestAsset(sql, { profileId: profile, authorId: profile, assetId: "assetREINGEST1" });
+    await rememberWelcomeReingestAsset(sql, { profileId: profile, authorId: profile, assetId: "assetREINGEST1" });
+    expect(await welcomeReingestAssetId(sql, profile)).toBe("assetREINGEST1");
+    const count = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.social_music_scans where profile_id = $1`,
+      [profile],
+    );
+    expect(count.rows[0]?.n).toBe(1);
+    await retireS3MusicPlaceholder(sql, { surface: "welcome", parentId: profile });
+    const unfinished = await db.query(
+      `select 1 from public.social_music_scans
+       where profile_id = $1 and status = 'pending' and next_attempt_at is null and last_error is distinct from 'superseded'`,
+      [profile],
+    );
+    expect(unfinished.rows).toEqual([]);
   });
 });

@@ -149,7 +149,7 @@ describe("uploadAccountPhoto", () => {
   });
 
   it("PUTs the session user's bytes and does not touch email", async () => {
-    const file = new File([new Uint8Array([1, 2, 3])], "face.jpg", { type: "image/jpeg" });
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({});
     expect(putAvatarObject).toHaveBeenCalledTimes(1);
     const [userId, body, type] = vi.mocked(putAvatarObject).mock.calls[0] ?? [];

@@ -110,7 +110,7 @@ describe("GET /api/social/media", () => {
     expect(signedSocialMediaUrl).toHaveBeenCalledWith(KEY);
   });
 
-  it("302s the caller's own live story and refuses that key once it has expired", async () => {
+  it("does not sign the caller's own story video, and refuses that key once it has expired", async () => {
     vi.mocked(getAuthUser).mockResolvedValue({ id: UID, email: "ada@example.com" });
     vi.mocked(signedSocialMediaUrl).mockResolvedValue("https://media.example/story");
     const ownStory = {
@@ -130,8 +130,8 @@ describe("GET /api/social/media", () => {
 
     videoScan(true);
     const live = await GET(mediaRequest(OWN_STORY));
-    expect(live.status).toBe(302);
-    expect(signedSocialMediaUrl).toHaveBeenCalledWith(OWN_STORY);
+    expect(live.status).toBe(403);
+    expect(signedSocialMediaUrl).not.toHaveBeenCalled();
 
     vi.mocked(signedSocialMediaUrl).mockClear();
     mockRows({
@@ -154,7 +154,7 @@ describe("GET /api/social/media", () => {
     expect(signedSocialMediaUrl).not.toHaveBeenCalled();
   });
 
-  it("302s a followed live story and an active post the session can read", async () => {
+  it("does not sign a followed story video, and 302s an active post the session can read", async () => {
     vi.mocked(getAuthUser).mockResolvedValue({ id: UID, email: "ada@example.com" });
     vi.mocked(signedSocialMediaUrl).mockResolvedValue("https://media.example/signed");
     mockRows({
@@ -177,8 +177,8 @@ describe("GET /api/social/media", () => {
 
     videoScan(true);
     const story = await GET(mediaRequest(FOREIGN_STORY));
-    expect(story.status).toBe(302);
-    expect(signedSocialMediaUrl).toHaveBeenCalledWith(FOREIGN_STORY);
+    expect(story.status).toBe(403);
+    expect(signedSocialMediaUrl).not.toHaveBeenCalled();
 
     vi.mocked(signedSocialMediaUrl).mockClear();
     mockRows({

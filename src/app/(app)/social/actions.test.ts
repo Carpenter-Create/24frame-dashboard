@@ -47,6 +47,15 @@ vi.mock("@/lib/s3-social-media", () => ({
   presignSocialMediaPut: vi.fn(),
   headSocialMediaObject: vi.fn(async () => ({ bytes: 1200, contentType: null, etag: '"e1"' })),
   copySocialMediaObject: vi.fn(async () => undefined),
+  readSocialMediaPrefix: vi.fn(async (key: string) =>
+    key.endsWith(".png")
+      ? new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+      : key.endsWith(".gif")
+        ? new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
+        : key.endsWith(".webp")
+          ? new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])
+          : new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+  ),
 }));
 
 vi.mock("@/lib/social-mux-server", () => ({

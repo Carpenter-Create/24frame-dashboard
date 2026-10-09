@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const REVIEW_COLUMNS =
-  "id, surface, author_id, status, vendor_title, vendor_artist, vendor_score, asset_id, created_at";
+  "id, surface, author_id, status, vendor_title, vendor_artist, vendor_score, asset_id, created_at, last_error";
 
 type ReviewRow = {
   id: string;
@@ -21,6 +21,7 @@ type ReviewRow = {
   vendor_score: number | string | null;
   asset_id: string;
   created_at: string;
+  last_error?: string | null;
 };
 
 function scoreOf(value: number | string | null): number | null {
@@ -65,7 +66,9 @@ export async function loadMusicReviewQueue(): Promise<MusicReviewScan[]> {
     const message = blocked.error?.message ?? held.error?.message ?? "unknown";
     throw new Error(`Music review could not be loaded: ${message.slice(0, 200)}`);
   }
-  const rows = [...((blocked.data ?? []) as ReviewRow[]), ...((held.data ?? []) as ReviewRow[])];
+  const rows = [...((blocked.data ?? []) as ReviewRow[]), ...((held.data ?? []) as ReviewRow[])].filter(
+    (row) => row.last_error !== "superseded",
+  );
   rows.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
   const authorIds = [...new Set(rows.map((row) => row.author_id))];
   const { data: profiles } = authorIds.length

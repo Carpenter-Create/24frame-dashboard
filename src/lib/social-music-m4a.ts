@@ -2,6 +2,11 @@
 // Mux static-rendition time claims are not used: they do not trim audio.m4a.
 // A file that cannot be parsed fails closed. The caller never identifies it.
 
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 export type SocialMusicAudioWindow = { startSeconds: number; endSeconds: number };
 
 type Sample = { offset: number; size: number; duration: number };
@@ -412,14 +417,8 @@ function bytesInclude(haystack: Uint8Array, needle: Uint8Array): boolean {
   return false;
 }
 
-/**
- * RMS of little-endian 16-bit PCM stored in the m4a (`sowt`). AAC windows
- * return null. This worker does not decode AAC, so 2004 on AAC stays an error.
- */
-export function socialMusicWindowRms(file: Uint8Array): number | null {
-  const parsed = parseAudio(file);
-  if (!bytesInclude(parsed.stsd, fourcc("sowt"))) return null;
-  const payload = concat(parsed.samples.map((sample) => copyBytes(file, sample.offset, sample.size)));
+/** RMS of little-endian 16-bit PCM. Odd lengths and empty buffers are not silence. */
+export function socialMusicPcmRms(payload: Uint8Array): number | null {
   if (payload.byteLength < 2 || payload.byteLength % 2 !== 0) return null;
   const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
   let sum = 0;
@@ -429,4 +428,52 @@ export function socialMusicWindowRms(file: Uint8Array): number | null {
     sum += sample * sample;
   }
   return Math.sqrt(sum / count);
+}
+
+/**
+ * Decode an AAC window to s16le PCM. Null when ffmpeg is missing or the
+ * file will not decode. Null is not silence.
+ */
+function decodeAacToPcm(file: Uint8Array): Uint8Array | null {
+  let dir: string | null = null;
+  try {
+    dir = mkdtempSync(join(tmpdir(), "music-rms-"));
+    const input = join(dir, "window.m4a");
+    writeFileSync(input, file);
+    const result = spawnSync(
+      "ffmpeg",
+      ["-v", "error", "-i", input, "-f", "s16le", "-ac", "1", "pipe:1"],
+      { maxBuffer: 8 * 1024 * 1024 },
+    );
+    if (result.error || result.status !== 0 || !result.stdout || result.stdout.byteLength < 2) return null;
+    return new Uint8Array(result.stdout);
+  } catch {
+    return null;
+  } finally {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * RMS of a window. `sowt` is PCM already in the file. AAC (`mp4a`) is
+ * decoded. The AAC payload is never read as PCM. Decode failure is null.
+ */
+export function socialMusicWindowRms(
+  file: Uint8Array,
+  decode: (file: Uint8Array) => Uint8Array | null = decodeAacToPcm,
+): number | null {
+  let parsed: ParsedAudio;
+  try {
+    parsed = parseAudio(file);
+  } catch {
+    return null;
+  }
+  if (bytesInclude(parsed.stsd, fourcc("sowt"))) {
+    const payload = concat(parsed.samples.map((sample) => copyBytes(file, sample.offset, sample.size)));
+    return socialMusicPcmRms(payload);
+  }
+  if (!bytesInclude(parsed.stsd, fourcc("mp4a"))) return null;
+  const decoded = decode(file);
+  if (!decoded) return null;
+  return socialMusicPcmRms(decoded);
 }

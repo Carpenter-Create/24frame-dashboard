@@ -5,10 +5,11 @@ import {
   type StoryStudioFacing,
 } from "@/lib/social-story-recorder";
 
-// In-app camera record, then a normal Social video post. Hard 8 min
-// cap, the same line as every other Social video upload. No livestream backend.
+// In-app camera record, then a normal Social video post. The recorder
+// stops at 479s so a full take, including the clock that starts after
+// MediaRecorder.start, stays inside the 480.5s Social cap. No livestream.
 
-export const SOCIAL_GO_LIVE_MAX_MS = 8 * 60 * 1000;
+export const SOCIAL_GO_LIVE_MAX_MS = 479 * 1000;
 export const SOCIAL_GO_LIVE_VIDEO_BITS_PER_SECOND = 2_500_000;
 
 export function goLiveRemainingMs(

@@ -108,6 +108,9 @@ export async function presignSocialMediaPut(
     throw new Error("Media key is not allowed");
   }
   const kind = socialMediaKindFor(contentType);
+  if (kind === "video") {
+    throw new Error("Media content type is not allowed");
+  }
   if (!kind || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > socialMediaMaxBytes(kind)) {
     throw new Error("Media content length is not allowed");
   }
@@ -150,15 +153,39 @@ export async function presignSocialMediaGet(key: string): Promise<string> {
     throw new Error("Media key is not allowed");
   }
   const { bucket, s3 } = mediaClient();
+  // Image keys answer as an image even if the stored metadata was wrong.
+  // A video key keeps the object's own type.
+  const imageType = imageTypeForStoredObject(key, undefined);
   return getSignedUrl(
     s3,
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,
       ResponseCacheControl: privateMaxAgeCacheControl(SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS),
+      ...(imageType ? { ResponseContentType: imageType } : {}),
     }),
     stablePresignOptions(SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS),
   );
+}
+
+/** Leading bytes of one object. Null when the key is closed, empty, or the read fails. */
+export async function readSocialMediaPrefix(key: string, length = 4096): Promise<Uint8Array | null> {
+  if (isForbiddenMediaKey(key) || !Number.isInteger(length) || length <= 0) return null;
+  try {
+    const { bucket, s3 } = mediaClient();
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: `bytes=0-${length - 1}`,
+      }),
+    );
+    const bytes = await response.Body?.transformToByteArray();
+    if (!bytes || bytes.byteLength === 0) return null;
+    return bytes;
+  } catch {
+    return null;
+  }
 }
 
 /**

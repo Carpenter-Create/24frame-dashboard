@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { handler, missingSocialMusicEnv, SOCIAL_MUSIC_REQUIRED_ENV } from "../../workers/social-music/handler";
+import {
+  handler,
+  missingSocialMusicEnv,
+  SOCIAL_MUSIC_LAMBDA_TIMEOUT_MS,
+  SOCIAL_MUSIC_REQUIRED_ENV,
+  SOCIAL_MUSIC_RUN_BUDGET_MS,
+  SOCIAL_MUSIC_SIBLING_BLOCK_STATUSES,
+} from "../../workers/social-music/handler";
 
 const ENV_SNAPSHOT = { ...process.env };
 
@@ -37,5 +44,13 @@ describe("social music Lambda handler", () => {
     expect(source).not.toContain("phase0MusicAllowlist");
     expect(source).not.toContain("custom_files");
     expect(source).not.toContain("audd");
+    expect(source).toContain("retireSupersededScan");
+    expect(source).toContain("socialMusicParentStillHasScan");
+  });
+
+  it("blocks pending siblings and stays inside the Lambda timeout", () => {
+    expect([...SOCIAL_MUSIC_SIBLING_BLOCK_STATUSES]).toEqual(["allowed", "pending"]);
+    expect(SOCIAL_MUSIC_RUN_BUDGET_MS).toBeLessThanOrEqual(SOCIAL_MUSIC_LAMBDA_TIMEOUT_MS);
+    expect(SOCIAL_MUSIC_LAMBDA_TIMEOUT_MS).toBe(300_000);
   });
 });

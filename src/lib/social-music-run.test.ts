@@ -560,18 +560,47 @@ describe("processMusicScan", () => {
     expect(calls).toBe(1);
   });
 
+  it("calls identify again when the stored window is an error and does not persist that error", async () => {
+    let calls = 0;
+    const run = deps({
+      loadAsset: async () => ({ ...READY, duration: 12 }),
+      measureAudioDuration: () => 12,
+      identify: async () => {
+        calls += 1;
+        return { kind: "no_match", code: 1001 };
+      },
+    });
+    await expect(
+      processMusicScan(
+        scan({
+          windows: [{ startSeconds: 0, endSeconds: 12, result: { kind: "error", code: "timeout", retryable: true } }],
+        }),
+        run,
+      ),
+    ).resolves.toBe("allowed");
+    expect(calls).toBe(1);
+    for (const patch of run.saves) {
+      expect(patch.windowResults?.every((row) => row.result.kind !== "error") ?? true).toBe(true);
+    }
+  });
+
   it("backs off a rate limit without burning the leased attempt", async () => {
     const run = deps({
       identify: async () => ({ kind: "error", code: "3003", retryable: true }),
     });
-    await expect(processMusicScan(scan(), run)).resolves.toBe("retried");
-    expect(run.saves.at(-1)).toMatchObject({ lastError: "acr_rate_limit", attemptCount: 0 });
+    await expect(processMusicScan(scan(), run)).resolves.toBe("rate_limited");
+    expect(run.saves.at(-1)).toMatchObject({ lastError: "acr_rate_limit:1", attemptCount: 0 });
+    expect(run.saves.at(-1)?.nextAttemptAt).toBe(new Date(NOW.getTime() + 30_000).toISOString());
 
     const http = deps({
       identify: async () => ({ kind: "error", code: "http_429", retryable: true }),
     });
-    await expect(processMusicScan(scan({ id: "scan-2" }), http)).resolves.toBe("retried");
+    await expect(processMusicScan(scan({ id: "scan-2", lastError: "acr_rate_limit:1" }), http)).resolves.toBe(
+      "rate_limited",
+    );
     expect(http.saves.at(-1)?.attemptCount).toBe(0);
+    expect(http.saves.at(-1)?.lastError).toBe("acr_rate_limit:2");
+    expect(http.saves.at(-1)?.nextAttemptAt).toBe(new Date(NOW.getTime() + 60_000).toISOString());
   });
 
   it("treats a silent 2004 window as clean and a tone as an error", async () => {
@@ -593,6 +622,51 @@ describe("processMusicScan", () => {
       windowRms: () => 0.4,
     });
     await expect(processMusicScan(scan(), tone)).resolves.toBe("retried");
+
+    const quiet = deps({
+      identify: async () => ({ kind: "error", code: "2004", retryable: true }),
+      windowRms: () => 0.007,
+    });
+    await expect(processMusicScan(scan(), quiet)).resolves.toBe("retried");
+
+    const musicLike = deps({
+      identify: async () => ({ kind: "error", code: "2004", retryable: true }),
+      windowRms: () => 0.0079,
+    });
+    await expect(processMusicScan(scan(), musicLike)).resolves.toBe("retried");
+
+    const undecoded = deps({
+      identify: async () => ({ kind: "error", code: "2004", retryable: true }),
+      windowRms: () => null,
+    });
+    await expect(processMusicScan(scan(), undecoded)).resolves.toBe("retried");
+    expect(undecoded.saves.at(-1)?.lastError).toBe("2004");
+  });
+
+  it("allows a skipped rendition only when Mux confirms there is no audio track", async () => {
+    let identifies = 0;
+    const clean = deps({
+      loadAsset: async () => ({
+        ...READY,
+        tracks: [{ type: "video" }],
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+      identify: async () => {
+        identifies += 1;
+        return { kind: "no_match", code: 1001 };
+      },
+    });
+    await expect(processMusicScan(scan(), clean)).resolves.toBe("allowed");
+    expect(identifies).toBe(0);
+
+    const ambiguous = deps({
+      loadAsset: async () => ({
+        ...READY,
+        static_renditions: { files: [{ resolution: "audio-only", status: "skipped" }] },
+      }),
+    });
+    await expect(processMusicScan(scan(), ambiguous)).resolves.toBe("retried");
+    expect(ambiguous.saves.at(-1)?.lastError).toBe("mux_audio_errored");
   });
 });
 
@@ -676,5 +750,21 @@ describe("runSocialMusicBatch", () => {
 
     await processMusicScan(scan(), second);
     expect(stored.status).toBe("blocked");
+  });
+
+  it("stops the batch on the first rate limit", async () => {
+    let identifies = 0;
+    const run = deps({
+      now: new Date(),
+      listPending: async () => [scan({ id: "a" }), scan({ id: "b" })],
+      identify: async () => {
+        identifies += 1;
+        return { kind: "error", code: "3003", retryable: true };
+      },
+    });
+    const summary = await runSocialMusicBatch(run);
+    expect(summary.checked).toBe(1);
+    expect(summary.retried).toBe(1);
+    expect(identifies).toBe(1);
   });
 });

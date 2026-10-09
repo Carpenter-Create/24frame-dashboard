@@ -21,6 +21,9 @@ RUN pnpm exec esbuild workers/social-music/handler.ts \
       --outfile=/out/index.js
 
 FROM public.ecr.aws/lambda/nodejs:22
+# Static ffmpeg so AAC windows decode to PCM. A debian ffmpeg binary
+# from the build stage does not run on this image.
+COPY --from=mwader/static-ffmpeg:7.1.1 /ffmpeg /usr/local/bin/ffmpeg
 COPY --from=build /out/ ${LAMBDA_TASK_ROOT}/
 RUN node -e "require(process.env.LAMBDA_TASK_ROOT + '/index.js')"
 ARG GIT_SHA=unknown

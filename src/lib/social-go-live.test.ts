@@ -27,16 +27,16 @@ import {
 
 describe("Go live duration cap", () => {
   it("caps at 8 minutes and counts remaining time down to 0:00", () => {
-    expect(SOCIAL_GO_LIVE_MAX_MS).toBe(8 * 60 * 1000);
+    expect(SOCIAL_GO_LIVE_MAX_MS).toBe(479 * 1000);
     expect(goLiveRemainingMs(0)).toBe(SOCIAL_GO_LIVE_MAX_MS);
-    expect(goLiveRemainingMs(60_000)).toBe(7 * 60 * 1000);
+    expect(goLiveRemainingMs(60_000)).toBe(SOCIAL_GO_LIVE_MAX_MS - 60_000);
     expect(goLiveRemainingMs(SOCIAL_GO_LIVE_MAX_MS)).toBe(0);
     expect(goLiveRemainingMs(SOCIAL_GO_LIVE_MAX_MS + 5_000)).toBe(0);
     expect(goLiveReachedCap(SOCIAL_GO_LIVE_MAX_MS - 1)).toBe(false);
     expect(goLiveReachedCap(SOCIAL_GO_LIVE_MAX_MS)).toBe(true);
-    expect(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS)).toBe("8:00");
+    expect(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS)).toBe("7:59");
     expect(formatGoLiveClock(0)).toBe("0:00");
-    expect(formatGoLiveClock(goLiveRemainingMs(90_000))).toBe("6:30");
+    expect(formatGoLiveClock(goLiveRemainingMs(90_000))).toBe("6:29");
     expect(formatGoLiveClock(90_000)).toBe(formatStoryRecorderClock(90_000));
   });
 

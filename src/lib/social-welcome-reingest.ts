@@ -34,6 +34,8 @@ export type SocialReingestDeps = {
     candidate: SocialReingestCandidate,
     ids: { assetId: string; playbackId: string; uploadId: string },
   ) => Promise<void>;
+  /** The S3 placeholder must not stay Unfinished after the Mux parent is bound. */
+  retirePlaceholder: (candidate: SocialReingestCandidate) => Promise<void>;
   saveInProgress: (candidate: SocialReingestCandidate, assetId: string) => Promise<void>;
   markUnfinished: (candidate: SocialReingestCandidate, error: string) => Promise<void>;
   alreadyUnfinished: (candidate: SocialReingestCandidate) => Promise<boolean>;
@@ -115,5 +117,81 @@ async function settleAsset(
     playbackId,
   });
   await deps.saveParent(candidate, { assetId, playbackId, uploadId: assetId });
+  await deps.retirePlaceholder(candidate);
   report.bound += 1;
+}
+
+export type SqlQueryable = {
+  query<T extends Record<string, unknown>>(sql: string, params?: readonly unknown[]): Promise<{ rows: T[] }>;
+};
+
+/** Select-then-write. The partial unique index does not support ON CONFLICT (profile_id, playback_id). */
+export async function rememberWelcomeReingestAsset(
+  db: SqlQueryable,
+  input: { profileId: string; authorId: string; assetId: string },
+): Promise<void> {
+  const digest = input.profileId.replace(/-/g, "").slice(0, 32);
+  const found = await db.query<{ id: string }>(
+    `select id::text as id
+     from public.social_music_scans
+     where profile_id = $1::uuid and playback_id = $2
+     limit 1`,
+    [input.profileId, digest],
+  );
+  if (found.rows[0]) {
+    await db.query(
+      `update public.social_music_scans
+       set upload_id = $2, last_error = 'welcome_reingest_preparing'
+       where id = $1::uuid`,
+      [found.rows[0].id, input.assetId],
+    );
+    return;
+  }
+  await db.query(
+    `insert into public.social_music_scans (
+       surface, profile_id, author_id, asset_id, playback_id, upload_id, status, next_attempt_at, last_error
+     ) values (
+       'welcome', $1::uuid, $2::uuid, $3, $3, $4, 'pending', null, 'welcome_reingest_preparing'
+     )`,
+    [input.profileId, input.authorId, digest, input.assetId],
+  );
+}
+
+export async function welcomeReingestAssetId(db: SqlQueryable, profileId: string): Promise<string | null> {
+  const found = await db.query<{ upload_id: string | null }>(
+    `select upload_id
+     from public.social_music_scans
+     where profile_id = $1::uuid
+       and last_error = 'welcome_reingest_preparing'
+       and upload_id is not null
+     limit 1`,
+    [profileId],
+  );
+  const uploadId = found.rows[0]?.upload_id;
+  return typeof uploadId === "string" && uploadId.length > 0 ? uploadId : null;
+}
+
+/** Leave the S3 digest row out of Music review. Nothing is deleted. */
+export async function retireS3MusicPlaceholder(
+  db: SqlQueryable,
+  input: { surface: SocialReingestSurface; parentId: string },
+): Promise<void> {
+  const column = input.surface === "post" ? "post_id" : input.surface === "story" ? "story_id" : "profile_id";
+  await db.query(
+    `update public.social_music_scans
+     set next_attempt_at = null, last_error = 'superseded'
+     where ${column} = $1::uuid
+       and last_error in ('s3_video_needs_mux', 'welcome_reingest_preparing')`,
+    [input.parentId],
+  );
+}
+
+/** A non-Mux video item, including one marked video only by content type. */
+export function socialReingestVideoKey(entry: unknown): string | null {
+  if (!entry || typeof entry !== "object") return null;
+  const row = entry as { kind?: string; key?: string; provider?: string; contentType?: string };
+  if (row.provider === "mux" || typeof row.key !== "string" || row.key.length === 0) return null;
+  const contentType = (row.contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  if (row.kind === "video" || contentType.startsWith("video/")) return row.key;
+  return null;
 }

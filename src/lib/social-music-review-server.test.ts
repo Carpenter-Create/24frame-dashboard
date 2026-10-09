@@ -25,6 +25,7 @@ function reviewQuery(result: { data: unknown; error: { message: string } | null 
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
     is: vi.fn(() => query),
+    or: vi.fn(() => query),
     order: vi.fn(() => query),
     range: vi.fn(async () => result),
   };
@@ -43,6 +44,33 @@ describe("loadMusicReviewQueue", () => {
     vi.mocked(createClient).mockResolvedValue(staffClient(false) as never);
     await expect(loadMusicReviewQueue()).rejects.toThrow(/staff/);
     expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("leaves a superseded scan off the unfinished list", async () => {
+    vi.mocked(getAuthUser).mockResolvedValue({ id: USER } as never);
+    vi.mocked(createClient).mockResolvedValue(staffClient(true) as never);
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        reviewQuery({
+          data: [
+            {
+              id: "scan-old",
+              surface: "welcome",
+              author_id: USER,
+              status: "pending",
+              last_error: "superseded",
+              vendor_title: null,
+              vendor_artist: null,
+              vendor_score: null,
+              asset_id: "asset12345678",
+              created_at: "2026-10-08T00:00:00.000Z",
+            },
+          ],
+          error: null,
+        }),
+      ),
+    } as never);
+    await expect(loadMusicReviewQueue()).resolves.toEqual([]);
   });
 
   it("surfaces a database error instead of an empty queue", async () => {

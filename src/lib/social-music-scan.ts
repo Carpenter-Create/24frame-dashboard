@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { SOCIAL_VIDEO_MAX_SECONDS } from "@/lib/social-mux";
+import { SOCIAL_VIDEO_DURATION_TOLERANCE_SECONDS, SOCIAL_VIDEO_MAX_SECONDS } from "@/lib/social-mux";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -62,8 +62,11 @@ export type MusicScanDecision = "allow" | "block" | "retry";
  */
 export const MUSIC_SCAN_WINDOW_SECONDS = 12;
 export const MUSIC_SCAN_MAX_WINDOWS = 40;
-/** Same cap as upload. A longer Social video is refused before a scan row exists. */
-export const MUSIC_SCAN_COVERED_SECONDS = SOCIAL_VIDEO_MAX_SECONDS;
+/**
+ * Same cap as upload, including the shared tolerance. A longer Social video
+ * is not sampled. 480.4s is still a plan. 480.6s is unknown.
+ */
+export const MUSIC_SCAN_COVERED_SECONDS = SOCIAL_VIDEO_MAX_SECONDS + SOCIAL_VIDEO_DURATION_TOLERANCE_SECONDS;
 /**
  * Hold when the downloaded audio.m4a and Mux asset.duration disagree by more
  * than this. Windows are planned from the m4a, not from Mux.
@@ -71,9 +74,10 @@ export const MUSIC_SCAN_COVERED_SECONDS = SOCIAL_VIDEO_MAX_SECONDS;
 export const MUSIC_SCAN_DURATION_MISMATCH_SECONDS = 1;
 /**
  * Linear full-scale RMS. ACRCloud 2004 (no fingerprint) is clean silence only
- * under this line. A quiet tone stays an error. 0.01 is about -40 dBFS.
+ * under this line. 0.001 is about -60 dBFS. A -40 dBFS sine (RMS about 0.007)
+ * stays an error. Null RMS is not silence.
  */
-export const MUSIC_SCAN_SILENCE_RMS = 0.01;
+export const MUSIC_SCAN_SILENCE_RMS = 0.001;
 
 export type MusicScanWindow = { startSeconds: number; endSeconds: number };
 
@@ -264,9 +268,9 @@ export type SocialPlaybackScan = {
 };
 
 /**
- * Mint for one playback id. Any blocked row for that id denies. The parent
- * being played needs its own allowed scan. A pending row on a different
- * parent does not deny. No row is not a release.
+ * Mint for one playback id. Any blocked or pending row for that id denies,
+ * including a row on a parent the caller did not list. A visible parent
+ * still needs its own allowed scan. No row is not a release.
  */
 export function socialMuxPlaybackMusicReleased(
   playbackId: string,
@@ -314,13 +318,57 @@ export function socialVideoVisibleToViewer(input: {
   return socialVideoVisibleToOthers(input.scans);
 }
 
-/** Blocked wins over pending when one post has more than one video. */
+/** Blocked wins. An exhausted pending row is the malformed line. A retry still in progress stays pending. */
 export function musicNoticeFromScans(
-  scans: readonly { status: MusicScanVisibility }[],
+  scans: readonly {
+    status: MusicScanVisibility;
+    attemptCount?: number;
+    nextAttemptAt?: string | null;
+  }[],
 ): SocialMusicNotice | null {
   if (scans.some((scan) => scan.status === "blocked")) return "blocked";
-  if (scans.some((scan) => scan.status === "pending")) return "pending";
-  return null;
+  const pending = scans.filter((scan) => scan.status === "pending");
+  if (pending.length === 0) return null;
+  const exhausted =
+    pending.every((scan) => typeof scan.attemptCount === "number") &&
+    pending.every(
+      (scan) =>
+        (scan.attemptCount ?? 0) >= MUSIC_SCAN_MAX_ATTEMPTS &&
+        (scan.nextAttemptAt == null || scan.nextAttemptAt === ""),
+    );
+  if (exhausted) return "malformed";
+  return "pending";
+}
+
+/**
+ * Next wait after a vendor 429 or ACRCloud 3003. The strike is carried in
+ * last_error so a later invocation keeps climbing. The delay caps at the
+ * last failure slot. The attempt counter is not a strike.
+ */
+export function nextMusicRateLimit(lastError: string | null | undefined): { delayMs: number; lastError: string } {
+  const match = /^acr_rate_limit:(\d+)$/.exec(lastError ?? "");
+  const previous = match ? Number(match[1]) : 0;
+  const strike = (Number.isFinite(previous) ? previous : 0) + 1;
+  const index = Math.min(Math.max(0, strike - 1), MUSIC_SCAN_BACKOFF_MS.length - 1);
+  const delayMs = MUSIC_SCAN_BACKOFF_MS[index] ?? MUSIC_SCAN_BACKOFF_MS[MUSIC_SCAN_BACKOFF_MS.length - 1];
+  return { delayMs, lastError: `acr_rate_limit:${strike}` };
+}
+
+/** True when the parent still stores this Mux pair. A replaced welcome or media row is not current. */
+export function socialMusicParentStillHasScan(
+  scan: { surface: "post" | "story" | "welcome"; assetId: string; playbackId: string },
+  parent: { media?: unknown; welcomeAssetId?: string | null; welcomePlaybackId?: string | null } | null,
+): boolean {
+  if (!parent) return false;
+  if (scan.surface === "welcome") {
+    return parent.welcomeAssetId === scan.assetId && parent.welcomePlaybackId === scan.playbackId;
+  }
+  if (!Array.isArray(parent.media)) return false;
+  return parent.media.some((entry) => {
+    if (!entry || typeof entry !== "object") return false;
+    const row = entry as { provider?: string; assetId?: string; playbackId?: string };
+    return row.provider === "mux" && row.assetId === scan.assetId && row.playbackId === scan.playbackId;
+  });
 }
 
 export function musicScanBackoff(attemptCountAfterFailure: number, now: Date): Date | null {
@@ -377,6 +425,8 @@ type ScanNoticeRow = {
   post_id: string | null;
   story_id: string | null;
   status: string;
+  attempt_count?: number | null;
+  next_attempt_at?: string | null;
 };
 
 type NoticeQuery = {
@@ -399,18 +449,24 @@ function groupNotices(
   rows: readonly ScanNoticeRow[],
   idOf: (row: ScanNoticeRow) => string | null,
 ): Map<string, SocialMusicNotice> {
-  const grouped = new Map<string, MusicScanVisibility[]>();
+  const grouped = new Map<string, ScanNoticeRow[]>();
   for (const row of rows) {
     const id = idOf(row);
     if (!id) continue;
     if (row.status !== "pending" && row.status !== "blocked" && row.status !== "allowed") continue;
     const list = grouped.get(id) ?? [];
-    list.push(row.status);
+    list.push(row);
     grouped.set(id, list);
   }
   const notices = new Map<string, SocialMusicNotice>();
   for (const [id, scans] of grouped) {
-    const notice = musicNoticeFromScans(scans.map((status) => ({ status })));
+    const notice = musicNoticeFromScans(
+      scans.map((row) => ({
+        status: row.status as "pending" | "allowed" | "blocked",
+        attemptCount: typeof row.attempt_count === "number" ? row.attempt_count : undefined,
+        nextAttemptAt: row.next_attempt_at,
+      })),
+    );
     if (notice) notices.set(id, notice);
   }
   return notices;
@@ -435,10 +491,10 @@ export async function loadOwnMusicNotices(
   const table = supabase.from("social_music_scans") as unknown as NoticeQuery;
   const [posts, stories] = await Promise.all([
     postIds.length
-      ? table.select("post_id, story_id, status").eq("author_id", viewerId).in("post_id", postIds)
+      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at").eq("author_id", viewerId).in("post_id", postIds)
       : Promise.resolve({ data: [] as ScanNoticeRow[], error: null }),
     storyIds.length
-      ? table.select("post_id, story_id, status").eq("author_id", viewerId).in("story_id", storyIds)
+      ? table.select("post_id, story_id, status, attempt_count, next_attempt_at").eq("author_id", viewerId).in("story_id", storyIds)
       : Promise.resolve({ data: [] as ScanNoticeRow[], error: null }),
   ]);
   if (posts.error || stories.error) {

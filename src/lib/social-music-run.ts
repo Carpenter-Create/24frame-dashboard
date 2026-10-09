@@ -14,6 +14,7 @@ import {
   musicScanConfig,
   musicScanLatencyLine,
   musicStaffPriority,
+  nextMusicRateLimit,
   planMusicScanCoverage,
   type MusicIdentifyResult,
   type MusicMatchFields,
@@ -38,7 +39,9 @@ export type PendingMusicScan = {
   createdAt: string;
   muxReadyAt: string | null;
   scanStartedAt: string | null;
-  /** Windows already fingerprinted on an earlier invocation. Not scanned again. */
+  /** Prior rate-limit strike, when last_error is acr_rate_limit:N. */
+  lastError?: string | null;
+  /** Durable windows from an earlier invocation. Error windows are not reused. */
   windows?: MusicWindowRecord[];
 };
 
@@ -164,7 +167,7 @@ type AttemptBook = { leased: boolean; attemptCount: number };
 export async function processMusicScan(
   scan: PendingMusicScan,
   deps: SocialMusicRunDeps,
-): Promise<"allowed" | "blocked" | "waiting" | "retried" | "held"> {
+): Promise<"allowed" | "blocked" | "waiting" | "retried" | "held" | "rate_limited"> {
   const book: AttemptBook = { leased: false, attemptCount: scan.attemptCount };
   try {
     return await scanOne(scan, deps, book);
@@ -179,7 +182,7 @@ async function scanOne(
   scan: PendingMusicScan,
   deps: SocialMusicRunDeps,
   book: AttemptBook,
-): Promise<"allowed" | "blocked" | "waiting" | "retried" | "held"> {
+): Promise<"allowed" | "blocked" | "waiting" | "retried" | "held" | "rate_limited"> {
   const log = deps.log ?? (() => undefined);
   const nowIso = deps.now.toISOString();
   let muxReadyAt = scan.muxReadyAt;
@@ -257,8 +260,26 @@ async function scanOne(
     return "waiting";
   }
 
-  // Skipped or missing audio stays pending. Phase 0 does not allow it.
-  // After the attempt cap the staff queue shows Unfinished.
+  // Mux listed tracks and none are audio. Allow without identify.
+  // An errored rendition, or a skip without that confirmation, stays pending.
+  if (state === "no_audio") {
+    if (signedPlaybackIdFromMuxAsset(asset) !== scan.playbackId) {
+      return hold(scan, deps, "mux_playback_mismatch", muxReadyAt);
+    }
+    if (socialVideoDurationExceedsCap(asset.duration)) {
+      return recordFailure(scan, deps, book, "duration_over_cap", muxReadyAt, scan.scanStartedAt);
+    }
+    const seconds = typeof asset.duration === "number" && Number.isFinite(asset.duration) ? asset.duration : 0;
+    return writeDecision(
+      scan,
+      deps,
+      { kind: "no_match", code: 0 },
+      [],
+      seconds,
+      muxReadyAt,
+      scan.scanStartedAt ?? nowIso,
+    );
+  }
   if (state === "rendition_errored") {
     return recordFailure(scan, deps, book, "mux_audio_errored", muxReadyAt, scan.scanStartedAt);
   }
@@ -324,7 +345,7 @@ async function scanOne(
     const prior = stored.find(
       (row) => row.startSeconds === window.startSeconds && row.endSeconds === window.endSeconds,
     );
-    if (prior) {
+    if (prior && (prior.result.kind === "match" || prior.result.kind === "no_match")) {
       windowResults.push(prior.result);
       records.push(prior);
       if (isBlockingMatch(prior.result)) {
@@ -369,8 +390,10 @@ async function scanOne(
       }
     }
     windowResults.push(identified);
-    records.push({ startSeconds: window.startSeconds, endSeconds: window.endSeconds, result: identified });
-    await deps.save(scan.id, { windowResults: records, muxReadyAt, scanStartedAt });
+    if (identified.kind === "match" || identified.kind === "no_match") {
+      records.push({ startSeconds: window.startSeconds, endSeconds: window.endSeconds, result: identified });
+      await deps.save(scan.id, { windowResults: records, muxReadyAt, scanStartedAt });
+    }
     if (isBlockingMatch(identified)) {
       return writeDecision(scan, deps, identified, records, audioSeconds, muxReadyAt, scanStartedAt);
     }
@@ -508,23 +531,27 @@ async function lease(
   });
 }
 
-/** A vendor rate limit is not an attempt. Put the leased count back and wait. */
+/**
+ * A vendor 429 or ACRCloud 3003 is not an attempt. Wait on the capped
+ * backoff and stop the batch so the next row is not sent in the same minute.
+ */
 async function backoffRateLimit(
   scan: PendingMusicScan,
   deps: SocialMusicRunDeps,
   book: AttemptBook,
   muxReadyAt: string | null,
   scanStartedAt: string | null,
-): Promise<"retried"> {
+): Promise<"rate_limited"> {
   const log = deps.log ?? (() => undefined);
   book.leased = true;
   book.attemptCount = scan.attemptCount;
-  const next = new Date(deps.now.getTime() + MUSIC_SCAN_PREP_DELAY_MS);
+  const wait = nextMusicRateLimit(scan.lastError);
+  const next = new Date(deps.now.getTime() + wait.delayMs);
   await deps.save(scan.id, {
     status: "pending",
     attemptCount: scan.attemptCount,
     nextAttemptAt: next.toISOString(),
-    lastError: "acr_rate_limit",
+    lastError: wait.lastError,
     muxReadyAt,
     scanStartedAt,
   });
@@ -535,7 +562,7 @@ async function backoffRateLimit(
     scanStartedAt,
     decidedAt: null,
   }));
-  return "retried";
+  return "rate_limited";
 }
 
 async function recordFailure(
@@ -591,8 +618,9 @@ export async function runSocialMusicBatch(deps: SocialMusicRunDeps): Promise<Soc
       if (outcome === "allowed") summary.allowed += 1;
       else if (outcome === "blocked") summary.blocked += 1;
       else if (outcome === "waiting") summary.waiting += 1;
-      else if (outcome === "retried") summary.retried += 1;
+      else if (outcome === "retried" || outcome === "rate_limited") summary.retried += 1;
       else summary.held += 1;
+      if (outcome === "rate_limited") break;
     } catch (error) {
       try {
         const outcome = await recordFailure(

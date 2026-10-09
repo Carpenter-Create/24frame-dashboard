@@ -1168,7 +1168,7 @@ export const SOCIAL = {
   },
 } as const;
 
-export type SocialMusicNotice = "pending" | "blocked";
+export type SocialMusicNotice = "pending" | "blocked" | "malformed";
 
 export function socialCreateWellCopy(
   kind: SocialCreateKind,

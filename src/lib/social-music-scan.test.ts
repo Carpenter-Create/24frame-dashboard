@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { socialVideoDurationExceedsCap } from "@/lib/social-mux";
+import { SOCIAL_GO_LIVE_MAX_MS } from "@/lib/social-go-live";
+
 import {
   MUSIC_SCAN_BACKOFF_MS,
   MUSIC_SCAN_MAX_ATTEMPTS,
@@ -19,6 +22,7 @@ import {
   socialVideoKeyDigest,
   muxItemReleasedToOthers,
   socialMuxPlaybackMusicReleased,
+  socialMusicParentStillHasScan,
   socialParentVisibleToOthers,
   socialVideoVisibleToOthers,
   socialVideoVisibleToViewer,
@@ -105,6 +109,43 @@ describe("social video visibility", () => {
     expect(musicNoticeFromScans([{ status: "pending" }, { status: "blocked" }])).toBe("blocked");
     expect(musicNoticeFromScans([{ status: "pending" }, { status: "allowed" }])).toBe("pending");
     expect(musicNoticeFromScans([{ status: "allowed" }])).toBeNull();
+    expect(
+      musicNoticeFromScans([
+        { status: "pending", attemptCount: MUSIC_SCAN_MAX_ATTEMPTS, nextAttemptAt: null },
+      ]),
+    ).toBe("malformed");
+    expect(
+      musicNoticeFromScans([{ status: "pending", attemptCount: 2, nextAttemptAt: "2026-10-08T18:00:30.000Z" }]),
+    ).toBe("pending");
+    expect(
+      musicNoticeFromScans([
+        { status: "blocked" },
+        { status: "pending", attemptCount: MUSIC_SCAN_MAX_ATTEMPTS, nextAttemptAt: null },
+      ]),
+    ).toBe("blocked");
+  });
+
+  it("skips a welcome or media row that no longer stores the scanned pair", () => {
+    const scan = { surface: "welcome" as const, assetId: "asset12345678", playbackId: "play12345678" };
+    expect(socialMusicParentStillHasScan(scan, null)).toBe(false);
+    expect(
+      socialMusicParentStillHasScan(scan, { welcomeAssetId: "asset12345678", welcomePlaybackId: "playOTHER0001" }),
+    ).toBe(false);
+    expect(
+      socialMusicParentStillHasScan(scan, { welcomeAssetId: "asset12345678", welcomePlaybackId: "play12345678" }),
+    ).toBe(true);
+    expect(
+      socialMusicParentStillHasScan(
+        { surface: "post", assetId: "asset12345678", playbackId: "play12345678" },
+        { media: [{ provider: "mux", assetId: "assetOTHER0001", playbackId: "play12345678" }] },
+      ),
+    ).toBe(false);
+    expect(
+      socialMusicParentStillHasScan(
+        { surface: "post", assetId: "asset12345678", playbackId: "play12345678" },
+        { media: [{ provider: "mux", assetId: "asset12345678", playbackId: "play12345678" }] },
+      ),
+    ).toBe(true);
   });
 });
 
@@ -190,7 +231,7 @@ describe("reused Mux asset release", () => {
     ).toBe(true);
   });
 
-  it("mints per playback id: pending elsewhere does not deny, any block does", () => {
+  it("mints per playback id: a block denies and a pending row on another parent does not", () => {
     const parent = { id: "post-1", surface: "post" as const };
     const other = { id: "post-2", surface: "post" as const };
     const row = (
@@ -243,6 +284,13 @@ describe("music scan windows", () => {
     expect(framed.some((window) => window.endSeconds - window.startSeconds < 1)).toBe(false);
     expect(musicScanWindows(400)).toHaveLength(34);
     expect(planMusicScanCoverage(MUSIC_SCAN_COVERED_SECONDS + 1)).toEqual({ kind: "unknown" });
+    for (const seconds of [479.9, 480, 480.021, 480.4]) {
+      expect(socialVideoDurationExceedsCap(seconds)).toBe(false);
+      expect(planMusicScanCoverage(seconds).kind).toBe("cover");
+    }
+    expect(socialVideoDurationExceedsCap(480.6)).toBe(true);
+    expect(planMusicScanCoverage(480.6)).toEqual({ kind: "unknown" });
+    expect(socialVideoDurationExceedsCap(SOCIAL_GO_LIVE_MAX_MS / 1000)).toBe(false);
     expect(musicScanWindows(MUSIC_SCAN_COVERED_SECONDS)).toHaveLength(MUSIC_SCAN_MAX_WINDOWS);
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(40), match(24)]) })).toBe("block");
     expect(decideMusicScan({ result: combineMusicWindowResults([match(10), match(24)]) })).toBe("allow");

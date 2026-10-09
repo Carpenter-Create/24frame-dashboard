@@ -15,6 +15,7 @@ import {
   storyPickFile,
   welcomeVideoItemFromMedia,
   parsePostMedia,
+  socialImageBytesMatchContentType,
   socialMediaObjectKey,
   socialMediaStagingKey,
   socialPublishedVideoRejection,
@@ -316,6 +317,25 @@ describe("posts.media persist shape", () => {
     expect(storedSocialMediaRejection(video, { bytes: 250 * 1024 * 1024 + 1, contentType: "video/mp4" })).toBe(
       "tooLarge",
     );
+  });
+
+  it("accepts only a real image of the declared type", () => {
+    const ftyp = new Uint8Array(16);
+    ftyp.set([0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70], 0);
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]);
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0]);
+    const webp = new Uint8Array(12);
+    webp.set([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50], 0);
+    expect(socialImageBytesMatchContentType(ftyp, "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]), "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(png, "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(new Uint8Array([1, 2, 3, 4]), "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(jpeg, "image/jpeg")).toBe(true);
+    expect(socialImageBytesMatchContentType(png, "image/png")).toBe(true);
+    expect(socialImageBytesMatchContentType(gif, "image/gif")).toBe(true);
+    expect(socialImageBytesMatchContentType(webp, "image/webp")).toBe(true);
+    expect(socialImageBytesMatchContentType(jpeg, "image/png")).toBe(false);
   });
 
   it("accepts one still or one video on the stories lane and keeps posts open to stills", () => {

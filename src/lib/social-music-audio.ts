@@ -23,6 +23,8 @@ export type MuxAudioAsset = {
   duration?: number | null;
   playback_ids?: Array<{ id?: string; policy?: string }> | null;
   static_renditions?: { files?: MuxAudioFile[] } | MuxAudioFile[] | null;
+  /** Present only when Mux returned the track list. Missing is not "no audio". */
+  tracks?: Array<{ type?: string | null }> | null;
 };
 
 const SOCIAL_MUSIC_MUX_ID = /^[A-Za-z0-9_-]{8,120}$/;
@@ -41,7 +43,17 @@ export type MuxAudioRenditionState =
   | "rendition_missing"
   | "rendition_preparing"
   | "rendition_errored"
+  | "no_audio"
   | "ready";
+
+/**
+ * Mux confirmed the asset has tracks and none of them are audio.
+ * A missing list, an empty list, or an audio track is not confirmation.
+ */
+export function muxConfirmedNoAudio(asset: MuxAudioAsset): boolean {
+  if (!Array.isArray(asset.tracks) || asset.tracks.length === 0) return false;
+  return !asset.tracks.some((track) => track.type === "audio");
+}
 
 function renditionFiles(asset: MuxAudioAsset): MuxAudioFile[] {
   const raw = asset.static_renditions;
@@ -60,11 +72,11 @@ export function muxAudioRenditionState(asset: MuxAudioAsset): MuxAudioRenditionS
   const audio = renditionFiles(asset).filter(isAudioFile);
   if (audio.length === 0) return "rendition_missing";
   if (audio.some((file) => file.status === "ready")) return "ready";
-  // skipped and errored stay held. Phase 0 does not treat a silent or
-  // skipped clip as clean. The worker retries, then the staff queue
-  // lists the row as Unfinished. The video does not go live.
-  if (audio.some((file) => file.status === "errored" || file.status === "skipped")) {
-    return "rendition_errored";
+  // An errored rendition is ambiguous. A skipped rendition is clean only
+  // when Mux lists tracks and none are audio. Anything else stays held.
+  if (audio.some((file) => file.status === "errored")) return "rendition_errored";
+  if (audio.some((file) => file.status === "skipped")) {
+    return muxConfirmedNoAudio(asset) ? "no_audio" : "rendition_errored";
   }
   return "rendition_preparing";
 }

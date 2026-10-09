@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { reingestSocialS3Videos, type SocialReingestCandidate, type SocialReingestDeps } from "@/lib/social-welcome-reingest";
+import {
+  reingestSocialS3Videos,
+  socialReingestVideoKey,
+  type SocialReingestCandidate,
+  type SocialReingestDeps,
+} from "@/lib/social-welcome-reingest";
 
 function candidate(overrides: Partial<SocialReingestCandidate> = {}): SocialReingestCandidate {
   return {
@@ -38,6 +43,9 @@ function deps(overrides: Partial<SocialReingestDeps> = {}): SocialReingestDeps &
     saveInProgress: async () => {
       calls.push("progress");
     },
+    retirePlaceholder: async () => {
+      calls.push("retire");
+    },
     markUnfinished: async () => {
       calls.push("unfinished");
     },
@@ -70,7 +78,7 @@ describe("reingestSocialS3Videos", () => {
     });
     expect(report.skippedExpired).toBe(1);
     expect(report.bound).toBe(1);
-    expect(harness.calls).toEqual(["create", "progress", "bind", "save"]);
+    expect(harness.calls).toEqual(["create", "progress", "bind", "save", "retire"]);
   });
 
   it("marks a missing source unfinished and does not create a second preparing asset", async () => {
@@ -107,5 +115,36 @@ describe("reingestSocialS3Videos", () => {
     expect(report.unfinished).toBe(1);
     expect(report.bound).toBe(0);
     expect(harness.calls).toEqual(["delete", "unfinished"]);
+  });
+
+  it("keeps a nominal eight minute asset and does not create a second one", async () => {
+    let created = 0;
+    let remembered: string | null = null;
+    const harness = deps({
+      createAsset: async () => {
+        created += 1;
+        return { assetId: "assetREINGEST1" };
+      },
+      loadAsset: async () => ({ playbackId: "playREINGEST01", duration: 480.021, status: "ready" }),
+      saveInProgress: async (_candidate, assetId) => {
+        remembered = assetId;
+      },
+    });
+    const first = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate({ surface: "welcome", parentId: "profile-1" })],
+      deps: harness,
+    });
+    expect(first.bound).toBe(1);
+    expect(created).toBe(1);
+    const second = await reingestSocialS3Videos({
+      execute: true,
+      candidates: [candidate({ surface: "welcome", parentId: "profile-1", assetId: remembered, playbackId: "playREINGEST01" })],
+      deps: harness,
+    });
+    expect(second.bound).toBe(0);
+    expect(created).toBe(1);
+    expect(socialReingestVideoKey({ contentType: "video/mp4", key: "posts/a/clip.mp4" })).toBe("posts/a/clip.mp4");
+    expect(socialReingestVideoKey({ kind: "image", contentType: "image/jpeg", key: "posts/a/still.jpg" })).toBeNull();
   });
 });
