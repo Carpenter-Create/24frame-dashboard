@@ -94,7 +94,7 @@ Do **not** ship in Wave 1:
 | Dual name → handle | **PARK** |
 | Author row shrink | **PARK** |
 | Glass chrome | **PARK** |
-| Header hide-on-scroll | **PARK** |
+| Header hide-on-scroll | **PARK** — superseded on phone by [`shell-phone-workspace-band-lock-v1.md`](shell-phone-workspace-band-lock-v1.md) §5 (Adam 2026-10-08: the bar slides over the band with the scroll) |
 | Text-only post grammar | **FREEZE** until separate Design lock |
 | FB hint (full) | **Deferred** (positioning only) |
 
