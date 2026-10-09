@@ -12,6 +12,7 @@ import {
   storyLikeInsertRow,
 } from "@/lib/social";
 import { SocialMuxUploadNotBoundError } from "@/lib/social-mux";
+import { socialProfileEditFormData } from "@/lib/social-profile-edit";
 import { revalidatePath } from "next/cache";
 import {
   addSocialDmPeople,
@@ -437,6 +438,77 @@ describe("social actions", () => {
         topics: ["Acting", "Financing"],
       },
     });
+  });
+
+  it("saves Bio in Edit's one write when the form carries it, and leaves it alone when not", async () => {
+    // docs/design-locks/social-profile-edit-window-lock-v1.md: one draft, one save.
+    const { updates } = stub({
+      profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const form = new FormData();
+    form.set("handle", "ada");
+    form.set("first_name", "Ada");
+    form.set("last_name", "Lovelace");
+    form.set("bio", "Founder\nInvestor");
+    expect(await createSocialProfile(form)).toEqual({});
+    expect(updates[0]?.row).toMatchObject({ bio: "Founder\nInvestor" });
+
+    const cleared = new FormData();
+    cleared.set("handle", "ada");
+    cleared.set("first_name", "Ada");
+    cleared.set("last_name", "Lovelace");
+    cleared.set("bio", "   ");
+    expect(await createSocialProfile(cleared)).toEqual({});
+    expect(updates[1]?.row).toMatchObject({ bio: null });
+
+    const without = new FormData();
+    without.set("handle", "ada");
+    without.set("first_name", "Ada");
+    without.set("last_name", "Lovelace");
+    expect(await createSocialProfile(without)).toEqual({});
+    expect(updates[2]?.row).not.toHaveProperty("bio");
+  });
+
+  it("saves Edit profile Done with a new photo on the draft and leaves avatar_key off the authenticated write", async () => {
+    const { updates } = stub({
+      profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const form = socialProfileEditFormData({
+      username: "ada",
+      firstName: "Ada",
+      middleName: "",
+      lastName: "Lovelace",
+      bio: "Writes engines.",
+      crafts: ["director"],
+      topics: ["Directors"],
+      imdbUrl: "nm1234567",
+      links: ["https://example.com"],
+      photoUrl: "blob:new-photo",
+      welcomeVideoUrl: "present",
+    });
+    expect(form.has("avatar_key")).toBe(false);
+    form.set("avatar_key", "avatars/u1/from-the-client");
+    form.set("welcome_video_key", "welcome/u1/raw.mp4");
+    expect(await createSocialProfile(form)).toEqual({});
+    const row = updates[0]?.row as Record<string, unknown>;
+    expect(row).not.toHaveProperty("avatar_key");
+    expect(row).not.toHaveProperty("welcome_video_key");
+    expect(row).not.toHaveProperty("welcome_mux_asset_id");
+    expect(row.handle).toBe("ada");
+    expect(row.bio).toBe("Writes engines.");
+  });
+
+  it("refuses a Bio over 150 characters and writes nothing", async () => {
+    const { updates } = stub({
+      profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const form = new FormData();
+    form.set("handle", "ada");
+    form.set("first_name", "Ada");
+    form.set("last_name", "Lovelace");
+    form.set("bio", "x".repeat(151));
+    expect(await createSocialProfile(form)).toEqual({ error: SOCIAL.profile.bioLimit });
+    expect(updates).toEqual([]);
   });
 
   it("saves a normalized IMDb name URL and clears a blank claim", async () => {

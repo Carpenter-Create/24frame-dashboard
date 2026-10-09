@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { SOCIAL, socialBioCounterLabel } from "@/lib/social";
-import { SocialProfileBioEditor } from "./social-profile-bio";
+import { SocialProfileBioDraftEditor, SocialProfileBioEditor } from "./social-profile-bio";
 
 // --accent read from tokens.css, so this guard follows the pending GC accent checkpoint.
 const ACCENT = readFileSync("src/app/tokens.css", "utf8").match(/--accent:\s*(#[0-9a-fA-F]{6});/)?.[1];
@@ -40,11 +40,15 @@ describe("SocialProfileBioEditor", () => {
     expect(html).not.toMatch(/data-social-bio-textarea=""[^>]*t-body-sm/);
   });
 
-  it("keeps Edit drafts mounted by using a same-tree Back when nested", () => {
+  it("inside Edit is part of the one draft: same-tree Back, no Bio-only save", () => {
     const html = renderToStaticMarkup(
-      <SocialProfileBioEditor bio="" onBack={() => undefined} onSaved={() => undefined} />,
+      <SocialProfileBioDraftEditor value={"Founder"} onChange={() => undefined} onBack={() => undefined} />,
     );
     expect(html).toContain("data-social-profile-bio-back");
     expect(html).not.toContain('href="/social/profile/edit"');
+    expect(html).toContain("data-social-bio-textarea");
+    expect(html).toContain(socialBioCounterLabel("Founder"));
+    expect(html).not.toContain("data-social-bio-done");
+    expect(html).not.toContain('data-social-icon="check"');
   });
 });

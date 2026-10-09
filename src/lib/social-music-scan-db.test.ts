@@ -2220,6 +2220,46 @@ describe("social music scan migration", () => {
       await db.exec(`reset role`);
     }
   });
+
+  it("lets an Edit profile Done save keep its draft while a new photo and a photo removal go through service_role, and rejects an authenticated avatar_key write", async () => {
+    await db.exec(`alter table public.profiles add column if not exists bio text`);
+    await asUser(A, () =>
+      db.query(`update public.profiles set bio = $2 where id = $1`, [A, "Writes engines."]),
+    );
+    const drafted = await db.query<{ bio: string | null; avatar_key: string | null }>(
+      `select bio, avatar_key from public.profiles where id = $1`,
+      [A],
+    );
+    expect(drafted.rows[0]).toEqual({ bio: "Writes engines.", avatar_key: null });
+
+    const photo = `avatars/${A}/recheck/44444444-4444-4444-8444-444444444444`;
+    await expect(
+      asUser(A, () => db.query(`update public.profiles set avatar_key = $2 where id = $1`, [A, photo])),
+    ).rejects.toMatchObject({ code: "42501", message: expect.stringMatching(/avatar_key is server-only/) });
+    const blocked = await db.query<{ avatar_key: string | null }>(
+      `select avatar_key from public.profiles where id = $1`,
+      [A],
+    );
+    expect(blocked.rows[0]?.avatar_key).toBeNull();
+
+    await db.exec(`set role service_role`);
+    try {
+      await db.query(`update public.profiles set avatar_key = $2 where id = $1`, [A, photo]);
+      const stored = await db.query<{ avatar_key: string | null; bio: string | null }>(
+        `select avatar_key, bio from public.profiles where id = $1`,
+        [A],
+      );
+      expect(stored.rows[0]).toEqual({ avatar_key: photo, bio: "Writes engines." });
+      await db.query(`update public.profiles set avatar_key = null where id = $1`, [A]);
+      const removed = await db.query<{ avatar_key: string | null; bio: string | null }>(
+        `select avatar_key, bio from public.profiles where id = $1`,
+        [A],
+      );
+      expect(removed.rows[0]).toEqual({ avatar_key: null, bio: "Writes engines." });
+    } finally {
+      await db.exec(`reset role`);
+    }
+  });
 });
 
 function welcomeResting(state: WelcomeRowState): { notices: string[]; visible: boolean; due: boolean; later: boolean } {

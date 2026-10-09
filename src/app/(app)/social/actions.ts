@@ -135,6 +135,10 @@ export async function createSocialProfile(formData: FormData): Promise<ActionRes
     ? parseSocialProfileLinksWrite(String(formData.get("links") ?? ""))
     : null;
   if (links?.error) return { error: socialProfileLinkError(links.error) ?? SOCIAL.profile.linkInvalid };
+  // Edit profile's one save carries Bio too (one draft, one write). A form
+  // without it leaves the stored bio alone.
+  const bio = formData.has("bio") ? normalizeBio(String(formData.get("bio") ?? "")) : undefined;
+  if (bio === null) return { error: SOCIAL.profile.bioLimit };
 
   if (profile) {
     const { error } = await supabase
@@ -148,6 +152,7 @@ export async function createSocialProfile(formData: FormData): Promise<ActionRes
         ...(topics ? { topics } : {}),
         ...(imdb ? { imdb_url: imdb.url } : {}),
         ...(links ? { website_url: composeSocialWebsiteUrlField(links.urls) } : {}),
+        ...(bio !== undefined ? { bio: bio || null } : {}),
       })
       .eq("id", user.id);
     if (error) {
@@ -175,6 +180,7 @@ export async function createSocialProfile(formData: FormData): Promise<ActionRes
             ...(topics ? { topics } : {}),
             ...(imdb ? { imdb_url: imdb.url } : {}),
             ...(links ? { website_url: composeSocialWebsiteUrlField(links.urls) } : {}),
+            ...(bio !== undefined ? { bio: bio || null } : {}),
           })
           .eq("id", user.id);
         if (updateError) {

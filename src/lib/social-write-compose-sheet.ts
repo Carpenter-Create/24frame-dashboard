@@ -1,3 +1,4 @@
+import { HOUSE_DIALOG_WINDOW_CLASS } from "@/lib/house-overlay";
 import { APP_SHEET_HOST_CLASS } from "@/lib/house-sheet";
 
 // Share something (and desktop Create) → write compose.
@@ -57,8 +58,7 @@ export function bindSocialWriteComposeSheetViewport(
 // in the post's own desktop type (17 / 420, line 1.5) so the draft reads
 // as the post; the attached media under it; then a hairline and the
 // tool row: round grey 44 Media and Go live, the Post pill at the end.
-export const SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS =
-  "w-[min(92vw,600px)] rounded-[var(--radius-xl)] border-0 p-[var(--space-4)]";
+export const SOCIAL_WRITE_COMPOSE_DIALOG_PANEL_CLASS = `${HOUSE_DIALOG_WINDOW_CLASS} p-[var(--space-4)]`;
 
 export const SOCIAL_WRITE_COMPOSE_DIALOG_FORM_CLASS = "flex max-h-[calc(80vh-32px)] min-h-0 w-full min-w-0 flex-col";
 

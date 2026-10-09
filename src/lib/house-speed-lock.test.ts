@@ -98,7 +98,8 @@ describe("house speed lock — no RSA on Social Home / Home critical path", () =
       "src/components/social/social-profile-stats.tsx",
       "src/components/social/social-profile-edit-face.tsx",
       "src/components/social/social-profile-edit.tsx",
-      "src/app/(app)/social/profile/page.tsx",
+      // The Edit profile pill moved into its own island (phone link + window button).
+      "src/components/social/social-profile-edit-entry.tsx",
     ];
     for (const path of surfaces) {
       const src = readFileSync(path, "utf8");

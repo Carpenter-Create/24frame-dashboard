@@ -3,6 +3,7 @@ import { HouseLink } from "@/components/chrome/house-link";
 import { SocialEmpty } from "@/components/social/social-empty";
 import { cn } from "@/lib/cn";
 import { SOCIAL_TOPIC_CHIP_BANK_CLASS, SOCIAL_TOPIC_CHIP_CLASS } from "@/lib/social-chrome";
+import { SocialProfileEditTopicsLink } from "@/components/social/social-profile-edit-entry";
 import { SOCIAL, socialProfileEditTopicsHref } from "@/lib/social";
 import { parseSocialProfileTopics } from "@/lib/social-profile-topics";
 
@@ -27,13 +28,18 @@ export function SocialProfileInterests({
           title={SOCIAL.profile.interestsEmpty}
           hint={SOCIAL.profile.interestsEmptyOwnHint}
         >
+          {/* Phone: the Edit sheet's Topics face. Desktop: the Edit window
+              over this profile, open at Topics, the tab kept behind it. */}
           <HouseLink
             href={socialProfileEditTopicsHref()}
             data-social-profile-interests-edit=""
-            className="t-body-sm font-medium text-ink"
+            className="t-body-sm font-medium text-ink md:hidden"
           >
             {SOCIAL.profile.topics}
           </HouseLink>
+          <SocialProfileEditTopicsLink className="t-body-sm font-medium text-ink max-md:hidden">
+            {SOCIAL.profile.topics}
+          </SocialProfileEditTopicsLink>
         </SocialEmpty>
       </div>
     );
