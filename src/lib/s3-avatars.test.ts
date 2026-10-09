@@ -396,7 +396,7 @@ describe("s3-avatars dedicated bucket", () => {
     expect(put.input.Tagging?.TagSet).toEqual([{ Key: "gc-hold", Value: "quarantine" }]);
   });
 
-  it("re-tags the new key when the hold verify errors", async () => {
+  it("TG6: a confirm GetObjectTagging error is not swallowed", async () => {
     const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
     let reads = 0;
     mockSend.mockImplementation(async (command: unknown) => {
@@ -412,6 +412,39 @@ describe("s3-avatars dedicated bucket", () => {
     expect(put).toBeInstanceOf(PutObjectTaggingCommand);
     expect(put.input.Key).toBe(key);
     expect(reads).toBeGreaterThan(1);
+  });
+
+  it("re-tags the new key when the confirm read times out", async () => {
+    const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) {
+        throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
+      }
+      if (command instanceof PutObjectTaggingCommand) return {};
+      return {};
+    });
+    await expect(releaseAvatarHoldTag(UID, key)).rejects.toThrow(/socket timeout/);
+    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
+    expect(put).toBeInstanceOf(PutObjectTaggingCommand);
+    expect(put.input.Key).toBe(key);
+  });
+
+  it("TG4b: a gc-hold tag with any value still blocks", async () => {
+    const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    let reads = 0;
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) {
+        reads += 1;
+        if (reads === 1) return { TagSet: [{ Key: "gc-hold", Value: "keep" }] };
+        return HOLD;
+      }
+      return {};
+    });
+    await expect(releaseAvatarHoldTag(UID, key)).rejects.toThrow(/hold tag remains/);
+    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
+    expect(put).toBeInstanceOf(PutObjectTaggingCommand);
+    expect(put.input.Key).toBe(key);
+    expect(put.input.Tagging?.TagSet).toEqual([{ Key: "gc-hold", Value: "quarantine" }]);
   });
 
   it("treats NoSuchTagSet as no gc-hold tag", async () => {
@@ -612,7 +645,19 @@ describe("s3-avatars dedicated bucket", () => {
     expect(setup).toContain("s3:GetObjectTagging");
     expect(setup).toContain("s3:DeleteObjectTagging");
     expect(setup).toContain("no `s3:prefix` condition");
+    expect(setup).toContain("must return 404");
+    expect(setup).toContain('head-object --bucket "$AVATARS_BUCKET"');
+    const lifecycle = setup.indexOf("avatars-quarantine-30d");
+    const env = setup.indexOf("S3_AVATARS_BUCKET=gc-avatars-prod");
+    expect(lifecycle).toBeGreaterThan(-1);
+    expect(lifecycle).toBeLessThan(env);
+    expect(setup.indexOf("get-bucket-lifecycle-configuration")).toBeLessThan(env);
     expect(notes).toContain("no `s3:prefix` condition");
+    expect(notes).toContain("only cleanup for quarantine copies");
+    const gate = notes.indexOf("get-bucket-lifecycle-configuration");
+    const envWiring = notes.indexOf("set env, then the disabled schedule");
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(envWiring);
   });
 
   it("does not delete the quarantine object when the restored face still has gc-hold", async () => {

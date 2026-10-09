@@ -404,7 +404,9 @@ describe("removeAccountPhoto", () => {
     await expect(removeAccountPhoto()).resolves.toEqual({ error: "avatar delete left objects" });
     expect(deleteAvatarObject).toHaveBeenCalledWith(USER.id, previousKey, expect.any(Function));
     expect(captureException).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [previousKey] });
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({
+      orphanKeys: avatarKeysReadForRemove(USER.id, previousKey),
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
@@ -414,8 +416,22 @@ describe("removeAccountPhoto", () => {
       Object.assign(new Error("avatar delete left objects"), { leftoverKeys: [canonical] }),
     );
     await expect(removeAccountPhoto()).resolves.toEqual({});
-    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [canonical] });
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({
+      orphanKeys: avatarKeysReadForRemove(USER.id, previousKey),
+    });
+    expect(avatarKeysReadForRemove(USER.id, previousKey)).toContain(canonical);
     expect(revalidatePath).toHaveBeenCalledWith("/social/profile");
+  });
+
+  it("reports the quarantine key when remove fails", async () => {
+    const quarantine = avatarQuarantineObjectKey(USER.id, "44444444-4444-4444-8444-444444444444");
+    profileUpdateClient(quarantine);
+    vi.mocked(deleteAvatarObject).mockRejectedValueOnce(new Error("avatar delete left objects"));
+    await expect(removeAccountPhoto()).resolves.toEqual({ error: "avatar delete left objects" });
+    const reported = avatarKeysReadForRemove(USER.id, quarantine);
+    expect(reported).toContain(quarantine);
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: reported });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it("matches a null pointer with is(null) and deletes only after that clear", async () => {

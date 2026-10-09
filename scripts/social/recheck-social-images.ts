@@ -129,6 +129,8 @@ export async function writeAvatarPointer(
 /**
  * Release the hold, confirm it, then move the pointer.
  * A failed release throws and the pointer stays on the face that was read.
+ * Any failure after a successful release puts gc-hold back on the new key:
+ * a pointer error, or a write that matches no row.
  */
 export async function commitRecheckedAvatar(
   admin: AvatarPointerWriter,
@@ -140,9 +142,9 @@ export async function commitRecheckedAvatar(
 ): Promise<{ skipped: true; orphanKey: string } | Record<string, never>> {
   await releaseHold(parentId, nextKey);
   const { data, error } = await writeAvatarPointer(admin, parentId, readKey, nextKey);
-  assertOk(error, "point avatar at rechecked image");
-  if (!data || data.length === 0) {
+  if (error || !data || data.length === 0) {
     await rehold(parentId, nextKey);
+    assertOk(error, "point avatar at rechecked image");
     return { skipped: true, orphanKey: nextKey };
   }
   return {};

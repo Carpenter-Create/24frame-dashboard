@@ -14,6 +14,7 @@ import {
   AVATAR_CLEARED,
   AVATAR_MAX_BYTES,
   avatarKeyNamedForRemove,
+  avatarKeysReadForRemove,
   isAvatarContentType,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
@@ -178,12 +179,13 @@ export async function removeAccountPhoto(): Promise<{ error?: string }> {
     try {
       await deleteAvatarObject(ctx.user.id, previousKey, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
+      const read = avatarKeysReadForRemove(ctx.user.id, previousKey);
       const own = avatarKeyNamedForRemove(ctx.user.id, previousKey);
       const leftovers =
         e && typeof e === "object" && "leftoverKeys" in e && Array.isArray(e.leftoverKeys)
           ? e.leftoverKeys.filter((key): key is string => typeof key === "string")
-          : [own];
-      await reportAvatarOrphan(leftovers, e);
+          : read;
+      await reportAvatarOrphan(read, e);
       if (leftovers.includes(own)) {
         return {
           error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoRemoveFailed,

@@ -236,8 +236,8 @@ published camera clip, and the same shape for `.mp4` / `.mov`) or
 Media upload key). `welcome_s3_matching` is that set.
 `welcome_s3_any` is every `welcome_video_key` in the filter. The pattern
 is `welcomeS3VideoKeySqlPattern()` in `src/lib/social-media.ts`, the same
-check `welcomeProfileReingestCandidate` uses. Rows in any but not matching
-stay hidden. The prefix query lists those rows by key prefix only. It does
+check `welcomeProfileReingestCandidate` uses. A welcome key the builders do not emit stays hidden and shows up in the unmatched-prefix query.
+The prefix query lists those rows by key prefix only. It does
 not select a user id or a full key.
 
 Run before the migration. `welcome_mux_asset_id` is not on the table yet.
@@ -425,7 +425,19 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
 2. Apply `supabase/migrations/20261008180000_social_music_scans.sql`, then
    `supabase/migrations/20261008180100_profiles_welcome_mux.sql`, then
    `supabase/migrations/20261009120000_avatar_key_and_story_media.sql`.
-3. Dry-run the image recheck, then execute it. `--execute` writes each
+3. Pre-deploy gate, before `S3_AVATARS_BUCKET` is set and before the
+   recheck. Quarantine copies have no other cleanup. The 30-day rule on
+   tag `gc-hold=quarantine` is the only one. Apply it from
+   `docs/infra/avatar-storage-setup.md`, then run this read-only check.
+   Stop when that rule is missing. Do not set the env var until the check
+   shows it.
+
+```sh
+aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET" \
+  --query "Rules[?ID=='avatars-quarantine-30d' && Status=='Enabled']"
+```
+
+4. Dry-run the image recheck, then execute it. `--execute` writes each
    re-encoded image to a new key and points the post, story, or avatar at
    that key. It never overwrites the original under the same key. The
    original stays in the private bucket and is not signed once the pointer
@@ -534,43 +546,27 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
    DeleteObjectTagging, and GetObjectTagging must show no `gc-hold` tag,
    before `profiles.avatar_key` names that object. If either call fails, the
    pointer stays on the old face. This bucket's lifecycle config is not in
-   the repo. Adam's pre-deploy step, before the recheck, is this 30-day rule
-   plus the IAM policy in `docs/infra/avatar-storage-setup.md`:
+   the repo. The 30-day tag rule is the only cleanup for quarantine copies.
+   It is the pre-deploy gate in step 3, before `S3_AVATARS_BUCKET` is set.
+   The read-only check there must show rule `avatars-quarantine-30d` Enabled.
+   The same step applies the IAM policy in `docs/infra/avatar-storage-setup.md`:
    `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:GetObjectTagging`,
    `s3:PutObjectTagging`, and `s3:DeleteObjectTagging` on `avatars/*`, and
    `s3:ListBucket` on the avatars bucket with no `s3:prefix` condition.
-   The rule replaces the whole lifecycle
-   configuration: merge any rule that is already on the avatars bucket
-   before sending it. Do not run it from CI. Do not point it at the
-   title-asset bucket.
-
-```sh
-cat > /tmp/avatars-lifecycle.json <<'JSON'
-{
-  "Rules": [
-    {
-      "ID": "avatars-quarantine-30d",
-      "Filter": { "Tag": { "Key": "gc-hold", "Value": "quarantine" } },
-      "Status": "Enabled",
-      "Expiration": { "Days": 30 }
-    }
-  ]
-}
-JSON
-aws s3api put-bucket-lifecycle-configuration \
-  --bucket "$S3_AVATARS_BUCKET" \
-  --lifecycle-configuration file:///tmp/avatars-lifecycle.json
-aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET"
-```
+   The apply and the read-only check are in
+   `docs/infra/avatar-storage-setup.md`, before `S3_AVATARS_BUCKET` is set.
+   Do not run them from CI. Do not point them at the title-asset bucket.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts
 pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts --execute
 ```
 
-4. Deploy the app (the author notice and the staff page).
-5. Build and create the Lambda, set env, then the disabled schedule.
-6. Dry run the worker. Enable the rule when the dry run is `ok`.
+5. Deploy the app (the author notice and the staff page).
+6. Build and create the Lambda, set env, then the disabled schedule.
+   The avatar lifecycle gate in step 3 is already done. It is before this
+   env wiring.
+7. Dry run the worker. Enable the rule when the dry run is `ok`.
    S3 video re-ingest stays a separate founder step:
    `scripts/social/reingest-welcome-video.ts`.
 

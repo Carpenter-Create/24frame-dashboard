@@ -718,6 +718,69 @@ describe("reencodeSocialImage", () => {
     expect(held).toEqual([next]);
   });
 
+  it("re-tags the new key when the recheck pointer update errors", async () => {
+    const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(user, "33333333-3333-4333-8333-333333333333");
+    const writer = {
+      from() {
+        return writer;
+      },
+      update() {
+        return writer;
+      },
+      eq() {
+        return writer;
+      },
+      is() {
+        return writer;
+      },
+      select() {
+        return Promise.resolve({ data: null, error: { message: "swap failed" } });
+      },
+    };
+    const held: string[] = [];
+    await expect(
+      commitRecheckedAvatar(
+        writer,
+        user,
+        previous,
+        next,
+        async () => undefined,
+        async (_userId, key) => {
+          held.push(key);
+        },
+      ),
+    ).rejects.toThrow(/swap failed/);
+    expect(held).toEqual([next]);
+  });
+
+  it("HD4: a 403 on a recheck head counts as unfinished", async () => {
+    const { readAvatarRecheckPage } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const key = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const forbidden = Object.assign(new Error("Forbidden"), {
+      name: "Forbidden",
+      $metadata: { httpStatusCode: 403 },
+    });
+    const page = await readAvatarRecheckPage(
+      [{ id: user, avatar_key: key }],
+      async () => {
+        throw forbidden;
+      },
+      async () => {
+        throw new Error("recheck key was read as the canonical face");
+      },
+    );
+    expect(page.noObject).toBe(0);
+    expect(page.notes.join("\n")).not.toContain("no_object");
+    expect(page.notes.join("\n")).not.toContain("key does not match");
+    expect(page.items).toEqual([
+      expect.objectContaining({ parentId: user, key, readError: "Forbidden" }),
+    ]);
+  });
+
   it("quarantines a null legacy avatar and re-encodes a clean one onto a new pointer", async () => {
     const { avatarRecheckTarget, writeAvatarPointer } = await import("../../scripts/social/recheck-social-images");
     const user = "11111111-1111-4111-8111-111111111111";

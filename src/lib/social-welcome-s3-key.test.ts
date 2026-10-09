@@ -93,6 +93,7 @@ describe("welcome s3 key shape", () => {
       const matched = await db.query<{ ok: boolean }>("select $1 ~ $2 as ok", [key, pattern]);
       expect(matched.rows[0]?.ok, key).toBe(false);
     }
+    expect(NOTES).toContain("A welcome key the builders do not emit stays hidden and shows up in the unmatched-prefix query.");
     expect(NOTES).toContain("Run before the migration.");
     expect(NOTES).toContain("Run after the migration, before re-ingest.");
     expect(NOTES).toContain(welcomeS3PreApplyCountSql());
