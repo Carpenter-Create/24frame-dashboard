@@ -233,19 +233,38 @@ export async function putAvatarRecheckObject(input: {
 /**
  * Remove gc-hold and confirm the read has no gc-hold tag.
  * Callers move the pointer only after this returns. A throw leaves the old face in place.
+ * Putting the tag back re-reads the pointer first. The tag is written only when that
+ * read proves the key is not live. A read that names the key, or a read that fails,
+ * leaves the tag off.
  */
-export async function releaseAvatarHoldTag(userId: string, key: string): Promise<void> {
+export async function releaseAvatarHoldTag(
+  userId: string,
+  key: string,
+  readPointer: AvatarPointerReader = async () => {
+    throw new Error("avatar pointer was not read");
+  },
+): Promise<void> {
   if (!isAvatarRecheckKey(key, userId)) throw new Error("Avatar hold tag is only cleared on this member's recheck key");
   const { bucket, s3 } = avatarsClient();
+  const restoreHold = async (): Promise<void> => {
+    let current: string | null;
+    try {
+      current = await readPointer();
+    } catch {
+      return;
+    }
+    if (avatarPointerNamesKey(userId, current, key)) return;
+    await writeHoldTag(s3, bucket, key);
+  };
   await s3.send(new DeleteObjectTaggingCommand({ Bucket: bucket, Key: key }));
   try {
     const tags = await readObjectTags(s3, bucket, key);
     if (!holdTagRemains(tags)) return;
   } catch (error) {
-    await writeHoldTag(s3, bucket, key).catch(() => undefined);
+    await restoreHold().catch(() => undefined);
     throw error;
   }
-  await writeHoldTag(s3, bucket, key);
+  await restoreHold();
   throw new Error("Avatar hold tag remains");
 }
 
@@ -290,6 +309,12 @@ async function deleteExactAvatarKeys(
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     } catch {
       leftovers.push(key);
+      try {
+        const again = await readPointer();
+        if (avatarPointerNamesKey(userId, again, key)) continue;
+      } catch {
+        continue;
+      }
       await writeHoldTag(s3, bucket, key).catch(() => undefined);
     }
   }

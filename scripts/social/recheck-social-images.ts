@@ -25,7 +25,13 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey, isAvatarRecheckKey } from "@/lib/account-avatar";
+import {
+  AVATAR_CLEARED,
+  avatarObjectKey,
+  avatarPointerNamesKey,
+  avatarRecheckObjectKey,
+  isAvatarRecheckKey,
+} from "@/lib/account-avatar";
 import {
   applyAvatarHoldTag,
   headAvatarRecheck,
@@ -126,23 +132,57 @@ export async function writeAvatarPointer(
   return await filtered.select("id");
 }
 
+type AvatarKeyRead = {
+  data: { avatar_key: string | null } | null;
+  error: { message: string } | null;
+};
+
+type ProfileAvatarKeyReader = {
+  from(table: "profiles"): {
+    select(columns: "avatar_key"): {
+      eq(column: "id", value: string): { maybeSingle(): PromiseLike<AvatarKeyRead> };
+    };
+  };
+};
+
+async function readProfileAvatarKey(admin: AvatarPointerWriter, userId: string): Promise<string | null> {
+  const reader = admin as unknown as ProfileAvatarKeyReader;
+  const row = await reader.from("profiles").select("avatar_key").eq("id", userId).maybeSingle();
+  if (row.error || !row.data) throw row.error ?? new Error("avatar pointer was not read");
+  return row.data.avatar_key;
+}
+
 /**
  * Release the hold, confirm it, then move the pointer.
  * A failed release throws and the pointer stays on the face that was read.
- * Any failure after a successful release puts gc-hold back on the new key:
- * a pointer error, or a write that matches no row.
+ * Any failure after a successful release re-reads profiles.avatar_key.
+ * gc-hold goes back on the new key only when that read proves the key is not live.
+ * A read that names the key, or a read that errors, leaves the tag off and the
+ * key unfinished.
  */
 export async function commitRecheckedAvatar(
   admin: AvatarPointerWriter,
   parentId: string,
   readKey: string | null,
   nextKey: string,
-  releaseHold: (userId: string, key: string) => Promise<void> = releaseAvatarHoldTag,
+  releaseHold: (userId: string, key: string) => Promise<void> = (userId, key) =>
+    releaseAvatarHoldTag(userId, key, () => readProfileAvatarKey(admin, userId)),
   rehold: (userId: string, key: string) => Promise<void> = applyAvatarHoldTag,
+  readPointer: () => Promise<string | null> = () => readProfileAvatarKey(admin, parentId),
 ): Promise<{ skipped: true; orphanKey: string } | Record<string, never>> {
   await releaseHold(parentId, nextKey);
   const { data, error } = await writeAvatarPointer(admin, parentId, readKey, nextKey);
   if (error || !data || data.length === 0) {
+    let live: string | null;
+    try {
+      live = await readPointer();
+    } catch (readError) {
+      const failure = readError instanceof Error ? readError : new Error("avatar pointer was not read");
+      throw Object.assign(failure, { orphanKey: nextKey });
+    }
+    if (avatarPointerNamesKey(parentId, live, nextKey)) {
+      throw Object.assign(new Error("avatar pointer names the new face"), { orphanKey: nextKey });
+    }
     await rehold(parentId, nextKey);
     assertOk(error, "point avatar at rechecked image");
     return { skipped: true, orphanKey: nextKey };

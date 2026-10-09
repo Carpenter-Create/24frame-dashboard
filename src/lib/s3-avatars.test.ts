@@ -389,7 +389,7 @@ describe("s3-avatars dedicated bucket", () => {
       if (command instanceof GetObjectTaggingCommand) return HOLD;
       return {};
     });
-    await expect(releaseAvatarHoldTag(UID, key)).rejects.toThrow(/hold tag remains/);
+    await expect(releaseAvatarHoldTag(UID, key, async () => null)).rejects.toThrow(/hold tag remains/);
     const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
     expect(put).toBeInstanceOf(PutObjectTaggingCommand);
     expect(put.input.Key).toBe(key);
@@ -407,7 +407,7 @@ describe("s3-avatars dedicated bucket", () => {
       }
       return {};
     });
-    await expect(releaseAvatarHoldTag(UID, key)).rejects.toThrow(/tag read failed/);
+    await expect(releaseAvatarHoldTag(UID, key, async () => null)).rejects.toThrow(/tag read failed/);
     const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
     expect(put).toBeInstanceOf(PutObjectTaggingCommand);
     expect(put.input.Key).toBe(key);
@@ -423,7 +423,7 @@ describe("s3-avatars dedicated bucket", () => {
       if (command instanceof PutObjectTaggingCommand) return {};
       return {};
     });
-    await expect(releaseAvatarHoldTag(UID, key)).rejects.toThrow(/socket timeout/);
+    await expect(releaseAvatarHoldTag(UID, key, async () => null)).rejects.toThrow(/socket timeout/);
     const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
     expect(put).toBeInstanceOf(PutObjectTaggingCommand);
     expect(put.input.Key).toBe(key);
@@ -440,11 +440,54 @@ describe("s3-avatars dedicated bucket", () => {
       }
       return {};
     });
-    await expect(releaseAvatarHoldTag(UID, key)).rejects.toThrow(/hold tag remains/);
+    await expect(releaseAvatarHoldTag(UID, key, async () => null)).rejects.toThrow(/hold tag remains/);
     const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
     expect(put).toBeInstanceOf(PutObjectTaggingCommand);
     expect(put.input.Key).toBe(key);
     expect(put.input.Tagging?.TagSet).toEqual([{ Key: "gc-hold", Value: "quarantine" }]);
+  });
+
+  it("does not re-hold a released face without reading the pointer", async () => {
+    const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    let reads = 0;
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(
+      releaseAvatarHoldTag(UID, key, async () => {
+        reads += 1;
+        return null;
+      }),
+    ).rejects.toThrow(/hold tag remains/);
+    expect(reads).toBe(1);
+    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
+    expect(put).toBeInstanceOf(PutObjectTaggingCommand);
+    expect(put.input.Key).toBe(key);
+  });
+
+  it("does not re-hold a released face when the pointer read times out", async () => {
+    const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(
+      releaseAvatarHoldTag(UID, key, async () => {
+        throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
+      }),
+    ).rejects.toThrow(/hold tag remains/);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
+  });
+
+  it("does not re-hold a released face when the pointer names the key", async () => {
+    const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(releaseAvatarHoldTag(UID, key, async () => key)).rejects.toThrow(/hold tag remains/);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
   });
 
   it("treats NoSuchTagSet as no gc-hold tag", async () => {
@@ -604,6 +647,69 @@ describe("s3-avatars dedicated bucket", () => {
     expect(deletedKeys()).toEqual([previous, KEY]);
     const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
     expect(put.input.Key).toBe(previous);
+  });
+
+  it("does not re-hold a delete leftover without reading the pointer again", async () => {
+    const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(UID, "33333333-3333-4333-8333-333333333333");
+    let deletes = 0;
+    let reads = 0;
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof DeleteObjectCommand) {
+        deletes += 1;
+        if (deletes === 1) throw new Error("delete failed");
+        return {};
+      }
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(
+      deleteReplacedAvatarObjects(UID, previous, next, async () => {
+        reads += 1;
+        return next;
+      }),
+    ).rejects.toMatchObject({ leftoverKeys: [KEY] });
+    expect(reads).toBe(3);
+    const put = mockSend.mock.calls.find((call) => call[0] instanceof PutObjectTaggingCommand)?.[0] as PutObjectTaggingCommand;
+    expect(put.input.Key).toBe(KEY);
+  });
+
+  it("does not re-hold a delete leftover when the pointer read times out", async () => {
+    const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(UID, "33333333-3333-4333-8333-333333333333");
+    let reads = 0;
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof DeleteObjectCommand && command.input.Key === KEY) throw new Error("delete failed");
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(
+      deleteReplacedAvatarObjects(UID, previous, next, async () => {
+        reads += 1;
+        if (reads === 2) throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
+        return next;
+      }),
+    ).rejects.toMatchObject({ leftoverKeys: [KEY] });
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
+  });
+
+  it("does not re-hold a delete leftover when the pointer names the key", async () => {
+    const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(UID, "33333333-3333-4333-8333-333333333333");
+    let reads = 0;
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof DeleteObjectCommand && command.input.Key === KEY) throw new Error("delete failed");
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(
+      deleteReplacedAvatarObjects(UID, previous, next, async () => {
+        reads += 1;
+        return reads === 2 ? null : next;
+      }),
+    ).rejects.toMatchObject({ leftoverKeys: [KEY] });
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(false);
+    expect(avatarPointerNamesKey(UID, null, KEY)).toBe(true);
   });
 
   it("copies a quarantine face back with no hold tag before the pointer can move", async () => {

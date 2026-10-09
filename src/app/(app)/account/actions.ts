@@ -15,6 +15,7 @@ import {
   AVATAR_MAX_BYTES,
   avatarKeyNamedForRemove,
   avatarKeysReadForRemove,
+  avatarPointerNamesKey,
   isAvatarContentType,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
@@ -118,7 +119,7 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
       return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
     }
     try {
-      await releaseAvatarHoldTag(ctx.user.id, stored.key);
+      await releaseAvatarHoldTag(ctx.user.id, stored.key, () => readOwnAvatarKey(ctx.user.id));
     } catch (e) {
       await reportAvatarOrphan([stored.key], e);
       return { error: e instanceof Error && e.message ? e.message : ACCOUNT_PROFILE.photoFailed };
@@ -128,6 +129,18 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
     const filtered = previousKey == null ? update.is("avatar_key", null) : update.eq("avatar_key", previousKey);
     const { data, error } = await filtered.select("id");
     if (error || !data || data.length === 0) {
+      try {
+        const live = await readOwnAvatarKey(ctx.user.id);
+        if (avatarPointerNamesKey(ctx.user.id, live, stored.key)) {
+          await reportAvatarOrphan([stored.key], new Error("avatar pointer names the new face"));
+          return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
+        }
+      } catch (readError) {
+        await reportAvatarOrphan([stored.key], readError);
+        return {
+          error: readError instanceof Error && readError.message ? readError.message : ACCOUNT_PROFILE.photoFailed,
+        };
+      }
       try {
         await applyAvatarHoldTag(ctx.user.id, stored.key);
       } catch (holdError) {

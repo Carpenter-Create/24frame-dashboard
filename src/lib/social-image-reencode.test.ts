@@ -713,6 +713,7 @@ describe("reencodeSocialImage", () => {
       async (_userId, key) => {
         held.push(key);
       },
+      async () => previous,
     );
     expect(skipped).toEqual({ skipped: true, orphanKey: next });
     expect(held).toEqual([next]);
@@ -751,9 +752,131 @@ describe("reencodeSocialImage", () => {
         async (_userId, key) => {
           held.push(key);
         },
+        async () => previous,
       ),
     ).rejects.toThrow(/swap failed/);
     expect(held).toEqual([next]);
+  });
+
+  it("does not re-hold a recheck key without reading the pointer", async () => {
+    const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(user, "33333333-3333-4333-8333-333333333333");
+    const writer = {
+      from() {
+        return writer;
+      },
+      update() {
+        return writer;
+      },
+      eq() {
+        return writer;
+      },
+      is() {
+        return writer;
+      },
+      select() {
+        return Promise.resolve({ data: [], error: null });
+      },
+    };
+    const order: string[] = [];
+    const skipped = await commitRecheckedAvatar(
+      writer,
+      user,
+      previous,
+      next,
+      async () => undefined,
+      async (_userId, key) => {
+        order.push(`hold:${key}`);
+      },
+      async () => {
+        order.push("read");
+        return previous;
+      },
+    );
+    expect(skipped).toEqual({ skipped: true, orphanKey: next });
+    expect(order).toEqual(["read", `hold:${next}`]);
+  });
+
+  it("does not re-hold a recheck key when the pointer read times out", async () => {
+    const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(user, "33333333-3333-4333-8333-333333333333");
+    const writer = {
+      from() {
+        return writer;
+      },
+      update() {
+        return writer;
+      },
+      eq() {
+        return writer;
+      },
+      is() {
+        return writer;
+      },
+      select() {
+        return Promise.resolve({ data: null, error: { message: "swap failed" } });
+      },
+    };
+    const held: string[] = [];
+    await expect(
+      commitRecheckedAvatar(
+        writer,
+        user,
+        previous,
+        next,
+        async () => undefined,
+        async (_userId, key) => {
+          held.push(key);
+        },
+        async () => {
+          throw Object.assign(new Error("socket timeout"), { name: "TimeoutError" });
+        },
+      ),
+    ).rejects.toMatchObject({ name: "TimeoutError", message: "socket timeout", orphanKey: next });
+    expect(held).toEqual([]);
+  });
+
+  it("does not re-hold a recheck key when the pointer names the key", async () => {
+    const { commitRecheckedAvatar } = await import("../../scripts/social/recheck-social-images");
+    const user = "11111111-1111-4111-8111-111111111111";
+    const previous = avatarRecheckObjectKey(user, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(user, "33333333-3333-4333-8333-333333333333");
+    const writer = {
+      from() {
+        return writer;
+      },
+      update() {
+        return writer;
+      },
+      eq() {
+        return writer;
+      },
+      is() {
+        return writer;
+      },
+      select() {
+        return Promise.resolve({ data: [], error: null });
+      },
+    };
+    const held: string[] = [];
+    await expect(
+      commitRecheckedAvatar(
+        writer,
+        user,
+        previous,
+        next,
+        async () => undefined,
+        async (_userId, key) => {
+          held.push(key);
+        },
+        async () => next,
+      ),
+    ).rejects.toMatchObject({ message: "avatar pointer names the new face", orphanKey: next });
+    expect(held).toEqual([]);
   });
 
   it("HD4: a 403 on a recheck head counts as unfinished", async () => {

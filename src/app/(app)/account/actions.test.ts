@@ -201,7 +201,7 @@ function profileUpdateClient(
   });
   vi.mocked(createClient).mockResolvedValue({ from } as never);
   vi.mocked(createAdminClient).mockReturnValue({ from: adminFrom } as never);
-  return { from, adminUpdate, filters };
+  return { from, adminUpdate, filters, maybeSingle };
 }
 
 describe("uploadAccountPhoto", () => {
@@ -244,7 +244,7 @@ describe("uploadAccountPhoto", () => {
       nextKey,
       expect.any(Function),
     );
-    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey, expect.any(Function));
     expect(deleteAvatarObject).not.toHaveBeenCalled();
     expect(createAdminClient).toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/settings");
@@ -270,7 +270,7 @@ describe("uploadAccountPhoto", () => {
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
     expect(client.adminUpdate).toHaveBeenCalled();
-    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey, expect.any(Function));
     expect(applyAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
@@ -285,11 +285,50 @@ describe("uploadAccountPhoto", () => {
       error: ACCOUNT_PROFILE.photoFailed,
     });
     expect(client.filters).toContainEqual(["eq", "avatar_key", previousKey]);
-    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey, expect.any(Function));
     expect(applyAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
+  });
+
+  it("does not re-hold an upload when the pointer is not read again", async () => {
+    const client = profileUpdateClient(previousKey, { data: null, error: { message: "swap failed" } });
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
+    expect(client.maybeSingle).toHaveBeenCalledTimes(2);
+    const reread = client.maybeSingle.mock.invocationCallOrder[1] ?? 0;
+    const hold = vi.mocked(applyAvatarHoldTag).mock.invocationCallOrder[0] ?? 0;
+    expect(reread).toBeGreaterThan(0);
+    expect(reread).toBeLessThan(hold);
+    expect(applyAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+  });
+
+  it("does not re-hold an upload when the pointer read times out", async () => {
+    const client = profileUpdateClient(previousKey, { data: null, error: { message: "swap failed" } });
+    client.maybeSingle
+      .mockResolvedValueOnce({ data: { avatar_key: previousKey }, error: null })
+      .mockRejectedValueOnce(Object.assign(new Error("socket timeout"), { name: "TimeoutError" }));
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "socket timeout" });
+    expect(applyAvatarHoldTag).not.toHaveBeenCalled();
+    expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
+  });
+
+  it("does not re-hold an upload when the pointer names the key", async () => {
+    const client = profileUpdateClient(previousKey, { data: null, error: { message: "swap failed" } });
+    client.maybeSingle
+      .mockResolvedValueOnce({ data: { avatar_key: previousKey }, error: null })
+      .mockResolvedValueOnce({ data: { avatar_key: nextKey }, error: null });
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
+    await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "swap failed" });
+    expect(applyAvatarHoldTag).not.toHaveBeenCalled();
+    expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({ orphanKeys: [nextKey] });
+    expect(avatarPointerNamesKey(USER.id, nextKey, nextKey)).toBe(true);
   });
 
   it("keeps the new photo when deleting the old objects fails", async () => {
@@ -313,7 +352,7 @@ describe("uploadAccountPhoto", () => {
     vi.mocked(releaseAvatarHoldTag).mockRejectedValueOnce(new Error("tag delete failed"));
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "face.jpg", { type: "image/jpeg" });
     await expect(uploadAccountPhoto(photoForm(file))).resolves.toEqual({ error: "tag delete failed" });
-    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey);
+    expect(releaseAvatarHoldTag).toHaveBeenCalledWith(USER.id, nextKey, expect.any(Function));
     expect(createAdminClient).not.toHaveBeenCalled();
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
