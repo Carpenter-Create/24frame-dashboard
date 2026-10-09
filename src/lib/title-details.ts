@@ -1,7 +1,6 @@
 import { houseWindowClosedHref, houseWindowOpenHref, parseHouseWindowParam } from "@/lib/house-window";
 import {
   METADATA_FIELDS,
-  metadataFieldError,
   metadataTierCount,
   parseMetadata,
   type FieldDef,
@@ -205,8 +204,9 @@ export function checkTitleDetails(
     for (const f of METADATA_FIELDS.filter((field) => field.tier === tier)) {
       const value = draftValue(f, draft.metadata[f.key] ?? "");
       if (value === undefined) continue;
-      if (!parseMetadata({ [f.key]: value }).ok) {
-        return { face: tier, field: f.key, error: metadataFieldError(f.key, now) };
+      const parsed = parseMetadata({ [f.key]: value }, now);
+      if (!parsed.ok) {
+        return { face: tier, field: f.key, error: parsed.error };
       }
     }
   }

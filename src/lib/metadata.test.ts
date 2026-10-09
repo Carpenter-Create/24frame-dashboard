@@ -78,7 +78,16 @@ describe("metadata limits (Adam 2026-10-09, \"Add these limits\")", () => {
       field: "cast",
       error: "Up to 50 entries.",
     });
-    expect(parseMetadata({ keywords: ["x".repeat(201)] }).ok).toBe(false);
+    expect(parseMetadata({ keywords: ["x".repeat(201)] })).toEqual({
+      ok: false,
+      field: "keywords",
+      error: "Up to 200 characters.",
+    });
+    expect(parseMetadata({ keywords: [""] })).toEqual({
+      ok: false,
+      field: "keywords",
+      error: "Up to 200 characters.",
+    });
     expect(parseMetadata({ genre: "Drama" })).toEqual({ ok: false, field: "genre", error: "Choose one from the list." });
   });
 

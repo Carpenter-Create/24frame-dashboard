@@ -92,8 +92,13 @@ function fieldSchema(f: FieldDef): z.ZodTypeAny {
 }
 
 /** What a field says when its value breaks its limit (Adam 2026-10-09,
- *  "Specific line"). */
-export function metadataFieldError(key: string, now: Date = new Date()): string {
+ *  "Specific line"). A list issue on one entry is that entry's length, not
+ *  the entry count. */
+export function metadataFieldError(
+  key: string,
+  now: Date = new Date(),
+  issue?: { code?: string; path: readonly PropertyKey[] },
+): string {
   const field = METADATA_FIELDS.find((f) => f.key === key);
   if (!field) return METADATA_ERRORS.unknown;
   switch (field.type) {
@@ -102,7 +107,9 @@ export function metadataFieldError(key: string, now: Date = new Date()): string 
         ? METADATA_ERRORS.year(metadataMaxYear(now))
         : METADATA_ERRORS.runtime;
     case "list":
-      return METADATA_ERRORS.list;
+      return issue?.code === "custom" && issue.path.length > 1
+        ? METADATA_ERRORS.text
+        : METADATA_ERRORS.list;
     case "select":
       return METADATA_ERRORS.select;
     case "textarea":
@@ -132,13 +139,14 @@ export type MetadataData = z.infer<typeof metadataSchema>;
 
 export function parseMetadata(
   input: unknown,
+  now: Date = new Date(),
 ): { ok: true; data: MetadataData } | { ok: false; error: string; field: string | null } {
   const r = metadataSchema.safeParse(input);
   if (r.success) return { ok: true, data: r.data };
   const first = r.error.issues[0];
   const key = first.path[0];
   const field = typeof key === "string" && METADATA_FIELDS.some((f) => f.key === key) ? key : null;
-  return { ok: false, error: field ? metadataFieldError(field) : METADATA_ERRORS.unknown, field };
+  return { ok: false, error: field ? metadataFieldError(field, now, first) : METADATA_ERRORS.unknown, field };
 }
 
 /** One tier's count for the window's rows: a field counts when it is filled

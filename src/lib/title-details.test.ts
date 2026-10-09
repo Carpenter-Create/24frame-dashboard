@@ -107,6 +107,12 @@ describe("title Metadata window (lib/title-details)", () => {
     expect(checkTitleDetails(draft, NOW)?.field).toBe("runtime_minutes");
     draft.metadata.runtime_minutes = "1000";
     expect(checkTitleDetails(draft, NOW)).toEqual({ face: "recommended", field: "keywords", error: "Up to 50 entries." });
+    draft.metadata.keywords = "k".repeat(201);
+    expect(checkTitleDetails(draft, NOW)).toEqual({
+      face: "recommended",
+      field: "keywords",
+      error: "Up to 200 characters.",
+    });
     draft.metadata.keywords = "";
     // Next year plus five, from today's year (2032 in 2026).
     const maxYear = new Date().getUTCFullYear() + 6;
