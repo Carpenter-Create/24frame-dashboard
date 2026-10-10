@@ -6,7 +6,7 @@
 -- re-derives every live title's findings when the migration is applied.
 
 begin;
-select plan(27);
+select plan(29);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -167,7 +167,7 @@ select is((select status::text from public.findings where code = 'ai.genre_misma
 select is((select status::text from public.findings
     where entity_id = current_setting('t.gone')::uuid and code = 'metadata.forged'),
   'open', 'a deleted title is skipped (its findings are untouched)');
--- The founder's second pass after the commit (Codex on #799) is idempotent:
+-- A second pass (the final pass runs one after the commit) is idempotent:
 -- over unchanged records it changes no finding's status or message.
 create temp table pass_one as
   select id, status, message from public.findings where source = 'validator';
@@ -176,6 +176,14 @@ select is(
   (select count(*) from public.findings f join pass_one p on p.id = f.id
     where f.status is distinct from p.status or f.message is distinct from p.message)::int,
   0, 'a second pass over unchanged records changes nothing');
+
+-- The founder's final pass after the commit (Codex on #799): it waits for
+-- every transaction that began before it, then refreshes. No client may run it.
+select ok(
+  not has_function_privilege('authenticated', 'public.finish_title_findings_repair(integer)', 'EXECUTE')
+    and not has_function_privilege('anon', 'public.finish_title_findings_repair(integer)', 'EXECUTE'),
+  'no client role may run the final pass');
+select ok(public.finish_title_findings_repair(30) >= 1, 'the final pass drains, then refreshes every live title');
 
 -- Derived as the window reads the record (Codex on #799): a blank-only Cast
 -- is missing, a runtime stored as text is filled.

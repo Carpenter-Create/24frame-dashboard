@@ -52,14 +52,17 @@
 --   5. One pass at apply (section 9, Codex on #799): every live title's
 --      validator findings are re-derived from its stored metadata, so
 --      findings an earlier caller forged through the old reconcile do not
---      outlive it.
+--      outlive it. After the commit the founder runs the final pass
+--      (section 10), which first waits for every transaction that began
+--      before it, so no reconcile call on the old body can write after it.
 --
 -- DESTRUCTIVE OPS (approved before apply): create or replace 4 existing
 -- functions (reconcile_title_findings, set_title_metadata,
--- set_title_release_info, submit_title); create 7 new functions (2 pure
+-- set_title_release_info, submit_title); create 8 new functions (2 pure
 -- helpers, 1 internal refresh, 1 metadata check, in section 8
 -- normalize_stored_title_metadata (internal) and merge_title_metadata, and
--- in section 9 refresh_live_title_findings (internal)); a
+-- in sections 9 and 10 refresh_live_title_findings and
+-- finish_title_findings_repair (internal)); a
 -- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata,
 -- submit_title and reconcile_title_findings; submit_title refuses a title
 -- outside the org or soft-deleted at that lock, reads the stored record
@@ -80,6 +83,7 @@
 -- 20260727000100_gc_role_separation.sql (reconcile_title_findings); drop the
 -- new functions (submit_title's previous body first: this one calls
 -- normalize_stored_title_metadata), and
+--   drop function public.finish_title_findings_repair(integer);
 --   drop function public.refresh_live_title_findings();
 -- The pass's findings stay: they are derived from stored metadata, and the
 -- next save of each title derives them again. For the merge alone:
@@ -682,12 +686,8 @@ grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]
 -- validator findings from its stored metadata through refresh_title_findings,
 -- under each title's lock (the writers' order: title, then findings), and
 -- returns how many titles it refreshed. It runs once, below, when this
--- migration is applied, and the founder runs it once more in its own
--- transaction after the migration has committed: a reconcile call that began
--- on the old body before the commit keeps that body until it ends, so it
--- could write after the first pass, and only a pass after the commit has the
--- last word (Codex on #799). It is idempotent: a second pass over an
--- unchanged record changes no finding. Only validator rows change, by upsert or by status
+-- migration is applied. It is idempotent: a second pass over an unchanged
+-- record changes no finding. Only validator rows change, by upsert or by status
 -- (resolved): nothing is deleted, and AI findings, a deleted title's findings
 -- and the metadata itself are untouched. No client role may call it.
 
@@ -721,3 +721,50 @@ begin
   perform public.refresh_live_title_findings();
 end;
 $$;
+
+-- ---- 10. The final pass, after the commit (founder-run; Codex on #799) ------
+-- A reconcile call that began on the old body before this migration
+-- committed keeps that body until its transaction ends, and the old body
+-- takes no title lock: it could write after the pass above, or wait on a
+-- later pass's row locks and write after it. finish_title_findings_repair
+-- drains first: it waits until every other client transaction that began
+-- before it was called has ended, and only then runs the pass, so no old body
+-- is left to write after it. A call made after the commit runs the new body
+-- (PL/pgSQL rechecks the function at each call). It refuses, writing
+-- nothing, when the caller cannot see other sessions' transactions, or when
+-- they have not drained within p_max_wait_seconds. The founder runs it once,
+-- in its own transaction, after the migration has committed. No client role
+-- may call it.
+
+create or replace function public.finish_title_findings_repair(p_max_wait_seconds integer default 120)
+  returns integer
+  language plpgsql
+  set search_path = public
+as $$
+declare
+  v_since timestamptz := clock_timestamp();
+  v_open  integer;
+  v_waited integer := 0;
+begin
+  if not (coalesce((select r.rolsuper from pg_roles r where r.rolname = current_user), false)
+          or pg_has_role(current_user, 'pg_read_all_stats', 'member')) then
+    raise exception 'Cannot see other sessions: run as a role with pg_read_all_stats';
+  end if;
+  loop
+    select count(*) into v_open
+      from pg_stat_activity a
+     where a.backend_type = 'client backend'
+       and a.pid <> pg_backend_pid()
+       and a.xact_start < v_since;
+    exit when v_open = 0;
+    if v_waited >= greatest(coalesce(p_max_wait_seconds, 0), 0) then
+      raise exception '% transaction(s) from before this call are still open; nothing was refreshed', v_open;
+    end if;
+    perform pg_sleep(1);
+    v_waited := v_waited + 1;
+  end loop;
+  return public.refresh_live_title_findings();
+end;
+$$;
+
+revoke execute on function public.finish_title_findings_repair(integer) from public, anon, authenticated;

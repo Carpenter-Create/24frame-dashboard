@@ -215,10 +215,39 @@ describe("the one pass over live titles' findings (draft, founder-applied)", () 
       /^revoke execute on function public\.refresh_live_title_findings\(\) from public, anon, authenticated;/,
     );
     expect(pass.after).not.toMatch(/grant\s+execute on function public\.refresh_live_title_findings/);
-    // Called once, after it is defined and revoked, at the migration's end.
+    // Called once, after it is defined and revoked.
     const run = MIGRATION.indexOf("do $$\nbegin\n  perform public.refresh_live_title_findings();\nend;\n$$;");
     expect(run).toBeGreaterThan(MIGRATION.indexOf("revoke execute on function public.refresh_live_title_findings()"));
-    expect(MIGRATION.slice(run).trim().endsWith("$$;")).toBe(true);
+    expect(MIGRATION.split("perform public.refresh_live_title_findings();")).toHaveLength(2);
+  });
+
+  // Codex on #799: an old-body reconcile takes no title lock, so the final
+  // pass waits for every transaction that began before it, then refreshes.
+  it("drains every older client transaction before the final pass, and refuses blind", () => {
+    const finish = functionSql("finish_title_findings_repair");
+    expect(finish.header).toBe("(p_max_wait_seconds integer default 120)");
+    expect(finish.body).not.toContain("security definer");
+    expect(finish.after).toMatch(
+      /^revoke execute on function public\.finish_title_findings_repair\(integer\) from public, anon, authenticated;/,
+    );
+    expect(MIGRATION).not.toMatch(/grant\s+execute on function public\.finish_title_findings_repair/);
+    const body = finish.body;
+    const guard = body.indexOf("pg_has_role(current_user, 'pg_read_all_stats', 'member')");
+    const since = body.indexOf("v_since timestamptz := clock_timestamp();");
+    const drain = body.search(
+      /from pg_stat_activity a\s+where a\.backend_type = 'client backend'\s+and a\.pid <> pg_backend_pid\(\)\s+and a\.xact_start < v_since;/,
+    );
+    const refuse = body.indexOf("raise exception '% transaction(s) from before this call are still open; nothing was refreshed', v_open;");
+    const pass = body.indexOf("return public.refresh_live_title_findings();");
+    for (const at of [guard, since, drain, refuse, pass]) expect(at).toBeGreaterThan(0);
+    expect(since).toBeLessThan(drain);
+    expect(guard).toBeLessThan(drain);
+    expect(drain).toBeLessThan(pass);
+    expect(refuse).toBeLessThan(pass);
+    // The pass runs only after the loop: never inside it.
+    expect(body.indexOf("end loop;")).toBeLessThan(pass);
+    // Never run by the migration itself (its own transaction is the one to drain).
+    expect(MIGRATION).not.toMatch(/perform public\.finish_title_findings_repair|select public\.finish_title_findings_repair/);
   });
 });
 
