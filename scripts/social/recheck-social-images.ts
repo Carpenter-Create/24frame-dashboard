@@ -57,7 +57,7 @@ import {
   type SocialImageRecheckReport,
 } from "@/lib/social-image-reencode";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runUnholdLiveAvatars } from "./unhold-live-avatars";
+import { runUnholdLiveAvatars, type UnholdLiveAvatarsReport } from "./unhold-live-avatars";
 
 export { recheckWantsExecute };
 
@@ -694,12 +694,37 @@ async function main(): Promise<void> {
   report.unverifiedKeys.push(...avatars.unverifiedKeys);
   report.legacyS3Video += avatars.legacyS3Video;
 
-  if (execute) {
-    const unholdEnd = await runUnholdLiveAvatars(true);
-    logs.push(JSON.stringify({ msg: "unhold live avatars", when: "end", ...unholdEnd }));
-  }
+  await publishRecheckReportThenUnhold({ execute, report, notes: logs });
+}
 
-  console.log(JSON.stringify({ msg: "social image recheck", ...report, notes: logs }));
+/**
+ * The JSON report is the rollback record. Print it before the final unhold.
+ * A throw from that unhold must not drop the report: name the failure and exit 1.
+ */
+export async function publishRecheckReportThenUnhold(input: {
+  execute: boolean;
+  report: SocialImageRecheckReport;
+  notes: readonly string[];
+  unhold?: (execute: boolean) => Promise<UnholdLiveAvatarsReport>;
+  log?: (line: string) => void;
+  fail?: (line: string) => void;
+}): Promise<void> {
+  const log = input.log ?? ((line: string) => console.log(line));
+  const fail = input.fail ?? ((line: string) => console.error(line));
+  log(JSON.stringify({ msg: "social image recheck", ...input.report, notes: input.notes }));
+  if (!input.execute) return;
+  try {
+    const unholdEnd = await (input.unhold ?? unholdAfterRecheckReport)(true);
+    log(JSON.stringify({ msg: "unhold live avatars", when: "end", ...unholdEnd }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unhold failed";
+    fail(`unhold live avatars failed after the recheck report: ${message}`);
+    process.exitCode = 1;
+  }
+}
+
+function unholdAfterRecheckReport(execute: boolean): Promise<UnholdLiveAvatarsReport> {
+  return runUnholdLiveAvatars(execute);
 }
 
 const invokedDirectly =

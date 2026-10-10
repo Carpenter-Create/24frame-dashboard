@@ -157,6 +157,8 @@ Unhold is not scheduled yet. `scripts/social/unhold-live-avatars.ts --execute` m
 
 ### Avatar hold — theoretical follow-ups
 These stay on the backlog. They are not scheduled work in this change.
+B2 is in `unhold-live-avatars.ts`: a key is cleared only when `avatarKeyOwner(key)` is that row's id, and every other row is a skipped clear.
+B5 is in `delete-avatar-orphans.ts`: a delete that throws still prints the partial report, then the process exits 1.
 
 - B1: a no-proof ("unfinished") swap key goes in orphanKeys (`actions.ts` unfinished branch; `recheck-social-images.ts` unfinished branch), although a late commit can make it live. `delete-avatar-orphans` re-reads first, so it is safe. After a late commit, the old face is unreported and untagged (a leak). Largely covered by REPORT1: that branch now reports both the new key and the replaced key under `unverifiedKeys`, never `orphanKeys`.
 - B3: `delete-avatar-orphans` has a read-to-delete window (it needs a writer pointing at an orphan key).

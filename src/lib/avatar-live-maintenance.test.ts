@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey } from "./account-avatar";
-import { deleteAvatarOrphans, deleteOrphansWantsExecute } from "../../scripts/social/delete-avatar-orphans";
+import {
+  deleteAvatarOrphans,
+  deleteOrphansWantsExecute,
+  printDeleteAvatarOrphansResult,
+} from "../../scripts/social/delete-avatar-orphans";
 import { unholdLiveAvatars, unholdWantsExecute } from "../../scripts/social/unhold-live-avatars";
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -20,9 +24,9 @@ describe("unholdLiveAvatars", () => {
       [
         { id: "a", avatar_key: null },
         { id: "b", avatar_key: AVATAR_CLEARED },
-        { id: "c", avatar_key: live },
+        { id: USER, avatar_key: live },
       ],
-      [{ id: "d", avatar_key: canonical }],
+      [{ id: OTHER, avatar_key: canonical }],
     ];
     const cursors: (string | null)[] = [];
     const cleared: string[] = [];
@@ -43,7 +47,7 @@ describe("unholdLiveAvatars", () => {
         cleared.push(key);
       },
     });
-    expect(cursors).toEqual([null, "c"]);
+    expect(cursors).toEqual([null, USER]);
     expect(dry).toMatchObject({
       dryRun: true,
       pages: 2,
@@ -71,7 +75,7 @@ describe("unholdLiveAvatars", () => {
     });
     expect(executed).toMatchObject({ dryRun: false, held: 1, cleared: 1, skippedClears: 0, unverified: 0 });
     expect(cleared).toEqual([live]);
-    expect(pointerReads).toEqual(["c"]);
+    expect(pointerReads).toEqual([USER]);
   });
 
   it("skips the clear when a fresh read no longer names the key or the read fails", async () => {
@@ -214,7 +218,7 @@ describe("unholdLiveAvatars", () => {
     const report = await unholdLiveAvatars({
       execute: true,
       pageSize: 10,
-      loadPage: async () => [{ id: "a", avatar_key: key }],
+      loadPage: async () => [{ id: USER, avatar_key: key }],
       readTags: async () => {
         throw new Error("timeout");
       },
@@ -227,6 +231,24 @@ describe("unholdLiveAvatars", () => {
     });
     expect(report).toMatchObject({ checked: 1, held: 0, cleared: 0, unverified: 1 });
     expect(cleared).toEqual([]);
+  });
+
+  it("skips a key owned by another profile and counts the row", async () => {
+    const foreign = avatarObjectKey(OTHER);
+    const cleared: string[] = [];
+    const report = await unholdLiveAvatars({
+      execute: true,
+      pageSize: 10,
+      loadPage: async () => [{ id: USER, avatar_key: foreign }],
+      readTags: async () => [{ Key: "gc-hold", Value: "quarantine" }],
+      readPointer: async () => foreign,
+      clearTag: async (key) => {
+        cleared.push(key);
+      },
+    });
+    expect(report).toMatchObject({ checked: 1, held: 0, cleared: 0, skippedClears: 1, unverified: 0 });
+    expect(cleared).toEqual([]);
+    expect(avatarObjectKey(USER)).not.toBe(foreign);
   });
 });
 
@@ -280,5 +302,39 @@ describe("deleteAvatarOrphans", () => {
     expect(unread.unverifiedKeys).toEqual([orphan]);
     expect(unread.deleted).toEqual([]);
     expect(deleted).toEqual([orphan]);
+  });
+
+  it("prints the partial report when a delete throws", async () => {
+    const first = avatarRecheckObjectKey(USER, "33333333-3333-4333-8333-333333333333");
+    const second = avatarRecheckObjectKey(USER, "44444444-4444-4444-8444-444444444444");
+    const lines: string[] = [];
+    const errors: string[] = [];
+    const previousExit = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      await printDeleteAvatarOrphansResult(true, [first, second], {
+        readPointer: async () => null,
+        deleteKey: async (key) => {
+          if (key === second) throw new Error("delete failed");
+        },
+        log: (line) => {
+          lines.push(line);
+        },
+        fail: (line) => {
+          errors.push(line);
+        },
+      });
+      const printed = lines.map((line) => JSON.parse(line) as { deleted?: string[]; msg?: string });
+      expect(printed).toEqual([
+        expect.objectContaining({
+          msg: "delete avatar orphans",
+          deleted: [first],
+        }),
+      ]);
+      expect(errors).toEqual(["delete failed"]);
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = previousExit;
+    }
   });
 });

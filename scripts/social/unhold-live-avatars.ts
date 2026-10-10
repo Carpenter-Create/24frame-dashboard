@@ -4,6 +4,7 @@
  * Immediately before each clear, read that profile's avatar_key again.
  * A null avatar_key is the legacy canonical face. Check avatars/{id}/avatar.
  * A 404 on that key is no avatar. Clear it only when the fresh read is still null.
+ * A key is cleared only when avatarKeyOwner(key) is that row's id. Any other key is a skipped clear.
  * A key that read no longer names, a pointer that changed, or a read that errors, is a skipped clear. The tag stays.
  * Unhold is not scheduled yet. Scheduling --execute well under 30 days is a required follow-up before real users depend on it.
  * A tag read that fails is unverified. The tag stays.
@@ -12,7 +13,7 @@
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts --execute
  */
-import { AVATAR_CLEARED, avatarObjectKey, avatarPointerNamesKey } from "@/lib/account-avatar";
+import { AVATAR_CLEARED, avatarKeyOwner, avatarObjectKey, avatarPointerNamesKey } from "@/lib/account-avatar";
 import { clearAvatarHoldTag, readAvatarObjectTags } from "@/lib/s3-avatars";
 import { SOCIAL_IMAGE_RECHECK_PAGE } from "@/lib/social-image-reencode";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -65,6 +66,7 @@ function legacyCanonicalKey(profileId: string): string | null {
  * `cleared` is not an object. Any gc-hold value on a real key is held.
  * --execute reads profiles.avatar_key again immediately before the clear.
  * A null row is cleared only when that read is still null.
+ * A key whose owner is not this row is skipped and counted. The tag stays.
  * A pointer that no longer names the key, a pointer that changed, or a read that fails, increments skippedClears and leaves the tag.
  * A clear counts only when the follow-up tag read has no gc-hold.
  */
@@ -95,6 +97,10 @@ export async function unholdLiveAvatars(input: {
       if (key == null) continue;
       report.checked += 1;
       if (!legacyNull && key === AVATAR_CLEARED) continue;
+      if (avatarKeyOwner(key) !== row.id) {
+        report.skippedClears += 1;
+        continue;
+      }
       let tags: { Key?: string; Value?: string }[];
       try {
         tags = await input.readTags(key);

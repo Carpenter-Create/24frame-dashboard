@@ -24,6 +24,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 import { CopyObjectCommand, DeleteObjectCommand, DeleteObjectTaggingCommand, GetObjectCommand, GetObjectTaggingCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, PutObjectTaggingCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
+import { unholdLiveAvatars } from "../../scripts/social/unhold-live-avatars";
 import { AVATAR_CLEARED, AVATAR_QUARANTINE_HOLD_TAG, avatarObjectKey, avatarPointerNamesKey, avatarQuarantineObjectKey, avatarRecheckObjectKey, avatarServeKey } from "./account-avatar";
 import { SOCIAL_IMAGE_PREVIOUS_KEY_METADATA, SOCIAL_IMAGE_REENCODED_METADATA } from "./social-image-reencode";
 import {
@@ -36,6 +37,7 @@ import {
   putAvatarRecheckObject,
   quarantineAvatarObject,
   applyAvatarHoldTag,
+  clearAvatarHoldTag,
   releaseAvatarHoldTag,
   restoreQuarantinedAvatar,
   headAvatarRecheck,
@@ -481,6 +483,19 @@ describe("s3-avatars dedicated bucket", () => {
     expect(mockSend.mock.calls.some((call) => call[0] instanceof PutObjectTaggingCommand)).toBe(true);
   });
 
+  it("does not strip gc-hold when the post-tag pointer read fails", async () => {
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(
+      applyAvatarHoldTag(UID, KEY, async () => {
+        throw new Error("pointer timeout");
+      }),
+    ).resolves.toBe("held");
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof DeleteObjectTaggingCommand)).toBe(false);
+  });
+
   it("leaves gc-hold when the post-tag read does not name the key", async () => {
     const key = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
     mockSend.mockImplementation(async (command: unknown) => {
@@ -659,6 +674,40 @@ describe("s3-avatars dedicated bucket", () => {
     expect(dest).toBe(avatarQuarantineObjectKey(UID, "22222222-2222-4222-8222-222222222222"));
     expect(deletedKeys()).toEqual([]);
     expect(avatarPointerNamesKey(UID, null, KEY)).toBe(true);
+  });
+
+  it("lists a leftover in taggedLeftoverKeys when gc-hold remains after a failed delete", async () => {
+    const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(UID, "33333333-3333-4333-8333-333333333333");
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof DeleteObjectCommand && (command as DeleteObjectCommand).input.Key === KEY) {
+        throw new Error("delete failed");
+      }
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    await expect(deleteReplacedAvatarObjects(UID, previous, next, async () => next)).rejects.toMatchObject({
+      message: "avatar delete left objects",
+      leftoverKeys: [KEY],
+      taggedLeftoverKeys: [KEY],
+    });
+  });
+
+  it("lists a leftover as untagged when the tag read fails", async () => {
+    const previous = avatarRecheckObjectKey(UID, "22222222-2222-4222-8222-222222222222");
+    const next = avatarRecheckObjectKey(UID, "33333333-3333-4333-8333-333333333333");
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof DeleteObjectCommand && (command as DeleteObjectCommand).input.Key === KEY) {
+        throw new Error("delete failed");
+      }
+      if (command instanceof GetObjectTaggingCommand) throw new Error("tag read failed");
+      return {};
+    });
+    await expect(deleteReplacedAvatarObjects(UID, previous, next, async () => next)).rejects.toMatchObject({
+      message: "avatar delete left objects",
+      leftoverKeys: [KEY],
+      taggedLeftoverKeys: [],
+    });
   });
 
   it("keeps deleting after one delete fails and leaves that object untagged", async () => {
@@ -884,5 +933,40 @@ describe("s3-avatars dedicated bucket", () => {
     const head = mockSend.mock.calls[0]?.[0] as HeadObjectCommand;
     expect(head.input.Key).toBe(KEY);
     expect(head.input.Key).not.toBe(foreign);
+  });
+
+  it("counts unverified when the confirm read still shows gc-hold", async () => {
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) return HOLD;
+      return {};
+    });
+    const report = await unholdLiveAvatars({
+      execute: true,
+      pageSize: 10,
+      loadPage: async () => [{ id: UID, avatar_key: KEY }],
+      readTags: async () => [{ Key: "gc-hold", Value: "quarantine" }],
+      readPointer: async () => KEY,
+      clearTag: (key) => clearAvatarHoldTag(key),
+    });
+    expect(report).toMatchObject({ held: 1, cleared: 0, unverified: 1, skippedClears: 0 });
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof DeleteObjectTaggingCommand)).toBe(true);
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof GetObjectTaggingCommand)).toBe(true);
+  });
+
+  it("counts cleared only when the confirm read has no gc-hold", async () => {
+    mockSend.mockImplementation(async (command: unknown) => {
+      if (command instanceof GetObjectTaggingCommand) return { TagSet: [] };
+      return {};
+    });
+    const report = await unholdLiveAvatars({
+      execute: true,
+      pageSize: 10,
+      loadPage: async () => [{ id: UID, avatar_key: KEY }],
+      readTags: async () => [{ Key: "gc-hold", Value: "quarantine" }],
+      readPointer: async () => KEY,
+      clearTag: (key) => clearAvatarHoldTag(key),
+    });
+    expect(report).toMatchObject({ held: 1, cleared: 1, unverified: 0, skippedClears: 0 });
+    expect(mockSend.mock.calls.some((call) => call[0] instanceof GetObjectTaggingCommand)).toBe(true);
   });
 });

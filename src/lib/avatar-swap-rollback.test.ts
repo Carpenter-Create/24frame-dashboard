@@ -45,6 +45,8 @@ describe("avatar swap rollback proof", () => {
     expect(avatarSwapErrorProvesRollback({ name: "TimeoutError", message: "socket timeout" })).toBe(false);
     expect(avatarSwapErrorProvesRollback(null)).toBe(false);
     expect(avatarSwapErrorProvesRollback(undefined)).toBe(false);
+    expect(avatarSwapErrorProvesRollback({ code: "23514X" })).toBe(false);
+    expect(avatarSwapErrorProvesRollback({ code: "23" })).toBe(false);
   });
 
   it("treats an empty match as proof and a missing body as not proof", () => {

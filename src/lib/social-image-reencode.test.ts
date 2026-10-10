@@ -385,6 +385,45 @@ describe("reencodeSocialImage", () => {
     expect(lastPage).toBeLessThan(unholdEnd);
   });
 
+  it("prints the recheck report before the final unhold and exits 1 when that unhold throws", async () => {
+    const { publishRecheckReportThenUnhold } = await import("../../scripts/social/recheck-social-images");
+    const lines: string[] = [];
+    const errors: string[] = [];
+    const previousExit = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      await publishRecheckReportThenUnhold({
+        execute: true,
+        report: { ...blankSocialImageRecheckReport(false), store: 2, unverifiedKeys: ["avatars/late/recheck"] },
+        notes: ["page done"],
+        unhold: async () => {
+          throw new Error("unhold socket timeout");
+        },
+        log: (line: string) => {
+          lines.push(line);
+        },
+        fail: (line: string) => {
+          errors.push(line);
+        },
+      });
+      expect(lines).toHaveLength(1);
+      const report = JSON.parse(lines[0] ?? "{}") as {
+        msg?: string;
+        store?: number;
+        unverifiedKeys?: string[];
+        notes?: string[];
+      };
+      expect(report.msg).toBe("social image recheck");
+      expect(report.store).toBe(2);
+      expect(report.unverifiedKeys).toEqual(["avatars/late/recheck"]);
+      expect(report.notes).toEqual(["page done"]);
+      expect(errors).toEqual(["unhold live avatars failed after the recheck report: unhold socket timeout"]);
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = previousExit;
+    }
+  });
+
   it("visits every later row when the first page is hidden", async () => {
     const ids = ["00", "01", "02", "03", "04", "05"];
     const active = new Set(ids);

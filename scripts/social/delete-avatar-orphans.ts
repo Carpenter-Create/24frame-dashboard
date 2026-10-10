@@ -4,6 +4,7 @@
  * Immediately before each delete, read profiles.avatar_key for the key's owner.
  * A key the pointer names, a key that is not an avatar path, and a key whose
  * pointer read fails are not deleted.
+ * A delete that throws still prints the keys already classified, then exits 1.
  * Do not run this against production from CI. Adam runs it.
  * Do not delete orphans by hand.
  *
@@ -69,10 +70,46 @@ export async function deleteAvatarOrphans(input: {
       report.pending.push(key);
       continue;
     }
-    await input.deleteKey(key);
+    try {
+      await input.deleteKey(key);
+    } catch (error) {
+      const failure = error instanceof Error ? error : new Error("delete orphans failed");
+      throw Object.assign(failure, { report });
+    }
     report.deleted.push(key);
   }
   return report;
+}
+
+export async function printDeleteAvatarOrphansResult(
+  execute: boolean,
+  keys: readonly string[],
+  deps?: {
+    readPointer?: (userId: string) => Promise<string | null>;
+    deleteKey?: (key: string) => Promise<void>;
+    log?: (line: string) => void;
+    fail?: (line: string) => void;
+  },
+): Promise<void> {
+  const log = deps?.log ?? ((line: string) => console.log(line));
+  const fail = deps?.fail ?? ((line: string) => console.error(line));
+  try {
+    const report = await deleteAvatarOrphans({
+      execute,
+      keys,
+      readPointer: deps?.readPointer ?? readProfilePointer,
+      deleteKey: deps?.deleteKey ?? ((key: string) => deleteUnreferencedAvatarObject(key)),
+    });
+    log(JSON.stringify({ msg: "delete avatar orphans", ...report }));
+  } catch (error) {
+    const partial =
+      error && typeof error === "object" && "report" in error
+        ? (error as { report?: DeleteAvatarOrphansReport }).report
+        : undefined;
+    if (partial) log(JSON.stringify({ msg: "delete avatar orphans", ...partial }));
+    fail(error instanceof Error ? error.message : "delete orphans failed");
+    process.exitCode = 1;
+  }
 }
 
 async function readProfilePointer(userId: string): Promise<string | null> {
@@ -96,12 +133,5 @@ const invokedDirectly =
 if (invokedDirectly) {
   const execute = deleteOrphansWantsExecute(process.argv);
   const keys = avatarOrphanKeysFromArgv(process.argv.slice(2));
-  runDeleteAvatarOrphans(execute, keys)
-    .then((report) => {
-      console.log(JSON.stringify({ msg: "delete avatar orphans", ...report }));
-    })
-    .catch((error: unknown) => {
-      console.error(error instanceof Error ? error.message : "delete orphans failed");
-      process.exitCode = 1;
-    });
+  void printDeleteAvatarOrphansResult(execute, keys);
 }
