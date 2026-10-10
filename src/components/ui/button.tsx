@@ -5,12 +5,12 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 // Geometry from tokens (radius, type scale, accent) — never hardcoded px/hex.
 // Keyboard focus is the global accent :focus-visible ring (globals.css).
 // Danger is thin ink on the same pill — not a filled scare surface.
-// Hex matches MENU_SURFACE_ITEM_DANGER_CLASS; a --danger token is founder-gated.
+// The ink is the --danger token, as MENU_SURFACE_ITEM_DANGER_CLASS.
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-accent text-accent-contrast hover:opacity-90",
   secondary: "border border-hairline bg-surface text-ink-2 hover:bg-surface-muted",
   ghost: "text-ink-2 hover:bg-surface-muted",
-  danger: "text-[#c4564a] hover:bg-surface-muted",
+  danger: "text-danger hover:bg-surface-muted",
 };
 
 export function Button({

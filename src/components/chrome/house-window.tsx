@@ -13,17 +13,11 @@ import {
 import { createPortal } from "react-dom";
 
 import { useHouseClient } from "@/components/chrome/house-client-shell";
-import { AppSheetCard, AppSheetFrame, HouseDialogFrame, HouseScrim, useHouseDesktop } from "@/components/chrome/house-overlay";
+import { AppSheetFrame, HouseDialogFrame, useHouseDesktop } from "@/components/chrome/house-overlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
 import {
-  HOUSE_WINDOW_ASK_ACTIONS_CLASS,
-  HOUSE_WINDOW_ASK_BUTTON_CLASS,
-  HOUSE_WINDOW_ASK_LINE_CLASS,
-  HOUSE_WINDOW_ASK_SHEET_ACTIONS_CLASS,
-  HOUSE_WINDOW_ASK_STRIP_CLASS,
-  HOUSE_WINDOW_ASK_TITLE_CLASS,
   HOUSE_WINDOW_BODY_CLASS,
   HOUSE_WINDOW_DONE_CLASS,
   HOUSE_WINDOW_FACE_CLASS,
@@ -59,6 +53,11 @@ import {
 // a foot pinned under the body, a frame that fills 80vh (fill: never the
 // held px), and a container other than the page body (a layer that owns
 // the window). ⌘/Ctrl+Enter does nothing while the ask is up.
+// The ask itself (HouseWindowAsk) lives in ./house-window-ask, re-exported
+// here, so a confirm host can draw it without this shell
+// (house-dual-host-primitive-audit-v1, "HouseWindowAsk panel").
+
+export { HouseWindowAsk } from "./house-window-ask";
 
 /** While the draft has changes, reloading or closing the tab raises the
  *  browser's own prompt. */
@@ -492,99 +491,6 @@ export function HouseWindowFrame({
   );
 
   return typeof document === "undefined" ? host : createPortal(host, container ?? document.body);
-}
-
-/** The ask before changes are lost: a strip at the window's foot (Discard,
- *  then Keep editing, focused) or the house AppSheet card on a phone (Keep
- *  editing first, focused, then Discard, stacked full width). */
-export function HouseWindowAsk({
-  attr,
-  variant,
-  titleId,
-  title,
-  lines,
-  keepLabel,
-  discardLabel,
-  onKeep,
-  onDiscard,
-}: {
-  attr: string;
-  variant: "strip" | "sheet";
-  titleId: string;
-  title: string;
-  lines: readonly string[];
-  keepLabel: string;
-  discardLabel: string;
-  onKeep: () => void;
-  onDiscard: () => void;
-}) {
-  const keepRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    keepRef.current?.focus();
-  }, []);
-  const discardButton = (
-    <Button
-      variant="secondary"
-      {...{ [`data-${attr}-discard`]: "" }}
-      className={HOUSE_WINDOW_ASK_BUTTON_CLASS}
-      onClick={onDiscard}
-    >
-      {discardLabel}
-    </Button>
-  );
-  const keepButton = (
-    <Button ref={keepRef} {...{ [`data-${attr}-keep`]: "" }} className={HOUSE_WINDOW_ASK_BUTTON_CLASS} onClick={onKeep}>
-      {keepLabel}
-    </Button>
-  );
-  const body = (
-    <>
-      <h2 id={titleId} className={HOUSE_WINDOW_ASK_TITLE_CLASS}>
-        {title}
-      </h2>
-      {lines.map((line) => (
-        <p key={line} className={HOUSE_WINDOW_ASK_LINE_CLASS}>
-          {line}
-        </p>
-      ))}
-      <div className={variant === "strip" ? HOUSE_WINDOW_ASK_ACTIONS_CLASS : HOUSE_WINDOW_ASK_SHEET_ACTIONS_CLASS}>
-        {variant === "strip" ? (
-          <>
-            {discardButton}
-            {keepButton}
-          </>
-        ) : (
-          <>
-            {keepButton}
-            {discardButton}
-          </>
-        )}
-      </div>
-    </>
-  );
-  if (variant === "strip") {
-    return (
-      <div
-        {...{ [`data-${attr}-discard-ask`]: "" }}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={HOUSE_WINDOW_ASK_STRIP_CLASS}
-      >
-        {body}
-      </div>
-    );
-  }
-  return (
-    <AppSheetFrame span="card" titleId={titleId}>
-      <HouseScrim label={keepLabel} onClose={onKeep} />
-      <AppSheetCard className="gap-[var(--space-3)]">
-        <div {...{ [`data-${attr}-discard-ask`]: "" }} className="flex flex-col gap-[var(--space-3)]">
-          {body}
-        </div>
-      </AppSheetCard>
-    </AppSheetFrame>
-  );
 }
 
 // ---- The window's history entry ---------------------------------------------

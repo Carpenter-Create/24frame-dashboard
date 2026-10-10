@@ -4,11 +4,24 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
+  usePathname: () => "/social",
 }));
 
+import { menuHostClass } from "@/lib/menu-host";
 import { SOCIAL } from "@/lib/social";
 import { SOCIAL_POST_ACTIONS_CLASS, SOCIAL_POST_MORE_CLASS } from "@/lib/social-chrome";
 import { SocialPostCard } from "./social-post-card";
+
+const ownerSrc = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
+const hookSrc = readFileSync("src/components/social/use-social-post-owner.ts", "utf8");
+const sheetSrc = readFileSync("src/components/social/social-post-owner-sheet.tsx", "utf8");
+
+/** The opening tag that carries `needle`, from `from` on. */
+function tagOf(html: string, needle: string, from = 0): string {
+  const at = html.indexOf(needle, from);
+  expect(at, needle).toBeGreaterThan(-1);
+  return html.slice(html.lastIndexOf("<", at), html.indexOf(">", at) + 1);
+}
 
 const createdAt = "2020-01-01T00:00:00.000Z";
 
@@ -42,7 +55,7 @@ describe("owner post overflow", () => {
   // row (after the name and meta), outside the Like · Comment · Share
   // group, never a fourth round.
   // docs/design-locks/social-feed-cards-lock-v1.md
-  it("shows Edit and Delete behind the quiet ⋯ at the header's end, for the owner only", () => {
+  it("shows Edit caption and Remove behind the quiet ⋯ at the header's end, for the owner only", () => {
     const owned = card(true);
     const other = card(false);
     expect(owned).toContain('data-social-post-owner=""');
@@ -78,8 +91,10 @@ describe("owner post overflow", () => {
     const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
     expect(src).toContain("ThreadPopoverContent");
     expect(src).toContain("THREAD_POPOVER_ICON_CLASS");
-    expect(src).toContain("SOCIAL.post.edit");
-    expect(src).toContain("SOCIAL.post.delete");
+    expect(src).toContain("SOCIAL.post.editTitle}");
+    expect(src).toContain("SOCIAL.post.deleteConfirm}");
+    expect(src).not.toContain("SOCIAL.post.edit}");
+    expect(src).not.toContain("SOCIAL.post.delete}");
     expect(src).not.toContain("data-social-post-actions");
     const cardSrc = readFileSync("src/components/social/social-post-card.tsx", "utf8");
     const postCard = cardSrc.slice(cardSrc.indexOf("export function SocialPostCard"));
@@ -93,47 +108,95 @@ describe("owner post overflow", () => {
     expect(postCard).not.toContain("gap-4");
   });
 
-  it("locks delete confirm copy to Remove and Keep", () => {
-    expect(SOCIAL.post.delete).toBe("Delete");
+  // docs/design-locks/social-post-owner-menu-lock-v1.md (Copy) and
+  // social-confirm-copy-lock-v1 (amended): one verb, Remove; the new line.
+  it("locks the Remove copy: one verb, the approved line, Delete and Edit retired", () => {
     expect(SOCIAL.post.deleteTitle).toBe("Remove this post?");
-    expect(SOCIAL.post.deleteBody).toBe(
-      "It'll come off your profile and the feed. Comments and likes go with it.",
-    );
+    expect(SOCIAL.post.deleteBody).toBe("It comes off 24Frame, with its comments and likes. You can't undo this.");
     expect(SOCIAL.post.deleteConfirm).toBe("Remove");
     expect(SOCIAL.post.deleteKeep).toBe("Keep");
     expect(SOCIAL.post.deleteFailed).toBe("Could not remove that post.");
-    // Edit caption is the house window now (no Save / Cancel footer):
+    expect(SOCIAL.post.editTitle).toBe("Edit caption");
+    // Edit caption is the house window (no Save / Cancel footer):
     // social-post-caption-window-lock-v1, amending social-confirm-copy-lock-v1.
-    expect(Object.keys(SOCIAL.post)).not.toContain("editSave");
-    expect(Object.keys(SOCIAL.post)).not.toContain("editCancel");
+    for (const retired of ["edit", "delete", "editSave", "editCancel"]) {
+      expect(Object.keys(SOCIAL.post), retired).not.toContain(retired);
+    }
+    // No post string says Delete or Edit again, under any key.
+    expect(Object.values(SOCIAL.post)).not.toContain("Delete");
+    expect(Object.values(SOCIAL.post)).not.toContain("Edit");
+  });
 
-    const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
-    const remove = src.slice(src.indexOf('mode === "delete"'));
-    expect(remove).toContain("<Dialog");
-    expect(remove).toContain("SOCIAL.post.deleteKeep");
-    expect(remove).toContain("SOCIAL.post.deleteTitle");
-    expect(remove).toContain("SOCIAL.post.deleteBody");
-    expect(remove).toContain("SOCIAL.post.deleteConfirm");
+  it("draws the ⋯ once for each width through the menu-family gate", () => {
+    // Desktop: the thread ··· popover, its trigger inside the desktop slot.
+    const desktop = ownerSrc.slice(ownerSrc.indexOf('<span data-menu-host="desktop"'), ownerSrc.indexOf("</span>"));
+    expect(desktop).toContain('data-menu-family="desktop"');
+    expect(desktop).toContain('className={menuHostClass("desktop", "slot")}');
+    expect(desktop).toContain("<DropdownMenuTrigger asChild>");
+    expect(desktop).toContain('<ThreadPopoverContent align="end" data-menu-family="desktop"');
+    expect(desktop).toContain("{SOCIAL.post.editTitle}");
+    expect(desktop).toContain("{SOCIAL.post.deleteConfirm}");
+    expect(desktop).toContain("onCloseAutoFocus={onDesktopCloseAutoFocus}");
+    // Phone: a plain button that opens the sheet on click, never Radix's
+    // finger-down trigger.
+    const phone = ownerSrc.slice(ownerSrc.indexOf('data-menu-host="phone"'), ownerSrc.indexOf('<span data-menu-host="desktop"'));
+    expect(phone).toContain('data-menu-family="A"');
+    expect(phone).toContain('aria-haspopup="dialog"');
+    expect(phone).toContain('menuHostClass("phone")');
+    expect(phone).toContain("onClick={openSheet}");
+    expect(ownerSrc.indexOf("<DropdownMenuTrigger")).toBeGreaterThan(ownerSrc.indexOf('<span data-menu-host="desktop"'));
+    expect(ownerSrc.match(/<DropdownMenuTrigger/g)).toHaveLength(1);
+    expect(ownerSrc).toContain("<SocialPostOwnerSheet");
+    expect(ownerSrc).toContain("<SocialPostRemoveDialog");
+    // The old confirm and its words are gone.
+    expect(ownerSrc).not.toContain("@/components/ui/dialog");
+    expect(ownerSrc).not.toContain("SOCIAL.post.edit}");
+    expect(ownerSrc).not.toContain("SOCIAL.post.delete}");
+    // One page refresh in the flow, the removal's, in the hook.
+    expect(ownerSrc).not.toContain("router.refresh()");
+    expect(sheetSrc).not.toContain("router.refresh()");
+    expect(hookSrc.match(/router\.refresh\(\)/g)).toHaveLength(1);
+  });
+
+  it("server-draws the phone ⋯ then the desktop ⋯, after the credit and before the words", () => {
+    const owned = card(true);
+    const credit = owned.indexOf("data-social-post-credit");
+    const words = owned.indexOf("data-social-post-caption");
+    const phoneAt = owned.indexOf('data-menu-host="phone"');
+    const desktopAt = owned.indexOf('data-menu-host="desktop"');
+    expect(credit).toBeLessThan(phoneAt);
+    expect(phoneAt).toBeLessThan(desktopAt);
+    expect(desktopAt).toBeLessThan(words);
+    const phone = tagOf(owned, 'data-menu-host="phone"');
+    expect(phone).toContain('data-social-post-owner=""');
+    expect(phone).toContain(`class="${SOCIAL_POST_MORE_CLASS} ${menuHostClass("phone")}"`);
+    expect(menuHostClass("phone")).toBe("md:hidden");
+    expect(phone).toContain(`aria-label="${SOCIAL.post.overflow}"`);
+    expect(phone).toContain('aria-haspopup="dialog"');
+    expect(phone).toContain('aria-expanded="false"');
+    const slot = tagOf(owned, 'data-menu-host="desktop"');
+    expect(slot).toContain('class="hidden md:contents"');
+    const desktop = tagOf(owned, 'data-social-post-owner=""', desktopAt);
+    expect(desktop).toContain(`class="${SOCIAL_POST_MORE_CLASS}"`);
+    expect(desktop).toContain('aria-haspopup="menu"');
+    expect(owned.match(/data-social-post-owner=""/g)).toHaveLength(2);
+    expect(card(false)).not.toContain("data-menu-host");
   });
 
   // docs/design-locks/social-post-caption-window-lock-v1.md
-  it("asks the one caption host for the window; Delete keeps its confirm", () => {
-    const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
-    expect(src).not.toContain("Textarea");
-    expect(src).not.toContain('mode === "edit"');
-    expect(src).toContain('useState<"delete" | null>(null)');
-    expect(src).toContain("useSocialPostCaptionWindow()");
-    expect(src).toContain("caption.open({");
-    // No host, no Edit: never a dead control.
-    expect(src).toContain("{caption ? (");
-    // Edit opening the window keeps Radix from pulling focus back to the ⋯.
-    expect(src).toContain("onCloseAutoFocus");
-    expect(src).toContain("caption?.warm()");
-    // The only page refresh left is Delete's.
-    const remove = src.slice(src.indexOf("async function removePost()"), src.indexOf("  return (\n    <>"));
-    expect(src.match(/router\.refresh\(\)/g)?.length).toBe(1);
-    expect(remove).toContain("router.refresh()");
+  it("asks the one caption host for the window; Remove asks first", () => {
+    for (const src of [ownerSrc, hookSrc, sheetSrc]) {
+      expect(src).not.toContain("Textarea");
+      expect(src).not.toContain('mode === "edit"');
+    }
+    expect(hookSrc).toContain("useSocialPostCaptionWindow()");
+    expect(hookSrc).toContain("caption.open({");
+    expect(hookSrc).toContain("caption?.warm()");
+    // No host, no Edit caption: never a dead control.
+    expect(hookSrc).toContain("canEdit: caption !== null");
+    expect(ownerSrc).toContain("{canEdit ? (");
+    expect(sheetSrc).toContain("{canEdit ? (");
     // The card's words read the overlay through the one hook.
-    expect(src).toContain("useSocialPostLiveBody(postId, serverBody)");
+    expect(ownerSrc).toContain("useSocialPostLiveBody(postId, serverBody)");
   });
 });

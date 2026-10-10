@@ -819,7 +819,7 @@ describe("AccountMenuDropdown Coinbase grammar", () => {
     expect(attrClass(html, 'data-account-menu-row="theme"')).toBe(ACCOUNT_MENU_DROPDOWN_ROW_CLASS);
     expect(attrClass(html, 'data-account-menu-row="help"')).toBe(ACCOUNT_MENU_DROPDOWN_ROW_CLASS);
     expect(attrClass(html, 'data-account-menu-row="logOut"')).toBe(ACCOUNT_MENU_DROPDOWN_LOGOUT_CLASS);
-    expect(attrClass(html, 'data-account-menu-row="logOut"')).toContain("text-[#c4564a]");
+    expect(attrClass(html, 'data-account-menu-row="logOut"')).toContain("text-danger");
     expect(attrClass(html, 'data-account-menu-row="logOut"')).not.toContain("text-accent");
     expect(attrClass(html, "data-account-menu-version")).toBe(ACCOUNT_MENU_DROPDOWN_VERSION_CLASS);
     expect(html).toContain('href="/settings"');

@@ -31,7 +31,7 @@ describe("menu surface chrome lock", () => {
     );
     expect(MENU_SURFACE_SEPARATOR_CLASS).toBe("my-[var(--space-2)]");
     expect(MENU_SURFACE_ITEM_DANGER_CLASS).toBe(
-      "text-[#c4564a] data-[highlighted]:text-[#c4564a]",
+      "text-danger data-[highlighted]:text-danger",
     );
     expect(MENU_SURFACE_ITEM_DANGER_CLASS).not.toContain("font-bold");
     expect(MENU_SURFACE_ITEM_DANGER_CLASS).not.toContain("bg-");

@@ -16,6 +16,8 @@ vi.mock("next/image", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
+  // The owner's ⋯ closes on an address change (social-post-owner-menu-lock-v1).
+  usePathname: () => "/social",
 }));
 
 const dynamicRegistry = vi.hoisted(() => ({

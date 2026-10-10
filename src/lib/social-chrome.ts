@@ -1470,7 +1470,7 @@ export const SOCIAL_PROFILE_AVATAR_SHEET_ROW_CLASS =
   "flex w-full items-center gap-3 py-3 text-left t-body text-ink";
 
 export const SOCIAL_PROFILE_AVATAR_SHEET_DANGER_CLASS =
-  "flex w-full items-center gap-3 py-3 text-left t-body text-[#c4564a]";
+  "flex w-full items-center gap-3 py-3 text-left t-body text-danger";
 
 export const SOCIAL_PROFILE_EDIT_CARD_CLASS =
   `flex w-full flex-col overflow-hidden ${SOCIAL_SURFACE_RADIUS_CLASS} border border-hairline bg-surface px-4`;
