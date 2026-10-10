@@ -6,7 +6,7 @@ This is **not** a prefix on the title-asset bucket. Title objects stay in
 `S3_BUCKET` under `orgs/<org>/titles/...`. Faces never go there and are never
 served through title CloudFront.
 
-Do **not** apply this from CI. Founder-executed only. No SQL. No Supabase
+Do **not** apply this from CI. CoS-executed (G1 to G3), before the merge sitting. No SQL. No Supabase
 Storage. No public URLs. No second AWS account.
 
 Intended bucket names (same account, `us-east-1`):

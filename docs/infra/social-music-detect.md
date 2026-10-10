@@ -421,18 +421,30 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
 
 ## Order
 
-1. Run the read-only video count above. Hand the two numbers to Adam before apply.
-2. Apply `supabase/migrations/20261008180000_social_music_scans.sql`, then
-   `supabase/migrations/20261008180100_profiles_welcome_mux.sql`, then
-   `supabase/migrations/20261009120000_avatar_key_and_story_media.sql`.
-3. Pre-deploy gate, before deploying this PR and before recheck --execute.
-   Quarantine copies have no other cleanup. The 30-day rule on tag
-   `gc-hold=quarantine` is the only one, and the filter has no prefix.
-   Apply it from `docs/infra/avatar-storage-setup.md`, then run this
-   read-only check. Stop when that rule is missing, not Enabled, has a
-   prefix, filtered on a tag other than `gc-hold=quarantine`, or set to an
-   expiration other than 30 days. The check uses `AVATARS_BUCKET`.
-   Do not set `S3_AVATARS_BUCKET` until the check shows that rule.
+Same sitting. CoS runs the S3 gates before the sitting. Adam applies the three SQL files and merges in the sitting. Vercel deploys. CoS runs the post-deploy scripts. The welcome re-ingest is last.
+
+### Before the sitting
+
+CoS runs the S3 gates. Do not run them from CI. Do not point them at the title-asset bucket.
+
+G1 is IAM plus the head-404 check. Apply the IAM policy in `docs/infra/avatar-storage-setup.md`:
+`s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:GetObjectTagging`,
+`s3:PutObjectTagging`, and `s3:DeleteObjectTagging` on `avatars/*`, and
+`s3:ListBucket` on the avatars bucket with no `s3:prefix` condition.
+The missing-key head in that file runs as `gc-assets-app`, with
+`--profile gc-assets-app` and the same `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` the app uses. Do not run that head as an admin principal.
+An admin head can return 404 while the app user still gets 403.
+
+G2 is the lifecycle rule plus its read-only check, before deploying this PR and before recheck --execute.
+Quarantine copies have no other cleanup. The 30-day rule on tag
+`gc-hold=quarantine` is the only one, and the filter has no prefix.
+The 30-day tag rule is the only cleanup for quarantine copies.
+Apply it from `docs/infra/avatar-storage-setup.md`, then run this
+read-only check. Stop when that rule is missing, not Enabled, has a
+prefix, filtered on a tag other than `gc-hold=quarantine`, or set to an
+expiration other than 30 days. The check uses `AVATARS_BUCKET`.
+Do not set `S3_AVATARS_BUCKET` until the check shows that rule.
 
 ```sh
 export AVATARS_BUCKET=gc-avatars-prod
@@ -440,60 +452,156 @@ aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET" \
   --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Prefix==null && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
 ```
 
-4. Dry-run the image recheck, then execute it. `--execute` writes each
-   re-encoded image to a new key and points the post, story, or avatar at
-   that key. It never overwrites the original under the same key. The
-   original stays in the private bucket and is not signed once the pointer
-   names the new key, so the run can be reversed. A post or story whose
-   image will not decode is hidden. A read error or a store error is
-   unfinished: reported, not hidden, and tried again on the next run
-   (the run loads `status = active` only). A 404 or NoSuchKey on the
-   canonical avatar key is `no_object`: that profile has no face, the
-   recheck skips it, and it is not unfinished. A 500, a timeout, or a
-   network error on that key stays unfinished and is tried again.
-   An avatar that will not decode
-   is cleared so the default face shows, and the canonical object is moved
-   to a private quarantine prefix. A second execute skips objects that already carry `gc-reencoded`.
+G3 is setting `S3_AVATARS_BUCKET` in Vercel. G3 starts with CoS confirming that `gc-avatars-prod` exists. Then set `S3_AVATARS_BUCKET` in Vercel. Do not set it until the G2 check shows that rule.
 
-   Reversal: read `gc-previous-key` on the new object. Point the post or
-   story media item back at that key. For an avatar, set
-   `profiles.avatar_key` back to that previous key (`avatars/{user-id}/avatar`
-   for a face that was rechecked off the canonical object). Do not delete
-   either object as part of this reversal. `profiles.avatar_key` is
-   server-only. The trigger is what returns 42501. A column revoke does
-   not. `service_role` and the table owner (`postgres`) may set the
-   column. A member update of the column is 42501. A member insert stores
-   null.
+### CoS pre-checks
 
-   The report lists every hidden post id, hidden story id, and cleared
-   avatar id. Set a hidden parent back to `active` to undo a hide. It also
-   lists `orphanedKeys`, `liveKeys`, and `unverifiedKeys`. `orphanedKeys`
-   are new objects written when the parent update did not land, and a
-   successful pointer read does not name them. `liveKeys` are keys a
-   pointer names. `unverifiedKeys` are keys whose pointer read failed.
-   Do not delete any of those keys by hand. Orphans are deleted only by
-   `scripts/social/delete-avatar-orphans.ts`. Dry-run is the default.
-   `--execute` deletes. Immediately before each delete the script reads
-   `profiles.avatar_key` again. A key the pointer names, and a key whose
-   pointer read fails, are not deleted. A post that still has a non-Mux
-   video is `legacyS3Video`, counted once, and is not unfinished.
+CoS confirms all of these before Adam opens the SQL Editor:
+
+- Claude re-pin and CoS CLEAR done.
+- CI green and Claude PASS on the exact tip being merged.
+- Migration blobs match.
+- G1 to G3 passed.
+- Supabase backups and PITR status confirmed by CoS just before the sitting.
+- A quiet hour.
+- #808 not merged in the same window.
+
+### In the sitting
+
+Adam applies files 1, 2 and 3 in the SQL Editor, in that order. Each file is its own BEGIN/COMMIT, with `set local lock_timeout = '3s'` and a `schema_migrations` insert. Version is the numeric filename prefix. Name is the suffix after the first underscore. Do not apply from CI. Do not reorder statements inside a file.
+
+Before apply, run the read-only video count above (`post_video_items`, `live_story_video_items`). That count is the expected lock hold.
+
+1. `supabase/migrations/20261008180000_social_music_scans.sql`
+2. `supabase/migrations/20261008180100_profiles_welcome_mux.sql`
+3. `supabase/migrations/20261009120000_avatar_key_and_story_media.sql`
+
+```sql
+begin;
+set local lock_timeout = '3s';
+-- paste file 1, then:
+insert into supabase_migrations.schema_migrations (version, name)
+values ('20261008180000', 'social_music_scans');
+commit;
+```
+
+```sql
+begin;
+set local lock_timeout = '3s';
+-- paste file 2, then:
+insert into supabase_migrations.schema_migrations (version, name)
+values ('20261008180100', 'profiles_welcome_mux');
+commit;
+```
+
+```sql
+begin;
+set local lock_timeout = '3s';
+-- paste file 3, then:
+insert into supabase_migrations.schema_migrations (version, name)
+values ('20261009120000', 'avatar_key_and_story_media');
+commit;
+```
+
+Run the welcome counts above before the migration, and again after the migration, before re-ingest. If the welcome counts after the migration differ from the counts before it, STOP and do not merge. Adam pings CoS, and unless CoS explains the difference on the spot, run the full rollback in order 3, 2, 1. Rollback text is in each file header.
+
+### Merge
+
+Adam merges immediately, and Vercel deploys. The window is about one build.
+
+Apply the SQL before the app. A missing scan table denies playback and
+video-key signing for anyone who is not previewing only their own row.
+A notice read that fails twice surfaces the error. Applying the SQL
+first hides videos from other people even before the worker exists. They
+stay pending, which is the fail-closed state.
+
+### After deploy
+
+CoS runs, in this order: the unhold dry run; the recheck dry run, then `--execute`; then `delete-avatar-orphans` as a dry run, CoS reviews the list, then `--execute`. Never feed it `unverifiedKeys`. Last comes the welcome re-ingest, once the scanner Lambda is live. CoS runs it.
+
+After `20261009120000_avatar_key_and_story_media.sql` is applied, and
+before recheck `--execute`, dry-run the live-face unhold. It pages
+`profiles` by id. A non-null `avatar_key` is checked. A null
+`avatar_key` is a legacy canonical face: the script checks
+`avatars/{id}/avatar`. A 404 on that canonical key is no avatar, not
+an error. A key that still carries `gc-hold` (any value) is reported.
+The script does not write unless `--execute` is passed. Immediately
+before each clear, `--execute` reads that profile's `avatar_key`
+again. A null row is cleared only when that read is still null. A
+key that read no longer names, a pointer that changed, or a read that
+errors, is counted in `skippedClears` and the tag stays. Unhold skips
+any key not owned by that profile and counts it in `skippedClears`.
+Recheck `--execute` runs the same script at the start
+and at the end. Recheck `--execute` prints the full report before the
+final unhold. If that unhold then fails, the script prints a short
+failure note and exits 1. The report printed before that note is the
+rollback record.
+
+```sh
+pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts
+```
+
+The recheck dry run, then `--execute`. `--execute` writes each
+re-encoded image to a new key and points the post, story, or avatar at
+that key. It never overwrites the original under the same key. The
+original stays in the private bucket and is not signed once the pointer
+names the new key, so the run can be reversed. A post or story whose
+image will not decode is hidden. A read error or a store error is
+unfinished: reported, not hidden, and tried again on the next run
+(the run loads `status = active` only). A 404 or NoSuchKey on the
+canonical avatar key is `no_object`: that profile has no face, the
+recheck skips it, and it is not unfinished. A 500, a timeout, or a
+network error on that key stays unfinished and is tried again.
+An avatar that will not decode
+is cleared so the default face shows, and the canonical object is moved
+to a private quarantine prefix. A second execute skips objects that already carry `gc-reencoded`.
+
+```sh
+pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts
+pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts --execute
+```
+
+Then `delete-avatar-orphans` as a dry run. CoS reviews the list, then `--execute`. Never feed it `unverifiedKeys`.
+
+The report lists every hidden post id, hidden story id, and cleared
+avatar id. Set a hidden parent back to `active` to undo a hide. It also
+lists `orphanedKeys`, `liveKeys`, and `unverifiedKeys`. `orphanedKeys`
+are new objects written when the parent update did not land, and a
+successful pointer read does not name them. `liveKeys` are keys a
+pointer names. `unverifiedKeys` are keys whose pointer read failed.
+Do not delete any of those keys by hand. Orphans are deleted only by
+`scripts/social/delete-avatar-orphans.ts`. Dry-run is the default.
+`--execute` deletes. Immediately before each delete the script reads
+`profiles.avatar_key` again. A key the pointer names, and a key whose
+pointer read fails, are not deleted. A post that still has a non-Mux
+video is `legacyS3Video`, counted once, and is not unfinished.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/delete-avatar-orphans.ts <key>
 pnpm exec tsx --conditions=react-server scripts/social/delete-avatar-orphans.ts --execute <key>
 ```
 
-   A face that will not decode is not left at `avatars/{user-id}/avatar`.
-   The recheck copies that object to
-   `avatars/{user-id}/quarantine/{object-id}` and deletes the canonical
-   key. Nothing signs a quarantine key. Rollback is the CLI below. Copy
-   `avatars/{user-id}/quarantine/{object-id}` onto
-   `avatars/{user-id}/avatar` with `--tagging-directive REPLACE` and an empty
-   tag set, send `delete-object-tagging`, and read the tags back. Delete
-   the quarantine object only when that read has no `gc-hold` tag. Set
-   `profiles.avatar_key` to null with the service role or the table owner
-   only after that tag read has no `gc-hold` tag. A plain copy keeps
-   `gc-hold`, and the restored face would expire.
+Reversal: read `gc-previous-key` on the new object. Point the post or
+story media item back at that key. For an avatar, set
+`profiles.avatar_key` back to that previous key (`avatars/{user-id}/avatar`
+for a face that was rechecked off the canonical object). Do not delete
+either object as part of this reversal. `profiles.avatar_key` is
+server-only. The trigger is what returns 42501. A column revoke does
+not. `service_role` and the table owner (`postgres`) may set the
+column. A member update of the column is 42501. A member insert stores
+null.
+
+A face that will not decode is not left at `avatars/{user-id}/avatar`.
+The recheck copies that object to
+`avatars/{user-id}/quarantine/{object-id}` and deletes the canonical
+key. Nothing signs a quarantine key. Rollback is the CLI below. Copy
+`avatars/{user-id}/quarantine/{object-id}` onto
+`avatars/{user-id}/avatar` with `--tagging-directive REPLACE` and an empty
+tag set, send `delete-object-tagging`, and read the tags back. Delete
+the quarantine object only when that read has no `gc-hold` tag. Set
+`profiles.avatar_key` to null with the service role or the table owner
+only after that tag read has no `gc-hold` tag. A plain copy keeps
+`gc-hold`, and the restored face would expire.
 
 ```sh
 aws s3api copy-object \
@@ -510,36 +618,36 @@ aws s3api get-object-tagging \
   --key "avatars/${USER_ID}/avatar"
 ```
 
-   Stop when that tag read still shows `gc-hold`. Do not set
-   `profiles.avatar_key`. When the tag read has no `gc-hold` tag, delete
-   `avatars/${USER_ID}/quarantine/${OBJECT_ID}`, then set the pointer.
-   Removing a photo clears the pointer only when it still matches the key
-   that was read. It then deletes only those exact keys: the object that
-   read named, and the canonical object when that is a different key. Before
-   each delete it reads `profiles.avatar_key` again and does not delete the
-   key that read names. It does not list a prefix. A newer face stored and
-   pointed in that window stays, and the avatar route still signs it.
-   Uploading a replacement stores a new object and confirms it (Put ETag, or
-   Head ETag when the put omits one). That object is tagged
-   `gc-hold=quarantine`. The app sends DeleteObjectTagging and reads the
-   tags back. The pointer moves only when that read has no `gc-hold` tag,
-   and only when `profiles.avatar_key` still matches the value that was
-   read, including a null pointer (`is null`, not `eq ''`). If the tag
-   delete or the tag read fails, the pointer stays and the new key is
-   reported. After the pointer moves, it deletes the canonical object and
-   this member's previous recheck object, reading the pointer again before
-   each delete. Quarantine copies stay until the 30-day rule expires them.
-   A failure before the pointer moves deletes nothing, so the old face
-   stays. A delete failure after the pointer moves leaves the new face in
-   place and reports the leftover key. That is not this rollback.
+Stop when that tag read still shows `gc-hold`. Do not set
+`profiles.avatar_key`. When the tag read has no `gc-hold` tag, delete
+`avatars/${USER_ID}/quarantine/${OBJECT_ID}`, then set the pointer.
+Removing a photo clears the pointer only when it still matches the key
+that was read. It then deletes only those exact keys: the object that
+read named, and the canonical object when that is a different key. Before
+each delete it reads `profiles.avatar_key` again and does not delete the
+key that read names. It does not list a prefix. A newer face stored and
+pointed in that window stays, and the avatar route still signs it.
+Uploading a replacement stores a new object and confirms it (Put ETag, or
+Head ETag when the put omits one). That object is tagged
+`gc-hold=quarantine`. The app sends DeleteObjectTagging and reads the
+tags back. The pointer moves only when that read has no `gc-hold` tag,
+and only when `profiles.avatar_key` still matches the value that was
+read, including a null pointer (`is null`, not `eq ''`). If the tag
+delete or the tag read fails, the pointer stays and the new key is
+reported. After the pointer moves, it deletes the canonical object and
+this member's previous recheck object, reading the pointer again before
+each delete. Quarantine copies stay until the 30-day rule expires them.
+A failure before the pointer moves deletes nothing, so the old face
+stays. A delete failure after the pointer moves leaves the new face in
+place and reports the leftover key. That is not this rollback.
 
-   A null `avatar_key` is a legacy face. The recheck includes those rows
-   and reads `avatars/{user-id}/avatar`. Avatars are not in
-   `storage.objects`. `profiles` has no uploads table and no
-   `avatar_updated_at`, so the SQL count is an upper bound: every null
-   pointer, including a profile that never stored a face. The S3 listing
-   is the real count of canonical objects. Intersect that listing with
-   these ids. Do not apply anything from this count.
+A null `avatar_key` is a legacy face. The recheck includes those rows
+and reads `avatars/{user-id}/avatar`. Avatars are not in
+`storage.objects`. `profiles` has no uploads table and no
+`avatar_updated_at`, so the SQL count is an upper bound: every null
+pointer, including a profile that never stored a face. The S3 listing
+is the real count of canonical objects. Intersect that listing with
+these ids. Do not apply anything from this count.
 
 ```sql
 select count(*) as null_avatar_pointers
@@ -552,72 +660,37 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
   --query "Contents[?ends_with(Key, '/avatar')].Key" --output text
 ```
 
-   A failed swap can leave a quarantine copy, or a recheck copy, that the
-   delete did not reach. S3 lifecycle `Prefix` is a literal starts-with.
-   `avatars/` would expire live faces, and there is no prefix that means
-   `avatars/*/quarantine/` or `avatars/*/recheck/`. Quarantine copies and
-   recheck copies are tagged `gc-hold=quarantine`. The tag is cleared with
-   DeleteObjectTagging, and GetObjectTagging must show no `gc-hold` tag,
-   before `profiles.avatar_key` names that object. If either call fails, the
-   pointer stays on the old face. This bucket's lifecycle config is not in
-   the repo. The 30-day tag rule is the only cleanup for quarantine copies.
-   It is the pre-deploy gate in step 3, before `S3_AVATARS_BUCKET` is set.
-   The read-only check there must show rule `avatars-quarantine-30d` Enabled,
-   filtered on tag `gc-hold=quarantine`, with expiration 30 days.
-   The same step applies the IAM policy in `docs/infra/avatar-storage-setup.md`:
-   `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:GetObjectTagging`,
-   `s3:PutObjectTagging`, and `s3:DeleteObjectTagging` on `avatars/*`, and
-   `s3:ListBucket` on the avatars bucket with no `s3:prefix` condition.
-   The missing-key head in that file runs as `gc-assets-app`, with
-   `--profile gc-assets-app` and the same `AWS_ACCESS_KEY_ID` and
-   `AWS_SECRET_ACCESS_KEY` the app uses. Do not run that head as an admin principal.
-   An admin head can return 404 while the app user still gets 403.
-   The apply and the read-only check are in
-   `docs/infra/avatar-storage-setup.md`, before `S3_AVATARS_BUCKET` is set.
-   Do not run them from CI. Do not point them at the title-asset bucket.
+A failed swap can leave a quarantine copy, or a recheck copy, that the
+delete did not reach. S3 lifecycle `Prefix` is a literal starts-with.
+`avatars/` would expire live faces, and there is no prefix that means
+`avatars/*/quarantine/` or `avatars/*/recheck/`. Quarantine copies and
+recheck copies are tagged `gc-hold=quarantine`. The tag is cleared with
+DeleteObjectTagging, and GetObjectTagging must show no `gc-hold` tag,
+before `profiles.avatar_key` names that object. If either call fails, the
+pointer stays on the old face. This bucket's lifecycle config is not in
+the repo. The 30-day tag rule is the only cleanup for quarantine copies.
+It is G2, before `S3_AVATARS_BUCKET` is set.
+The read-only check there must show rule `avatars-quarantine-30d` Enabled,
+filtered on tag `gc-hold=quarantine`, with expiration 30 days.
 
-   After `20261009120000_avatar_key_and_story_media.sql` is applied, and
-   before recheck `--execute`, dry-run the live-face unhold. It pages
-   `profiles` by id. A non-null `avatar_key` is checked. A null
-   `avatar_key` is a legacy canonical face: the script checks
-   `avatars/{id}/avatar`. A 404 on that canonical key is no avatar, not
-   an error. A key that still carries `gc-hold` (any value) is reported.
-   The script does not write unless `--execute` is passed. Immediately
-   before each clear, `--execute` reads that profile's `avatar_key`
-   again. A null row is cleared only when that read is still null. A
-   key that read no longer names, a pointer that changed, or a read that
-   errors, is counted in `skippedClears` and the tag stays. Unhold skips
-   any key not owned by that profile and counts it in `skippedClears`.
-   Recheck `--execute` runs the same script at the start
-   and at the end. Recheck `--execute` prints the full report before the
-   final unhold. If that unhold then fails, the script prints a short
-   failure note and exits 1. The report printed before that note is the
-   rollback record.
-   Unhold is not scheduled yet. Scheduling
-   `unhold-live-avatars.ts --execute`, well under 30 days, is a required
-   follow-up before real users depend on it. This PR does not install
-   that schedule. The same note is in `docs/known-divergences.md`.
+Build and create the Lambda, set env, then the disabled schedule.
+The avatar lifecycle gate in G2 is already done. It is before this
+env wiring. Dry run the worker. Enable the rule when the dry run is `ok`.
+Commands are in ## Build and deploy.
+
+The welcome re-ingest: CoS runs it last, after the scanner Lambda is live.
+`scripts/social/reingest-welcome-video.ts`.
 
 ```sh
-pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts
-pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts --execute
-pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts
-pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts --execute
+pnpm exec tsx --conditions=react-server scripts/social/reingest-welcome-video.ts
+pnpm exec tsx --conditions=react-server scripts/social/reingest-welcome-video.ts --execute
 ```
 
-5. Deploy the app (the author notice and the staff page).
-6. Build and create the Lambda, set env, then the disabled schedule.
-   The avatar lifecycle gate in step 3 is already done. It is before this
-   env wiring.
-7. Dry run the worker. Enable the rule when the dry run is `ok`.
-   S3 video re-ingest stays a separate founder step:
-   `scripts/social/reingest-welcome-video.ts`.
+### B7
 
-Apply the SQL before the app. A missing scan table denies playback and
-video-key signing for anyone who is not previewing only their own row.
-A notice read that fails twice surfaces the error. Applying the SQL
-first hides videos from other people even before the worker exists. They
-stay pending, which is the fail-closed state.
+Scheduling unhold is REQUIRED before real users depend on it. Unhold is not scheduled yet. Scheduling
+`unhold-live-avatars.ts --execute`, well under 30 days, is that schedule.
+This PR does not install that schedule. The same note is in `docs/known-divergences.md`.
 
 ## Build and deploy
 
