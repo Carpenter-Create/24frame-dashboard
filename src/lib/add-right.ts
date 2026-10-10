@@ -250,18 +250,30 @@ export type AddRightGrant = {
   territory_mode: TerritoryMode;
   territories: readonly string[];
   exclusive: boolean;
+  window_end?: string | null;
 };
 
 function territoryKey(codes: readonly string[]): string {
   return [...new Set(codes.map((code) => code.trim().toUpperCase()))].sort().join(",");
 }
 
+/** A window that has not ended (none, a current one, or one still to come)
+ *  still holds the scope: a grant with no window over it would outlast it.
+ *  An unreadable end counts as not ended. */
+function addRightWindowOpen(windowEnd: string | null | undefined, now: Date): boolean {
+  if (!windowEnd) return true;
+  const end = new Date(windowEnd).getTime();
+  return Number.isNaN(end) || now.getTime() <= end;
+}
+
 /** An active grant with the same right and the same territory set (either
- *  exclusivity), or null. A grant inside a broader one (US under Worldwide)
- *  is not the same scope. */
+ *  exclusivity, any window that has not ended), or null. A grant inside a
+ *  broader one (US under Worldwide) is not the same scope; one whose window
+ *  has ended no longer holds it. */
 export function addRightGrantOnTitle<G extends AddRightGrant>(
   grants: readonly G[],
   scope: { rightsType: RightsType; mode: TerritoryMode; territories: readonly string[] },
+  now: Date,
 ): G | null {
   const key = territoryKey(scope.territories);
   return (
@@ -269,7 +281,8 @@ export function addRightGrantOnTitle<G extends AddRightGrant>(
       (grant) =>
         grant.rights_type === scope.rightsType &&
         grant.territory_mode === scope.mode &&
-        territoryKey(grant.territories ?? []) === key,
+        territoryKey(grant.territories ?? []) === key &&
+        addRightWindowOpen(grant.window_end, now),
     ) ?? null
   );
 }

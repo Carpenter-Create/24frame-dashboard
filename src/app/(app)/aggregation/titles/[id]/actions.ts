@@ -113,17 +113,16 @@ export async function addRights(input: unknown): Promise<AddRightResult> {
     return notAdded(ADD_RIGHT.saveFailed, "territory");
   }
 
-  // Already on the title: the same right and territory set, active, with no
-  // window (either exclusivity). Nothing is added and the grant is named.
+  // Already on the title: the same right and territory set, active, whatever
+  // its window until that window ends (either exclusivity). Nothing is added
+  // and the grant is named: a grant with no window never outlasts one that has.
   const { data: active, error: readError } = await supabase
     .from("rights_grants")
-    .select("rights_type, territory_mode, territories, exclusive")
+    .select("rights_type, territory_mode, territories, exclusive, window_end")
     .eq("title_id", title.id)
     .eq("rights_type", rightsType)
     .eq("territory_mode", mode)
     .is("effective_to", null)
-    .is("window_start", null)
-    .is("window_end", null)
     .range(...rangeFor(DETAIL_LIST));
   // A failed read is never "nothing there": a permanent record is never
   // written unverified.
@@ -131,7 +130,7 @@ export async function addRights(input: unknown): Promise<AddRightResult> {
     console.error("[add-right] rights_grants read failed", readError.message);
     return notAdded(ADD_RIGHT.saveFailed);
   }
-  const existing = addRightGrantOnTitle(active ?? [], { rightsType, mode, territories });
+  const existing = addRightGrantOnTitle(active ?? [], { rightsType, mode, territories }, new Date());
   if (existing) {
     revalidateRights(title);
     return { ok: false, face: "index", error: addRightOnTitleLine(existing), onTitle: true };

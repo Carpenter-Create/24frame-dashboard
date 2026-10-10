@@ -85,7 +85,7 @@ The same header, index and faces fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 - On the index, Done adds. It waits for the server: the window is inert, and ✕, Esc, the scrim and Back wait too. It sends one right, its territory and its exclusivity: no org and no window dates.
 - Success: the grant is added, the window closes, the new row is first in the list behind, and focus returns to Add right.
 - Never optimistic: a grant is permanent, so the row appears only once the database has it.
-- If the same right and territory set is already active on the title (either exclusivity), nothing is added. The window stays open on the index with "{grant} is already on this title.", naming the grant in full, and the page refreshes when it closes.
+- If the same right and territory set is already active on the title (either exclusivity, and with any window that has not ended: none, a current one or one still to come), nothing is added. The window stays open on the index with "{grant} is already on this title.", naming the grant in full, and the page refreshes when it closes.
 - A request that fails outright (a dropped connection) shows "Could not save."; the page refreshes when the window closes, since what the server kept is unknown.
 
 ## 4) Leaving with changes
@@ -109,7 +109,7 @@ The same ask as Metadata and Edit profile, naming the changed rows ("Rights type
   - the title is read under row security, and never a deleted one; its org comes from that row;
   - only the title org's operators pass (parity with Metadata);
   - the right, territory and exclusivity are checked in face order, and territories resolve to real ISO codes;
-  - the same right and territory set already active on the title adds nothing; that read fails closed;
+  - the same right and territory set already active on the title adds nothing, whatever its window until that window ends (a grant with no window never outlasts one that has); an ended window frees the scope; that read fails closed;
   - the grant's time is the server's own;
   - database text is logged on the server; the browser gets "Not authenticated.", "Not authorized." or "Could not save.";
   - it revalidates the title's catalog path and its staff title page.
@@ -135,7 +135,7 @@ The same ask as Metadata and Edit profile, naming the changed rows ("Rights type
 Draft SQL, not applied. Each goes in its own PR for founder review and is applied by the founder (`scripts/db/prod-migrate.sh --apply`):
 
 1. `and t.deleted_at is null` in `add_rights_grant`'s title check, mirroring `create_asset` (20260917120100). The window's action already refuses deleted titles; a direct caller of the RPC does not yet.
-2. An in-RPC same-scope check (or a unique index), so decision 5 holds for direct callers and for two tabs submitting in the same instant.
+2. An in-RPC same-scope check (or a unique index), so decision 5 holds for direct callers and for two tabs submitting in the same instant. Same rule as the action: a same-scope grant counts until its window ends.
 3. Ignore or clamp `p_effective_from` for non-staff callers (grant-event time, rule 8). The window sends server time; a direct caller can back-date.
 
 Optional, test only: pgTAP cases in `supabase/tests/rights_grants_test.sql` (delivery ops and GC delivery ops may add, legal may not, a cross-org title and a non-member org are refused). Not in this change.
@@ -156,6 +156,7 @@ Optional, test only: pgTAP cases in `supabase/tests/rights_grants_test.sql` (del
 - The "{grant}" line names countries in name order (the index review's full line), where the ledger row behind keeps `describeTerritory` (code order, four names then "+N", shared with the staff page and the deliver stepper).
 - The Tab-trap change also skips one existing non-input tabindex -1 control: the avatar menu's dismiss scrim inside Edit profile. It was never meant to be a Tab stop.
 - Review fixes: the trap counted every radio of a group, but the browser stops on one, so Tab from a face that ends with radios left the window; it now counts the group as one stop. A face opened with a mode already chosen (Territory at Only these countries, Metadata's Release at Re-release) lands on that radio, not the first. A country the keys move to (↑, Home, typing) stops below the sticky search (`ADD_RIGHT_COUNTRIES_CLASS`, a 4.5rem scroll margin), never under it.
+- Codex on #806 (P1): the same-scope read kept only grants with no window, so a grant with a date window (current or still to come) was missed, and a grant with no window could be written over it, outlasting it. The read now takes every active grant of the right and mode, and lib (`addRightGrantOnTitle`) counts one until its window ends, as `create_delivery` reads a window (`now <= window_end`). An end that cannot be read counts. The approved line is unchanged: the grant it names is on the title.
 
 ## Gates
 
@@ -164,10 +165,10 @@ Optional, test only: pgTAP cases in `supabase/tests/rights_grants_test.sql` (del
 - `house-page-select.test.tsx` (PR 1's guard): an inline list has a caller only now that the trap skips tabindex -1.
 - `social-profile-edit-window.test.tsx`: Edit profile never fills; it still holds the height it opens at (the pin reads the shell's `fill` branch, as the Comments window's branch writes it).
 - `title-details.test.ts`: Metadata's closed address strips `?add-right` too; both params are in `TITLE_PAGE_WINDOW_PARAMS`.
-- `add-right.test.ts` (lib): the address, per-mode picks, effective changed rows and the ask's line, the check order and lines, the summaries (full, never "+N"), the type groups (21 in 5, with descriptions), the country search, the request (no org, no window), the same-scope match, the "{grant}" line, and the refusal mapper (never its input).
+- `add-right.test.ts` (lib): the address, per-mode picks, effective changed rows and the ask's line, the check order and lines, the summaries (full, never "+N"), the type groups (21 in 5, with descriptions), the country search, the request (no org, no window), the same-scope match (counted until its window ends; an ended window frees it; an unreadable end counts), the "{grant}" line, and the refusal mapper (never its input).
 - `rights.test.ts`: the rights codes equal the database enum exactly once; every right has a label and description; the exclusivity labels.
 - `territories.test.ts`: the modes equal the database enum; continents partition the 249 countries; the groups are in order and by name; the search; the full line; `resolveTerritories`; `describeTerritory` unchanged; `dashboard-register` still resolves territory references.
-- `add-right-actions.test.ts`: a malformed request, a signed-out caller and view-as are refused with no read; a deleted or missing title, a viewer, legal and another org are refused; the org comes from the row, one right, server time, no window; the territory is checked first; Worldwide sends no countries; the same scope (either exclusivity, any order) adds nothing and names the grant; a failed read adds nothing; database text never reaches the browser; the catalog path, the layout and the staff title page are revalidated.
+- `add-right-actions.test.ts`: a malformed request, a signed-out caller and view-as are refused with no read; a deleted or missing title, a viewer, legal and another org are refused; the org comes from the row, one right, server time, no window; the territory is checked first; Worldwide sends no countries; the same scope (either exclusivity, any order) adds nothing and names the grant; the read keeps grants with a window, and one whose window has not ended adds nothing while an ended one does not block; a failed read adds nothing; database text never reaches the browser; the catalog path, the layout and the staff title page are revalidated.
 - `add-right-window.test.tsx`: both hosts, the 80vh frame, the header, rows and summaries, the faces (inline lists, one Tab stop, per-mode picks, the sticky search and the countries' scroll margin under it, no match, no pre-chosen exclusivity), unique ids, the entry, the one add path from the index only, the page wiring, and that the old form is gone.
 - `add-right-window.client.test.tsx` (mounted, a fake `addRights`): Done walks the faces in order and sends nothing from a face; on the index it sends one grant with no org, waits (busy, held open, a second Done sends nothing) and closes with a refresh; a grant already on the title stays open on the index with its line and closing refreshes; a request that fails outright shows "Could not save." and closing refreshes; a refusal at a face goes to that face and closing does not refresh.
 - `house-overlay.test.ts` G4 and G5: the window draws `HouseWindowFrame`, never `HouseDrawerFrame`; the amended lock keeps its pinned lines.

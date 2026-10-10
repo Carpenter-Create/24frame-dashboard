@@ -21,7 +21,13 @@ const ORG = "11111111-1111-4111-8111-111111111111";
 const TITLE = "22222222-2222-4222-8222-222222222222";
 const CATALOG = "24F-000123";
 
-type Grant = { rights_type: string; territory_mode: string; territories: string[]; exclusive: boolean };
+type Grant = {
+  rights_type: string;
+  territory_mode: string;
+  territories: string[];
+  exclusive: boolean;
+  window_end?: string | null;
+};
 
 type Fake = {
   filters: unknown[][];
@@ -210,17 +216,24 @@ describe("addRights (the title's Add right window)", () => {
         onTitle: true,
       });
       expect(seen.rpc).toEqual([]);
-      // Only active grants with no window, of this right and mode, on this title.
+      // Active grants of this right and mode on this title, whatever their
+      // window: the window is weighed in lib, never filtered out here.
       expect(seen.filters).toEqual(
         expect.arrayContaining([
           ["rights_grants", "eq", "title_id", TITLE],
           ["rights_grants", "eq", "rights_type", "svod"],
           ["rights_grants", "eq", "territory_mode", "include"],
           ["rights_grants", "is", "effective_to", null],
-          ["rights_grants", "is", "window_start", null],
-          ["rights_grants", "is", "window_end", null],
         ]),
       );
+      expect(seen.filters).toContainEqual([
+        "rights_grants",
+        "select",
+        "rights_type, territory_mode, territories, exclusive, window_end",
+      ]);
+      expect(
+        seen.filters.some(([table, , column]) => table === "rights_grants" && /^window_/.test(String(column))),
+      ).toBe(false);
       expect(seen.filters.some(([table, method]) => table === "rights_grants" && method === "range")).toBe(true);
       expect(revalidatePath).toHaveBeenCalledWith(titleClientPath(CATALOG));
     }
@@ -231,6 +244,37 @@ describe("addRights (the title's Add right window)", () => {
     });
     expect(await addRights(REQUEST)).toEqual({ ok: true });
     expect(seen.rpc).toHaveLength(1);
+  });
+
+  // Codex on #806: a grant with no window never goes over one with a window
+  // that has not ended (current or still to come); an ended one frees the scope.
+  it("adds nothing over a same-scope grant whose window has not ended", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    for (const window_end of [new Date(Date.now() + day).toISOString(), new Date(Date.now() + 400 * day).toISOString()]) {
+      const seen = fake({
+        grants: [{ rights_type: "svod", territory_mode: "include", territories: ["GB", "IE"], exclusive: true, window_end }],
+      });
+      expect(await addRights(REQUEST)).toEqual({
+        ok: false,
+        face: "index",
+        error: "SVOD · Exclusive · Ireland, United Kingdom is already on this title.",
+        onTitle: true,
+      });
+      expect(seen.rpc).toEqual([]);
+    }
+    const ended = fake({
+      grants: [
+        {
+          rights_type: "svod",
+          territory_mode: "include",
+          territories: ["GB", "IE"],
+          exclusive: true,
+          window_end: new Date(Date.now() - day).toISOString(),
+        },
+      ],
+    });
+    expect(await addRights(REQUEST)).toEqual({ ok: true });
+    expect(ended.rpc).toHaveLength(1);
   });
 
   it("fails closed when the grants on the title cannot be read", async () => {

@@ -173,18 +173,45 @@ describe("Add right window (lib/add-right)", () => {
       { rights_type: "svod" as const, territory_mode: "world" as const, territories: [], exclusive: true },
       { rights_type: "svod" as const, territory_mode: "include" as const, territories: ["IE", "GB"], exclusive: false },
     ];
-    expect(addRightGrantOnTitle(grants, { rightsType: "svod", mode: "include", territories: ["GB", "IE"] })).toBe(
+    const now = new Date("2026-10-09T12:00:00Z");
+    expect(addRightGrantOnTitle(grants, { rightsType: "svod", mode: "include", territories: ["GB", "IE"] }, now)).toBe(
       grants[1],
     );
-    expect(addRightGrantOnTitle(grants, { rightsType: "svod", mode: "include", territories: ["GB"] })).toBeNull();
-    expect(addRightGrantOnTitle(grants, { rightsType: "avod", mode: "world", territories: [] })).toBeNull();
-    expect(addRightGrantOnTitle(grants, { rightsType: "svod", mode: "world", territories: [] })).toBe(grants[0]);
+    expect(addRightGrantOnTitle(grants, { rightsType: "svod", mode: "include", territories: ["GB"] }, now)).toBeNull();
+    expect(addRightGrantOnTitle(grants, { rightsType: "avod", mode: "world", territories: [] }, now)).toBeNull();
+    expect(addRightGrantOnTitle(grants, { rightsType: "svod", mode: "world", territories: [] }, now)).toBe(grants[0]);
     expect(
       addRightOnTitleLine({ rights_type: "svod", territory_mode: "include", territories: ["GB", "IE"], exclusive: true }),
     ).toBe("SVOD · Exclusive · Ireland, United Kingdom is already on this title.");
     expect(
       addRightOnTitleLine({ rights_type: "avod", territory_mode: "exclude", territories: ["FR"], exclusive: false }),
     ).toBe("AVOD · Non-exclusive · Worldwide except France is already on this title.");
+  });
+
+  // Codex on #806: a grant with a window still holds its scope until that
+  // window ends, so a grant with no window never goes over it.
+  it("counts a same-scope grant whose window has not ended, never one whose window has", () => {
+    const now = new Date("2026-10-09T12:00:00Z");
+    const scope = { rightsType: "svod" as const, mode: "include" as const, territories: ["GB"] };
+    const grant = (window_end: string | null) => ({
+      rights_type: "svod" as const,
+      territory_mode: "include" as const,
+      territories: ["GB"],
+      exclusive: false,
+      window_end,
+    });
+    // No window, a current one, one still to come, one ending this instant.
+    for (const end of [null, "2026-12-31T00:00:00Z", "2028-01-01T00:00:00Z", "2026-10-09T12:00:00Z"]) {
+      expect(addRightGrantOnTitle([grant(end)], scope, now)).toEqual(grant(end));
+    }
+    // Ended: the scope is free again.
+    expect(addRightGrantOnTitle([grant("2026-10-09T11:59:59Z")], scope, now)).toBeNull();
+    expect(addRightGrantOnTitle([grant("2025-01-01T00:00:00Z")], scope, now)).toBeNull();
+    // An end that cannot be read holds the scope (never a second grant on a guess).
+    expect(addRightGrantOnTitle([grant("not a date")], scope, now)).toEqual(grant("not a date"));
+    // An ended grant beside a live one: the live one is named.
+    const live = grant("2027-06-30T00:00:00Z");
+    expect(addRightGrantOnTitle([grant("2025-01-01T00:00:00Z"), live], scope, now)).toBe(live);
   });
 
   it("maps a refused add to an approved line and never echoes its input", () => {
