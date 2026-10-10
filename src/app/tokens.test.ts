@@ -179,6 +179,60 @@ describe("accent ink on the wash (founder pick \"Deeper blue text\", Adam 2026-1
 // same as desktop."),
 // docs/design-locks/shell-desktop-horizontal-gutter-lock-v2.md (32 / 32),
 // src/lib/HOME-width-lock.md (1376).
+describe("danger ink (founder pick, Adam 2026-10-10: \"Yes, change that.\")", () => {
+  const light = extractBlock(tokens, ":root");
+  const dark = extractBlock(tokens, ".dark");
+
+  it("adds one --danger per mode and maps text-danger onto it", () => {
+    expect(light).toMatch(/--danger:\s*#bc4a3d;/);
+    expect(dark).toMatch(/--danger:\s*#cf776d;/);
+    expect(tokens.match(/--danger:/g)).toHaveLength(2);
+    expect(light).toContain('"Yes, change\n     that."');
+    expect(globals).toMatch(/@theme inline \{[\s\S]*?--color-danger:\s*var\(--danger\);[\s\S]*?\}/);
+  });
+
+  // The surfaces a destructive row or button sits on: the page, a card or
+  // sheet, and the muted row fill / hover.
+  it("reads AA (4.5:1) on every light surface, where #c4564a did not", () => {
+    const danger = hex(light, "danger");
+    const old = hex(":root { --old: #c4564a; }", "old");
+    for (const name of ["bg", "surface", "surface-muted"]) {
+      expect(contrast(danger, hex(light, name))).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contrast(old, hex(light, "surface-muted"))).toBeLessThan(4.5);
+    expect(contrast(danger, hex(light, "bg"))).toBeCloseTo(5.02, 2);
+    expect(contrast(danger, hex(light, "surface-muted"))).toBeCloseTo(4.57, 2);
+  });
+
+  it("reads AA (4.5:1) on every dark surface, where #c4564a did not", () => {
+    const danger = hex(dark, "danger");
+    const old = hex(":root { --old: #c4564a; }", "old");
+    for (const name of ["bg", "surface", "surface-muted"]) {
+      expect(contrast(danger, hex(dark, name))).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contrast(old, hex(dark, "surface-muted"))).toBeLessThan(4.5);
+    expect(contrast(danger, hex(dark, "bg"))).toBeCloseTo(5.94, 2);
+    expect(contrast(danger, hex(dark, "surface-muted"))).toBeCloseTo(4.53, 2);
+  });
+
+  it("keeps the old red's hue: a darker step on light, a lighter one on dark", () => {
+    const base = oklch(hex(":root { --old: #c4564a; }", "old"));
+    const lightInk = oklch(hex(light, "danger"));
+    const darkInk = oklch(hex(dark, "danger"));
+    expect(Math.abs(lightInk.h - base.h)).toBeLessThan(3);
+    expect(Math.abs(darkInk.h - base.h)).toBeLessThan(3);
+    expect(lightInk.l).toBeLessThan(base.l);
+    expect(darkInk.l).toBeGreaterThan(base.l);
+  });
+
+  it("leaves no raw house red in source: every danger ink is the token", () => {
+    for (const file of sourceFiles("src")) {
+      const text = readFileSync(file, "utf8");
+      expect(text, file).not.toMatch(/#c4564a/i);
+    }
+  });
+});
+
 describe("shell tokens — one value pin each", () => {
   const light = extractBlock(tokens, ":root");
   const phone = extractBlock(tokens, "@media (max-width: 767px)");

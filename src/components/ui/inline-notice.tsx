@@ -4,7 +4,8 @@ type Tone = "info" | "error";
 
 // Form-level messages. GC's system has NO status colors by default (greyscale + one
 // accent), so error vs info differ by ink weight, not red — a restrained hairline
-// notice. A dedicated --danger token is a FOUNDER design decision (see known-divergences).
+// notice. --danger is for destructive actions only; whether errors may use red stays a
+// FOUNDER design decision (see known-divergences D3).
 export function InlineNotice({
   tone = "info",
   className,

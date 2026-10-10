@@ -51,10 +51,13 @@ responsive) in the upcoming spec work so the two don't read as contradictory.
 **Trigger:** before self-serve signup ships to real users; earliest sensible slice for the responsive
 pass.
 
-### D3 — No status/danger color token (errors render on-system)
+### D3 — No status color token; one danger ink (errors render on-system)
 GC's `tokens.css` is "greyscale + one accent, no status colors by default." Form errors therefore
-render as a restrained hairline notice differing by **ink weight**, not red (`InlineNotice`). A
-dedicated `--danger`/status token (and whether errors may use red at all) is a **founder design
+render as a restrained hairline notice differing by **ink weight**, not red (`InlineNotice`).
+**Partly decided 2026-10-10 (Adam, "Yes, change that."):** `--danger` (light `#bc4a3d`, dark
+`#cf776d`, AA on every surface) is the ink for destructive actions only: Remove, Log out, the bin,
+the danger button (`social-post-owner-menu-lock-v1.md` §0a). It replaced the house red `#c4564a`.
+Whether form errors may use red at all, and any other status colour, stays a **founder design
 decision**, deferred.
 **Trigger:** first surface where greyscale error affordance proves insufficient in testing, or the
 brand accent/logo checkpoint is resolved.

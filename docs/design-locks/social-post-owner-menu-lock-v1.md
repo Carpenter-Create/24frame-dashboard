@@ -1,7 +1,7 @@
 # [GC][24Frame] LOCK — A post's ⋯: the owner menu and the Remove confirm v1
 
 **Date:** 2026-10-10
-**Status:** **LOCKED** (Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is.") · Design Own→READY. Everything this lock fixes is approved (§0). The five questions at the end add nothing to this PR: each one's default is "not in this PR", and the follow-up it names comes back to the founder as its own item.
+**Status:** **LOCKED** (Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is.") · Design Own→READY. Everything this lock fixes is approved (§0). Question 1 (the danger ink) is decided and built here (Adam, 2026-10-10, "Yes, change that."; §0a). Questions 2–5 add nothing to this PR: each one's default is "not in this PR", and the follow-up it names comes back to the founder as its own item.
 **Scope:** The author's ⋯ wherever `SocialPostCard` renders: the Feed in both lanes, a group, your own Profile Activity (the Comments pill included), a member's profile showing your posts, and the permalink. Its menu on both widths, and the Remove confirm. No other post surface has an owner control (the immersive, Explore, reels, stories and Messages have none), and none is added.
 **Entity:** Global Content / 24Frame only
 **Follows:**
@@ -69,8 +69,21 @@ Edit caption merged first (#804, `64f3e3b`). This build sits on `origin/main` `8
 | The edit item reads "Edit caption" ("Edit" is retired) | "full-width rows "Edit caption" / "Remove"" | Copy |
 | Remove this post? · the new line · Keep · Remove | "copy: "Remove this post?" / "It comes off 24Frame, with its comments and likes. You can't undo this." / Keep · Remove" | Copy |
 | The confirm is the house ask: Keep first, stacked full width on a phone, no ✕ on either width | "confirm = house ask (Keep first, … stacked full width on phone; no ✕)" | §3 |
-| Keep is the ask's accent pill and Remove its outlined pill, in the house red | "house ask" (its Keep is the accent pill and its other action the outlined pill, as Edit profile's ask draws them) and "Remove red" | §3 |
+| Keep is the ask's accent pill and Remove its outlined pill, in the house danger ink (`--danger`, §0a) | "house ask" (its Keep is the accent pill and its other action the outlined pill, as Edit profile's ask draws them) and "Remove red" | §3 |
 | One request, no dismiss mid-request, the line in place, focus kept, no Remove in the first 500 ms | "make both better than it is" (engineering only) | §4–§6 |
+
+
+### 0a) The danger ink (founder, 2026-10-10, verbatim)
+
+Codex flagged the house red on this PR (P1: the hex below AA in dark mode, not a token). The proposal put to Adam, with WCAG ratios (white / grey card; dark bg / surface / muted): light `#bc4a3d` 5.0 / 4.6, dark `#cf776d` 5.9 / 5.0 / 4.5, "Say yes and I'll add it as a token in a small follow-up, moving all five uses of the old red at once." Adam's answer:
+
+> Yes, change that. Also, merge what is verifiably safe and ready to merge.
+
+Built in this PR instead of a follow-up, because the Codex thread is here and the first new use (`HOUSE_DANGER_INK_CLASS`) is in this PR:
+
+- `--danger` in `tokens.css`: light `#bc4a3d`, dark `#cf776d`, the old red's hue (a step darker on light, lighter on dark). `--color-danger` maps it, so every danger ink is `text-danger`.
+- All five old uses move to it at once: the Remove row and the ask's danger action (`HOUSE_DANGER_INK_CLASS`), the danger button, the menu's danger item, Log out, and the avatar sheet's Remove picture. No `#c4564a` is left in source.
+- It is text only: no fill, border or wash. Form errors stay on-system (known-divergences D3).
 
 ---
 
@@ -134,7 +147,7 @@ The author only. The server is unchanged: `DELETE /api/social/post-own` (auth, t
 
 - No ✕ on the confirm, and no dialog over a dialog.
 - No new copy beyond the approved line.
-- No new token and no new hex: one constant (`HOUSE_DANGER_INK_CLASS`) holds the house's existing red for the new uses.
+- One new token, `--danger` (§0a), and no hex outside `tokens.css`: every danger ink is `text-danger`.
 - No second menu or select primitive, and no fifth menu family.
 - No history entry for the sheet.
 - No change to Edit caption's window, AppSheetFrame, HouseDialogFrame or HouseScrim. `ui/Dialog` leaves this menu; other screens keep it.
@@ -149,11 +162,11 @@ The author only. The server is unchanged: `DELETE /api/social/post-own` (auth, t
 
 ## Questions for follow-ups (outside this lock)
 
-The plan raised five questions after the approval. Each default is "not in this PR", so this PR adds nothing for them, and what it ships stays inside §0. Each follow-up it names is not approved here: it comes back to the founder as its own item before any of it is built.
+The plan raised five questions after the approval. Question 1 is decided (§0a). For 2–5 each default is "not in this PR", so this PR adds nothing for them, and what it ships stays inside §0. Each follow-up it names is not approved here: it comes back to the founder as its own item before any of it is built.
 
 | # | Question | This PR (the default) |
 |---|----------|----------------------------------|
-| 1 | The house red (`#c4564a`), used for Remove, Log out and the bin, is below WCAG AA for normal text: 4.4:1 on white, 4.0:1 on the sheet's grey row card, 3.7:1 and 3.3:1 in dark mode, where it does not change. The fix is a `--danger` token with light and dark values (known-divergences D3). Do it in this PR? | Not in this PR. Remove ships in the house's existing red. A follow-up drafts a light / dark `--danger` pair that passes AA, for sign-off, and moves all five literals at once. |
+| 1 | The house red (`#c4564a`), used for Remove, Log out and the bin, is below WCAG AA for normal text: 4.4:1 on white, 4.0:1 on the sheet's grey row card, 3.7:1 and 3.3:1 in dark mode, where it does not change. The fix is a `--danger` token with light and dark values (known-divergences D3). Do it in this PR? | **Decided (Adam, 2026-10-10, "Yes, change that.") and built here (§0a):** `--danger`, light `#bc4a3d`, dark `#cf776d`, AA on every surface; all five literals moved at once. |
 | 2 | The line holds everywhere the post itself is read. The one exception: a post sent in Messages keeps the caption snip its message stored (up to 120 characters), though the photo stops loading. Ship the line and fix the DM card later, or change the line now? | The approved line ships. A follow-up makes a DM post card whose post is removed show the existing "Post unavailable" (`SOCIAL.dms.postUnavailable`) instead of the stored snip; it is a visible change, so it comes back as its own small PR. |
 | 3 | On a phone, should the back gesture close the sheet or the confirm in place instead of leaving the page? It would mean giving this sheet its own history entry; no house sheet has one. | Not in this PR. Back works as on every house sheet: it leaves the page and the sheet goes with it. |
 | 4 | Two failure edges, no new words: (a) a request that never answers holds the confirm until the browser gives up (Back still leaves the page); a ~20 s ceiling could say "Could not remove that post." while the removal may still land; (b) a post already removed in another tab answers "That post is not visible." and its card stays until a refresh. Add either? | Not in this PR. One follow-up: the ceiling with the existing line and a refresh straight after it; it comes back only if a "not sure yet" line is wanted. |
@@ -161,7 +174,7 @@ The plan raised five questions after the approval. Each default is "not in this 
 
 ## Follow-ups (not in this PR)
 
-- The follow-ups that questions 1–5 name, each for the founder's sign-off.
+- The follow-ups that questions 2–5 name, each for the founder's sign-off.
 - Remove on a post still being published (it has no server id yet) reads "That post is not visible.", the same gap as Edit caption's ([`social-post-caption-window-lock-v1.md`](social-post-caption-window-lock-v1.md), Follow-ups).
 - The Feed's reel tiles and the For you rail read server data, so a removed post can show there until the refresh lands.
 
@@ -182,7 +195,8 @@ The plan raised five questions after the approval. Each default is "not in this 
 - `src/components/social/social-post-owner.client.test.tsx`: on both widths the confirm's scrim runs the guarded `dismissFromScrim`, never the plain dismiss; Keep runs dismiss and Remove runs remove.
 - `src/components/social/social-post-verb.test.ts`: no post surface says Delete.
 - `src/components/social/social-ui-boundary.test.ts`: the owner menu carries the ask's own module and the sheet, never the window shell or the caption window.
-- `src/lib/house-sheet.test.ts`: the danger constant, the hex once.
+- `src/lib/house-sheet.test.ts`: the danger constant is `text-danger`, with no hex.
+- `src/app/tokens.test.ts`: `--danger` per mode, its `text-danger` mapping, AA on every light and dark surface (where `#c4564a` was not), the old red's hue, and no `#c4564a` left in source.
 - `src/lib/menu-host.test.ts`: `post-owner-menu`, `post-owner-sheet`, Family A's host, and the gate on each ⋯.
 - The full gate, with no new lint warning in `src` (the baseline at `8ea5154` is zero).
 
