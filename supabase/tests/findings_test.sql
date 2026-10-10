@@ -6,7 +6,7 @@
 -- re-derives every live title's findings when the migration is applied.
 
 begin;
-select plan(29);
+select plan(30);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -137,7 +137,8 @@ update public.titles set deleted_at = now() where id = current_setting('t.gone')
 insert into public.titles (id, org_id, title, status) values
   (current_setting('t.blank')::uuid, current_setting('t.orgA')::uuid, 'Blank', 'draft');
 insert into public.title_metadata (title_id, org_id, data) values
-  (current_setting('t.blank')::uuid, current_setting('t.orgA')::uuid, '{"cast":[" "],"runtime_minutes":"96"}'::jsonb);
+  (current_setting('t.blank')::uuid, current_setting('t.orgA')::uuid,
+   '{"cast":[" "],"runtime_minutes":"96","release_year":2024,"country_of_origin":"ZZ"}'::jsonb);
 insert into public.findings (org_id, entity_type, entity_id, code, source, severity, message, source_refs, logic_version)
   values (current_setting('t.orgA')::uuid, 'title', current_setting('t.gone')::uuid,
           'metadata.forged', 'validator', 'high', 'Forged.', '{}'::jsonb, 'forged');
@@ -193,6 +194,15 @@ select is(
       and code in ('metadata.missing.cast', 'metadata.missing.runtime_minutes')),
   array['metadata.missing.cast']::text[],
   'a blank-only Cast is missing and a runtime stored as text is filled');
+-- metadata-v2 (Codex on #799): a value the checks refuse is not filled, as
+-- requiredComplete counts it: a country off the list is missing, a valid
+-- year is not. Stamped with the app's logic version.
+select is(
+  (select array_agg(code || ':' || logic_version order by code) from public.findings
+    where entity_id = current_setting('t.blank')::uuid and source = 'validator' and status = 'open'
+      and code in ('metadata.missing.country_of_origin', 'metadata.missing.release_year')),
+  array['metadata.missing.country_of_origin:metadata-v2']::text[],
+  'a country off the list is missing and a valid year is filled');
 
 select * from finish();
 rollback;

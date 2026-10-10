@@ -222,7 +222,9 @@ export function normalizeStoredMetadata(data: Record<string, unknown> | null | u
 
 // Bumped whenever the field registry / tiers change — every finding is stamped with it
 // (rule 4), so "why was this flagged" stays explainable under the rules of the day (§19).
-export const METADATA_LOGIC_VERSION = "metadata-v1";
+// v2 (Codex on #799): a field counts as filled only with a value the checks accept,
+// as metadataTierCount counts it, not merely a non-empty one.
+export const METADATA_LOGIC_VERSION = "metadata-v2";
 
 export type FindingDescriptor = {
   code: string; // 'metadata.missing.<field>'
@@ -240,7 +242,10 @@ export function computeMetadataFindings(data: Record<string, unknown>): FindingD
   const out: FindingDescriptor[] = [];
   for (const f of METADATA_FIELDS) {
     if (f.tier === "optional") continue;
-    if (!isEmpty(data?.[f.key])) continue;
+    // Filled means filled with a value the checks accept, as metadataTierCount
+    // and requiredComplete count it: a stored runtime of 0 is not complete.
+    const value = data?.[f.key];
+    if (!isEmpty(value) && fieldSchema(f).safeParse(value).success) continue;
     out.push({
       code: `metadata.missing.${f.key}`,
       severity: f.tier === "required" ? "high" : "low",

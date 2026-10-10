@@ -20,7 +20,7 @@
 --      call it with '[]' and auto-resolve every validator finding, or insert
 --      any message under sender 'gc_support'. Findings are now derived in the
 --      database from the stored metadata (the validator mirrored from
---      src/lib/metadata.ts, logic 'metadata-v1'); the browser's payload is
+--      src/lib/metadata.ts, logic 'metadata-v2'); the browser's payload is
 --      ignored. The 4-argument signature stays, so the app keeps working in
 --      either deploy order.
 --   2. set_title_metadata accepted any JSON. It now accepts only the field
@@ -58,7 +58,7 @@
 --
 -- DESTRUCTIVE OPS (approved before apply): create or replace 4 existing
 -- functions (reconcile_title_findings, set_title_metadata,
--- set_title_release_info, submit_title); create 8 new functions (2 pure
+-- set_title_release_info, submit_title); create 9 new functions (3 pure
 -- helpers, 1 internal refresh, 1 metadata check, in section 8
 -- normalize_stored_title_metadata (internal) and merge_title_metadata, and
 -- in sections 9 and 10 refresh_live_title_findings and
@@ -113,46 +113,8 @@ as $$
       or (jsonb_typeof(p_value) = 'array' and jsonb_array_length(p_value) = 0);
 $$;
 
--- The validator (§19): one finding per empty required (high) or recommended
--- (low) field; optional fields never produce one. Mirrors
--- computeMetadataFindings() — same codes, severities, messages and order.
-create or replace function public.title_metadata_findings(p_data jsonb)
-  returns jsonb
-  language sql immutable
-  set search_path = public
-as $$
-  select coalesce(
-    jsonb_agg(
-      jsonb_build_object(
-        'code', 'metadata.missing.' || f.key,
-        'severity', case when f.tier = 'required' then 'high' else 'low' end,
-        'message', f.label || case when f.tier = 'required' then ' is required.' else ' is recommended.' end,
-        'field', f.key,
-        'tier', f.tier
-      )
-      order by f.ord
-    ),
-    '[]'::jsonb
-  )
-  from (values
-    (1,  'synopsis',          'Synopsis',          'required'),
-    (2,  'runtime_minutes',   'Runtime (minutes)', 'required'),
-    (3,  'release_year',      'Release year',      'required'),
-    (4,  'genre',             'Genre',             'required'),
-    (5,  'primary_language',  'Primary language',  'required'),
-    (6,  'country_of_origin', 'Country of origin', 'required'),
-    (7,  'director',          'Director',          'recommended'),
-    (8,  'cast',              'Cast',              'recommended'),
-    (9,  'rating',            'Rating',            'recommended'),
-    (10, 'keywords',          'Keywords',          'recommended')
-  ) as f(ord, key, label, tier)
-  where public.title_metadata_value_empty(coalesce(p_data, '{}'::jsonb) -> f.key);
-$$;
-
 revoke execute on function public.title_metadata_value_empty(jsonb) from public, anon;
 grant  execute on function public.title_metadata_value_empty(jsonb) to authenticated;
-revoke execute on function public.title_metadata_findings(jsonb) from public, anon;
-grant  execute on function public.title_metadata_findings(jsonb) to authenticated;
 
 -- ---- 2. The metadata check -----------------------------------------------------
 
@@ -278,6 +240,70 @@ $$;
 revoke execute on function public.check_title_metadata(jsonb) from public, anon;
 grant  execute on function public.check_title_metadata(jsonb) to authenticated;
 
+-- ---- 2b. A field's value, valid or not, and the validator ----------------------
+
+-- Whether one field's value passes check_title_metadata on its own: the
+-- database's twin of fieldSchema(f).safeParse(value) in src/lib/metadata.ts.
+create or replace function public.title_metadata_value_valid(p_key text, p_value jsonb)
+  returns boolean
+  language plpgsql stable
+  set search_path = public
+as $$
+begin
+  perform public.check_title_metadata(jsonb_build_object(p_key, p_value));
+  return true;
+exception when sqlstate '22023' then
+  return false;
+end;
+$$;
+
+revoke execute on function public.title_metadata_value_valid(text, jsonb) from public, anon;
+grant  execute on function public.title_metadata_value_valid(text, jsonb) to authenticated;
+
+-- The validator (§19): one finding per required (high) or recommended (low)
+-- field that is not filled with a value the checks accept, as
+-- metadataTierCount and requiredComplete count it (Codex on #799: a stored
+-- runtime of 0 or a country off the list is not complete); optional fields
+-- never produce one. Mirrors computeMetadataFindings() — same codes,
+-- severities, messages and order. Stable, not immutable: the year limit
+-- moves with the date.
+create or replace function public.title_metadata_findings(p_data jsonb)
+  returns jsonb
+  language sql stable
+  set search_path = public
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'code', 'metadata.missing.' || f.key,
+        'severity', case when f.tier = 'required' then 'high' else 'low' end,
+        'message', f.label || case when f.tier = 'required' then ' is required.' else ' is recommended.' end,
+        'field', f.key,
+        'tier', f.tier
+      )
+      order by f.ord
+    ),
+    '[]'::jsonb
+  )
+  from (values
+    (1,  'synopsis',          'Synopsis',          'required'),
+    (2,  'runtime_minutes',   'Runtime (minutes)', 'required'),
+    (3,  'release_year',      'Release year',      'required'),
+    (4,  'genre',             'Genre',             'required'),
+    (5,  'primary_language',  'Primary language',  'required'),
+    (6,  'country_of_origin', 'Country of origin', 'required'),
+    (7,  'director',          'Director',          'recommended'),
+    (8,  'cast',              'Cast',              'recommended'),
+    (9,  'rating',            'Rating',            'recommended'),
+    (10, 'keywords',          'Keywords',          'recommended')
+  ) as f(ord, key, label, tier)
+  where public.title_metadata_value_empty(coalesce(p_data, '{}'::jsonb) -> f.key)
+     or not public.title_metadata_value_valid(f.key, coalesce(p_data, '{}'::jsonb) -> f.key);
+$$;
+
+revoke execute on function public.title_metadata_findings(jsonb) from public, anon;
+grant  execute on function public.title_metadata_findings(jsonb) to authenticated;
+
 -- ---- 3. The findings refresh (internal) ---------------------------------------
 
 -- Upserts the validator's findings for a title from its stored metadata and
@@ -316,7 +342,7 @@ begin
       (p_org_id, 'title', p_title_id, f->>'code', 'validator', 'gc_support',
        (f->>'severity')::public.finding_severity, f->>'message',
        jsonb_build_object('title_id', p_title_id, 'field', f->>'field', 'tier', f->>'tier'),
-       'metadata-v1', now(), 'open', null)
+       'metadata-v2', now(), 'open', null)
     on conflict (entity_type, entity_id, code, source) do update
       set status = 'open', resolved_at = null,
           severity = excluded.severity, message = excluded.message,

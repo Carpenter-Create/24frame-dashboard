@@ -40,10 +40,28 @@ describe("computeMetadataFindings", () => {
   });
 
   it("empty-array and blank-string count as missing", () => {
-    const f = computeMetadataFindings({ synopsis: "", cast: [], runtime_minutes: 0 });
+    const f = computeMetadataFindings({ synopsis: "", cast: [] });
     expect(f.some((x) => x.field === "synopsis")).toBe(true); // "" is empty
     expect(f.some((x) => x.field === "cast")).toBe(true); // [] is empty
-    expect(f.some((x) => x.field === "runtime_minutes")).toBe(false); // 0 is present
+  });
+
+  // metadata-v2 (Codex on #799): filled means filled with a value the checks
+  // accept, as metadataTierCount and requiredComplete count it.
+  it("a value the checks refuse is not filled, exactly as the tier count reads it", () => {
+    const stored = {
+      synopsis: "A film.", runtime_minutes: 0, release_year: 2024, genre: "drama",
+      primary_language: "en", country_of_origin: "ZZ",
+      director: "x".repeat(201), cast: ["A"], rating: "PG", keywords: ["k"],
+    };
+    const f = computeMetadataFindings(stored);
+    expect(f.map((x) => x.field).sort()).toEqual(["country_of_origin", "director", "runtime_minutes"]);
+    expect(f.find((x) => x.field === "runtime_minutes")).toMatchObject({ severity: "high", message: "Runtime (minutes) is required." });
+    // The required findings are exactly what requiredComplete leaves unfilled.
+    const required = METADATA_FIELDS.filter((x) => x.tier === "required").length;
+    expect(f.filter((x) => x.tier === "required")).toHaveLength(required - requiredComplete(stored).filled);
+    expect(f.filter((x) => x.tier === "recommended")).toHaveLength(
+      METADATA_FIELDS.filter((x) => x.tier === "recommended").length - metadataTierCount(stored, "recommended").filled,
+    );
   });
 });
 

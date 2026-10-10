@@ -7,6 +7,7 @@ import {
   GENRES,
   METADATA_FIELDS,
   METADATA_LIST_MAX,
+  METADATA_LOGIC_VERSION,
   METADATA_RUNTIME_MAX,
   METADATA_RUNTIME_MIN,
   METADATA_SYNOPSIS_MAX,
@@ -195,6 +196,27 @@ describe("the findings refresh and the check (draft, founder-applied)", () => {
       "v_findings := public.title_metadata_findings(public.normalize_stored_title_metadata(v_data));",
     );
     expect(body).not.toMatch(/title_metadata_findings\(v_data\)/);
+  });
+
+  // Codex on #799: filled means filled with a value the checks accept, in the
+  // database as in metadataTierCount, under the same logic version.
+  it("finds a field missing when empty or refused by its check, stamped with the app's logic version", () => {
+    const findings = functionSql("title_metadata_findings");
+    expect(findings.body).toContain("language sql stable");
+    expect(findings.body).toContain(
+      "where public.title_metadata_value_empty(coalesce(p_data, '{}'::jsonb) -> f.key)\n     or not public.title_metadata_value_valid(f.key, coalesce(p_data, '{}'::jsonb) -> f.key);",
+    );
+    const valid = functionSql("title_metadata_value_valid").body;
+    expect(valid).toContain("perform public.check_title_metadata(jsonb_build_object(p_key, p_value));");
+    expect(valid).toMatch(/exception when sqlstate '22023' then\s+return false;/);
+    // Defined after the check it calls, and the validator after both.
+    expect(MIGRATION.indexOf("create or replace function public.check_title_metadata(")).toBeLessThan(
+      MIGRATION.indexOf("create or replace function public.title_metadata_value_valid("),
+    );
+    expect(MIGRATION.indexOf("create or replace function public.title_metadata_value_valid(")).toBeLessThan(
+      MIGRATION.indexOf("create or replace function public.title_metadata_findings("),
+    );
+    expect(functionSql("refresh_title_findings").body).toContain(`'${METADATA_LOGIC_VERSION}', now(), 'open', null)`);
   });
 
   it("has no size cap of its own", () => {
