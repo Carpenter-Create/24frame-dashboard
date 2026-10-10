@@ -136,7 +136,9 @@ describe("Edit profile window (docs/design-locks/social-profile-edit-window-lock
     expect(shellSrc).toContain("onClose={() => {\n        win.requestClose();\n      }}");
     expect(shellSrc).toContain("[`data-${a}-close`]");
     expect(windowSrc).toContain('variant="strip"');
-    expect(shellSrc).toContain("const closed = requestRef.current ? requestRef.current() : true;");
+    // Browser Back asks a mounted window; one not yet mounted closes (nothing typed).
+    expect(shellSrc).toContain("const closed = requestRef.current();");
+    expect(shellSrc).toContain("if (!requestRef.current) {\n        if (onBackBeforeMount) onBackBeforeMount(winRef.current.key);\n        else close(winRef.current.key);\n        return;\n      }");
     // Leaving the tab with changes: the browser's own prompt.
     expect(shellSrc).toContain("useHouseLeaveGuard(dirty);");
     expect(shellSrc).toContain('window.addEventListener("beforeunload", onBeforeUnload)');

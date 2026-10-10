@@ -102,17 +102,38 @@ describe("owner post overflow", () => {
     expect(SOCIAL.post.deleteConfirm).toBe("Remove");
     expect(SOCIAL.post.deleteKeep).toBe("Keep");
     expect(SOCIAL.post.deleteFailed).toBe("Could not remove that post.");
-    expect(SOCIAL.post.editCancel).toBe("Cancel");
+    // Edit caption is the house window now (no Save / Cancel footer):
+    // social-post-caption-window-lock-v1, amending social-confirm-copy-lock-v1.
+    expect(Object.keys(SOCIAL.post)).not.toContain("editSave");
+    expect(Object.keys(SOCIAL.post)).not.toContain("editCancel");
 
     const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
-    const edit = src.slice(src.indexOf('mode === "edit"'), src.indexOf('mode === "delete"'));
     const remove = src.slice(src.indexOf('mode === "delete"'));
-    expect(edit).toContain("SOCIAL.post.editCancel");
-    expect(edit).not.toContain("SOCIAL.post.deleteKeep");
+    expect(remove).toContain("<Dialog");
     expect(remove).toContain("SOCIAL.post.deleteKeep");
     expect(remove).toContain("SOCIAL.post.deleteTitle");
     expect(remove).toContain("SOCIAL.post.deleteBody");
     expect(remove).toContain("SOCIAL.post.deleteConfirm");
-    expect(remove).not.toContain("SOCIAL.post.editCancel");
+  });
+
+  // docs/design-locks/social-post-caption-window-lock-v1.md
+  it("asks the one caption host for the window; Delete keeps its confirm", () => {
+    const src = readFileSync("src/components/social/social-post-owner.tsx", "utf8");
+    expect(src).not.toContain("Textarea");
+    expect(src).not.toContain('mode === "edit"');
+    expect(src).toContain('useState<"delete" | null>(null)');
+    expect(src).toContain("useSocialPostCaptionWindow()");
+    expect(src).toContain("caption.open({");
+    // No host, no Edit: never a dead control.
+    expect(src).toContain("{caption ? (");
+    // Edit opening the window keeps Radix from pulling focus back to the ⋯.
+    expect(src).toContain("onCloseAutoFocus");
+    expect(src).toContain("caption?.warm()");
+    // The only page refresh left is Delete's.
+    const remove = src.slice(src.indexOf("async function removePost()"), src.indexOf("  return (\n    <>"));
+    expect(src.match(/router\.refresh\(\)/g)?.length).toBe(1);
+    expect(remove).toContain("router.refresh()");
+    // The card's words read the overlay through the one hook.
+    expect(src).toContain("useSocialPostLiveBody(postId, serverBody)");
   });
 });

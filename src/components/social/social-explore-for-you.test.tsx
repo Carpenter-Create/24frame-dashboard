@@ -299,4 +299,12 @@ describe("SocialExploreForYouStream", () => {
     expect(lock).toContain("object-fit: cover");
     expect(lock).toContain("Phone rows in §A stay");
   });
+
+  // An owner's edited caption shows on the slide with no page refresh
+  // (social-post-caption-window-lock-v1); a static render takes the server's.
+  it("reads the slide's caption through the owner's overlay", () => {
+    const src = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    expect(src).toContain("useSocialPostLiveBody(item.postId, item.body)");
+    expect(src).not.toContain("{item.body}");
+  });
 });
