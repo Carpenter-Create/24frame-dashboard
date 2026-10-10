@@ -55,6 +55,12 @@ function sourceFiles(dir: string): string[] {
     .map((p) => `${dir}/${p}`);
 }
 
+// The @theme inline map with comments taken out, so a mapping counts only
+// where Tailwind reads it.
+function themeMap(): string {
+  return extractBlock(globals, "@theme inline").replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
 function extractBlock(css: string, selector: string): string {
   const marker = `${selector} {`;
   const start = css.indexOf(marker);
@@ -120,7 +126,7 @@ describe("accent ink on the wash (founder pick \"Deeper blue text\", Adam 2026-1
     expect(dark).toContain("6.17:1");
     expect(tokens.match(/--accent-ink:/g)).toHaveLength(2);
     // Tailwind mapping: text-accent-ink flips with .dark like every token.
-    expect(globals).toMatch(/@theme inline \{[\s\S]*?--color-accent-ink:\s*var\(--accent-ink\);[\s\S]*?\}/);
+    expect(themeMap()).toMatch(/--color-accent-ink:\s*var\(--accent-ink\);/);
   });
 
   it("reaches 4.6:1 on the light wash and 4.5:1 on white, where Sporty Blue is 4.07:1", () => {
@@ -187,8 +193,8 @@ describe("danger ink (founder pick, Adam 2026-10-10: \"Yes, change that.\")", ()
     expect(light).toMatch(/--danger:\s*#bc4a3d;/);
     expect(dark).toMatch(/--danger:\s*#cf776d;/);
     expect(tokens.match(/--danger:/g)).toHaveLength(2);
-    expect(light).toContain('"Yes, change\n     that."');
-    expect(globals).toMatch(/@theme inline \{[\s\S]*?--color-danger:\s*var\(--danger\);[\s\S]*?\}/);
+    expect(light.replace(/\s+/g, " ")).toContain('"Yes, change that."');
+    expect(themeMap()).toMatch(/--color-danger:\s*var\(--danger\);/);
   });
 
   // The surfaces a destructive row or button sits on: the page, a card or
@@ -225,11 +231,16 @@ describe("danger ink (founder pick, Adam 2026-10-10: \"Yes, change that.\")", ()
     expect(darkInk.l).toBeGreaterThan(base.l);
   });
 
-  it("leaves no raw house red in source: every danger ink is the token", () => {
+  it("leaves no raw danger red in source: every danger ink is the token", () => {
+    // The old red and both new values, anywhere in code or CSS.
+    const red = /#(c4564a|bc4a3d|cf776d)\b/gi;
     for (const file of sourceFiles("src")) {
-      const text = readFileSync(file, "utf8");
-      expect(text, file).not.toMatch(/#c4564a/i);
+      expect(readFileSync(file, "utf8"), file).not.toMatch(red);
     }
+    const uncommented = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(uncommented(globals)).not.toMatch(red);
+    // tokens.css holds the two declarations and nothing else red.
+    expect(uncommented(tokens).match(red)).toEqual(["#bc4a3d", "#cf776d"]);
   });
 });
 

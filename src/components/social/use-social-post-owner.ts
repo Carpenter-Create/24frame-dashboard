@@ -16,6 +16,7 @@ import { hideSocialPost } from "@/lib/social-post-own";
 import {
   SOCIAL_POST_OWNER_CLOSED,
   socialPostOwnerHost,
+  socialPostOwnerHostCloses,
   socialPostOwnerReduce,
   socialPostOwnerTabTarget,
   socialPostOwnerTooSoon,
@@ -39,8 +40,9 @@ export type SocialPostOwnerPost = {
   groupSlug: string | null;
 };
 
-/** What a desktop popover item handed focus to, for Radix's close. */
-type Handoff = "edit" | "remove" | null;
+/** What a desktop popover item handed focus to, for Radix's close; "width":
+ *  a width change closed it and sends focus to the ⋯ drawn now. */
+type Handoff = "edit" | "remove" | "width" | null;
 
 export function useSocialPostOwner(post: SocialPostOwnerPost) {
   const { postId, groupSlug } = post;
@@ -168,7 +170,8 @@ export function useSocialPostOwner(post: SocialPostOwnerPost) {
 
   /** Radix returns focus to the ⋯ after the popover closes; a chosen item
    *  hands it over instead. Remove: Keep already has it. Edit caption: the
-   *  ⋯ holds it until the window opens and takes it. */
+   *  ⋯ holds it until the window opens and takes it. A width change: the
+   *  phone ⋯ takes it (the host effect). */
   function onDesktopCloseAutoFocus(event: Event) {
     const chosen = handoff.current;
     handoff.current = null;
@@ -179,15 +182,23 @@ export function useSocialPostOwner(post: SocialPostOwnerPost) {
     }
   }
 
-  // Latest handlers for the one document listener and the address close.
-  const latest = useRef({ state, dismiss });
+  // Latest handlers for the one document listener, the width and the address
+  // close.
+  const latest = useRef({ state, dismiss, returnFocus });
   useLayoutEffect(() => {
-    latest.current = { state, dismiss };
+    latest.current = { state, dismiss, returnFocus };
   });
 
   // A width change closes a menu drawn for the other width; a confirm stays.
+  // Focus goes to the ⋯ drawn for the new width: the old ⋯ is display:none
+  // now, and the closed menu took focus with it. Radix is kept from sending
+  // it to its own, now hidden, ⋯.
   useEffect(() => {
+    const now = latest.current.state;
+    if (!socialPostOwnerHostCloses(now, desktop)) return;
+    if (now.step === "menu" && now.surface === "popover") handoff.current = "width";
     dispatch({ type: "host", desktop });
+    latest.current.returnFocus();
   }, [desktop]);
 
   // A different house pathname closes an idle menu or confirm, as the

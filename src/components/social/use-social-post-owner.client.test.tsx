@@ -423,6 +423,40 @@ describe("the owner hook: while it is open", () => {
     expect(owner().state.step).toBe("confirm");
   });
 
+  it("sends focus to the ⋯ drawn for the new width when a width change closes the menu", () => {
+    // The sheet, then the desktop width: the sheet's rows are gone, so the
+    // desktop ⋯ takes focus on the next frame, never the hidden phone ⋯.
+    act(() => owner().openSheet());
+    env.desktop = true;
+    paint();
+    expect(owner().state.step).toBe("closed");
+    runFrames();
+    expect(desktopTrigger.focus).toHaveBeenCalledTimes(1);
+    expect(phone.focus).not.toHaveBeenCalled();
+    // The popover, then the phone width: the phone ⋯ takes focus, and Radix
+    // is kept from sending it to its own ⋯, now display:none.
+    desktopTrigger.focus.mockClear();
+    act(() => owner().onPopoverOpenChange(true));
+    env.desktop = false;
+    paint();
+    expect(owner().state.step).toBe("closed");
+    const event = { defaultPrevented: false, preventDefault: vi.fn() };
+    act(() => owner().onDesktopCloseAutoFocus(event as unknown as Event));
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    runFrames();
+    expect(phone.focus).toHaveBeenCalledTimes(1);
+    expect(desktopTrigger.focus).not.toHaveBeenCalled();
+    // A confirm stays open across a width change and keeps its focus.
+    phone.focus.mockClear();
+    openConfirm();
+    env.desktop = true;
+    paint();
+    runFrames();
+    expect(owner().state.step).toBe("confirm");
+    expect(phone.focus).not.toHaveBeenCalled();
+    expect(desktopTrigger.focus).not.toHaveBeenCalled();
+  });
+
   it("leaves Esc and Tab to Radix while only the popover is open", () => {
     env.desktop = true;
     paint();

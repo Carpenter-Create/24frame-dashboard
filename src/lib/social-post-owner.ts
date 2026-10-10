@@ -65,12 +65,15 @@ export function socialPostOwnerReduce(
     case "removed":
       return SOCIAL_POST_OWNER_CLOSED;
     case "host":
-      // A width change closes a menu drawn for the other width, in both
-      // directions; a confirm keeps its pending state and its line and is
-      // drawn again in the other host.
-      if (state.step !== "menu") return state;
-      return (state.surface === "sheet") === action.desktop ? SOCIAL_POST_OWNER_CLOSED : state;
+      return socialPostOwnerHostCloses(state, action.desktop) ? SOCIAL_POST_OWNER_CLOSED : state;
   }
+}
+
+/** A width change closes a menu drawn for the other width, in both
+ *  directions; a confirm keeps its pending state and its line and is drawn
+ *  again in the other host. */
+export function socialPostOwnerHostCloses(state: SocialPostOwnerState, desktop: boolean): boolean {
+  return state.step === "menu" && (state.surface === "sheet") === desktop;
 }
 
 /** The host to draw now: the phone card (a sheet menu, or a confirm on a

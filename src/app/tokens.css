@@ -88,10 +88,10 @@
      until the founder settles Direction B. */
   --screen:        #0f0f0f;
 
-  /* --- NO status colors (greyscale + one accent), with one exception. ---
-     --danger is the ink for destructive actions only: Remove, Log out, the
-     bin, the danger button. Founder pick 2026-10-10, verbatim: "Yes, change
-     that." It replaces the house red #c4564a (4.4:1 on white, 4.0:1 on
+  /* --- NO status colors (greyscale + one accent). ---
+     --danger is not a status colour: it is the ink for destructive actions
+     only (Remove, Log out, the bin, the danger button). Founder pick
+     2026-10-10, verbatim: "Yes, change that." It replaces the house red #c4564a (4.4:1 on white, 4.0:1 on
      --surface-muted, below AA) with the same hue a step darker: 5.0:1 on
      white and --surface, 4.6:1 on --surface-muted. .dark lifts it. Form
      errors stay on-system (docs/known-divergences.md D3). Text only. */

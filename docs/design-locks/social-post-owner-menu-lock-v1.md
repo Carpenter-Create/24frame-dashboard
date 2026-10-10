@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-10
 **Status:** **LOCKED** (Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is.") · Design Own→READY. Everything this lock fixes is approved (§0). Question 1 (the danger ink) is decided and built here (Adam, 2026-10-10, "Yes, change that."; §0a). Questions 2–5 add nothing to this PR: each one's default is "not in this PR", and the follow-up it names comes back to the founder as its own item.
-**Scope:** The author's ⋯ wherever `SocialPostCard` renders: the Feed in both lanes, a group, your own Profile Activity (the Comments pill included), a member's profile showing your posts, and the permalink. Its menu on both widths, and the Remove confirm. No other post surface has an owner control (the immersive, Explore, reels, stories and Messages have none), and none is added.
+**Scope:** The author's ⋯ wherever `SocialPostCard` renders: the Feed in both lanes, a group, your own Profile Activity (the Comments pill included), a member's profile showing your posts, and the permalink. Its menu on both widths, and the Remove confirm. No other post surface has an owner control (the immersive, Explore, reels, stories and Messages have none), and none is added. It also moves the house danger ink to the `--danger` token everywhere it is drawn (§0a).
 **Entity:** Global Content / 24Frame only
 **Follows:**
 - [`house-overlay-dual-host-v1.md`](house-overlay-dual-host-v1.md): the confirm job (AppSheet on a phone, HouseDialog's 400 on desktop) and MenuSurface.
@@ -57,7 +57,7 @@ Adam's answer, 2026-10-09:
 
 > approved, do it after Edit caption merges. make both better than it is.
 
-The record reads the second sentence as "layout and copy: improve beyond the proposal where it is clearly better; any further new copy is listed in the PR". This build adds no copy and no visual element beyond the proposal; its improvements are engineering only (§4–§6).
+The record reads the second sentence as "layout and copy: improve beyond the proposal where it is clearly better; any further new copy is listed in the PR". This build adds no copy and no visual element beyond the proposal; its improvements are engineering only (§4–§6). The danger ink is a separate founder pick (§0a).
 
 Edit caption merged first (#804, `64f3e3b`). This build sits on `origin/main` `8ea5154`.
 
@@ -123,7 +123,7 @@ Unchanged in place and surface: MenuSurface sparse, radius 12, hairline, no shad
 - A failure shows its line in place, above the buttons; Keep and Remove work again and focus returns to Remove, also when a click on the scrim took it while the removal waited. A retry clears the old line while it waits. Closing clears it.
 - The line is the route's fixed answer: "Could not remove that post." for a dropped connection or a database error, otherwise "That post is not visible.", "Only the author can change this post.", "Create a creator profile to post, like, comment, or message." or "Not authenticated.". A request that throws ends the wait with "Could not remove that post.".
 - Success removes every copy of the post on the page, refreshes the page as before, and moves focus into the post after the one acted on (its name link, else its first shown link or button). On the permalink there is no next post; the page refreshes to its existing "That post is not visible.".
-- A width change keeps an open confirm (pending or not, with its line) and closes an open menu.
+- A width change keeps an open confirm (pending or not, with its line) and closes an open menu. Focus then goes to the ⋯ drawn for the new width on the next frame (the other ⋯ is `display:none`), and Radix is kept from sending it to its own ⋯ (Bugbot on #809).
 
 ## 5) Focus and keys
 
@@ -160,13 +160,13 @@ The author only. The server is unchanged: `DELETE /api/social/post-own` (auth, t
 
 **Retired:** "Delete" (`SOCIAL.post.delete`), "Edit" (`SOCIAL.post.edit`), and the old body "It'll come off your profile and the feed. Comments and likes go with it."
 
-## Questions for follow-ups (outside this lock)
+## Questions for follow-ups
 
 The plan raised five questions after the approval. Question 1 is decided (§0a). For 2–5 each default is "not in this PR", so this PR adds nothing for them, and what it ships stays inside §0. Each follow-up it names is not approved here: it comes back to the founder as its own item before any of it is built.
 
 | # | Question | This PR (the default) |
 |---|----------|----------------------------------|
-| 1 | The house red (`#c4564a`), used for Remove, Log out and the bin, is below WCAG AA for normal text: 4.4:1 on white, 4.0:1 on the sheet's grey row card, 3.7:1 and 3.3:1 in dark mode, where it does not change. The fix is a `--danger` token with light and dark values (known-divergences D3). Do it in this PR? | **Decided (Adam, 2026-10-10, "Yes, change that.") and built here (§0a):** `--danger`, light `#bc4a3d`, dark `#cf776d`, AA on every surface; all five literals moved at once. |
+| 1 | The house red (`#c4564a`), used for Remove, Log out and the bin, is below WCAG AA for normal text: 4.4:1 on white, 4.0:1 on the sheet's grey row card, 3.7:1 and 3.3:1 in dark mode, where it does not change. The fix is a `--danger` token with light and dark values (known-divergences D3). Do it in this PR? | **The token and its values decided (Adam, 2026-10-10, "Yes, change that.")**; built in this PR instead of the proposed follow-up (§0a): `--danger`, light `#bc4a3d`, dark `#cf776d`, AA on every surface; all five literals moved at once. |
 | 2 | The line holds everywhere the post itself is read. The one exception: a post sent in Messages keeps the caption snip its message stored (up to 120 characters), though the photo stops loading. Ship the line and fix the DM card later, or change the line now? | The approved line ships. A follow-up makes a DM post card whose post is removed show the existing "Post unavailable" (`SOCIAL.dms.postUnavailable`) instead of the stored snip; it is a visible change, so it comes back as its own small PR. |
 | 3 | On a phone, should the back gesture close the sheet or the confirm in place instead of leaving the page? It would mean giving this sheet its own history entry; no house sheet has one. | Not in this PR. Back works as on every house sheet: it leaves the page and the sheet goes with it. |
 | 4 | Two failure edges, no new words: (a) a request that never answers holds the confirm until the browser gives up (Back still leaves the page); a ~20 s ceiling could say "Could not remove that post." while the removal may still land; (b) a post already removed in another tab answers "That post is not visible." and its card stays until a refresh. Add either? | Not in this PR. One follow-up: the ceiling with the existing line and a refresh straight after it; it comes back only if a "not sure yet" line is wanted. |

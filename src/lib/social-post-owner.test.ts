@@ -4,6 +4,7 @@ import {
   SOCIAL_POST_OWNER_ARM_MS,
   SOCIAL_POST_OWNER_CLOSED,
   socialPostOwnerHost,
+  socialPostOwnerHostCloses,
   socialPostOwnerReduce,
   socialPostOwnerTabTarget,
   socialPostOwnerTooSoon,
@@ -87,6 +88,28 @@ describe("socialPostOwnerReduce", () => {
 
   it("closes on removed", () => {
     expect(run({ type: "confirm" }, { type: "submit" }, { type: "removed" })).toEqual(SOCIAL_POST_OWNER_CLOSED);
+  });
+});
+
+describe("socialPostOwnerHostCloses", () => {
+  it("closes a menu drawn for the other width, in both directions, and nothing else", () => {
+    const sheet = run({ type: "menu", surface: "sheet" });
+    const popover = run({ type: "menu", surface: "popover" });
+    const confirm = run({ type: "confirm" });
+    expect(socialPostOwnerHostCloses(sheet, true)).toBe(true);
+    expect(socialPostOwnerHostCloses(sheet, false)).toBe(false);
+    expect(socialPostOwnerHostCloses(popover, false)).toBe(true);
+    expect(socialPostOwnerHostCloses(popover, true)).toBe(false);
+    expect(socialPostOwnerHostCloses(confirm, true)).toBe(false);
+    expect(socialPostOwnerHostCloses(confirm, false)).toBe(false);
+    expect(socialPostOwnerHostCloses(SOCIAL_POST_OWNER_CLOSED, true)).toBe(false);
+    // The reducer closes exactly when the helper says so.
+    for (const state of [sheet, popover, confirm]) {
+      for (const desktop of [true, false]) {
+        const next = socialPostOwnerReduce(state, { type: "host", desktop });
+        expect(next === SOCIAL_POST_OWNER_CLOSED).toBe(socialPostOwnerHostCloses(state, desktop));
+      }
+    }
   });
 });
 
