@@ -218,3 +218,4 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 21. (v1.5) Desktop and iPad (`md` and up): a scroll that stops near the top stays where it stopped.
 22. (v1.5) Navigate while the dock is hidden: the new page opens with the bar open and the dock shown.
 23. (v1.5) Near the top, hold a thumb still on the feed for over 10s, then scroll a little and pause with it still down: the page never moves under the thumb; lift and the bar settles. Hold a drag on the bar still for over 10s, then move again: the bar follows the finger.
+24. (v1.5) Deep in the feed, let go mid-cover and touch the feed during the ease: the bar stops where it is and follows your next scroll from there. On an iPhone without `scrollend` (before Safari 26.2), near the top, let go and touch the feed while the page glides: the page stops under the finger.
