@@ -1,10 +1,24 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { NEWS_HOME_CAP, NEWS_WINDOW_MS, newsItemTtlEpoch, type NewsSourceId } from "./news";
-import { loadHomeNews, loadNewsHistory, resetNewsReadCache } from "./news-load";
+import {
+  NEWS_HOME_CAP,
+  NEWS_SOURCE_IDS,
+  NEWS_WINDOW_MS,
+  filterNewsBySources,
+  newsItemTtlEpoch,
+  type NewsSourceId,
+} from "./news";
+import { loadHomeNews, loadNewsHistory, loadNewsItems, resetNewsReadCache } from "./news-load";
 import type { NormalizedNewsItem } from "./news-rss";
-import { memoryNewsStore, mergeNewsImageUrl } from "./news-store";
+import {
+  NEWS_FEED_MAX_PAGES,
+  NEWS_FEED_PAGE_ROWS,
+  memoryNewsStore,
+  mergeNewsImageUrl,
+  newsFeedQueryInput,
+  readAllowlistedFeed,
+} from "./news-store";
 
 const NOW = new Date("2026-09-18T18:00:00.000Z");
 
@@ -133,5 +147,166 @@ describe("news-store source", () => {
   it("both persist stores merge image_url through mergeNewsImageUrl", () => {
     const src = readFileSync(new URL("./news-store.ts", import.meta.url), "utf8");
     expect([...src.matchAll(/image_url:\s*mergeNewsImageUrl\(/g)]).toHaveLength(2);
+  });
+});
+
+function feedRow(input: {
+  n: number;
+  source: string;
+  published_at: string;
+  host?: string;
+}) {
+  const host = input.host ?? "variety.com";
+  const url = `https://${host}/h${input.n}`;
+  return {
+    id: url,
+    title: `Headline ${input.n}`,
+    url,
+    canonical_url: url,
+    source: input.source as NewsSourceId,
+    published_at: input.published_at,
+    image_url: null,
+    topic: "film" as const,
+  };
+}
+
+describe("allowlisted feed page", () => {
+  it("returns 15 valid headlines when JoBlo rows lead the window", async () => {
+    const store = memoryNewsStore();
+    const joblo = Array.from({ length: NEWS_FEED_PAGE_ROWS }, (_, i) =>
+      feedRow({
+        n: i,
+        source: "joblo",
+        host: "joblo.com",
+        published_at: new Date(NOW.getTime() - i * 1000).toISOString(),
+      }),
+    );
+    const variety = Array.from({ length: NEWS_HOME_CAP + 1 }, (_, i) =>
+      feedRow({
+        n: 100 + i,
+        source: "variety",
+        published_at: new Date(NOW.getTime() - (120 + i) * 1000).toISOString(),
+      }),
+    );
+    await store.upsertItems([...joblo, ...variety], NOW);
+
+    const page = await store.queryFeed({ limit: NEWS_HOME_CAP, now: NOW });
+    const next = await store.queryFeed({ limit: NEWS_HOME_CAP + 1, now: NOW });
+    expect(page.map((row) => row.url)).toEqual(variety.slice(0, NEWS_HOME_CAP).map((row) => row.url));
+    expect(next.map((row) => row.url)).toEqual(variety.map((row) => row.url));
+    expect(next[NEWS_HOME_CAP]?.url).toBe(variety[NEWS_HOME_CAP]?.url);
+    expect(page.every((row) => row.source === "variety")).toBe(true);
+
+    resetNewsReadCache();
+    const home = await loadHomeNews(NOW, store);
+    const loaded = await loadNewsItems({ limit: NEWS_HOME_CAP, now: NOW, store });
+    const history = await loadNewsHistory(NOW, store);
+    expect(home.map((row) => row.url)).toEqual(page.map((row) => row.url));
+    expect(loaded.truncated).toBe(true);
+    expect(loaded.rows.map((row) => row.url)).toEqual(page.map((row) => row.url));
+    expect(filterNewsBySources(history.rows, ["variety"]).map((row) => row.url)).toEqual(
+      variety.map((row) => row.url),
+    );
+    expect(JSON.stringify({ home, loaded, history })).not.toMatch(/joblo/i);
+  });
+
+  it("returns the shorter feed when valid rows run out", async () => {
+    const store = memoryNewsStore();
+    const joblo = Array.from({ length: 8 }, (_, i) =>
+      feedRow({
+        n: i,
+        source: "joblo",
+        host: "joblo.com",
+        published_at: new Date(NOW.getTime() - i * 1000).toISOString(),
+      }),
+    );
+    const variety = Array.from({ length: 4 }, (_, i) =>
+      feedRow({
+        n: 100 + i,
+        source: "variety",
+        published_at: new Date(NOW.getTime() - (120 + i) * 1000).toISOString(),
+      }),
+    );
+    await store.upsertItems([...joblo, ...variety], NOW);
+    const rows = await store.queryFeed({ limit: NEWS_HOME_CAP, now: NOW });
+    expect(rows.map((row) => row.url)).toEqual(variety.map((row) => row.url));
+    resetNewsReadCache();
+    const home = await loadHomeNews(NOW, store);
+    expect(home).toHaveLength(4);
+    expect(home.map((row) => row.url)).toEqual(variety.map((row) => row.url));
+  });
+
+  it("follows the page cursor past a full page of hidden rows", async () => {
+    const hidden = Array.from({ length: NEWS_FEED_PAGE_ROWS }, (_, i) =>
+      feedRow({
+        n: i,
+        source: "joblo",
+        host: "joblo.com",
+        published_at: new Date(NOW.getTime() - i * 1000).toISOString(),
+      }),
+    );
+    const variety = Array.from({ length: NEWS_HOME_CAP + 1 }, (_, i) =>
+      feedRow({
+        n: 100 + i,
+        source: "variety",
+        published_at: new Date(NOW.getTime() - (120 + i) * 1000).toISOString(),
+      }),
+    );
+    const pages = [hidden, variety];
+    const cursors: Array<{ page: number } | null> = [];
+    const rows = await readAllowlistedFeed({
+      limit: NEWS_HOME_CAP,
+      queryPage: async (cursor?: { page: number }) => {
+        cursors.push(cursor ?? null);
+        const index = cursor?.page ?? 0;
+        const next = index + 1 < pages.length ? { page: index + 1 } : null;
+        return { items: pages[index] ?? [], cursor: next };
+      },
+    });
+    expect(cursors).toEqual([null, { page: 1 }]);
+    expect(rows.map((row) => row.url)).toEqual(
+      variety.slice(0, NEWS_HOME_CAP).map((row) => row.url),
+    );
+  });
+
+  it("stops at the page cap when the cursor never ends", async () => {
+    let calls = 0;
+    const rows = await readAllowlistedFeed({
+      limit: NEWS_HOME_CAP,
+      queryPage: async () => {
+        calls += 1;
+        return {
+          items: [
+            feedRow({
+              n: calls,
+              source: "joblo",
+              host: "joblo.com",
+              published_at: NOW.toISOString(),
+            }),
+          ],
+          cursor: { page: calls },
+        };
+      },
+    });
+    expect(rows).toEqual([]);
+    expect(calls).toBe(NEWS_FEED_MAX_PAGES);
+  });
+
+  it("queries a page of raw rows and resumes from LastEvaluatedKey", () => {
+    const now = NOW;
+    const first = newsFeedQueryInput({ table: "24frame-news-dev", now });
+    expect(first.Limit).toBe(NEWS_FEED_PAGE_ROWS);
+    expect(first.Limit).not.toBe(NEWS_HOME_CAP);
+    expect(first.ScanIndexForward).toBe(false);
+    expect(first.ExclusiveStartKey).toBeUndefined();
+    expect(first.FilterExpression).toContain("#src IN (");
+    expect(Object.values(first.ExpressionAttributeValues)).toEqual(
+      expect.arrayContaining([...NEWS_SOURCE_IDS]),
+    );
+    expect(Object.values(first.ExpressionAttributeValues)).not.toContain("joblo");
+    const cursor = { gsi1pk: "FEED", gsi1sk: "2026-09-17T12:00:00.000Z#https://variety.com/h1" };
+    const next = newsFeedQueryInput({ table: "24frame-news-dev", now, cursor });
+    expect(next.ExclusiveStartKey).toEqual(cursor);
+    expect(next.Limit).toBe(NEWS_FEED_PAGE_ROWS);
   });
 });
