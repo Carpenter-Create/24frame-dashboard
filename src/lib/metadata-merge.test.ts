@@ -161,7 +161,6 @@ describe("metadataCheckField", () => {
     expect(metadataCheckField({ code: "22023", message: "budget: x" })).toBeNull();
     expect(metadataCheckField({ code: "22023", message: "p_set must be a JSON object" })).toBeNull();
     expect(metadataCheckField({ code: "22023", message: 'Unknown metadata field "budget"' })).toBeNull();
-    expect(metadataCheckField({ code: "22023", message: "Metadata is too large" })).toBeNull();
     expect(metadataCheckField({ code: "22023", message: "x\ngenre: y" })).toBeNull();
     expect(metadataCheckField({ code: "P0001", message: "genre: x" })).toBeNull();
     expect(metadataCheckField({ code: "22023" })).toBeNull();
@@ -184,6 +183,23 @@ describe("submitRequiredMissing", () => {
     ]) {
       expect(submitRequiredMissing(error), JSON.stringify(error)).toBe(false);
     }
+  });
+});
+
+// Codex on #799: findings are derived from the record as the window reads it,
+// and the check has no byte cap that could refuse a record within the limits.
+describe("the findings refresh and the check (draft, founder-applied)", () => {
+  it("derives findings from the normalized record, as requiredComplete counts it", () => {
+    const { body } = functionSql("refresh_title_findings");
+    expect(body).toContain(
+      "v_findings := public.title_metadata_findings(public.normalize_stored_title_metadata(v_data));",
+    );
+    expect(body).not.toMatch(/title_metadata_findings\(v_data\)/);
+  });
+
+  it("has no size cap of its own", () => {
+    const { body } = functionSql("check_title_metadata");
+    expect(body).not.toMatch(/octet_length|pg_column_size|too large/i);
   });
 });
 

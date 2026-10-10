@@ -172,9 +172,9 @@ begin
   if jsonb_typeof(v_data) <> 'object' then
     raise exception 'Metadata must be an object' using errcode = '22023';
   end if;
-  if octet_length(v_data::text) > 65536 then
-    raise exception 'Metadata is too large' using errcode = '22023';
-  end if;
+  -- No size cap of its own: every key is the registry's and every value is
+  -- bounded below, so a record within the approved limits is never refused
+  -- for its bytes (Codex on #799: a 64 KB cap refused valid multibyte text).
 
   for v_key, v_val in select key, value from jsonb_each(v_data) loop
     case v_key
@@ -299,7 +299,10 @@ begin
     raise exception 'Title not found in this organization';
   end if;
 
-  v_findings := public.title_metadata_findings(v_data);
+  -- Read as the Metadata window and its required count read it
+  -- (normalizeStoredMetadata; Codex on #799): a list of blank entries is
+  -- missing, a number stored as text is filled.
+  v_findings := public.title_metadata_findings(public.normalize_stored_title_metadata(v_data));
   for f in select * from jsonb_array_elements(v_findings) loop
     v_codes := array_append(v_codes, f->>'code');
     insert into public.findings

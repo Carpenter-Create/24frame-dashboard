@@ -6,7 +6,7 @@
 -- re-derives every live title's findings when the migration is applied.
 
 begin;
-select plan(24);
+select plan(25);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -16,6 +16,7 @@ select set_config('t.ownerB', gen_random_uuid()::text, false);
 select set_config('t.gc',     gen_random_uuid()::text, false);
 select set_config('t.title',  gen_random_uuid()::text, false);
 select set_config('t.gone',   gen_random_uuid()::text, false);
+select set_config('t.blank',  gen_random_uuid()::text, false);
 
 insert into auth.users (id) values
   (current_setting('t.ownerA')::uuid), (current_setting('t.viewerA')::uuid),
@@ -131,6 +132,12 @@ insert into public.findings (org_id, entity_type, entity_id, code, source, sever
 insert into public.titles (id, org_id, title, status) values
   (current_setting('t.gone')::uuid, current_setting('t.orgA')::uuid, 'Gone', 'draft');
 update public.titles set deleted_at = now() where id = current_setting('t.gone')::uuid;
+-- A live title whose stored Cast holds only a blank entry (a direct write):
+-- the window reads Cast as missing (normalizeStoredMetadata).
+insert into public.titles (id, org_id, title, status) values
+  (current_setting('t.blank')::uuid, current_setting('t.orgA')::uuid, 'Blank', 'draft');
+insert into public.title_metadata (title_id, org_id, data) values
+  (current_setting('t.blank')::uuid, current_setting('t.orgA')::uuid, '{"cast":[" "],"runtime_minutes":"96"}'::jsonb);
 insert into public.findings (org_id, entity_type, entity_id, code, source, severity, message, source_refs, logic_version)
   values (current_setting('t.orgA')::uuid, 'title', current_setting('t.gone')::uuid,
           'metadata.forged', 'validator', 'high', 'Forged.', '{}'::jsonb, 'forged');
@@ -146,7 +153,8 @@ select is(
       and source = 'validator' and status = 'open'),
   (select coalesce(array_agg(f->>'code' order by f->>'code'), '{}'::text[])
      from jsonb_array_elements(public.title_metadata_findings(
-       (select data from public.title_metadata where title_id = current_setting('t.title')::uuid))) f),
+       public.normalize_stored_title_metadata(
+         (select data from public.title_metadata where title_id = current_setting('t.title')::uuid)))) f),
   'after the pass, the open validator findings are exactly the stored record''s');
 select isnt((select message from public.findings
     where entity_id = current_setting('t.title')::uuid and code = 'metadata.missing.runtime_minutes'),
@@ -159,6 +167,14 @@ select is((select status::text from public.findings where code = 'ai.genre_misma
 select is((select status::text from public.findings
     where entity_id = current_setting('t.gone')::uuid and code = 'metadata.forged'),
   'open', 'a deleted title is skipped (its findings are untouched)');
+-- Derived as the window reads the record (Codex on #799): a blank-only Cast
+-- is missing, a runtime stored as text is filled.
+select is(
+  (select array_agg(code order by code) from public.findings
+    where entity_id = current_setting('t.blank')::uuid and source = 'validator' and status = 'open'
+      and code in ('metadata.missing.cast', 'metadata.missing.runtime_minutes')),
+  array['metadata.missing.cast']::text[],
+  'a blank-only Cast is missing and a runtime stored as text is filled');
 
 select * from finish();
 rollback;

@@ -6,7 +6,7 @@
 -- reconciled or submitted.
 
 begin;
-select plan(30);
+select plan(31);
 
 select set_config('t.org',   gen_random_uuid()::text, false);
 select set_config('t.owner', gen_random_uuid()::text, false);
@@ -143,6 +143,19 @@ select throws_ok(
 select throws_ok(
   format($$ select public.submit_title(%L,%L) $$, current_setting('t.org'), current_setting('t.bad')),
   '22023', 'runtime_minutes: 1 to 1000', 'filled but refused required value: submit refused');
+
+-- The largest record the approved limits allow, in four-byte characters,
+-- is stored: no byte cap of its own refuses it (Codex on #799).
+select lives_ok(
+  format($$ select public.set_title_metadata(%L,%L,%L::jsonb) $$,
+    current_setting('t.org'), current_setting('t.title'),
+    jsonb_build_object(
+      'synopsis', repeat('𝄞', 4000), 'runtime_minutes', 1000, 'release_year', 2024, 'genre', 'drama',
+      'primary_language', 'en', 'country_of_origin', 'US', 'rating', 'PG',
+      'director', repeat('𝄞', 200), 'alternate_title', repeat('𝄞', 200), 'production_company', repeat('𝄞', 200),
+      'cast', (select jsonb_agg(repeat('𝄞', 200)) from generate_series(1, 50)),
+      'keywords', (select jsonb_agg(repeat('𝄞', 200)) from generate_series(1, 50)))::text),
+  'the largest record within the limits, in four-byte characters, is stored');
 
 -- The internal refresh is not callable by a client.
 select throws_ok(
