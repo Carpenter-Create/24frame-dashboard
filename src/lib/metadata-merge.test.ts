@@ -470,12 +470,22 @@ describe("normalize parity (the fixtures shared with title_metadata_merge_test.s
     return { input: match?.[1] ?? "", sql: match?.[2] ?? "", js: match?.[3] ?? "", differs: Boolean(match?.[4]) };
   });
 
-  it("has the shared rows, two of them the known differences", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(20);
-    expect(rows.filter((row) => row.differs).map((row) => row.input)).toEqual([
-      '{"runtime_minutes":"0x60"}',
-      '{"runtime_minutes":"1e999"}',
-    ]);
+  // Codex on #799: hex, binary and octal text stays text on both sides; the
+  // one difference left is refused by the check on both.
+  it("has the shared rows, one of them the known difference", () => {
+    expect(rows.length).toBeGreaterThanOrEqual(22);
+    expect(rows.filter((row) => row.differs).map((row) => row.input)).toEqual(['{"runtime_minutes":"1e999"}']);
+    for (const input of ['{"runtime_minutes":"0x60"}', '{"runtime_minutes":"0b11"}', '{"release_year":"0o3720"}']) {
+      expect(rows.find((row) => row.input === input)?.js, input).toBe(input);
+    }
+  });
+
+  it("reads stored number text with the database's grammar, character for character", () => {
+    const sqlNumber = /c_number\s+constant text := '([^']+)';/.exec(MIGRATION)?.[1];
+    expect(sqlNumber).toBe("^[+-]?([0-9]+\\.?[0-9]*|\\.[0-9]+)([eE][+-]?[0-9]{1,3})?$");
+    expect(readFileSync(join(process.cwd(), "src/lib/metadata.ts"), "utf8")).toContain(
+      `const STORED_DECIMAL_TEXT = /${sqlNumber}/;`,
+    );
   });
 
   it("normalizeStoredMetadata gives each row's app result", () => {

@@ -543,10 +543,11 @@ grant  execute on function public.submit_title(uuid, uuid) to authenticated;
 -- window shows as fine: empty values are dropped, a number stored as text
 -- reads as that number, blank list entries are dropped, keys outside the
 -- registry are left out. Anything else stays as stored, and the check names
--- its field. Known differences from JS Number(), both refused by the check
--- with the same field line: hex, binary or octal text stays text (JS reads
--- it as a number), and an exponent from 309 to 999 becomes a number (JS
--- keeps the text). The shared fixtures in
+-- its field. The app reads the same decimal grammar (normalizeStoredMetadata,
+-- STORED_DECIMAL_TEXT), so hex, binary and octal text stays text on both
+-- sides (Codex on #799). One known difference, refused by the check on both
+-- sides with the same field line: an exponent from 309 to 999 becomes a
+-- number here (JS keeps the text, as Number() gives Infinity). The shared fixtures in
 -- supabase/tests/title_metadata_merge_test.sql pin both sides. Internal: no
 -- client role may execute it; merge_title_metadata and submit_title (both
 -- definers) call it.

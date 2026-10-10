@@ -13,7 +13,7 @@
 -- the same title lock.
 
 begin;
-select plan(98);
+select plan(100);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -190,7 +190,9 @@ select is(public.normalize_stored_title_metadata(f.input::jsonb), f.sql_expected
   ($j${"runtime_minutes":"Infinity"}$j$, $j${"runtime_minutes":"Infinity"}$j$, $j${"runtime_minutes":"Infinity"}$j$),
   ($j${"runtime_minutes":"1_000"}$j$, $j${"runtime_minutes":"1_000"}$j$, $j${"runtime_minutes":"1_000"}$j$),
   ($j${"runtime_minutes":" "}$j$, $j${"runtime_minutes":" "}$j$, $j${"runtime_minutes":" "}$j$),
-  ($j${"runtime_minutes":"0x60"}$j$, $j${"runtime_minutes":"0x60"}$j$, $j${"runtime_minutes":96}$j$), -- js-differs
+  ($j${"runtime_minutes":"0x60"}$j$, $j${"runtime_minutes":"0x60"}$j$, $j${"runtime_minutes":"0x60"}$j$),
+  ($j${"runtime_minutes":"0b11"}$j$, $j${"runtime_minutes":"0b11"}$j$, $j${"runtime_minutes":"0b11"}$j$),
+  ($j${"release_year":"0o3720"}$j$, $j${"release_year":"0o3720"}$j$, $j${"release_year":"0o3720"}$j$),
   ($j${"runtime_minutes":"1e999"}$j$, $j${"runtime_minutes":1e999}$j$, $j${"runtime_minutes":"1e999"}$j$), -- js-differs
   ($j${"synopsis":"","director":null,"keywords":[]}$j$, $j${}$j$, $j${}$j$),
   ($j${"cast":[" ","\u00a0","Ada"]}$j$, $j${"cast":["Ada"]}$j$, $j${"cast":["Ada"]}$j$),

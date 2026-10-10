@@ -200,14 +200,23 @@ function isEmpty(v: unknown): boolean {
  *  entries are dropped. Nothing the window would show differently changes
  *  (list entries are never re-split). Keys outside the registry are left out,
  *  as parseMetadata leaves them out. */
+// A number stored as text, as the database reads it: optional sign, digits
+// with an optional point (or a point and digits), an exponent of up to three
+// digits. Mirrors c_number in normalize_stored_title_metadata.
+const STORED_DECIMAL_TEXT = /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]{1,3})?$/;
+
 export function normalizeStoredMetadata(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of METADATA_FIELDS) {
     const value = data?.[f.key];
     if (isEmpty(value)) continue;
     if (f.type === "number" && typeof value === "string") {
-      const number = Number(value.trim());
-      out[f.key] = value.trim() !== "" && Number.isFinite(number) ? number : value;
+      // Decimal text only, the grammar normalize_stored_title_metadata reads
+      // (Codex on #799): hex, binary or octal text stays text on both sides,
+      // so the page, the attention queue and submit read it alike.
+      const text = value.trim();
+      const number = text.length <= 400 && STORED_DECIMAL_TEXT.test(text) ? Number(text) : Number.NaN;
+      out[f.key] = Number.isFinite(number) ? number : value;
       continue;
     }
     if (f.type === "list" && Array.isArray(value)) {
