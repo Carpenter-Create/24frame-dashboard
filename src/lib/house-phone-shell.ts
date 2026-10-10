@@ -132,7 +132,12 @@ export const HOUSE_PHONE_DEST_CHIPS = {
 export const HOUSE_PHONE_BOTTOM_NAV_CLASS =
   "fixed inset-x-0 bottom-0 z-40 flex justify-center px-[var(--space-4)] pb-[max(16px,env(safe-area-inset-bottom))] transition-transform duration-200 ease-out touch-pan-x touch-pinch-zoom md:hidden";
 
-export const HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS = "pointer-events-none translate-y-full";
+/** Always on the dock: the shell's mark (`data-house-phone-dock-hidden`,
+ *  HOUSE_PHONE_DOCK_HIDDEN_ATTR), written in the same handler as the bar's
+ *  cover, hides it, so the dock starts in the same frame as the bar (band
+ *  lock v1.5). Same look, same 200ms. */
+export const HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS =
+  "in-data-house-phone-dock-hidden:pointer-events-none in-data-house-phone-dock-hidden:translate-y-full";
 
 /** The pill: 56 (h-14), radius full, the dock surface, NO hairline,
  *  the soft float (the only UI shadow). No inner pad: five equal slots. */

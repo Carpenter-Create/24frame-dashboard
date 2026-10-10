@@ -22,7 +22,7 @@ import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHouseClient, useHousePathname } from "./house-client-shell";
 import { HouseGlyphSwap } from "./house-glyph-swap";
-import { useHousePhoneChrome } from "./house-phone-chrome-state";
+import { useHousePhoneBand } from "./house-phone-chrome-state";
 
 import { AppearanceCheck } from "./appearance-check";
 import { SegmentedTrack } from "@/components/ui/segmented-track";
@@ -366,7 +366,8 @@ function WorkspaceBand({
   const routeIndex = overviewLeadActiveIndex(activePath, routeWorkspace, pills);
   // Covered by the bar while the page scrolls down (lock §5). It stays in
   // the accessibility tree; keyboard focus into it brings the bar back.
-  const { bandTucked, open } = useHousePhoneChrome();
+  // Its own context (v1.5): a dock flip never re-renders the band.
+  const { bandTucked, open } = useHousePhoneBand();
 
   return (
     <nav
