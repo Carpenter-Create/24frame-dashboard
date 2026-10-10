@@ -110,6 +110,25 @@ export function metadataFieldError(key: string, now: Date = new Date()): string 
   }
 }
 
+/** What a field says for this value: as metadataFieldError, except that a
+ *  Cast or Keywords entry over 200 characters reads the existing "Up to 200
+ *  characters." (Bugbot on #801; "Up to 200 characters per entry." is
+ *  proposed, pending the founder). Over 50 entries still reads "Up to 50
+ *  entries.", and so does any other list problem. */
+export function metadataValueError(key: string, value: unknown, now: Date = new Date()): string {
+  const field = METADATA_FIELDS.find((f) => f.key === key);
+  if (
+    field?.type === "list" &&
+    Array.isArray(value) &&
+    value.length <= METADATA_LIST_MAX &&
+    value.some((entry) => typeof entry === "string" && Array.from(entry).length > METADATA_TEXT_MAX)
+  ) {
+    // An entry over 200 reads the text limit (an existing approved line).
+    return METADATA_ERRORS.text;
+  }
+  return metadataFieldError(key, now);
+}
+
 export const METADATA_ERRORS = {
   runtime: "Enter whole minutes, 1 to 1,000.",
   year: (max: number) => `Enter a year from 1888 to ${max}.`,
@@ -136,7 +155,8 @@ export function parseMetadata(
   const first = r.error.issues[0];
   const key = first.path[0];
   const field = typeof key === "string" && METADATA_FIELDS.some((f) => f.key === key) ? key : null;
-  return { ok: false, error: field ? metadataFieldError(field) : METADATA_ERRORS.unknown, field };
+  const value = field && typeof input === "object" && input !== null ? (input as Record<string, unknown>)[field] : undefined;
+  return { ok: false, error: field ? metadataValueError(field, value) : METADATA_ERRORS.unknown, field };
 }
 
 /** One tier's count for the window's rows: a field counts when it is filled
@@ -147,43 +167,76 @@ export function metadataTierCount(
   tier: Tier,
 ): { filled: number; total: number } {
   const fields = METADATA_FIELDS.filter((f) => f.tier === tier);
-  const filled = fields.filter(
-    (f) => !isEmpty(values?.[f.key]) && fieldSchema(f).safeParse(values[f.key]).success,
-  ).length;
+  const filled = fields.filter((f) => metadataValueAccepted(f.key, values?.[f.key])).length;
   return { filled, total: fields.length };
+}
+
+/** Whether one field counts as filled: a non-empty value its check accepts.
+ *  The one rule behind the tier counts, the findings, requiredComplete and
+ *  the Metadata window (title_metadata_value_empty and
+ *  title_metadata_value_valid in the database). */
+export function metadataValueAccepted(key: string, value: unknown): boolean {
+  const field = METADATA_FIELDS.find((f) => f.key === key);
+  return field !== undefined && !isEmpty(value) && fieldSchema(field).safeParse(value).success;
 }
 
 // Required-tier completeness: drives the detail page's summary, its notice
 // and Submit, and the submit action's own check. A field counts only when it
 // is filled with a value the checks accept (read as the window reads it), so
 // a stored value the limits now refuse never lets a title be submitted
-// (Codex on #801). The database gate does the same only once the founder
-// applies the draft in #799 (submit_title runs check_title_metadata); until
-// then the submit_title RPC checks only that the fields are filled.
+// (Codex on #801). Only the required tier counts: a refused recommended or
+// optional value never blocks a submit (required blocks delivery,
+// docs/domain-spec.md §12; Codex on #799). The database gate does the same
+// only once the founder applies the draft in #799 (submit_title runs
+// check_title_metadata on the required fields of the record read as here,
+// normalize_stored_title_metadata); until then the submit_title RPC checks
+// only that the fields are filled.
 export function requiredComplete(data: Record<string, unknown> | null | undefined): { filled: number; total: number } {
   return metadataTierCount(normalizeStoredMetadata(data), "required");
 }
 
-// A field counts as filled if present and non-empty (arrays: at least one entry).
+// A field counts as filled if present and non-empty (arrays: at least one
+// entry). Text that trims to nothing is empty (Codex on #799), as the page
+// shows it, the window trims it and title_metadata_value_empty reads it.
 function isEmpty(v: unknown): boolean {
   if (Array.isArray(v)) return v.length === 0;
-  return v === undefined || v === null || v === "";
+  if (typeof v === "string") return v.trim() === "";
+  return v === undefined || v === null;
+}
+
+// A number stored as text, as the database reads it: optional sign, digits
+// with an optional point (or a point and digits), an exponent of up to three
+// digits. Mirrors c_number in normalize_stored_title_metadata.
+const STORED_DECIMAL_TEXT = /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]{1,3})?$/;
+
+/** Trimmed number text as the page and the database read it: decimal text
+ *  of up to 400 characters, read by Number() (normalize_stored_title_metadata
+ *  reads it as float8, the same IEEE-754 double, so both round alike), or
+ *  null when it is not decimal text or not finite. -0 reads as 0, as the
+ *  database stores it (numeric has no -0). The Metadata window reads a typed
+ *  number the same way. */
+export function storedNumberText(text: string): number | null {
+  if (text.length > 400 || !STORED_DECIMAL_TEXT.test(text)) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number + 0 : null;
 }
 
 /** The stored record as the title's Metadata window reads it, so a save is
  *  never refused over a stored value the window shows as fine: empty values
- *  are dropped, a number stored as text reads as that number, and blank list
- *  entries are dropped. Nothing the window would show differently changes
- *  (list entries are never re-split). Keys outside the registry are left out,
- *  as parseMetadata leaves them out. */
+ *  (text that trims to nothing among them) are dropped, a number stored as
+ *  text reads as that number, and blank list entries are dropped. Nothing the
+ *  window would show differently changes (list entries are never re-split).
+ *  Keys outside the registry are left out, as parseMetadata leaves them out. */
 export function normalizeStoredMetadata(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of METADATA_FIELDS) {
     const value = data?.[f.key];
     if (isEmpty(value)) continue;
     if (f.type === "number" && typeof value === "string") {
-      const number = Number(value.trim());
-      out[f.key] = value.trim() !== "" && Number.isFinite(number) ? number : value;
+      // Decimal text only, the grammar normalize_stored_title_metadata reads
+      // (Codex on #799): hex, binary or octal text stays text on both sides,
+      // so the page, the attention queue and submit read it alike.
+      out[f.key] = storedNumberText(value.trim()) ?? value;
       continue;
     }
     if (f.type === "list" && Array.isArray(value)) {
@@ -198,7 +251,9 @@ export function normalizeStoredMetadata(data: Record<string, unknown> | null | u
 
 // Bumped whenever the field registry / tiers change — every finding is stamped with it
 // (rule 4), so "why was this flagged" stays explainable under the rules of the day (§19).
-export const METADATA_LOGIC_VERSION = "metadata-v1";
+// v2 (Codex on #799): a field counts as filled only with a value the checks accept,
+// as metadataTierCount counts it, not merely a non-empty one.
+export const METADATA_LOGIC_VERSION = "metadata-v2";
 
 export type FindingDescriptor = {
   code: string; // 'metadata.missing.<field>'
@@ -216,7 +271,9 @@ export function computeMetadataFindings(data: Record<string, unknown>): FindingD
   const out: FindingDescriptor[] = [];
   for (const f of METADATA_FIELDS) {
     if (f.tier === "optional") continue;
-    if (!isEmpty(data?.[f.key])) continue;
+    // Filled means filled with a value the checks accept, as metadataTierCount
+    // and requiredComplete count it: a stored runtime of 0 is not complete.
+    if (metadataValueAccepted(f.key, data?.[f.key])) continue;
     out.push({
       code: `metadata.missing.${f.key}`,
       severity: f.tier === "required" ? "high" : "low",

@@ -31,6 +31,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { loadHarnessConfig } from "./lib/local-harness-config.mjs";
 
 const { supabaseUrl: URL, supabaseAnonKey: ANON, supabaseServiceRoleKey: SERVICE } =
@@ -203,8 +204,8 @@ async function mkUser(label) {
 }
 
 const GOOD_META = {
-  synopsis: "A film.", runtime_minutes: "96", release_year: "2024",
-  genre: "Drama", primary_language: "en", country_of_origin: "US",
+  synopsis: "A film.", runtime_minutes: 96, release_year: 2024,
+  genre: "drama", primary_language: "en", country_of_origin: "US",
 };
 
 /**
@@ -821,6 +822,36 @@ async function main() {
     () => a.rpc("set_title_metadata", { p_org_id: B.orgId, p_title_id: B.titleId, p_data: { synopsis: "PWNED" } }));
   await P("SPOOF: set_title_metadata(p_org_id = OrgA, p_title_id = B's title)",
     () => a.rpc("set_title_metadata", { p_org_id: A.orgId, p_title_id: B.titleId, p_data: { synopsis: "PWNED" } }));
+  // merge_title_metadata (the Metadata window's atomic save). mustDeny counts ANY error as a
+  // PASS, so a missing function (PGRST202) or a misspelled argument would pass every probe
+  // below while proving nothing. The CONTROL first: A's owner merges onto A's own title and
+  // the change must land, or the case is INCONCLUSIVE and the gate fails.
+  const metadataOf = async (titleId) => {
+    const { data } = await admin.from("title_metadata").select("data").eq("title_id", titleId).maybeSingle();
+    return data?.data ?? null;
+  };
+  {
+    const director = `control-${run}`;
+    const r = await a.rpc("merge_title_metadata", {
+      p_org_id: A.orgId, p_title_id: A.titleId, p_set: { director }, p_clear: [],
+    });
+    const landed = !r.error && (await metadataOf(A.titleId))?.director === director;
+    record(`P${p++}`, "CONTROL: merge_title_metadata(OrgA, A's own title) applies", landed ? "PASS" : "INCONCLUSIVE",
+      landed
+        ? "A's own merge landed (service-role re-read), so the merge probes below reach the authz check"
+        : `A's own merge did not land, so the merge probes prove nothing: ${r.error?.code ?? "-"} ${r.error?.message ?? "no change on re-read"}`);
+  }
+  const bMetadata = await metadataOf(B.titleId);
+  const bMetadataUnchanged = async () => bMetadata !== null && isDeepStrictEqual(await metadataOf(B.titleId), bMetadata);
+  await P("rpc merge_title_metadata(OrgB, B's title)",
+    () => a.rpc("merge_title_metadata", { p_org_id: B.orgId, p_title_id: B.titleId, p_set: { synopsis: "PWNED" }, p_clear: [] }),
+    bMetadataUnchanged);
+  await P("SPOOF: merge_title_metadata(p_org_id = OrgA, p_title_id = B's title)",
+    () => a.rpc("merge_title_metadata", { p_org_id: A.orgId, p_title_id: B.titleId, p_set: { synopsis: "PWNED" }, p_clear: [] }),
+    bMetadataUnchanged);
+  await P("SPOOF: merge_title_metadata clear-only (p_org_id = OrgA, B's title, p_clear synopsis)",
+    () => a.rpc("merge_title_metadata", { p_org_id: A.orgId, p_title_id: B.titleId, p_set: {}, p_clear: ["synopsis"] }),
+    bMetadataUnchanged);
   await P("SPOOF: create_asset(p_org_id = OrgA, p_title_id = B's title)",
     () => a.rpc("create_asset", { p_org_id: A.orgId, p_title_id: B.titleId, p_kind: "master",
       p_storage_key: "orgs/attacker/x", p_content_hash: "x", p_bytes: 1 }));

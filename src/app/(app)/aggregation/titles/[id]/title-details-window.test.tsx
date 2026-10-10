@@ -112,15 +112,24 @@ describe("title Metadata window (aggregation-title-details-window-lock-v1)", () 
   it("saves through one checked action and leaves no other way to write", () => {
     const done = windowSrc.slice(windowSrc.indexOf("async function done()"), windowSrc.indexOf("const [win, winRefs]"));
     // The check runs first; nothing changed closes without a call.
-    expect(done).toContain("const issue = checkTitleDetails(draft);\n    if (issue) {");
-    expect(done.indexOf("checkTitleDetails(draft)")).toBeLessThan(done.indexOf("saveTitleDetails("));
+    // Checked against the stored record the window opened on, so an untouched
+    // field is never refused over the field's own re-reading (audit on #799).
+    expect(done).toContain("const issue = checkTitleDetails(draft, new Date(), baseline.metadata);\n    if (issue) {");
+    expect(done.indexOf("checkTitleDetails(draft, ")).toBeLessThan(done.indexOf("saveTitleDetails("));
+    // The index rows count an untouched field as the page counts it.
+    expect(windowSrc).toContain("titleDetailsTierSummary(draft.metadata, tier, stored)");
+    expect(windowSrc).toContain("<TitleDetailsIndex draft={draft} stored={baseline.metadata} onOpen={openFace} />");
     expect(done.indexOf("onClose(savedRef.current);")).toBeLessThan(done.indexOf("saveTitleDetails("));
     expect(done).toContain("if (pending) return;");
     // A request that fails outright never leaves the window waiting.
     expect(done).toContain("} catch {\n      // The request itself failed");
     expect(done).toContain("} finally {\n      if (mountedRef.current) setPending(false);\n    }");
     // The browser sends no org: the action reads it from the title row.
-    expect(done).toContain("saveTitleDetails({ titleId, metadata: changes, release: releaseNext })");
+    // Repairs go with the stored value they expect (review on #799).
+    expect(done).toContain("saveTitleDetails({ titleId, metadata: changes, repairs, release: releaseNext })");
+    expect(done).toContain("const repairs = metadataRepairs(baseline.metadata, draft.metadata);");
+    expect(done).toContain("if (Object.keys(changes).length === 0 && releaseNext === null) {\n      onClose(savedRef.current);");
+    expect(done).toContain("applyChanges(current.metadata, changes)");
     expect(actionsSrc).not.toContain("export async function setTitleReleaseInfo");
     expect(existsSync(`${DIR}/metadata/actions.ts`)).toBe(false);
     expect(existsSync(`${DIR}/metadata/metadata-form.tsx`)).toBe(false);

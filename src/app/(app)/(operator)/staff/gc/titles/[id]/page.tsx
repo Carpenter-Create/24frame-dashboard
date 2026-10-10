@@ -189,8 +189,10 @@ export default async function GcTitleDetail({ params }: { params: Promise<{ id: 
     hasDeliveredEndpoint: hasDeliveredEndpoint === true,
     hasReportingActivity: hasReportingActivity === true,
   });
+  // gc_can(operate) is delete_title's staff gate: a read-only GC role (legal,
+  // accountant) is not offered Delete.
   const lifecycleFlags = titleLifecycleFlags(
-    { isStaff: true, canOperate: canOperate === true },
+    { isStaff: true, canOperate: canOperate === true, staffCanOperate: canOperate === true },
     t.status as TitleStatus,
     hasReportingActivity === true,
   );

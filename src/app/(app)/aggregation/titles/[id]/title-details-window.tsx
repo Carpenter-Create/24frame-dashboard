@@ -35,6 +35,7 @@ import {
   TITLE_DETAILS_TIERS,
   checkTitleDetails,
   metadataChanges,
+  metadataRepairs,
   metadataToDraft,
   parseTitleDetailsWindow,
   releaseChanged,
@@ -212,13 +213,15 @@ export function TitleDetailsWindow({
 
   async function done() {
     if (pending) return;
-    const issue = checkTitleDetails(draft);
+    const issue = checkTitleDetails(draft, new Date(), baseline.metadata);
     if (issue) {
       setProblem(issue);
       if (issue.face !== face) openFace(issue.face);
       return;
     }
     const changes = metadataChanges(baseline.metadata, draft.metadata);
+    // Repairs ride only with an edit, each with the stored value it expects.
+    const repairs = metadataRepairs(baseline.metadata, draft.metadata);
     const releaseNext = releaseChanged(baseline.release, draft.release) ? releaseInfoFromDraft(draft.release) : null;
     if (Object.keys(changes).length === 0 && releaseNext === null) {
       onClose(savedRef.current);
@@ -228,7 +231,7 @@ export function TitleDetailsWindow({
     setPending(true);
     let result: SaveTitleDetailsResult;
     try {
-      result = await saveTitleDetails({ titleId, metadata: changes, release: releaseNext });
+      result = await saveTitleDetails({ titleId, metadata: changes, repairs, release: releaseNext });
     } catch {
       // The request itself failed (a dropped connection, a new deploy): what
       // the server kept is unknown, so the page refreshes when the window
@@ -245,6 +248,7 @@ export function TitleDetailsWindow({
     }
     if (result.metadataSaved) {
       // Metadata is stored; only Release is left to save (and to ask about).
+      // A repair is not assumed: it lands only if the stored value was unchanged.
       savedRef.current = true;
       setBaseline((current) => ({ ...current, metadata: applyChanges(current.metadata, changes) }));
     }
@@ -316,7 +320,7 @@ export function TitleDetailsWindow({
       }
     >
       {face === "index" ? (
-        <TitleDetailsIndex draft={draft} onOpen={openFace} />
+        <TitleDetailsIndex draft={draft} stored={baseline.metadata} onOpen={openFace} />
       ) : face === "release" ? (
         <ReleaseFace
           ids={ids}
@@ -352,13 +356,16 @@ function errorId(ids: string, key: string): string {
 
 function TitleDetailsIndex({
   draft,
+  stored,
   onOpen,
 }: {
   draft: { metadata: MetadataDraft; release: ReleaseDraft };
+  /** The stored record the window opened on: an untouched field counts as the page counts it. */
+  stored: Record<string, unknown>;
   onOpen: (face: TitleDetailsFace) => void;
 }) {
   const rows: { face: TitleDetailsFace; value: string }[] = [
-    ...TITLE_DETAILS_TIERS.map((tier) => ({ face: tier, value: titleDetailsTierSummary(draft.metadata, tier) })),
+    ...TITLE_DETAILS_TIERS.map((tier) => ({ face: tier, value: titleDetailsTierSummary(draft.metadata, tier, stored) })),
     { face: "release", value: titleDetailsReleaseSummary(draft.release) },
   ];
   return (
