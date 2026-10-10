@@ -179,6 +179,10 @@ export type HousePhoneChromeController = {
   dragEnd: () => void;
   /** Bring the band and the dock back (keyboard focus into the band). */
   open: () => void;
+  /** A touch or the status-bar tap stopped the eased settle: the bar stays
+   *  at `live`, its cover on screen, with no ease. The way is kept, so the
+   *  next rest settles from there. */
+  hold: (live: number) => void;
   offset: () => number;
   state: () => HousePhoneChromeState;
 };
@@ -386,6 +390,10 @@ export function createHousePhoneChrome({
       heading = { direction: -1, reverse: 0 };
       moveTo(0, true);
       landDock();
+    },
+    hold(live) {
+      moveTo(clampCover(live), false, true);
+      emit(state.dockHidden);
     },
     offset: () => offset,
     state: () => state,

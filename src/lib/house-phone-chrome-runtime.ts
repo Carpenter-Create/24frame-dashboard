@@ -22,6 +22,9 @@
 //   - A drag applies once per frame; the release flushes it first.
 //   - The status-bar tap's signal, a touch, or a scroll the settle did not
 //     make stops a settle; `stop()` (navigation, width, unmount) ends all.
+//     A stop leaves it where it is: the browser's smooth scroll is cut
+//     with an instant scroll to where the page is, and the deep ease is
+//     held at the bar's cover on screen.
 
 import {
   HOUSE_PHONE_CHROME_HEIGHT_VAR,
@@ -90,7 +93,7 @@ export type HousePhoneChromeScroller = {
   scrollTop: number;
   readonly scrollHeight: number;
   readonly clientHeight: number;
-  scrollTo: (options: { top: number; behavior: "smooth" }) => void;
+  scrollTo: (options: { top: number; behavior: "smooth" | "instant" }) => void;
 };
 
 export type HousePhoneTouchPoint = { clientX: number; clientY: number };
@@ -286,6 +289,13 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
   // While the bar eases, a move carries on from where it is on screen.
   const liveCover = () => (easing ? (env.readLiveCover() ?? undefined) : undefined);
 
+  // A touch or the status-bar signal stops the deep ease where the bar is
+  // on screen: that cover, with the settle's transition off.
+  const holdEase = () => {
+    const live = liveCover();
+    if (live !== undefined) controller.hold(live);
+  };
+
   const clearRest = () => {
     clearTimer(restTimer);
     restTimer = undefined;
@@ -311,6 +321,17 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
     cancelFrame(glide.frame);
     clearTimer(glide.watchdog);
     glide = null;
+  };
+  // The 120ms path's smooth settle stops where the page is: an instant
+  // scroll to the current position aborts the browser's animation without
+  // moving the page. Its echo, if one is due, is ours; the bar follows.
+  const haltNative = () => {
+    if (phase !== "native" || !scroller) return;
+    scroller.scrollTo({ top: scroller.scrollTop, behavior: "instant" });
+    const after = scroller.scrollTop;
+    if (after !== seenTop) echo = after;
+    seenTop = after;
+    controller.scroll();
   };
 
   const armRest = () => {
@@ -479,6 +500,8 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
 
   const onForeignScroll = () => {
     if (phase === "stopped") return;
+    haltNative();
+    holdEase();
     cancelGlide();
     cancelNativeQuiet();
     clearRest();
@@ -582,6 +605,8 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
     }
     // A first finger (it also heals a lift that was never seen).
     if (phase === "drag") controller.dragAbort();
+    haltNative();
+    holdEase();
     cancelGlide();
     cancelNativeQuiet();
     clearRest();
@@ -616,6 +641,8 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
   // A drag the stale guard lifted carries on from where the bar is. A lift
   // that was really lost sends no further moves, so the guard still ends it.
   const healTouch = (event: HousePhoneTouchLike) => {
+    haltNative();
+    holdEase();
     cancelGlide();
     cancelNativeQuiet();
     clearRest();
@@ -662,6 +689,7 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
 
   const open = () => {
     if (phase === "stopped") return;
+    haltNative();
     cancelGlide();
     cancelNativeQuiet();
     clearRest();
@@ -685,6 +713,8 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
 
   const stop = () => {
     if (phase === "stopped") return;
+    // A smooth settle never runs on into the next page.
+    haltNative();
     phase = "stopped";
     cancelGlide();
     cancelNativeQuiet();

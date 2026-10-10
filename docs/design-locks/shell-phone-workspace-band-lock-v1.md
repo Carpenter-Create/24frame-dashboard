@@ -184,6 +184,7 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 - Rest is `scrollend` when `'onscrollend' in` the page scroller, with a 600ms watchdog; otherwise the 120ms timer; never both. A frame with no scroll confirms it (two after an event), and it settles once.
 - Near the top the settle is the glide: `scrollTop` and the cover in one animation frame, on `HOUSE_PHONE_SHEET_EASE` (`cubic-bezier(0,0,0.2,1)`, the deep settle's curve), for 180ms from its first frame. It starts only from a proven rest, or from a drag released with no other scroll during the touch. A touch, the status-bar signal (`HOUSE_LEAD_SCROLL_TO_TOP_EVENT`), or a scroll more than 1 from what it wrote stops it.
 - On the 120ms path the browser's smooth scroll is used, landed 120ms after its last scroll event.
+- A touch, the status-bar signal, `open()` or `stop()` cuts that smooth scroll with an instant scroll to where the page is, so it never runs on under a finger or into the next page; a touch or the signal holds the deep ease at the bar's cover on screen (`hold`, the settle mark off), and the next rest settles from there the same way.
 - Every settle ends in `land()`: open or covered, the dock landed, never another page settle.
 - End checks use 0.5 (`HOUSE_PHONE_SHEET_TOLERANCE_PX`). The way turns on a 3 reverse (`HOUSE_PHONE_SHEET_REVERSE_PX`), reset when a drag starts and never applied to the cover.
 - Touch moves apply once per animation frame, flushed before the release.

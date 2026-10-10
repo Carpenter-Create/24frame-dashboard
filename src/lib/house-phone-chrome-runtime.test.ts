@@ -43,24 +43,41 @@ function touchTarget(zone: boolean) {
 
 const CHROME_H = 130;
 
-function rig({ mode = "scrollend", range = 2000 }: { mode?: HousePhoneChromeRestMode; range?: number } = {}) {
+function rig({
+  mode = "scrollend",
+  range = 2000,
+  smoothStep = 0,
+}: {
+  mode?: HousePhoneChromeRestMode;
+  range?: number;
+  /** With a step, a smooth scrollTo moves the page that far each update
+   *  until it arrives, and any other scroll of the page aborts it (CSSOM
+   *  View). Without one it records the target and moves nothing. */
+  smoothStep?: number;
+} = {}) {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
   let top = 0;
   let dirty = false;
   let ignoreWrites = false;
   let reduce = false;
   let live: number | null = null;
+  // The browser's smooth scroll in flight: its target.
+  let smoothTo: number | null = null;
   // Every write the runtime attempts, with its time.
   const writes: Array<{ y: number; at: number }> = [];
   const smooth: number[] = [];
+  // Every instant scrollTo (a halt of the smooth scroll), by its target.
+  const halts: number[] = [];
+  const clampTop = (value: number) => Math.round(Math.min(range, Math.max(0, value)));
   const scroller = {
     get scrollTop() {
       return top;
     },
     set scrollTop(value: number) {
       writes.push({ y: value, at: Date.now() });
+      smoothTo = null;
       if (ignoreWrites) return;
-      const next = Math.round(Math.min(range, Math.max(0, value)));
+      const next = clampTop(value);
       if (next !== top) {
         top = next;
         dirty = true;
@@ -70,8 +87,19 @@ function rig({ mode = "scrollend", range = 2000 }: { mode?: HousePhoneChromeRest
       return range + 800;
     },
     clientHeight: 800,
-    scrollTo: ({ top: y }: { top: number; behavior: "smooth" }) => {
-      smooth.push(y);
+    scrollTo: ({ top: y, behavior }: { top: number; behavior: "smooth" | "instant" }) => {
+      if (behavior === "smooth") {
+        smooth.push(y);
+        if (smoothStep > 0) smoothTo = clampTop(y);
+        return;
+      }
+      halts.push(y);
+      smoothTo = null;
+      const next = clampTop(y);
+      if (next !== top) {
+        top = next;
+        dirty = true;
+      }
     },
   };
 
@@ -131,6 +159,15 @@ function rig({ mode = "scrollend", range = 2000 }: { mode?: HousePhoneChromeRest
     runtime,
     writes,
     smooth,
+    halts,
+    /** The browser's smooth scroll is still moving the page. */
+    smoothing: () => smoothTo !== null,
+    /** The status-bar bridge: its signal, then its own smooth scroll to
+     *  `y`, which replaces any in flight. */
+    bridge(y: number) {
+      runtime.onForeignScroll();
+      if (smoothStep > 0) smoothTo = clampTop(y);
+    },
     attrs,
     attrSets,
     vars,
@@ -168,6 +205,12 @@ function rig({ mode = "scrollend", range = 2000 }: { mode?: HousePhoneChromeRest
     advance: (ms: number) => vi.advanceTimersByTime(ms),
     tick(ms = 16, stamp?: number) {
       vi.advanceTimersByTime(ms);
+      if (smoothTo !== null) {
+        const left = smoothTo - top;
+        top += Math.sign(left) * Math.min(Math.abs(left), smoothStep);
+        if (left !== 0) dirty = true;
+        if (top === smoothTo) smoothTo = null;
+      }
       if (dirty) {
         dirty = false;
         runtime.onScroll();
@@ -936,6 +979,193 @@ describe("phone chrome runtime — interrupts and drags (v1.5)", () => {
     expect(t.vars.get(Y)).toBe("0px");
     expect(t.attrs.size).toBe(0);
     expect(t.writes).toHaveLength(0);
+  });
+});
+
+describe("phone chrome runtime — every settle stops where it is (v1.5)", () => {
+  // The 120ms path's smooth settle near the top, in flight: from a rest at
+  // 20 the browser's smooth scroll heads for 56, 4 an update. Two updates
+  // in, the page is at 28 and the bar with it.
+  function nativeAt28() {
+    const t = rig({ mode: "timer", smoothStep: 4 });
+    t.userScroll(20);
+    t.advance(120);
+    t.tick(0);
+    expect(t.smooth).toEqual([56]);
+    t.tick();
+    t.tick();
+    expect(t.top()).toBe(28);
+    expect(t.cover()).toBe(28);
+    expect(t.smoothing()).toBe(true);
+    return t;
+  }
+
+  // Deep in the page a rest eases the bar the way the page was going
+  // (down, so covered) from 25, under half: the nearer end would be open.
+  function deepCoverEase() {
+    const r = rig();
+    r.userScroll(400);
+    r.userScroll(365);
+    r.userScroll(369);
+    expect(r.cover()).toBe(25);
+    r.scrollEnd();
+    r.tick();
+    r.tick();
+    expect(r.attrs.has(SETTLE)).toBe(true);
+    expect(r.vars.get(Y)).toBe("56px");
+    expect(r.changes.at(-1)).toEqual({ dockHidden: true, bandTucked: true });
+    return r;
+  }
+
+  it("S1: a touch stops the smooth settle where the page is; the lift settles again", () => {
+    const t = nativeAt28();
+    t.touchStart(t.main, [0, 400]);
+    t.ticks(500); // a still thumb: nothing moves under it
+    expect(t.top()).toBe(28);
+    expect(t.cover()).toBe(28);
+    expect(t.smoothing()).toBe(false);
+    expect(t.halts).toEqual([28]);
+    expect(t.smooth).toEqual([56]);
+    expect(t.writes).toHaveLength(0);
+    t.touchEnd();
+    t.ticks(1000);
+    expect(t.smooth).toEqual([56, 56]);
+    expect(t.top()).toBe(56);
+    expect(t.cover()).toBe(56);
+    expect(t.attrs.has(DOCK)).toBe(true);
+
+    // The settle's last move, not yet seen as an event when the finger
+    // came down, is the settle's: the bar follows it at once, and a drag
+    // from there releases with no wait.
+    const d = nativeAt28();
+    d.setTop(30);
+    d.touchStart(d.zone, [0, 100]);
+    expect(d.halts).toEqual([30]);
+    expect(d.cover()).toBe(30);
+    d.tick(); // its scroll event: the halt's echo
+    d.touchMove([0, 90]);
+    d.tick();
+    expect(d.cover()).toBe(40);
+    d.touchEnd();
+    const writes = d.writes.length;
+    for (let i = 0; i < 4; i += 1) d.tick();
+    expect(d.writes.length).toBeGreaterThan(writes);
+  });
+
+  it("S2: the status-bar signal stops the smooth settle before the bridge's scroll; nothing fights it", () => {
+    const s = nativeAt28();
+    s.foreign();
+    s.ticks(100);
+    expect(s.top()).toBe(28);
+    expect(s.smoothing()).toBe(false);
+    expect(s.halts).toEqual([28]);
+
+    const t = nativeAt28();
+    t.bridge(0);
+    t.ticks(500);
+    expect(t.top()).toBe(0);
+    expect(t.cover()).toBe(0);
+    expect(t.smooth).toEqual([56]);
+    expect(t.writes).toHaveLength(0);
+    expect(t.attrs.has(DOCK)).toBe(false);
+  });
+
+  it("S3: stop() ends the smooth settle where the page is: it never runs on into the next page", () => {
+    const t = nativeAt28();
+    t.runtime.stop();
+    t.ticks(500);
+    expect(t.top()).toBe(28);
+    expect(t.smoothing()).toBe(false);
+    expect(t.halts).toEqual([28]);
+    expect(t.writes).toHaveLength(0);
+    expect(t.vars.get(Y)).toBe("0px");
+    expect(t.attrs.size).toBe(0);
+  });
+
+  it("S4: open() stops the smooth settle too, and eases the bar open over a still page", () => {
+    const t = nativeAt28();
+    t.runtime.open();
+    t.ticks(500);
+    expect(t.top()).toBe(28);
+    expect(t.vars.get(Y)).toBe("0px");
+    expect(t.smooth).toEqual([56]);
+    expect(t.settles()).toBe(1);
+  });
+
+  it("S5: a finger the stale guard lifted that moves again stops the settle it started, where it is", () => {
+    const t = rig({ mode: "timer", smoothStep: 4 });
+    t.userScroll(20);
+    t.touchStart(t.main, [0, 400]);
+    t.advance(10_000); // still for 10s: counted lifted
+    t.advance(120);
+    t.tick(0);
+    expect(t.smooth).toEqual([56]);
+    t.tick();
+    t.tick();
+    expect(t.top()).toBe(28);
+    t.touchMove([0, 398]);
+    t.ticks(500);
+    expect(t.top()).toBe(28);
+    expect(t.smooth).toEqual([56]);
+    expect(t.halts).toEqual([28]);
+
+    const r = rig();
+    r.userScroll(400);
+    r.userScroll(370);
+    r.touchStart(r.main, [0, 300]);
+    r.advance(10_000); // counted lifted: the quiet lift eases the bar open
+    r.tick();
+    r.tick();
+    expect(r.attrs.has(SETTLE)).toBe(true);
+    expect(r.vars.get(Y)).toBe("0px");
+    r.setLive(12);
+    r.touchMove([0, 298]);
+    expect(r.vars.get(Y)).toBe("12px");
+    expect(r.attrs.has(SETTLE)).toBe(false);
+  });
+
+  it("S6: a touch holds the deep ease where the bar is on screen; a scroll or the lift carries on from there", () => {
+    const r = deepCoverEase();
+    r.setLive(26);
+    r.touchStart(r.main, [0, 300]);
+    expect(r.vars.get(Y)).toBe("26px");
+    expect(r.attrs.has(SETTLE)).toBe(false);
+    expect(r.changes.at(-1)).toEqual({ dockHidden: true, bandTucked: false });
+    r.setLive(56); // where the ease would have gone on to: never read now
+    r.ticks(300);
+    expect(r.vars.get(Y)).toBe("26px");
+    expect(r.settles()).toBe(1);
+    // The lift settles from there, the way the page was going: covered.
+    r.touchEnd();
+    for (let i = 0; i < 4; i += 1) r.tick();
+    expect(r.settles()).toBe(2);
+    expect(r.vars.get(Y)).toBe("56px");
+    expect(r.changes.at(-1)).toEqual({ dockHidden: true, bandTucked: true });
+
+    // A scroll under the held bar moves it from where it is.
+    const s = deepCoverEase();
+    s.setLive(26);
+    s.touchStart(s.main, [0, 300]);
+    s.setLive(56);
+    s.userScroll(371);
+    expect(s.cover()).toBe(28);
+  });
+
+  it("S7: the status-bar signal holds the deep ease where it is; the bridge's scroll carries on from there", () => {
+    const r = deepCoverEase();
+    r.setLive(30);
+    r.foreign();
+    expect(r.vars.get(Y)).toBe("30px");
+    expect(r.attrs.has(SETTLE)).toBe(false);
+    r.setLive(56);
+    r.ticks(300);
+    expect(r.vars.get(Y)).toBe("30px");
+    // The bridge's smooth scroll to the top.
+    r.userScroll(365);
+    expect(r.cover()).toBe(26);
+    r.userScroll(0);
+    expect(r.cover()).toBe(0);
+    expect(r.settles()).toBe(1);
   });
 });
 
