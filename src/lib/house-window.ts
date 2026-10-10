@@ -65,6 +65,12 @@ export const HOUSE_WINDOW_ASK_SHEET_ACTIONS_CLASS = "flex flex-col gap-[var(--sp
 
 export const HOUSE_WINDOW_ASK_BUTTON_CLASS = "min-h-11 px-5 focus-visible:rounded-full!";
 
+// The ask alone, for a host that draws its own frame (a confirm in
+// HouseDialog's 400, or the phone card that held a menu): the sheet ask's
+// column, and no ring on the panel itself (it takes focus while the ask
+// waits, as the window frame does). social-post-owner-menu-lock-v1
+export const HOUSE_WINDOW_ASK_PANEL_CLASS = "flex flex-col gap-[var(--space-3)] outline-none";
+
 /** What Tab moves between inside the window. */
 export const HOUSE_WINDOW_FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';

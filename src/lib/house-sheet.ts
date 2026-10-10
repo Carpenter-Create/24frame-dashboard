@@ -88,7 +88,13 @@ export const APP_SHEET_HAIRLINE_CLASS = "h-px w-full bg-hairline";
 
 export const APP_SHEET_SCRIM_CLASS = "absolute inset-0 bg-ink/40 app-sheet-scrim-fade";
 
+// The house danger ink: the --danger token (tokens.css; founder pick
+// 2026-10-10, "Yes, change that."), for destructive actions only. A post's
+// Remove row and the ask's danger action use it here; the button, the menu
+// item, Log out and the avatar sheet use the same token. Never a hex.
+export const HOUSE_DANGER_INK_CLASS = "text-danger";
+
 // Thread ··· item glyphs only — surface chrome is MenuSurface.
 export const THREAD_POPOVER_ICON_CLASS = "size-4 shrink-0 text-ink-3";
 
-export const THREAD_POPOVER_DELETE_ICON_CLASS = "size-4 shrink-0 text-[#c4564a]";
+export const THREAD_POPOVER_DELETE_ICON_CLASS = `size-4 shrink-0 ${HOUSE_DANGER_INK_CLASS}`;

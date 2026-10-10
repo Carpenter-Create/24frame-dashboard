@@ -1064,13 +1064,14 @@ export const SOCIAL = {
     commentDelete: "Remove",
     commentDeleteFailed: "Could not remove that comment.",
     overflow: "Post options",
-    edit: "Edit",
+    // The ⋯ reads Edit caption · Remove: its edit item is editTitle, and its
+    // Remove item and the confirm's button are one string (deleteConfirm).
+    // docs/design-locks/social-post-owner-menu-lock-v1.md
     editTitle: "Edit caption",
     editFailed: "Could not save that caption.",
     editTooLong: "That caption is too long.",
-    delete: "Delete",
     deleteTitle: "Remove this post?",
-    deleteBody: "It'll come off your profile and the feed. Comments and likes go with it.",
+    deleteBody: "It comes off 24Frame, with its comments and likes. You can't undo this.",
     deleteConfirm: "Remove",
     deleteKeep: "Keep",
     deleteFailed: "Could not remove that post.",

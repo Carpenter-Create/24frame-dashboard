@@ -31,6 +31,7 @@
   --color-accent-contrast: var(--accent-contrast);
   --color-accent-wash: var(--accent-wash);
   --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
   --color-band: var(--band);
   --color-band-ink: var(--band-ink);
   --color-workspace-band: var(--workspace-band);

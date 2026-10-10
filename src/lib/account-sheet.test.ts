@@ -279,7 +279,7 @@ describe("account sheet lock", () => {
     expect(ACCOUNT_MENU_THEME_TRAILING_CLASS).toContain("items-center");
     expect(ACCOUNT_MENU_THEME_CHEVRON_CLASS).toBe("size-4 shrink-0 text-ink-3");
     expect(accountSheet).not.toHaveProperty("ACCOUNT_MENU_DROPDOWN_SWITCH_TRACK_CLASS");
-    expect(ACCOUNT_MENU_DROPDOWN_LOGOUT_CLASS).toContain("text-[#c4564a]");
+    expect(ACCOUNT_MENU_DROPDOWN_LOGOUT_CLASS).toContain("text-danger");
     expect(ACCOUNT_MENU_DROPDOWN_LOGOUT_CLASS).not.toContain("text-accent");
     expect(ACCOUNT_MENU_DROPDOWN_LOGOUT_CLASS).not.toContain("rounded");
     expect(ACCOUNT_MENU_DROPDOWN_FOOTER_CLASS).toContain("pb-[var(--space-3)]");

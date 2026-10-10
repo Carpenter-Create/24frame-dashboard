@@ -19,6 +19,7 @@ import {
   IDENTITY_AVATAR_CLASS,
   IDENTITY_BLOCK_CLASS,
   IDENTITY_EMAIL_CLASS,
+  HOUSE_DANGER_INK_CLASS,
   HOUSE_EMPTY_CLASS,
   IDENTITY_NAME_CLASS,
   IDENTITY_WHO_CLASS,
@@ -31,6 +32,7 @@ import {
   SHEET_GROUP_ITEM_CLASS,
   SHEET_GROUP_LABEL_CLASS,
   TEXT_ACTION_CLASS,
+  THREAD_POPOVER_DELETE_ICON_CLASS,
   THREAD_POPOVER_ICON_CLASS,
 } from "./house-sheet";
 import { housePhoneForbidsTruncate } from "./house-phone-stack";
@@ -210,5 +212,15 @@ describe("house Identity: phone never-truncate (house gospel 2026-09-19)", () =>
     const sheet = stripSourceComments(readFileSync(join(here, "house-sheet.ts"), "utf8"));
     expect(sheet).toMatch(/^export const IDENTITY_NAME_CLASS = `\$\{HOUSE_PHONE_WRAP_CLASS\} t-heading text-ink`;$/m);
     expect(sheet).toMatch(/^export const IDENTITY_EMAIL_CLASS = `\$\{HOUSE_PHONE_WRAP_CLASS\} t-body-sm text-ink-3`;$/m);
+  });
+
+  // The house danger ink is the --danger token (founder pick 2026-10-10,
+  // "Yes, change that."; social-post-owner-menu-lock-v1, tokens.css).
+  it("holds the house danger ink as the --danger token, with no hex", () => {
+    expect(HOUSE_DANGER_INK_CLASS).toBe("text-danger");
+    expect(THREAD_POPOVER_DELETE_ICON_CLASS).toBe("size-4 shrink-0 text-danger");
+    const sheet = readFileSync(join(here, "house-sheet.ts"), "utf8");
+    expect(sheet).not.toMatch(/#[0-9a-fA-F]{6}\b/);
+    expect(sheet).toContain("export const THREAD_POPOVER_DELETE_ICON_CLASS = `size-4 shrink-0 ${HOUSE_DANGER_INK_CLASS}`;");
   });
 });
