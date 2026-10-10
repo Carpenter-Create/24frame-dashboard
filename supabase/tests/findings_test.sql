@@ -3,10 +3,14 @@
 -- caller's payload ignored; under the title lock, so another org's title is
 -- refused; upsert + auto-resolve; validator-only) + my_findings + RLS (own-org
 -- only) for the findings store (§19). Codex on #799: the one pass that
--- re-derives every live title's findings when the migration is applied.
+-- re-derives every live title's findings when the migration is applied, and
+-- a Synopsis that trims to nothing is missing. The audit on #799: a new title
+-- starts with its findings (create_title), the queue (my_findings) leaves out
+-- a soft-deleted title's findings, and the internal refresh and the passes
+-- are revoked from every client role, service_role included.
 
 begin;
-select plan(30);
+select plan(36);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -116,6 +120,25 @@ select is((select count(*) from public.my_findings(1))::int, 1,
 select is((select count(*) from public.my_findings(500, current_setting('t.orgB')::uuid))::int, 0,
   'p_org_id scopes away orgs the caller cannot see');
 
+-- ---- a new title starts with its findings (audit on #799) -------------------
+-- The page counts a new title "0 of 6 complete" from its first load;
+-- create_title derives its ten findings in the same call, so the queue lists
+-- it too (before, a title created after the pass had none until its first save).
+select lives_ok(
+  format($$ select public.create_title(%L, 'Created', 'new_release'::public.release_type, null) $$,
+         current_setting('t.orgA')),
+  'owner creates a title');
+select is(
+  (select count(*) from public.findings f join public.titles t on t.id = f.entity_id
+    where t.org_id = current_setting('t.orgA')::uuid and t.title = 'Created'
+      and f.source = 'validator' and f.status = 'open')::int,
+  10, 'a new title has its ten open findings from the start');
+select is(
+  (select count(*) from public.my_findings(500, current_setting('t.orgA')::uuid) f
+     join public.titles t on t.id = f.entity_id
+    where t.title = 'Created')::int,
+  10, 'and the queue serves them');
+
 -- ---- the one pass over live titles (Codex on #799) -------------------------
 -- Findings an earlier caller forged, before the migration: every validator
 -- finding resolved (a '[]'), one message made up, one code invented. And a
@@ -132,21 +155,28 @@ insert into public.findings (org_id, entity_type, entity_id, code, source, sever
 insert into public.titles (id, org_id, title, status) values
   (current_setting('t.gone')::uuid, current_setting('t.orgA')::uuid, 'Gone', 'draft');
 update public.titles set deleted_at = now() where id = current_setting('t.gone')::uuid;
--- A live title whose stored Cast holds only a blank entry (a direct write):
--- the window reads Cast as missing (normalizeStoredMetadata).
+-- A live title whose stored Cast holds only a blank entry and whose Synopsis
+-- is an ideographic space (a direct write): the window reads both as missing
+-- (normalizeStoredMetadata, isEmpty).
 insert into public.titles (id, org_id, title, status) values
   (current_setting('t.blank')::uuid, current_setting('t.orgA')::uuid, 'Blank', 'draft');
 insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.blank')::uuid, current_setting('t.orgA')::uuid,
-   '{"cast":[" "],"runtime_minutes":"96","release_year":2024,"country_of_origin":"ZZ"}'::jsonb);
+   '{"cast":[" "],"runtime_minutes":"96","release_year":2024,"country_of_origin":"ZZ","synopsis":"\u3000"}'::jsonb);
 insert into public.findings (org_id, entity_type, entity_id, code, source, severity, message, source_refs, logic_version)
   values (current_setting('t.orgA')::uuid, 'title', current_setting('t.gone')::uuid,
           'metadata.forged', 'validator', 'high', 'Forged.', '{}'::jsonb, 'forged');
 
 select ok(
   not has_function_privilege('authenticated', 'public.refresh_live_title_findings()', 'EXECUTE')
-    and not has_function_privilege('anon', 'public.refresh_live_title_findings()', 'EXECUTE'),
-  'no client role may run the one pass');
+    and not has_function_privilege('anon', 'public.refresh_live_title_findings()', 'EXECUTE')
+    and not has_function_privilege('service_role', 'public.refresh_live_title_findings()', 'EXECUTE'),
+  'no client role may run the one pass, service_role included');
+select ok(
+  not has_function_privilege('authenticated', 'public.refresh_title_findings(uuid, uuid)', 'EXECUTE')
+    and not has_function_privilege('anon', 'public.refresh_title_findings(uuid, uuid)', 'EXECUTE')
+    and not has_function_privilege('service_role', 'public.refresh_title_findings(uuid, uuid)', 'EXECUTE'),
+  'no client role may run the internal refresh, service_role included');
 select ok(public.refresh_live_title_findings() >= 1, 'the pass refreshes every live title');
 select is(
   (select coalesce(array_agg(code order by code), '{}'::text[]) from public.findings
@@ -168,6 +198,13 @@ select is((select status::text from public.findings where code = 'ai.genre_misma
 select is((select status::text from public.findings
     where entity_id = current_setting('t.gone')::uuid and code = 'metadata.forged'),
   'open', 'a deleted title is skipped (its findings are untouched)');
+-- ...and never served: the queue leaves out a soft-deleted title's findings
+-- (audit on #799), forged or not, so it never lists a title that is gone.
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', current_setting('t.ownerA'),'role','authenticated')::text, true);
+select is((select count(*) from public.my_findings(500) where entity_id = current_setting('t.gone')::uuid)::int, 0,
+  'a deleted title''s open findings are not in the queue');
+reset role;
 -- A second pass (the final pass runs one after the commit) is idempotent:
 -- over unchanged records it changes no finding's status or message.
 create temp table pass_one as
@@ -182,8 +219,9 @@ select is(
 -- every transaction that began before it, then refreshes. No client may run it.
 select ok(
   not has_function_privilege('authenticated', 'public.finish_title_findings_repair(integer)', 'EXECUTE')
-    and not has_function_privilege('anon', 'public.finish_title_findings_repair(integer)', 'EXECUTE'),
-  'no client role may run the final pass');
+    and not has_function_privilege('anon', 'public.finish_title_findings_repair(integer)', 'EXECUTE')
+    and not has_function_privilege('service_role', 'public.finish_title_findings_repair(integer)', 'EXECUTE'),
+  'no client role may run the final pass, service_role included');
 select ok(public.finish_title_findings_repair(30) >= 1, 'the final pass drains, then refreshes every live title');
 
 -- Derived as the window reads the record (Codex on #799): a blank-only Cast
@@ -194,6 +232,12 @@ select is(
       and code in ('metadata.missing.cast', 'metadata.missing.runtime_minutes')),
   array['metadata.missing.cast']::text[],
   'a blank-only Cast is missing and a runtime stored as text is filled');
+-- Codex on #799: text that trims to nothing is missing, as the page, the
+-- window and submit read it (it was filled here before).
+select is((select status::text from public.findings
+    where entity_id = current_setting('t.blank')::uuid and source = 'validator'
+      and code = 'metadata.missing.synopsis'),
+  'open', 'a Synopsis that trims to nothing (an ideographic space) is missing');
 -- metadata-v2 (Codex on #799): a value the checks refuse is not filled, as
 -- requiredComplete counts it: a country off the list is missing, a valid
 -- year is not. Stamped with the app's logic version.

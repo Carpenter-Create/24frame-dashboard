@@ -112,8 +112,13 @@ describe("title Metadata window (aggregation-title-details-window-lock-v1)", () 
   it("saves through one checked action and leaves no other way to write", () => {
     const done = windowSrc.slice(windowSrc.indexOf("async function done()"), windowSrc.indexOf("const [win, winRefs]"));
     // The check runs first; nothing changed closes without a call.
-    expect(done).toContain("const issue = checkTitleDetails(draft);\n    if (issue) {");
-    expect(done.indexOf("checkTitleDetails(draft)")).toBeLessThan(done.indexOf("saveTitleDetails("));
+    // Checked against the stored record the window opened on, so an untouched
+    // field is never refused over the field's own re-reading (audit on #799).
+    expect(done).toContain("const issue = checkTitleDetails(draft, new Date(), baseline.metadata);\n    if (issue) {");
+    expect(done.indexOf("checkTitleDetails(draft, ")).toBeLessThan(done.indexOf("saveTitleDetails("));
+    // The index rows count an untouched field as the page counts it.
+    expect(windowSrc).toContain("titleDetailsTierSummary(draft.metadata, tier, stored)");
+    expect(windowSrc).toContain("<TitleDetailsIndex draft={draft} stored={baseline.metadata} onOpen={openFace} />");
     expect(done.indexOf("onClose(savedRef.current);")).toBeLessThan(done.indexOf("saveTitleDetails("));
     expect(done).toContain("if (pending) return;");
     // A request that fails outright never leaves the window waiting.

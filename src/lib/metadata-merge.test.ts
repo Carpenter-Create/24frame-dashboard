@@ -15,8 +15,10 @@ import {
   METADATA_YEAR_MIN,
   RATINGS,
   metadataMaxYear,
+  metadataValueAccepted,
   normalizeStoredMetadata,
   requiredComplete,
+  storedNumberText,
 } from "./metadata";
 import {
   MERGE_TITLE_METADATA,
@@ -219,6 +221,15 @@ describe("the findings refresh and the check (draft, founder-applied)", () => {
     expect(functionSql("refresh_title_findings").body).toContain(`'${METADATA_LOGIC_VERSION}', now(), 'open', null)`);
   });
 
+  // The audit on #799: the internal refresh and both passes are revoked from
+  // service_role too, as normalize_stored_title_metadata is, and never granted.
+  it("keeps the refresh internal: no client role, service_role included", () => {
+    expect(functionSql("refresh_title_findings").after.split("\n")[0]).toBe(
+      "revoke execute on function public.refresh_title_findings(uuid, uuid) from public, anon, authenticated, service_role;",
+    );
+    expect(MIGRATION).not.toMatch(/grant\s+execute on function public\.refresh_title_findings/);
+  });
+
   it("has no size cap of its own", () => {
     const { body } = functionSql("check_title_metadata");
     expect(body).not.toMatch(/octet_length|pg_column_size|too large/i);
@@ -234,7 +245,7 @@ describe("the one pass over live titles' findings (draft, founder-applied)", () 
     expect(pass.body).toContain("security definer");
     expect(pass.body).toContain("set search_path = public");
     expect(pass.after).toMatch(
-      /^revoke execute on function public\.refresh_live_title_findings\(\) from public, anon, authenticated;/,
+      /^revoke execute on function public\.refresh_live_title_findings\(\) from public, anon, authenticated, service_role;/,
     );
     expect(pass.after).not.toMatch(/grant\s+execute on function public\.refresh_live_title_findings/);
     // Called once, after it is defined and revoked.
@@ -250,7 +261,7 @@ describe("the one pass over live titles' findings (draft, founder-applied)", () 
     expect(finish.header).toBe("(p_max_wait_seconds integer default 120)");
     expect(finish.body).not.toContain("security definer");
     expect(finish.after).toMatch(
-      /^revoke execute on function public\.finish_title_findings_repair\(integer\) from public, anon, authenticated;/,
+      /^revoke execute on function public\.finish_title_findings_repair\(integer\) from public, anon, authenticated, service_role;/,
     );
     expect(MIGRATION).not.toMatch(/grant\s+execute on function public\.finish_title_findings_repair/);
     const body = finish.body;
@@ -308,20 +319,38 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     }
   });
 
+  // Codex on #799: an unlocked exists check let a delete that committed
+  // before the update leave set_title_release_info writing a deleted title.
+  it("set_title_release_info takes the live-title lock before it updates, and its update repeats the predicates", () => {
+    const { body } = functionSql("set_title_release_info");
+    const lock = body.search(
+      /perform 1 from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title does not belong to this organization';/,
+    );
+    const update = body.indexOf("update public.titles");
+    expect(lock).toBeGreaterThan(0);
+    expect(lock).toBeLessThan(update);
+    expect(body).not.toMatch(/if not exists \(/);
+    expect(body.slice(update)).toMatch(
+      /where id = p_title_id and org_id = p_org_id and deleted_at is null;\s+if not found then\s+raise exception 'Title does not belong to this organization';/,
+    );
+  });
+
   it("gives every caller of the findings refresh that title lock before it refreshes (Codex on #799)", () => {
     const names = [...MIGRATION.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]);
     const callers = names.filter(
       (name) => name !== "refresh_title_findings" && functionSql(name).body.includes("public.refresh_title_findings("),
     );
     expect([...callers].sort()).toEqual([
+      "create_title",
       "merge_title_metadata",
       "reconcile_title_findings",
       "refresh_live_title_findings",
       "set_title_metadata",
       "submit_title",
     ]);
-    // The one pass locks each live title as it walks them (below).
-    for (const name of callers.filter((caller) => caller !== "refresh_live_title_findings")) {
+    // The one pass locks each live title as it walks them, and create_title
+    // holds the row it inserted (below).
+    for (const name of callers.filter((caller) => !["refresh_live_title_findings", "create_title"].includes(caller))) {
       const { body } = functionSql(name);
       const lock = body.search(/from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id[^;]*for no key update;/);
       expect(lock, name).toBeGreaterThan(0);
@@ -331,6 +360,17 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     const walk = pass.search(/from public\.titles t\s+where t\.deleted_at is null\s+order by t\.id\s+for no key update/);
     expect(walk).toBeGreaterThan(0);
     expect(walk).toBeLessThan(pass.indexOf("public.refresh_title_findings(r.org_id, r.id)"));
+    const create = functionSql("create_title").body;
+    const insert = create.indexOf("insert into public.titles");
+    expect(insert).toBeGreaterThan(0);
+    expect(create.indexOf("perform public.refresh_title_findings(p_org_id, v_title);")).toBeGreaterThan(insert);
+    expect(create.indexOf("perform public.refresh_title_findings(p_org_id, v_title);")).toBeLessThan(
+      create.indexOf("return v_title;"),
+    );
+    // The refresh takes the title lock itself (a no-op under its callers').
+    expect(functionSql("refresh_title_findings").body).toMatch(
+      /from public\.titles t\s+left join public\.title_metadata m on m\.title_id = t\.id\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update of t;/,
+    );
     // reconcile: a live title in p_org_id only, refused at the lock.
     expect(functionSql("reconcile_title_findings").body).toMatch(
       /from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title not found in this organization';\s+end if;/,
@@ -353,6 +393,14 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     expect(normalize).toBeGreaterThan(read);
     expect(normalize).toBeLessThan(body.indexOf("foreach v_key in array v_required"));
     expect(normalize).toBeLessThan(body.indexOf("public.check_title_metadata(v_required_values)"));
+    // Empty as the app and the findings read it (Codex on #799): never btrim,
+    // which kept " " missing here while the findings called it filled.
+    expect(body).toContain("if public.title_metadata_value_empty(v_data -> v_key) then");
+    expect(body).not.toMatch(/btrim/);
+    expect(requiredComplete({
+      synopsis: " \u00a0", runtime_minutes: 96, release_year: 2024, genre: "drama",
+      primary_language: "en", country_of_origin: "US",
+    })).toEqual({ filled: 5, total: 6 });
     // The refusal submitTitle reads as the required-fields notice.
     const raised = /raise exception '(Cannot submit: required metadata field "%" is missing)'/.exec(body)?.[1] ?? "";
     expect(submitRequiredMissing({ code: "P0001", message: raised.replace("%", "synopsis") })).toBe(true);
@@ -383,6 +431,39 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     });
     expect(requiredComplete({ ...required, primary_language: "zz" })).toEqual({ filled: 5, total: 6 });
     expect(requiredComplete({ ...required, country_of_origin: "ZZ" })).toEqual({ filled: 5, total: 6 });
+  });
+
+  // The audit on #799: a deleted title's findings leave the queue with it.
+  it("my_findings serves a title's findings only while the title is live", () => {
+    const mine = functionSql("my_findings");
+    expect(mine.header).toBe("(p_limit integer default 500, p_org_id uuid default null)");
+    expect(mine.body).toContain("security definer");
+    expect(mine.body).toMatch(
+      /and \(entity_type <> 'title' or exists \(\s+select 1 from public\.titles t\s+where t\.id = findings\.entity_id and t\.deleted_at is null\)\)/,
+    );
+    expect(mine.body).toContain("limit least(greatest(coalesce(p_limit, 0), 0), 501);");
+    expect(mine.after.split("\n").slice(0, 2)).toEqual([
+      "revoke execute on function public.my_findings(integer, uuid) from public, anon;",
+      "grant  execute on function public.my_findings(integer, uuid) to authenticated;",
+    ]);
+  });
+
+  // The audit on #799: a delete that read 'draft' unlocked could soft-delete
+  // a title a submit had just put in review.
+  it("delete_title checks the status it acts on under the title lock", () => {
+    const { body } = functionSql("delete_title");
+    const view = body.indexOf("if not public.member_can(auth.uid(), v_org, 'view') then");
+    const lock = body.search(
+      /select status into v_status\s+from public\.titles\s+where id = p_title_id and deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title is already deleted';/,
+    );
+    const draftOnly = body.indexOf("if v_status <> 'draft' then");
+    expect(view).toBeGreaterThan(0);
+    expect(lock).toBeGreaterThan(view);
+    expect(lock).toBeLessThan(draftOnly);
+    expect(lock).toBeLessThan(body.indexOf("v_status <> 'draft' and coalesce(v_has_reporting, false)"));
+    expect(body).toMatch(
+      /where id = p_title_id\s+and deleted_at is null;\s+if not found then\s+raise exception 'Title is already deleted';\s+end if;\s+update public\.assets/,
+    );
   });
 
   it("keeps the normalize helper internal and its registry equal to the app's", () => {
@@ -448,7 +529,9 @@ describe("check_title_metadata matches the app's registry and limits", () => {
     expect(body).toContain(`char_length(v_text) > ${METADATA_TEXT_MAX}`);
     expect(body).toContain(`v_num < ${METADATA_RUNTIME_MIN} or v_num > ${METADATA_RUNTIME_MAX}`);
     expect(body).toContain(`v_num < ${METADATA_YEAR_MIN}`);
-    expect(body).toContain("extract(year from now())::int + 1 + 5");
+    // In UTC, as metadataMaxYear counts it, whatever the session's time zone (audit on #799).
+    expect(body).toContain("extract(year from now() at time zone 'UTC')::int + 1 + 5");
+    expect(body).not.toMatch(/extract\(year from now\(\)\)/);
     expect(metadataMaxYear(new Date(Date.UTC(2026, 5, 1)))).toBe(2026 + 1 + 5);
     expect(body).toContain(`jsonb_array_length(v_val) > ${METADATA_LIST_MAX}`);
     expect(body).toContain(`char_length(v_item #>> '{}') > ${METADATA_TEXT_MAX}`);
@@ -464,20 +547,28 @@ describe("check_title_metadata matches the app's registry and limits", () => {
 describe("normalize parity (the fixtures shared with title_metadata_merge_test.sql)", () => {
   const block = /-- normalize-fixtures:start\n([\s\S]*?)\n-- normalize-fixtures:end/.exec(PGTAP)?.[1] ?? "";
   const lines = block.split("\n").filter((line) => line.trim() !== "");
+  // One row per line, (input, sql_expected, js_expected), and nothing after
+  // it: no row may be marked as a known difference.
   const rows = lines.map((line) => {
-    const match = /^\s*\(\$j\$(.*?)\$j\$,\s*\$j\$(.*?)\$j\$,\s*\$j\$(.*?)\$j\$\),?\s*(--\s*js-differs)?\s*$/.exec(line);
+    const match = /^\s*\(\$j\$(.*?)\$j\$,\s*\$j\$(.*?)\$j\$,\s*\$j\$(.*?)\$j\$\),?\s*$/.exec(line);
     expect(match, line).not.toBeNull();
-    return { input: match?.[1] ?? "", sql: match?.[2] ?? "", js: match?.[3] ?? "", differs: Boolean(match?.[4]) };
+    return { input: match?.[1] ?? "", sql: match?.[2] ?? "", js: match?.[3] ?? "" };
   });
+  const jsOf = (input: string) => rows.find((row) => row.input === input)?.js;
 
-  // Codex on #799: hex, binary and octal text stays text on both sides; the
-  // one difference left is refused by the check on both.
-  it("has the shared rows, one of them the known difference", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(22);
-    expect(rows.filter((row) => row.differs).map((row) => row.input)).toEqual(['{"runtime_minutes":"1e999"}']);
+  // Codex on #799: hex, binary and octal text stays text on both sides, a
+  // lossy decimal rounds alike on both, and text that trims to nothing is
+  // empty on both. No known difference is left.
+  it("has the shared rows, with no known difference", () => {
+    expect(rows.length).toBeGreaterThanOrEqual(36);
+    expect(block).not.toMatch(/js-differs/);
     for (const input of ['{"runtime_minutes":"0x60"}', '{"runtime_minutes":"0b11"}', '{"release_year":"0o3720"}']) {
-      expect(rows.find((row) => row.input === input)?.js, input).toBe(input);
+      expect(jsOf(input), input).toBe(input);
     }
+    expect(jsOf('{"runtime_minutes":"1.00000000000000000001"}')).toBe('{"runtime_minutes":1}');
+    expect(jsOf('{"runtime_minutes":96.00000000000000000001}')).toBe('{"runtime_minutes":96}');
+    expect(jsOf('{"runtime_minutes":"1e999"}')).toBe('{"runtime_minutes":"1e999"}');
+    expect(jsOf('{"runtime_minutes":" "}')).toBe("{}");
   });
 
   it("reads stored number text with the database's grammar, character for character", () => {
@@ -488,14 +579,67 @@ describe("normalize parity (the fixtures shared with title_metadata_merge_test.s
     );
   });
 
+  // Codex on #799: "1.00000000000000000001" was 1 in the app (Number()) and
+  // refused by the exact numeric read; the audit on #799: so was a stored JSON
+  // number, which the page's JSON.parse rounds. Both sides now read the same
+  // IEEE-754 double.
+  it("reads number text and JSON numbers as the double JS reads, whatever the session's float output", () => {
+    const { header, body } = functionSql("normalize_stored_title_metadata");
+    expect(header).toBe("(p_data jsonb)");
+    expect(body).toMatch(/language plpgsql immutable\s+set search_path = public\s+set extra_float_digits = 1\s+as \$\$/);
+    expect(body).toContain("if v_key = any (c_numbers) and jsonb_typeof(v_value) in ('string', 'number') then");
+    expect(body).toContain("v_value := to_jsonb(v_text::float8);");
+    expect(body).toMatch(
+      /exception when numeric_value_out_of_range then\n(\s+--[^\n]*\n)+\s+if abs\(v_text::numeric\) < 1 then\s+v_value := to_jsonb\(0\);\s+end if;\s+end;/,
+    );
+    // Never the 15-digit float8::numeric cast, and no exact numeric read of
+    // the value it keeps.
+    expect(body).not.toMatch(/float8\)?::numeric|trunc\(|v_n\b/);
+    // The app's side: Number() is the double; past its range, not a number.
+    expect(storedNumberText("1.00000000000000000001")).toBe(1);
+    expect(storedNumberText("1000.0000000000001")).toBe(1000.0000000000001);
+    expect(storedNumberText("1e999")).toBeNull();
+    expect(storedNumberText("-1e999")).toBeNull();
+    expect(storedNumberText("1e-400")).toBe(0);
+    expect(storedNumberText("0x60")).toBeNull();
+    expect(storedNumberText("96e0000")).toBeNull();
+    expect(storedNumberText("9".repeat(401))).toBeNull();
+  });
+
+  // Codex on #799: " " was filled to the findings and the app, missing to
+  // submit and the window. One rule now: text that trims to nothing (with JS
+  // String.prototype.trim's set) is empty.
+  it("empties and trims with exactly JS String.prototype.trim's set, in both SQL helpers", () => {
+    const ws = /c_ws\s+constant text := '(\[[^']+\])';/.exec(MIGRATION)?.[1] ?? "";
+    expect(ws).not.toBe("");
+    expect(functionSql("title_metadata_value_empty").body).toContain(`and p_value #>> '{}' ~ '^${ws}*$')`);
+    expect(functionSql("normalize_stored_title_metadata").body).toContain(
+      "continue when public.title_metadata_value_empty(v_value);",
+    );
+    const one = new RegExp(`^${ws}$`);
+    const differs: string[] = [];
+    for (let code = 0; code <= 0xffff; code++) {
+      const ch = String.fromCharCode(code);
+      if (one.test(ch) !== (ch.trim() === "")) differs.push(code.toString(16));
+    }
+    expect(differs).toEqual([]);
+    // The app's emptiness is the same rule.
+    expect(metadataValueAccepted("synopsis", "  ﻿　")).toBe(false);
+    expect(metadataValueAccepted("synopsis", "\u0085")).toBe(true);
+    expect(metadataValueAccepted("director", " Jo ")).toBe(true);
+  });
+
   it("normalizeStoredMetadata gives each row's app result", () => {
     for (const row of rows) {
       expect(normalizeStoredMetadata(JSON.parse(row.input) as never), row.input).toEqual(JSON.parse(row.js));
     }
   });
 
-  it("the database gives the same result except on the marked rows", () => {
-    for (const row of rows.filter((r) => !r.differs)) {
+  // The same literal on both sides, not merely the same once JSON.parse
+  // rounds it: pgTAP compares the database's result with sql_expected exactly.
+  it("the database gives the same result on every row", () => {
+    for (const row of rows) {
+      expect(row.sql, row.input).toBe(row.js);
       expect(JSON.parse(row.sql), row.input).toEqual(JSON.parse(row.js));
     }
   });

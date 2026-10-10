@@ -10,10 +10,13 @@
 -- Codex on #799: submit checks only the required tier (a refused Director
 -- submits, a refused required value does not); a stored country outside the
 -- app's list is named on the next save and corrected in it; reconcile takes
--- the same title lock.
+-- the same title lock; so do set_title_release_info (its update repeats the
+-- live-title predicates) and the refresh itself; one emptiness rule (text
+-- that trims to nothing is empty, to submit as to the findings); normalize
+-- reads numbers as the double JS reads, with no known difference left.
 
 begin;
-select plan(100);
+select plan(118);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -34,6 +37,7 @@ select set_config('t.tbad',   gen_random_uuid()::text, false);  -- A, complete, 
 select set_config('t.tlang',  gen_random_uuid()::text, false);  -- A, complete, a language outside the list
 select set_config('t.toff',   gen_random_uuid()::text, false);  -- A, complete, a country outside the list
 select set_config('t.tgonebad', gen_random_uuid()::text, false);  -- A, deleted, complete, a language outside the list
+select set_config('t.tws',    gen_random_uuid()::text, false);  -- A, complete but a Synopsis that trims to nothing
 
 insert into auth.users (id) values
   (current_setting('t.owner')::uuid), (current_setting('t.deliv')::uuid),
@@ -61,7 +65,8 @@ insert into public.titles (id, org_id, title, status) values
   (current_setting('t.tbad')::uuid,    current_setting('t.org_a')::uuid, 'Bad',     'draft'),
   (current_setting('t.tlang')::uuid,   current_setting('t.org_a')::uuid, 'Lang',    'draft'),
   (current_setting('t.toff')::uuid,    current_setting('t.org_a')::uuid, 'Country', 'draft'),
-  (current_setting('t.tgonebad')::uuid, current_setting('t.org_a')::uuid, 'Gone bad', 'draft');
+  (current_setting('t.tgonebad')::uuid, current_setting('t.org_a')::uuid, 'Gone bad', 'draft'),
+  (current_setting('t.tws')::uuid,     current_setting('t.org_a')::uuid, 'Blank synopsis', 'draft');
 insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.ta')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"Jo"}'::jsonb),
@@ -87,7 +92,11 @@ insert into public.title_metadata (title_id, org_id, data) values
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"ZZ"}'::jsonb),
   -- Soft-deleted, complete, with a required language the checks refuse.
   (current_setting('t.tgonebad')::uuid, current_setting('t.org_a')::uuid,
-   '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"zz","country_of_origin":"US"}'::jsonb);
+   '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"zz","country_of_origin":"US"}'::jsonb),
+  -- Complete but a Synopsis of a space and a no-break space (a direct write):
+  -- btrim left the no-break space, so the old submit let it through.
+  (current_setting('t.tws')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":" \u00a0","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US"}'::jsonb);
 update public.titles set deleted_at = now()
  where id in (current_setting('t.tgone')::uuid, current_setting('t.tgonebad')::uuid);
 
@@ -171,11 +180,59 @@ select ok(
      from pg_proc p
     where p.oid = 'public.reconcile_title_findings(uuid, uuid, jsonb, text)'::regprocedure),
   'reconcile_title_findings locks the title before it refreshes findings');
+-- Codex on #799: set_title_release_info took no lock and updated by id alone,
+-- so a delete committed in between let it write a soft-deleted title.
+select ok(
+  (select p.prosrc from pg_proc p
+    where p.oid = 'public.set_title_release_info(uuid, uuid, public.release_type, date)'::regprocedure)
+  ~* 'from\s+public\.titles\s+t\s+where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+and\s+t\.deleted_at\s+is\s+null\s+for\s+no\s+key\s+update',
+  'set_title_release_info takes the same live-title lock (Codex on #799)');
+select ok(
+  (select strpos(p.prosrc, 'for no key update') > 0
+      and strpos(p.prosrc, 'for no key update') < strpos(p.prosrc, 'update public.titles')
+      and p.prosrc ~* 'where\s+id\s*=\s*p_title_id\s+and\s+org_id\s*=\s*p_org_id\s+and\s+deleted_at\s+is\s+null;\s+if\s+not\s+found\s+then'
+     from pg_proc p
+    where p.oid = 'public.set_title_release_info(uuid, uuid, public.release_type, date)'::regprocedure),
+  'set_title_release_info locks before it updates, and its update repeats the live-title predicates');
+-- The refresh takes the title lock itself (audit on #799): a no-op under its
+-- callers' lock, and no refresh can write from a record a later save replaced.
+select ok(
+  (select p.prosrc from pg_proc p
+    where p.oid = 'public.refresh_title_findings(uuid, uuid)'::regprocedure)
+  ~* 'where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+and\s+t\.deleted_at\s+is\s+null\s+for\s+no\s+key\s+update\s+of\s+t',
+  'refresh_title_findings locks the live title it reads');
+-- Codex on #799: one emptiness rule. Submit reads empty as the findings do,
+-- never with btrim.
+select ok(
+  (select p.prosrc ~* 'public\.title_metadata_value_empty\s*\(\s*v_data\s*->\s*v_key\s*\)'
+      and p.prosrc !~* 'btrim'
+     from pg_proc p
+    where p.oid = 'public.submit_title(uuid, uuid)'::regprocedure),
+  'submit_title reads a required field as empty with title_metadata_value_empty, not btrim');
+select ok(
+  public.title_metadata_value_empty('" "'::jsonb)
+    and public.title_metadata_value_empty('" \u00a0\ufeff\u3000\u2028\t"'::jsonb)
+    and public.title_metadata_value_empty('""'::jsonb)
+    and public.title_metadata_value_empty(null)
+    and not public.title_metadata_value_empty('"\u0085"'::jsonb)
+    and not public.title_metadata_value_empty('"\u200b"'::jsonb)
+    and not public.title_metadata_value_empty('" x "'::jsonb)
+    and not public.title_metadata_value_empty('[" "]'::jsonb),
+  'title_metadata_value_empty: text that trims to nothing (JS trim''s set) is empty, nothing else');
+-- float8 output follows the session's extra_float_digits; normalize sets its
+-- own, so a session at 0 (15 digits) never rounds the double it stores.
+set local extra_float_digits = 0;
+select is(public.normalize_stored_title_metadata('{"runtime_minutes":"1000.0000000000001"}'::jsonb),
+  '{"runtime_minutes":1000.0000000000001}'::jsonb,
+  'normalize reads the double whole, whatever extra_float_digits the session sets');
+set local extra_float_digits = 1;
 
 -- ===== normalize parity (as postgres) =====
 -- One row per line: (input, sql_expected, js_expected). vitest parses this
 -- block and asserts normalizeStoredMetadata(input) = js_expected, and
--- js_expected = sql_expected except on rows marked js-differs.
+-- js_expected = sql_expected on every row: no known difference is left
+-- (Codex on #799: number text and JSON numbers are read as the same double on
+-- both sides, and text that trims to nothing is empty on both).
 select is(public.normalize_stored_title_metadata(f.input::jsonb), f.sql_expected::jsonb, 'normalize: ' || f.input)
   from (values
 -- normalize-fixtures:start
@@ -189,18 +246,29 @@ select is(public.normalize_stored_title_metadata(f.input::jsonb), f.sql_expected
   ($j${"runtime_minutes":"96abc"}$j$, $j${"runtime_minutes":"96abc"}$j$, $j${"runtime_minutes":"96abc"}$j$),
   ($j${"runtime_minutes":"Infinity"}$j$, $j${"runtime_minutes":"Infinity"}$j$, $j${"runtime_minutes":"Infinity"}$j$),
   ($j${"runtime_minutes":"1_000"}$j$, $j${"runtime_minutes":"1_000"}$j$, $j${"runtime_minutes":"1_000"}$j$),
-  ($j${"runtime_minutes":" "}$j$, $j${"runtime_minutes":" "}$j$, $j${"runtime_minutes":" "}$j$),
+  ($j${"runtime_minutes":" "}$j$, $j${}$j$, $j${}$j$),
   ($j${"runtime_minutes":"0x60"}$j$, $j${"runtime_minutes":"0x60"}$j$, $j${"runtime_minutes":"0x60"}$j$),
   ($j${"runtime_minutes":"0b11"}$j$, $j${"runtime_minutes":"0b11"}$j$, $j${"runtime_minutes":"0b11"}$j$),
   ($j${"release_year":"0o3720"}$j$, $j${"release_year":"0o3720"}$j$, $j${"release_year":"0o3720"}$j$),
-  ($j${"runtime_minutes":"1e999"}$j$, $j${"runtime_minutes":1e999}$j$, $j${"runtime_minutes":"1e999"}$j$), -- js-differs
+  ($j${"runtime_minutes":"1e999"}$j$, $j${"runtime_minutes":"1e999"}$j$, $j${"runtime_minutes":"1e999"}$j$),
+  ($j${"release_year":"-1e999"}$j$, $j${"release_year":"-1e999"}$j$, $j${"release_year":"-1e999"}$j$),
+  ($j${"runtime_minutes":"96e0000"}$j$, $j${"runtime_minutes":"96e0000"}$j$, $j${"runtime_minutes":"96e0000"}$j$),
+  ($j${"runtime_minutes":"1.00000000000000000001"}$j$, $j${"runtime_minutes":1}$j$, $j${"runtime_minutes":1}$j$),
+  ($j${"runtime_minutes":"0.99999999999999999999"}$j$, $j${"runtime_minutes":1}$j$, $j${"runtime_minutes":1}$j$),
+  ($j${"runtime_minutes":"1000.0000000000001"}$j$, $j${"runtime_minutes":1000.0000000000001}$j$, $j${"runtime_minutes":1000.0000000000001}$j$),
+  ($j${"runtime_minutes":"1e-400"}$j$, $j${"runtime_minutes":0}$j$, $j${"runtime_minutes":0}$j$),
+  ($j${"runtime_minutes":96.00000000000000000001}$j$, $j${"runtime_minutes":96}$j$, $j${"runtime_minutes":96}$j$),
+  ($j${"release_year":2024.0000000000001}$j$, $j${"release_year":2024}$j$, $j${"release_year":2024}$j$),
+  ($j${"runtime_minutes":1e400}$j$, $j${"runtime_minutes":1e400}$j$, $j${"runtime_minutes":1e400}$j$),
   ($j${"synopsis":"","director":null,"keywords":[]}$j$, $j${}$j$, $j${}$j$),
   ($j${"cast":[" ","\u00a0","Ada"]}$j$, $j${"cast":["Ada"]}$j$, $j${"cast":["Ada"]}$j$),
   ($j${"keywords":["\ufeff"]}$j$, $j${}$j$, $j${}$j$),
   ($j${"cast":[1,"Ada","\t"]}$j$, $j${"cast":[1,"Ada"]}$j$, $j${"cast":[1,"Ada"]}$j$),
   ($j${"cast":"Ada, Bob"}$j$, $j${"cast":"Ada, Bob"}$j$, $j${"cast":"Ada, Bob"}$j$),
   ($j${"foo":"bar","rating":"PG"}$j$, $j${"rating":"PG"}$j$, $j${"rating":"PG"}$j$),
-  ($j${"director":" ","genre":"Drama"}$j$, $j${"director":" ","genre":"Drama"}$j$, $j${"director":" ","genre":"Drama"}$j$),
+  ($j${"director":" ","genre":"Drama"}$j$, $j${"genre":"Drama"}$j$, $j${"genre":"Drama"}$j$),
+  ($j${"synopsis":" \u00a0\ufeff\u3000","alternate_title":"\u2028"}$j$, $j${}$j$, $j${}$j$),
+  ($j${"synopsis":"\u0085","director":"\u200b"}$j$, $j${"synopsis":"\u0085","director":"\u200b"}$j$, $j${"synopsis":"\u0085","director":"\u200b"}$j$),
   ($j$"str"$j$, $j${}$j$, $j${}$j$),
   ($j$null$j$, $j${}$j$, $j${}$j$),
   ($j${"synopsis":"","runtime_minutes":"96","cast":["","Ada"],"director":null,"keywords":[],"genre":"drama","foo":"bar"}$j$, $j${"runtime_minutes":96,"cast":["Ada"],"genre":"drama"}$j$, $j${"runtime_minutes":96,"cast":["Ada"],"genre":"drama"}$j$)
@@ -468,6 +536,12 @@ select throws_like(
   'primary_language:%', 'a required language outside the list still blocks submit');
 select is((select status::text from public.titles where id = current_setting('t.tlang')::uuid),
   'draft', 'and the title stays in draft');
+-- Codex on #799: a required value that trims to nothing is missing, as the
+-- page and the findings read it.
+select throws_ok(
+  format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tws')),
+  'P0001', 'Cannot submit: required metadata field "synopsis" is missing',
+  'a Synopsis of a space and a no-break space is missing to submit');
 -- Another org's title is refused at the lock, before its record is read: the
 -- answer never depends on that record (org B's is incomplete).
 select throws_ok(

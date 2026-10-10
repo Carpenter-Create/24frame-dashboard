@@ -33,7 +33,9 @@
 --      transaction, so findings always match what was stored.
 --   3. A soft-deleted title (deleted_at set) can no longer be written through
 --      set_title_metadata, set_title_release_info, reconcile_title_findings
---      or submit_title.
+--      or submit_title: each refuses it at the title lock, so a delete that
+--      commits first is seen (Codex on #799: set_title_release_info checked
+--      without a lock and updated by id alone).
 --   4. An atomic metadata merge for the Metadata window's save
 --      (merge_title_metadata): the app sends only the changed fields; the
 --      database merges them onto the stored record under a lock on the
@@ -55,34 +57,62 @@
 --      outlive it. After the commit the founder runs the final pass
 --      (section 10), which first waits for every transaction that began
 --      before it, so no reconcile call on the old body can write after it.
+--   6. The page, the attention queue and submit read every stored record
+--      alike (Codex on #799): text that trims to nothing is empty everywhere
+--      (title_metadata_value_empty, isEmpty; submit no longer uses btrim); a
+--      runtime or year, as decimal text or a JSON number, is read as the
+--      double JS reads (float8), so "1.00000000000000000001" is 1 on both
+--      sides; the year limit is counted in UTC, as the app counts it.
+--   7. Findings follow the title's life (audit on #799): create_title
+--      derives a new title's findings, as the page counts it from its first
+--      load (section 11); my_findings serves a title's findings only while
+--      the title is live (section 12); delete_title checks the status it acts
+--      on under the title lock, so a draft submitted in the meantime is never
+--      deleted (section 13). refresh_title_findings takes the title lock
+--      itself, and no client role (service_role included) may call it or the
+--      passes.
 --
--- DESTRUCTIVE OPS (approved before apply): create or replace 4 existing
+-- DESTRUCTIVE OPS (approved before apply): create or replace 7 existing
 -- functions (reconcile_title_findings, set_title_metadata,
--- set_title_release_info, submit_title); create 9 new functions (3 pure
+-- set_title_release_info, submit_title; in sections 11 to 13 create_title,
+-- my_findings, delete_title); create 9 new functions (3 pure
 -- helpers, 1 internal refresh, 1 metadata check, in section 8
 -- normalize_stored_title_metadata (internal) and merge_title_metadata, and
 -- in sections 9 and 10 refresh_live_title_findings and
 -- finish_title_findings_repair (internal)); a
 -- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata,
--- submit_title and reconcile_title_findings; submit_title refuses a title
+-- set_title_release_info, submit_title, reconcile_title_findings,
+-- refresh_title_findings and delete_title; submit_title refuses a title
 -- outside the org or soft-deleted at that lock, reads the stored record
--- normalized and checks only its required fields; revoke/grant execute. No
+-- normalized and checks only its required fields; create_title writes the
+-- new title's findings (ten open: no metadata yet); my_findings leaves out a
+-- soft-deleted title's findings (read only); revoke/grant execute. No
 -- table, column, policy or trigger change. One data step: the section 9 pass
 -- upserts or resolves each live title's validator findings (findings rows
 -- only; nothing is deleted; AI findings and deleted titles are untouched).
+-- The pass holds each live title's lock until the transaction commits, so
+-- saves, submits and deletes wait for it: apply in a quiet window.
 -- Existing stored metadata is not rewritten
 -- or re-validated; the next save of a title checks its whole record, so a
 -- stored value the checks refuse (including a language or country outside
 -- the app's lists) blocks that save, named on its field, until it is
 -- corrected in the same save, and a refused required value blocks submit.
--- Count those rows read-only before applying. Apply as one transaction.
+-- Count those rows read-only before applying, and the live titles never
+-- saved, each of which the pass gives ten open findings:
+--   select count(*) from public.titles t
+--    where t.deleted_at is null
+--      and not exists (select 1 from public.title_metadata m where m.title_id = t.id);
+-- Apply as one transaction.
 --
 -- ROLLBACK: re-apply the previous bodies from 20260718000700_title_metadata.sql
 -- (set_title_metadata), 20260721000200_release_dates.sql (set_title_release_info),
--- 20260719000700_export_and_submit_gate.sql (submit_title) and
--- 20260727000100_gc_role_separation.sql (reconcile_title_findings); drop the
--- new functions (submit_title's previous body first: this one calls
--- normalize_stored_title_metadata), and
+-- 20260719000700_export_and_submit_gate.sql (submit_title),
+-- 20260727000100_gc_role_separation.sql (reconcile_title_findings),
+-- 20260919160000_legal_entities.sql (create_title),
+-- 20260914310000_bound_my_rpcs.sql (my_findings, with create or replace) and
+-- 20260917120100_titles_delete_archive.sql (delete_title); drop the
+-- new functions (the previous bodies first: this submit_title calls
+-- normalize_stored_title_metadata, this create_title refresh_title_findings), and
 --   drop function public.finish_title_findings_repair(integer);
 --   drop function public.refresh_live_title_findings();
 -- The pass's findings stay: they are derived from stored metadata, and the
@@ -93,15 +123,19 @@
 --
 -- KEEP IN SYNC with src/lib/metadata.ts (METADATA_FIELDS, GENRES, RATINGS,
 -- computeMetadataFindings, METADATA_LOGIC_VERSION, normalizeStoredMetadata,
--- requiredComplete) and the limits there, src/lib/languages.ts (LANGUAGES)
--- and src/lib/territories.ts (ISO_COUNTRIES); src/lib/metadata-merge.test.ts
--- pins them.
+-- STORED_DECIMAL_TEXT, storedNumberText, isEmpty, metadataValueAccepted,
+-- metadataMaxYear, requiredComplete) and the limits there, src/lib/languages.ts
+-- (LANGUAGES) and src/lib/territories.ts (ISO_COUNTRIES);
+-- src/lib/metadata-merge.test.ts pins them.
 -- ============================================================================
 
 -- ---- 1. Pure helpers ---------------------------------------------------------
 
 -- A field counts as filled if present and non-empty (arrays: at least one
--- entry). Mirrors isEmpty() in src/lib/metadata.ts.
+-- entry). Text that trims to nothing is empty (Codex on #799: " " was filled
+-- here and in the app but missing to submit's btrim and the window), trimmed
+-- with JS String.prototype.trim's set, c_ws in
+-- normalize_stored_title_metadata. Mirrors isEmpty() in src/lib/metadata.ts.
 create or replace function public.title_metadata_value_empty(p_value jsonb)
   returns boolean
   language sql immutable
@@ -109,7 +143,8 @@ create or replace function public.title_metadata_value_empty(p_value jsonb)
 as $$
   select p_value is null
       or jsonb_typeof(p_value) = 'null'
-      or (jsonb_typeof(p_value) = 'string' and p_value #>> '{}' = '')
+      or (jsonb_typeof(p_value) = 'string'
+          and p_value #>> '{}' ~ '^[\u0009-\u000d\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]*$')
       or (jsonb_typeof(p_value) = 'array' and jsonb_array_length(p_value) = 0);
 $$;
 
@@ -132,8 +167,9 @@ declare
   v_text  text;
   v_num   numeric;
   v_item  jsonb;
-  -- Next year plus five (2032 in 2026).
-  v_max_year int := extract(year from now())::int + 1 + 5;
+  -- Next year plus five (2032 in 2026), in UTC as the app's metadataMaxYear
+  -- counts it, whatever the session's time zone.
+  v_max_year int := extract(year from now() at time zone 'UTC')::int + 1 + 5;
 begin
   if jsonb_typeof(v_data) <> 'object' then
     raise exception 'Metadata must be an object' using errcode = '22023';
@@ -266,7 +302,11 @@ grant  execute on function public.title_metadata_value_valid(text, jsonb) to aut
 -- runtime of 0 or a country off the list is not complete); optional fields
 -- never produce one. Mirrors computeMetadataFindings() — same codes,
 -- severities, messages and order. Stable, not immutable: the year limit
--- moves with the date.
+-- moves with the date. Stored findings are derived at each write, so a
+-- stored year that only a later 1 January admits stays flagged until that
+-- title's next save, submit or reconcile (accepted, audit on #799: no write
+-- path stores a year past the limit, so only a record from before the limits
+-- holds one; refresh_live_title_findings() re-derives every live title).
 create or replace function public.title_metadata_findings(p_data jsonb)
   returns jsonb
   language sql stable
@@ -309,7 +349,9 @@ grant  execute on function public.title_metadata_findings(jsonb) to authenticate
 -- Upserts the validator's findings for a title from its stored metadata and
 -- auto-resolves those no longer present. Only touches source='validator'
 -- rows, so AI findings are never disturbed. Callers check who may run it;
--- not granted to any client role.
+-- not granted to any client role (service_role included). It takes the title
+-- lock itself (a no-op for its callers, which already hold it), so no call can
+-- write findings from a record a later save replaced.
 create or replace function public.refresh_title_findings(p_org_id uuid, p_title_id uuid)
   returns void
   language plpgsql security definer
@@ -324,7 +366,8 @@ begin
   select coalesce(m.data, '{}'::jsonb) into v_data
     from public.titles t
     left join public.title_metadata m on m.title_id = t.id
-   where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null;
+   where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
+     for no key update of t;
   if not found then
     raise exception 'Title not found in this organization';
   end if;
@@ -357,7 +400,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.refresh_title_findings(uuid, uuid) from public, anon, authenticated;
+revoke execute on function public.refresh_title_findings(uuid, uuid) from public, anon, authenticated, service_role;
 
 -- ---- 4. reconcile_title_findings: same signature, payload ignored, title lock -
 
@@ -452,17 +495,24 @@ begin
   if not public.member_can(auth.uid(), p_org_id, 'operate') then
     raise exception 'Not authorized to edit this organization''s titles';
   end if;
-  if not exists (
-    select 1 from public.titles t
-     where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
-  ) then
+  -- The metadata writers' title lock (Codex on #799): an unlocked check let a
+  -- delete that committed between it and the update leave this writing a
+  -- soft-deleted title. A deleted title, or one outside p_org_id, is refused
+  -- here, and the update repeats the same predicates.
+  perform 1 from public.titles t
+   where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
+   for no key update;
+  if not found then
     raise exception 'Title does not belong to this organization';
   end if;
 
   update public.titles
      set release_type = p_release_type,
          original_release_date = case when p_release_type = 're_release' then p_original_release_date else null end
-   where id = p_title_id;
+   where id = p_title_id and org_id = p_org_id and deleted_at is null;
+  if not found then
+    raise exception 'Title does not belong to this organization';
+  end if;
 end;
 $$;
 
@@ -505,8 +555,10 @@ begin
   -- blocks a submit the window shows as complete. The record is not
   -- rewritten here.
   v_data := public.normalize_stored_title_metadata(v_data);
+  -- Empty as the app and the findings read it (title_metadata_value_empty,
+  -- isEmpty; Codex on #799): text that trims to nothing is missing everywhere.
   foreach v_key in array v_required loop
-    if v_data is null or coalesce(btrim(v_data->>v_key), '') = '' then
+    if public.title_metadata_value_empty(v_data -> v_key) then
       raise exception 'Cannot submit: required metadata field "%" is missing', v_key;
     end if;
   end loop;
@@ -540,21 +592,30 @@ grant  execute on function public.submit_title(uuid, uuid) to authenticated;
 
 -- The stored record as the app reads it (normalizeStoredMetadata,
 -- src/lib/metadata.ts), so a save is never refused over a stored value the
--- window shows as fine: empty values are dropped, a number stored as text
--- reads as that number, blank list entries are dropped, keys outside the
--- registry are left out. Anything else stays as stored, and the check names
--- its field. The app reads the same decimal grammar (normalizeStoredMetadata,
+-- window shows as fine: empty values (text that trims to nothing among them,
+-- title_metadata_value_empty) are dropped, a number stored as text reads as
+-- that number, blank list entries are dropped, keys outside the registry are
+-- left out. Anything else stays as stored, and the check names its field. The
+-- app reads the same decimal grammar (normalizeStoredMetadata,
 -- STORED_DECIMAL_TEXT), so hex, binary and octal text stays text on both
--- sides (Codex on #799). One known difference, refused by the check on both
--- sides with the same field line: an exponent from 309 to 999 becomes a
--- number here (JS keeps the text, as Number() gives Infinity). The shared fixtures in
--- supabase/tests/title_metadata_merge_test.sql pin both sides. Internal: no
--- client role may execute it; merge_title_metadata and submit_title (both
--- definers) call it.
+-- sides (Codex on #799). A runtime or year, stored as decimal text or as a
+-- JSON number, is read as the IEEE-754 double JS Number() and the page's
+-- JSON.parse read (float8), so both sides round alike (Codex on #799:
+-- "1.00000000000000000001" was 1 in the app and refused here; the audit on
+-- #799: so was a stored JSON number 96.00000000000000000001): past the
+-- double's range the stored value stays as it is, as Number() gives Infinity
+-- and the app keeps it; below it, 0. float8 output is shortest-exact
+-- whatever the session sets (extra_float_digits), so to_jsonb never rounds the
+-- double, and float8::numeric (15 digits) is never used. The shared fixtures
+-- in supabase/tests/title_metadata_merge_test.sql pin both sides, with no
+-- known difference. Internal: no client role may execute it;
+-- merge_title_metadata, submit_title and refresh_title_findings (definers)
+-- call it.
 create or replace function public.normalize_stored_title_metadata(p_data jsonb)
   returns jsonb
   language plpgsql immutable
   set search_path = public
+  set extra_float_digits = 1
 as $$
 declare
   -- METADATA_FIELDS (src/lib/metadata.ts), in order.
@@ -567,28 +628,37 @@ declare
   -- no-break space or a byte-order mark trims as it does in the app.
   c_ws      constant text := '[\u0009-\u000d\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]';
   c_trim    constant text := '^' || c_ws || '+|' || c_ws || '+$';
-  -- Decimal text JS Number() reads as finite. The exponent is capped at three
-  -- digits and the text at 400 characters, so the cast below cannot overflow.
+  -- Number text the app reads (STORED_DECIMAL_TEXT): decimal only, an
+  -- exponent of up to three digits, up to 400 characters.
   c_number  constant text := '^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]{1,3})?$';
   v_out   jsonb := '{}'::jsonb;
   v_key   text;
   v_value jsonb;
   v_list  jsonb;
   v_text  text;
-  v_n     numeric;
 begin
   if jsonb_typeof(p_data) is distinct from 'object' then
     return v_out;
   end if;
   foreach v_key in array c_keys loop
     v_value := p_data -> v_key;
-    -- isEmpty(): absent, null, "" or [].
-    continue when v_value is null or v_value in ('null'::jsonb, '""'::jsonb, '[]'::jsonb);
-    if v_key = any (c_numbers) and jsonb_typeof(v_value) = 'string' then
-      v_text := regexp_replace(v_value #>> '{}', c_trim, '', 'g');
-      if char_length(v_text) <= 400 and v_text ~ c_number then
-        v_n := v_text::numeric;
-        v_value := to_jsonb(case when v_n = trunc(v_n) then trunc(v_n) else v_n end);
+    -- isEmpty(): absent, null, text that trims to nothing, or [].
+    continue when public.title_metadata_value_empty(v_value);
+    if v_key = any (c_numbers) and jsonb_typeof(v_value) in ('string', 'number') then
+      -- A JSON number is read whole, as JSON.parse reads it; number text
+      -- trimmed, and only in the app's grammar.
+      v_text := case when jsonb_typeof(v_value) = 'number' then v_value #>> '{}'
+                     else regexp_replace(v_value #>> '{}', c_trim, '', 'g') end;
+      if jsonb_typeof(v_value) = 'number' or (char_length(v_text) <= 400 and v_text ~ c_number) then
+        begin
+          v_value := to_jsonb(v_text::float8);
+        exception when numeric_value_out_of_range then
+          -- Past the double's range: JS reads +-Infinity and keeps the
+          -- stored value. Below it: JS reads 0.
+          if abs(v_text::numeric) < 1 then
+            v_value := to_jsonb(0);
+          end if;
+        end;
       end if;
     elsif v_key = any (c_lists) and jsonb_typeof(v_value) = 'array' then
       select coalesce(jsonb_agg(x.v order by x.i), '[]'::jsonb) into v_list
@@ -612,8 +682,11 @@ revoke execute on function public.normalize_stored_title_metadata(jsonb) from pu
 -- replaced whole.
 --
 -- Lock order for every metadata writer and every caller of the findings
--- refresh (this, set_title_metadata, submit_title, reconcile_title_findings):
--- the title row (FOR NO KEY UPDATE), then the title_metadata row, then
+-- refresh (this, set_title_metadata, submit_title, reconcile_title_findings,
+-- the passes, and refresh_title_findings itself): the title row (FOR NO KEY
+-- UPDATE), then the title_metadata row, then findings. set_title_release_info
+-- and delete_title take the same title lock first (delete_title then locks
+-- the title's assets); create_title holds its new title row, then writes
 -- findings. NO KEY UPDATE, not SHARE: two merges never share the
 -- row and then upgrade (no deadlock), and the KEY SHARE lock a title_metadata
 -- insert takes for its foreign key is still allowed. A delete that commits
@@ -741,7 +814,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.refresh_live_title_findings() from public, anon, authenticated;
+revoke execute on function public.refresh_live_title_findings() from public, anon, authenticated, service_role;
 
 do $$
 begin
@@ -797,4 +870,192 @@ begin
 end;
 $$;
 
-revoke execute on function public.finish_title_findings_repair(integer) from public, anon, authenticated;
+revoke execute on function public.finish_title_findings_repair(integer) from public, anon, authenticated, service_role;
+
+-- ---- 11. create_title: a new title starts with its findings (audit on #799) --
+-- The page counts a new title "0 of 6 complete" from its first load, and the
+-- pass above gives every never-saved live title its ten findings; a title
+-- created after it had none until its first save, so the attention queue left
+-- it out. create_title now refreshes the new title's findings in the same
+-- transaction (the writers' order: the new title row, then findings). The
+-- body is 20260919160000_legal_entities.sql's, unchanged, plus that refresh.
+
+create or replace function public.create_title(
+  p_org_id                uuid,
+  p_title                 text,
+  p_release_type          public.release_type,
+  p_original_release_date date default null,
+  p_legal_entity_id       uuid default null
+) returns uuid
+  language plpgsql security definer set search_path = public
+as $$
+declare
+  v_title uuid;
+  v_entity uuid;
+begin
+  if auth.uid() is null then raise exception 'Not authenticated'; end if;
+  if coalesce(btrim(p_title), '') = '' then raise exception 'Title is required'; end if;
+  if p_release_type is null then raise exception 'Release type is required'; end if;
+  if p_release_type = 're_release' and p_original_release_date is null then
+    raise exception 'Original release date is required for a re-release';
+  end if;
+  if not public.member_can(auth.uid(), p_org_id, 'operate') then
+    raise exception 'Not authorized to add titles for this organization';
+  end if;
+  if (select status from public.organizations where id = p_org_id) <> 'active' then
+    raise exception 'Your organization must finish onboarding before adding titles';
+  end if;
+
+  -- Resolve legal entity: explicit or default.
+  if p_legal_entity_id is not null then
+    if not exists (
+      select 1 from public.legal_entities
+       where id = p_legal_entity_id and org_id = p_org_id and status = 'active'
+    ) then
+      raise exception 'Legal entity not found or not active';
+    end if;
+    v_entity := p_legal_entity_id;
+  else
+    v_entity := public.ensure_default_legal_entity(p_org_id);
+  end if;
+
+  insert into public.titles (org_id, title, created_by, release_type, original_release_date, legal_entity_id)
+    values (p_org_id, btrim(p_title), auth.uid(), p_release_type,
+            case when p_release_type = 're_release' then p_original_release_date else null end,
+            v_entity)
+    returning id into v_title;
+
+  -- No metadata yet: its findings are every required and recommended field,
+  -- as the page counts it.
+  perform public.refresh_title_findings(p_org_id, v_title);
+  return v_title;
+end;
+$$;
+
+revoke execute on function public.create_title(uuid, text, public.release_type, date, uuid) from public, anon;
+grant  execute on function public.create_title(uuid, text, public.release_type, date, uuid) to authenticated;
+
+-- ---- 12. my_findings: the queue shows live titles only (audit on #799) ------
+-- A soft-deleted title leaves the catalog (row security), but its open
+-- findings stayed in my_findings: the attention queue and the home page
+-- counted them, under the name "Title", linking to a page that is gone, and a
+-- finding forged before this migration on a title deleted since outlived it
+-- (the passes skip deleted titles). A title's findings are now served only
+-- while the title is live. Read only: no finding changes. The body is
+-- 20260914310000_bound_my_rpcs.sql's, plus that filter.
+
+create or replace function public.my_findings(
+  p_limit integer default 500,
+  p_org_id uuid default null
+)
+  returns setof public.findings
+  language sql
+  stable
+  security definer
+  set search_path = public
+as $$
+  select *
+  from public.findings
+  where status = 'open'
+    and public.member_can(auth.uid(), org_id, 'view')
+    and (p_org_id is null or org_id = p_org_id)
+    and (entity_type <> 'title' or exists (
+          select 1 from public.titles t
+           where t.id = findings.entity_id and t.deleted_at is null))
+  order by severity, created_at
+  limit least(greatest(coalesce(p_limit, 0), 0), 501);
+$$;
+
+revoke execute on function public.my_findings(integer, uuid) from public, anon;
+grant  execute on function public.my_findings(integer, uuid) to authenticated;
+
+comment on function public.my_findings(integer, uuid) is
+  'Caller open findings, live titles only. Bounded (≤501). Optional org scope. Not an authorization input.';
+
+-- ---- 13. delete_title: the status it checks, under the title lock (audit) ---
+-- delete_title read the status without a lock: an owner's delete could read
+-- 'draft', wait on a submit's title lock, then soft-delete the title submit
+-- had just put in review ("Owner: drafts only, never after submit"). It now
+-- re-reads the title under the writers' lock (FOR NO KEY UPDATE, after the
+-- view check, so nothing is locked outside an org the caller may see) and
+-- checks that status. Lock order: the title, then its assets; no writer here
+-- locks assets first. The body is 20260917120100_titles_delete_archive.sql's,
+-- plus that re-read and a found check on the update.
+
+create or replace function public.delete_title(p_title_id uuid)
+  returns void
+  language plpgsql
+  security definer
+  set search_path = public
+as $$
+declare
+  v_org uuid;
+  v_status public.title_status;
+  v_deleted timestamptz;
+  v_staff boolean;
+  v_has_reporting boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select org_id, status, deleted_at
+    into v_org, v_status, v_deleted
+    from public.titles
+   where id = p_title_id;
+  if v_org is null then
+    raise exception 'Title not found';
+  end if;
+  if v_deleted is not null then
+    raise exception 'Title is already deleted';
+  end if;
+  if not public.member_can(auth.uid(), v_org, 'view') then
+    raise exception 'Title not found';
+  end if;
+
+  -- The writers' title lock: a submit in flight commits first, and the status
+  -- checked below is the one this delete acts on.
+  select status into v_status
+    from public.titles
+   where id = p_title_id and deleted_at is null
+     for no key update;
+  if not found then
+    raise exception 'Title is already deleted';
+  end if;
+
+  v_staff := public.is_gc_staff(auth.uid());
+  if not v_staff then
+    if not public.member_can(auth.uid(), v_org, 'operate') then
+      raise exception 'Not authorized to delete this title';
+    end if;
+    if v_status <> 'draft' then
+      raise exception 'Submitted titles cannot be deleted. Archive instead.';
+    end if;
+  else
+    select exists (select 1 from public.sales_lines sl where sl.title_id = p_title_id)
+        or exists (select 1 from public.ledger_entries le where le.title_id = p_title_id)
+      into v_has_reporting;
+    if v_status <> 'draft' and coalesce(v_has_reporting, false) then
+      raise exception 'This title has reporting history. Archive it instead.';
+    end if;
+  end if;
+
+  update public.titles
+     set deleted_at = now(),
+         deleted_by = auth.uid()
+   where id = p_title_id
+     and deleted_at is null;
+  if not found then
+    raise exception 'Title is already deleted';
+  end if;
+
+  update public.assets
+     set deleted_at = now(),
+         deleted_by = auth.uid()
+   where title_id = p_title_id
+     and deleted_at is null;
+end;
+$$;
+
+revoke execute on function public.delete_title(uuid) from public, anon;
+grant  execute on function public.delete_title(uuid) to authenticated;

@@ -167,10 +167,17 @@ export function metadataTierCount(
   tier: Tier,
 ): { filled: number; total: number } {
   const fields = METADATA_FIELDS.filter((f) => f.tier === tier);
-  const filled = fields.filter(
-    (f) => !isEmpty(values?.[f.key]) && fieldSchema(f).safeParse(values[f.key]).success,
-  ).length;
+  const filled = fields.filter((f) => metadataValueAccepted(f.key, values?.[f.key])).length;
   return { filled, total: fields.length };
+}
+
+/** Whether one field counts as filled: a non-empty value its check accepts.
+ *  The one rule behind the tier counts, the findings, requiredComplete and
+ *  the Metadata window (title_metadata_value_empty and
+ *  title_metadata_value_valid in the database). */
+export function metadataValueAccepted(key: string, value: unknown): boolean {
+  const field = METADATA_FIELDS.find((f) => f.key === key);
+  return field !== undefined && !isEmpty(value) && fieldSchema(field).safeParse(value).success;
 }
 
 // Required-tier completeness: drives the detail page's summary, its notice
@@ -188,23 +195,37 @@ export function requiredComplete(data: Record<string, unknown> | null | undefine
   return metadataTierCount(normalizeStoredMetadata(data), "required");
 }
 
-// A field counts as filled if present and non-empty (arrays: at least one entry).
+// A field counts as filled if present and non-empty (arrays: at least one
+// entry). Text that trims to nothing is empty (Codex on #799), as the page
+// shows it, the window trims it and title_metadata_value_empty reads it.
 function isEmpty(v: unknown): boolean {
   if (Array.isArray(v)) return v.length === 0;
-  return v === undefined || v === null || v === "";
+  if (typeof v === "string") return v.trim() === "";
+  return v === undefined || v === null;
 }
 
-/** The stored record as the title's Metadata window reads it, so a save is
- *  never refused over a stored value the window shows as fine: empty values
- *  are dropped, a number stored as text reads as that number, and blank list
- *  entries are dropped. Nothing the window would show differently changes
- *  (list entries are never re-split). Keys outside the registry are left out,
- *  as parseMetadata leaves them out. */
 // A number stored as text, as the database reads it: optional sign, digits
 // with an optional point (or a point and digits), an exponent of up to three
 // digits. Mirrors c_number in normalize_stored_title_metadata.
 const STORED_DECIMAL_TEXT = /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]{1,3})?$/;
 
+/** Trimmed number text as the page and the database read it: decimal text
+ *  of up to 400 characters, read by Number() (normalize_stored_title_metadata
+ *  reads it as float8, the same IEEE-754 double, so both round alike), or
+ *  null when it is not decimal text or not finite. The Metadata window reads
+ *  a typed number the same way. */
+export function storedNumberText(text: string): number | null {
+  if (text.length > 400 || !STORED_DECIMAL_TEXT.test(text)) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
+/** The stored record as the title's Metadata window reads it, so a save is
+ *  never refused over a stored value the window shows as fine: empty values
+ *  (text that trims to nothing among them) are dropped, a number stored as
+ *  text reads as that number, and blank list entries are dropped. Nothing the
+ *  window would show differently changes (list entries are never re-split).
+ *  Keys outside the registry are left out, as parseMetadata leaves them out. */
 export function normalizeStoredMetadata(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of METADATA_FIELDS) {
@@ -214,9 +235,7 @@ export function normalizeStoredMetadata(data: Record<string, unknown> | null | u
       // Decimal text only, the grammar normalize_stored_title_metadata reads
       // (Codex on #799): hex, binary or octal text stays text on both sides,
       // so the page, the attention queue and submit read it alike.
-      const text = value.trim();
-      const number = text.length <= 400 && STORED_DECIMAL_TEXT.test(text) ? Number(text) : Number.NaN;
-      out[f.key] = Number.isFinite(number) ? number : value;
+      out[f.key] = storedNumberText(value.trim()) ?? value;
       continue;
     }
     if (f.type === "list" && Array.isArray(value)) {
@@ -253,8 +272,7 @@ export function computeMetadataFindings(data: Record<string, unknown>): FindingD
     if (f.tier === "optional") continue;
     // Filled means filled with a value the checks accept, as metadataTierCount
     // and requiredComplete count it: a stored runtime of 0 is not complete.
-    const value = data?.[f.key];
-    if (!isEmpty(value) && fieldSchema(f).safeParse(value).success) continue;
+    if (metadataValueAccepted(f.key, data?.[f.key])) continue;
     out.push({
       code: `metadata.missing.${f.key}`,
       severity: f.tier === "required" ? "high" : "low",

@@ -1,6 +1,7 @@
 -- title_metadata_checks_test.sql
 -- 20261009120000: set_title_metadata accepts only the field registry with
--- its types and limits (Adam 2026-10-09, "Add these limits"), and a language
+-- its types and limits (Adam 2026-10-09, "Add these limits"; the year limit
+-- counted in UTC, as the app counts it), and a language
 -- or country only from the app's lists (LANGUAGES, ISO_COUNTRIES; Codex on
 -- #799); a cleared field is dropped; a soft-deleted title cannot be written,
 -- reconciled or submitted.
@@ -85,16 +86,16 @@ select throws_ok(
   '22023', 'runtime_minutes: expected a whole number', 'fractional runtime refused');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,'{"release_year":1887}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
-  '22023', format('release_year: 1888 to %s', extract(year from now())::int + 6), 'year before 1888 refused');
+  '22023', format('release_year: 1888 to %s', extract(year from now() at time zone 'UTC')::int + 6), 'year before 1888 refused');
 -- Next year plus five is the last year accepted.
 select lives_ok(
   format($$ select public.set_title_metadata(%L,%L,%L::jsonb) $$, current_setting('t.org'), current_setting('t.title'),
-         json_build_object('release_year', extract(year from now())::int + 6)::text),
+         json_build_object('release_year', extract(year from now() at time zone 'UTC')::int + 6)::text),
   'next year plus five accepted');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,%L::jsonb) $$, current_setting('t.org'), current_setting('t.title'),
-         json_build_object('release_year', extract(year from now())::int + 7)::text),
-  '22023', format('release_year: 1888 to %s', extract(year from now())::int + 6), 'a year past that refused');
+         json_build_object('release_year', extract(year from now() at time zone 'UTC')::int + 7)::text),
+  '22023', format('release_year: 1888 to %s', extract(year from now() at time zone 'UTC')::int + 6), 'a year past that refused');
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,'{"genre":"opera"}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
   '22023', 'genre: not in the list', 'genre outside the list refused');

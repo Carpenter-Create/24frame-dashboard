@@ -3,6 +3,7 @@ import {
   METADATA_FIELDS,
   computeMetadataFindings,
   metadataTierCount,
+  metadataValueAccepted,
   metadataValueError,
   normalizeStoredMetadata,
   parseMetadata,
@@ -43,6 +44,21 @@ describe("computeMetadataFindings", () => {
     const f = computeMetadataFindings({ synopsis: "", cast: [] });
     expect(f.some((x) => x.field === "synopsis")).toBe(true); // "" is empty
     expect(f.some((x) => x.field === "cast")).toBe(true); // [] is empty
+  });
+
+  // Codex on #799: text that trims to nothing (String.prototype.trim) is
+  // empty, as the page shows it, the window trims it and submit_title and the
+  // findings read it (title_metadata_value_empty).
+  it("text that trims to nothing counts as missing; other text does not", () => {
+    const f = computeMetadataFindings({ synopsis: " \u00a0", director: "\u3000\ufeff", genre: "drama" });
+    expect(f.some((x) => x.field === "synopsis")).toBe(true);
+    expect(f.some((x) => x.field === "director")).toBe(true);
+    // U+0085 and U+200B are not JS whitespace: filled, as the database reads them.
+    expect(computeMetadataFindings({ synopsis: "\u0085" }).some((x) => x.field === "synopsis")).toBe(false);
+    expect(metadataValueAccepted("synopsis", " ")).toBe(false);
+    expect(metadataValueAccepted("synopsis", " A film. ")).toBe(true);
+    expect(metadataValueAccepted("runtime_minutes", 0)).toBe(false);
+    expect(metadataValueAccepted("budget", "x")).toBe(false);
   });
 
   // metadata-v2 (Codex on #799): filled means filled with a value the checks
@@ -164,6 +180,8 @@ describe("normalizeStoredMetadata", () => {
         budget: 1,
       }),
     ).toEqual({ cast: ["Smith, Jr."], runtime_minutes: 96, release_year: "soon", genre: "Drama" });
+    // Text that trims to nothing is dropped, as empty (Codex on #799).
+    expect(normalizeStoredMetadata({ director: " ", synopsis: "\u2028", genre: "drama" })).toEqual({ genre: "drama" });
     expect(normalizeStoredMetadata(null)).toEqual({});
   });
 });
@@ -175,6 +193,8 @@ describe("requiredComplete", () => {
     expect(requiredComplete({ ...full, runtime_minutes: 0 })).toEqual({ filled: 5, total: 6 });
     expect(requiredComplete({ ...full, genre: "Drama" })).toEqual({ filled: 5, total: 6 });
     expect(requiredComplete({ ...full, runtime_minutes: "90" })).toEqual({ filled: 6, total: 6 });
+    // A Synopsis that trims to nothing is missing, as submit_title reads it (Codex on #799).
+    expect(requiredComplete({ ...full, synopsis: " \u00a0" })).toEqual({ filled: 5, total: 6 });
     expect(requiredComplete(null)).toEqual({ filled: 0, total: 6 });
   });
 });
