@@ -211,4 +211,26 @@ describe("social-ui import boundary", () => {
     const explore = closure("src/app/(app)/social/explore/page.tsx");
     expect(explore.has("src/components/social/social-mux-player.tsx")).toBe(true);
   });
+
+  // Edit caption (social-post-caption-window-lock-v1): one host on the Social
+  // layout loads the window on first use; the card and its ⋯ only reach the
+  // host through a context module.
+  it("keeps the caption window off the layout, the card and the owner menu", () => {
+    const CAPTION_WINDOW = "src/components/social/social-post-caption-window.tsx";
+    const CAPTION_HOST = "src/components/social/social-post-caption-host.tsx";
+    const layout = closure("src/app/(app)/social/layout.tsx");
+    const card = closure("src/components/social/social-post-card.tsx");
+    const owner = closure("src/components/social/social-post-owner.tsx");
+    expect(layout.has(CAPTION_HOST)).toBe(true);
+    for (const [entry, files] of [
+      ["layout", layout],
+      ["card", card],
+      ["owner", owner],
+    ] as const) {
+      expect(files.has(CAPTION_WINDOW), entry).toBe(false);
+      expect(hits(files, FEED_HEAVY), entry).toEqual([]);
+    }
+    expect(card.has(CAPTION_HOST)).toBe(false);
+    expect(owner.has(CAPTION_HOST)).toBe(false);
+  });
 });

@@ -107,6 +107,21 @@ export function socialFeedReelLabel(name: string, body: string | null | undefine
   return `${head}. ${SOCIAL.reels.opensInExplore}`;
 }
 
+/** A tile as this device shows it: an owner's edited caption (the Edit
+ *  caption overlay) rebuilds the caption and the accessible name; undefined
+ *  keeps the tile as the server built it. */
+export function socialFeedReelTileLive<T extends Pick<SocialFeedReelTile, "authorName" | "caption" | "label">>(
+  tile: T,
+  override: string | null | undefined,
+): T {
+  if (override === undefined) return tile;
+  return {
+    ...tile,
+    caption: socialFeedReelCaption(override),
+    label: socialFeedReelLabel(tile.authorName, override),
+  };
+}
+
 export function socialFeedReelHref(postId: string): string {
   return exploreForYouHref({ v: postId });
 }

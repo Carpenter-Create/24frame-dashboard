@@ -598,7 +598,9 @@ export function HouseWindowAsk({
 // browser's own history calls and no shell marker for Next to skip, so Next
 // keeps it as its address: a server action under the window never writes a
 // stale address back. A window always has the page without its query under
-// it, so Back reaches the ask and never leaves the page with the draft.
+// it, so Back reaches the ask and never leaves the page with the draft: one
+// opened from the page on an address that already carries its query (a
+// reload, a pasted link) first puts the page under it and pushes its own.
 
 /** Push a window's own entry: the browser's own call with the window's flag
  *  and no shell marker, so Next keeps the query as its address. A link
@@ -620,6 +622,10 @@ export type HouseWindowEntryOptions<F extends string> = {
   opensOnArrival: () => boolean;
   /** Where focus returns when the window closes. */
   returnFocus?: () => HTMLElement | null;
+  /** Back reached the window before its code loaded (nothing typed yet): an
+   *  owner that keeps state beside the window closes it its own way, so that
+   *  state goes too. Without one, the shell closes it. */
+  onBackBeforeMount?: (key: number) => void;
 };
 
 export type HouseWindowEntry<F extends string> = {
@@ -641,7 +647,7 @@ export type HouseWindowEntry<F extends string> = {
 };
 
 export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryOptions<F>): HouseWindowEntry<F> {
-  const { flag, indexFace, parse, openHref, closedHref, opensOnArrival, returnFocus } = options;
+  const { flag, indexFace, parse, openHref, closedHref, opensOnArrival, returnFocus, onBackBeforeMount } = options;
   const house = useHouseClient();
   const [win, setWin] = useState<{ face: F; key: number } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -686,6 +692,14 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
 
   function openFromPage(face: F) {
     if (winRef.current) return;
+    // The address already carries the query on an entry that is not the
+    // window's own (a reload, a pasted link): the page goes under it and the
+    // window pushes its own, so Back reaches the ask.
+    if (addressHasWindow() && !isOwnEntry()) {
+      install(face);
+      open(face, true);
+      return;
+    }
     const pushed = !addressHasWindow();
     if (pushed) push(face);
     open(face, pushed);
@@ -695,7 +709,11 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
     if (winRef.current?.key !== key) return;
     winRef.current = null;
     setWin(null);
-    if (addressHasWindow() && pushedRef.current) {
+    // Cleared before `after` runs: a window it opens at once (a failed save
+    // reopening) keeps the entry it pushed, so its close goes Back.
+    const pushed = pushedRef.current;
+    pushedRef.current = false;
+    if (addressHasWindow() && pushed) {
       closingRef.current = true;
       // After the router's own popstate work, so `after` sees the page.
       if (after) window.addEventListener("popstate", () => window.setTimeout(after, 0), { once: true });
@@ -704,7 +722,6 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
       if (addressHasWindow()) strip();
       after?.();
     }
-    pushedRef.current = false;
     window.requestAnimationFrame(() => returnFocus?.()?.focus());
   }
 
@@ -755,7 +772,15 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
       if (!winRef.current) return;
       // Still on the query: the entry going in underneath, not Back.
       if (addressHasWindow()) return;
-      const closed = requestRef.current ? requestRef.current() : true;
+      // Back before the window has mounted (its code still loading): nothing
+      // is typed yet, so it closes here; left open, it would appear with no
+      // entry and the next Back would leave the page.
+      if (!requestRef.current) {
+        if (onBackBeforeMount) onBackBeforeMount(winRef.current.key);
+        else close(winRef.current.key);
+        return;
+      }
+      const closed = requestRef.current();
       if (closed) return;
       push(indexFace);
       pushedRef.current = true;
