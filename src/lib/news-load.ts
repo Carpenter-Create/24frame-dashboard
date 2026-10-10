@@ -69,9 +69,15 @@ export async function loadNewsItems(input: {
     const store = input.store ?? createNewsAppStore();
     const [from, to] = probeRange(input.limit);
     const fetched = await store.queryFeed({ limit: to - from + 1, now: input.now });
-    const unique = dedupeNewsHeadlines(fetched.filter((row) => newsInWindow(row.published_at, input.now)));
-    const { rows, truncated } = splitProbe(unique, input.limit);
-    const loaded = { rows, truncated, failed: false };
+    const unique = dedupeNewsHeadlines(
+      fetched.items.filter((row) => newsInWindow(row.published_at, input.now)),
+    );
+    const probed = splitProbe(unique, input.limit);
+    const loaded = {
+      rows: probed.rows,
+      truncated: probed.truncated || fetched.capped,
+      failed: false,
+    };
     rememberNewsRead(key, loaded, input.now);
     return loaded;
   } catch (err) {

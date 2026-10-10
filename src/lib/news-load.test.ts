@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NEWS_HOME_CAP, type NewsItem } from "./news";
+import { NEWS_HOME_CAP } from "./news";
 import {
   loadHomeNews,
   loadNewsItems,
@@ -9,7 +9,7 @@ import {
   peekNewsReadCache,
   resetNewsReadCache,
 } from "./news-load";
-import { memoryNewsStore, type NewsStore } from "./news-store";
+import { memoryNewsStore, type NewsFeedPage, type NewsStore } from "./news-store";
 
 const NOW = new Date("2026-09-18T18:00:00.000Z");
 
@@ -55,7 +55,7 @@ describe("loadNewsItems", () => {
   });
 
   it("does not cache a failed read as empty news", async () => {
-    const queryFeed = vi.fn<(input: { limit: number; now: Date }) => Promise<NewsItem[]>>();
+    const queryFeed = vi.fn<(input: { limit: number; now: Date }) => Promise<NewsFeedPage>>();
     queryFeed.mockRejectedValueOnce(new Error("boom"));
     const store: NewsStore = {
       queryFeed,
@@ -69,7 +69,10 @@ describe("loadNewsItems", () => {
     expect(first.rows).toEqual([]);
     expect(peekNewsReadCache(newsReadCacheKey(12), NOW)).toBeNull();
 
-    queryFeed.mockResolvedValueOnce([item(1, "2026-09-17T12:00:00.000Z")]);
+    queryFeed.mockResolvedValueOnce({
+      items: [item(1, "2026-09-17T12:00:00.000Z")],
+      capped: false,
+    });
     const second = await loadNewsItems({ limit: 12, now: NOW, store });
     expect(second.failed).toBe(false);
     expect(second.rows).toHaveLength(1);

@@ -112,7 +112,7 @@ describe("ingestNewsFeeds", () => {
     });
     expect(summary.purged).toBe(1);
     expect(await persist.purgeBefore("2026-06-20T18:00:00.000Z")).toBe(0);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows.filter((row) => row.url === liveItem().url)).toHaveLength(1);
   });
 
@@ -142,7 +142,7 @@ describe("ingestNewsFeeds", () => {
     const hr = summary.results.find((row) => row.source === "hollywood-reporter");
     expect(hr?.droppedByTopic).toBeGreaterThanOrEqual(1);
     expect(hr?.fetched).toBe(1);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     const urls = rows.map((row) => row.url);
     expect(urls).toContain("https://hollywoodreporter.com/movies/movie-news/zach-cregger-the-flood-2027");
     expect(urls.some((url) => url.includes("/music/"))).toBe(false);
@@ -184,7 +184,7 @@ describe("ingestNewsFeeds", () => {
     expect(fetchXml.mock.calls.map((call) => call[0])).toEqual(
       expect.arrayContaining([VARIETY_FILM_FEED, VARIETY_TV_FEED]),
     );
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     const varietyUrls = rows.filter((row) => row.source === "variety").map((row) => row.url);
     expect(varietyUrls).toEqual(
       expect.arrayContaining([
@@ -282,7 +282,7 @@ describe("ingest OG images", () => {
       fetchOgHtml,
     });
     expect(fetchOgHtml).not.toHaveBeenCalled();
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows[0]?.image_url).toBe("https://variety.com/thumbs/rss.jpg");
   });
 
@@ -300,7 +300,7 @@ describe("ingest OG images", () => {
       fetchOgHtml,
     });
     expect(fetchOgHtml).toHaveBeenCalledTimes(1);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows[0]?.image_url).toBe("https://thr.com/og.jpg");
   });
 
@@ -318,7 +318,7 @@ describe("ingest OG images", () => {
     });
     expect(summary.failed).toBe(0);
     expect(summary.results.find((row) => row.source === "hollywood-reporter")?.error).toBeUndefined();
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows[0]?.image_url).toBeNull();
   });
 
@@ -399,7 +399,7 @@ describe("ingest OG images", () => {
       fetchOgHtml,
     });
     expect(summary.failed).toBe(0);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(
       rows.find((row) => row.url === "https://hollywoodreporter.com/movies/movie-news/hit")?.image_url,
     ).toBe("https://thr.com/hit.jpg");
@@ -447,7 +447,7 @@ describe("ingest OG images", () => {
       if (prevCf === undefined) delete process.env.CLOUDFRONT_DOMAIN;
       else process.env.CLOUDFRONT_DOMAIN = prevCf;
     }
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     const key = newsThumbObjectKey(
       "hollywood-reporter",
       "https://hollywoodreporter.com/movies/movie-news/needs-og",
@@ -483,7 +483,7 @@ describe("ingest OG images", () => {
       if (prevCf === undefined) delete process.env.CLOUDFRONT_DOMAIN;
       else process.env.CLOUDFRONT_DOMAIN = prevCf;
     }
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(puts).toBe(1);
     expect(rows[0]?.image_url).toBe("https://hollywoodreporter.com/og.jpg");
   });

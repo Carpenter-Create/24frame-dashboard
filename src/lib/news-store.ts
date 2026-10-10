@@ -74,9 +74,18 @@ type NewsHealthRecord = {
   last_error_at: string | null;
 };
 
-export type NewsStore = NewsPersist & {
-  queryFeed: (input: { limit: number; now: Date }) => Promise<NewsItem[]>;
+export type NewsFeedPage = {
+  items: NewsItem[];
+  /** True only when the read stopped at the page cap with a cursor still left. */
+  capped: boolean;
 };
+
+export type NewsStore = NewsPersist & {
+  queryFeed: (input: { limit: number; now: Date }) => Promise<NewsFeedPage>;
+};
+
+/** Static. No titles, URLs, or source ids — a capped read must not log row data. */
+export const NEWS_FEED_CAP_WARNING = "[news:read] feed page cap reached";
 
 function normalizeNewsImageUrl(url: string | null | undefined): string | null {
   const trimmed = url?.trim();
@@ -130,6 +139,7 @@ type NewsFeedRow = {
 /**
  * Keep allowlisted rows, then apply `limit`. Follow `cursor` until the
  * page is full, the table is exhausted, or `NEWS_FEED_MAX_PAGES` is hit.
+ * `capped` is true only for that last stop, and only when a cursor remains.
  */
 export async function readAllowlistedFeed<Cursor>(input: {
   limit: number;
@@ -138,8 +148,8 @@ export async function readAllowlistedFeed<Cursor>(input: {
     items: readonly NewsFeedRow[];
     cursor: Cursor | null;
   }>;
-}): Promise<NewsItem[]> {
-  if (input.limit <= 0) return [];
+}): Promise<NewsFeedPage> {
+  if (input.limit <= 0) return { items: [], capped: false };
   const maxPages = input.maxPages ?? NEWS_FEED_MAX_PAGES;
   const out: NewsItem[] = [];
   let cursor: Cursor | undefined;
@@ -149,12 +159,14 @@ export async function readAllowlistedFeed<Cursor>(input: {
       const item = recordToItem(row);
       if (!item) continue;
       out.push(item);
-      if (out.length >= input.limit) return out;
+      if (out.length >= input.limit) return { items: out, capped: false };
     }
-    if (result.cursor == null) return out;
+    if (result.cursor == null) return { items: out, capped: false };
     cursor = result.cursor;
   }
-  return out;
+  const capped = cursor != null;
+  if (capped) console.warn(NEWS_FEED_CAP_WARNING);
+  return { items: out, capped };
 }
 
 export function newsFeedQueryInput(input: {
@@ -306,8 +318,39 @@ async function existingNewsImageUrl(
   return normalizeNewsImageUrl((Item as NewsItemRecord).image_url);
 }
 
-export function dynamoNewsStore(env: NewsEnv = process.env): NewsStore {
-  if (!isNewsIngestConfigured(env) && !isNewsAwsConfigured(env)) {
+type FeedQueryDoc = {
+  send: (command: QueryCommand) => Promise<{
+    Items?: unknown;
+    LastEvaluatedKey?: Record<string, unknown>;
+  }>;
+};
+
+function queryAllowlistedFeed(
+  doc: FeedQueryDoc,
+  table: string,
+  limit: number,
+  now: Date,
+): Promise<NewsFeedPage> {
+  return readAllowlistedFeed({
+    limit,
+    queryPage: async (cursor?: Record<string, unknown>) => {
+      const { Items, LastEvaluatedKey } = await doc.send(
+        new QueryCommand(newsFeedQueryInput({ table, now, cursor })),
+      );
+      return {
+        items: (Array.isArray(Items) ? Items : []) as NewsItemRecord[],
+        cursor: LastEvaluatedKey ?? null,
+      };
+    },
+  });
+}
+
+export function dynamoNewsStore(
+  env: NewsEnv = process.env,
+  /** Unit-test seam. Production callers omit it; it never opens a live client. */
+  injected?: { table: string; doc: FeedQueryDoc },
+): NewsStore {
+  if (!injected && !isNewsIngestConfigured(env) && !isNewsAwsConfigured(env)) {
     throw new Error("NEWS_AWS_REGION / NEWS_DDB_TABLE environment variables are not set");
   }
 
@@ -348,19 +391,22 @@ export function dynamoNewsStore(env: NewsEnv = process.env): NewsStore {
       return rows.length;
     },
     async queryFeed({ limit, now }) {
+      if (injected) return queryAllowlistedFeed(injected.doc, injected.table, limit, now);
       const { table, doc } = newsClient(env);
-      return readAllowlistedFeed({
-        limit,
-        queryPage: async (cursor?: Record<string, unknown>) => {
-          const { Items, LastEvaluatedKey } = await doc.send(
-            new QueryCommand(newsFeedQueryInput({ table, now, cursor })),
-          );
-          return {
-            items: (Items ?? []) as NewsItemRecord[],
-            cursor: (LastEvaluatedKey as Record<string, unknown> | undefined) ?? null,
-          };
+      return queryAllowlistedFeed(
+        {
+          send: async (command) => {
+            const { Items, LastEvaluatedKey } = await doc.send(command);
+            return {
+              Items,
+              LastEvaluatedKey: LastEvaluatedKey as Record<string, unknown> | undefined,
+            };
+          },
         },
-      });
+        table,
+        limit,
+        now,
+      );
     },
     async getHealth(source) {
       const { table, doc } = newsClient(env);
