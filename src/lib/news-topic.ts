@@ -9,7 +9,7 @@
 //   3. RSS feed categories, when the parser preserves them.
 //   4. Title tokens — album, single, tour, Grammy-as-music. Awards /
 //      box office / streaming titles still classify as film or tv.
-//   5. On-beat source default — JoBlo, IndieWire, NFS, Filmmaker,
+//   5. On-beat source default — IndieWire, NFS, Filmmaker,
 //      MovieMaker, Film Threat, Screen Daily are film-first. TVLine is
 //      tv-first. Cross-beat trades (THR, Variety, Deadline) get no
 //      default and rely on section-feed paths carrying the beat.
@@ -35,7 +35,6 @@ const SOURCE_DEFAULT_TOPIC: Record<string, NewsTopic> = {
   "no-film-school": "film",
   "filmmaker-magazine": "film",
   moviemaker: "film",
-  joblo: "film",
   "film-threat": "film",
   "screen-daily": "film",
   tvline: "tv",

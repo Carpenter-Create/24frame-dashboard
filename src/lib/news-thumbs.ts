@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
 
-import { isNewsSourceId, type NewsSourceId } from "@/lib/news";
+import type { NewsSourceId } from "@/lib/news";
 import {
   canonicalizeNewsImageUrl,
-  KNOWN_JOBLO_OG,
   type NormalizedNewsItem,
 } from "@/lib/news-rss";
 import { newsEgressFetch, type NewsDnsLookup } from "@/lib/news-egress";
@@ -270,53 +269,6 @@ export async function mirrorNewsItemImages(
   return { items: next, counters };
 }
 
-export type NewsThumbBackfillAction =
-  | "unchanged"
-  | "rewrite"
-  | "fill-known"
-  | "mirror"
-  | "still-null";
-
-export type NewsThumbBackfillPlan = {
-  action: NewsThumbBackfillAction;
-  remote: string | null;
-  next: string | null;
-};
-
-/** Dry-run planning. Mirror writes only happen when `apply` is true. */
-export function planNewsThumbBackfill(row: {
-  source: string;
-  url: string;
-  image_url: string | null;
-  fillKnown?: boolean;
-  allSources?: boolean;
-  env?: NewsEnvLike;
-}): NewsThumbBackfillPlan {
-  const env = row.env ?? process.env;
-  if (isMirroredNewsThumbUrl(row.image_url, env)) {
-    return { action: "unchanged", remote: row.image_url, next: row.image_url };
-  }
-  if (row.source !== "joblo" && !row.allSources) {
-    return {
-      action: row.image_url ? "unchanged" : "still-null",
-      remote: row.image_url,
-      next: row.image_url,
-    };
-  }
-  const rewritten = canonicalizeNewsImageUrl(row.image_url);
-  if (rewritten && rewritten !== row.image_url) {
-    return { action: "rewrite", remote: rewritten, next: rewritten };
-  }
-  if (rewritten) {
-    return { action: "mirror", remote: rewritten, next: rewritten };
-  }
-  if (row.fillKnown && row.source === "joblo") {
-    const known = KNOWN_JOBLO_OG[row.url];
-    if (known) return { action: "fill-known", remote: known, next: known };
-  }
-  return { action: "still-null", remote: null, next: null };
-}
-
 export function previewNewsThumbPublicUrl(
   source: NewsSourceId,
   canonicalUrl: string,
@@ -325,126 +277,4 @@ export function previewNewsThumbPublicUrl(
 ): string | null {
   const ext = extFromUrl(remoteUrl);
   return newsThumbPublicUrl(newsThumbObjectKey(source, canonicalUrl, ext), env);
-}
-
-export type NewsThumbBackfillRow = {
-  source?: string;
-  url?: string;
-  canonical_url?: string;
-  image_url?: string | null;
-};
-
-export async function backfillNewsThumbUrls(input: {
-  apply: boolean;
-  fillKnown: boolean;
-  allSources: boolean;
-  rows: readonly NewsThumbBackfillRow[];
-  fetchImpl?: typeof fetch;
-  putObject?: PutNewsThumbObject;
-  writeItem?: (row: NewsThumbBackfillRow) => Promise<void>;
-  env?: NewsEnvLike;
-  log?: (line: string) => void;
-}): Promise<{
-  rewrite: number;
-  filled: number;
-  mirrored: number;
-  unchanged: number;
-  stillNull: number;
-  wrote: number;
-}> {
-  const log = input.log ?? ((line: string) => console.log(line));
-  let rewrite = 0;
-  let filled = 0;
-  let mirrored = 0;
-  let unchanged = 0;
-  let stillNull = 0;
-  let wrote = 0;
-
-  for (const row of input.rows) {
-    const source = row.source;
-    if (!source || !isNewsSourceId(source)) continue;
-    const url = row.url ?? row.canonical_url ?? "";
-    const plan = planNewsThumbBackfill({
-      source,
-      url,
-      image_url: row.image_url ?? null,
-      fillKnown: input.fillKnown,
-      allSources: input.allSources,
-      env: input.env,
-    });
-    if (plan.action === "unchanged") {
-      unchanged += 1;
-      continue;
-    }
-    if (plan.action === "still-null") {
-      stillNull += 1;
-      log(`still-null: ${url}`);
-      continue;
-    }
-    const resolved = await resolveNewsThumbBackfill({
-      source,
-      canonicalUrl: row.canonical_url ?? url,
-      plan,
-      apply: input.apply,
-      fetchImpl: input.fetchImpl,
-      putObject: input.putObject,
-      env: input.env,
-    });
-    log(`${plan.action}: ${url}`);
-    log(`  ${row.image_url ?? "(null)"} → ${resolved.next}`);
-    if (plan.action === "rewrite") rewrite += 1;
-    if (plan.action === "fill-known") filled += 1;
-    if (resolved.mirrored || plan.action === "mirror" || plan.action === "rewrite") {
-      mirrored += 1;
-    }
-    if (input.apply && resolved.next && resolved.next !== row.image_url) {
-      if (input.writeItem) {
-        await input.writeItem({ ...row, image_url: resolved.next });
-      }
-      wrote += 1;
-    }
-  }
-
-  return { rewrite, filled, mirrored, unchanged, stillNull, wrote };
-}
-
-export async function resolveNewsThumbBackfill(input: {
-  source: NewsSourceId;
-  canonicalUrl: string;
-  plan: NewsThumbBackfillPlan;
-  apply: boolean;
-  fetchImpl?: typeof fetch;
-  putObject?: PutNewsThumbObject;
-  env?: NewsEnvLike;
-}): Promise<{ next: string | null; mirrored: boolean; wrote: boolean; error?: string }> {
-  const env = input.env ?? process.env;
-  if (input.plan.action === "unchanged") {
-    return { next: input.plan.next, mirrored: false, wrote: false };
-  }
-  if (input.plan.action === "still-null" || !input.plan.remote) {
-    return { next: null, mirrored: false, wrote: false };
-  }
-  const preview = previewNewsThumbPublicUrl(
-    input.source,
-    input.canonicalUrl,
-    input.plan.remote,
-    env,
-  );
-  if (!input.apply) {
-    return { next: preview ?? input.plan.remote, mirrored: false, wrote: false };
-  }
-  const result = await mirrorNewsImageUrl({
-    source: input.source,
-    canonicalUrl: input.canonicalUrl,
-    remoteUrl: input.plan.remote,
-    fetchImpl: input.fetchImpl,
-    putObject: input.putObject,
-    env,
-  });
-  return {
-    next: result.url,
-    mirrored: result.mirrored,
-    wrote: result.mirrored || result.url !== input.plan.remote,
-    error: result.error,
-  };
 }

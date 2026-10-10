@@ -21,6 +21,7 @@ import {
   type NewsEnv,
 } from "@/lib/news-aws";
 import {
+  NEWS_SOURCE_IDS,
   isNewsSourceId,
   newsInWindow,
   newsItemTtlEpoch,
@@ -73,9 +74,18 @@ type NewsHealthRecord = {
   last_error_at: string | null;
 };
 
-export type NewsStore = NewsPersist & {
-  queryFeed: (input: { limit: number; now: Date }) => Promise<NewsItem[]>;
+export type NewsFeedPage = {
+  items: NewsItem[];
+  /** True only when the read stopped at the page cap with a cursor still left. */
+  capped: boolean;
 };
+
+export type NewsStore = NewsPersist & {
+  queryFeed: (input: { limit: number; now: Date }) => Promise<NewsFeedPage>;
+};
+
+/** Static. No titles, URLs, or source ids — a capped read must not log row data. */
+export const NEWS_FEED_CAP_WARNING = "[news:read] feed page cap reached";
 
 function normalizeNewsImageUrl(url: string | null | undefined): string | null {
   const trimmed = url?.trim();
@@ -92,7 +102,7 @@ export function mergeNewsImageUrl(
   return normalizeNewsImageUrl(existing);
 }
 
-function recordToItem(row: NewsItemRecord): NewsItem | null {
+function recordToItem(row: NewsFeedRow): NewsItem | null {
   if (!isNewsSourceId(row.source)) return null;
   return {
     id: row.id,
@@ -101,6 +111,101 @@ function recordToItem(row: NewsItemRecord): NewsItem | null {
     source: row.source,
     published_at: row.published_at,
     image_url: row.image_url,
+  };
+}
+
+/**
+ * Raw rows evaluated per feed page. Dynamo applies Query `Limit` before
+ * `FilterExpression`, so a page of hidden sources can come back empty
+ * and still carry `LastEvaluatedKey`.
+ */
+export const NEWS_FEED_PAGE_ROWS = 50;
+
+/**
+ * Hard stop for one feed read. 20 pages × 50 raw rows = 1,000 rows.
+ * Home (15) and history (500) share this cap.
+ */
+export const NEWS_FEED_MAX_PAGES = 20;
+
+type NewsFeedRow = {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  published_at: string;
+  image_url: string | null;
+};
+
+/**
+ * Keep allowlisted rows, then apply `limit`. Follow `cursor` until the
+ * page is full, the table is exhausted, or `NEWS_FEED_MAX_PAGES` is hit.
+ * `capped` is true only for that last stop, and only when a cursor remains.
+ */
+export async function readAllowlistedFeed<Cursor>(input: {
+  limit: number;
+  maxPages?: number;
+  queryPage: (cursor?: Cursor) => Promise<{
+    items: readonly NewsFeedRow[];
+    cursor: Cursor | null;
+  }>;
+}): Promise<NewsFeedPage> {
+  if (input.limit <= 0) return { items: [], capped: false };
+  const maxPages = input.maxPages ?? NEWS_FEED_MAX_PAGES;
+  const out: NewsItem[] = [];
+  let cursor: Cursor | undefined;
+  for (let page = 0; page < maxPages && out.length < input.limit; page += 1) {
+    const result = await input.queryPage(cursor);
+    for (const row of result.items) {
+      const item = recordToItem(row);
+      if (!item) continue;
+      out.push(item);
+      if (out.length >= input.limit) return { items: out, capped: false };
+    }
+    if (result.cursor == null) return { items: out, capped: false };
+    cursor = result.cursor;
+  }
+  const capped = cursor != null;
+  if (capped) console.warn(NEWS_FEED_CAP_WARNING);
+  return { items: out, capped };
+}
+
+export function newsFeedQueryInput(input: {
+  table: string;
+  now: Date;
+  cursor?: Record<string, unknown>;
+}): {
+  TableName: string;
+  IndexName: "gsi1";
+  KeyConditionExpression: string;
+  FilterExpression: string;
+  ExpressionAttributeNames: Record<string, string>;
+  ExpressionAttributeValues: Record<string, unknown>;
+  ScanIndexForward: false;
+  Limit: number;
+  ExclusiveStartKey?: Record<string, unknown>;
+} {
+  const since = newsWindowStart(input.now).toISOString();
+  const until = input.now.toISOString();
+  const values: Record<string, unknown> = {
+    ":pk": NEWS_FEED_PK,
+    ":since": `${since}#`,
+    ":until": `${until}~\uFFFF`,
+  };
+  const placeholders = NEWS_SOURCE_IDS.map((id, index) => {
+    const key = `:src${index}`;
+    values[key] = id;
+    return key;
+  });
+  return {
+    TableName: input.table,
+    IndexName: "gsi1",
+    KeyConditionExpression: "gsi1pk = :pk AND gsi1sk BETWEEN :since AND :until",
+    FilterExpression: `#src IN (${placeholders.join(", ")})`,
+    ExpressionAttributeNames: { "#src": "source" },
+    ExpressionAttributeValues: values,
+    ScanIndexForward: false,
+    Limit: NEWS_FEED_PAGE_ROWS,
+    ...(input.cursor ? { ExclusiveStartKey: input.cursor } : {}),
   };
 }
 
@@ -152,12 +257,21 @@ export function memoryNewsStore(seed: readonly NewsItem[] = []): NewsStore {
       return rows.length;
     },
     async queryFeed({ limit, now }) {
-      return [...items.values()]
+      const sorted = [...items.values()]
         .filter((row) => newsInWindow(row.published_at, now))
-        .sort((a, b) => b.published_at.localeCompare(a.published_at))
-        .slice(0, limit)
-        .map((row) => recordToItem(row))
-        .filter((row): row is NewsItem => row !== null);
+        .sort((a, b) => b.gsi1sk.localeCompare(a.gsi1sk));
+      let start = 0;
+      return readAllowlistedFeed({
+        limit,
+        queryPage: async () => {
+          const page = sorted.slice(start, start + NEWS_FEED_PAGE_ROWS);
+          start += page.length;
+          return {
+            items: page,
+            cursor: start < sorted.length ? { start } : null,
+          };
+        },
+      });
     },
     async getHealth(source) {
       return health.get(source) ?? null;
@@ -204,6 +318,33 @@ async function existingNewsImageUrl(
   return normalizeNewsImageUrl((Item as NewsItemRecord).image_url);
 }
 
+type FeedQueryDoc = {
+  send: (command: QueryCommand) => Promise<{
+    Items?: unknown;
+    LastEvaluatedKey?: Record<string, unknown>;
+  }>;
+};
+
+function queryAllowlistedFeed(
+  doc: FeedQueryDoc,
+  table: string,
+  limit: number,
+  now: Date,
+): Promise<NewsFeedPage> {
+  return readAllowlistedFeed({
+    limit,
+    queryPage: async (cursor?: Record<string, unknown>) => {
+      const { Items, LastEvaluatedKey } = await doc.send(
+        new QueryCommand(newsFeedQueryInput({ table, now, cursor })),
+      );
+      return {
+        items: (Array.isArray(Items) ? Items : []) as NewsItemRecord[],
+        cursor: LastEvaluatedKey ?? null,
+      };
+    },
+  });
+}
+
 export function dynamoNewsStore(env: NewsEnv = process.env): NewsStore {
   if (!isNewsIngestConfigured(env) && !isNewsAwsConfigured(env)) {
     throw new Error("NEWS_AWS_REGION / NEWS_DDB_TABLE environment variables are not set");
@@ -247,25 +388,7 @@ export function dynamoNewsStore(env: NewsEnv = process.env): NewsStore {
     },
     async queryFeed({ limit, now }) {
       const { table, doc } = newsClient(env);
-      const since = newsWindowStart(now).toISOString();
-      const until = now.toISOString();
-      const { Items } = await doc.send(
-        new QueryCommand({
-          TableName: table,
-          IndexName: "gsi1",
-          KeyConditionExpression: "gsi1pk = :pk AND gsi1sk BETWEEN :since AND :until",
-          ExpressionAttributeValues: {
-            ":pk": NEWS_FEED_PK,
-            ":since": `${since}#`,
-            ":until": `${until}~\uFFFF`,
-          },
-          ScanIndexForward: false,
-          Limit: limit,
-        }),
-      );
-      return (Items ?? [])
-        .map((row) => recordToItem(row as NewsItemRecord))
-        .filter((row): row is NewsItem => row !== null);
+      return queryAllowlistedFeed(doc as unknown as FeedQueryDoc, table, limit, now);
     },
     async getHealth(source) {
       const { table, doc } = newsClient(env);

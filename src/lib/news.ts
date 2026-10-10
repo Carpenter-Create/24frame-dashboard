@@ -1,5 +1,4 @@
 import { DASHBOARD_HOME } from "@/lib/dashboard-home";
-import { UNPAGINATED_MAX } from "@/lib/list-bounds";
 import { NEWS_INGEST_FUNCTION, NEWS_INGEST_SCHEDULE } from "@/lib/news-aws";
 
 // Industry news — house SoT (Adam lock 2026-09-18).
@@ -26,6 +25,9 @@ export const NEWS_READ_REVALIDATE_SECONDS = 60;
 export const NEWS_SOURCE_PARAM = "source";
 export const NEWS_SOURCE_ALL = "all";
 
+/** docs/design-locks/news-history-truncated-copy-lock-v1.md */
+export const NEWS_HISTORY_TRUNCATED_NOTICE = "Some headlines aren't shown here.";
+
 export const NEWS_PAGE = {
   title: "Industry news",
   viewAll: DASHBOARD_HOME.viewAll,
@@ -36,7 +38,7 @@ export const NEWS_PAGE = {
   sources: "Sources",
   sourcesAll: "All",
   filterEmpty: "No headlines from the selected sources.",
-  truncated: `Showing the first ${UNPAGINATED_MAX} headlines. More exist — this list is not complete.`,
+  truncated: NEWS_HISTORY_TRUNCATED_NOTICE,
 } as const;
 
 /** Home land crumb — Industry news is a Home child, not a fifth workspace. */
@@ -53,7 +55,6 @@ export const NEWS_SOURCE_IDS = [
   "no-film-school",
   "filmmaker-magazine",
   "moviemaker",
-  "joblo",
   "film-threat",
   "screen-daily",
 ] as const;
@@ -131,12 +132,6 @@ export const NEWS_SOURCES = [
     id: "moviemaker",
     label: "MovieMaker",
     feedUrls: ["https://www.moviemaker.com/feed/"],
-    enabled: true,
-  },
-  {
-    id: "joblo",
-    label: "JoBlo",
-    feedUrls: ["https://www.joblo.com/feed/"],
     enabled: true,
   },
   {
@@ -321,7 +316,9 @@ export function newsSourceFilterLabel(selected: readonly NewsSourceId[]): string
 export function newsHistoryEmptyCopy(
   rows: readonly NewsItem[],
   visible: readonly NewsItem[],
-): string {
+  truncated = false,
+): string | null {
+  if (truncated) return null;
   if (rows.length === 0) return NEWS_PAGE.empty;
   if (visible.length === 0) return NEWS_PAGE.filterEmpty;
   return NEWS_PAGE.empty;

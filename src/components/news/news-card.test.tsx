@@ -76,28 +76,27 @@ describe("NewsCard", () => {
     expect(html).not.toMatch(/summary|rewrite|republish/i);
   });
 
-  it("rewrites a legacy JoBlo apex thumb and prefers a mirrored news-thumbs URL", () => {
-    const apex = renderToStaticMarkup(
+  it("renders a publisher thumb and a mirrored news-thumbs URL as stored", () => {
+    const publisher = renderToStaticMarkup(
       createElement(NewsCard, {
         item: {
           ...ITEM,
-          image_url: "https://joblo.com/wp-content/uploads/2026/09/thumb.jpg",
+          image_url: "https://variety.com/wp-content/uploads/2026/09/thumb.jpg",
         },
         now: NOW,
       }),
     );
-    expect(apex).toContain("https://www.joblo.com/wp-content/uploads/2026/09/thumb.jpg");
-    expect(apex).not.toContain("https://joblo.com/wp-content/uploads/2026/09/thumb.jpg");
+    expect(publisher).toContain("https://variety.com/wp-content/uploads/2026/09/thumb.jpg");
     const mirrored = renderToStaticMarkup(
       createElement(NewsCard, {
         item: {
           ...ITEM,
-          image_url: "https://delivery.globalcontent.co/news-thumbs/joblo/abc.jpg",
+          image_url: "https://delivery.globalcontent.co/news-thumbs/variety/abc.jpg",
         },
         now: NOW,
       }),
     );
-    expect(mirrored).toContain("https://delivery.globalcontent.co/news-thumbs/joblo/abc.jpg");
+    expect(mirrored).toContain("https://delivery.globalcontent.co/news-thumbs/variety/abc.jpg");
   });
 
   it("keeps a grey plate and no img when the article has no image", () => {

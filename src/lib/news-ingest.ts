@@ -1,7 +1,6 @@
 import { NEWS_SOURCES, newsSourceIsLive, newsWindowStart, type NewsSourceId } from "@/lib/news";
 import {
   canonicalizeNewsImageUrl,
-  newsOgFetchUrl,
   parseNewsFeed,
   parseOgImageUrl,
   type NormalizedNewsItem,
@@ -16,10 +15,9 @@ import { newsEgressFetch, type NewsDnsLookup } from "@/lib/news-egress";
 
 // Scheduled News ingest (Lambda + EventBridge). Fail-soft per source.
 // Persist to DynamoDB only — never fan-out RSS on a page read.
-// RSS media/enclosure first; OG-scrape when image_url is null. JoBlo
-// always OG-scrapes (enclosure has been wrong/apex). After a remote
-// image_url is resolved, mirror bytes to S3_BUCKET/news-thumbs/ and
-// persist the CloudFront URL. Mirror miss keeps the remote URL.
+// RSS media/enclosure first; OG-scrape when image_url is null. After a
+// remote image_url is resolved, mirror bytes to S3_BUCKET/news-thumbs/
+// and persist the CloudFront URL. Mirror miss keeps the remote URL.
 // One bad article URL must not fail the source or the run.
 
 export const NEWS_FEED_TIMEOUT_MS = 8_000;
@@ -57,9 +55,9 @@ export type NewsMirrorCounters = {
   mirrorFailed: number;
 };
 
-/** JoBlo enclosure has been wrong/apex — always scrape OG even when RSS has a thumb. */
-export function newsItemNeedsOg(item: Pick<NormalizedNewsItem, "source" | "image_url">): boolean {
-  return !item.image_url || item.source === "joblo";
+/** Scrape OG when RSS has no thumb. */
+export function newsItemNeedsOg(item: Pick<NormalizedNewsItem, "image_url">): boolean {
+  return !item.image_url;
 }
 
 export type NewsIngestSourceResult = {
@@ -193,7 +191,7 @@ export async function fillNewsOgImages(
     candidates,
     async (item) => {
       try {
-        const html = await fetchHtml(newsOgFetchUrl(item.url));
+        const html = await fetchHtml(item.url);
         scraped.set(item.canonical_url, html ? parseOgImageUrl(html, item.url) : null);
       } catch {
         scraped.set(item.canonical_url, null);
@@ -221,7 +219,7 @@ function canonicalizeNewsItemImages(items: readonly NormalizedNewsItem[]): Norma
 const EMPTY_OG: NewsOgCounters = { ogAttempted: 0, ogFilled: 0, ogMiss: 0 };
 const EMPTY_MIRROR: NewsMirrorCounters = { mirrored: 0, mirrorFailed: 0 };
 
-/** RSS-null items, plus JoBlo force-OG. CloudWatch: ogAttempted / ogFilled / ogMiss. */
+/** RSS-null items. CloudWatch: ogAttempted / ogFilled / ogMiss. */
 export function countNewsOgFill(
   before: readonly NormalizedNewsItem[],
   after: readonly NormalizedNewsItem[],

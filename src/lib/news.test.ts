@@ -50,6 +50,7 @@ describe("News SoT", () => {
     expect(NEWS_PAGE.sourcesAll).toBe("All");
     expect(NEWS_PAGE.filterEmpty).toBe("No headlines from the selected sources.");
     expect(NEWS_PAGE.empty).toBe("No headlines from the last 90 days.");
+    expect(NEWS_PAGE.truncated).toBe("Some headlines aren't shown here.");
     expect(NEWS_HOME_CAP).toBe(15);
     expect(NEWS_WINDOW_DAYS).toBe(90);
     expect(NEWS_WINDOW_MS).toBe(90 * 24 * 60 * 60 * 1000);
@@ -64,7 +65,6 @@ describe("News SoT", () => {
       "No Film School",
       "Filmmaker Magazine",
       "MovieMaker",
-      "JoBlo",
       "Film Threat",
       "Screen Daily",
     ]);

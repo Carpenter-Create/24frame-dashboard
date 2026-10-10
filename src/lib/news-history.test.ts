@@ -79,7 +79,6 @@ describe("news history source filter URL", () => {
       "Filmmaker Magazine",
       "Hollywood Reporter",
       "IndieWire",
-      "JoBlo",
       "MovieMaker",
       "No Film School",
       "Screen Daily",
@@ -105,9 +104,12 @@ describe("news history source filter rows", () => {
     expect(filterNewsBySources(rows, ["variety", "deadline"]).map((row) => row.id)).toEqual([
       "d",
     ]);
-    expect(filterNewsBySources(rows, ["joblo"])).toEqual([]);
+    expect(filterNewsBySources(rows, ["film-threat"])).toEqual([]);
     expect(newsHistoryEmptyCopy([], [])).toBe(NEWS_PAGE.empty);
     expect(newsHistoryEmptyCopy(rows, [])).toBe(NEWS_PAGE.filterEmpty);
+    expect(newsHistoryEmptyCopy([], [], true)).toBeNull();
+    expect(newsHistoryEmptyCopy(rows, [], true)).toBeNull();
+    expect(newsHistoryEmptyCopy(rows, rows, true)).toBeNull();
   });
 });
 

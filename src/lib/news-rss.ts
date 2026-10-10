@@ -9,7 +9,6 @@ import { classifyNewsTopic, type NewsTopic } from "@/lib/news-topic";
 // RSS / Atom normalize for the News allowlist. Media/enclosure thumbs
 // first. When the feed has no image, ingest OG-scrapes the article URL.
 // Do not scrape RSS item description HTML. Do not rewrite titles.
-// JoBlo media: persist www.joblo.com (apex 404s). Article identity still strips www.
 
 const TRACKING_PARAM = /^(utm_|fbclid|gclid|mc_cid|mc_eid|vero_id|icid)/i;
 const IMAGE_EXT = /\.(avif|gif|jpe?g|png|webp)(\?|$)/i;
@@ -52,18 +51,15 @@ export function canonicalizeNewsUrl(raw: string, base?: string): string | null {
   return `https://${parsed.hostname}${path}${query ? `?${query}` : ""}`;
 }
 
-const JOBLO_APEX_HOST = "joblo.com";
-const JOBLO_WWW_HOST = "www.joblo.com";
-
-/** JoBlo apex media 404s. www serves 200 (incl. Referer app.24frame.co). Other hosts unchanged. */
+/** Pass the stored image URL through. Empty stays null. */
 export function canonicalizeNewsImageUrl(url: string | null): string | null {
   if (!url) return null;
-  return preferJobloWwwHost(url);
+  return url;
 }
 
 /**
- * Card SoT: prefer a mirrored `news-thumbs/` URL. Rewrite JoBlo apex if a
- * legacy publisher URL still slips through. Does not invent a host.
+ * Card SoT: a mirrored `news-thumbs/` URL is returned as stored.
+ * Does not invent a host.
  */
 export function newsCardImageUrl(url: string | null): string | null {
   if (!url) return null;
@@ -76,63 +72,6 @@ export function newsCardImageUrl(url: string | null): string | null {
     return canonicalizeNewsImageUrl(url);
   }
   return canonicalizeNewsImageUrl(url);
-}
-
-/** Fetch JoBlo over www. Article identity still strips www via canonicalizeNewsUrl (stable Dynamo keys). */
-export function newsOgFetchUrl(articleUrl: string): string {
-  return preferJobloWwwHost(articleUrl);
-}
-
-const JOBLO_WWW_PATH_PREFIX = `/${JOBLO_WWW_HOST}`;
-
-function preferJobloWwwHost(url: string): string {
-  let parsed: URL;
-  try {
-    parsed = new URL(url.trim());
-  } catch {
-    return url;
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return url;
-  const host = parsed.hostname.toLowerCase();
-  if (host !== JOBLO_APEX_HOST && host !== JOBLO_WWW_HOST) return url;
-  parsed.protocol = "https:";
-  parsed.hostname = JOBLO_WWW_HOST;
-  parsed.pathname = stripDuplicatedJobloWwwPath(parsed.pathname);
-  return parsed.href;
-}
-
-/** Feed/path sometimes embeds www.joblo.com under the host → www.joblo.com/www.joblo.com/... 404s. */
-function stripDuplicatedJobloWwwPath(pathname: string): string {
-  let next = pathname;
-  while (true) {
-    const lower = next.toLowerCase();
-    if (lower === JOBLO_WWW_PATH_PREFIX) return "/";
-    if (!lower.startsWith(`${JOBLO_WWW_PATH_PREFIX}/`)) return next || "/";
-    next = next.slice(JOBLO_WWW_PATH_PREFIX.length) || "/";
-  }
-}
-
-/** Proven OG on the www Flood article. CoS backfill only — not inventing thumbs. */
-export const KNOWN_JOBLO_OG: Record<string, string> = {
-  "https://joblo.com/zach-cregger-the-flood-2001-influence":
-    "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg",
-};
-
-export function planJobloImageUrl(row: {
-  url: string;
-  image_url: string | null;
-  fillKnown?: boolean;
-}): { next: string | null; action: "rewrite" | "fill-known" | "unchanged" | "still-null" } {
-  const rewritten = canonicalizeNewsImageUrl(row.image_url);
-  if (rewritten && rewritten !== row.image_url) {
-    return { next: rewritten, action: "rewrite" };
-  }
-  if (row.image_url) return { next: row.image_url, action: "unchanged" };
-  if (row.fillKnown) {
-    const known = KNOWN_JOBLO_OG[row.url];
-    if (known) return { next: known, action: "fill-known" };
-  }
-  return { next: null, action: "still-null" };
 }
 
 export function decodeNewsText(raw: string): string {

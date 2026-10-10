@@ -36,6 +36,12 @@ function ctx() {
   };
 }
 
+function historyMain(html: string): string {
+  const start = html.indexOf('data-news-history-main=""');
+  const end = html.indexOf("</section>", start);
+  return html.slice(start, end);
+}
+
 const ITEM = {
   id: "n1",
   title: "Harbor Cut lands a festival slot",
@@ -87,6 +93,7 @@ describe("NewsPage", () => {
     expect(html).not.toMatch(/summary|rewrite|republish/i);
     expect(html).not.toContain(NEWS_PAGE.viewAll);
     expect(html.split(NEWS_PAGE.title).length - 1).toBe(1);
+    expect(html).not.toContain("data-my-list-truncated");
   });
 
   it("honors ?source= on first paint", async () => {
@@ -98,10 +105,78 @@ describe("NewsPage", () => {
     });
 
     const html = renderToStaticMarkup(
-      await NewsPage({ searchParams: Promise.resolve({ source: "joblo" }) }),
+      await NewsPage({ searchParams: Promise.resolve({ source: "film-threat" }) }),
     );
     expect(html).toContain(NEWS_PAGE.filterEmpty);
     expect(html).not.toContain("Harbor Cut lands a festival slot");
+    expect(html).not.toContain("data-my-list-truncated");
+  });
+
+  it("shows the 90-day empty state when an uncapped history read has no rows", async () => {
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+    vi.mocked(loadNewsHistory).mockResolvedValue({
+      rows: [],
+      truncated: false,
+      failed: false,
+    });
+
+    const html = renderToStaticMarkup(await NewsPage({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain(NEWS_PAGE.empty);
+    expect(html).toContain("data-news-history-main");
+    expect(historyMain(html)).toContain("<div");
+    expect(html).not.toContain("data-my-list-truncated");
+    expect(html).not.toContain(NEWS_PAGE.truncated);
+  });
+
+  it("shows only the truncated notice when a capped history read has no rows", async () => {
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+    vi.mocked(loadNewsHistory).mockResolvedValue({
+      rows: [],
+      truncated: true,
+      failed: false,
+    });
+
+    const html = renderToStaticMarkup(await NewsPage({ searchParams: Promise.resolve({}) }));
+    expect(NEWS_PAGE.truncated).toBe("Some headlines aren't shown here.");
+    expect(html.replaceAll("&#x27;", "'")).toContain("Some headlines aren't shown here.");
+    expect(html).toContain('data-my-list-truncated="news"');
+    expect(html).not.toContain(NEWS_PAGE.empty);
+    expect(historyMain(html)).not.toContain("<div");
+    expect(historyMain(html)).not.toContain("<p");
+  });
+
+  it("shows the truncated notice with the rows when a capped history read has headlines", async () => {
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+    vi.mocked(loadNewsHistory).mockResolvedValue({
+      rows: [ITEM],
+      truncated: true,
+      failed: false,
+    });
+
+    const html = renderToStaticMarkup(await NewsPage({ searchParams: Promise.resolve({}) }));
+    expect(html.replaceAll("&#x27;", "'")).toContain("Some headlines aren't shown here.");
+    expect(html).toContain("Harbor Cut lands a festival slot");
+    expect(html).not.toContain(NEWS_PAGE.empty);
+  });
+
+  it("shows only the truncated notice when a capped source filter matches nothing", async () => {
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+    vi.mocked(loadNewsHistory).mockResolvedValue({
+      rows: [ITEM],
+      truncated: true,
+      failed: false,
+    });
+
+    const html = renderToStaticMarkup(
+      await NewsPage({ searchParams: Promise.resolve({ source: "film-threat" }) }),
+    );
+    expect(html.replaceAll("&#x27;", "'")).toContain("Some headlines aren't shown here.");
+    expect(html).toContain('data-my-list-truncated="news"');
+    expect(html).toContain("data-news-source-chips");
+    expect(html).not.toContain(NEWS_PAGE.filterEmpty);
+    expect(html).not.toContain(NEWS_PAGE.empty);
+    expect(html).not.toContain("Harbor Cut lands a festival slot");
+    expect(historyMain(html)).not.toContain("<div");
   });
 
   it("sends an unauthenticated visitor to login", async () => {

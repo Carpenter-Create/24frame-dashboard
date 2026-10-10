@@ -5,7 +5,7 @@ import { NEWS_SOURCES } from "@/lib/news";
 // P0-3 / GC-P2-5 — news ingest egress. Feed / OG / thumb URLs may come
 // from parsed items. HTTPS + public IP after DNS + redirect cap, then a
 // host allowlist from NEWS_SOURCES feed hosts and their apex/www twins
-// (canonicalize strips www; JoBlo media stays on www). Unknown hosts
+// (canonicalize strips www). Unknown hosts
 // never fetch. Literal public IPs are not publisher hosts. Do not invent
 // NEWS_S3_*. Mirrored thumbs stay title S3_BUCKET + CLOUDFRONT_DOMAIN
 // and skip this fetch. Residual: DNS rebinding between lookup and

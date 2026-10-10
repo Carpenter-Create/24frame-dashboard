@@ -229,7 +229,7 @@ describe("NewsHistory layout", () => {
       createElement(NewsHistory, {
         items: [VARIETY, DEADLINE],
         now: NOW,
-        selected: ["joblo"],
+        selected: ["film-threat"],
       }),
     );
     expect(empty).toContain(NEWS_PAGE.filterEmpty);

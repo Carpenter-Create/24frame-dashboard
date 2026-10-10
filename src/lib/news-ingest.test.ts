@@ -75,7 +75,7 @@ describe("ingestNewsFeeds", () => {
     const indiewireFeeds = NEWS_SOURCES.find((row) => row.id === "indiewire")?.feedUrls.length ?? 0;
     expect(fetchXml).toHaveBeenCalledTimes(EXPECTED_FEED_CALLS - indiewireFeeds);
     expect(fetchXml.mock.calls.flat()).not.toContain("https://www.indiewire.com/feed/");
-    expect(summary.sources).toBe(11);
+    expect(summary.sources).toBe(NEWS_SOURCES.length);
     expect(summary.failed).toBe(1);
     expect(summary.skipped).toBe(1);
     expect(summary.results.find((row) => row.source === "deadline")?.error).toBe("timeout");
@@ -112,7 +112,7 @@ describe("ingestNewsFeeds", () => {
     });
     expect(summary.purged).toBe(1);
     expect(await persist.purgeBefore("2026-06-20T18:00:00.000Z")).toBe(0);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows.filter((row) => row.url === liveItem().url)).toHaveLength(1);
   });
 
@@ -142,7 +142,7 @@ describe("ingestNewsFeeds", () => {
     const hr = summary.results.find((row) => row.source === "hollywood-reporter");
     expect(hr?.droppedByTopic).toBeGreaterThanOrEqual(1);
     expect(hr?.fetched).toBe(1);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     const urls = rows.map((row) => row.url);
     expect(urls).toContain("https://hollywoodreporter.com/movies/movie-news/zach-cregger-the-flood-2027");
     expect(urls.some((url) => url.includes("/music/"))).toBe(false);
@@ -184,7 +184,7 @@ describe("ingestNewsFeeds", () => {
     expect(fetchXml.mock.calls.map((call) => call[0])).toEqual(
       expect.arrayContaining([VARIETY_FILM_FEED, VARIETY_TV_FEED]),
     );
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     const varietyUrls = rows.filter((row) => row.source === "variety").map((row) => row.url);
     expect(varietyUrls).toEqual(
       expect.arrayContaining([
@@ -220,6 +220,23 @@ describe("ingestNewsFeeds", () => {
     expect(variety?.error).toBeUndefined();
     expect(variety?.fetched).toBeGreaterThan(0);
     expect((await persist.getHealth("variety"))?.last_success_at).toBe(NOW.toISOString());
+  });
+
+  it("does not ingest JoBlo", async () => {
+    expect(NEWS_SOURCES.map((source) => source.id)).not.toContain("joblo");
+    expect(
+      NEWS_SOURCES.flatMap((source) => source.feedUrls).some((url) => /joblo/i.test(url)),
+    ).toBe(false);
+    const fetchXml = vi.fn(async () => EMPTY_FEED);
+    await ingestNewsFeeds({
+      persist: memoryNewsStore(),
+      now: NOW,
+      fetchXml,
+      fetchOgHtml: async () => null,
+    });
+    expect(
+      fetchXml.mock.calls.flat().some((url) => String(url).toLowerCase().includes("joblo")),
+    ).toBe(false);
   });
 });
 
@@ -265,7 +282,7 @@ describe("ingest OG images", () => {
       fetchOgHtml,
     });
     expect(fetchOgHtml).not.toHaveBeenCalled();
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows[0]?.image_url).toBe("https://variety.com/thumbs/rss.jpg");
   });
 
@@ -283,7 +300,7 @@ describe("ingest OG images", () => {
       fetchOgHtml,
     });
     expect(fetchOgHtml).toHaveBeenCalledTimes(1);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows[0]?.image_url).toBe("https://thr.com/og.jpg");
   });
 
@@ -301,7 +318,7 @@ describe("ingest OG images", () => {
     });
     expect(summary.failed).toBe(0);
     expect(summary.results.find((row) => row.source === "hollywood-reporter")?.error).toBeUndefined();
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(rows[0]?.image_url).toBeNull();
   });
 
@@ -382,7 +399,7 @@ describe("ingest OG images", () => {
       fetchOgHtml,
     });
     expect(summary.failed).toBe(0);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(
       rows.find((row) => row.url === "https://hollywoodreporter.com/movies/movie-news/hit")?.image_url,
     ).toBe("https://thr.com/hit.jpg");
@@ -405,75 +422,6 @@ describe("ingest OG images", () => {
     const history = await loadNewsHistory(NOW, persist);
     expect(home[0]?.image_url).toBe("https://thr.com/og.jpg");
     expect(history.rows[0]?.image_url).toBe("https://thr.com/og.jpg");
-  });
-
-  it("fetches JoBlo OG over www and stores the www media URL", async () => {
-    const persist = memoryNewsStore();
-    const floodFeed = `<?xml version="1.0"?>
-<rss version="2.0">
-  <channel>
-    <item>
-      <title>Flood influence</title>
-      <link>https://joblo.com/zach-cregger-the-flood-2001-influence</link>
-      <pubDate>Thu, 17 Sep 2026 12:00:00 GMT</pubDate>
-    </item>
-  </channel>
-</rss>`;
-    const fetchOgHtml = vi.fn(async (url: string) => {
-      expect(url).toBe("https://www.joblo.com/zach-cregger-the-flood-2001-influence");
-      return `<meta property="og:image" content="https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg" />`;
-    });
-    await ingestNewsFeeds({
-      persist,
-      now: NOW,
-      fetchXml: async (url: string) => (url === "https://www.joblo.com/feed/" ? floodFeed : EMPTY_FEED),
-      fetchOgHtml,
-    });
-    expect(fetchOgHtml).toHaveBeenCalledTimes(1);
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
-    expect(rows[0]?.url).toBe("https://joblo.com/zach-cregger-the-flood-2001-influence");
-    expect(rows[0]?.image_url).toBe(
-      "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg",
-    );
-  });
-
-  it("does not null-downgrade a stored JoBlo www thumb when RSS and OG miss", async () => {
-    const persist = memoryNewsStore();
-    const floodWww =
-      "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg";
-    await persist.upsertItems(
-      [
-        {
-          title: "Flood influence",
-          url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-          canonical_url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-          source: "joblo",
-          published_at: "2026-09-17T12:00:00.000Z",
-          image_url: floodWww,
-          topic: "film",
-        },
-      ],
-      NOW,
-    );
-    const floodFeed = `<?xml version="1.0"?>
-<rss version="2.0">
-  <channel>
-    <item>
-      <title>Flood influence</title>
-      <link>https://joblo.com/zach-cregger-the-flood-2001-influence</link>
-      <pubDate>Thu, 17 Sep 2026 12:00:00 GMT</pubDate>
-    </item>
-  </channel>
-</rss>`;
-    await ingestNewsFeeds({
-      persist,
-      now: NOW,
-      fetchXml: async (url: string) => (url === "https://www.joblo.com/feed/" ? floodFeed : EMPTY_FEED),
-      fetchOgHtml: async () => null,
-    });
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
-    expect(rows[0]?.url).toBe("https://joblo.com/zach-cregger-the-flood-2001-influence");
-    expect(rows[0]?.image_url).toBe(floodWww);
   });
 
   it("mirrors a resolved thumb to CloudFront and persists that URL", async () => {
@@ -499,7 +447,7 @@ describe("ingest OG images", () => {
       if (prevCf === undefined) delete process.env.CLOUDFRONT_DOMAIN;
       else process.env.CLOUDFRONT_DOMAIN = prevCf;
     }
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     const key = newsThumbObjectKey(
       "hollywood-reporter",
       "https://hollywoodreporter.com/movies/movie-news/needs-og",
@@ -535,7 +483,7 @@ describe("ingest OG images", () => {
       if (prevCf === undefined) delete process.env.CLOUDFRONT_DOMAIN;
       else process.env.CLOUDFRONT_DOMAIN = prevCf;
     }
-    const rows = await persist.queryFeed({ limit: 20, now: NOW });
+    const { items: rows } = await persist.queryFeed({ limit: 20, now: NOW });
     expect(puts).toBe(1);
     expect(rows[0]?.image_url).toBe("https://hollywoodreporter.com/og.jpg");
   });
@@ -646,7 +594,7 @@ describe("fillNewsOgImages", () => {
     expect(maxInFlight).toBeLessThanOrEqual(NEWS_OG_CONCURRENCY);
   });
 
-  it("skips non-JoBlo items that already have image_url", async () => {
+  it("skips items that already have image_url", async () => {
     const fetchHtml = vi.fn(async () => {
       throw new Error("should not scrape");
     });
@@ -656,40 +604,11 @@ describe("fillNewsOgImages", () => {
     );
     expect(kept?.image_url).toBe("https://variety.com/thumbs/rss.jpg");
     expect(fetchHtml).not.toHaveBeenCalled();
+    expect(newsItemNeedsOg({ image_url: "https://variety.com/x.jpg" })).toBe(false);
+    expect(newsItemNeedsOg({ image_url: null })).toBe(true);
   });
 
-  it("force-OGs JoBlo even when the RSS enclosure exists", async () => {
-    const fetchHtml = vi.fn(async (url: string) => {
-      expect(url).toBe("https://www.joblo.com/zach-cregger-the-flood-2001-influence");
-      return `<meta property="og:image" content="https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg" />`;
-    });
-    const [kept] = await fillNewsOgImages(
-      [
-        {
-          title: "Flood influence",
-          url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-          canonical_url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-          source: "joblo",
-          published_at: "2026-09-17T12:00:00.000Z",
-          image_url: "https://joblo.com/wp-content/uploads/2026/09/wrong-enclosure.jpg",
-          topic: "film",
-        },
-      ],
-      { fetchHtml },
-    );
-    expect(fetchHtml).toHaveBeenCalledTimes(1);
-    expect(kept?.image_url).toBe(
-      "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg",
-    );
-    expect(newsItemNeedsOg({ source: "joblo", image_url: "https://www.joblo.com/x.jpg" })).toBe(
-      true,
-    );
-    expect(newsItemNeedsOg({ source: "variety", image_url: "https://variety.com/x.jpg" })).toBe(
-      false,
-    );
-  });
-
-  it("counts RSS-null items and JoBlo force-OG as OG attempts", () => {
+  it("counts RSS-null items as OG attempts", () => {
     expect(
       countNewsOgFill(
         [
@@ -699,33 +618,6 @@ describe("fillNewsOgImages", () => {
         [
           { ...liveItem(), image_url: "https://variety.com/thumbs/rss.jpg" },
           { ...liveItem(), image_url: "https://variety.com/og.jpg" },
-        ],
-      ),
-    ).toEqual({ ogAttempted: 1, ogFilled: 1, ogMiss: 0 });
-    expect(
-      countNewsOgFill(
-        [
-          {
-            title: "Flood influence",
-            url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-            canonical_url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-            source: "joblo",
-            published_at: "2026-09-17T12:00:00.000Z",
-            image_url: "https://www.joblo.com/wp-content/uploads/wrong.jpg",
-            topic: "film",
-          },
-        ],
-        [
-          {
-            title: "Flood influence",
-            url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-            canonical_url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-            source: "joblo",
-            published_at: "2026-09-17T12:00:00.000Z",
-            image_url:
-              "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg",
-            topic: "film",
-          },
         ],
       ),
     ).toEqual({ ogAttempted: 1, ogFilled: 1, ogMiss: 0 });
