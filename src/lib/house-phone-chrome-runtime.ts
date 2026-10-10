@@ -22,9 +22,10 @@
 //   - A drag applies once per frame; the release flushes it first.
 //   - The status-bar tap's signal, a touch, or a scroll the settle did not
 //     make stops a settle; `stop()` (navigation, width, unmount) ends all.
-//     A stop leaves it where it is: the browser's smooth scroll is cut
-//     with an instant scroll to where the page is, and the deep ease is
-//     held at the bar's cover on screen.
+//     The signal, a touch, `open()` and `stop()` cut the browser's smooth
+//     scroll with an instant scroll to where the page is. The signal or a
+//     touch holds the deep ease at the bar's cover on screen; `open()`
+//     eases the bar open, and `stop()` snaps it open.
 
 import {
   HOUSE_PHONE_CHROME_HEIGHT_VAR,
