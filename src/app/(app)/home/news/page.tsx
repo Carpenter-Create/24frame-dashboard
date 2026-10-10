@@ -38,6 +38,7 @@ export default async function NewsPage({
             </InlineNotice>
           ) : null
         }
+        truncated={loaded.truncated}
         items={loaded.failed ? [] : loaded.rows}
         now={now}
         selected={selected}

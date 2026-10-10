@@ -345,12 +345,8 @@ function queryAllowlistedFeed(
   });
 }
 
-export function dynamoNewsStore(
-  env: NewsEnv = process.env,
-  /** Unit-test seam. Production callers omit it; it never opens a live client. */
-  injected?: { table: string; doc: FeedQueryDoc },
-): NewsStore {
-  if (!injected && !isNewsIngestConfigured(env) && !isNewsAwsConfigured(env)) {
+export function dynamoNewsStore(env: NewsEnv = process.env): NewsStore {
+  if (!isNewsIngestConfigured(env) && !isNewsAwsConfigured(env)) {
     throw new Error("NEWS_AWS_REGION / NEWS_DDB_TABLE environment variables are not set");
   }
 
@@ -391,22 +387,8 @@ export function dynamoNewsStore(
       return rows.length;
     },
     async queryFeed({ limit, now }) {
-      if (injected) return queryAllowlistedFeed(injected.doc, injected.table, limit, now);
       const { table, doc } = newsClient(env);
-      return queryAllowlistedFeed(
-        {
-          send: async (command) => {
-            const { Items, LastEvaluatedKey } = await doc.send(command);
-            return {
-              Items,
-              LastEvaluatedKey: LastEvaluatedKey as Record<string, unknown> | undefined,
-            };
-          },
-        },
-        table,
-        limit,
-        now,
-      );
+      return queryAllowlistedFeed(doc as unknown as FeedQueryDoc, table, limit, now);
     },
     async getHealth(source) {
       const { table, doc } = newsClient(env);

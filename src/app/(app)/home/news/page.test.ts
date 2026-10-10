@@ -104,6 +104,35 @@ describe("NewsPage", () => {
     expect(html).not.toContain("Harbor Cut lands a festival slot");
   });
 
+  it("shows only the truncated notice when a capped history read has no rows", async () => {
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+    vi.mocked(loadNewsHistory).mockResolvedValue({
+      rows: [],
+      truncated: true,
+      failed: false,
+    });
+
+    const html = renderToStaticMarkup(await NewsPage({ searchParams: Promise.resolve({}) }));
+    expect(NEWS_PAGE.truncated).toBe("Some headlines aren't shown here.");
+    expect(html.replaceAll("&#x27;", "'")).toContain("Some headlines aren't shown here.");
+    expect(html).toContain('data-my-list-truncated="news"');
+    expect(html).not.toContain(NEWS_PAGE.empty);
+  });
+
+  it("shows the truncated notice with the rows when a capped history read has headlines", async () => {
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+    vi.mocked(loadNewsHistory).mockResolvedValue({
+      rows: [ITEM],
+      truncated: true,
+      failed: false,
+    });
+
+    const html = renderToStaticMarkup(await NewsPage({ searchParams: Promise.resolve({}) }));
+    expect(html.replaceAll("&#x27;", "'")).toContain("Some headlines aren't shown here.");
+    expect(html).toContain("Harbor Cut lands a festival slot");
+    expect(html).not.toContain(NEWS_PAGE.empty);
+  });
+
   it("sends an unauthenticated visitor to login", async () => {
     vi.mocked(getOrgContext).mockResolvedValue(null as never);
     await expect(NewsPage()).rejects.toThrow("REDIRECT:/login");

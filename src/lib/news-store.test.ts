@@ -1,6 +1,18 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
+const { documentFrom } = vi.hoisted(() => ({ documentFrom: vi.fn() }));
+
+vi.mock("@aws-sdk/lib-dynamodb", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@aws-sdk/lib-dynamodb")>();
+  return {
+    ...actual,
+    DynamoDBDocumentClient: Object.assign(actual.DynamoDBDocumentClient, {
+      from: documentFrom,
+    }),
+  };
+});
+
 import {
   NEWS_HOME_CAP,
   NEWS_SOURCE_IDS,
@@ -519,11 +531,13 @@ describe("allowlisted feed page", () => {
       },
     };
 
-    const store = dynamoNewsStore(
-      {},
-      { table: "24frame-news-dev", doc },
-    );
+    documentFrom.mockReturnValue(doc);
+    const store = dynamoNewsStore({
+      NEWS_AWS_REGION: "us-west-2",
+      NEWS_DDB_TABLE: "24frame-news-dev",
+    });
     const page = await store.queryFeed({ limit: NEWS_HOME_CAP, now: NOW });
+    expect(documentFrom).toHaveBeenCalledTimes(1);
 
     expect(pages[0]).toMatchObject({ evaluated: NEWS_FEED_PAGE_ROWS, returned: 0 });
     expect(pages).toHaveLength(2);

@@ -37,7 +37,7 @@ export function NewsRail({
   now: Date;
   viewAll?: boolean;
   history?: boolean;
-  empty?: string;
+  empty?: string | null;
   testId?: string;
 }) {
   if (history) {
@@ -53,11 +53,11 @@ export function NewsRail({
               <NewsCard key={item.id} item={item} now={now} density="history" />
             ))}
           </ul>
-        ) : (
+        ) : empty ? (
           <div className={`${DASHBOARD_MODULE_CARD_CLASS} ${DASHBOARD_CARD_PAD}`}>
             <p className="t-body-sm text-ink-3">{empty}</p>
           </div>
-        )}
+        ) : null}
       </section>
     );
   }

@@ -37,12 +37,14 @@ export function NewsHistory({
   selected: initialSelected,
   heading,
   notice,
+  truncated = false,
 }: {
   items: readonly NewsItem[];
   now: Date | string;
   selected: readonly NewsSourceId[];
   heading?: ReactNode;
   notice?: ReactNode;
+  truncated?: boolean;
 }) {
   const [selected, setSelected] = useState<NewsSourceId[]>(() =>
     canonicalizeNewsSourceFilter(initialSelected),
@@ -74,7 +76,7 @@ export function NewsHistory({
           items={visible}
           now={at}
           history
-          empty={newsHistoryEmptyCopy(items, visible)}
+          empty={newsHistoryEmptyCopy(items, visible, truncated)}
         />
       </div>
     </div>
