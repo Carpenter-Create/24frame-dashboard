@@ -795,6 +795,148 @@ describe("phone chrome runtime — interrupts and drags (v1.5)", () => {
     for (let i = 0; i < 4; i += 1) m.tick();
     expect(m.writes).toHaveLength(0);
   });
+
+  it("R29: a finger the stale guard lifted that moves again is down: nothing settles or writes under it", () => {
+    for (const mode of ["scrollend", "timer"] as const) {
+      const r = rig({ mode });
+      r.userScroll(20);
+      r.touchStart(r.main, [0, 400]);
+      r.advance(10_000); // still for 10s: counted lifted, and it settles
+      r.ticks(160);
+      const settled = r.writes.length + r.smooth.length;
+      expect(settled, mode).toBeGreaterThan(0);
+      // The same thumb moves again and scrolls main back up a little (still
+      // near the top), then pauses, still down.
+      r.touchMove([0, 394]);
+      r.userScroll(r.top() - 6);
+      r.touchMove([0, 300]); // on main: the bar does not follow the finger
+      const writes = r.writes.length;
+      const smooth = r.smooth.length;
+      const cover = r.cover();
+      r.ticks(2000);
+      expect(r.writes, mode).toHaveLength(writes);
+      expect(r.smooth, mode).toHaveLength(smooth);
+      expect(r.cover(), mode).toBe(cover);
+      // The real lift settles the way it was going: open.
+      r.touchEnd();
+      r.ticks(1000);
+      expect(r.writes.length + r.smooth.length, mode).toBeGreaterThan(writes + smooth);
+      if (mode === "scrollend") expect(r.top()).toBe(0);
+      else expect(r.smooth.at(-1)).toBe(0);
+    }
+
+    // Moved again but scrolled nothing: the lift still waits for a rest it
+    // can prove (the 600ms watchdog), not a quick one from before the guard.
+    const q = rig();
+    q.touchStart(q.main, [0, 400]);
+    q.userScroll(20);
+    q.scrollEnd(); // a rest seen during the first part of the touch
+    q.advance(10_000);
+    for (let i = 0; i < 4; i += 1) q.tick();
+    q.touchMove([0, 401]);
+    const before = q.writes.length;
+    q.touchEnd();
+    q.ticks(96);
+    expect(q.writes).toHaveLength(before);
+    q.ticks(1000);
+    expect(q.writes.length).toBeGreaterThan(before);
+  });
+
+  it("R29b: a drag the stale guard lifted carries on under the finger; its release waits for the rest", () => {
+    const r = rig();
+    r.touchStart(r.zone, [0, 100]);
+    r.touchMove([0, 90]);
+    r.tick();
+    expect(r.cover()).toBe(10);
+    r.advance(10_000); // held still: counted lifted, and the release glides
+    for (let i = 0; i < 4; i += 1) r.tick();
+    expect(r.top()).toBeGreaterThan(10);
+    const top = r.top();
+    expect(r.cover()).toBe(top);
+    // The finger moves again: the glide stops, and the bar follows it from there.
+    r.touchMove([0, 80]);
+    r.ticks(300);
+    expect(r.top()).toBe(top);
+    r.touchMove([0, 76]); // under the 6 lock: the drag is still vertical
+    r.tick();
+    expect(r.cover()).toBe(top + 4);
+    r.touchMove([0, 70]);
+    r.tick();
+    expect(r.cover()).toBe(top + 10);
+    expect(r.top()).toBe(top + 10);
+    // No rest is proven after the guard: the release waits for one.
+    const writes = r.writes.length;
+    r.touchEnd();
+    r.ticks(96);
+    expect(r.writes).toHaveLength(writes);
+    r.ticks(1000);
+    expect(r.top()).toBe(56);
+    expect(r.cover()).toBe(56);
+    expect(r.attrs.has(DOCK)).toBe(true);
+    // The heal used that drag up: a later finger with no touchstart seen is
+    // a plain touch (finger down would open the bar if it were a drag).
+    r.runtime.onTouchMove({ touches: [{ clientX: 0, clientY: 300 }], target: r.zone });
+    r.runtime.onTouchMove({ touches: [{ clientX: 0, clientY: 350 }], target: r.zone });
+    r.tick();
+    expect(r.cover()).toBe(56);
+
+    // A new touch ends that drag for good: a later finger with no touchstart
+    // seen is a plain touch, and the bar does not follow it.
+    const n = rig();
+    n.touchStart(n.zone, [0, 100]);
+    n.touchMove([0, 90]);
+    n.tick();
+    n.advance(10_000);
+    n.ticks(400);
+    n.touchEnd(); // that finger's own lift, after the guard: nothing to do
+    n.touchStart(n.main, [0, 400]);
+    n.touchEnd();
+    n.ticks(1000);
+    expect(n.cover()).toBe(56);
+    n.runtime.onTouchMove({ touches: [{ clientX: 0, clientY: 300 }], target: n.zone });
+    n.runtime.onTouchMove({ touches: [{ clientX: 0, clientY: 350 }], target: n.zone });
+    n.tick();
+    expect(n.cover()).toBe(56);
+  });
+
+  it("R29c: a touch that came down before the runtime started is a finger at its first move", () => {
+    const r = rig();
+    r.touchMove([0, 400]); // no touchstart was seen
+    r.userScroll(20);
+    r.ticks(2000);
+    expect(r.writes).toHaveLength(0);
+    expect(r.settles()).toBe(0);
+    r.touchEnd();
+    r.ticks(1000);
+    expect(r.writes.length).toBeGreaterThan(0);
+
+    // The healed finger has the 10s guard too: a lift lost after it still lands.
+    const g = rig();
+    g.touchMove([0, 400]);
+    g.userScroll(20);
+    g.ticks(2000);
+    expect(g.writes).toHaveLength(0);
+    g.advance(10_000);
+    g.ticks(400);
+    expect(g.writes.length).toBeGreaterThan(0);
+
+    // A move with no touches, or after stop(), heals nothing.
+    const s = rig();
+    s.runtime.onTouchMove({ touches: [], target: s.main });
+    s.userScroll(20);
+    s.ticks(1000);
+    expect(s.writes.length).toBeGreaterThan(0);
+    const t = rig();
+    t.userScroll(20);
+    t.runtime.stop();
+    t.touchMove([0, 400]);
+    t.userScroll(30);
+    t.touchEnd();
+    t.ticks(1000);
+    expect(t.vars.get(Y)).toBe("0px");
+    expect(t.attrs.size).toBe(0);
+    expect(t.writes).toHaveLength(0);
+  });
 });
 
 describe("phone chrome runtime — pure helpers (v1.5)", () => {

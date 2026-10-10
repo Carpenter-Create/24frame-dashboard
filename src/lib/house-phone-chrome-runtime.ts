@@ -15,7 +15,8 @@
 //     scroll during the touch. On the 120ms path the browser's smooth
 //     scroll moves the page and the bar follows it.
 //   - Every settle ends in `land()`: open or covered, the dock with it.
-//   - Nothing settles, lands or writes the page while a finger is down.
+//   - Nothing settles, lands or writes the page while a finger is down. A
+//     finger counted up that moves again is down again.
 //   - The runtime's own page writes are told apart from the user's scroll
 //     (their echo), so they never start a rest or cancel a glide.
 //   - A drag applies once per frame; the release flushes it first.
@@ -222,6 +223,9 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
   let endTarget: TouchTarget | null = null;
   let staleTimer: unknown;
   let lastTouchAt = 0;
+  // The stale guard lifted a vertical drag: if that finger moves again,
+  // the drag carries on.
+  let staleDrag = false;
   let pageRequest: number | null = null;
   let chromeHeight = 0;
 
@@ -527,6 +531,7 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
     if (!fingerDown()) return;
     const idle = clock.now() - lastTouchAt;
     if (idle >= HOUSE_PHONE_SHEET_TOUCH_STALE_MS) {
+      staleDrag = phase === "drag";
       lift();
       return;
     }
@@ -585,6 +590,7 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
     pendingDy = null;
     restSeen = false;
     scrolledDuringTouch = false;
+    staleDrag = false;
     armStale();
     const el = isTouchTarget(event.target) ? event.target : null;
     releaseEndTarget();
@@ -604,8 +610,34 @@ export function createHousePhoneChromeRuntime(env: HousePhoneChromeRuntimeEnv): 
     phase = "touch";
   };
 
+  // A move from a finger counted up (the stale guard lifted it while it
+  // stood still, or it came down before this runtime started) proves it is
+  // down: stop any settle and make it a touch again, with no proven rest.
+  // A drag the stale guard lifted carries on from where the bar is. A lift
+  // that was really lost sends no further moves, so the guard still ends it.
+  const healTouch = (event: HousePhoneTouchLike) => {
+    cancelGlide();
+    cancelNativeQuiet();
+    clearRest();
+    cancelQuiet();
+    restSeen = false;
+    scrolledDuringTouch = true;
+    phase = "touch";
+    armStale();
+    const resume = staleDrag;
+    staleDrag = false;
+    const touch = event.touches[0];
+    if (!resume || event.touches.length !== 1 || !touch) return;
+    drag = { x: touch.clientX, y: touch.clientY, axis: "vertical" };
+    phase = "drag";
+    controller.dragStart(liveCover());
+  };
+
   const onTouchMove = (event: HousePhoneTouchLike) => {
-    if (!fingerDown()) return;
+    if (!fingerDown()) {
+      if (phase === "stopped" || event.touches.length === 0) return;
+      healTouch(event);
+    }
     lastTouchAt = clock.now();
     const touch = event.touches[0];
     if (!drag || event.touches.length !== 1 || !touch) return;

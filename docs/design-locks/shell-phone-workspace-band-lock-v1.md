@@ -81,6 +81,7 @@ Named for the founder, built under this approval (each reversible, inside "fix a
 - Besides `scrollend` and a drag's release, the near-top glide also starts from the 600ms watchdog and from a quiet lift; without them those rests would never settle (a tap that stops a fling gets no `scrollend`).
 - Each rest is confirmed by one frame with no scroll (two after an event), up to about 16ms on the 120ms path.
 - The tracker runs below `md` only, which removes v1.3's unintended desktop near-top snap.
+- A finger the 10s guard counted lifted that moves again is down again, so nothing settles under it, and a drag it was making carries on (from the independent review of this build).
 
 Not amended here (each needs its own sign-off): `--house-phone-sheet-y` moving off the shell (G8 "on the shell"); the dock's 200ms against the bar's 180ms; a near-top open that moves only the bar; any reverse threshold above 4; the 56 to 48 trim; the compositor-driven slide (it changes G8's "translate by it"); turning scroll anchoring off on `main`.
 
@@ -186,7 +187,7 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 - Every settle ends in `land()`: open or covered, the dock landed, never another page settle.
 - End checks use 0.5 (`HOUSE_PHONE_SHEET_TOLERANCE_PX`). The way turns on a 3 reverse (`HOUSE_PHONE_SHEET_REVERSE_PX`), reset when a drag starts and never applied to the cover.
 - Touch moves apply once per animation frame, flushed before the release.
-- A finger counted down for 10s with no touch event is lifted.
+- A finger counted down for 10s with no touch event is lifted. If that finger moves again, it is down again: whatever it started stops, nothing settles or writes the page under it, a vertical drag it was making carries on from where the bar is, and its release waits for a rest. The same holds for a finger that came down before the tracker started. A lift that was really lost sends no further moves, so the guard still ends it.
 
 **G15.** (v1.5) Dock: `data-house-phone-dock-hidden` on the shell, written in the handler that writes the cover. The dock always carries `HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS` (`in-data-house-phone-dock-hidden:pointer-events-none in-data-house-phone-dock-hidden:translate-y-full`). `aria-hidden`, `tabIndex` and the Create fan follow React state. Every navigation clears the mark in the new route's commit.  
 **G16.** (v1.5) Width: the tracker runs only while `HOUSE_PHONE_CHROME_MEDIA` (`not all and (min-width: 48rem)`) matches; off it nothing is bound and the chrome reads open.
@@ -215,3 +216,4 @@ v1.3 founder note (verbatim): "either way, the bar doesn't feel like it works ve
 20. (v1.5) Reduce Motion: every settle is instant. Low Power Mode: near the top the page and the bar still move together.
 21. (v1.5) Desktop and iPad (`md` and up): a scroll that stops near the top stays where it stopped.
 22. (v1.5) Navigate while the dock is hidden: the new page opens with the bar open and the dock shown.
+23. (v1.5) Near the top, hold a thumb still on the feed for over 10s, then scroll a little and pause with it still down: the page never moves under the thumb; lift and the bar settles. Hold a drag on the bar still for over 10s, then move again: the bar follows the finger.
