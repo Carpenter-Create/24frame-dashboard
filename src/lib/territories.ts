@@ -2,6 +2,16 @@ import type { Database } from "@/lib/supabase/database.types";
 
 export type TerritoryMode = Database["public"]["Enums"]["territory_mode"];
 
+// The three scopes a grant takes, in the order the Add right window offers
+// them: the zod enum source (territories.test.ts pins it to the database enum).
+export const TERRITORY_MODES = ["world", "include", "exclude"] as const satisfies readonly TerritoryMode[];
+
+export const TERRITORY_MODE_LABEL: Record<TerritoryMode, string> = {
+  world: "Worldwide",
+  include: "Only these countries",
+  exclude: "Worldwide except",
+};
+
 // Single source of truth: continent → { ISO 3166-1 alpha-2 : English short name }.
 // Territory correctness is legally load-bearing (rule 12 — out-of-scope delivery
 // is infringement), so the full official set is enumerated and validated against.
@@ -93,6 +103,84 @@ export const ISO_COUNTRIES: Record<string, string> = Object.assign(
 export const CONTINENTS: Record<string, string[]> = Object.fromEntries(
   Object.entries(CONTINENT_COUNTRIES).map(([k, v]) => [k, Object.keys(v)]),
 );
+
+// Every country by name (ISO_COUNTRIES is grouped by continent).
+export const ISO_COUNTRIES_BY_NAME: readonly { code: string; name: string }[] = Object.entries(ISO_COUNTRIES)
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name, "en"));
+
+// The countries by continent (CONTINENTS order), each continent by name: the
+// Add right window's Territory list.
+export const COUNTRY_GROUPS: readonly { continent: string; countries: readonly { code: string; name: string }[] }[] =
+  Object.entries(CONTINENT_COUNTRIES).map(([continent, countries]) => ({
+    continent,
+    countries: Object.entries(countries)
+      .map(([code, name]) => ({ code, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "en")),
+  }));
+
+const NAME_TO_CODE = new Map(
+  Object.entries(ISO_COUNTRIES).map(([code, name]) => [name.toLowerCase(), code]),
+);
+
+const TERRITORY_ALIASES: Record<string, string> = {
+  usa: "US",
+  uk: "GB",
+  "great britain": "GB",
+  "united states of america": "US",
+  "czech republic": "CZ",
+};
+
+// A code, a common alias or an English name → the country (moved here from
+// lib/dashboard-register, which re-exports it).
+export function resolveTerritoryRef(raw: string): { code: string | null; name: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { code: null, name: "" };
+  const upper = trimmed.toUpperCase();
+  if (upper.length === 2 && ISO_COUNTRIES[upper]) {
+    return { code: upper, name: ISO_COUNTRIES[upper] };
+  }
+  const alias = TERRITORY_ALIASES[trimmed.toLowerCase()];
+  if (alias && ISO_COUNTRIES[alias]) {
+    return { code: alias, name: ISO_COUNTRIES[alias] };
+  }
+  const byName = NAME_TO_CODE.get(trimmed.toLowerCase());
+  if (byName) return { code: byName, name: ISO_COUNTRIES[byName] };
+  return { code: null, name: trimmed };
+}
+
+/** Case and accents folded ("Côte" → "cote"). */
+function foldName(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/** The countries a search finds: every name that holds it (case and accents
+ *  ignored), an exact two-letter code, and the country a common name points
+ *  to ("uk" finds United Kingdom). An empty search finds every country. */
+export function matchCountries(query: string): ReadonlySet<string> {
+  const q = foldName(query.trim());
+  if (!q) return new Set(Object.keys(ISO_COUNTRIES));
+  const found = new Set(
+    Object.entries(ISO_COUNTRIES)
+      .filter(([, name]) => foldName(name).includes(q))
+      .map(([code]) => code),
+  );
+  const ref = resolveTerritoryRef(query).code;
+  if (ref) found.add(ref);
+  return found;
+}
+
+/** A territory in full: every country by name, never capped (describeTerritory
+ *  caps the list at four). Worldwide, or the mode alone while no country is
+ *  chosen. */
+export function territoryLine(mode: TerritoryMode, codes: readonly string[]): string {
+  if (mode === "world" || codes.length === 0) return TERRITORY_MODE_LABEL[mode];
+  const names = codes
+    .map((code) => ISO_COUNTRIES[code] ?? code)
+    .sort((a, b) => a.localeCompare(b, "en"))
+    .join(", ");
+  return mode === "exclude" ? `${TERRITORY_MODE_LABEL.exclude} ${names}` : names;
+}
 
 const isAlpha2 = (c: string) => /^[A-Z]{2}$/.test(c) && c in ISO_COUNTRIES;
 

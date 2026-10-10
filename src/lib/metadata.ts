@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ISO_COUNTRIES } from "@/lib/territories";
+import { ISO_COUNTRIES_BY_NAME } from "@/lib/territories";
 import { LANGUAGES } from "@/lib/languages";
 
 export type Tier = "required" | "recommended" | "optional";
@@ -24,9 +24,7 @@ export const RATINGS: { value: string; label: string }[] = [
 ].map((r) => ({ value: r, label: r }));
 
 // By name, so a long list reads in order (ISO_COUNTRIES is grouped by region).
-const COUNTRIES = Object.entries(ISO_COUNTRIES)
-  .map(([value, label]) => ({ value, label }))
-  .sort((a, b) => a.label.localeCompare(b.label, "en"));
+const COUNTRIES = ISO_COUNTRIES_BY_NAME.map(({ code, name }) => ({ value: code, label: name }));
 
 // THE canonical field registry — single source for the form AND the validator.
 export const METADATA_FIELDS: FieldDef[] = [

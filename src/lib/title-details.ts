@@ -8,6 +8,7 @@ import {
   type Tier,
 } from "@/lib/metadata";
 import { PRODUCT_NAME } from "@/lib/product";
+import { TITLE_PAGE_WINDOW_PARAMS } from "@/lib/titles";
 import {
   RELEASE_TYPE_LABEL,
   checkReleaseInfo,
@@ -78,8 +79,10 @@ export function titleDetailsOpenHref(pathname: string, search: string, face: Tit
   return houseWindowOpenHref(pathname, search, TITLE_DETAILS_PARAM, face, "index");
 }
 
+/** The page under the window: neither title-page window's query, so the
+ *  page under Metadata never carries ?add-right (one window per address). */
 export function titleDetailsClosedHref(pathname: string, search: string): string {
-  return houseWindowClosedHref(pathname, search, TITLE_DETAILS_PARAM);
+  return houseWindowClosedHref(pathname, search, TITLE_PAGE_WINDOW_PARAMS);
 }
 
 // ---- The draft -------------------------------------------------------------

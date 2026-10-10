@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { TitleHero } from "@/components/layout/title-hero";
 import { FieldList } from "@/components/layout/field-list";
 import { StatusChip } from "@/components/layout/status-chip";
-import { RIGHTS_META } from "@/lib/rights";
+import { RIGHTS_META, exclusivityLabel } from "@/lib/rights";
 import { describeTerritory } from "@/lib/territories";
 import { GENRES, METADATA_FIELDS, requiredComplete } from "@/lib/metadata";
 import { TITLE_DETAILS } from "@/lib/title-details";
@@ -16,7 +16,7 @@ import { FindingsCard } from "@/components/findings/findings-card";
 import { titleArtworkUrls } from "@/lib/artwork";
 import { screenerKindFor, isPostApprovalTitleStatus } from "@/lib/assets";
 import { RELEASE_TYPE_LABEL, formatReleaseDate, type ReleaseType } from "@/lib/releases";
-import { AddRightsForm } from "./add-rights-form";
+import { AddRightEntry } from "./add-right-window";
 import { ReleaseInfoForm } from "./release-info-form";
 import { TitleDetailsEntry, TitleDetailsLink } from "./title-details-window";
 import { AssetUpload } from "./asset-upload";
@@ -485,16 +485,17 @@ export default async function TitleDetailPage({ params }: { params: Promise<{ id
         {showRights ? (
           <TitleDetailSection title={TITLE_DETAIL.sectionRights}>
             <Card>
+              {/* Operators add a grant in the Add right window over this
+                  page; existing grants stay inline and read-only. */}
               {canOperate ? (
-                <CardBody className="border-b border-hairline">
-                  <div className="max-w-xl">
-                    <AddRightsForm orgId={title.org_id} titleId={title.id} />
-                  </div>
-                </CardBody>
+                <CardHeader className="flex-row items-center justify-between">
+                  <CardTitle className="sr-only">{TITLE_DETAIL.sectionRights}</CardTitle>
+                  <AddRightEntry titleId={title.id} />
+                </CardHeader>
               ) : null}
               {list.length === 0 ? (
                 <CardBody>
-                  <p className="t-body-sm text-ink-3">No rights granted yet.</p>
+                  <p className="t-body-sm text-ink-3">{TITLE_DETAIL.rightsEmpty}</p>
                 </CardBody>
               ) : (
                 <div className="divide-y divide-hairline">
@@ -505,7 +506,7 @@ export default async function TitleDetailPage({ params }: { params: Promise<{ id
                           {RIGHTS_META[g.rights_type].label}
                         </span>
                         <span className={`${HOUSE_PHONE_WRAP_CLASS} t-body-sm text-ink-3`}>
-                          {g.exclusive ? "Exclusive" : "Non-exclusive"}
+                          {exclusivityLabel(g.exclusive)}
                         </span>
                       </div>
                       <span className={TITLE_DETAIL_LEDGER_META_CLASS}>

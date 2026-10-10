@@ -13,6 +13,7 @@ import {
   socialPostHref,
 } from "@/lib/social";
 import { type SocialPostCardModel } from "@/lib/social-author-post-card";
+import { socialCommentsPostFromCard } from "@/lib/social-comments-window";
 import { socialPostMediaAllDropped, socialPostUsableMedia } from "@/lib/social-media-display";
 import { postHasMedia } from "@/lib/social-post-own";
 import {
@@ -105,6 +106,9 @@ export function SocialPostCard({
   const media = socialPostUsableMedia(post.media);
   const kind = socialPostKind(media);
   const mediaDropped = socialPostMediaAllDropped(post.media, media);
+  // The comments window's post (the card opens on item 1). Built before the
+  // hooks: a later call holding `media` breaks the compiler's memoization.
+  const preview = socialCommentsPostFromCard({ ...post, media });
   const [immersiveIndex, setImmersiveIndex] = useState<number | null>(null);
   const closeImmersive = useCallback(() => setImmersiveIndex(null), []);
   const href = socialPostHref(post.id);
@@ -113,6 +117,7 @@ export function SocialPostCard({
     commentCount: post.commentCount,
     groupSlug: post.groupSlug,
     canComment: post.canLike,
+    preview,
   };
   const time = (
     <time dateTime={post.createdAt} data-social-post-time="">
@@ -180,8 +185,11 @@ export function SocialPostCard({
         {post.owned ? (
           <SocialPostOwnerMenu
             postId={post.id}
-            body={post.body}
+            serverBody={post.body}
             hasMedia={postHasMedia(post.media)}
+            media={media}
+            authorName={post.authorName}
+            authorPhotoUrl={post.authorPhotoUrl}
             groupSlug={post.groupSlug}
           />
         ) : null}

@@ -1374,6 +1374,11 @@ describe("SocialPostCard cards", () => {
     expect(postCard).toContain("SocialCommentTrigger");
     expect(postCard).toContain("SocialPostShareButton");
     expect(postCard).toContain("<SocialCommentTrigger post={thread} round />");
+    // The comments window's post, built before the card's hooks (the
+    // compiler keeps the immersive close memoized; social-comments-window-lock-v1).
+    expect(postCard).toContain("const preview = socialCommentsPostFromCard({ ...post, media });");
+    expect(postCard.indexOf("const preview = socialCommentsPostFromCard(")).toBeLessThan(postCard.indexOf("useState<number | null>"));
+    expect(postCard).toMatch(/canComment: post\.canLike,\n\s+preview,\n\s+\};/);
     expect(postCard).toContain("<SocialPostShareButton postId={post.id} round />");
     expect(postCard).toContain("className={SOCIAL_POST_ACTIONS_CLASS}");
     expect(postCard).not.toContain("SOCIAL_FEED_ROW_CLASS");
