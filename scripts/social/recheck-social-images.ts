@@ -717,10 +717,16 @@ export async function publishRecheckReportThenUnhold(input: {
     const unholdEnd = await (input.unhold ?? unholdAfterRecheckReport)(true);
     log(JSON.stringify({ msg: "unhold live avatars", when: "end", ...unholdEnd }));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "unhold failed";
-    fail(`unhold live avatars failed after the recheck report: ${message}`);
+    fail(`unhold live avatars failed after the recheck report: ${unholdFailureMessage(error)}`);
     process.exitCode = 1;
   }
+}
+
+function unholdFailureMessage(error: unknown): string {
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return "unhold failed";
 }
 
 function unholdAfterRecheckReport(execute: boolean): Promise<UnholdLiveAvatarsReport> {

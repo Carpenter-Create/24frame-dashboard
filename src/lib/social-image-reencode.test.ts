@@ -385,6 +385,16 @@ describe("reencodeSocialImage", () => {
     expect(lastPage).toBeLessThan(unholdEnd);
   });
 
+  it("main calls publishRecheckReportThenUnhold", () => {
+    const script = readFileSync("scripts/social/recheck-social-images.ts", "utf8");
+    const mainStart = script.indexOf("async function main(): Promise<void> {");
+    const mainEnd = script.indexOf("export async function publishRecheckReportThenUnhold");
+    expect(mainStart).toBeGreaterThanOrEqual(0);
+    expect(mainEnd).toBeGreaterThan(mainStart);
+    const mainBody = script.slice(mainStart, mainEnd);
+    expect(mainBody).toContain("await publishRecheckReportThenUnhold({ execute, report, notes: logs })");
+  });
+
   it("prints the recheck report before the final unhold and exits 1 when that unhold throws", async () => {
     const { publishRecheckReportThenUnhold } = await import("../../scripts/social/recheck-social-images");
     const lines: string[] = [];
@@ -418,6 +428,38 @@ describe("reencodeSocialImage", () => {
       expect(report.unverifiedKeys).toEqual(["avatars/late/recheck"]);
       expect(report.notes).toEqual(["page done"]);
       expect(errors).toEqual(["unhold live avatars failed after the recheck report: unhold socket timeout"]);
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = previousExit;
+    }
+  });
+
+  it("prints a plain-object unhold message and exits 1", async () => {
+    const { publishRecheckReportThenUnhold } = await import("../../scripts/social/recheck-social-images");
+    const lines: string[] = [];
+    const errors: string[] = [];
+    const previousExit = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      await publishRecheckReportThenUnhold({
+        execute: true,
+        report: { ...blankSocialImageRecheckReport(false), store: 1 },
+        notes: [],
+        unhold: async () => {
+          throw { message: "canceling statement due to statement timeout" };
+        },
+        log: (line: string) => {
+          lines.push(line);
+        },
+        fail: (line: string) => {
+          errors.push(line);
+        },
+      });
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({ msg: "social image recheck", store: 1 });
+      expect(errors).toEqual([
+        "unhold live avatars failed after the recheck report: canceling statement due to statement timeout",
+      ]);
       expect(process.exitCode).toBe(1);
     } finally {
       process.exitCode = previousExit;

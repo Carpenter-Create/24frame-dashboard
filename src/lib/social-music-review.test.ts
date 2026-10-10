@@ -23,7 +23,7 @@ describe("musicReviewDirectoryRows", () => {
       trailing: SOCIAL_MUSIC_REVIEW.blocked,
     });
     expect(row?.secondary).toContain("Fixture Track · Fixture Artist");
-    expect(row?.secondary).not.toContain("—");
+    expect(row?.secondary).not.toContain("\u2014");
     expect(row?.secondary).toContain("score 91");
     expect(row?.secondary).toContain("asset12345678");
     expect(row?.href).toBeUndefined();

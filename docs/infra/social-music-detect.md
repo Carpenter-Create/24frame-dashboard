@@ -585,8 +585,13 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
    before each clear, `--execute` reads that profile's `avatar_key`
    again. A null row is cleared only when that read is still null. A
    key that read no longer names, a pointer that changed, or a read that
-   errors, is counted in `skippedClears` and the tag stays. Recheck
-   `--execute` runs the same script at the start and at the end.
+   errors, is counted in `skippedClears` and the tag stays. Unhold skips
+   any key not owned by that profile and counts it in `skippedClears`.
+   Recheck `--execute` runs the same script at the start
+   and at the end. Recheck `--execute` prints the full report before the
+   final unhold. If that unhold then fails, the script prints a short
+   failure note and exits 1. The report printed before that note is the
+   rollback record.
    Unhold is not scheduled yet. Scheduling
    `unhold-live-avatars.ts --execute`, well under 30 days, is a required
    follow-up before real users depend on it. This PR does not install

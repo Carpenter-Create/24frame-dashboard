@@ -151,11 +151,11 @@ deferred so it doesn't ride into an unrelated commit unverified.
 
 ## Avatars
 
-### AV-UNHOLD — live-face unhold is not scheduled
+### AV-UNHOLD: live-face unhold is not scheduled
 Unhold is not scheduled yet. `scripts/social/unhold-live-avatars.ts --execute` must run well under 30 days before real users depend on the `gc-hold` tag. Scheduling that run is a required follow-up. This repository does not install that schedule. A null `avatar_key` is the canonical object `avatars/{id}/avatar`; a 404 on that key is no avatar. The clear runs only when a fresh read of `avatar_key` is still null.
 **Trigger:** before real users depend on avatar hold expiry.
 
-### Avatar hold — theoretical follow-ups
+### Avatar hold: theoretical follow-ups
 These stay on the backlog. They are not scheduled work in this change.
 B2 is in `unhold-live-avatars.ts`: a key is cleared only when `avatarKeyOwner(key)` is that row's id, and every other row is a skipped clear.
 B5 is in `delete-avatar-orphans.ts`: a delete that throws still prints the partial report, then the process exits 1.
