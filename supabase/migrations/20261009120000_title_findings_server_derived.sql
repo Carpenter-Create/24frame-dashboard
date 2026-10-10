@@ -77,7 +77,8 @@
 --      the title is live (section 12); delete_title checks the status it acts
 --      on under the title lock, so a draft submitted in the meantime is never
 --      deleted (section 13). delete_title's staff gate is
---      gc_can(auth.uid(), 'operate'), as every other GC write's, where it was
+--      gc_can(auth.uid(), 'operate'), the gate this migration's other title
+--      writes put on GC staff, where it was
 --      is_gc_staff: GC legal and accountant, which cannot operate, are refused
 --      "Not authorized to delete this title"; account owner and delivery
 --      operations staff delete as before (Adam, 2026-10-10, "Yes, in #799
@@ -846,10 +847,14 @@ grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]
 -- validator findings from its stored metadata through refresh_title_findings,
 -- under each title's lock (the writers' order: title, then findings), and
 -- returns how many titles it refreshed. It runs once, below, when this
--- migration is applied. A second pass over an unchanged record changes no
--- finding's status, code or message, so re-running it is safe; it is not a
--- no-op: each pass re-stamps derived_at on every open validator finding of
--- every live title (to that transaction's time), and audit_findings
+-- migration is applied. A second pass in the same UTC year, over records
+-- and findings unchanged since the first, changes no finding's status, code
+-- or message (review on #799: between passes a reconcile on the old body can
+-- still write findings, section 10, and the release-year limit moves on
+-- 1 January). Re-running it is safe, since each pass writes the findings the
+-- stored records derive; it is not a no-op: each pass re-stamps derived_at
+-- on every open validator finding of every live title (to that
+-- transaction's time), and audit_findings
 -- (tg_audit) appends one audit_log row, actor null, for each (review on
 -- #799). Only validator rows change, by upsert or by status (resolved):
 -- nothing is deleted, and AI findings, a deleted title's findings and the
@@ -1067,8 +1072,11 @@ comment on function public.my_findings(integer, uuid) is
 -- locks assets first. The body is 20260917120100_titles_delete_archive.sql's,
 -- plus that re-read, a found check on the update, and the staff gate below.
 --
--- The staff gate is gc_can(auth.uid(), 'operate'), the gate every other GC
--- write uses; it was is_gc_staff (review on #799), so every GC role, the
+-- The staff gate is gc_can(auth.uid(), 'operate'), the gate this migration's
+-- other title writes put on GC staff (reconcile_title_findings directly;
+-- set_title_metadata, set_title_release_info, submit_title,
+-- merge_title_metadata and create_title through member_can); it was
+-- is_gc_staff (review on #799), so every GC role, the
 -- read-only legal and accountant roles included, could delete a title, and
 -- the app purges a deleted title's stored files. Adam, 2026-10-10, verbatim:
 -- "Yes, in #799 (Recommended)", choosing "Add the one-line gate change plus
@@ -1078,7 +1086,13 @@ comment on function public.my_findings(integer, uuid) is
 -- the staff branch unchanged. Legal and accountant staff take the member
 -- branch, where member_can defers to gc_can for GC staff, so 'operate' is
 -- false and they get "Not authorized to delete this title" before anything
--- is written. Approving this exact SQL and applying it stay founder-only.
+-- is written. Not every GC write uses gc_can (review on #799; the question
+-- put to Adam said it did): gc_set_title_status
+-- (20260918120000_gc_title_status_override.sql) and
+-- mark_deleted_title_prefix_purged (20260917120200_title_delete_s3_purge.sql)
+-- still accept any GC staff (is_gc_staff). Neither changes here; narrowing
+-- them is a separate founder decision. Approving this exact SQL and applying
+-- it stay founder-only.
 
 create or replace function public.delete_title(p_title_id uuid)
   returns void

@@ -183,9 +183,10 @@ it aborts the migration, the migration rolls back whole and re-running it is
 safe); once it has committed, runs `select public.finish_title_findings_repair();`
 as `postgres` in its own transaction (again if it refuses because
 transactions are still open: a refused call writes nothing; once a pass has
-run, another pass over records unchanged since then changes no finding's
-status, code or message, and it re-stamps `derived_at` and appends one audit
-row per open finding); runs the read-only after-check (expect 0); verifies on the PR
+run, another pass in the same UTC year over records and findings unchanged
+since then changes no finding's status, code or message, and it re-stamps
+`derived_at` and appends one audit row per open finding); runs the read-only
+after-check (expect 0); verifies on the PR
 preview; then merges. For the save, either order is safe:
 until it is applied, the database reports `merge_title_metadata` missing and
 the save reads, merges and sets as before; no other error falls back.

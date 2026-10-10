@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -309,20 +309,30 @@ describe("the apply runbook and the claims about the passes (draft, founder-appl
   };
 
   // Every pass re-stamps derived_at and appends an audit row per open
-  // finding, so a pass is not idempotent; a pass over records unchanged since
-  // the last one changes no finding's status, code or message.
+  // finding, so a pass is not idempotent; a pass in the same UTC year over
+  // records and findings unchanged since the last one changes no finding's
+  // status, code or message.
   it("never calls a pass idempotent, and says what a re-run does change", () => {
     for (const text of [MIGRATION, FINDINGS_PGTAP, LOCK, currentSection()]) expect(text).not.toMatch(/idempotent/i);
-    // Qualified (review on #799): a refused call writes nothing, and only a
-    // pass over records unchanged since the last one changes no finding.
+    // Qualified (review on #799): a refused call writes nothing; unchanged
+    // records alone are not enough (an old-body reconcile can write findings
+    // between passes), and the release-year limit moves on 1 January.
     const step9 = LOCK.split("\n").find((line) => line.startsWith("9. ")) ?? "";
     for (const text of [currentSection().replace(/\s+/g, " "), step9]) {
       expect(text).toContain("a refused call writes nothing");
-      expect(text).toMatch(/[Oo]nce a pass has run, another pass over records unchanged since then changes no finding's status, code or message/);
+      expect(text).toMatch(
+        /[Oo]nce a pass has run, another pass in the same UTC year over records and findings unchanged since then changes no finding's status, code or message/,
+      );
+      expect(text).not.toMatch(/another pass over records unchanged since then/);
       expect(text).toContain("re-stamps `derived_at` and appends one audit row per open finding");
       expect(text).not.toMatch(/a re-run changes no finding|Re-running it is safe/);
     }
-    expect(prose(MIGRATION)).toContain("A second pass over an unchanged record changes no finding's status, code or message");
+    expect(step9).toContain("a reconcile still on the old body can write findings between passes");
+    expect(step9).toContain("the release-year limit moves on 1 January");
+    expect(prose(MIGRATION)).toContain(
+      "A second pass in the same UTC year, over records and findings unchanged since the first, changes no finding's status, code or message (review on #799: between passes a reconcile on the old body can still write findings, section 10, and the release-year limit moves on 1 January).",
+    );
+    expect(prose(MIGRATION)).not.toContain("A second pass over an unchanged record");
     expect(prose(MIGRATION)).toContain("each pass re-stamps derived_at on every open validator finding");
     expect(FINDINGS_PGTAP).toContain("'a second pass over unchanged records changes no finding''s status, code or message'");
     expect(FINDINGS_PGTAP).toMatch(
@@ -667,7 +677,8 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
   });
 
   // Adam, 2026-10-10, "Yes, in #799 (Recommended)": the staff gate is the one
-  // every other GC write uses, so GC legal and accountant cannot delete.
+  // this migration's other title writes put on GC staff, so GC legal and
+  // accountant cannot delete.
   it("delete_title's staff gate is gc_can(auth.uid(), 'operate'), never is_gc_staff", () => {
     const { body, after } = functionSql("delete_title");
     expect(body).toContain("  v_staff := public.gc_can(auth.uid(), 'operate');\n  if not v_staff then");
@@ -696,6 +707,50 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     ]) {
       expect(pgtap).toContain(line);
     }
+  });
+
+  // Review on #799: the SQL once called gc_can(operate) "the gate every other
+  // GC write uses". It names the writes that do, and the two that still take
+  // any GC staff, and each claim holds in the SQL it names.
+  it("says which title writes gate GC staff on gc_can(operate), and which still take is_gc_staff", () => {
+    expect(MIGRATION).not.toMatch(/every other GC\s+(?:--\s+)?write/);
+    expect(prose(MIGRATION)).toContain(
+      "the gate this migration's other title writes put on GC staff (reconcile_title_findings directly; set_title_metadata, set_title_release_info, submit_title, merge_title_metadata and create_title through member_can)",
+    );
+    expect(prose(MIGRATION)).toContain(
+      "gc_set_title_status (20260918120000_gc_title_status_override.sql) and mark_deleted_title_prefix_purged (20260917120200_title_delete_s3_purge.sql) still accept any GC staff (is_gc_staff). Neither changes here; narrowing them is a separate founder decision.",
+    );
+    for (const name of ["set_title_metadata", "set_title_release_info", "submit_title", "merge_title_metadata", "create_title"]) {
+      const { body } = functionSql(name);
+      expect(body, name).toMatch(/if not public\.member_can\(auth\.uid\(\), p_org_id, 'operate'\) then/);
+      expect(body, name).not.toContain("is_gc_staff");
+    }
+    expect(functionSql("reconcile_title_findings").body).toContain(
+      "if not (public.gc_can(auth.uid(), 'operate') or public.member_can(auth.uid(), p_org_id, 'operate')) then",
+    );
+    // The two named as still is_gc_staff: defined once, in the files named.
+    const migrations = readdirSync(join(process.cwd(), "supabase/migrations")).filter((f) => f.endsWith(".sql"));
+    for (const [name, file, gate] of [
+      ["gc_set_title_status", "20260918120000_gc_title_status_override.sql", "if not public.is_gc_staff(auth.uid()) then"],
+      ["mark_deleted_title_prefix_purged", "20260917120200_title_delete_s3_purge.sql", "if not public.is_gc_staff(auth.uid())"],
+    ] as const) {
+      const definers = migrations.filter((f) =>
+        read(`supabase/migrations/${f}`).includes(`create or replace function public.${name}(`),
+      );
+      expect(definers, name).toEqual([file]);
+      const sql = read(`supabase/migrations/${file}`);
+      const start = sql.indexOf(`create or replace function public.${name}(`);
+      expect(sql.slice(start, sql.indexOf("\n$$;", start)), name).toContain(gate);
+    }
+    // The lock records both, and the Archive and Restore gap, for Adam.
+    const LOCK = read("docs/design-locks/aggregation-title-details-window-lock-v1.md");
+    const row = (what: string) => LOCK.split("\n").find((line) => line.startsWith(`| ${what} |`)) ?? "";
+    expect(row("Other GC writes")).toContain(
+      "`gc_set_title_status` and `mark_deleted_title_prefix_purged` still accept any GC staff (`is_gc_staff`). #799 changes neither; narrowing them is a separate founder decision.",
+    );
+    expect(row("The menu")).toContain(
+      "Title actions still offers Archive and Restore to GC legal and accountant staff, whom `archive_title` and `restore_title` refuse (review on #799); hiding them is a separate founder decision.",
+    );
   });
 
   it("keeps the normalize helper internal and its registry equal to the app's", () => {
