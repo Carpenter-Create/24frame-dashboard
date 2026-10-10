@@ -88,6 +88,9 @@ export function SocialPostCaptionHost({ children }: { children: ReactNode }) {
       if (targetRef.current || !node?.isConnected) return null;
       return node;
     },
+    // Back while the window's code still loads: the host's own close, so the
+    // post goes with it and the next Edit opens.
+    onBackBeforeMount: (key) => latest.current.close(key),
   });
   const win = entry.win;
 
@@ -190,9 +193,9 @@ export function SocialPostCaptionHost({ children }: { children: ReactNode }) {
 
   // Latest handlers for callbacks that outlive a render (the context, Back
   // landing, a save answering).
-  const latest = useRef({ open, drain, settled });
+  const latest = useRef({ open, close, drain, settled });
   useLayoutEffect(() => {
-    latest.current = { open, drain, settled };
+    latest.current = { open, close, drain, settled };
   });
 
   useEffect(() => {

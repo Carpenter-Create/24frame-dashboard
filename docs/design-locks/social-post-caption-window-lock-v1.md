@@ -92,6 +92,7 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 - Browser Back and the phone back gesture close the window, asking first when there are changes.
 - An address that arrives with `?caption` opens nothing (a reload has no draft). The next Edit puts the page under it and pushes the window's own entry, so Back still asks.
 - An Edit chosen while a Home lane is still loading, or while the last window's Back is still landing, opens once that lands, if its post is still on the page. A failed save waits for the same.
+- Browser Back before the window's code has loaded closes it there (nothing is typed yet) through the host's own close, so focus returns to the post's ⋯ and the next Edit opens.
 - A profile tab or activity pill (Posts, Photos, Videos, Comments), yours or a member's, never holds an Edit: the shell keeps those pills client-only, so Next's address stays behind them by design. The window opens at once over the pill and keeps its query.
 
 ## 6) Who

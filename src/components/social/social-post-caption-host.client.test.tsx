@@ -35,35 +35,39 @@ type WindowProps = {
   onClose: () => void;
 };
 
-const view = vi.hoisted(() => ({ window: null as WindowProps | null, mounts: 0 }));
+// `loading`: the window's code has not arrived, so nothing mounts yet.
+const view = vi.hoisted(() => ({ window: null as WindowProps | null, mounts: 0, loading: false }));
 
 vi.mock("next/dynamic", async () => {
-  const { useEffect, useLayoutEffect, useRef } = await import("react");
+  const { createElement, useEffect, useLayoutEffect, useRef } = await import("react");
+  function LoadedCaptionWindow(props: WindowProps) {
+    const { requestRef } = props;
+    const latestRef = useRef(props);
+    useLayoutEffect(() => {
+      view.mounts += 1;
+      return () => {
+        view.window = null;
+      };
+    }, []);
+    useLayoutEffect(() => {
+      latestRef.current = props;
+      view.window = props;
+    });
+    useEffect(() => {
+      requestRef.current = () => {
+        latestRef.current.onClose();
+        return true;
+      };
+      return () => {
+        requestRef.current = null;
+      };
+    }, [requestRef]);
+    return null;
+  }
   return {
     default: () =>
       function CaptionWindowStub(props: WindowProps) {
-        const { requestRef } = props;
-        const latest = useRef(props);
-        useLayoutEffect(() => {
-          view.mounts += 1;
-          return () => {
-            view.window = null;
-          };
-        }, []);
-        useLayoutEffect(() => {
-          latest.current = props;
-          view.window = props;
-        });
-        useEffect(() => {
-          requestRef.current = () => {
-            latest.current.onClose();
-            return true;
-          };
-          return () => {
-            requestRef.current = null;
-          };
-        }, [requestRef]);
-        return null;
+        return view.loading ? null : createElement(LoadedCaptionWindow, props);
       },
   };
 });
@@ -295,6 +299,7 @@ beforeEach(() => {
   resetSocialPostOwnForTests();
   view.window = null;
   view.mounts = 0;
+  view.loading = false;
   saves.length = 0;
   probe.api = null;
   listeners.clear();
@@ -338,6 +343,27 @@ describe("Edit caption host, driven (social-post-caption-window-lock-v1)", () =>
       waiting: false,
     });
     expect(captionPushes()).toEqual([openHref("/social")]);
+    expect(parseSocialPostCaptionWindow(address.search)).toBe("caption");
+  });
+
+  // Bugbot on #804: Back while the window's code still loads closes it
+  // through the host, so the post goes with it and Edit opens again.
+  it("opens Edit again after Back closed a window whose code was still loading", async () => {
+    view.loading = true;
+    open(request("post-a", "Ada"));
+    expect(view.window).toBeNull();
+    expect(captionPushes()).toEqual([openHref("/social")]);
+    landBack();
+    await settle();
+    expect(address.search).toBe("");
+    expect(fakeHistory.back).not.toHaveBeenCalled();
+    view.loading = false;
+    render();
+    // Nothing comes back on its own once the code arrives.
+    expect(view.window).toBeNull();
+    open(request("post-b", "Bea"));
+    expect(view.window?.authorName).toBe("Bea");
+    expect(captionPushes()).toEqual([openHref("/social"), openHref("/social")]);
     expect(parseSocialPostCaptionWindow(address.search)).toBe("caption");
   });
 

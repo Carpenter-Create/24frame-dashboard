@@ -148,7 +148,7 @@ describe("house window shell (components/chrome/house-window)", () => {
       shellSrc.indexOf("if (addressFace === null && prev !== null) {"),
       shellSrc.indexOf("push(indexFace);\n      pushedRef.current = true;"),
     );
-    const guard = effect.indexOf("if (!requestRef.current) {\n        close(winRef.current.key);\n        return;\n      }");
+    const guard = effect.indexOf("if (!requestRef.current) {\n        if (onBackBeforeMount) onBackBeforeMount(winRef.current.key);\n        else close(winRef.current.key);\n        return;\n      }");
     expect(guard).toBeGreaterThan(-1);
     // After the checks that this is Back on a live window, before asking it.
     expect(effect.indexOf("if (addressHasWindow()) return;")).toBeLessThan(guard);

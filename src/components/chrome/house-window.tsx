@@ -622,6 +622,10 @@ export type HouseWindowEntryOptions<F extends string> = {
   opensOnArrival: () => boolean;
   /** Where focus returns when the window closes. */
   returnFocus?: () => HTMLElement | null;
+  /** Back reached the window before its code loaded (nothing typed yet): an
+   *  owner that keeps state beside the window closes it its own way, so that
+   *  state goes too. Without one, the shell closes it. */
+  onBackBeforeMount?: (key: number) => void;
 };
 
 export type HouseWindowEntry<F extends string> = {
@@ -643,7 +647,7 @@ export type HouseWindowEntry<F extends string> = {
 };
 
 export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryOptions<F>): HouseWindowEntry<F> {
-  const { flag, indexFace, parse, openHref, closedHref, opensOnArrival, returnFocus } = options;
+  const { flag, indexFace, parse, openHref, closedHref, opensOnArrival, returnFocus, onBackBeforeMount } = options;
   const house = useHouseClient();
   const [win, setWin] = useState<{ face: F; key: number } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -772,7 +776,8 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
       // is typed yet, so it closes here; left open, it would appear with no
       // entry and the next Back would leave the page.
       if (!requestRef.current) {
-        close(winRef.current.key);
+        if (onBackBeforeMount) onBackBeforeMount(winRef.current.key);
+        else close(winRef.current.key);
         return;
       }
       const closed = requestRef.current();
