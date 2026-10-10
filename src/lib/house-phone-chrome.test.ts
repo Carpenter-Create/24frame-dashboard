@@ -5,8 +5,11 @@ import {
   HOUSE_PHONE_BAND_ROW_PX,
   HOUSE_PHONE_CHROME_DRAG_ZONE,
   HOUSE_PHONE_SHEET_AXIS_PX,
+  HOUSE_PHONE_SHEET_HEADING_NONE,
   housePhoneDockAtRest,
+  housePhoneSheetArrived,
   housePhoneSheetDragAxis,
+  housePhoneSheetHeading,
   housePhoneSheetMovesPage,
   housePhoneSheetPageY,
   housePhoneSheetOffset,
@@ -16,8 +19,11 @@ import {
 } from "./house-phone-chrome";
 
 // docs/design-locks/shell-phone-workspace-band-lock-v1.md §5 (Adam 2026-10-08).
-function page({ range = 2000 }: { range?: number } = {}) {
+// `settleScrolls: false` records a settle request (scrollPage(y, true)) but
+// does not move the page: a settle the runtime has not run, or cut short.
+function page({ range: startRange = 2000, settleScrolls = true }: { range?: number; settleScrolls?: boolean } = {}) {
   let y = 0;
+  let range = startRange;
   const offsets: Array<[number, boolean]> = [];
   const changes: HousePhoneChromeState[] = [];
   const pageScrolls: Array<[number, boolean]> = [];
@@ -25,8 +31,9 @@ function page({ range = 2000 }: { range?: number } = {}) {
   const chrome = createHousePhoneChrome({
     readY: () => y,
     readRange: () => range,
-    scrollPage: (next, smooth) => {
-      pageScrolls.push([next, smooth]);
+    scrollPage: (next, settle) => {
+      pageScrolls.push([next, settle]);
+      if (settle && !settleScrolls) return;
       y = Math.min(range, Math.max(0, next));
       chrome.scroll();
     },
@@ -39,6 +46,12 @@ function page({ range = 2000 }: { range?: number } = {}) {
     changes,
     pageScrolls,
     y: () => y,
+    setY(next: number) {
+      y = next;
+    },
+    setRange(next: number) {
+      range = next;
+    },
     scrollTo(next: number) {
       y = next;
       chrome.scroll();
@@ -289,5 +302,194 @@ describe("phone bar over the band — v1.4", () => {
     expect(housePhoneDockAtRest(0, true)).toBe(false);
     expect(housePhoneDockAtRest(20, true)).toBe(true);
     expect(housePhoneDockAtRest(20, false)).toBe(false);
+  });
+});
+
+// Band lock v1.5 (Adam 2026-10-09, on the scroll review: "fix and change
+// everything that you recommend"): every rest lands.
+describe("phone bar over the band — v1.5", () => {
+  const eased = (offsets: Array<[number, boolean]>) => offsets.filter(([, settle]) => settle).length;
+
+  it("T1: an end within 0.5 is that end, landed exactly and not eased", () => {
+    const p = page();
+    p.scrollTo(400);
+    p.scrollTo(344);
+    p.scrollTo(399.6);
+    expect(p.chrome.offset()).toBeCloseTo(55.6, 10);
+    expect(p.chrome.state().dockHidden).toBe(true);
+    const before = eased(p.offsets);
+    p.chrome.settle();
+    expect(p.offsets.at(-1)).toEqual([BAND, false]);
+    expect(eased(p.offsets)).toBe(before);
+    expect(p.chrome.state()).toEqual({ dockHidden: true, bandTucked: true });
+
+    expect(housePhoneSheetSnapTarget(55.6, -1)).toBe(BAND);
+    expect(housePhoneSheetSnapTarget(0.3, 1)).toBe(0);
+    expect(housePhoneDockAtRest(55.6, false)).toBe(true);
+    expect(housePhoneSheetMovesPage(30, 30.2, 2000)).toBe(true);
+    expect(housePhoneSheetArrived(55.6, 56)).toBe(true);
+    expect(housePhoneSheetArrived(55.4, 56)).toBe(false);
+  });
+
+  it("T1b/T11: a fractional deep drag reads as tucked at 55.6 and lands exactly", () => {
+    const p = page();
+    p.scrollTo(400);
+    p.scrollTo(300);
+    expect(p.chrome.offset()).toBe(0);
+    p.chrome.dragStart();
+    p.chrome.drag(-55.6);
+    expect(p.offsets.at(-1)).toEqual([55.6, false]);
+    expect(p.chrome.state().bandTucked).toBe(true);
+    const before = eased(p.offsets);
+    p.chrome.dragEnd();
+    expect(p.offsets.at(-1)).toEqual([BAND, false]);
+    expect(eased(p.offsets)).toBe(before);
+  });
+
+  it("T2: the way turns only once a reverse reaches 3; the cover follows every pixel", () => {
+    const jitter = page();
+    jitter.scrollTo(400);
+    jitter.scrollTo(200);
+    jitter.scrollTo(202);
+    expect(jitter.chrome.offset()).toBe(2);
+    jitter.chrome.settle();
+    expect(jitter.offsets.at(-1)).toEqual([0, true]);
+
+    const turned = page();
+    turned.scrollTo(400);
+    turned.scrollTo(200);
+    turned.scrollTo(203);
+    expect(turned.chrome.offset()).toBe(3);
+    turned.chrome.settle();
+    expect(turned.offsets.at(-1)).toEqual([BAND, true]);
+
+    const down = { direction: 1, reverse: 0 } as const;
+    const back = housePhoneSheetHeading(down, -2);
+    expect(back).toEqual({ direction: 1, reverse: 2 });
+    expect(housePhoneSheetHeading(back, -1)).toEqual({ direction: -1, reverse: 0 });
+    expect(housePhoneSheetHeading(HOUSE_PHONE_SHEET_HEADING_NONE, -0.4)).toEqual({ direction: -1, reverse: 0 });
+    // Going on the way again clears the reverse, so jitter never adds up.
+    expect(housePhoneSheetHeading(back, 1)).toEqual({ direction: 1, reverse: 0 });
+    expect(housePhoneSheetHeading(down, 0)).toBe(down);
+  });
+
+  it("T3: a drag starts with no way of its own", () => {
+    const p = page();
+    p.scrollTo(400); // the page went down
+    p.chrome.dragStart();
+    p.chrome.drag(2); // the finger, down 2: opening
+    p.chrome.dragEnd();
+    expect(p.chrome.offset()).toBe(0);
+  });
+
+  it("T4: a drag keeps the finger's way, not the page's moves under it", () => {
+    const p = page();
+    p.chrome.dragStart();
+    p.chrome.drag(-20);
+    p.chrome.drag(-18); // the finger back 2; the page went back 2 with it
+    expect(p.y()).toBe(18);
+    expect(p.chrome.offset()).toBe(18);
+    p.chrome.dragEnd();
+    expect(p.pageScrolls.at(-1)).toEqual([BAND, true]);
+  });
+
+  it("T5: a scroll during a settle carries on from the bar on screen", () => {
+    const p = page();
+    p.scrollTo(400);
+    p.scrollTo(370);
+    p.chrome.settle();
+    expect(p.offsets.at(-1)).toEqual([0, true]);
+    // The ease is at 12 on screen when the page moves 2 down.
+    p.setY(372);
+    p.chrome.scroll(12);
+    expect(p.offsets.at(-1)).toEqual([14, false]);
+    const writes = p.offsets.length;
+    p.chrome.scroll(12); // no move: no write
+    expect(p.offsets).toHaveLength(writes);
+  });
+
+  it("T5b: the resync writes even when the cover reads unchanged at an end", () => {
+    const p = page();
+    p.scrollTo(400);
+    p.chrome.open();
+    expect(p.offsets.at(-1)).toEqual([0, true]);
+    // Still covered on screen; the page moves 2 down.
+    p.setY(402);
+    p.chrome.scroll(56);
+    expect(p.offsets.at(-1)).toEqual([BAND, false]);
+  });
+
+  it("T6: a drag during a settle starts from the bar on screen", () => {
+    const p = page();
+    p.scrollTo(400);
+    p.scrollTo(370);
+    p.chrome.settle();
+    p.chrome.dragStart(20);
+    expect(p.offsets.at(-1)).toEqual([20, false]);
+    p.chrome.drag(-10);
+    expect(p.offsets.at(-1)).toEqual([30, false]);
+  });
+
+  it("T7: land finishes a near-top settle cut short, the page with the bar, and asks for no other", () => {
+    const p = page({ settleScrolls: false });
+    p.scrollTo(20);
+    p.chrome.settle();
+    expect(p.pageScrolls).toEqual([[BAND, true]]);
+    expect(p.y()).toBe(20);
+    p.chrome.land();
+    expect(p.pageScrolls.at(-1)).toEqual([BAND, false]);
+    expect(p.y()).toBe(BAND);
+    expect(p.chrome.offset()).toBe(BAND);
+    expect(p.chrome.state()).toEqual({ dockHidden: true, bandTucked: true });
+    expect(p.pageScrolls.filter(([, settle]) => settle)).toHaveLength(1);
+  });
+
+  it("T8: land ends the bar at its end when the page can no longer move", () => {
+    const p = page({ settleScrolls: false });
+    p.scrollTo(20);
+    p.chrome.settle();
+    p.setRange(30);
+    const scrolls = p.pageScrolls.length;
+    p.chrome.land();
+    expect(p.pageScrolls).toHaveLength(scrolls);
+    expect(p.offsets.at(-1)).toEqual([BAND, false]);
+    expect(p.chrome.state()).toEqual({ dockHidden: true, bandTucked: true });
+  });
+
+  it("T9: a near-top drag ending exactly open lands the dock", () => {
+    const p = page();
+    p.scrollTo(300);
+    p.scrollTo(30);
+    p.scrollTo(40);
+    p.scrollTo(35);
+    p.chrome.dragStart();
+    p.chrome.drag(-3);
+    p.chrome.drag(5);
+    expect(p.y()).toBe(30);
+    expect(p.chrome.offset()).toBe(0);
+    expect(p.chrome.state().dockHidden).toBe(true);
+    const scrolls = p.pageScrolls.length;
+    p.chrome.dragEnd();
+    expect(p.chrome.state()).toEqual({ dockHidden: false, bandTucked: false });
+    expect(p.pageScrolls).toHaveLength(scrolls);
+  });
+
+  it("T10: a second finger ends the drag's hold on the way", () => {
+    const p = page();
+    p.chrome.dragStart();
+    p.chrome.drag(-20);
+    p.chrome.dragAbort();
+    p.scrollTo(14); // 6 back up: the page's way again
+    p.chrome.settle();
+    expect(p.pageScrolls.at(-1)).toEqual([0, true]);
+  });
+
+  it("T12: the 1:1 cover never waits on the tolerance", () => {
+    const p = page();
+    p.scrollTo(400);
+    p.scrollTo(399.7);
+    const [cover, settle] = p.offsets.at(-1) ?? [Number.NaN, true];
+    expect(cover).toBeCloseTo(55.7, 10);
+    expect(settle).toBe(false);
   });
 });

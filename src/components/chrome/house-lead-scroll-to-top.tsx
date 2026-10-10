@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import {
+  HOUSE_LEAD_SCROLL_TO_TOP_EVENT,
   HOUSE_LEAD_SCROLL_TO_TOP_MEDIA,
   HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT,
   HOUSE_LEAD_SCROLL_TO_TOP_OFFSET,
@@ -51,6 +52,9 @@ export function HouseLeadScrollToTop() {
         document
           .querySelectorAll<HTMLElement>(HOUSE_LEAD_SCROLL_TO_TOP_SELECTOR)
           .forEach((scroller) => {
+            // The phone chrome stops its settle first (synchronously), so
+            // its next write never cancels this smooth scroll.
+            scroller.dispatchEvent(new Event(HOUSE_LEAD_SCROLL_TO_TOP_EVENT));
             scroller.scrollTo({ top: 0, behavior: "smooth" });
           });
       }

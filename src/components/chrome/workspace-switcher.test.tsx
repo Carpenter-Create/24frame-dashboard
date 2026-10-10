@@ -56,10 +56,10 @@ import {
 } from "@/lib/workspace-switcher";
 import { FilmStrip, House, Users } from "@phosphor-icons/react";
 import { HOUSE_LEAD_GRIP_CLASS } from "@/lib/house-lead-chrome";
-import { HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS } from "@/lib/house-phone-shell";
+import { HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS } from "@/lib/house-phone-shell";
 import { HouseLeadChrome } from "./house-lead-chrome";
 import { HousePhoneBottomNav } from "./house-phone-bottom-nav";
-import { HousePhoneChromeContext } from "./house-phone-chrome-state";
+import { HousePhoneBandContext, HousePhoneChromeContext } from "./house-phone-chrome-state";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -718,8 +718,13 @@ describe("band motion (shell-phone-nav-motion-lock-v1)", () => {
 });
 
 describe("the sheet rides over the band (lock §5)", () => {
+  // The shell provides both: the full state (the dock) and the band's half.
   const withChrome = (node: React.ReactNode, state: { dockHidden: boolean; bandTucked: boolean }) => (
-    <HousePhoneChromeContext.Provider value={{ ...state, open: () => {} }}>{node}</HousePhoneChromeContext.Provider>
+    <HousePhoneChromeContext.Provider value={{ ...state, open: () => {} }}>
+      <HousePhoneBandContext.Provider value={{ bandTucked: state.bandTucked, open: () => {} }}>
+        {node}
+      </HousePhoneBandContext.Provider>
+    </HousePhoneChromeContext.Provider>
   );
   const open = { dockHidden: false, bandTucked: false };
   const tucked = { dockHidden: true, bandTucked: true };
@@ -763,14 +768,24 @@ describe("the sheet rides over the band (lock §5)", () => {
     }
   });
 
-  it("hides the dock from the same state", () => {
+  it("hides the dock: the look from the shell's mark, assistive tech from the state", () => {
     navigation.pathname = "/aggregation/dashboard";
     try {
       const shown = renderToStaticMarkup(withChrome(<HousePhoneBottomNav workspace="aggregation" />, open));
       const hidden = renderToStaticMarkup(withChrome(<HousePhoneBottomNav workspace="aggregation" />, tucked));
-      expect(shown).not.toContain("data-house-phone-bottom-nav-hidden");
-      expect(hidden).toContain('data-house-phone-bottom-nav-hidden=""');
-      expect(hidden).toContain(HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS);
+      const nav = (html: string) => html.slice(html.indexOf("<nav"), html.indexOf(">", html.indexOf("<nav")));
+      const items = (html: string) => html.match(/data-house-phone-bottom-nav-item=/g)?.length ?? 0;
+      const untabbable = (html: string) => html.match(/tabindex="-1"/g)?.length ?? 0;
+      expect(nav(shown)).not.toContain("data-house-phone-bottom-nav-hidden");
+      expect(nav(shown)).not.toContain("aria-hidden");
+      expect(untabbable(shown)).toBe(0);
+      expect(nav(hidden)).toContain('data-house-phone-bottom-nav-hidden=""');
+      expect(nav(hidden)).toContain('aria-hidden="true"');
+      expect(items(hidden)).toBeGreaterThan(0);
+      expect(untabbable(hidden)).toBe(items(hidden));
+      // Both carry the hide class; the shell's mark (band lock v1.5) applies it.
+      expect(nav(shown)).toContain(HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS);
+      expect(nav(hidden)).toContain(HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS);
     } finally {
       navigation.pathname = "/";
     }
