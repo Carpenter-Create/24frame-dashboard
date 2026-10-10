@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { HouseLink } from "./house-link";
 import { useRouter } from "next/navigation";
 import { useHousePathname } from "./house-client-shell";
@@ -26,7 +26,7 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ICON_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_GLYPH_HOST_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_ACTIVE_WEIGHT,
   HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT,
@@ -57,9 +57,12 @@ import {
 import { isSocialMessagesDest } from "@/lib/nav";
 import { clampWorkspaceMode, type WorkspaceMode } from "@/lib/workspace";
 
-// Prior Social float: hide on scroll-down, show on scroll-up. The state
-// comes from HousePhoneAppShell (useHousePhoneChrome), shared with the
-// workspace band so both leave and return together.
+// Prior Social float: hide on scroll-down, show on scroll-up. The look
+// comes from the shell's mark (HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS), written
+// in the same handler as the bar's cover, so both leave and return
+// together (band lock v1.5); aria-hidden, the tab order and the Create fan
+// follow the state from HousePhoneAppShell (useHousePhoneChrome). The
+// destinations are memoised, so a dock flip never re-prefetches them.
 // IA A: dests inside the current workspace only. No workspace item.
 // Icons only, with accessible names. Every dock: the current dest is
 // the FILLED glyph painted accent — no dot, no chip (H register,
@@ -101,7 +104,10 @@ export function HousePhoneBottomNav({
       accountChrome,
       coProductions,
     });
-  const items = housePhoneDockDestinations({ isGcStaff, workspace, homeOwned });
+  const items = useMemo(
+    () => housePhoneDockDestinations({ isGcStaff, workspace, homeOwned }),
+    [isGcStaff, workspace, homeOwned],
+  );
   const destWorkspace = homeOwned ? "aggregation" : workspace;
   const thumbIndex = housePhoneDockThumbIndex(activePath, items, destWorkspace);
 
@@ -118,7 +124,7 @@ export function HousePhoneBottomNav({
       data-house-phone-bottom-nav-hidden={hidden ? "" : undefined}
       aria-label={housePhoneDockLabel({ workspace, homeOwned }) || HOUSE_PHONE_BOTTOM_NAV.label}
       aria-hidden={hidden || undefined}
-      className={cn(HOUSE_PHONE_BOTTOM_NAV_CLASS, hidden && HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS)}
+      className={cn(HOUSE_PHONE_BOTTOM_NAV_CLASS, HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS)}
     >
       <div data-house-phone-bottom-nav-pill="" className={HOUSE_PHONE_BOTTOM_NAV_PILL_CLASS}>
         {/* The current dest's pill is the track's thumb: it slides to the

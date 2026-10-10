@@ -11,15 +11,31 @@ import {
   HOUSE_LEAD_UNDER_NAV_CLASS,
   HOUSE_PHONE_CHROME_SPACER_CLASS,
   HOUSE_PHONE_CHROME_TOUCH_CLASS,
+  HOUSE_PHONE_DOCK_HIDDEN_ATTR,
   HOUSE_PHONE_SHEET_MOTION_CLASS,
+  HOUSE_PHONE_SHEET_SETTLE_ATTR,
 } from "./house-lead-chrome";
-import { HOUSE_PHONE_BOTTOM_NAV_CLASS } from "./house-phone-shell";
+import { HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_STALE_MS } from "./house-lead-scroll-to-top";
+import { HOUSE_PHONE_BOTTOM_NAV_CLASS, HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS } from "./house-phone-shell";
 import {
   HOUSE_PHONE_BAND_ROW_PX,
   HOUSE_PHONE_CHROME_DRAG_ZONE,
+  HOUSE_PHONE_CHROME_MEDIA,
+  HOUSE_PHONE_SHEET_EASE,
   HOUSE_PHONE_SHEET_IDLE_MS,
+  HOUSE_PHONE_SHEET_REVERSE_PX,
   HOUSE_PHONE_SHEET_SNAP_MS,
+  HOUSE_PHONE_SHEET_TOLERANCE_PX,
 } from "./house-phone-chrome";
+import {
+  HOUSE_PHONE_SHEET_EASE_CLEAR_MS,
+  HOUSE_PHONE_SHEET_FOREIGN_PX,
+  HOUSE_PHONE_SHEET_GLIDE_WATCHDOG_MS,
+  HOUSE_PHONE_SHEET_NATIVE_QUIET_MS,
+  HOUSE_PHONE_SHEET_QUIET_FRAMES,
+  HOUSE_PHONE_SHEET_REST_WATCHDOG_MS,
+  HOUSE_PHONE_SHEET_TOUCH_STALE_MS,
+} from "./house-phone-chrome-runtime";
 import {
   SOCIAL_HOME_TOPIC_CHIP_CUT_CLASS,
   SOCIAL_HOME_TOPIC_FADE_CLASS,
@@ -48,6 +64,7 @@ const switcherSrc = readFileSync("src/components/chrome/workspace-switcher.tsx",
 const dockSrc = readFileSync("src/components/chrome/house-phone-bottom-nav.tsx", "utf8");
 const phoneShellSrc = readFileSync("src/components/chrome/house-phone-app-shell.tsx", "utf8");
 const trackerSrc = readFileSync("src/components/chrome/house-phone-chrome-state.tsx", "utf8");
+const runtimeSrc = readFileSync("src/lib/house-phone-chrome-runtime.ts", "utf8");
 const shellSrc = readFileSync("src/components/chrome/app-shell.tsx", "utf8");
 
 const classes = (value: string) => value.split(/\s+/).filter(Boolean);
@@ -71,6 +88,8 @@ describe("phone workspace band lock v1", () => {
       "leave that off for now. merge 781",
       "also I've decided...let's do this now.",
       "either way, the bar doesn't feel like it works very fluidly or naturally",
+      // v1.5 (2026-10-09), on the phone chrome scroll review.
+      "after you are done. fix and change everything that you recommend. make sure we have the greatest quality perfectly built for the long-haul. do not cut corners or compromise anything.",
     ]) {
       expect(lock, quote).toContain(quote);
     }
@@ -186,18 +205,27 @@ describe("phone workspace band lock v1", () => {
 
   it("G8: one tracker writes the cover; the bar, its corners, and the search row move by it", () => {
     expect(phoneShellSrc).toContain("<HousePhoneChromeContext.Provider value={phoneChrome}>");
+    // v1.5: the band reads its own half, so a dock flip never re-renders it.
+    expect(phoneShellSrc).toContain("<HousePhoneBandContext.Provider value={phoneBand}>");
     expect(dockSrc).toContain("useHousePhoneChrome()");
-    expect(switcherSrc).toContain("useHousePhoneChrome()");
+    expect(switcherSrc).toContain("useHousePhoneBand()");
+    expect(switcherSrc).not.toContain("useHousePhoneChrome()");
     expect(dockSrc).not.toContain("addEventListener");
     expect(trackerSrc.match(/addEventListener\("scroll"/g)).toHaveLength(1);
-    // Written straight to CSS variables, not a React render per frame.
-    expect(trackerSrc).toContain("root.style.setProperty(HOUSE_PHONE_SHEET_Y_VAR");
+    expect(runtimeSrc).not.toContain("addEventListener(\"scroll\"");
+    // Written straight to CSS variables, not a React render per frame, by
+    // one writer: the runtime.
+    expect(runtimeSrc).toContain("root.style.setProperty(HOUSE_PHONE_SHEET_Y_VAR");
+    expect(trackerSrc).not.toContain("HOUSE_PHONE_SHEET_Y_VAR");
     expect(classes(HOUSE_PHONE_SHEET_MOTION_CLASS)).toEqual(
       expect.arrayContaining([
         "max-md:translate-y-[calc(var(--house-phone-sheet-y,0px)*-1)]",
         "max-md:transition-[translate]",
         "max-md:duration-0",
         "max-md:in-data-house-phone-sheet-settle:duration-[180ms]",
+        // The deep settle's curve is the glide's (HOUSE_PHONE_SHEET_EASE).
+        `max-md:ease-[cubic-bezier(${HOUSE_PHONE_SHEET_EASE.join(",")})]`,
+        `max-md:in-${HOUSE_PHONE_SHEET_SETTLE_ATTR}:duration-[180ms]`,
       ]),
     );
     expect(HOUSE_PHONE_SHEET_SNAP_MS).toBe(180);
@@ -248,7 +276,7 @@ describe("phone workspace band lock v1", () => {
   it("G10: the drag zone is the whole chrome, and sticky page rows stop under it", () => {
     expect(HOUSE_PHONE_CHROME_DRAG_ZONE).toBe("[data-house-lead-stack]");
     expect(leadSrc).toContain('data-house-lead-stack=""');
-    expect(trackerSrc).toContain("closest(HOUSE_PHONE_CHROME_DRAG_ZONE)");
+    expect(runtimeSrc).toContain("closest(HOUSE_PHONE_CHROME_DRAG_ZONE)");
     expect(lock).toContain("exactly as far as the page scrolls");
     for (const file of ["src/lib/dashboard-craft.ts", "src/lib/reports-craft.ts", "src/lib/news-sticky.ts"]) {
       expect(readFileSync(file, "utf8"), file).toContain("max-md:top-[var(--house-phone-chrome-visible,0px)]");
@@ -284,15 +312,33 @@ describe("phone workspace band lock v1", () => {
 
   it("G12: the dock lands with the bar at rest; ends are clamped; a lost finger-up still ends", () => {
     const motion = readFileSync("src/lib/house-phone-chrome.ts", "utf8");
-    const settle = motion.slice(motion.indexOf("    settle() {"), motion.indexOf("    dragStart() {"));
+    const at = (needle: string) => {
+      const index = motion.indexOf(needle);
+      expect(index, needle).toBeGreaterThan(-1);
+      return index;
+    };
+    // Method order: scroll, settle, land, dragStart, drag, dragAbort, dragEnd, open.
+    const settle = motion.slice(at("    settle() {"), at("    land() {"));
     expect(settle).toContain("landDock();");
+    // land() (v1.5) lands the dock and never asks for another page settle.
+    const land = motion.slice(at("    land() {"), at("    dragStart("));
+    expect(land).toContain("landDock();");
+    expect(land).not.toMatch(/scrollPage\([^;]*,\s*true\)/);
+    expect(at("    dragStart(")).toBeLessThan(at("    drag(dy) {"));
+    expect(at("    drag(dy) {")).toBeLessThan(at("    dragAbort() {"));
+    expect(at("    dragAbort() {")).toBeLessThan(at("    dragEnd() {"));
+    expect(at("    dragEnd() {")).toBeLessThan(at("    open() {"));
     expect(motion).toContain("const dockHidden = housePhoneDockAtRest(offset, state.dockHidden, band);");
     expect(motion).toContain("const pageY = () => housePhoneSheetPageY(readY(), readRange());");
     expect(motion).not.toContain("Math.max(0, readY())");
-    // The finger-up lands on the touched element when it is removed mid-gesture.
-    expect(trackerSrc).toContain('el.addEventListener("touchend", onDetachedEnd, { passive: true });');
-    expect(trackerSrc).toContain("if (el && !el.isConnected && event instanceof TouchEvent) onTouchEnd(event);");
-    expect(trackerSrc).toContain("releaseEndTarget();\n      swaps?.disconnect();");
+    // The finger's moves and lift land on the touched element when it is
+    // removed mid-gesture (v1.5: moves too).
+    expect(runtimeSrc).toContain('el.addEventListener("touchend", onDetachedEnd, { passive: true });');
+    expect(runtimeSrc).toContain('el.addEventListener("touchmove", onDetachedMove, { passive: true });');
+    expect(runtimeSrc).toContain("if (el && !el.isConnected && isTouchLike(event)) onTouchEnd(event);");
+    expect(runtimeSrc).toContain("if (el && !el.isConnected && isTouchLike(event)) onTouchMove(event);");
+    // The cleanup ends the runtime (which releases the touched element).
+    expect(trackerSrc).toContain("swaps?.disconnect();\n      sheet.stop();");
     // A stack hidden by the immersive feed keeps the last measured height.
     expect(trackerSrc).toContain("if (stack && stack.getClientRects().length === 0) return;");
     expect(lock).toContain("At rest it lands the way the bar did");
@@ -307,5 +353,77 @@ describe("phone workspace band lock v1", () => {
       track.indexOf('if (revealActive) active.scrollIntoView({ block: "nearest", inline: "nearest" });'),
     );
     expect(classes(WORKSPACE_BAND_ROW_CLASS)).toContain("scroll-px-[var(--space-4)]");
+  });
+
+  // v1.5 (Adam 2026-10-09, on the phone chrome scroll review: "fix and
+  // change everything that you recommend").
+  it("G14: rest is scrollend where it fires, 120ms where it does not, never both; every settle lands", () => {
+    expect(HOUSE_PHONE_SHEET_IDLE_MS).toBe(120);
+    expect(HOUSE_PHONE_SHEET_SNAP_MS).toBe(180);
+    expect(HOUSE_PHONE_SHEET_TOLERANCE_PX).toBe(0.5);
+    expect(HOUSE_PHONE_SHEET_REVERSE_PX).toBe(3);
+    expect(HOUSE_PHONE_SHEET_REST_WATCHDOG_MS).toBe(600);
+    expect(HOUSE_PHONE_SHEET_NATIVE_QUIET_MS).toBe(HOUSE_PHONE_SHEET_IDLE_MS);
+    expect(HOUSE_PHONE_SHEET_GLIDE_WATCHDOG_MS).toBe(HOUSE_PHONE_SHEET_SNAP_MS + HOUSE_PHONE_SHEET_IDLE_MS);
+    expect(HOUSE_PHONE_SHEET_EASE_CLEAR_MS).toBe(HOUSE_PHONE_SHEET_SNAP_MS + 40);
+    expect(HOUSE_PHONE_SHEET_FOREIGN_PX).toBe(1);
+    expect(HOUSE_PHONE_SHEET_QUIET_FRAMES).toEqual({ event: 2, timer: 1 });
+    expect(HOUSE_PHONE_SHEET_TOUCH_STALE_MS).toBe(HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_STALE_MS);
+    expect([...HOUSE_PHONE_SHEET_EASE]).toEqual([0, 0, 0.2, 1]);
+    // The tracker binds scrollend only where the scroller has it.
+    expect(trackerSrc).toContain('if (restMode === "scrollend") target.addEventListener("scrollend", onScrollEnd, { passive: true });');
+    expect(trackerSrc).toContain("const restMode = housePhoneChromeRestMode(target);");
+    expect(lock).toContain("never both");
+    expect(lock).toContain("`scrollend`");
+    expect(lock).toContain("**G14.**");
+  });
+
+  it("G15: the dock hides from the shell's mark, written with the cover; the state keeps assistive tech", () => {
+    expect(HOUSE_PHONE_DOCK_HIDDEN_ATTR).toBe("data-house-phone-dock-hidden");
+    expect(HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS).toBe(
+      "in-data-house-phone-dock-hidden:pointer-events-none in-data-house-phone-dock-hidden:translate-y-full",
+    );
+    expect(HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS).toContain(`in-${HOUSE_PHONE_DOCK_HIDDEN_ATTR}:`);
+    expect(dockSrc).toContain("cn(HOUSE_PHONE_BOTTOM_NAV_CLASS, HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS)");
+    expect(dockSrc).not.toContain("hidden && ");
+    expect(dockSrc).toContain("aria-hidden={hidden || undefined}");
+    expect(dockSrc).toContain("tabIndex={hidden ? -1 : undefined}");
+    // The mark goes on in the controller's change callback, right after the
+    // cover's paint, and comes off at stop (every navigation).
+    expect(runtimeSrc).toContain("if (next.dockHidden) root.setAttribute(HOUSE_PHONE_DOCK_HIDDEN_ATTR, \"\");");
+    const stop = runtimeSrc.slice(runtimeSrc.indexOf("  const stop = () => {"));
+    expect(stop).toContain("root.removeAttribute(HOUSE_PHONE_DOCK_HIDDEN_ATTR);");
+    expect(trackerSrc).toContain("useLayoutEffect(() => halt, [pathname, halt]);");
+    // The destinations are memoised: a dock flip never re-prefetches them.
+    expect(dockSrc).toContain("const items = useMemo(");
+    expect(dockSrc).toContain("[isGcStaff, workspace, homeOwned],");
+    expect(lock).toContain("**G15.**");
+  });
+
+  it("G16: the tracker runs below md only", () => {
+    expect(HOUSE_PHONE_CHROME_MEDIA).toBe("not all and (min-width: 48rem)");
+    expect(trackerSrc).toContain("window.matchMedia(HOUSE_PHONE_CHROME_MEDIA)");
+    expect(trackerSrc).toContain("if (!root || !phone) return undefined;");
+    expect(trackerSrc).toContain("}, [pathname, rootRef, phone]);");
+    expect(trackerSrc).toContain("const live = phone && chrome.path === pathname ? chrome :");
+    expect(lock).toContain("**G16.**");
+  });
+
+  it("every listener the tracker and the runtime add, they remove with the same capture", () => {
+    const wiring = /\.(add|remove)EventListener\(\s*("[^"]+"|[A-Za-z_][\w.]*)\s*,\s*([A-Za-z_]\w*)\s*(?:,\s*(\{[^}]*\}))?\s*\)/g;
+    for (const [name, src] of [
+      ["tracker", trackerSrc],
+      ["runtime", runtimeSrc],
+    ] as const) {
+      const adds: string[] = [];
+      const removes: string[] = [];
+      for (const match of src.matchAll(wiring)) {
+        const [, kind, type, handler, options = ""] = match;
+        const key = `${type} ${handler} capture=${/capture:\s*true/.test(options)}`;
+        (kind === "add" ? adds : removes).push(key);
+      }
+      expect(adds.length, name).toBeGreaterThan(0);
+      expect([...removes].sort(), name).toEqual([...adds].sort());
+    }
   });
 });

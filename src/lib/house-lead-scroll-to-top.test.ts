@@ -27,6 +27,7 @@ vi.mock("next/link", async () => {
 import { HousePhoneAppShell } from "@/components/chrome/house-phone-app-shell";
 import {
   HOUSE_LEAD_SCROLL_TO_TOP,
+  HOUSE_LEAD_SCROLL_TO_TOP_EVENT,
   HOUSE_LEAD_SCROLL_TO_TOP_MEDIA,
   HOUSE_LEAD_SCROLL_TO_TOP_MIN_HEIGHT,
   HOUSE_LEAD_SCROLL_TO_TOP_OFFSET,
@@ -160,6 +161,19 @@ describe("HouseLeadScrollToTop — iOS status-bar tap contract", () => {
     // to document-scroll, this bridge is no longer the right fix and
     // the failing G9 assertion above will catch it first.
     expect(libSrc).not.toContain("no lookalike phone-only shell");
+  });
+
+  it("signals the phone chrome before the tap's smooth scroll (band lock v1.5)", () => {
+    expect(HOUSE_LEAD_SCROLL_TO_TOP_EVENT).toBe("house-lead-scroll-to-top");
+    const signal = componentSrc.indexOf(
+      "scroller.dispatchEvent(new Event(HOUSE_LEAD_SCROLL_TO_TOP_EVENT));",
+    );
+    expect(signal).toBeGreaterThan(-1);
+    // Synchronous, and first: a settle's next write would otherwise cancel
+    // the smooth scroll before any scroll event exists.
+    expect(signal).toBeLessThan(componentSrc.indexOf('scroller.scrollTo({ top: 0, behavior: "smooth" })'));
+    const tracker = readFileSync("src/components/chrome/house-phone-chrome-state.tsx", "utf8");
+    expect(tracker).toContain("target.addEventListener(HOUSE_LEAD_SCROLL_TO_TOP_EVENT, onForeignScroll);");
   });
 
   it("keeps the bottom-nav scroll-hide reading the same nested scroller", () => {
