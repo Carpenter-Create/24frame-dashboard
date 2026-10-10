@@ -6,10 +6,11 @@ import {
   type StoryStudioFacing,
 } from "@/lib/social-story-recorder";
 
-// In-app camera record, then a normal Social video post. Hard ~10 min
-// cap. No livestream backend.
+// In-app camera record, then a normal Social video post. The recorder
+// stops at 479s so a full take, including the clock that starts after
+// MediaRecorder.start, stays inside the 480.5s Social cap. No livestream.
 
-export const SOCIAL_GO_LIVE_MAX_MS = 10 * 60 * 1000;
+export const SOCIAL_GO_LIVE_MAX_MS = 479 * 1000;
 export const SOCIAL_GO_LIVE_VIDEO_BITS_PER_SECOND = 2_500_000;
 
 export function goLiveRemainingMs(
@@ -25,6 +26,51 @@ export function goLiveReachedCap(
   capMs: number = SOCIAL_GO_LIVE_MAX_MS,
 ): boolean {
   return goLiveRemainingMs(elapsedMs, capMs) === 0 && elapsedMs >= capMs;
+}
+
+/**
+ * Stop at 479s from the timer or from recorder.ondataavailable, whichever
+ * fires first. A stalled timer still stops when a chunk arrives.
+ */
+/** True only while the component's recording ref is set. A constant false drops the cap chunk. */
+export function goLiveRecordingFlag(recording: { current: boolean }): boolean {
+  return recording.current;
+}
+
+export function bindGoLiveRecorderStop<T extends { data: Blob }>(input: {
+  recorder: { ondataavailable: ((event: T) => void) | null };
+  now: () => number;
+  startedAt: number;
+  isRecording: () => boolean;
+  stop: () => void;
+  takeChunk: (event: T) => void;
+}): { onTick: () => void } {
+  const capped = () => goLiveReachedCap(input.now() - input.startedAt) && input.isRecording();
+  input.recorder.ondataavailable = (event) => {
+    input.takeChunk(event);
+    if (capped()) input.stop();
+  };
+  return {
+    onTick: () => {
+      if (capped()) input.stop();
+    },
+  };
+}
+
+/** The recording clock. Each tick updates the label and then asks the stop watch. */
+export function startGoLiveClock(input: {
+  now: () => number;
+  startedAt: () => number;
+  setClock: (label: string) => void;
+  stopTick: { current: (() => void) | null };
+  setInterval: (fn: () => void, ms: number) => number;
+}): number {
+  input.setClock(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS));
+  return input.setInterval(() => {
+    const elapsed = input.now() - input.startedAt();
+    input.setClock(formatGoLiveClock(goLiveRemainingMs(elapsed)));
+    input.stopTick.current?.();
+  }, 250);
 }
 
 export function formatGoLiveClock(ms: number): string {

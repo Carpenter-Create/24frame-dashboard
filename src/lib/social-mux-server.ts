@@ -2,12 +2,18 @@ import "server-only";
 
 import Mux from "@mux/mux-node";
 
+import { muxAudioRenditionRequestSettled } from "@/lib/social-music-audio";
+import { createAdminClient } from "@/lib/supabase/admin";
+
 import {
   isSocialMuxId,
+  SOCIAL_MUX_PROVIDER,
   SOCIAL_MUX_THUMBNAIL_TIME,
   socialMuxAssetSettings,
   socialMuxPassthroughBoundToUser,
+  socialVideoDurationExceedsCap,
   SocialMuxUploadNotBoundError,
+  SocialMuxVideoTooLongError,
   type SocialMuxAssetSettings,
   type SocialMuxIntent,
   type SocialMuxPlaybackTokens,
@@ -58,6 +64,12 @@ export type MuxAssetData = {
   duration?: number;
   passthrough?: string | null;
   playback_ids?: Array<{ id?: string; policy?: string }>;
+  static_renditions?:
+    | {
+        status?: string;
+        files?: Array<{ name?: string; ext?: string; status?: string; resolution?: string }>;
+      }
+    | Array<{ name?: string; ext?: string; status?: string; resolution?: string }>;
 };
 
 function requireMuxEnv(name: (typeof SOCIAL_MUX_ENV)[number]): string {
@@ -236,12 +248,147 @@ export async function finalizeSocialMuxDirectUpload(
   for (const delay of FINALIZE_DELAYS_MS) {
     const asset = await retrieveSocialMuxAsset(assetId);
     playbackId = signedPlaybackIdFromAsset(asset);
-    if (playbackId) {
+    if (playbackId && socialVideoDurationExceedsCap(asset.duration)) {
+      try {
+        await deleteSocialMuxAsset(assetId);
+      } catch {
+        // The asset is still too long. Do not bind it or return ids.
+      }
+      throw new SocialMuxVideoTooLongError();
+    }
+    if (playbackId && typeof asset.duration === "number" && Number.isFinite(asset.duration) && asset.duration > 0) {
+      await recordSocialMuxBinding({
+        authorId: callerUserId,
+        uploadId,
+        assetId,
+        playbackId,
+      });
       return { uploadId, assetId, playbackId };
     }
     await wait(delay);
   }
   throw new Error("Mux playback id is still preparing");
+}
+
+/** Delete a Mux asset that must not be published. 404 is already gone. */
+export async function deleteSocialMuxAsset(assetId: string): Promise<void> {
+  if (!isSocialMuxId(assetId)) throw new Error("Mux asset id is invalid");
+  const response = await fetch(`${MUX_API}/video/v1/assets/${assetId}`, {
+    method: "DELETE",
+    headers: { Authorization: muxAuthHeader(), Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (response.status === 200 || response.status === 204 || response.status === 404) return;
+  throw new Error(`Mux asset delete failed (${response.status})`);
+}
+
+/** Create a Mux asset from a short-lived URL. Used by the re-ingest script. */
+export async function createSocialMuxAssetFromUrl(url: string): Promise<{ assetId: string }> {
+  const settings = socialMuxAssetSettings({ intent: "video" });
+  const data = await muxRequest<MuxAssetData>("/video/v1/assets", {
+    method: "POST",
+    body: JSON.stringify({
+      input: [{ url }],
+      playback_policies: ["signed"],
+      video_quality: settings.videoQuality,
+      max_resolution_tier: settings.maxResolutionTier,
+    }),
+  });
+  if (!data.id || !isSocialMuxId(data.id)) throw new Error("Mux asset was not created");
+  return { assetId: data.id };
+}
+
+/**
+ * Audio-only static rendition. A second POST that reports the rendition
+ * already exists or is in progress returns without throwing, so the worker
+ * polls. Any other Mux error throws and the worker retries that attempt.
+ */
+export async function createSocialMuxAudioRendition(assetId: string): Promise<void> {
+  if (!isSocialMuxId(assetId)) throw new Error("Mux asset id is invalid");
+  try {
+    await muxRequest(`/video/v1/assets/${assetId}/static-renditions`, {
+      method: "POST",
+      body: JSON.stringify({ resolution: "audio-only" }),
+    });
+  } catch (error) {
+    if (muxAudioRenditionRequestSettled(error)) return;
+    throw error;
+  }
+}
+
+/**
+ * Signed audio.m4a for the music worker. The whole rendition, not a Mux
+ * time slice. The token never goes to a browser. Windows are cut after
+ * the download.
+ */
+export async function signSocialMuxStaticAudioUrl(playbackId: string): Promise<string> {
+  if (!isSocialMuxId(playbackId)) throw new Error("Mux playback id is invalid");
+  const token = await socialMuxSigner().jwt.signPlaybackId(playbackId, {
+    type: "video",
+    expiration: SOCIAL_MUX_SERVER_READ_EXPIRATION,
+  });
+  return `https://stream.mux.com/${playbackId}/audio.m4a?token=${encodeURIComponent(token)}`;
+}
+
+/** Service-role only. The scan trigger requires this exact triple. */
+export async function recordSocialMuxBinding(input: {
+  authorId: string;
+  uploadId: string;
+  assetId: string;
+  playbackId: string;
+}): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin.from("social_mux_bindings").upsert(
+    {
+      author_id: input.authorId,
+      upload_id: input.uploadId,
+      asset_id: input.assetId,
+      playback_id: input.playbackId,
+    },
+    { onConflict: "author_id,asset_id,playback_id", ignoreDuplicates: true },
+  );
+  if (error) throw new Error("Mux binding was not recorded");
+}
+
+/** Upload, asset, and signed playback id all belong to this member. */
+export function socialMuxPublishedVideoBound(input: {
+  userId: string;
+  uploadId: string;
+  assetId: string;
+  playbackId: string;
+  upload: MuxUploadData;
+  asset: MuxAssetData;
+}): boolean {
+  if (!input.userId.trim()) return false;
+  if (!isSocialMuxId(input.uploadId) || !isSocialMuxId(input.assetId) || !isSocialMuxId(input.playbackId)) {
+    return false;
+  }
+  if (!socialMuxPassthroughBoundToUser(muxUploadPassthrough(input.upload), input.userId)) return false;
+  if (input.upload.asset_id !== input.assetId) return false;
+  if (socialVideoDurationExceedsCap(input.asset.duration)) return false;
+  return signedPlaybackIdFromAsset(input.asset) === input.playbackId;
+}
+
+/**
+ * Publish accepts a Mux video only after Mux confirms the upload, asset,
+ * and playback id, and the upload passthrough names this member.
+ */
+export async function verifySocialMuxPublishedItems(
+  items: readonly { kind?: string; provider?: string; uploadId?: string; assetId?: string; playbackId?: string }[],
+  userId: string,
+): Promise<boolean> {
+  for (const item of items) {
+    if (item.kind !== "video" || item.provider !== SOCIAL_MUX_PROVIDER) continue;
+    const uploadId = item.uploadId ?? "";
+    const assetId = item.assetId ?? "";
+    const playbackId = item.playbackId ?? "";
+    if (!isSocialMuxId(uploadId) || !isSocialMuxId(assetId) || !isSocialMuxId(playbackId)) return false;
+    const upload = await retrieveSocialMuxUpload(uploadId);
+    const asset = await retrieveSocialMuxAsset(assetId);
+    if (!socialMuxPublishedVideoBound({ userId, uploadId, assetId, playbackId, upload, asset })) return false;
+    await recordSocialMuxBinding({ authorId: userId, uploadId, assetId, playbackId });
+  }
+  return true;
 }
 
 export function socialMuxSettingsFromUploadInput(input: {

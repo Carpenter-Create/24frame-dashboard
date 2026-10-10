@@ -16,7 +16,7 @@ import {
 import { HouseVoiceMic } from "@/components/chrome/house-voice-mic";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadSocialPostMedia, uploadSocialWelcomeVideoFile } from "@/lib/social-media-upload";
+import { uploadSocialMuxVideoFile, uploadSocialPostMedia } from "@/lib/social-media-upload";
 import {
   SOCIAL_GO_LIVE_CAPTION_CLASS,
   SOCIAL_GO_LIVE_CAPTION_FIELD_CLASS,
@@ -49,10 +49,12 @@ import {
   type SocialVideoContentType,
 } from "@/lib/social-media";
 import {
+  bindGoLiveRecorderStop,
   formatGoLiveClock,
+  goLiveRecordingFlag,
+  startGoLiveClock,
   goLiveFileName,
   goLiveFitsByteCap,
-  goLiveReachedCap,
   goLiveRecorderOptions,
   findGoLiveCamera,
   goLiveCameras,
@@ -60,7 +62,6 @@ import {
   goLiveVideoConstraints,
   readGoLiveCamera,
   rememberGoLiveCamera,
-  goLiveRemainingMs,
   SOCIAL_GO_LIVE_DEFAULT_FRAME,
   SOCIAL_GO_LIVE_FRAMES,
   SOCIAL_GO_LIVE_MAX_MS,
@@ -177,6 +178,27 @@ async function uploadLiveVideo(
   return { item: result.items[0] };
 }
 
+/** The component's stop wiring. A chunk past 479s is kept, then the take stops. The clock tick uses the same stop. */
+export function armGoLiveRecorder<T extends { data: Blob }>(input: {
+  recorder: { ondataavailable: ((event: T) => void) | null };
+  now: () => number;
+  startedAt: number;
+  isRecording: () => boolean;
+  stop: () => void;
+  takeChunk: (event: T) => void;
+  stopTick: { current: (() => void) | null };
+}): void {
+  const stopWatch = bindGoLiveRecorderStop({
+    recorder: input.recorder,
+    now: input.now,
+    startedAt: input.startedAt,
+    isRecording: input.isRecording,
+    stop: input.stop,
+    takeChunk: input.takeChunk,
+  });
+  input.stopTick.current = stopWatch.onTick;
+}
+
 export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } = {}) {
   const router = useRouter();
   // welcome: the clip becomes the profile's welcome video, not a post.
@@ -187,6 +209,7 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
   const chunksRef = useRef<BlobPart[]>([]);
   const clockStartedRef = useRef(0);
   const clockTimerRef = useRef<number | null>(null);
+  const stopTickRef = useRef<(() => void) | null>(null);
   const mimeRef = useRef<SocialVideoContentType>("video/webm");
   const recordingRef = useRef(false);
   const clipUrlRef = useRef<string | null>(null);
@@ -544,14 +567,13 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
   function startClock() {
     clockStartedRef.current = Date.now();
     clearClock();
-    setClock(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS));
-    clockTimerRef.current = window.setInterval(() => {
-      const elapsed = Date.now() - clockStartedRef.current;
-      setClock(formatGoLiveClock(goLiveRemainingMs(elapsed)));
-      if (goLiveReachedCap(elapsed) && recordingRef.current) {
-        stopRecording();
-      }
-    }, 250);
+    clockTimerRef.current = startGoLiveClock({
+      now: () => Date.now(),
+      startedAt: () => clockStartedRef.current,
+      setClock,
+      stopTick: stopTickRef,
+      setInterval: (fn, ms) => window.setInterval(fn, ms),
+    });
   }
 
   function beginRecording(source: MediaStream) {
@@ -586,18 +608,6 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
         }
       }
     }
-    recorder.ondataavailable = (event) => {
-      if (event.data.size <= 0) return;
-      const used = chunksRef.current.reduce(
-        (sum, part) => sum + (part instanceof Blob ? part.size : 0),
-        0,
-      );
-      if (!goLiveFitsByteCap(used + event.data.size, SOCIAL_VIDEO_MAX_BYTES)) {
-        if (recordingRef.current) stopRecording();
-        return;
-      }
-      chunksRef.current.push(event.data);
-    };
     recorder.onstop = () => {
       stopCut();
       if (!storyStudioIsLive(liveRef.current, live)) return;
@@ -624,10 +634,30 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
       releaseCamera();
       setPhase("review");
     };
-    recorder.start(1000);
     recorderRef.current = recorder;
     recordingRef.current = true;
     startClock();
+    armGoLiveRecorder({
+      recorder,
+      now: () => Date.now(),
+      startedAt: clockStartedRef.current,
+      isRecording: () => goLiveRecordingFlag(recordingRef),
+      stop: () => stopRecording(),
+      takeChunk: (event) => {
+        if (event.data.size <= 0) return;
+        const used = chunksRef.current.reduce(
+          (sum, part) => sum + (part instanceof Blob ? part.size : 0),
+          0,
+        );
+        if (!goLiveFitsByteCap(used + event.data.size, SOCIAL_VIDEO_MAX_BYTES)) {
+          if (recordingRef.current) stopRecording();
+          return;
+        }
+        chunksRef.current.push(event.data);
+      },
+      stopTick: stopTickRef,
+    });
+    recorder.start(1000);
     setPhase("recording");
   }
 
@@ -751,7 +781,7 @@ export function SocialGoLive({ purpose = "post" }: { purpose?: GoLivePurpose } =
     clipUrlRef.current = null;
     const outcome = await saveSocialWelcomeClip({
       file: clip.file,
-      upload: uploadSocialWelcomeVideoFile,
+      upload: uploadSocialMuxVideoFile,
       save: saveSocialWelcomeVideo,
       signal: controller.signal,
       onProgress: (percent) => {

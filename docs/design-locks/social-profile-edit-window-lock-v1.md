@@ -1,4 +1,4 @@
-# [GC][24Frame] LOCK — Edit profile: the window over your live profile v1
+# [GC][24Frame] LOCK: Edit profile: the window over your live profile v1
 
 **Date:** 2026-10-09
 **Status:** **LOCKED** (Adam, 2026-10-09, "build it") · Design Own→READY
@@ -29,7 +29,7 @@ A design panel (five approaches, three judges: premium feel, user experience and
 
 ---
 
-## 1) Desktop — the window
+## 1) Desktop: the window
 
 | Token | Lock |
 |-------|------|
@@ -51,7 +51,7 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Other entries | Interests' **Topics** (empty Interests, owner) opens the window at Topics, the Interests tab kept behind it. `/social/profile/edit[?face=]` and `/social/profile/edit/bio` on a computer hand over to the window (`?edit[=face]`) |
 | Not | A drawer, a separate page, an editing mode on the profile, a pencil on every section. The cover keeps its in-place editor on the hero |
 
-## 2) Phone — the sheet
+## 2) Phone: the sheet
 
 | Token | Lock |
 |-------|------|
@@ -70,16 +70,17 @@ A design panel (five approaches, three judges: premium feel, user experience and
 | Discard | The draft goes; saved media stays. After a failed save, the failed draft is dropped from the overlay too |
 | Browser | While the draft has changes, reloading or closing the tab raises the browser's own prompt |
 
-## 4) Welcome video — Media or Live (amended 2026-10-09)
+## 4) Welcome video: Media or Live (amended 2026-10-09; transport amended 2026-10-09 to Mux)
 
 > also, add welcome video should have the media icon (to upload a file) or live (to record a file)
 
 | Token | Lock |
 |-------|------|
 | Card | Label "Welcome video"; the clip (closed plate or the local preview) when there is one; then a row: the + fan's **Media** and **Live** rounds (`SOCIAL_CREATE_TILES`: the same glyph and name; round grey 44s, as in the composer's tool row), and **Remove welcome video** at the end when there is one. The rounds are one group named by the "Welcome video" label. The text buttons "Add / Replace welcome video" give way to the rounds (the file input keeps that name; it is not a Tab stop, the Media round is the keyboard path) |
-| Media | The video file pick, as before: saves on confirm |
+| Media | The video file pick, as before: saves on confirm. Uploads to Mux (see Transport) |
 | Live | The 24Frame camera for the welcome video (`/social/live?for=welcome`), remembering Edit's index (never a face). Blocked while a picture or video uploads. With changes in the draft, it asks first (Keep editing · Discard; Keep editing returns focus to Live); Discard then opens the camera |
-| Camera | Header "Welcome video"; no caption and no dictate on the review; the round accent save (up arrow) is named "Add welcome video" and shows the blue bar. The clip goes to the media S3 posts lane (never Mux, never a post), is saved as the welcome video, shows on the profile at once from this device, and the camera returns to where it opened (the window on a computer, the sheet on a phone): it goes back to Edit's own entry (no second entry under it), on Edit's index. A camera with nowhere remembered (a reload, a deep link, a new tab) returns to Edit. X does the same. Any failure (refused, a dropped connection, a server error) gives the camera its controls back with the error, and keeps the clip to try again; closing the camera mid-upload cancels it. The "use a video" fallback in errors is a post path and is not offered |
+| Camera | Header "Welcome video"; no caption and no dictate on the review; the round accent save (up arrow) is named "Add welcome video" and shows the blue bar. The clip uploads to Mux (see Transport; never a post), is saved as the welcome video, shows on the profile at once from this device, and the camera returns to where it opened (the window on a computer, the sheet on a phone): it goes back to Edit's own entry (no second entry under it), on Edit's index. A camera with nowhere remembered (a reload, a deep link, a new tab) returns to Edit. X does the same. Any failure (refused, a dropped connection, a server error) gives the camera its controls back with the error, and keeps the clip to try again; closing the camera mid-upload cancels it. The "use a video" fallback in errors is a post path and is not offered |
+| Transport | Adam lock 2026-10-08: welcome videos move to Mux so every user video gets the same music scan; no S3-direct user video path remains. Both paths (Media file pick and the Live camera) upload to Mux, are capped at 8 minutes, and stay hidden from others until the music scan clears; the owner still sees their own clip at once. Held, blocked and too-long notices are the existing strings in [`social-music-block-copy-lock-v1.md`](social-music-block-copy-lock-v1.md) (`SOCIAL.music.welcomePending`, `blocked`, `tooLong`, `malformed`), on the existing hosts. Transport only: every visual, copy and flow decision in this section stands as built in #798. Supersedes the earlier "media S3 posts lane (never Mux)" line |
 | Copy | Existing only: "Welcome video", "Add welcome video", "Media", "Live", "Remove welcome video" |
 
 ## Copy

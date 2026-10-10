@@ -343,4 +343,39 @@ describe("SocialStoryViewer", () => {
     expect(page).toContain("loadLikedStoryIds");
     expect(page).toContain("likes={likes}");
   });
+
+  it("shows a generic music notice on the author's own story and stacks the line", () => {
+    const own = renderToStaticMarkup(
+      createElement(SocialStoryViewer, {
+        ...viewerProps,
+        selfId: "u1",
+        musicNotice: "pending",
+        media: [{ kind: "image", url: "/api/social/media?key=stories%2Forg%2Fstill.jpg" }],
+      }),
+    );
+    expect(own).toContain('data-social-story-music=""');
+    expect(own).toContain(SOCIAL.music.pending);
+    const notice = own.slice(own.indexOf('data-social-story-music=""'), own.indexOf(SOCIAL.music.pending));
+    expect(notice).toContain("whitespace-normal");
+    expect(notice).not.toContain("truncate");
+    const ownBlocked = renderToStaticMarkup(
+      createElement(SocialStoryViewer, {
+        ...viewerProps,
+        selfId: "u1",
+        musicNotice: "blocked",
+        media: [{ kind: "image", url: "/api/social/media?key=stories%2Forg%2Fstill.jpg" }],
+      }),
+    ).replaceAll("&#x27;", "'");
+    expect(ownBlocked).toContain(SOCIAL.music.blocked);
+    const other = renderToStaticMarkup(
+      createElement(SocialStoryViewer, {
+        ...viewerProps,
+        selfId: "someone-else",
+        musicNotice: "blocked",
+        media: [{ kind: "image", url: "/api/social/media?key=stories%2Forg%2Fstill.jpg" }],
+      }),
+    ).replaceAll("&#x27;", "'");
+    expect(other).not.toContain("data-social-story-music");
+    expect(other).not.toContain(SOCIAL.music.blocked);
+  });
 });

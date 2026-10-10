@@ -22,11 +22,18 @@ import {
 } from "@/lib/social-media";
 import { presignSocialMediaPut } from "@/lib/s3-social-media";
 import { logSocialMediaUploadFailure, publishSocialMediaItems } from "@/lib/social-media-publish";
-import { isSocialMuxId, SOCIAL_MUX_PROVIDER, SocialMuxUploadNotBoundError } from "@/lib/social-mux";
+import {
+  isSocialMuxId,
+  SOCIAL_MUX_PROVIDER,
+  socialVideoDurationExceedsCap,
+  SocialMuxUploadNotBoundError,
+  SocialMuxVideoTooLongError,
+} from "@/lib/social-mux";
 import {
   createSocialMuxDirectUpload,
   finalizeSocialMuxDirectUpload,
   socialMuxSettingsFromUploadInput,
+  verifySocialMuxPublishedItems,
 } from "@/lib/social-mux-server";
 import { storyInsertRow, storyViewInsertRow } from "@/lib/social-stories";
 import { parseSocialProfileCoverSave } from "@/lib/social-profile-cover-save";
@@ -200,12 +207,17 @@ export async function saveSocialWelcomeVideo(formData: FormData): Promise<Action
   const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
   const item = welcomeVideoItemFromMedia(formData.get("media"), user.id);
-  if (!item) return { error: SOCIAL.stories.mediaType };
-  const published = await publishSocialMediaItems([item], user.id, "posts");
-  if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
+  if (!item || !item.assetId || !item.playbackId || !item.uploadId) return { error: SOCIAL.stories.mediaType };
+  const unbound = await rejectUnboundSocialMux([item], user.id);
+  if (unbound) return { error: unbound };
   const { error } = await supabase
     .from("profiles")
-    .update({ welcome_video_key: published.items[0].key })
+    .update({
+      welcome_mux_asset_id: item.assetId,
+      welcome_mux_playback_id: item.playbackId,
+      welcome_mux_upload_id: item.uploadId,
+      welcome_video_key: null,
+    })
     .eq("id", user.id);
   if (error) return { error: error.message };
   await bustSocialProfileHotCache(user.id, [profile?.handle]);
@@ -218,7 +230,15 @@ export async function saveSocialWelcomeVideo(formData: FormData): Promise<Action
 export async function clearSocialWelcomeVideo(): Promise<ActionResult> {
   const { user, supabase, profile, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
-  const { error } = await supabase.from("profiles").update({ welcome_video_key: null }).eq("id", user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      welcome_video_key: null,
+      welcome_mux_asset_id: null,
+      welcome_mux_playback_id: null,
+      welcome_mux_upload_id: null,
+    })
+    .eq("id", user.id);
   if (error) return { error: error.message };
   await bustSocialProfileHotCache(user.id, [profile?.handle]);
   revalidatePath(SOCIAL_ROUTES.profile);
@@ -324,6 +344,7 @@ export async function presignSocialMediaUpload(formData: FormData): Promise<{
     lane,
   });
   if (!checked.ok) return { error: socialMediaRuleMessage(checked.error, lane) };
+  if (checked.kind === "video") return { error: SOCIAL.home.mediaType };
   const key = socialMediaStagingKey(user.id, crypto.randomUUID(), checked.contentType, lane);
   try {
     const url = await presignSocialMediaPut(key, checked.contentType, byteLength);
@@ -370,6 +391,13 @@ export async function createSocialMuxUpload(formData: FormData): Promise<{
   });
   if (!checked.ok) return { error: socialMediaRuleMessage(checked.error, lane) };
   if (checked.kind !== "video") return { error: SOCIAL.home.mediaType };
+  const claimed = formData.get("duration_seconds");
+  if (claimed != null && String(claimed).trim() !== "") {
+    const seconds = Number(claimed);
+    if (!Number.isFinite(seconds) || seconds <= 0 || socialVideoDurationExceedsCap(seconds)) {
+      return { error: SOCIAL.music.tooLong };
+    }
+  }
 
   const objectId = crypto.randomUUID();
   const key = socialMediaObjectKey(user.id, objectId, checked.contentType, lane);
@@ -431,12 +459,30 @@ export async function finalizeSocialMuxUpload(formData: FormData): Promise<{
     if (error instanceof SocialMuxUploadNotBoundError) {
       return { error: SOCIAL.home.mediaForbidden };
     }
+    if (error instanceof SocialMuxVideoTooLongError) {
+      return { error: SOCIAL.music.tooLong };
+    }
     logSocialMediaUploadFailure(
       isOwnedSocialMediaKey(key, user.id, "stories") ? "stories" : "posts",
       "mux-finalize",
       error,
     );
     return { error: SOCIAL.home.videoPreparing };
+  }
+}
+
+/** Mux must confirm this member owns the upload, asset, and playback id. */
+async function rejectUnboundSocialMux(
+  items: readonly SocialMediaItem[],
+  userId: string,
+): Promise<string | null> {
+  try {
+    const bound = await verifySocialMuxPublishedItems(items, userId);
+    if (!bound) return SOCIAL.home.mediaForbidden;
+    return null;
+  } catch (error) {
+    if (error instanceof SocialMuxUploadNotBoundError) return SOCIAL.home.mediaForbidden;
+    return SOCIAL.home.videoPreparing;
   }
 }
 
@@ -458,6 +504,8 @@ export async function writeSocialPost(
   // Match createSocialStory: check each upload, then store only its published copy.
   const published = await publishSocialMediaItems(media.items, user.id, "posts");
   if (!published.ok) return { error: socialMediaRuleMessage(published.error, "posts", published.kind) };
+  const muxError = await rejectUnboundSocialMux(published.items, user.id);
+  if (muxError) return { error: muxError };
 
   const { error } = await supabase.from("posts").insert(
     postInsertRow({ authorId: user.id, body, groupId, media: published.items }),
@@ -492,6 +540,8 @@ export async function createSocialStory(formData: FormData): Promise<ActionResul
 
   const published = await publishSocialMediaItems(media.items, user.id, "stories");
   if (!published.ok) return { error: socialMediaRuleMessage(published.error, "stories", published.kind) };
+  const muxError = await rejectUnboundSocialMux(published.items, user.id);
+  if (muxError) return { error: muxError };
 
   const { error } = await supabase.from("stories").insert(
     storyInsertRow({ authorId: user.id, body, media: published.items }),

@@ -15,7 +15,7 @@ import {
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
 export const SOCIAL_PROFILE_COLUMNS =
-  "id, handle, display_name, status, bio, welcome_video_key, cover_key, crafts, topics, imdb_url, website_url";
+  "id, handle, display_name, status, bio, welcome_video_key, welcome_mux_asset_id, welcome_mux_playback_id, welcome_mux_upload_id, cover_key, crafts, topics, imdb_url, website_url";
 
 export type SocialEnsureUser = {
   id: string;

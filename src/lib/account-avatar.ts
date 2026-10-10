@@ -35,6 +35,175 @@ export function avatarObjectKey(userId: string): string {
   return `${AVATAR_KEY_PREFIX}/${parsed.data}/avatar`;
 }
 
+/** Profile pointer after a recheck that could not decode the face. The object stays; nothing signs it. */
+export const AVATAR_CLEARED = "cleared";
+
+const AVATAR_CANONICAL_KEY =
+  /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/avatar$/;
+
+const AVATAR_RECHECK_KEY =
+  /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/recheck\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+
+const AVATAR_QUARANTINE_KEY =
+  /^avatars\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/quarantine\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+
+/** A recheck writes here. The canonical `avatars/{user-id}/avatar` object is left as it was. */
+export function avatarRecheckObjectKey(userId: string, objectId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  const object = userIdSchema.safeParse(objectId);
+  if (!user.success || !object.success) {
+    throw new Error("Avatar key requires a UUID user id");
+  }
+  return `${AVATAR_KEY_PREFIX}/${user.data}/recheck/${object.data}`;
+}
+
+/** The profile id in a canonical, recheck, or quarantine avatar key. Anything else is null. */
+export function avatarKeyOwner(key: string): string | null {
+  return (
+    AVATAR_RECHECK_KEY.exec(key)?.[1] ??
+    AVATAR_QUARANTINE_KEY.exec(key)?.[1] ??
+    AVATAR_CANONICAL_KEY.exec(key)?.[1] ??
+    null
+  );
+}
+
+export function isAvatarRecheckKey(key: string, userId: string): boolean {
+  const match = AVATAR_RECHECK_KEY.exec(key);
+  return match?.[1] === userId;
+}
+
+/** Tag Adam's 30-day lifecycle rule matches. A prefix of `avatars/` would expire live faces. */
+export const AVATAR_QUARANTINE_HOLD_TAG = "gc-hold=quarantine";
+
+/** Private hold for a face the recheck could not decode. Never signed. */
+export function avatarQuarantineObjectKey(userId: string, objectId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  const object = userIdSchema.safeParse(objectId);
+  if (!user.success || !object.success) {
+    throw new Error("Avatar key requires a UUID user id");
+  }
+  return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/${object.data}`;
+}
+
+/** Prefix for this member's quarantine copies. Not a delete prefix and not a lifecycle prefix. */
+export function avatarQuarantinePrefix(userId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  if (!user.success) throw new Error("Avatar key requires a UUID user id");
+  return `${AVATAR_KEY_PREFIX}/${user.data}/quarantine/`;
+}
+
+/** Prefix for this member's recheck copies. Not a delete prefix. */
+export function avatarRecheckPrefix(userId: string): string {
+  const user = userIdSchema.safeParse(userId);
+  if (!user.success) throw new Error("Avatar key requires a UUID user id");
+  return `${AVATAR_KEY_PREFIX}/${user.data}/recheck/`;
+}
+
+export function isAvatarQuarantineKey(key: string, userId?: string): boolean {
+  const match = AVATAR_QUARANTINE_KEY.exec(key);
+  if (!match) return false;
+  if (userId && match[1] !== userId) return false;
+  return true;
+}
+
+/**
+ * A profile read that failed, or a row that is not visible, must not fall
+ * through to the canonical object.
+ */
+export function avatarKeyFromProfileRead(
+  error: { message: string } | null | undefined,
+  row: { avatar_key?: string | null } | null | undefined,
+): { sign: false } | { sign: true; key: string | null } {
+  if (error || !row) return { sign: false };
+  return { sign: true, key: row.avatar_key ?? null };
+}
+
+/**
+ * Which object to sign. A cleared pointer signs nothing, so the default face
+ * shows. A recheck pointer signs that object. Anything else, including a
+ * null column, signs the one canonical face.
+ */
+export function avatarServeKey(userId: string, stored: string | null | undefined): string | null {
+  if (stored === AVATAR_CLEARED) return null;
+  if (typeof stored === "string" && isAvatarQuarantineKey(stored)) return null;
+  if (typeof stored === "string" && isAvatarRecheckKey(stored, userId)) return stored;
+  try {
+    return avatarObjectKey(userId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when this pointer is the object `key`. A null pointer names the
+ * canonical face. A cleared pointer names nothing.
+ */
+export function avatarPointerNamesKey(
+  userId: string,
+  pointer: string | null | undefined,
+  key: string,
+): boolean {
+  if (pointer === key) return true;
+  return avatarServeKey(userId, pointer) === key;
+}
+
+/**
+ * The object the pointer named. Remove reports success only after this key is gone.
+ * A null pointer names the canonical face.
+ */
+export function avatarKeyNamedForRemove(userId: string, previousKey: string | null): string {
+  const canonical = avatarObjectKey(userId);
+  if (
+    typeof previousKey === "string" &&
+    previousKey !== canonical &&
+    (isAvatarRecheckKey(previousKey, userId) || isAvatarQuarantineKey(previousKey, userId))
+  ) {
+    return previousKey;
+  }
+  return canonical;
+}
+
+/**
+ * Exact objects a remove may delete: the key that was read, and the canonical
+ * object when that read named a different key. Nothing from a listing.
+ */
+export function avatarKeysReadForRemove(userId: string, previousKey: string | null): string[] {
+  const canonical = avatarObjectKey(userId);
+  const keys: string[] = [];
+  if (
+    typeof previousKey === "string" &&
+    previousKey !== canonical &&
+    (isAvatarRecheckKey(previousKey, userId) || isAvatarQuarantineKey(previousKey, userId))
+  ) {
+    keys.push(previousKey);
+  }
+  keys.push(canonical);
+  return keys;
+}
+
+/**
+ * Known keys a successful replace may delete. The new key stays.
+ * Quarantine copies are not in this list. They expire on the hold tag.
+ */
+export function replacedAvatarObjectKeys(
+  userId: string,
+  previousKey: string | null,
+  newKey: string,
+): string[] {
+  const canonical = avatarObjectKey(userId);
+  const keys: string[] = [];
+  if (canonical !== newKey) keys.push(canonical);
+  if (
+    typeof previousKey === "string" &&
+    previousKey !== newKey &&
+    previousKey !== canonical &&
+    isAvatarRecheckKey(previousKey, userId)
+  ) {
+    keys.push(previousKey);
+  }
+  return keys;
+}
+
 export function isAvatarObjectKey(key: string, userId: string): boolean {
   try {
     return key === avatarObjectKey(userId);

@@ -194,6 +194,11 @@ export function SocialPostCard({
           />
         ) : null}
       </div>
+      {post.owned && post.musicNotice ? (
+        <InlineNotice data-social-post-music="" className="mx-4 mt-3 whitespace-normal break-words">
+          {SOCIAL.music[post.musicNotice]}
+        </InlineNotice>
+      ) : null}
       <SocialPostCaptionPlace
         postId={post.id}
         serverBody={post.body}

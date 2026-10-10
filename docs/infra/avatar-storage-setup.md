@@ -1,12 +1,12 @@
-# Avatar storage (S3) setup — run once per environment
+# Avatar storage (S3) setup: run once per environment
 
-Dedicated **private** avatars bucket on the **existing GC AWS account** — the
+Dedicated **private** avatars bucket on the **existing GC AWS account**: the
 same account as title assets (`gc-content-assets-dev` / `gc-content-assets-prod`).
 This is **not** a prefix on the title-asset bucket. Title objects stay in
 `S3_BUCKET` under `orgs/<org>/titles/...`. Faces never go there and are never
 served through title CloudFront.
 
-Do **not** apply this from CI. Founder-executed only. No SQL. No Supabase
+Do **not** apply this from CI. CoS-executed (G1 to G3), before the merge sitting. No SQL. No Supabase
 Storage. No public URLs. No second AWS account.
 
 Intended bucket names (same account, `us-east-1`):
@@ -35,24 +35,101 @@ assets (e.g. us-east-1).
 Do not attach a public bucket policy. Do not enable a website. Do not add this
 bucket as a CloudFront origin.
 
-2) Least-privilege on the **existing** app IAM user (`gc-assets-app`) — same
-credentials the title-asset path already uses. GetObject/PutObject on
-`avatars/*` only. No DeleteObject (nothing is deleted; re-upload overwrites
-the same key). Do not grant `/*` on this bucket. Do not grant this prefix on
-`S3_BUCKET`.
+2) Least-privilege on the **existing** app IAM user (`gc-assets-app`): same
+credentials the title-asset path already uses. Pre-deploy, before the image
+recheck: GetObject, PutObject, DeleteObject, GetObjectTagging,
+PutObjectTagging, and DeleteObjectTagging on `avatars/*`, plus ListBucket
+on this bucket with no `s3:prefix` condition. HeadObject and GetObject on a
+missing key return 404 only when ListBucket applies to that request. A
+prefix condition does not apply to Head or Get, so S3 answers 403 and a
+missing face is not `no_object`. This bucket holds only faces, so the list
+is the avatar set. Do not grant `/*` on this bucket. Do not grant this
+prefix on `S3_BUCKET`.
+
+Remove photo deletes only the exact keys that read named. It reads
+`profiles.avatar_key` again before each delete and does not delete the key
+that read names. It does not list a prefix. Recheck and quarantine copies
+are tagged `gc-hold=quarantine` on the put or copy. The app then sends
+DeleteObjectTagging and confirms with GetObjectTagging that no `gc-hold`
+tag remains. The pointer moves only after that confirm. The 30-day
+expiry rule is step 3 of this file, before the env var. A prefix of
+`avatars/` would expire live faces. The tag is the rule.
+
+Unhold is not scheduled yet. Before real users depend on this tag,
+`scripts/social/unhold-live-avatars.ts --execute` must run well under
+30 days. Scheduling that run is a required follow-up. This file does
+not install that schedule. A null `avatar_key` is checked on
+`avatars/{id}/avatar`. A 404 on that key is no avatar. The same note
+is in `docs/known-divergences.md`.
 
     aws iam put-user-policy --user-name gc-assets-app --policy-name gc-avatars-s3 --policy-document '{
       "Version": "2012-10-17",
-      "Statement": [{
-        "Effect": "Allow",
-        "Action": ["s3:GetObject","s3:PutObject"],
-        "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'/avatars/*"
-      }]
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:PutObjectTagging","s3:DeleteObjectTagging","s3:GetObjectTagging"],
+          "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'/avatars/*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": ["s3:ListBucket"],
+          "Resource": "arn:aws:s3:::'"$AVATARS_BUCKET"'"
+        }
+      ]
     }'
+
+Pre-deploy check, after the policy above is on `gc-assets-app`, and before
+deploying this PR and before recheck --execute. Run the head as
+`gc-assets-app`, with `--profile gc-assets-app` and the same
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` the app uses. Do not run it as an admin principal. An admin head can return 404 while the app user still
+gets 403. Head a missing `avatars/` key. It must return 404. 403 means the
+prefix condition is still on the ListBucket statement, and a missing face is
+not `no_object`. Do not continue while the head returns 403.
+
+    aws s3api head-object --profile gc-assets-app --bucket "$AVATARS_BUCKET" \
+      --key "avatars/00000000-0000-0000-0000-000000000000/missing"
 
 The app PUTs server-side. Browser CORS on this bucket is not required.
 
-3) Set env vars (server-only) locally (`.env.local`) and in Vercel (all
+3) Pre-deploy gate, before deploying this PR and before recheck --execute.
+Quarantine copies have no other cleanup. This 30-day rule on tag
+`gc-hold=quarantine` is the only one. The filter has no prefix. A prefix of
+`avatars/` would expire live faces. The rule replaces the whole lifecycle
+configuration: merge any rule already on the bucket before sending it. Do
+not run it from CI. Do not point it at the title-asset bucket.
+
+```sh
+cat > /tmp/avatars-lifecycle.json <<'JSON'
+{
+  "Rules": [
+    {
+      "ID": "avatars-quarantine-30d",
+      "Filter": { "Tag": { "Key": "gc-hold", "Value": "quarantine" } },
+      "Status": "Enabled",
+      "Expiration": { "Days": 30 }
+    }
+  ]
+}
+JSON
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket "$AVATARS_BUCKET" \
+  --lifecycle-configuration file:///tmp/avatars-lifecycle.json
+```
+
+Read-only check. Stop when rule `avatars-quarantine-30d` is missing, not
+Enabled, has a prefix, filtered on a tag other than `gc-hold=quarantine`, or
+set to an expiration other than 30 days. Run this before deploying this PR
+and before recheck --execute. Do not set `S3_AVATARS_BUCKET` until this
+returns that rule. Use the `AVATARS_BUCKET` chosen above. Production is
+`gc-avatars-prod`. Dev, local, and preview are `gc-avatars-dev`. Do not
+replace that choice on this line. The production merge sitting in
+`docs/infra/social-music-detect.md` sets `AVATARS_BUCKET` to `gc-avatars-prod`
+for this same check.
+
+    aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET" \
+      --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Prefix==null && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
+
+4) Set env vars (server-only) locally (`.env.local`) and in Vercel (all
 environments). Add the **name** to `.env.example` (agents cannot edit
 `.env.*`):
 

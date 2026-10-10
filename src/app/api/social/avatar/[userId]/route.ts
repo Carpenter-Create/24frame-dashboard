@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { AVATAR_SIGNED_URL_TTL_SECONDS } from "@/lib/account-avatar";
+import { AVATAR_SIGNED_URL_TTL_SECONDS, avatarKeyFromProfileRead } from "@/lib/account-avatar";
 import { signedAvatarUrl } from "@/lib/s3-avatars";
 import { privateMaxAgeCacheControl } from "@/lib/signing-window";
 import { getAuthUser } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,16 @@ export async function GET(
     });
   }
 
-  const url = await signedAvatarUrl(userId);
+  const supabase = await createClient();
+  const read = await supabase.from("profiles").select("avatar_key").eq("id", userId).maybeSingle();
+  const pointer = avatarKeyFromProfileRead(read.error, read.data);
+  if (!pointer.sign) {
+    return new NextResponse(null, {
+      status: 404,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  }
+  const url = await signedAvatarUrl(userId, pointer.key);
   if (!url) {
     return new NextResponse(null, {
       status: 404,

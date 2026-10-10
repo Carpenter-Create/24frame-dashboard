@@ -1,7 +1,7 @@
 import { normalizeSocialCategory, type SocialCategoryTopic } from "@/lib/social-categories";
 import type { SocialEdgeMediaItem } from "@/lib/social-edge";
 import type { SocialFollowingWallPage, SocialPostRow, SocialProfileRow } from "@/lib/social-feed";
-import { socialPersonLabel } from "@/lib/social";
+import { socialPersonLabel, type SocialMusicNotice } from "@/lib/social";
 import { socialPostOwnedBy } from "@/lib/social-post-own";
 
 // Query-owned Following wall view. RSC boot seeds this shape; the client
@@ -26,6 +26,7 @@ export type SocialFollowingWallCard = {
   /** The post's topic (the tagger's category), or null: the topic chip on the media. */
   topic: SocialCategoryTopic | null;
   media: SocialEdgeMediaItem[];
+  musicNotice?: SocialMusicNotice;
 };
 
 export type SocialFollowingWallView = {
@@ -43,6 +44,7 @@ export function socialFollowingWallView(input: {
   media: ReadonlyMap<string, readonly SocialEdgeMediaItem[]>;
   canLike: boolean;
   viewerId: string;
+  musicNotices?: ReadonlyMap<string, SocialMusicNotice>;
 }): SocialFollowingWallView {
   return {
     truncated: input.wall.truncated,
@@ -61,10 +63,13 @@ function socialFollowingWallCard(
     media: ReadonlyMap<string, readonly SocialEdgeMediaItem[]>;
     canLike: boolean;
     viewerId: string;
+    musicNotices?: ReadonlyMap<string, SocialMusicNotice>;
   },
 ): SocialFollowingWallCard {
   const author = input.authors.get(post.author_id);
   const group = post.group_id ? input.groups.get(post.group_id) : null;
+  const owned = socialPostOwnedBy(post.author_id, input.viewerId);
+  const musicNotice = owned ? input.musicNotices?.get(post.id) : undefined;
   return {
     id: post.id,
     body: post.body,
@@ -82,8 +87,9 @@ function socialFollowingWallCard(
     groupSlug: group?.slug ?? null,
     groupName: group?.name ?? null,
     canLike: input.canLike,
-    owned: socialPostOwnedBy(post.author_id, input.viewerId),
+    owned,
     topic: normalizeSocialCategory(post.category),
     media: [...(input.media.get(post.id) ?? [])],
+    ...(musicNotice ? { musicNotice } : {}),
   };
 }

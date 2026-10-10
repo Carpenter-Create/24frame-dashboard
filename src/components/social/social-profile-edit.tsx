@@ -7,11 +7,7 @@ import { flushSync } from "react-dom";
 import { removeAccountPhoto, uploadAccountPhoto } from "@/app/(app)/account/actions";
 import { HouseWindowAsk, useHouseLeaveGuard } from "@/components/chrome/house-window";
 import { HouseLink } from "@/components/chrome/house-link";
-import {
-  clearSocialWelcomeVideo,
-  presignSocialMediaUpload,
-  saveSocialWelcomeVideo,
-} from "@/app/(app)/social/actions";
+import { clearSocialWelcomeVideo, saveSocialWelcomeVideo } from "@/app/(app)/social/actions";
 import { AccountAvatarCrop } from "@/components/account/account-avatar-crop";
 import { SocialAvatar } from "@/components/social/social-avatar";
 import { SettingsDrillRow } from "@/components/settings/settings-drill";
@@ -35,6 +31,7 @@ import {
 } from "@/lib/account-avatar-crop";
 import { cn } from "@/lib/cn";
 import { SOCIAL_VIDEO_CONTENT_TYPES } from "@/lib/social-media";
+import { SOCIAL_WELCOME_VIDEO_PRESENT } from "@/lib/social-query";
 import { socialCreateTile } from "@/lib/social-create-sheet";
 import { socialGoLiveWelcomeHref } from "@/lib/social-go-live";
 import { rememberSocialGoLiveOpener } from "@/lib/social-go-live-nav";
@@ -354,34 +351,28 @@ export function useSocialProfileEditDraft({
       setError(message);
     };
     try {
-      const body = new FormData();
-      body.set("content_type", file.type);
-      body.set("byte_length", String(file.size));
-      body.set("lane", "posts");
-      const signed = await presignSocialMediaUpload(body);
-      if (signed.error || !signed.url || !signed.key || !signed.kind || !signed.contentType) {
-        rollback(signed.error ?? SOCIAL.home.uploadFailed);
+      const { uploadSocialMuxVideoFile } = await import("@/lib/social-media-upload");
+      const uploaded = await uploadSocialMuxVideoFile(file, { lane: "posts" });
+      if (uploaded.aborted) {
+        setWelcomePreview(previous);
+        patchSocialProfileOptimistic({ welcomeVideoUrl: previous });
+        URL.revokeObjectURL(previewUrl);
         return;
       }
-      const put = await fetch(signed.url, {
-        method: "PUT",
-        headers: { "Content-Type": signed.contentType },
-        body: file,
-      });
-      if (!put.ok) {
-        rollback(SOCIAL.home.uploadFailed);
+      if (uploaded.error || !uploaded.item) {
+        rollback(uploaded.error ?? SOCIAL.home.uploadFailed);
         return;
       }
       const save = new FormData();
-      save.set(
-        "media",
-        JSON.stringify([{ kind: signed.kind, key: signed.key, contentType: signed.contentType }]),
-      );
+      save.set("media", JSON.stringify([uploaded.item]));
       const result = await saveSocialWelcomeVideo(save);
       if (result.error) {
         rollback(result.error);
         return;
       }
+      URL.revokeObjectURL(previewUrl);
+      setWelcomePreview(SOCIAL_WELCOME_VIDEO_PRESENT);
+      patchSocialProfileOptimistic({ welcomeVideoUrl: SOCIAL_WELCOME_VIDEO_PRESENT });
       setVideoSaved(true);
     } catch {
       rollback(SOCIAL.home.uploadFailed);

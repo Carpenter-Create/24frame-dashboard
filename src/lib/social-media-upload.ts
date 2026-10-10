@@ -12,7 +12,7 @@ import {
   type SocialMediaKind,
   type SocialMediaLane,
 } from "@/lib/social-media";
-import { SOCIAL_MUX_PROVIDER, type SocialMuxIntent } from "@/lib/social-mux";
+import { SOCIAL_MUX_PROVIDER, socialVideoDurationExceedsCap, type SocialMuxIntent } from "@/lib/social-mux";
 
 // One client upload helper for Social posts and story video.
 // Images stay on the media S3 lane. Video goes to Mux.
@@ -28,6 +28,10 @@ export type SocialPostUploadOptions = {
   intent?: SocialMuxIntent;
   signal?: AbortSignal;
   onProgress?: (progress: SocialUploadProgress) => void;
+  /** Test seam. Production reads the file's own metadata. */
+  durationSeconds?: number | null;
+  /** Test seam. Production uses XMLHttpRequest. */
+  createXhr?: () => SocialUploadXhr;
 };
 
 export type SocialMediaUploadResult = {
@@ -227,16 +231,42 @@ async function uploadSocialS3Media(
   };
 }
 
+/** Seconds from the file's video metadata. Null when the browser cannot read it. */
+export function readSocialVideoDurationSeconds(file: File): Promise<number | null> {
+  if (typeof document === "undefined") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const finish = (value: number | null) => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      resolve(value);
+    };
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      finish(Number.isFinite(video.duration) ? video.duration : null);
+    };
+    video.onerror = () => finish(null);
+    video.src = url;
+  });
+}
+
 export async function uploadSocialMuxVideoFile(
   file: File,
   options: SocialPostUploadOptions & { lane?: SocialMediaLane } = {},
 ): Promise<{ item?: SocialMediaItem; error?: string; aborted?: boolean }> {
   const lane = options.lane ?? "posts";
+  const duration =
+    options.durationSeconds !== undefined ? options.durationSeconds : await readSocialVideoDurationSeconds(file);
+  if (socialVideoDurationExceedsCap(duration)) return { error: SOCIAL.music.tooLong };
   const body = new FormData();
   body.set("content_type", file.type);
   body.set("byte_length", String(file.size));
   body.set("lane", lane);
   body.set("intent", options.intent ?? "video");
+  if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
+    body.set("duration_seconds", String(duration));
+  }
   let created: Awaited<ReturnType<typeof createSocialMuxUpload>>;
   try {
     created = await createSocialMuxUpload(body);
@@ -248,10 +278,11 @@ export async function uploadSocialMuxVideoFile(
     return { error: created.error ?? SOCIAL.home.uploadFailed };
   }
   try {
-    if (options.onProgress) {
+    if (options.onProgress || options.createXhr) {
       await putSocialMediaWithProgress(created.url, file, created.contentType, {
         signal: options.signal,
         onProgress: options.onProgress,
+        createXhr: options.createXhr,
       });
     } else {
       const put = await fetch(created.url, {
@@ -289,52 +320,6 @@ export async function uploadSocialMuxVideoFile(
     item: {
       ...ready.item,
       provider: SOCIAL_MUX_PROVIDER,
-    },
-  };
-}
-
-/**
- * The profile's welcome video recorded on the 24Frame camera
- * (docs/design-locks/social-profile-edit-window-lock-v1.md §Welcome video):
- * one video on the media S3 posts lane, never Mux (the profile stores an S3
- * key), with the bytes reported for Live's blue bar. The caller saves it
- * with saveSocialWelcomeVideo.
- */
-export async function uploadSocialWelcomeVideoFile(
-  file: File,
-  options: {
-    signal?: AbortSignal;
-    onProgress?: (progress: SocialUploadProgress) => void;
-    createXhr?: () => SocialUploadXhr;
-  } = {},
-): Promise<{ item?: SocialMediaItem; error?: string; aborted?: boolean }> {
-  const planned = socialPostUploadPlan(file);
-  if (!planned || planned.kind !== "video") return { error: SOCIAL.stories.mediaType };
-  const body = new FormData();
-  body.set("content_type", planned.file.type);
-  body.set("byte_length", String(planned.file.size));
-  body.set("lane", "posts");
-  let signed: Awaited<ReturnType<typeof presignSocialMediaUpload>>;
-  try {
-    signed = await presignSocialMediaUpload(body);
-  } catch {
-    return { error: SOCIAL.home.uploadFailed };
-  }
-  if (signed.error || !signed.url || !signed.key || !signed.kind || !signed.contentType) {
-    return { error: signed.error ?? SOCIAL.home.uploadFailed };
-  }
-  try {
-    await putSocialMediaWithProgress(signed.url, planned.file, signed.contentType, options);
-  } catch (error) {
-    if (isSocialUploadAbort(error)) return { aborted: true };
-    reportUploadPutFailure("s3-put", "posts", error instanceof SocialUploadPutError ? error.status : 0);
-    return { error: SOCIAL.home.uploadFailed };
-  }
-  return {
-    item: {
-      kind: signed.kind as SocialMediaItem["kind"],
-      key: signed.key,
-      contentType: signed.contentType as SocialMediaItem["contentType"],
     },
   };
 }

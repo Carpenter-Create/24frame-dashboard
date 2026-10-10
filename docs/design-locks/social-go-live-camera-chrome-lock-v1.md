@@ -21,7 +21,7 @@ The Go live camera has no duration hint over the viewfinder. Header, flip, recor
 | Record | Centered record control. Starts and stops the clip |
 | Overlay | No “Record up to 10 minutes, then post as a video.” No other bottom hint |
 
-The 10:00 recording cap stays in the recorder. It is not painted on the camera face.
+The 7:59 recording cap stays in the recorder (Adam, 2026-10-08, eight-minute Social video lock). It is not painted on the camera face.
 
 ## Explicit OUT
 

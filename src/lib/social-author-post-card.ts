@@ -1,4 +1,5 @@
 import { normalizeSocialCategory, type SocialCategoryTopic } from "@/lib/social-categories";
+import type { SocialMusicNotice } from "@/lib/social";
 import type { SocialMediaOrientation } from "@/lib/social-media-display";
 import type { SocialMuxPlaybackPolicy } from "@/lib/social-mux";
 
@@ -34,6 +35,8 @@ export type SocialPostCardModel = {
    * a video's screen band. Absent or null: no topic shown.
    */
   topic?: SocialCategoryTopic | null;
+  /** Author-only. Pending or blocked music check. Never a song title. */
+  musicNotice?: SocialMusicNotice;
 };
 
 // Pure card model. Lives outside the client module so server pages can call it.
@@ -56,6 +59,7 @@ export function socialAuthorPostCard(input: {
   canLike: boolean;
   media: SocialPostMediaItem[];
   owned?: boolean;
+  musicNotice?: SocialMusicNotice | null;
 }): SocialPostCardModel {
   return {
     id: input.post.id,
@@ -74,5 +78,6 @@ export function socialAuthorPostCard(input: {
     media: input.media,
     owned: input.owned ?? false,
     topic: normalizeSocialCategory(input.post.category),
+    ...(input.musicNotice ? { musicNotice: input.musicNotice } : {}),
   };
 }

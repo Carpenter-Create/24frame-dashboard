@@ -21,6 +21,7 @@ import {
 } from "@/lib/social-chrome";
 import { signedAvatarUrls, signedSocialMediaByPostId, socialMediaProxiesByPostId } from "@/lib/social-edge";
 import { socialFeedReelTiles } from "@/lib/social-feed-reels";
+import { loadOwnMusicNotices, mediaWithoutHeldPlayback, omitHeldPosts } from "@/lib/social-music-scan";
 import { socialFollowingWallView } from "@/lib/social-following-wall";
 import { SocialFollowingWallBound } from "@/components/social/social-following-wall-bound";
 import {
@@ -126,7 +127,11 @@ async function SocialHomeCenter({
   const posts = wall.posts;
   const stories = storiesPage.stories;
   const storyIds = stories.map((story) => story.id);
-  const reelHits = reelPage.hits;
+  const music = await loadOwnMusicNotices(supabase, ctx.user.id, {
+    postIds: [...posts.map((post) => post.id), ...reelPage.hits.map((hit) => hit.id)],
+    storyIds,
+  });
+  const reelHits = omitHeldPosts(reelPage.hits, music.posts, music.withheldPostIds);
   const peopleIds = [
     ...new Set([
       ctx.user.id,
@@ -218,9 +223,15 @@ async function SocialHomeCenter({
                 faces,
                 groups,
                 liked,
-                media,
+                media: new Map(
+                  [...media.entries()].map(([id, items]) => [
+                    id,
+                    mediaWithoutHeldPlayback(items, music.withheldPostIds.has(id)),
+                  ]),
+                ),
                 canLike: !!profile,
                 viewerId: ctx.user.id,
+                musicNotices: music.posts,
               })}
               reels={reels}
               empty={

@@ -98,7 +98,9 @@ function chain(result: unknown) {
 function stubClient({
   profile = null,
   posts = [],
+  noticeError = false,
 }: {
+  noticeError?: boolean;
   profile?: {
     id: string;
     handle: string;
@@ -129,9 +131,17 @@ function stubClient({
     if (table === "stories") return chain([]);
     if (table === "comments") return chain([]);
     if (table === "courses") return chain([]);
+    if (table === "social_music_scans") return chain([]);
     throw new Error(`unexpected from(${table})`);
   });
-  vi.mocked(createClient).mockResolvedValue({ from } as never);
+  vi.mocked(createClient).mockResolvedValue({
+    from,
+    rpc: vi.fn(async (name: string) =>
+      noticeError && name === "social_music_author_notices"
+        ? { data: null, error: { message: "still down" } }
+        : { data: [], error: null },
+    ),
+  } as never);
   return { from };
 }
 
@@ -157,6 +167,13 @@ describe("Social profile public face", () => {
       error: null,
     });
     vi.mocked(ensureOwnSocialProfile).mockResolvedValue(ensured);
+  });
+
+  it("renders when the music notice rpc fails", async () => {
+    stubClient({ profile: ensured, noticeError: true });
+    vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+    const html = await renderServerMarkup(await SocialProfilePage());
+    expect(html).toContain("data-social-profile");
   });
 
   it("shows the public face after ensure and does not insert on render", async () => {

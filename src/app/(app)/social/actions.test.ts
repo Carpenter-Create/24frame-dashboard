@@ -12,6 +12,7 @@ import {
   storyLikeInsertRow,
 } from "@/lib/social";
 import { SocialMuxUploadNotBoundError } from "@/lib/social-mux";
+import { socialProfileEditFormData } from "@/lib/social-profile-edit";
 import { revalidatePath } from "next/cache";
 import {
   addSocialDmPeople,
@@ -47,23 +48,40 @@ vi.mock("@/lib/s3-social-media", () => ({
   presignSocialMediaPut: vi.fn(),
   headSocialMediaObject: vi.fn(async () => ({ bytes: 1200, contentType: null, etag: '"e1"' })),
   copySocialMediaObject: vi.fn(async () => undefined),
+  readSocialMediaObjectIfMatch: vi.fn(async () => new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
+  putPublishedSocialImage: vi.fn(async () => undefined),
+  readSocialMediaPrefix: vi.fn(async (key: string) =>
+    key.endsWith(".png")
+      ? new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+      : key.endsWith(".gif")
+        ? new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
+        : key.endsWith(".webp")
+          ? new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])
+          : new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+  ),
+}));
+
+vi.mock("@/lib/social-image-reencode", () => ({
+  reencodeSocialImage: vi.fn(async () => new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
 }));
 
 vi.mock("@/lib/social-mux-server", () => ({
   createSocialMuxDirectUpload: vi.fn(),
   finalizeSocialMuxDirectUpload: vi.fn(),
+  verifySocialMuxPublishedItems: vi.fn(async () => true),
   socialMuxSettingsFromUploadInput: vi.fn(() => ({
     intent: "video",
     settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
   })),
 }));
 
-import { copySocialMediaObject, headSocialMediaObject, presignSocialMediaPut } from "@/lib/s3-social-media";
+import { copySocialMediaObject, headSocialMediaObject, presignSocialMediaPut, putPublishedSocialImage } from "@/lib/s3-social-media";
 import { isOwnedSocialMediaKey } from "@/lib/social-media";
 import {
   createSocialMuxDirectUpload,
   finalizeSocialMuxDirectUpload,
   socialMuxSettingsFromUploadInput,
+  verifySocialMuxPublishedItems,
 } from "@/lib/social-mux-server";
 
 vi.mock("next/navigation", () => ({
@@ -81,7 +99,7 @@ function user() {
 
 // Publish draws a random id, so read back the key the server copied to.
 function publishedCopyKey(call = 0): string {
-  return vi.mocked(copySocialMediaObject).mock.calls[call]?.[0].destinationKey ?? "";
+  return vi.mocked(putPublishedSocialImage).mock.calls[call]?.[0].key ?? "";
 }
 
 function stub({
@@ -451,6 +469,35 @@ describe("social actions", () => {
     expect(updates[2]?.row).not.toHaveProperty("bio");
   });
 
+  it("saves Edit profile Done with a new photo on the draft and leaves avatar_key off the authenticated write", async () => {
+    const { updates } = stub({
+      profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
+    });
+    const form = socialProfileEditFormData({
+      username: "ada",
+      firstName: "Ada",
+      middleName: "",
+      lastName: "Lovelace",
+      bio: "Writes engines.",
+      crafts: ["director"],
+      topics: ["Directors"],
+      imdbUrl: "nm1234567",
+      links: ["https://example.com"],
+      photoUrl: "blob:new-photo",
+      welcomeVideoUrl: "present",
+    });
+    expect(form.has("avatar_key")).toBe(false);
+    form.set("avatar_key", "avatars/u1/from-the-client");
+    form.set("welcome_video_key", "welcome/u1/raw.mp4");
+    expect(await createSocialProfile(form)).toEqual({});
+    const row = updates[0]?.row as Record<string, unknown>;
+    expect(row).not.toHaveProperty("avatar_key");
+    expect(row).not.toHaveProperty("welcome_video_key");
+    expect(row).not.toHaveProperty("welcome_mux_asset_id");
+    expect(row.handle).toBe("ada");
+    expect(row.bio).toBe("Writes engines.");
+  });
+
   it("refuses a Bio over 150 characters and writes nothing", async () => {
     const { updates } = stub({
       profile: { id: "u1", handle: "ada", display_name: "Ada Lovelace", status: "active" },
@@ -578,12 +625,12 @@ describe("social actions", () => {
     const published = publishedCopyKey();
     expect(isOwnedSocialMediaKey(published, author, "posts")).toBe(true);
     expect(headSocialMediaObject).toHaveBeenCalledWith(upload, expect.any(Function));
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: published,
+      body: expect.any(Uint8Array),
       contentType: "image/jpeg",
     });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     // A cover with no original (an older client, or an original too large to keep)
     // clears any stored original and framing so the pair never goes stale.
     expect(updates).toEqual([
@@ -604,7 +651,7 @@ describe("social actions", () => {
     expect(await saveSocialProfileCover(stored)).toEqual({ error: SOCIAL.stories.mediaType });
     vi.mocked(headSocialMediaObject).mockResolvedValueOnce(null);
     expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.home.mediaMissing });
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(1);
     expect(updates).toHaveLength(1);
   });
 
@@ -624,10 +671,11 @@ describe("social actions", () => {
     expect(await saveSocialProfileCover(form)).toEqual({});
     expect(headSocialMediaObject).toHaveBeenCalledWith(croppedUpload, expect.any(Function));
     expect(headSocialMediaObject).toHaveBeenCalledWith(sourceUpload, expect.any(Function));
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(2);
-    const copies = vi.mocked(copySocialMediaObject).mock.calls.map(([input]) => input);
-    const coverCopy = copies.find((copy) => copy.sourceKey === croppedUpload)!.destinationKey;
-    const sourceCopy = copies.find((copy) => copy.sourceKey === sourceUpload)!.destinationKey;
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(2);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    const puts = vi.mocked(putPublishedSocialImage).mock.calls.map(([input]) => input);
+    const coverCopy = puts.find((put) => put.contentType === "image/jpeg")!.key;
+    const sourceCopy = puts.find((put) => put.contentType === "image/png")!.key;
     expect(isOwnedSocialMediaKey(coverCopy, author, "posts")).toBe(true);
     expect(isOwnedSocialMediaKey(sourceCopy, author, "posts")).toBe(true);
     expect(sourceCopy).toMatch(/\.png$/);
@@ -730,7 +778,8 @@ describe("social actions", () => {
     form.set("cover_source_key", `posts/${other}/66666666-6666-4666-8666-666666666666.jpg`);
     expect(await saveSocialProfileCover(form)).toEqual({});
     expect(selects).toContain("cover_key, cover_source_key");
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(1);
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     const published = publishedCopyKey();
     expect(updates).toEqual([{ cover_key: published, cover_crop: crop }]);
     // The update lands only on the cover the editor opened and its original.
@@ -744,7 +793,7 @@ describe("social actions", () => {
 
     // No stored original (a cover saved before originals were kept): refuse
     // before publishing anything.
-    vi.mocked(copySocialMediaObject).mockClear();
+    vi.mocked(putPublishedSocialImage).mockClear();
     updates.length = 0;
     storedRow = {
       id: author,
@@ -764,7 +813,7 @@ describe("social actions", () => {
       cover_source_key: `posts/${other}/55555555-5555-4555-8555-555555555555.jpg`,
     };
     expect(await saveSocialProfileCover(form)).toEqual({ error: SOCIAL.profile.coverCropFailed });
-    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    expect(putPublishedSocialImage).not.toHaveBeenCalled();
     expect(updates).toEqual([]);
   });
 
@@ -847,23 +896,47 @@ describe("social actions", () => {
     const { updates } = stub({
       profile: { id: author, handle: "ada", display_name: "Ada Lovelace", status: "active" },
     });
-    const upload = `posts/upload/${author}/${object}.mp4`;
-    const form = new FormData();
-    form.set("media", JSON.stringify([{ kind: "video", key: upload, contentType: "video/mp4" }]));
-    expect(await saveSocialWelcomeVideo(form)).toEqual({});
-    expect(await clearSocialWelcomeVideo()).toEqual({});
-    const published = publishedCopyKey();
-    expect(isOwnedSocialMediaKey(published, author, "posts")).toBe(true);
-    expect(published.endsWith(".mp4")).toBe(true);
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
+    const s3 = new FormData();
+    s3.set(
+      "media",
+      JSON.stringify([{ kind: "video", key: `posts/upload/${author}/${object}.mp4`, contentType: "video/mp4" }]),
+    );
+    expect(await saveSocialWelcomeVideo(s3)).toEqual({ error: SOCIAL.stories.mediaType });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
+    const mux = {
+      kind: "video",
+      key: `posts/${author}/${object}.mp4`,
       contentType: "video/mp4",
-    });
+      provider: "mux",
+      playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+      uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+      assetId: "SqQnqz6s5MBuXGvJaUWdXu",
+      playbackPolicy: "signed",
+    };
+    const form = new FormData();
+    form.set("media", JSON.stringify([mux]));
+    expect(await saveSocialWelcomeVideo(form)).toEqual({});
+    expect(verifySocialMuxPublishedItems).toHaveBeenCalled();
+    expect(await clearSocialWelcomeVideo()).toEqual({});
     expect(updates).toEqual([
-      { table: "profiles", row: { welcome_video_key: published } },
-      { table: "profiles", row: { welcome_video_key: null } },
+      {
+        table: "profiles",
+        row: {
+          welcome_mux_asset_id: mux.assetId,
+          welcome_mux_playback_id: mux.playbackId,
+          welcome_mux_upload_id: mux.uploadId,
+          welcome_video_key: null,
+        },
+      },
+      {
+        table: "profiles",
+        row: {
+          welcome_video_key: null,
+          welcome_mux_asset_id: null,
+          welcome_mux_playback_id: null,
+          welcome_mux_upload_id: null,
+        },
+      },
     ]);
   });
 
@@ -981,6 +1054,8 @@ describe("social actions", () => {
         contentType: "video/mp4" as const,
         provider: "mux" as const,
         playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+        uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+        assetId: "SqQnqz6s5MBuXGvJaUWdXu",
         playbackPolicy: "signed" as const,
       },
     ];
@@ -1428,6 +1503,8 @@ describe("social actions", () => {
         contentType: "video/mp4" as const,
         provider: "mux" as const,
         playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+        uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+        assetId: "SqQnqz6s5MBuXGvJaUWdXu",
         playbackPolicy: "signed" as const,
       },
     ];
@@ -1439,13 +1516,13 @@ describe("social actions", () => {
     expect(isOwnedSocialMediaKey(published, author, "posts")).toBe(true);
     expect(headSocialMediaObject).toHaveBeenCalledTimes(1);
     expect(headSocialMediaObject).toHaveBeenCalledWith(upload, expect.any(Function));
-    expect(copySocialMediaObject).toHaveBeenCalledTimes(1);
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
+    expect(putPublishedSocialImage).toHaveBeenCalledTimes(1);
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: published,
+      body: expect.any(Uint8Array),
       contentType: "image/jpeg",
     });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     expect(inserts).toEqual([
       {
         table: "posts",
@@ -1514,7 +1591,7 @@ describe("social actions", () => {
       "media",
       JSON.stringify([{ kind: "image", key: `posts/upload/${author}/${object}.jpg`, contentType: "image/jpeg" }]),
     );
-    vi.mocked(copySocialMediaObject).mockRejectedValueOnce(
+    vi.mocked(putPublishedSocialImage).mockRejectedValueOnce(
       Object.assign(new Error("Access Denied"), { name: "AccessDenied", $metadata: { httpStatusCode: 403 } }),
     );
     vi.mocked(headSocialMediaObject)
@@ -1622,12 +1699,12 @@ describe("social actions", () => {
     expect(await createSocialStory(form)).toEqual({});
     const published = publishedCopyKey();
     expect(isOwnedSocialMediaKey(published, author, "stories")).toBe(true);
-    expect(copySocialMediaObject).toHaveBeenCalledWith({
-      sourceKey: upload,
-      etag: '"e1"',
-      destinationKey: published,
+    expect(putPublishedSocialImage).toHaveBeenCalledWith({
+      key: published,
+      body: expect.any(Uint8Array),
       contentType: "image/jpeg",
     });
+    expect(copySocialMediaObject).not.toHaveBeenCalled();
     expect(inserts).toHaveLength(1);
     expect(inserts[0]).toMatchObject({
       table: "stories",
@@ -1654,18 +1731,13 @@ describe("social actions", () => {
       1200,
     );
 
-    vi.mocked(presignSocialMediaPut).mockResolvedValue("https://s3.example/put");
+    vi.mocked(presignSocialMediaPut).mockClear();
     const videoSign = new FormData();
     videoSign.set("content_type", "video/mp4");
     videoSign.set("byte_length", "1200");
     videoSign.set("lane", "stories");
-    expect(await presignSocialMediaUpload(videoSign)).toEqual({
-      key: `stories/upload/${author}/${object}.mp4`,
-      url: "https://s3.example/put",
-      kind: "video",
-      contentType: "video/mp4",
-    });
-    expect(presignSocialMediaPut).toHaveBeenCalledWith(`stories/upload/${author}/${object}.mp4`, "video/mp4", 1200);
+    expect(await presignSocialMediaUpload(videoSign)).toEqual({ error: SOCIAL.home.mediaType });
+    expect(presignSocialMediaPut).not.toHaveBeenCalled();
   });
 
   it("rejects a story when the stored object is missing, oversized, or a different type", async () => {
@@ -1730,6 +1802,19 @@ describe("social actions", () => {
       settings: { videoQuality: "basic", maxResolutionTier: "2160p" },
       passthrough: `${author}:${object}`,
     });
+
+    vi.mocked(createSocialMuxDirectUpload).mockClear();
+    const tooLong = new FormData();
+    tooLong.set("content_type", "video/mp4");
+    tooLong.set("byte_length", "1200");
+    tooLong.set("duration_seconds", "481");
+    expect(await createSocialMuxUpload(tooLong)).toEqual({ error: SOCIAL.music.tooLong });
+    expect(createSocialMuxDirectUpload).not.toHaveBeenCalled();
+    const allowed = new FormData();
+    allowed.set("content_type", "video/mp4");
+    allowed.set("byte_length", "1200");
+    allowed.set("duration_seconds", "480");
+    expect(await createSocialMuxUpload(allowed)).toMatchObject({ uploadId: "zd01Pe2bNpYhxbrwYABgFE" });
 
     vi.mocked(finalizeSocialMuxDirectUpload).mockResolvedValue({
       uploadId: "zd01Pe2bNpYhxbrwYABgFE",
@@ -1869,6 +1954,33 @@ describe("social actions", () => {
     ]);
     expect(logged.mock.calls.some(([line]) => String(line).includes("storage.example"))).toBe(false);
     logged.mockRestore();
+  });
+
+  it("rejects a Mux post or story when publish cannot verify the member owns the upload", async () => {
+    const author = "11111111-1111-4111-8111-111111111111";
+    const object = "22222222-2222-4222-8222-222222222222";
+    vi.mocked(getAuthUser).mockResolvedValue({ id: author, email: "ada@example.com" } as never);
+    const { inserts } = stub({ profile: { id: author } });
+    vi.mocked(verifySocialMuxPublishedItems).mockResolvedValue(false);
+    const mux = {
+      kind: "video",
+      contentType: "video/mp4",
+      provider: "mux",
+      playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+      uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+      assetId: "SqQnqz6s5MBuXGvJaUWdXu",
+      playbackPolicy: "signed",
+    };
+    const post = new FormData();
+    post.set("body", "clip");
+    post.set("media", JSON.stringify([{ ...mux, key: `posts/${author}/${object}.mp4` }]));
+    expect(await createSocialPost(post)).toEqual({ error: SOCIAL.home.mediaForbidden });
+    const story = new FormData();
+    story.set("media", JSON.stringify([{ ...mux, key: `stories/${author}/${object}.mp4` }]));
+    expect(await createSocialStory(story)).toEqual({ error: SOCIAL.home.mediaForbidden });
+    expect(inserts).toEqual([]);
+    expect(verifySocialMuxPublishedItems).toHaveBeenCalled();
+    vi.mocked(verifySocialMuxPublishedItems).mockResolvedValue(true);
   });
 
   it("opens a Mux upload on the stories lane and finalizes that key", async () => {

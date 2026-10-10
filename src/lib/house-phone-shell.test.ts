@@ -637,6 +637,7 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
       "Licensing Status",
       "Channels",
       "Finance",
+      "Music review",
       "Clients",
     ]);
     expect(housePhoneDestinations(true, "aggregation").map((item) => item.label)).not.toContain(

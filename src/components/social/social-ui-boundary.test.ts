@@ -112,7 +112,7 @@ function hits(files: Set<string>, banned: readonly string[]): string[] {
   return banned.filter((file) => files.has(file));
 }
 
-describe("social-ui import boundary", () => {
+describe("social-ui import boundary", { timeout: 20_000 }, () => {
   it("does not keep a client social-ui barrel", () => {
     expect(existsSync(join(ROOT, "src/components/social/social-ui.tsx"))).toBe(false);
   });

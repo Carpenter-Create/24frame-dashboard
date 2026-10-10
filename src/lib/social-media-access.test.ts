@@ -2,12 +2,16 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   socialMediaJsonContains,
   socialMediaReadGrant,
   socialMuxPlaybackJsonContains,
+  socialMuxVideoPlaybackJsonContains,
+  welcomeVideoVisible,
   socialProfileCoverReadGrant,
   socialMuxPlaybackReadGrant,
   viewerMayMintSocialMuxPlayback,
@@ -42,6 +46,7 @@ function chain(result: { data: unknown; error?: { message: string } | null }) {
   builder.contains = vi.fn(self);
   builder.in = vi.fn(self);
   builder.limit = vi.fn(self);
+  builder.order = vi.fn(self);
   builder.maybeSingle = vi.fn(() => Promise.resolve(result));
   builder.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
     Promise.resolve(result).then(resolve, reject);
@@ -186,6 +191,18 @@ describe("socialMediaJsonContains", () => {
 describe("viewerMaySignSocialMedia", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
+    vi.mocked(createAdminClient).mockReset();
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: () => {
+        const query = {
+          select: () => query,
+          eq: () => query,
+          in: () => query,
+          limit: async () => ({ data: [], error: { code: "42P01", message: "relation does not exist" } }),
+        };
+        return query;
+      },
+    } as never);
   });
 
   it("denies an owned key when no selectable row stores it", async () => {
@@ -220,16 +237,19 @@ describe("viewerMaySignSocialMedia", () => {
       from: vi.fn((table: string) => {
         if (table === "follows") return chain({ data: null });
         return chain({
-          data: [{ author_id: USER, status: "active", expires_at: LIVE, media: storyMedia(own) }],
+          data: [{ id: "own-story", author_id: USER, status: "active", expires_at: LIVE, media: storyMedia(own) }],
         });
       }),
     } as never);
-    await expect(viewerMaySignSocialMedia(USER, own, NOW)).resolves.toBe(true);
+    await expect(viewerMaySignSocialMedia(USER, own, NOW)).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue(allowedScan() as never);
+    await expect(viewerMaySignSocialMedia(USER, own, NOW)).resolves.toBe(false);
   });
 
   it("signs a followed live story and refuses when the queries fail or return nothing", async () => {
     const stories = chain({
-      data: [{ author_id: OTHER, status: "active", expires_at: LIVE, media: storyMedia() }],
+      data: [{ id: "followed-story", author_id: OTHER, status: "active", expires_at: LIVE, media: storyMedia() }],
     });
     const from = vi.fn((table: string) => {
       if (table === "follows") return chain({ data: { followee_id: OTHER } });
@@ -237,7 +257,9 @@ describe("viewerMaySignSocialMedia", () => {
       return chain({ data: [] });
     });
     vi.mocked(createClient).mockResolvedValue({ from } as never);
-    await expect(viewerMaySignSocialMedia(USER, STORY_KEY, NOW)).resolves.toBe(true);
+    await expect(viewerMaySignSocialMedia(USER, STORY_KEY, NOW)).resolves.toBe(false);
+    vi.mocked(createAdminClient).mockReturnValue(allowedScan() as never);
+    await expect(viewerMaySignSocialMedia(USER, STORY_KEY, NOW)).resolves.toBe(false);
     expect(stories.contains).toHaveBeenCalledWith("media", JSON.stringify([{ key: STORY_KEY }]));
 
     vi.mocked(createClient).mockResolvedValue({
@@ -318,6 +340,27 @@ describe("viewerMaySignSocialMedia", () => {
       ),
     } as never);
     await expect(viewerMaySignSocialMedia(USER, POST_KEY, NOW)).resolves.toBe(false);
+  });
+
+  it("does not sign the author's own post video without an allowed scan", async () => {
+    const ownVideo = `posts/${USER}/${OBJECT}.mp4`;
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn(() =>
+        chain({
+          data: [
+            {
+              id: "own-post",
+              author_id: USER,
+              status: "active",
+              media: [{ kind: "video", key: ownVideo, contentType: "video/mp4" }],
+            },
+          ],
+        }),
+      ),
+    } as never);
+    await expect(viewerMaySignSocialMedia(USER, ownVideo, NOW)).resolves.toBe(false);
+    vi.mocked(createAdminClient).mockReturnValue(allowedScan() as never);
+    await expect(viewerMaySignSocialMedia(USER, ownVideo, NOW)).resolves.toBe(false);
   });
 
   it("does not read profiles when post media already grants the key", async () => {
@@ -450,9 +493,85 @@ describe("socialMuxPlaybackReadGrant", () => {
   });
 });
 
+function allowedScan() {
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    in: vi.fn(() => query),
+    limit: vi.fn(async () => ({ data: [{ id: "scan-allowed" }], error: null })),
+  };
+  return { from: vi.fn(() => query) };
+}
+
+const STORY_ID = "44444444-4444-4444-8444-444444444444";
+
+function scansQuery(result: { data: unknown; error: { code?: string; message?: string } | null }) {
+  const filters: Record<string, string> = {};
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn((column: string, value: string) => {
+      filters[column] = value;
+      return query;
+    }),
+    in: vi.fn((column: string, value: readonly string[]) => {
+      if (column === "status") filters.status = value.join(",");
+      return query;
+    }),
+    limit: vi.fn(async () => {
+      if (result.error) return result;
+      if (filters.status === "blocked,pending" || filters.status === "pending,blocked") {
+        const holding = Array.isArray(result.data)
+          ? result.data.filter((row) => {
+              const status = (row as { status?: string }).status;
+              return status === "blocked" || status === "pending";
+            })
+          : [];
+        return { data: holding.slice(0, 1), error: null };
+      }
+      if (filters.status === "blocked") {
+        const blocked = Array.isArray(result.data)
+          ? result.data.filter((row) => (row as { status?: string }).status === "blocked")
+          : [];
+        return { data: blocked, error: null };
+      }
+      if (filters.status === "allowed" && filters.post_id) {
+        const allowed =
+          Array.isArray(result.data) &&
+          result.data.some((row) => {
+            const record = row as { status?: string; post_id?: string | null };
+            return record.status === "allowed" && record.post_id === filters.post_id;
+          });
+        return {
+          data: allowed
+            ? [{ id: "ok", playback_id: PLAYBACK, status: "allowed", post_id: filters.post_id, story_id: null }]
+            : [],
+          error: null,
+        };
+      }
+      if (filters.status === "allowed" && filters.story_id === STORY_ID) {
+        const allowed =
+          Array.isArray(result.data) &&
+          result.data.some((row) => (row as { status?: string }).status === "allowed");
+        return {
+          data: allowed
+            ? [{ id: "ok", playback_id: PLAYBACK, status: "allowed", post_id: null, story_id: STORY_ID }]
+            : [],
+          error: null,
+        };
+      }
+      return { data: [], error: null };
+    }),
+  };
+  return query;
+}
+
 describe("viewerMayMintSocialMuxPlayback", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
+    vi.mocked(createAdminClient).mockReset();
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() => scansQuery({ data: [], error: { code: "42P01", message: "relation does not exist" } })),
+    } as never);
   });
 
   it("mints only when a selectable row stores the playback id", async () => {
@@ -468,9 +587,13 @@ describe("viewerMayMintSocialMuxPlayback", () => {
         return follows;
       }),
     } as never);
-    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
-    expect(stories.contains).toHaveBeenCalledWith("media", socialMuxPlaybackJsonContains(PLAYBACK));
-    expect(posts.contains).toHaveBeenCalledWith("media", socialMuxPlaybackJsonContains(PLAYBACK));
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
+    expect(stories.contains).toHaveBeenCalledWith("media", socialMuxVideoPlaybackJsonContains(PLAYBACK));
+    expect(posts.contains).toHaveBeenCalledWith("media", socialMuxVideoPlaybackJsonContains(PLAYBACK));
+    expect(stories.order).toHaveBeenCalledWith("id", { ascending: true });
+    expect(posts.order).toHaveBeenCalledWith("id", { ascending: true });
+    expect(stories.limit).not.toHaveBeenCalled();
+    expect(posts.limit).not.toHaveBeenCalled();
 
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => {
@@ -482,6 +605,77 @@ describe("viewerMayMintSocialMuxPlayback", () => {
     await expect(viewerMayMintSocialMuxPlayback(USER, "short", NOW)).resolves.toBe(false);
   });
 
+  it("refuses someone else's playback until that story has an allowed music scan", async () => {
+    const stories = chain({
+      data: [{ id: STORY_ID, author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
+    });
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === "posts") return chain({ data: [] });
+        if (table === "stories") return stories;
+        return chain({ data: [{ followee_id: OTHER }] });
+      }),
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() => scansQuery({ data: [], error: null })),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({ data: [{ playback_id: PLAYBACK, status: "blocked" }], error: null }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({ data: [{ playback_id: PLAYBACK, status: "allowed" }], error: null }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({
+          data: [
+            { playback_id: PLAYBACK, status: "allowed" },
+            { playback_id: PLAYBACK, status: "blocked" },
+          ],
+          error: null,
+        }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
+  });
+
+  it("keeps an allowed mux video when image rows would have filled an unordered limit", async () => {
+    const posts = chain({
+      data: [{ id: "post-0", author_id: OTHER, status: "active", media: muxMedia(OTHER, "posts") }],
+    });
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn((table: string) => (table === "posts" ? posts : chain({ data: [] }))),
+    } as never);
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() =>
+        scansQuery({
+          data: [
+            { playback_id: PLAYBACK, status: "allowed", post_id: "post-0", story_id: null },
+            { playback_id: PLAYBACK, status: "pending", post_id: "post-held", story_id: null },
+          ],
+          error: null,
+        }),
+      ),
+    } as never);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+    expect(posts.contains).toHaveBeenCalledWith("media", socialMuxVideoPlaybackJsonContains(PLAYBACK));
+    expect(posts.limit).not.toHaveBeenCalled();
+    expect(socialMuxVideoPlaybackJsonContains(PLAYBACK)).toBe(
+      JSON.stringify([{ kind: "video", provider: "mux", playbackId: PLAYBACK }]),
+    );
+    expect(socialMuxPlaybackJsonContains(PLAYBACK)).not.toBe(socialMuxVideoPlaybackJsonContains(PLAYBACK));
+  });
+
   it("never queries messages while deciding a mux playback grant", async () => {
     const tables: string[] = [];
     const from = vi.fn((table: string) => {
@@ -489,14 +683,14 @@ describe("viewerMayMintSocialMuxPlayback", () => {
       if (table === "posts") return chain({ data: [] });
       if (table === "stories") {
         return chain({
-          data: [{ author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
+          data: [{ id: STORY_ID, author_id: OTHER, status: "active", expires_at: LIVE, media: muxMedia(OTHER, "stories") }],
         });
       }
       if (table === "follows") return chain({ data: [{ followee_id: OTHER }] });
       return chain({ data: [{ id: "not-a-grant" }] });
     });
     vi.mocked(createClient).mockResolvedValue({ from } as never);
-    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(true);
+    await expect(viewerMayMintSocialMuxPlayback(USER, PLAYBACK, NOW)).resolves.toBe(false);
     expect(tables).toEqual(["posts", "stories", "follows"]);
     expect(tables).not.toContain("messages");
 
@@ -515,5 +709,93 @@ describe("viewerMayMintSocialMuxPlayback", () => {
     const route = readFileSync("src/app/api/social/mux-playback/route.ts", "utf8");
     expect(mint).not.toContain("messages");
     expect(route).not.toContain("messages");
+  });
+});
+
+describe("welcomeVideoVisible", () => {
+  const profile = "55555555-5555-4555-8555-555555555555";
+  const asset = "assetWEL00001";
+  const playback = "playWEL000001";
+
+  function welcomeQuery(rows: { status: string }[]) {
+    const filters: Record<string, string> = {};
+    const query = {
+      select: vi.fn(() => query),
+      eq: vi.fn((column: string, value: string) => {
+        filters[column] = value;
+        return query;
+      }),
+      limit: vi.fn(async () => ({
+        data: rows.filter((row) => row.status === filters.status).slice(0, 1),
+        error: null,
+      })),
+    };
+    return { from: vi.fn(() => query) };
+  }
+
+  it("denies other people unless this welcome pair is allowed and no block exists", async () => {
+    const webm = `posts/${profile}/99999999-9999-4999-8999-999999999999.webm`;
+    vi.mocked(createAdminClient).mockReturnValue(welcomeQuery([]) as never);
+    await expect(
+      welcomeVideoVisible({
+        viewerId: profile,
+        profileId: profile,
+        welcomeVideoKey: webm,
+        assetId: null,
+        playbackId: null,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      welcomeVideoVisible({
+        viewerId: USER,
+        profileId: profile,
+        welcomeVideoKey: webm,
+        assetId: null,
+        playbackId: null,
+      }),
+    ).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue(welcomeQuery([]) as never);
+    await expect(
+      welcomeVideoVisible({
+        viewerId: USER,
+        profileId: profile,
+        welcomeVideoKey: null,
+        assetId: asset,
+        playbackId: playback,
+      }),
+    ).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue(welcomeQuery([{ status: "blocked" }, { status: "allowed" }]) as never);
+    await expect(
+      welcomeVideoVisible({
+        viewerId: USER,
+        profileId: profile,
+        welcomeVideoKey: null,
+        assetId: asset,
+        playbackId: playback,
+      }),
+    ).resolves.toBe(false);
+
+    vi.mocked(createAdminClient).mockReturnValue(welcomeQuery([{ status: "allowed" }]) as never);
+    await expect(
+      welcomeVideoVisible({
+        viewerId: USER,
+        profileId: profile,
+        welcomeVideoKey: null,
+        assetId: asset,
+        playbackId: playback,
+      }),
+    ).resolves.toBe(true);
+
+    await expect(
+      welcomeVideoVisible({
+        viewerId: profile,
+        profileId: profile,
+        welcomeVideoKey: null,
+        assetId: asset,
+        playbackId: playback,
+      }),
+    ).resolves.toBe(true);
   });
 });

@@ -4,7 +4,9 @@ import { SOCIAL } from "./social";
 import { SOCIAL_VIDEO_MAX_BYTES } from "./social-media";
 import { formatStoryRecorderClock } from "./social-story-recorder";
 import {
+  bindGoLiveRecorderStop,
   formatGoLiveClock,
+  startGoLiveClock,
   goLiveFileName,
   goLiveFitsByteCap,
   goLiveReachedCap,
@@ -30,18 +32,123 @@ import {
 } from "./social-go-live";
 
 describe("Go live duration cap", () => {
-  it("caps at 10 minutes and counts remaining time down to 0:00", () => {
-    expect(SOCIAL_GO_LIVE_MAX_MS).toBe(10 * 60 * 1000);
+  it("caps at 8 minutes and counts remaining time down to 0:00", () => {
+    expect(SOCIAL_GO_LIVE_MAX_MS).toBe(479 * 1000);
     expect(goLiveRemainingMs(0)).toBe(SOCIAL_GO_LIVE_MAX_MS);
-    expect(goLiveRemainingMs(60_000)).toBe(9 * 60 * 1000);
+    expect(goLiveRemainingMs(60_000)).toBe(SOCIAL_GO_LIVE_MAX_MS - 60_000);
     expect(goLiveRemainingMs(SOCIAL_GO_LIVE_MAX_MS)).toBe(0);
     expect(goLiveRemainingMs(SOCIAL_GO_LIVE_MAX_MS + 5_000)).toBe(0);
     expect(goLiveReachedCap(SOCIAL_GO_LIVE_MAX_MS - 1)).toBe(false);
     expect(goLiveReachedCap(SOCIAL_GO_LIVE_MAX_MS)).toBe(true);
-    expect(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS)).toBe("10:00");
+    expect(formatGoLiveClock(SOCIAL_GO_LIVE_MAX_MS)).toBe("7:59");
     expect(formatGoLiveClock(0)).toBe("0:00");
-    expect(formatGoLiveClock(goLiveRemainingMs(90_000))).toBe("8:30");
+    expect(formatGoLiveClock(goLiveRemainingMs(90_000))).toBe("6:29");
     expect(formatGoLiveClock(90_000)).toBe(formatStoryRecorderClock(90_000));
+  });
+
+  it("stops at 479s from ondataavailable when the timer never ticks", () => {
+    let now = 0;
+    let recording = true;
+    let chunks = 0;
+    const recorder = {
+      ondataavailable: null as ((event: { data: Blob }) => void) | null,
+      stopped: false,
+    };
+    const watch = bindGoLiveRecorderStop({
+      recorder,
+      now: () => now,
+      startedAt: 0,
+      isRecording: () => recording,
+      stop: () => {
+        recorder.stopped = true;
+        recording = false;
+      },
+      takeChunk: () => {
+        chunks += 1;
+      },
+    });
+    now = SOCIAL_GO_LIVE_MAX_MS - 1;
+    recorder.ondataavailable?.({ data: new Blob(["early"]) });
+    expect(recorder.stopped).toBe(false);
+    expect(chunks).toBe(1);
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    expect(watch.onTick).toBeTypeOf("function");
+    recorder.ondataavailable?.({ data: new Blob(["late"]) });
+    expect(recorder.stopped).toBe(true);
+    expect(chunks).toBe(2);
+  });
+
+  it("keeps the chunk that crosses 479s, then the clock tick stops the take", () => {
+    let now = 0;
+    let recording = true;
+    let chunks = 0;
+    const recorder = {
+      ondataavailable: null as ((event: { data: Blob }) => void) | null,
+      stopped: false,
+    };
+    const stopTick = { current: null as (() => void) | null };
+    const watch = bindGoLiveRecorderStop({
+      recorder,
+      now: () => now,
+      startedAt: 0,
+      isRecording: () => recording,
+      stop: () => {
+        recorder.stopped = true;
+        recording = false;
+      },
+      takeChunk: () => {
+        chunks += 1;
+      },
+    });
+    stopTick.current = watch.onTick;
+    const clock = { tick: null as (() => void) | null };
+    startGoLiveClock({
+      now: () => now,
+      startedAt: () => 0,
+      setClock: () => undefined,
+      stopTick,
+      setInterval: (fn) => {
+        clock.tick = fn;
+        return 1;
+      },
+    });
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    recorder.ondataavailable?.({ data: new Blob(["late"]) });
+    expect(chunks).toBe(1);
+    expect(recorder.stopped).toBe(true);
+    recording = true;
+    recorder.stopped = false;
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    clock.tick?.();
+    expect(recorder.stopped).toBe(true);
+  });
+
+  it("stops at 479s from a timer tick when no chunk arrives", () => {
+    let now = 0;
+    let recording = true;
+    let chunks = 0;
+    const recorder = {
+      ondataavailable: null as ((event: { data: Blob }) => void) | null,
+      stopped: false,
+    };
+    const watch = bindGoLiveRecorderStop({
+      recorder,
+      now: () => now,
+      startedAt: 0,
+      isRecording: () => recording,
+      stop: () => {
+        recorder.stopped = true;
+        recording = false;
+      },
+      takeChunk: () => {
+        chunks += 1;
+      },
+    });
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    watch.onTick();
+    expect(recorder.stopped).toBe(true);
+    expect(chunks).toBe(0);
+    expect(recorder.ondataavailable).toBeTypeOf("function");
   });
 
   it("names the recorded file and keeps the bitrate under the bumped video cap", () => {

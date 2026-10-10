@@ -105,7 +105,10 @@ function muxMedia(objectId = CLIP) {
 }
 
 function stub() {
-  vi.mocked(createClient).mockResolvedValue({ from: vi.fn(() => emptyQuery()) } as never);
+  vi.mocked(createClient).mockResolvedValue({
+    from: vi.fn(() => emptyQuery()),
+    rpc: vi.fn(async () => ({ data: [], error: null })),
+  } as never);
 }
 
 describe("Social Explore", () => {
@@ -195,6 +198,19 @@ describe("Social Explore", () => {
     expect(host).not.toContain('fit="contain"');
   });
 
+  it("renders when the music notice rpc fails", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn(() => emptyQuery()),
+      rpc: vi.fn(async (name: string) =>
+        name === "social_music_author_notices"
+          ? { data: null, error: { message: "still down" } }
+          : { data: [], error: null },
+      ),
+    } as never);
+    const html = await renderServerMarkup(await SocialExplorePage({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain("data-social-explore");
+  });
+
   it("sends an unauthenticated visitor to login", async () => {
     vi.mocked(getOrgContext).mockResolvedValue(null as never);
     await expect(SocialExplorePage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
@@ -217,6 +233,7 @@ describe("Social Explore", () => {
         if (table === "posts") return postsChain;
         return emptyQuery();
       }),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -255,6 +272,7 @@ describe("Social Explore", () => {
         if (table === "posts") return postsQuery(posts);
         return emptyQuery();
       }),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -299,6 +317,7 @@ describe("Social Explore", () => {
         if (table === "profiles") return profiles;
         return emptyQuery();
       }),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -348,6 +367,7 @@ describe("Social Explore", () => {
     }));
     vi.mocked(createClient).mockResolvedValue({
       from: vi.fn((table: string) => (table === "profiles" ? profiles : emptyQuery())),
+      rpc: vi.fn(async () => ({ data: [], error: null })),
     } as never);
 
     const html = await renderServerMarkup(
@@ -421,6 +441,7 @@ describe("Social Explore", () => {
           if (table === "profiles") return profiles;
           return emptyQuery();
         }),
+        rpc: vi.fn(async () => ({ data: [], error: null })),
       } as never);
       return postsChain;
     }

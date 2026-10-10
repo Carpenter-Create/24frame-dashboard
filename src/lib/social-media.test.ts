@@ -15,6 +15,7 @@ import {
   storyPickFile,
   welcomeVideoItemFromMedia,
   parsePostMedia,
+  socialImageBytesMatchContentType,
   socialMediaObjectKey,
   socialMediaStagingKey,
   socialPublishedVideoRejection,
@@ -201,28 +202,37 @@ describe("posts.media persist shape", () => {
     );
   });
 
-  it("accepts one video upload as the welcome item", () => {
-    const video = {
+  it("accepts one Mux video as the welcome item", () => {
+    const s3 = {
       kind: "video" as const,
       key: `posts/upload/${USER}/${OBJECT}.mp4`,
       contentType: "video/mp4" as const,
+    };
+    const mux = {
+      kind: "video" as const,
+      key: `posts/${USER}/${OBJECT}.mp4`,
+      contentType: "video/mp4" as const,
+      provider: "mux" as const,
+      playbackId: "uNbxnGLKJ00yfbijDO8COxT",
+      uploadId: "zd01Pe2bNpYhxbrwYABgFE",
+      assetId: "SqQnqz6s5MBuXGvJaUWdXu",
     };
     const image = {
       kind: "image" as const,
       key: `posts/upload/${USER}/${OBJECT}.jpg`,
       contentType: "image/jpeg" as const,
     };
-    expect(welcomeVideoItemFromMedia([video], USER)).toEqual(video);
+    expect(welcomeVideoItemFromMedia([mux], USER)).toMatchObject({
+      assetId: mux.assetId,
+      playbackId: mux.playbackId,
+      uploadId: mux.uploadId,
+    });
+    expect(welcomeVideoItemFromMedia([s3], USER)).toBeNull();
     expect(welcomeVideoItemFromMedia([image], USER)).toBeNull();
-    expect(welcomeVideoItemFromMedia([video, image], USER)).toBeNull();
-    expect(welcomeVideoItemFromMedia([{ ...video, key: `posts/${USER}/${OBJECT}.mp4` }], USER)).toBeNull();
-    expect(welcomeVideoItemFromMedia([{ ...video, key: `posts/upload/${OTHER}/${OBJECT}.mp4` }], USER)).toBeNull();
-    expect(
-      welcomeVideoItemFromMedia(
-        [{ ...video, key: `posts/${USER}/${OBJECT}.mp4`, provider: "mux", playbackId: "uNbxnGLKJ00yfbijDO8COxT" }],
-        USER,
-      ),
-    ).toBeNull();
+    expect(welcomeVideoItemFromMedia([mux, image], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...mux, key: `posts/upload/${USER}/${OBJECT}.mp4` }], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...mux, key: `posts/${OTHER}/${OBJECT}.mp4` }], USER)).toBeNull();
+    expect(welcomeVideoItemFromMedia([{ ...mux, playbackId: "short" }], USER)).toBeNull();
   });
 
   it("accepts one still upload as the profile cover item", () => {
@@ -307,6 +317,25 @@ describe("posts.media persist shape", () => {
     expect(storedSocialMediaRejection(video, { bytes: 250 * 1024 * 1024 + 1, contentType: "video/mp4" })).toBe(
       "tooLarge",
     );
+  });
+
+  it("accepts only a real image of the declared type", () => {
+    const ftyp = new Uint8Array(16);
+    ftyp.set([0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70], 0);
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]);
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0]);
+    const webp = new Uint8Array(12);
+    webp.set([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50], 0);
+    expect(socialImageBytesMatchContentType(ftyp, "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]), "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(png, "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(new Uint8Array([1, 2, 3, 4]), "image/jpeg")).toBe(false);
+    expect(socialImageBytesMatchContentType(jpeg, "image/jpeg")).toBe(true);
+    expect(socialImageBytesMatchContentType(png, "image/png")).toBe(true);
+    expect(socialImageBytesMatchContentType(gif, "image/gif")).toBe(true);
+    expect(socialImageBytesMatchContentType(webp, "image/webp")).toBe(true);
+    expect(socialImageBytesMatchContentType(jpeg, "image/png")).toBe(false);
   });
 
   it("accepts one still or one video on the stories lane and keeps posts open to stills", () => {
@@ -448,6 +477,16 @@ describe("posts.media persist shape", () => {
         { kind: "video", key: `stories/${USER}/${OBJECT}.mp4`, contentType: "video/mp4" },
       ]),
     ).toBe("type");
+    expect(socialPublishedVideoRejection([{ ...video, assetId: undefined }])).toBe("type");
+    expect(socialPublishedVideoRejection([{ ...video, assetId: "short" }])).toBe("type");
+    expect(mediaItemsForPublish([{ ...video, assetId: undefined }], USER)).toEqual({
+      ok: false,
+      error: "invalid",
+    });
+    expect(mediaItemsForPublish([{ ...video, assetId: "short" }], USER)).toEqual({
+      ok: false,
+      error: "invalid",
+    });
   });
 });
 

@@ -4,6 +4,23 @@
 // Playback is Auto (adaptive). Do not add a quality Settings maze.
 
 export const SOCIAL_MUX_PROVIDER = "mux" as const;
+/** Eight minutes, nominal. AAC priming can measure a few hundredths past this. */
+export const SOCIAL_VIDEO_MAX_SECONDS = 480;
+/**
+ * One tolerance for every Social video cap: client, create, finalize,
+ * publish, and the worker. 480.5s keeps a nominal 8:00 (about 480.021s of
+ * AAC) and refuses 480.6s.
+ */
+export const SOCIAL_VIDEO_DURATION_TOLERANCE_SECONDS = 0.5;
+
+/** True when a reported length is past the Social cap plus tolerance. Unknown is false. */
+export function socialVideoDurationExceedsCap(seconds: number | null | undefined): boolean {
+  return (
+    typeof seconds === "number" &&
+    Number.isFinite(seconds) &&
+    seconds > SOCIAL_VIDEO_MAX_SECONDS + SOCIAL_VIDEO_DURATION_TOLERANCE_SECONDS
+  );
+}
 export const SOCIAL_MUX_DEFAULT_RESOLUTION = "1080p" as const;
 /** Silent video default. Mux stores and delivers up to 4K. Not chosen from client-reported pixels. */
 export const SOCIAL_MUX_ORIGINAL_RESOLUTION = "2160p" as const;
@@ -192,6 +209,13 @@ export class SocialMuxUploadNotBoundError extends Error {
   constructor() {
     super("Mux upload is not bound to the caller");
     this.name = "SocialMuxUploadNotBoundError";
+  }
+}
+
+export class SocialMuxVideoTooLongError extends Error {
+  constructor() {
+    super("Social video is longer than the cap");
+    this.name = "SocialMuxVideoTooLongError";
   }
 }
 

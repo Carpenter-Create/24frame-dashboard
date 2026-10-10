@@ -13,6 +13,7 @@ import { SocialForYouSkeleton, SocialProfileCenterSkeleton } from "@/components/
 import { SocialOwnProfileFace } from "@/components/social/social-own-profile";
 import { SocialProfileEditEntry } from "@/components/social/social-profile-edit-entry";
 import { socialAuthorPostCard } from "@/lib/social-author-post-card";
+import { loadOwnMusicNotices, mediaWithoutHeldPlayback } from "@/lib/social-music-scan";
 import {
   SOCIAL_HOME_LAYOUT_CLASS,
   SOCIAL_PAGE_CLASS,
@@ -137,7 +138,8 @@ async function SocialProfileMain({
       topics: profile.topics ?? [],
       websiteUrl: profile.website_url ?? null,
       imdbUrl: profile.imdb_url ?? null,
-      welcomeVideoUrl: profile.welcome_video_key ? SOCIAL_WELCOME_VIDEO_PRESENT : null,
+      welcomeVideoUrl:
+        profile.welcome_video_key || profile.welcome_mux_playback_id ? SOCIAL_WELCOME_VIDEO_PRESENT : null,
     },
     readSocialProfileOptimisticCookie((name) => jar.get(name)?.value),
   );
@@ -160,6 +162,9 @@ async function SocialProfileMain({
       : Promise.resolve(new Map<string, string | null>()),
   ]);
   const mediaIds = socialActivityMediaPostIds(activityFeedPosts);
+  const music = await loadOwnMusicNotices(supabase, ctx.user.id, {
+    postIds: cardPosts.map((post) => post.id),
+  });
 
   const highlightCards = liveStories.map((story) => ({
     id: story.id,
@@ -185,6 +190,7 @@ async function SocialProfileMain({
         websiteUrl={identity.websiteUrl}
         imdbUrl={identity.imdbUrl}
         welcomeVideoUrl={identity.welcomeVideoUrl}
+        welcomeNotice={music.welcome}
         ring={liveStories.length > 0 ? "live" : null}
         profileId={profile.id}
         stats={counts ?? undefined}
@@ -215,8 +221,9 @@ async function SocialProfileMain({
               authorPhotoUrl: photoUrl,
               liked: liked.has(post.id),
               canLike: true,
-              media: media.get(post.id) ?? [],
+              media: mediaWithoutHeldPlayback(media.get(post.id) ?? [], music.withheldPostIds.has(post.id)),
               owned: true,
+              musicNotice: music.posts.get(post.id) ?? null,
             }),
           ),
           imageIds: mediaIds.imageIds,
@@ -239,8 +246,13 @@ async function SocialProfileMain({
                 authorPhotoUrl: parentFaces.get(item.post.author_id) ?? photoUrl,
                 liked: liked.has(item.post.id),
                 canLike: true,
-                media: media.get(item.post.id) ?? [],
+                media: mediaWithoutHeldPlayback(
+                  media.get(item.post.id) ?? [],
+                  music.withheldPostIds.has(item.post.id),
+                ),
                 owned: item.post.author_id === profile.id,
+                musicNotice:
+                  item.post.author_id === profile.id ? (music.posts.get(item.post.id) ?? null) : null,
               }),
             };
           }),

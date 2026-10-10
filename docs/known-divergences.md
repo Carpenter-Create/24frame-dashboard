@@ -151,3 +151,28 @@ CHECK constraint). The mutations-as-RPC rule stays in force for all client/tenan
 `src/middleware.ts` works; renaming to `src/proxy.ts` (+ `proxy` export) is a mechanical follow-up,
 deferred so it doesn't ride into an unrelated commit unverified.
 **Trigger:** before the Next 16 minor that removes `middleware` support, or the next middleware edit.
+
+## Avatars
+
+### AV-UNHOLD: live-face unhold is not scheduled
+Unhold is not scheduled yet. `scripts/social/unhold-live-avatars.ts --execute` must run well under 30 days before real users depend on the `gc-hold` tag. Scheduling that run is a required follow-up. This repository does not install that schedule. A null `avatar_key` is the canonical object `avatars/{id}/avatar`; a 404 on that key is no avatar. The clear runs only when a fresh read of `avatar_key` is still null.
+**Trigger:** before real users depend on avatar hold expiry.
+
+### Avatar hold: theoretical follow-ups
+These stay on the backlog. They are not scheduled work in this change.
+B2 is in `unhold-live-avatars.ts`: a key is cleared only when `avatarKeyOwner(key)` is that row's id, and every other row is a skipped clear.
+B5 is in `delete-avatar-orphans.ts`: a delete that throws still prints the partial report, then the process exits 1.
+
+- B1: a no-proof ("unfinished") swap key goes in orphanKeys (`actions.ts` unfinished branch; `recheck-social-images.ts` unfinished branch), although a late commit can make it live. `delete-avatar-orphans` re-reads first, so it is safe. After a late commit, the old face is unreported and untagged (a leak). Largely covered by REPORT1: that branch now reports both the new key and the replaced key under `unverifiedKeys`, never `orphanKeys`.
+- B3: `delete-avatar-orphans` has a read-to-delete window (it needs a writer pointing at an orphan key).
+- B4: the classifier trusts any JSON `code` in a non-2xx body from any HTTP layer. No known gateway emits a listed 5-character SQLSTATE. It could also require the PostgREST error shape.
+- B6: unhold has a read-to-clear window. If the pointer moves away, the old key loses its hold (a leak, with no expiry).
+- B7: a residual N-N window after the post-tag read (it needs a writer naming a fresh key after a proven rollback). The safety net is unhold at recheck start and end. There is no periodic schedule yet: REQUIRED before real users depend on it (run daily or weekly, well under 30 days).
+- B8: a remove retry after an untagged-leftover error cannot reach a recheck leftover. It relies on the Sentry report plus `delete-avatar-orphans`.
+
+## Migrations
+
+### MIG-DRIFT: production and the repository disagree on migration history
+`migration-drift` was already red before #799 (merged as `9719939`). Production and the repository disagree on about 47 or 48 versions. Step 9 of #799's apply notes says the check returns to green after that migration is applied. That step describes a check that was already red for this older gap. Reconciling the history awaits Adam's decision.
+#799's apply notes live in the pull request description, not in this repository's docs. Those notes are unchanged.
+**Trigger:** Adam decides how to reconcile production `schema_migrations` with the repository history.

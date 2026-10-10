@@ -145,7 +145,9 @@ function stubClient({
   courses = [],
   explore = [],
   profiles = [],
+  noticeError = false,
 }: {
+  noticeError?: boolean;
   explore?: unknown[];
   profiles?: { id: string; handle: string; display_name: string; status: string }[];
   profile?: { id: string; handle: string; display_name: string; status: string; bio?: string | null } | null;
@@ -192,9 +194,14 @@ function stubClient({
     if (table === "stories") return chain(stories);
     if (table === "story_views") return chain([]);
     if (table === "courses") return chain(courses);
+    if (table === "social_music_scans") return chain([]);
     throw new Error(`unexpected from(${table})`);
   });
-  const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+  const rpc = vi.fn(async (name: string) =>
+    noticeError && name === "social_music_author_notices"
+      ? { data: null, error: { message: "still down" } }
+      : { data: [], error: null },
+  );
   vi.mocked(createClient).mockResolvedValue({ from, rpc } as never);
   return { from, rpc };
 }
@@ -213,6 +220,14 @@ describe("Social home", () => {
     vi.mocked(signedAvatarUrls).mockReturnValue(new Map());
     vi.mocked(signedSocialMediaByPostId).mockReturnValue(new Map());
     vi.mocked(ensureOwnSocialProfile).mockResolvedValue(ensured);
+  });
+
+  it("renders when the music notice rpc fails", async () => {
+    stubClient({ profile: ensured, noticeError: true });
+    vi.mocked(getOrgContext).mockResolvedValue(ctx({ hasOrg: false }) as never);
+    const html = await renderHome();
+    expect(html).toContain("data-social-home");
+    expect(html).not.toContain("data-social-music-notice");
   });
 
   it("renders for a signed-in user without an org", async () => {

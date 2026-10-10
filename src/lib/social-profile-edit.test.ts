@@ -552,6 +552,60 @@ describe("Edit profile window: one draft, one save (social-profile-edit-window-l
     applySocialProfileOptimistic({ handle: "ada", displayName: "Ada" });
     expect(readSocialProfileSaveHop()).toBe(true);
   });
+
+  it("keeps a new photo and a photo removal on the server actions, and off the Done form", () => {
+    const withPhoto = { ...seed, photoUrl: "blob:new-photo", welcomeVideoUrl: "present" };
+    const form = socialProfileEditFormData(withPhoto);
+    expect(form.get("handle")).toBe("ada");
+    expect(form.get("bio")).toBe("Writes engines.");
+    expect(form.has("avatar_key")).toBe(false);
+    expect(form.has("welcome_video_key")).toBe(false);
+    expect(form.has("welcome_mux_asset_id")).toBe(false);
+    expect([...form.keys()]).not.toContain("photo");
+
+    const crop = edit.slice(edit.indexOf("async function onCropConfirm"), edit.indexOf("async function onPhotoRemove"));
+    expect(crop).toContain("await uploadAccountPhoto(body)");
+    expect(crop).not.toContain("avatar_key");
+    const remove = edit.slice(edit.indexOf("async function onPhotoRemove"), edit.indexOf("async function onWelcomePick"));
+    expect(remove).toContain("await removeAccountPhoto()");
+    expect(remove).not.toContain("avatar_key");
+    const welcome = edit.slice(
+      edit.indexOf("async function onWelcomePick"),
+      edit.indexOf("async function onWelcomeRemove"),
+    );
+    expect(welcome).toContain('uploadSocialMuxVideoFile(file, { lane: "posts" })');
+    expect(welcome).toContain("saveSocialWelcomeVideo(save)");
+    expect(welcome).not.toContain("presignSocialMediaUpload");
+    expect(welcome).not.toContain("signed.url");
+
+    const account = readFileSync("src/app/(app)/account/actions.ts", "utf8");
+    const uploadFn = account.slice(
+      account.indexOf("export async function uploadAccountPhoto"),
+      account.indexOf("export async function removeAccountPhoto"),
+    );
+    const removeFn = account.slice(
+      account.indexOf("export async function removeAccountPhoto"),
+      account.indexOf("export async function saveCompanyName"),
+    );
+    expect(uploadFn).toContain("createAdminClient()");
+    expect(uploadFn).toContain("avatar_key: stored.key");
+    expect(uploadFn).not.toContain("await supabase.from(\"profiles\").update");
+    expect(removeFn).toContain("createAdminClient()");
+    expect(removeFn).toContain("avatar_key: AVATAR_CLEARED");
+    const actions = readFileSync("src/app/(app)/social/actions.ts", "utf8");
+    const done = actions.slice(
+      actions.indexOf("export async function createSocialProfile"),
+      actions.indexOf("export async function saveSocialWelcomeVideo"),
+    );
+    expect(done).not.toContain("avatar_key");
+    const welcomeSave = actions.slice(
+      actions.indexOf("export async function saveSocialWelcomeVideo"),
+      actions.indexOf("export async function clearSocialWelcomeVideo"),
+    );
+    expect(welcomeSave).toContain("welcome_mux_asset_id: item.assetId");
+    expect(welcomeSave).toContain("welcome_video_key: null");
+    expect(welcomeSave).not.toContain("avatar_key");
+  });
 });
 
 // Welcome video: Media or Live (lock §4), fixes from the independent review.
@@ -601,7 +655,8 @@ describe("Edit profile — welcome video, Media and Live", () => {
     expect(pick).toContain("const rollback = (message: string) => {");
     expect(pick).toContain("} catch {\n      rollback(SOCIAL.home.uploadFailed);\n    } finally {\n      setUploading(false);");
     expect(pick.indexOf("try {")).toBeGreaterThan(-1);
-    expect(pick.indexOf("try {")).toBeLessThan(pick.indexOf("await presignSocialMediaUpload(body)"));
+    expect(pick.indexOf("try {")).toBeLessThan(pick.indexOf('uploadSocialMuxVideoFile(file, { lane: "posts" })'));
+    expect(pick).not.toContain("presignSocialMediaUpload");
     // Remove (video and picture) never leaves the card stuck either.
     const remove = edit.slice(edit.indexOf("async function onWelcomeRemove("), edit.indexOf("// A save the server"));
     expect(remove).toContain("result = await clearSocialWelcomeVideo();\n    } catch {");

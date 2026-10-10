@@ -1178,7 +1178,19 @@ export const SOCIAL = {
     needProfile: "Create a creator profile to post, like, comment, or message.",
     profileHrefLabel: "Create a creator profile",
   },
+  // Phase 0 music check. Generic. No song title, no artist, no clearance language.
+  // docs/design-locks/social-music-block-copy-lock-v1.md
+  music: {
+    pending: "This video is not visible to others yet.",
+    blocked: "This video can't be shared because it includes music.",
+    tooLong: "Videos can be up to 8 minutes.",
+    welcomePending: "This welcome video is not visible to others yet.",
+    legacyHeld: "This video is not visible to others until it's checked.",
+    malformed: "This video can't be checked. Try uploading it again.",
+  },
 } as const;
+
+export type SocialMusicNotice = "pending" | "blocked" | "malformed" | "legacyHeld" | "welcomePending";
 
 export function socialCreateWellCopy(
   kind: SocialCreateKind,

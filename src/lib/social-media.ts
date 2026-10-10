@@ -30,10 +30,11 @@ export type SocialMediaLane = (typeof SOCIAL_MEDIA_LANES)[number];
 export const SOCIAL_MEDIA_MAX_ITEMS = 4;
 export const SOCIAL_STORY_MAX_ITEMS = 1;
 export const SOCIAL_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-// 250MB covers a ~10 min Go live recording at the house bitrate.
+// 250MB covers an eight-minute Go live recording at the house bitrate.
 export const SOCIAL_VIDEO_MAX_BYTES = 250 * 1024 * 1024;
 // Design 144:1218 copy mentioned “up to 15 seconds”. Not an Adam lock.
-// Do not add a story duration cap. Size/type bounds stay.
+// Social video is capped at eight minutes. The check lives on the Mux upload
+// path (client metadata, mint, asset ready, and publish). Size and type bounds stay.
 export const SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS = 300;
 export const SOCIAL_MEDIA_PUT_TTL_SECONDS = 900;
 
@@ -279,6 +280,135 @@ export function socialMediaStagingKey(
   return `${lane}/${SOCIAL_MEDIA_STAGING_SEGMENT}/${user.data}/${object.data}.${EXT_BY_TYPE[contentType]}`;
 }
 
+const WELCOME_S3_LANE: SocialMediaLane = "posts";
+
+function welcomeVideoTypeForExtension(ext: string): SocialVideoContentType | null {
+  for (const type of SOCIAL_VIDEO_CONTENT_TYPES) {
+    if (EXT_BY_TYPE[type] === ext) return type;
+  }
+  return null;
+}
+
+/**
+ * True when `key` is exactly what `socialMediaObjectKey` or
+ * `socialMediaStagingKey` emits for a posts-lane video. Camera clips are
+ * the object key (`.webm`). A Media upload key is the staging key
+ * (`.mp4` or `.mov`). Any other shape is false.
+ */
+export function isWelcomeS3VideoKey(key: string): boolean {
+  if (isForbiddenMediaKey(key)) return false;
+  const parts = key.split("/");
+  let userId = "";
+  let file = "";
+  let staging = false;
+  if (parts.length === 3 && parts[0] === WELCOME_S3_LANE) {
+    userId = parts[1] ?? "";
+    file = parts[2] ?? "";
+  } else if (
+    parts.length === 4 &&
+    parts[0] === WELCOME_S3_LANE &&
+    parts[1] === SOCIAL_MEDIA_STAGING_SEGMENT
+  ) {
+    staging = true;
+    userId = parts[2] ?? "";
+    file = parts[3] ?? "";
+  } else {
+    return false;
+  }
+  const dot = file.lastIndexOf(".");
+  if (dot <= 0) return false;
+  const objectId = file.slice(0, dot);
+  const ext = file.slice(dot + 1);
+  if (objectId.includes(".")) return false;
+  const contentType = welcomeVideoTypeForExtension(ext);
+  if (!contentType) return false;
+  try {
+    const built = staging
+      ? socialMediaStagingKey(userId, objectId, contentType, WELCOME_S3_LANE)
+      : socialMediaObjectKey(userId, objectId, contentType, WELCOME_S3_LANE);
+    return built === key;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Postgres pattern for `isWelcomeS3VideoKey`. The lane, the upload
+ * segment, and the video extensions come from the builders. The id atom
+ * is the RFC form `z.string().uuid()` accepts, including nil and all-f.
+ */
+export function welcomeS3VideoKeySqlPattern(): string {
+  const id =
+    "([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)";
+  const ext = SOCIAL_VIDEO_CONTENT_TYPES.map((type) => EXT_BY_TYPE[type]).join("|");
+  return `^${WELCOME_S3_LANE}/(${SOCIAL_MEDIA_STAGING_SEGMENT}/)?${id}/${id}\\.(${ext})$`;
+}
+
+const WELCOME_S3_NO_MUX = `welcome_video_key is not null
+  and welcome_mux_asset_id is null
+  and welcome_mux_playback_id is null
+  and welcome_mux_upload_id is null`;
+
+/** Same counts before the mux columns exist. Uses only welcome_video_key. */
+export function welcomeS3PreApplyCountSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  count(*) filter (where welcome_video_key ~ '${pattern}') as welcome_s3_matching,
+  count(*) as welcome_s3_any
+from public.profiles
+where welcome_video_key is not null;`;
+}
+
+/**
+ * Unmatched welcome keys before the mux columns exist, grouped by prefix.
+ * A leading id is `(id)`. No user id and no full key.
+ */
+export function welcomeS3PreApplyUnmatchedPrefixSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  case
+    when split_part(welcome_video_key, '/', 1) ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-' then '(id)'
+    when split_part(welcome_video_key, '/', 2) = '${SOCIAL_MEDIA_STAGING_SEGMENT}' then split_part(welcome_video_key, '/', 1) || '/${SOCIAL_MEDIA_STAGING_SEGMENT}'
+    else split_part(welcome_video_key, '/', 1)
+  end as key_prefix,
+  count(*) as n
+from public.profiles
+where welcome_video_key is not null
+  and welcome_video_key !~ '${pattern}'
+group by 1
+order by 1;`;
+}
+
+/** Rows re-ingest will move, and every welcome key that still has no Mux ids. Run after the migration, before re-ingest. */
+export function welcomeS3ApplyCountSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  count(*) filter (where welcome_video_key ~ '${pattern}') as welcome_s3_matching,
+  count(*) as welcome_s3_any
+from public.profiles
+where ${WELCOME_S3_NO_MUX};`;
+}
+
+/**
+ * Keys in welcome_s3_any that re-ingest will not move, grouped by prefix.
+ * The prefix is `posts/upload` or the first path segment. A leading id is `(id)`.
+ */
+export function welcomeS3UnmatchedPrefixSql(): string {
+  const pattern = welcomeS3VideoKeySqlPattern();
+  return `select
+  case
+    when split_part(welcome_video_key, '/', 1) ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-' then '(id)'
+    when split_part(welcome_video_key, '/', 2) = '${SOCIAL_MEDIA_STAGING_SEGMENT}' then split_part(welcome_video_key, '/', 1) || '/${SOCIAL_MEDIA_STAGING_SEGMENT}'
+    else split_part(welcome_video_key, '/', 1)
+  end as key_prefix,
+  count(*) as n
+from public.profiles
+where ${WELCOME_S3_NO_MUX}
+  and welcome_video_key !~ '${pattern}'
+group by 1
+order by 1;`;
+}
+
 // Case-sensitive, lowercase ids, one extension per type (no .jpeg).
 const SOCIAL_MEDIA_STAGING_KEY =
   /^(posts|stories)\/upload\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp|gif|mp4|mov|webm)$/;
@@ -363,12 +493,12 @@ export function ownedMediaItems(
   return parsePostMedia(value).filter((item) => isOwnedSocialMediaKey(item.key, authorId, lane));
 }
 
-/** One welcome-video upload, or null. Reuses the posts media lane. Publish it before storing. */
+/** One welcome-video Mux upload, or null. Reuses the posts media lane. */
 export function welcomeVideoItemFromMedia(raw: unknown, userId: string): SocialMediaItem | null {
   const items = mediaItemsForPublish(raw, userId, "posts");
   if (!items.ok || items.items.length !== 1) return null;
   const only = items.items[0];
-  return only.kind === "video" && !isSocialMuxMediaItem(only) ? only : null;
+  return only.kind === "video" && isSocialMuxMediaItem(only) ? only : null;
 }
 
 /** One profile-cover still upload, or null. Posts lane, image only. Publish it before storing. */
@@ -423,18 +553,27 @@ export function mediaItemsForPublish(
       if (item.data.kind !== "video" || !isSocialMuxMediaItem(item.data)) {
         return { ok: false, error: "invalid" };
       }
+      if (!item.data.assetId || !isSocialMuxId(item.data.assetId)) {
+        return { ok: false, error: "invalid" };
+      }
+      if (!item.data.uploadId || !isSocialMuxId(item.data.uploadId)) {
+        return { ok: false, error: "invalid" };
+      }
     }
     items.push(storedMediaItem(item.data));
   }
   return { ok: true, items };
 }
 
-/** Post and story video complete only with a Mux playback id. */
+/** Post and story video needs a Mux asset id, upload id, and playback id. */
 export function socialPublishedVideoRejection(
   items: readonly SocialMediaItem[],
 ): SocialMediaRuleError | null {
   for (const item of items) {
-    if (item.kind === "video" && !isSocialMuxMediaItem(item)) return "type";
+    if (item.kind !== "video") continue;
+    if (!isSocialMuxMediaItem(item)) return "type";
+    if (!item.assetId || !isSocialMuxId(item.assetId)) return "type";
+    if (!item.uploadId || !isSocialMuxId(item.uploadId)) return "type";
   }
   return null;
 }
@@ -458,6 +597,33 @@ export function validateMediaUpload(input: {
     return { ok: false, error: "tooLarge" };
   }
   return { ok: true, kind, contentType: input.contentType };
+}
+
+function imageBytesStart(bytes: Uint8Array, expected: readonly number[]): boolean {
+  if (bytes.length < expected.length) return false;
+  return expected.every((value, index) => bytes[index] === value);
+}
+
+/**
+ * True only when the leading bytes are a real image of the declared type.
+ * A video container, an empty prefix, or a different image type is false.
+ */
+export function socialImageBytesMatchContentType(bytes: Uint8Array, contentType: string): boolean {
+  const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (type === "image/jpeg" || type === "image/jpg") return imageBytesStart(bytes, [0xff, 0xd8, 0xff]);
+  if (type === "image/png") return imageBytesStart(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (type === "image/gif") {
+    if (bytes.length < 6) return false;
+    const head = String.fromCharCode(...bytes.subarray(0, 6));
+    return head === "GIF87a" || head === "GIF89a";
+  }
+  if (type === "image/webp") {
+    if (bytes.length < 12) return false;
+    const riff = String.fromCharCode(...bytes.subarray(0, 4));
+    const webp = String.fromCharCode(...bytes.subarray(8, 12));
+    return riff === "RIFF" && webp === "WEBP";
+  }
+  return false;
 }
 
 /** HeadObject must match the post or story row. Missing, empty, oversized, or a different type fails closed. */

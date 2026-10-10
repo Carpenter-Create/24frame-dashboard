@@ -4,6 +4,7 @@ import { SocialCreateCompose } from "@/components/social/social-create-compose";
 import { SocialForYouRail } from "@/components/social/social-for-you";
 import { SocialForYouSkeleton } from "@/components/social/social-skeletons";
 import { SOCIAL_HOME_CENTER_CLASS, SOCIAL_HOME_LAYOUT_CLASS } from "@/lib/social-chrome";
+import { avatarKeyFromProfileRead } from "@/lib/account-avatar";
 import { signedAvatarUrl, signedAvatarUrls } from "@/lib/s3-avatars";
 import { parseSocialCreateKind, SOCIAL, socialPersonLabel } from "@/lib/social";
 import { parseSocialCreateMediaStep } from "@/lib/social-create-media";
@@ -25,10 +26,12 @@ export default async function SocialCreatePage({
   const initialKind = parseSocialCreateKind(sp.kind);
   const initialStep = parseSocialCreateMediaStep(sp.step);
   const { ctx, supabase } = session;
-  const [profile, photoUrl] = await Promise.all([
+  const [profile, avatarRow] = await Promise.all([
     ensureOwnSocialProfile(supabase, ctx.user),
-    signedAvatarUrl(ctx.user.id),
+    supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle(),
   ]);
+  const avatarPointer = avatarKeyFromProfileRead(avatarRow.error, avatarRow.data);
+  const photoUrl = avatarPointer.sign ? await signedAvatarUrl(ctx.user.id, avatarPointer.key) : null;
 
   return (
     <div data-social-create="" className={SOCIAL_HOME_LAYOUT_CLASS}>

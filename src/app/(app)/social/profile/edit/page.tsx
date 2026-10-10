@@ -1,5 +1,6 @@
 import { SocialProfileEditForm } from "@/components/social/social-profile-edit";
 import { SocialProfileEditDesktopHop } from "@/components/social/social-profile-edit-entry";
+import { avatarKeyFromProfileRead } from "@/lib/account-avatar";
 import { signedAvatarUrl } from "@/lib/s3-avatars";
 import { SOCIAL_PROFILE_EDIT_FACE_PARAM, SOCIAL_ROUTES } from "@/lib/social";
 import { SOCIAL_WELCOME_VIDEO_PRESENT } from "@/lib/social-query";
@@ -19,12 +20,15 @@ export default async function SocialProfileEditPage({
     requireSocialSession(),
     searchParams ? searchParams : Promise.resolve({} as Record<string, string | string[] | undefined>),
   ]);
-  const [{ profile }, photoUrl] = await Promise.all([
+  const [{ profile }, avatarRow] = await Promise.all([
     ensureOwnSocialProfileResult(supabase, ctx.user),
-    signedAvatarUrl(ctx.user.id),
+    supabase.from("profiles").select("avatar_key").eq("id", ctx.user.id).maybeSingle(),
   ]);
   if (!profile) redirect(SOCIAL_ROUTES.profile);
-  const welcomeVideoUrl = profile.welcome_video_key ? SOCIAL_WELCOME_VIDEO_PRESENT : null;
+  const avatarPointer = avatarKeyFromProfileRead(avatarRow.error, avatarRow.data);
+  const photoUrl = avatarPointer.sign ? await signedAvatarUrl(ctx.user.id, avatarPointer.key) : null;
+  const welcomeVideoUrl =
+    profile.welcome_video_key || profile.welcome_mux_playback_id ? SOCIAL_WELCOME_VIDEO_PRESENT : null;
 
   const initialFace = parseSocialProfileEditFace(sp[SOCIAL_PROFILE_EDIT_FACE_PARAM]);
   return (

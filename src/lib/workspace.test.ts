@@ -116,6 +116,7 @@ describe("workspace mode", () => {
       "/staff/queue",
       "/staff/avails",
       "/staff/channels",
+      "/staff/music",
       "/staff/gc",
     ]);
     expect(STAFF_PATH_PREFIXES.every((href) => href.startsWith("/staff/"))).toBe(true);

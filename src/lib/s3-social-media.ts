@@ -24,6 +24,11 @@ import {
   type SocialMediaKind,
   type SocialMediaLane,
 } from "@/lib/social-media";
+import {
+  SOCIAL_IMAGE_PREVIOUS_KEY_METADATA,
+  SOCIAL_IMAGE_REENCODED_METADATA,
+  socialImageWasReencoded,
+} from "@/lib/social-image-reencode";
 import { socialMediaProxies, socialMediaProxiesByPostId } from "@/lib/social-edge";
 import type { SocialMuxPlaybackPolicy } from "@/lib/social-mux";
 import {
@@ -108,6 +113,9 @@ export async function presignSocialMediaPut(
     throw new Error("Media key is not allowed");
   }
   const kind = socialMediaKindFor(contentType);
+  if (kind === "video") {
+    throw new Error("Media content type is not allowed");
+  }
   if (!kind || !Number.isInteger(contentLength) || contentLength <= 0 || contentLength > socialMediaMaxBytes(kind)) {
     throw new Error("Media content length is not allowed");
   }
@@ -150,15 +158,133 @@ export async function presignSocialMediaGet(key: string): Promise<string> {
     throw new Error("Media key is not allowed");
   }
   const { bucket, s3 } = mediaClient();
+  // Image keys answer as an image even if the stored metadata was wrong.
+  // A video key keeps the object's own type.
+  const imageType = imageTypeForStoredObject(key, undefined);
   return getSignedUrl(
     s3,
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,
       ResponseCacheControl: privateMaxAgeCacheControl(SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS),
+      ...(imageType ? { ResponseContentType: imageType } : {}),
     }),
     stablePresignOptions(SOCIAL_MEDIA_SIGNED_URL_TTL_SECONDS),
   );
+}
+
+/** Whole object, only when the ETag still matches the HEAD. Null on a miss or a changed object. */
+export async function readSocialMediaObjectIfMatch(key: string, etag: string): Promise<Uint8Array | null> {
+  if (isForbiddenMediaKey(key) || !etag) return null;
+  try {
+    const { bucket, s3 } = mediaClient();
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        IfMatch: etag,
+      }),
+    );
+    const bytes = await response.Body?.transformToByteArray();
+    if (!bytes || bytes.byteLength === 0) return null;
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+/** Store a re-encoded image at a published posts/ or stories/ key. Does not copy the upload. */
+export async function putPublishedSocialImage(input: {
+  key: string;
+  body: Uint8Array;
+  contentType: SocialMediaContentType;
+}): Promise<void> {
+  const destination = parseSocialMediaObjectKey(input.key);
+  if (!destination || socialMediaKindFor(input.contentType) !== "image" || input.body.byteLength === 0) {
+    throw new Error("Media copy is not allowed");
+  }
+  const { bucket, s3 } = mediaClient();
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: input.key,
+      Body: input.body,
+      ContentType: input.contentType,
+      CacheControl: "private, max-age=300",
+      IfNoneMatch: "*",
+      Metadata: {
+        [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
+      },
+    }),
+  );
+}
+
+/**
+ * Store a re-encoded image at a new posts/ or stories/ key.
+ * IfNoneMatch refuses an existing object. The previous key is metadata only.
+ */
+export async function putRecheckedSocialImage(input: {
+  key: string;
+  previousKey: string;
+  body: Uint8Array;
+  contentType: string;
+}): Promise<void> {
+  const destination = parseSocialMediaObjectKey(input.key);
+  if (
+    !destination ||
+    input.key === input.previousKey ||
+    socialMediaKindFor(input.contentType) !== "image" ||
+    input.body.byteLength === 0
+  ) {
+    throw new Error("Media copy is not allowed");
+  }
+  const { bucket, s3 } = mediaClient();
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: input.key,
+      Body: input.body,
+      ContentType: input.contentType,
+      CacheControl: "private, max-age=300",
+      IfNoneMatch: "*",
+      Metadata: {
+        [SOCIAL_IMAGE_REENCODED_METADATA]: "1",
+        [SOCIAL_IMAGE_PREVIOUS_KEY_METADATA]: input.previousKey,
+      },
+    }),
+  );
+}
+
+/** True when this object was written by the image recheck. Null when the head fails. */
+export async function headSocialImageRecheck(key: string): Promise<{ reencoded: boolean } | null> {
+  if (isForbiddenMediaKey(key)) return null;
+  try {
+    const { bucket, s3 } = mediaClient();
+    const out = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return { reencoded: socialImageWasReencoded(out.Metadata) };
+  } catch {
+    return null;
+  }
+}
+
+/** Leading bytes of one object. Null when the key is closed, empty, or the read fails. */
+export async function readSocialMediaPrefix(key: string, length = 4096): Promise<Uint8Array | null> {
+  if (isForbiddenMediaKey(key) || !Number.isInteger(length) || length <= 0) return null;
+  try {
+    const { bucket, s3 } = mediaClient();
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: `bytes=0-${length - 1}`,
+      }),
+    );
+    const bytes = await response.Body?.transformToByteArray();
+    if (!bytes || bytes.byteLength === 0) return null;
+    return bytes;
+  } catch {
+    return null;
+  }
 }
 
 /**

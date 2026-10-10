@@ -33,7 +33,7 @@ vi.mock("@/lib/s3-social-media", () => ({
 vi.mock("@/lib/social-profile", () => ({
   ensureOwnSocialProfile: vi.fn(),
   SOCIAL_PROFILE_COLUMNS:
-    "id, handle, display_name, status, bio, welcome_video_key, cover_key, crafts, topics, imdb_url, website_url",
+    "id, handle, display_name, status, bio, welcome_video_key, welcome_mux_asset_id, welcome_mux_playback_id, welcome_mux_upload_id, cover_key, crafts, topics, imdb_url, website_url",
 }));
 vi.mock("@/app/(app)/social/actions", () => ({
   toggleSocialFollow: vi.fn(),
@@ -109,7 +109,9 @@ const viewer: PublicProfile = {
 function stubClient({
   member = ada,
   posts = [],
+  noticeError = false,
 }: {
+  noticeError?: boolean;
   member?: PublicProfile | null;
   posts?: {
     id: string;
@@ -129,9 +131,17 @@ function stubClient({
     if (table === "stories") return chain([]);
     if (table === "comments") return chain([]);
     if (table === "courses") return chain([]);
+    if (table === "social_music_scans") return chain([]);
     throw new Error(`unexpected from(${table})`);
   });
-  vi.mocked(createClient).mockResolvedValue({ from } as never);
+  vi.mocked(createClient).mockResolvedValue({
+    from,
+    rpc: vi.fn(async (name: string) =>
+      noticeError && name === "social_music_author_notices"
+        ? { data: null, error: { message: "still down" } }
+        : { data: [], error: null },
+    ),
+  } as never);
   return { from };
 }
 
@@ -148,6 +158,12 @@ describe("Social public profile", () => {
     vi.mocked(signedSocialMediaByPostId).mockResolvedValue(new Map());
     vi.mocked(ensureOwnSocialProfile).mockResolvedValue(viewer);
     vi.mocked(getOrgContext).mockResolvedValue(ctx() as never);
+  });
+
+  it("renders when the music notice rpc fails", async () => {
+    stubClient({ noticeError: true });
+    const html = await renderPublic();
+    expect(html).toContain("data-social-member");
   });
 
   it("shows that author's posts under the identity header", async () => {

@@ -12,7 +12,11 @@ import {
   AVATAR_SIGNED_URL_TTL_SECONDS,
   ACCOUNT_PHOTO_HREF,
   accountPhotoSrc,
+  AVATAR_CLEARED,
   avatarObjectKey,
+  avatarRecheckObjectKey,
+  avatarQuarantineObjectKey,
+  avatarServeKey,
   isAvatarContentType,
   isAvatarObjectKey,
 } from "./account-avatar";
@@ -37,6 +41,21 @@ describe("avatarObjectKey", () => {
     expect(AVATAR_KEY_PREFIX).toBe("avatars");
     expect(AVATAR_OBJECT_NAME).toBe("avatar");
     expect(isAvatarObjectKey(`avatars/${UID}/avatar`, UID)).toBe(true);
+    const objectId = "22222222-2222-4222-8222-222222222222";
+    const recheck = avatarRecheckObjectKey(UID, objectId);
+    expect(recheck).toBe(`avatars/${UID}/recheck/${objectId}`);
+    expect(recheck).not.toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, null)).toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, avatarObjectKey(UID))).toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, recheck)).toBe(recheck);
+    expect(avatarServeKey(UID, AVATAR_CLEARED)).toBeNull();
+    const other = "33333333-3333-4333-8333-333333333333";
+    const foreign = avatarRecheckObjectKey(other, objectId);
+    expect(avatarServeKey(UID, foreign)).toBe(avatarObjectKey(UID));
+    expect(avatarServeKey(UID, foreign)).not.toBe(foreign);
+    const quarantine = avatarQuarantineObjectKey(UID, objectId);
+    expect(avatarServeKey(UID, quarantine)).toBeNull();
+    expect(avatarServeKey(UID, avatarQuarantineObjectKey(other, objectId))).toBeNull();
   });
 
   it("rejects a non-UUID so title paths cannot be smuggled in", () => {
@@ -104,11 +123,19 @@ describe("one face across chrome, Settings, and Social", () => {
     expect(socialFormsSrc).not.toContain("putAvatarObject");
     expect(socialFormsSrc).not.toContain("avatarObjectKey");
     expect(socialFormsSrc).not.toContain("S3_MEDIA");
-    expect(uploadSrc).toContain("putAvatarObject(ctx.user.id");
+    const uploadFn = uploadSrc.slice(
+      uploadSrc.indexOf("export async function uploadAccountPhoto"),
+      uploadSrc.indexOf("export async function removeAccountPhoto"),
+    );
+    expect(uploadFn).toContain("storeAvatarReplacement(");
+    expect(uploadFn).toContain("deleteReplacedAvatarObjects(");
+    expect(uploadFn.indexOf("storeAvatarReplacement(")).toBeLessThan(uploadFn.indexOf("deleteReplacedAvatarObjects("));
+    expect(uploadFn).not.toContain("deleteAvatarObject(");
     expect(uploadSrc).toContain("deleteAvatarObject(ctx.user.id");
     expect(uploadSrc).toContain("removeAccountPhoto");
     expect(uploadSrc).toContain('revalidatePath("/", "layout")');
-    expect(photoRouteSrc).toContain("signedAvatarUrl(user.id)");
+    expect(photoRouteSrc).toContain("avatarKeyFromProfileRead");
+    expect(photoRouteSrc).toContain("signedAvatarUrl(user.id, pointer.key)");
     expect(photoRouteSrc).toContain("private, no-store");
     expect(photoRouteSrc).not.toContain("activeOrg");
     expect(layoutSrc).not.toContain("putAvatarObject");

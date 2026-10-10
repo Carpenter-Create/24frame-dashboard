@@ -65,15 +65,18 @@ describe("social post media upload SoT", () => {
     expect(studio).toContain('lane: "stories"');
   });
 
-  it("PUTs stills, Stories, and welcome with Content-Type only — no Cache-Control", () => {
+  it("PUTs stills and Stories with Content-Type only, and welcome through Mux", () => {
     const stills = readFileSync("src/lib/social-media-upload.ts", "utf8");
     const stories = readFileSync("src/components/social/social-story-studio.tsx", "utf8");
     const welcome = readFileSync("src/components/social/social-profile-edit.tsx", "utf8");
     const presign = readFileSync("src/lib/s3-social-media.ts", "utf8");
-    for (const src of [stills, stories, welcome]) {
+    for (const src of [stills, stories]) {
       expect(src).toContain('headers: { "Content-Type": signed.contentType }');
       expect(src).not.toContain("Cache-Control");
     }
+    expect(welcome).toContain("uploadSocialMuxVideoFile");
+    expect(welcome).not.toContain("Cache-Control");
+    expect(stills).toContain('headers: { "Content-Type": created.contentType }');
     const putFn = presign.slice(
       presign.indexOf("export async function presignSocialMediaPut"),
       presign.indexOf("export async function presignSocialMediaGet"),

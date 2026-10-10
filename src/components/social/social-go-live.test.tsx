@@ -17,7 +17,9 @@ vi.mock("next/link", async () => {
   return { __esModule: true, default: MockLink };
 });
 
-import { SocialGoLive } from "./social-go-live";
+import { goLiveRecordingFlag } from "@/lib/social-go-live";
+import { armGoLiveRecorder, SocialGoLive } from "./social-go-live";
+import { SOCIAL_GO_LIVE_MAX_MS, startGoLiveClock } from "@/lib/social-go-live";
 import { SocialPostMedia } from "./social-post-media";
 import { SOCIAL } from "@/lib/social";
 import {
@@ -35,7 +37,52 @@ const fan = readFileSync("src/components/social/social-create-fan.tsx", "utf8");
 const sheet = readFileSync("src/components/social/social-create-compose.tsx", "utf8");
 
 describe("Social Go live recorder", () => {
-  it("records in-app then posts on the normal video path with a 10:00 cap", () => {
+  it("keeps the chunk that crosses 479s and the clock tick stops the take", () => {
+    let now = 0;
+    let recording = true;
+    const chunks: Blob[] = [];
+    let stopped = 0;
+    const recorder = {
+      ondataavailable: null as ((event: { data: Blob }) => void) | null,
+    };
+    const stopTick = { current: null as (() => void) | null };
+    armGoLiveRecorder({
+      recorder,
+      now: () => now,
+      startedAt: 0,
+      isRecording: () => recording,
+      stop: () => {
+        stopped += 1;
+        recording = false;
+      },
+      takeChunk: (event) => {
+        chunks.push(event.data);
+      },
+      stopTick,
+    });
+    now = SOCIAL_GO_LIVE_MAX_MS;
+    const late = new Blob(["late"]);
+    recorder.ondataavailable?.({ data: late });
+    expect(chunks).toEqual([late]);
+    expect(stopped).toBe(1);
+
+    recording = true;
+    const clock = { tick: null as (() => void) | null };
+    startGoLiveClock({
+      now: () => now,
+      startedAt: () => 0,
+      setClock: () => undefined,
+      stopTick,
+      setInterval: (fn) => {
+        clock.tick = fn;
+        return 1;
+      },
+    });
+    clock.tick?.();
+    expect(stopped).toBe(2);
+  });
+
+  it("records in-app then posts on the normal video path with an 8:00 cap", () => {
     expect(page).toContain("SocialGoLive");
     expect(page).toContain("data-social-go-live-page");
     expect(src).toContain("data-social-go-live");
@@ -45,7 +92,20 @@ describe("Social Go live recorder", () => {
     expect(src).toContain("runSocialOptimisticMutation");
     expect(src).toContain("uploadSocialPostMedia");
     expect(src).toContain('intent: "live"');
-    expect(src).toContain("goLiveReachedCap");
+    expect(src).toContain("bindGoLiveRecorderStop");
+    expect(src).toContain("startGoLiveClock");
+    expect(src).toContain("stopTick: stopTickRef");
+    const clock = src.slice(src.indexOf("function startClock"), src.indexOf("function beginRecording"));
+    expect(clock).toContain("startGoLiveClock");
+    expect(clock).toContain("stopTick: stopTickRef");
+    expect(clock).not.toMatch(/window\.setInterval\(\(\) =>/);
+    const begin = src.slice(src.indexOf("function beginRecording"), src.indexOf("function startRecording"));
+    expect(begin).toContain("armGoLiveRecorder(");
+    const arm = begin.slice(begin.indexOf("armGoLiveRecorder({"));
+    expect(arm).toContain("isRecording: () => goLiveRecordingFlag(recordingRef)");
+    expect(goLiveRecordingFlag({ current: true })).toBe(true);
+    expect(goLiveRecordingFlag({ current: false })).toBe(false);
+    expect(begin).not.toMatch(/ondataavailable\s*=/);
     expect(src).toContain("goLiveFitsByteCap(used + event.data.size");
     expect(src).toContain("new MediaRecorder(stream, { mimeType: probed.raw })");
     expect(src).toContain("aliveRef");
@@ -350,10 +410,17 @@ describe("Social Go live recorder", () => {
     const review = src.slice(src.indexOf('{phase === "review" ? ('), src.indexOf("{error ? ("));
     expect(review).toContain("{welcome ? null : (\n            <div data-social-go-live-caption");
     expect(review).toContain("onClick={() => void (welcome ? saveWelcomeClip() : postClip())}");
-    // Saved as the profile's welcome video (S3, never a post), painted from
+    // Saved as the profile's welcome video through Mux, never a post, painted from
     // this device, then back to where Edit opened the camera.
+    const recording = src.slice(src.indexOf("function beginRecording"), src.indexOf("function startRecording"));
+    expect(recording).toContain("armGoLiveRecorder({");
+    expect(recording).toContain("frameRecording(");
+    expect(recording).not.toContain("purpose");
+    const frame = src.slice(src.indexOf("function frameRecording("), src.indexOf("async function uploadLiveVideo("));
+    expect(frame).toContain("goLiveFrameCut");
+    expect(frame).not.toContain("purpose");
     const save = src.slice(src.indexOf("async function saveWelcomeClip()"), src.indexOf("const mirrored ="));
-    expect(save).toContain("upload: uploadSocialWelcomeVideoFile,");
+    expect(save).toContain("upload: uploadSocialMuxVideoFile,");
     expect(save).toContain("save: saveSocialWelcomeVideo,");
     // The save flow (lib/social-go-live-welcome) never throws; a failure
     // gives the camera its controls back and keeps the clip for a retry.
