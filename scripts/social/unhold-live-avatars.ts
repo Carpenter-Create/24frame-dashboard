@@ -2,14 +2,17 @@
  * Remove gc-hold from every face profiles.avatar_key names.
  * Dry-run is the default. Pass --execute to delete the tag and confirm it is gone.
  * Immediately before each clear, read that profile's avatar_key again.
- * A key that read no longer names, or a read that errors, is a skipped clear. The tag stays.
+ * A null avatar_key is the legacy canonical face. Check avatars/{id}/avatar.
+ * A 404 on that key is no avatar. Clear it only when the fresh read is still null.
+ * A key that read no longer names, a pointer that changed, or a read that errors, is a skipped clear. The tag stays.
+ * Unhold is not scheduled yet. Scheduling --execute well under 30 days is a required follow-up before real users depend on it.
  * A tag read that fails is unverified. The tag stays.
  * Do not run this against production from CI. Adam runs it after the avatar SQL is applied.
  *
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts --execute
  */
-import { AVATAR_CLEARED, avatarPointerNamesKey } from "@/lib/account-avatar";
+import { AVATAR_CLEARED, avatarObjectKey, avatarPointerNamesKey } from "@/lib/account-avatar";
 import { clearAvatarHoldTag, readAvatarObjectTags } from "@/lib/s3-avatars";
 import { SOCIAL_IMAGE_RECHECK_PAGE } from "@/lib/social-image-reencode";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -34,11 +37,35 @@ function holdTagRemains(tags: readonly { Key?: string; Value?: string }[]): bool
   return tags.some((tag) => tag.Key === "gc-hold");
 }
 
+/** GetObjectTagging on a missing canonical key is NoSuchKey or NotFound, HTTP 404. */
+function canonicalObjectMissing(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const failure = error as {
+    name?: unknown;
+    Code?: unknown;
+    $metadata?: { httpStatusCode?: unknown };
+  };
+  if (failure.$metadata?.httpStatusCode === 404) return true;
+  const name = typeof failure.name === "string" ? failure.name : "";
+  const code = typeof failure.Code === "string" ? failure.Code : "";
+  return name === "NoSuchKey" || code === "NoSuchKey" || name === "NotFound" || code === "NotFound";
+}
+
+function legacyCanonicalKey(profileId: string): string | null {
+  try {
+    return avatarObjectKey(profileId);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Page profiles by id. A non-null avatar_key is checked.
+ * A null avatar_key checks the canonical key. A 404 there is no avatar.
  * `cleared` is not an object. Any gc-hold value on a real key is held.
  * --execute reads profiles.avatar_key again immediately before the clear.
- * A pointer that no longer names the key, or a read that fails, increments skippedClears and leaves the tag.
+ * A null row is cleared only when that read is still null.
+ * A pointer that no longer names the key, a pointer that changed, or a read that fails, increments skippedClears and leaves the tag.
  * A clear counts only when the follow-up tag read has no gc-hold.
  */
 export async function unholdLiveAvatars(input: {
@@ -63,13 +90,16 @@ export async function unholdLiveAvatars(input: {
     const rows = await input.loadPage(afterId, input.pageSize);
     report.pages += 1;
     for (const row of rows) {
-      if (row.avatar_key == null) continue;
+      const legacyNull = row.avatar_key == null;
+      const key = legacyNull ? legacyCanonicalKey(row.id) : row.avatar_key;
+      if (key == null) continue;
       report.checked += 1;
-      if (row.avatar_key === AVATAR_CLEARED) continue;
+      if (!legacyNull && key === AVATAR_CLEARED) continue;
       let tags: { Key?: string; Value?: string }[];
       try {
-        tags = await input.readTags(row.avatar_key);
-      } catch {
+        tags = await input.readTags(key);
+      } catch (error) {
+        if (legacyNull && canonicalObjectMissing(error)) continue;
         report.unverified += 1;
         continue;
       }
@@ -83,12 +113,12 @@ export async function unholdLiveAvatars(input: {
         report.skippedClears += 1;
         continue;
       }
-      if (!avatarPointerNamesKey(row.id, pointer, row.avatar_key)) {
+      if (legacyNull ? pointer !== null : !avatarPointerNamesKey(row.id, pointer, key)) {
         report.skippedClears += 1;
         continue;
       }
       try {
-        await input.clearTag(row.avatar_key);
+        await input.clearTag(key);
         report.cleared += 1;
       } catch {
         report.unverified += 1;

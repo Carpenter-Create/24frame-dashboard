@@ -175,11 +175,33 @@ export function blankSocialImageRecheckReport(dryRun: boolean): SocialImageReche
   };
 }
 
+function pushReportedKeys(target: string[], keys: readonly string[] | undefined): void {
+  if (!keys) return;
+  for (const key of keys) {
+    if (key) target.push(key);
+  }
+}
+
 function recordRecheckKey(
   report: SocialImageRecheckReport,
-  row: { orphanKey?: string; liveKey?: string; unverifiedKey?: string } | null | undefined | void,
+  row:
+    | {
+        orphanKey?: string;
+        liveKey?: string;
+        unverifiedKey?: string;
+        unverifiedKeys?: readonly string[];
+        orphanKeys?: readonly string[];
+      }
+    | null
+    | undefined
+    | void,
 ): void {
   if (!row) return;
+  if (Array.isArray(row.unverifiedKeys) || Array.isArray(row.orphanKeys)) {
+    pushReportedKeys(report.unverifiedKeys, row.unverifiedKeys);
+    pushReportedKeys(report.orphanedKeys, row.orphanKeys);
+    if ((row.unverifiedKeys?.length ?? 0) > 0 || (row.orphanKeys?.length ?? 0) > 0) return;
+  }
   if (typeof row.liveKey === "string" && row.liveKey) {
     report.liveKeys.push(row.liveKey);
     return;

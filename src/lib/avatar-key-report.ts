@@ -10,6 +10,16 @@ export type AvatarKeyBuckets = {
   unverifiedKeys: string[];
 };
 
+/**
+ * A client can fail at 150ms while the server commit lands at 600ms.
+ * The re-read still shows the old pointer. That is not proof either key
+ * is unreferenced. Both stay unverified. Neither is an orphan.
+ */
+export function unfinishedSwapKeys(newKey: string, replacedKey: string): AvatarKeyBuckets {
+  const unverifiedKeys = replacedKey === newKey ? [newKey] : [newKey, replacedKey];
+  return { orphanKeys: [], liveKeys: [], unverifiedKeys };
+}
+
 export function bucketAvatarKeys(
   userId: string,
   keys: readonly string[],

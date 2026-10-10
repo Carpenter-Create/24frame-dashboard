@@ -13,11 +13,12 @@ import {
 import {
   AVATAR_CLEARED,
   AVATAR_MAX_BYTES,
+  avatarKeyNamedForRemove,
   avatarKeysReadForRemove,
   isAvatarContentType,
   replacedAvatarObjectKeys,
 } from "@/lib/account-avatar";
-import { bucketAvatarKeys } from "@/lib/avatar-key-report";
+import { bucketAvatarKeys, unfinishedSwapKeys } from "@/lib/avatar-key-report";
 import { avatarSwapFailureDecision } from "@/lib/avatar-swap-rollback";
 import {
   applyAvatarHoldTag,
@@ -192,8 +193,10 @@ export async function uploadAccountPhoto(formData: FormData): Promise<{ error?: 
           return { error: error?.message || ACCOUNT_PROFILE.photoFailed };
         }
       } else {
+        // The client can fail at 150ms and the server can commit at 600ms.
+        // The re-read still shows the old pointer. Both keys stay unverified.
         await reportAvatarKeys(
-          bucketAvatarKeys(ctx.user.id, [stored.key], { ok: true, pointer: live }),
+          unfinishedSwapKeys(stored.key, avatarKeyNamedForRemove(ctx.user.id, previousKey)),
           error ?? new Error("avatar swap did not prove a rollback"),
         );
         return { error: error?.message || ACCOUNT_PROFILE.photoFailed };

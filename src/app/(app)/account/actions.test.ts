@@ -266,7 +266,7 @@ describe("uploadAccountPhoto", () => {
   });
 
   it("does not tag an upload when the swap errors and the re-read still shows the old pointer", async () => {
-    // The client errors at 150ms while the server PATCH waits on a row lock and then commits.
+    // The client fails at 150 ms. The server commits at 600 ms.
     // The re-read still shows the old pointer. That is not proof the swap rolled back.
     const client = profileUpdateClient(previousKey, {
       data: null,
@@ -281,10 +281,15 @@ describe("uploadAccountPhoto", () => {
     expect(deleteReplacedAvatarObjects).not.toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(vi.mocked(captureException).mock.calls[0]?.[0]).toMatchObject({
-      orphanKeys: [nextKey],
+      orphanKeys: [],
       liveKeys: [],
-      unverifiedKeys: [],
+      unverifiedKeys: [nextKey, previousKey],
     });
+    const reported = vi.mocked(captureException).mock.calls[0]?.[0] as {
+      orphanKeys: string[];
+    };
+    expect(reported.orphanKeys).not.toContain(nextKey);
+    expect(reported.orphanKeys).not.toContain(previousKey);
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 

@@ -32,6 +32,7 @@ import {
   avatarRecheckObjectKey,
   isAvatarRecheckKey,
 } from "@/lib/account-avatar";
+import { unfinishedSwapKeys } from "@/lib/avatar-key-report";
 import { avatarSwapFailureDecision } from "@/lib/avatar-swap-rollback";
 import {
   applyAvatarHoldTag,
@@ -197,15 +198,36 @@ export async function commitRecheckedAvatar(
     assertOk(error, "point avatar at rechecked image");
     return { skipped: true, orphanKey: nextKey };
   }
+  // The client can fail at 150ms and the server can commit at 600ms.
+  // The re-read still shows the old pointer. Both keys stay unverified.
+  const replacedKey = readKey == null ? avatarObjectKey(parentId) : readKey;
+  const buckets = unfinishedSwapKeys(nextKey, replacedKey);
   const unfinished = new Error(error?.message || "avatar swap did not prove a rollback");
-  throw Object.assign(unfinished, { orphanKey: nextKey });
+  throw Object.assign(unfinished, {
+    unverifiedKeys: buckets.unverifiedKeys,
+    orphanKeys: buckets.orphanKeys,
+  });
 }
 
 /** A store error keeps a classification it already has. Otherwise the pointer was not read, so the key is unverified. */
 export function classifyRecheckFailure(error: unknown, nextKey: string): Error {
   const failure = error instanceof Error ? error : new Error("recheck_failed");
-  const row = failure as Error & { orphanKey?: unknown; liveKey?: unknown; unverifiedKey?: unknown };
-  if (typeof row.orphanKey === "string" || typeof row.liveKey === "string" || typeof row.unverifiedKey === "string") {
+  const row = failure as Error & {
+    orphanKey?: unknown;
+    liveKey?: unknown;
+    unverifiedKey?: unknown;
+    unverifiedKeys?: unknown;
+    orphanKeys?: unknown;
+  };
+  const listed = (keys: unknown): boolean =>
+    Array.isArray(keys) && keys.some((key) => typeof key === "string" && key.length > 0);
+  if (
+    typeof row.orphanKey === "string" ||
+    typeof row.liveKey === "string" ||
+    typeof row.unverifiedKey === "string" ||
+    listed(row.unverifiedKeys) ||
+    listed(row.orphanKeys)
+  ) {
     return failure;
   }
   return Object.assign(failure, { unverifiedKey: nextKey });

@@ -780,22 +780,60 @@ describe("reencodeSocialImage", () => {
       },
     };
     const held: string[] = [];
-    // The client errors at 150ms while the server PATCH waits on a row lock and then commits.
+    // The client fails at 150 ms. The server commits at 600 ms.
     // The re-read still shows the old pointer. That is not proof the swap rolled back.
-    await expect(
-      commitRecheckedAvatar(
-        writer,
-        user,
-        previous,
-        next,
-        async () => undefined,
-        async (_userId, key) => {
-          held.push(key);
-        },
-        async () => previous,
-      ),
-    ).rejects.toMatchObject({ message: "FetchError: request timed out", orphanKey: next });
+    const { classifyRecheckFailure } = await import("../../scripts/social/recheck-social-images");
+    const { runSocialImageRecheck } = await import("./social-image-reencode");
+    const pending = commitRecheckedAvatar(
+      writer,
+      user,
+      previous,
+      next,
+      async () => undefined,
+      async (_userId, key) => {
+        held.push(key);
+      },
+      async () => previous,
+    );
+    await expect(pending).rejects.toMatchObject({
+      message: "FetchError: request timed out",
+      unverifiedKeys: [next, previous],
+      orphanKeys: [],
+    });
+    await expect(pending).rejects.not.toHaveProperty("orphanKey");
     expect(held).toEqual([]);
+    const clean = await jpeg();
+    const trailer = new Uint8Array(clean.byteLength + 4);
+    trailer.set(clean);
+    trailer.set([1, 2, 3, 4], clean.byteLength);
+    const reported = await runSocialImageRecheck({
+      execute: true,
+      items: [
+        { surface: "avatar", parentId: user, key: previous, original: trailer, contentType: "image/jpeg" },
+      ],
+      store: async () => {
+        try {
+          return await commitRecheckedAvatar(
+            writer,
+            user,
+            previous,
+            next,
+            async () => undefined,
+            async () => {
+              throw new Error("rehold was called");
+            },
+            async () => previous,
+          );
+        } catch (error) {
+          throw classifyRecheckFailure(error, next);
+        }
+      },
+      hide: async () => undefined,
+    });
+    expect(reported.unverifiedKeys).toEqual([next, previous]);
+    expect(reported.orphanedKeys).toEqual([]);
+    expect(reported.orphanedKeys).not.toContain(next);
+    expect(reported.orphanedKeys).not.toContain(previous);
   });
 
   it("re-tags the new key when the swap error proves the transaction rolled back", async () => {

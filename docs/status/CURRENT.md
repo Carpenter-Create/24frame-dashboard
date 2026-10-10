@@ -172,6 +172,11 @@ never see the matched title or artist. End-user and staff copy follow
 Vendor error
 retries with backoff and does not publish.
 
+Live-face unhold is not scheduled yet. Scheduling
+`scripts/social/unhold-live-avatars.ts --execute`, well under 30 days,
+is a required follow-up before real users depend on the hold tag.
+The note is in [`docs/known-divergences.md`](../known-divergences.md).
+
 The migration, the Lambda, its role, and its schedule are founder-applied
 and **not created**. Adam applies
 `supabase/migrations/20261008180000_social_music_scans.sql`. There is no

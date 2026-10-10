@@ -577,15 +577,20 @@ aws s3api list-objects-v2 --bucket "$S3_AVATARS_BUCKET" --prefix avatars/ \
 
    After `20261009120000_avatar_key_and_story_media.sql` is applied, and
    before recheck `--execute`, dry-run the live-face unhold. It pages
-   `profiles` by id and reads tags for every non-null `avatar_key`. A key
-   that still carries `gc-hold` (any value) is reported. The script does
-   not write unless `--execute` is passed. Immediately before each clear,
-   `--execute` reads that profile's `avatar_key` again. A key that read
-   no longer names, or a read that errors, is counted in `skippedClears`
-   and the tag stays. Recheck `--execute` runs the
-   same script at the start and at the end. Backlog: schedule
-   `unhold-live-avatars.ts --execute` daily or weekly, well inside the
-   30-day expiry. This PR does not install that schedule.
+   `profiles` by id. A non-null `avatar_key` is checked. A null
+   `avatar_key` is a legacy canonical face: the script checks
+   `avatars/{id}/avatar`. A 404 on that canonical key is no avatar, not
+   an error. A key that still carries `gc-hold` (any value) is reported.
+   The script does not write unless `--execute` is passed. Immediately
+   before each clear, `--execute` reads that profile's `avatar_key`
+   again. A null row is cleared only when that read is still null. A
+   key that read no longer names, a pointer that changed, or a read that
+   errors, is counted in `skippedClears` and the tag stays. Recheck
+   `--execute` runs the same script at the start and at the end.
+   Unhold is not scheduled yet. Scheduling
+   `unhold-live-avatars.ts --execute`, well under 30 days, is a required
+   follow-up before real users depend on it. This PR does not install
+   that schedule. The same note is in `docs/known-divergences.md`.
 
 ```sh
 pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts

@@ -55,6 +55,13 @@ tag remains. The pointer moves only after that confirm. The 30-day
 expiry rule is step 3 of this file, before the env var. A prefix of
 `avatars/` would expire live faces. The tag is the rule.
 
+Unhold is not scheduled yet. Before real users depend on this tag,
+`scripts/social/unhold-live-avatars.ts --execute` must run well under
+30 days. Scheduling that run is a required follow-up. This file does
+not install that schedule. A null `avatar_key` is checked on
+`avatars/{id}/avatar`. A 404 on that key is no avatar. The same note
+is in `docs/known-divergences.md`.
+
     aws iam put-user-policy --user-name gc-assets-app --policy-name gc-avatars-s3 --policy-document '{
       "Version": "2012-10-17",
       "Statement": [

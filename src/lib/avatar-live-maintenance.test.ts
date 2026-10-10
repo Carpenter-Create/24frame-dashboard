@@ -120,6 +120,94 @@ describe("unholdLiveAvatars", () => {
     expect(cleared).toEqual([canonical]);
   });
 
+  it("clears a hold on a null pointer only when the fresh read is still null", async () => {
+    const canonical = avatarObjectKey(USER);
+    const moved = avatarRecheckObjectKey(USER, "44444444-4444-4444-8444-444444444444");
+    const cleared: string[] = [];
+    const pointerReads: string[] = [];
+    const missing = Object.assign(new Error("NoSuchKey"), {
+      name: "NoSuchKey",
+      $metadata: { httpStatusCode: 404 },
+    });
+    const absent = await unholdLiveAvatars({
+      execute: true,
+      pageSize: 10,
+      loadPage: async () => [{ id: USER, avatar_key: null }],
+      readTags: async () => {
+        throw missing;
+      },
+      readPointer: async () => {
+        throw new Error("pointer was read for a missing canonical face");
+      },
+      clearTag: async (key) => {
+        cleared.push(key);
+      },
+    });
+    expect(absent).toMatchObject({ checked: 1, held: 0, cleared: 0, skippedClears: 0, unverified: 0 });
+    expect(cleared).toEqual([]);
+
+    const dry = await unholdLiveAvatars({
+      execute: false,
+      pageSize: 10,
+      loadPage: async () => [{ id: USER, avatar_key: null }],
+      readTags: async (key) => (key === canonical ? [{ Key: "gc-hold", Value: "quarantine" }] : []),
+      readPointer: async (profileId) => {
+        pointerReads.push(profileId);
+        return null;
+      },
+      clearTag: async (key) => {
+        cleared.push(key);
+      },
+    });
+    expect(dry).toMatchObject({ held: 1, cleared: 0, skippedClears: 0 });
+    expect(pointerReads).toEqual([]);
+
+    const stillNull = await unholdLiveAvatars({
+      execute: true,
+      pageSize: 10,
+      loadPage: async () => [{ id: USER, avatar_key: null }],
+      readTags: async () => [{ Key: "gc-hold", Value: "quarantine" }],
+      readPointer: async (profileId) => {
+        pointerReads.push(profileId);
+        return null;
+      },
+      clearTag: async (key) => {
+        cleared.push(key);
+      },
+    });
+    expect(stillNull).toMatchObject({ held: 1, cleared: 1, skippedClears: 0, unverified: 0 });
+    expect(cleared).toEqual([canonical]);
+    expect(pointerReads).toEqual([USER]);
+
+    const changed = await unholdLiveAvatars({
+      execute: true,
+      pageSize: 10,
+      loadPage: async () => [{ id: USER, avatar_key: null }],
+      readTags: async () => [{ Key: "gc-hold", Value: "quarantine" }],
+      readPointer: async () => moved,
+      clearTag: async (key) => {
+        cleared.push(key);
+      },
+    });
+    expect(changed).toMatchObject({ held: 1, cleared: 0, skippedClears: 1, unverified: 0 });
+    expect(cleared).toEqual([canonical]);
+
+    const timedOut = await unholdLiveAvatars({
+      execute: true,
+      pageSize: 10,
+      loadPage: async () => [{ id: USER, avatar_key: null }],
+      readTags: async () => [{ Key: "gc-hold", Value: "quarantine" }],
+      readPointer: async () => {
+        throw new Error("timeout");
+      },
+      clearTag: async (key) => {
+        cleared.push(key);
+      },
+    });
+    expect(timedOut).toMatchObject({ held: 1, cleared: 0, skippedClears: 1, unverified: 0 });
+    expect(cleared).toEqual([canonical]);
+  });
+
   it("counts a tag read failure as unverified and does not clear it", async () => {
     const key = avatarObjectKey(USER);
     const cleared: string[] = [];
