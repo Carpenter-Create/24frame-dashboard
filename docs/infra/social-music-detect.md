@@ -365,6 +365,42 @@ sets it.
 Use the Lambda console to change one env value. `aws lambda
 update-function-configuration --environment` replaces every value.
 
+CoS box scripts, names only. Values come from the CoS box secrets store.
+Do not commit values. The four scripts are
+`scripts/social/recheck-social-images.ts`,
+`scripts/social/unhold-live-avatars.ts`,
+`scripts/social/delete-avatar-orphans.ts`, and
+`scripts/social/reingest-welcome-video.ts`.
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+S3_AVATARS_BUCKET=
+S3_BUCKET=
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+S3_MEDIA_SOURCE_BUCKET=
+MEDIA_AWS_ACCESS_KEY_ID=
+MEDIA_AWS_SECRET_ACCESS_KEY=
+MEDIA_AWS_REGION=
+MUX_TOKEN_ID=
+MUX_TOKEN_SECRET=
+```
+
+All four read `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+`unhold-live-avatars.ts`, `delete-avatar-orphans.ts`, and
+`recheck-social-images.ts` read `S3_AVATARS_BUCKET`, `S3_BUCKET`,
+`AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY`.
+`S3_BUCKET` is the title-bucket name compared with `S3_AVATARS_BUCKET`.
+The avatar client passes `AWS_REGION` and takes `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` from the SDK default chain.
+`recheck-social-images.ts` and `reingest-welcome-video.ts` read
+`S3_MEDIA_SOURCE_BUCKET`, `MEDIA_AWS_ACCESS_KEY_ID`,
+`MEDIA_AWS_SECRET_ACCESS_KEY`, and `MEDIA_AWS_REGION`. That source-bucket
+check also reads `S3_BUCKET` and `S3_AVATARS_BUCKET`.
+`reingest-welcome-video.ts` reads `MUX_TOKEN_ID` and `MUX_TOKEN_SECRET`.
+
 ## Proposed resources (not created)
 
 | Item | Proposed | Notes |
@@ -456,6 +492,34 @@ aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET" \
 
 G3 is setting `S3_AVATARS_BUCKET` in Vercel. G3 starts with CoS confirming that `gc-avatars-prod` exists. Then set `S3_AVATARS_BUCKET` in Vercel. Do not set it until the G2 check shows that rule.
 
+The four post-deploy scripts on the CoS box read these names. Values come from the CoS box secrets store.
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+S3_AVATARS_BUCKET=
+S3_BUCKET=
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+S3_MEDIA_SOURCE_BUCKET=
+MEDIA_AWS_ACCESS_KEY_ID=
+MEDIA_AWS_SECRET_ACCESS_KEY=
+MEDIA_AWS_REGION=
+MUX_TOKEN_ID=
+MUX_TOKEN_SECRET=
+```
+
+All four read `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+`unhold-live-avatars.ts`, `delete-avatar-orphans.ts`, and
+`recheck-social-images.ts` read `S3_AVATARS_BUCKET`, `S3_BUCKET`,
+`AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY`.
+`recheck-social-images.ts` and `reingest-welcome-video.ts` read
+`S3_MEDIA_SOURCE_BUCKET`, `MEDIA_AWS_ACCESS_KEY_ID`,
+`MEDIA_AWS_SECRET_ACCESS_KEY`, and `MEDIA_AWS_REGION`.
+`reingest-welcome-video.ts` reads `MUX_TOKEN_ID` and `MUX_TOKEN_SECRET`.
+The same names are under Env (names only).
+
 ### CoS pre-checks
 
 CoS confirms all of these before Adam opens the SQL Editor:
@@ -470,7 +534,7 @@ CoS confirms all of these before Adam opens the SQL Editor:
 
 ### In the sitting
 
-Adam applies files 1, 2 and 3 in the SQL Editor, in that order. Each file is its own BEGIN/COMMIT, with `set local lock_timeout = '3s'` and a `schema_migrations` insert. Version is the numeric filename prefix. Name is the suffix after the first underscore. Do not apply from CI. Do not reorder statements inside a file.
+Adam applies files 1, 2 and 3 in the SQL Editor, in that order. Adam wraps each pasted file himself in an explicit `begin;` plus `set local lock_timeout = '3s';` ... the schema_migrations insert ... `commit;`. The files themselves contain no BEGIN/COMMIT. Version is the numeric filename prefix. Name is the suffix after the first underscore. Do not apply from CI. Do not reorder statements inside a file.
 
 Before apply, run the read-only video count above (`post_video_items`, `live_story_video_items`). That count is the expected lock hold.
 
