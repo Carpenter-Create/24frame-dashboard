@@ -15,11 +15,13 @@
 -- that trims to nothing is empty, to submit as to the findings); normalize
 -- reads numbers as the double JS reads, with no known difference left.
 -- Review on #799: a repair (p_repair) is stored only while the stored value
--- is still the one the window opened on, never over a field the save sets or
--- clears, and never as a clear.
+-- is still the one the window opened on (compared as stored, not as
+-- normalize reads it), never over a field the save sets or clears, and never
+-- as a clear; the refresh locks the title in one statement and reads the
+-- record in the next.
 
 begin;
-select plan(134);
+select plan(139);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -44,6 +46,7 @@ select set_config('t.tws',    gen_random_uuid()::text, false);  -- A, complete b
 select set_config('t.trepair', gen_random_uuid()::text, false);  -- A, Cast as text and a numeric Director (repairable)
 select set_config('t.tstale', gen_random_uuid()::text, false);  -- A, Cast saved as a list since the window opened
 select set_config('t.tskip',  gen_random_uuid()::text, false);  -- A, Cast as text, repair expecting another value
+select set_config('t.traw',   gen_random_uuid()::text, false);  -- A, Cast stored raw as normalize changes it
 
 insert into auth.users (id) values
   (current_setting('t.owner')::uuid), (current_setting('t.deliv')::uuid),
@@ -75,7 +78,8 @@ insert into public.titles (id, org_id, title, status) values
   (current_setting('t.tws')::uuid,     current_setting('t.org_a')::uuid, 'Blank synopsis', 'draft'),
   (current_setting('t.trepair')::uuid, current_setting('t.org_a')::uuid, 'Repair',  'draft'),
   (current_setting('t.tstale')::uuid,  current_setting('t.org_a')::uuid, 'Stale',   'draft'),
-  (current_setting('t.tskip')::uuid,   current_setting('t.org_a')::uuid, 'Skip',    'draft');
+  (current_setting('t.tskip')::uuid,   current_setting('t.org_a')::uuid, 'Skip',    'draft'),
+  (current_setting('t.traw')::uuid,    current_setting('t.org_a')::uuid, 'Raw',     'draft');
 insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.ta')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"Jo"}'::jsonb),
@@ -114,7 +118,12 @@ insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.tstale')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","cast":["Cy"],"director":"Jo"}'::jsonb),
   (current_setting('t.tskip')::uuid, current_setting('t.org_a')::uuid,
-   '{"synopsis":"x","cast":"Ada, Bob"}'::jsonb);
+   '{"synopsis":"x","cast":"Ada, Bob"}'::jsonb),
+  -- Stored before the checks: a Cast with a number and a blank entry. Read
+  -- as the app reads it (normalize) it is [1,"Ada"], which the checks still
+  -- refuse; the window shows ["1","Ada"] and sends the raw value as "from".
+  (current_setting('t.traw')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"A film.","cast":[1,"Ada"," "]}'::jsonb);
 update public.titles set deleted_at = now()
  where id in (current_setting('t.tgone')::uuid, current_setting('t.tgonebad')::uuid);
 
@@ -212,13 +221,23 @@ select ok(
      from pg_proc p
     where p.oid = 'public.set_title_release_info(uuid, uuid, public.release_type, date)'::regprocedure),
   'set_title_release_info locks before it updates, and its update repeats the live-title predicates');
--- The refresh takes the title lock itself (audit on #799): a no-op under its
--- callers' lock, and no refresh can write from a record a later save replaced.
+-- The refresh takes the title lock itself (audit on #799), a no-op under its
+-- callers' lock, in a statement of its own, and reads the record in the next
+-- (review on #799): a statement reads from the snapshot it starts with, so a
+-- call that waited on the lock reads what the save holding it committed.
 select ok(
   (select p.prosrc from pg_proc p
     where p.oid = 'public.refresh_title_findings(uuid, uuid)'::regprocedure)
-  ~* 'where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+and\s+t\.deleted_at\s+is\s+null\s+for\s+no\s+key\s+update\s+of\s+t',
-  'refresh_title_findings locks the live title it reads');
+  ~* 'perform\s+1\s+from\s+public\.titles\s+t\s+where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+and\s+t\.deleted_at\s+is\s+null\s+for\s+no\s+key\s+update\s*;\s*if\s+not\s+found\s+then\s+raise\s+exception\s+''Title not found in this organization''',
+  'refresh_title_findings locks the live title in a statement of its own');
+select ok(
+  (select strpos(p.prosrc, 'for no key update') > 0
+      and strpos(p.prosrc, 'for no key update') < strpos(p.prosrc, 'from public.title_metadata')
+      and p.prosrc ~* 'v_data\s*:=\s*coalesce\(\s*\(\s*select\s+m\.data\s+from\s+public\.title_metadata\s+m\s+where\s+m\.title_id\s*=\s*p_title_id\s*\)\s*,\s*''\{\}''::jsonb\s*\)\s*;'
+      and p.prosrc !~* 'join\s+public\.title_metadata'
+     from pg_proc p
+    where p.oid = 'public.refresh_title_findings(uuid, uuid)'::regprocedure),
+  'refresh_title_findings reads the record in the next statement, after the lock');
 -- Codex on #799: one emptiness rule. Submit reads empty as the findings do,
 -- never with btrim.
 select ok(
@@ -462,6 +481,25 @@ select throws_like(
            '{"cast":{"from":"Ada","to":["Ada"]}}'::jsonb) $$,
          current_setting('t.org_a'), current_setting('t.tskip')),
   'cast:%', 'a skipped repair leaves the stored value, and the check names it');
+-- "from" is compared with the stored value as stored, not as normalize reads
+-- it (review on #799): a "from" equal only to the normalized Cast [1,"Ada"]
+-- is skipped; the raw [1,"Ada"," "] the window opened on applies.
+select throws_like(
+  format($$ select public.merge_title_metadata(%L, %L, '{"synopsis":"Edited."}'::jsonb, '{}'::text[],
+           '{"cast":{"from":[1,"Ada"],"to":["1","Ada"]}}'::jsonb) $$,
+         current_setting('t.org_a'), current_setting('t.traw')),
+  'cast:%', 'a repair whose "from" is only the normalized value is skipped, and the check names the field');
+select is((select data from public.title_metadata where title_id = current_setting('t.traw')::uuid),
+  '{"synopsis":"A film.","cast":[1,"Ada"," "]}'::jsonb,
+  'and the raw stored record is unchanged');
+select lives_ok(
+  format($$ select public.merge_title_metadata(%L, %L, '{"synopsis":"Edited."}'::jsonb, '{}'::text[],
+           '{"cast":{"from":[1,"Ada"," "],"to":["1","Ada"]}}'::jsonb) $$,
+         current_setting('t.org_a'), current_setting('t.traw')),
+  'a repair whose "from" is the raw stored value (a number and a blank entry) saves');
+select is((select data from public.title_metadata where title_id = current_setting('t.traw')::uuid),
+  '{"synopsis":"Edited.","cast":["1","Ada"]}'::jsonb,
+  'the repair is stored with the change: "from" matched the value as stored, not as normalized');
 select throws_ok(
   format($$ select public.merge_title_metadata(%L, %L, '{"synopsis":"y"}'::jsonb, '{}'::text[], '[]'::jsonb) $$,
          current_setting('t.org_a'), current_setting('t.ta')),

@@ -172,8 +172,15 @@ and the database merges them under a lock on the title, checks the whole record
 and refreshes the title's findings in the same transaction. A failed findings refresh fails the save.
 Submit reads the stored record as the app does, so an older stored shape the
 window shows as complete never blocks it. It is founder-applied and
-**not applied**. Merge gate: the founder applies it, verifies on the PR
-preview, then merges. For the save, either order is safe:
+**not applied**. Merge gate, in order: the founder applies it in a quiet
+window (its pass holds each live title's lock until commit, and a concurrent
+`link_title_to_work_of` can deadlock with it: Postgres aborts one side, and if
+it aborts the migration, the migration rolls back whole and re-running it is
+safe); once it has committed, runs `select public.finish_title_findings_repair();`
+as `postgres` in its own transaction (again if it refuses because
+transactions are still open; a re-run changes no finding's status, code or
+message); runs the read-only after-check (expect 0); verifies on the PR
+preview; then merges. For the save, either order is safe:
 until it is applied, the database reports `merge_title_metadata` missing and
 the save reads, merges and sets as before; no other error falls back.
 Rollback for the merge alone: drop `merge_title_metadata` and keep

@@ -211,7 +211,10 @@ const titleDetailsInput = z.object({
   // Untouched fields the page refuses, stored as the window shows them (to),
   // each only while the stored value is still the one it opened on (from):
   // a save made since is never overwritten (review on #799). Sent only with
-  // a change.
+  // a change. `from` is the stored value as JSON.parse read it, and the merge
+  // compares it with the exact stored jsonb: a stored JSON number with more
+  // precision than a double holds reads back rounded, compares unequal, and
+  // the repair is skipped, the safe direction (the check then names the field).
   repairs: z.record(z.string(), z.object({ from: z.unknown(), to: z.unknown() })).default({}),
   // Null when Release did not change.
   release: releaseInfoSchema.nullable(),

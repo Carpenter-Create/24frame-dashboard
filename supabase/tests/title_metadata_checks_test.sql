@@ -1,10 +1,14 @@
 -- title_metadata_checks_test.sql
 -- 20261009120000: set_title_metadata accepts only the field registry with
--- its types and limits (Adam 2026-10-09, "Add these limits"; the year limit
--- counted in UTC, as the app counts it), and a language
+-- its types and limits (Adam 2026-10-09, "Add these limits"), and a language
 -- or country only from the app's lists (LANGUAGES, ISO_COUNTRIES; Codex on
 -- #799); a cleared field is dropped; a soft-deleted title cannot be written,
 -- reconciled or submitted.
+-- The year tests cover the bounds (1888, and next year plus five), not the
+-- time zone: they compute the bound with the function's own expression,
+-- so they pass with or without its UTC reading. That the limit is counted
+-- in UTC, as the app counts it, is pinned in the function's source by
+-- src/lib/metadata-merge.test.ts.
 
 begin;
 select plan(31);
@@ -87,7 +91,8 @@ select throws_ok(
 select throws_ok(
   format($$ select public.set_title_metadata(%L,%L,'{"release_year":1887}'::jsonb) $$, current_setting('t.org'), current_setting('t.title')),
   '22023', format('release_year: 1888 to %s', extract(year from now() at time zone 'UTC')::int + 6), 'year before 1888 refused');
--- Next year plus five is the last year accepted.
+-- Next year plus five is the last year accepted (the bound only; the UTC
+-- reading is pinned in vitest, see the header).
 select lives_ok(
   format($$ select public.set_title_metadata(%L,%L,%L::jsonb) $$, current_setting('t.org'), current_setting('t.title'),
          json_build_object('release_year', extract(year from now() at time zone 'UTC')::int + 6)::text),

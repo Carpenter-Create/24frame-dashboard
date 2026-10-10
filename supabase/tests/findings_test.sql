@@ -205,15 +205,19 @@ select set_config('request.jwt.claims', json_build_object('sub', current_setting
 select is((select count(*) from public.my_findings(500) where entity_id = current_setting('t.gone')::uuid)::int, 0,
   'a deleted title''s open findings are not in the queue');
 reset role;
--- A second pass (the final pass runs one after the commit) is idempotent:
--- over unchanged records it changes no finding's status or message.
+-- A second pass (the final pass runs one after the commit) over unchanged
+-- records changes no finding's status, code or message, so re-running it is
+-- safe. It is not a no-op (review on #799): it re-stamps derived_at (to its
+-- transaction's time, the same here) and appends an audit row per open
+-- finding, which this does not compare.
 create temp table pass_one as
-  select id, status, message from public.findings where source = 'validator';
+  select id, code, status, message from public.findings where source = 'validator';
 select ok(public.refresh_live_title_findings() >= 1, 'a second pass runs');
 select is(
   (select count(*) from public.findings f join pass_one p on p.id = f.id
-    where f.status is distinct from p.status or f.message is distinct from p.message)::int,
-  0, 'a second pass over unchanged records changes nothing');
+    where f.status is distinct from p.status or f.code is distinct from p.code
+       or f.message is distinct from p.message)::int,
+  0, 'a second pass over unchanged records changes no finding''s status, code or message');
 
 -- The founder's final pass after the commit (Codex on #799): it waits for
 -- every transaction that began before it, then refreshes. No client may run it.

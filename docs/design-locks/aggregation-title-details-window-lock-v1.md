@@ -41,7 +41,7 @@ The plan's questions were answered on 2026-10-09, verbatim: "approved, use the d
 
 | Question | Decision (the default) |
 |----------|------------------------|
-| What does Adam need to do? | Nothing until the PR is ready. Then: approve the exact SQL added to the title findings migration (`merge_title_metadata`, `normalize_stored_title_metadata`, the title lock in `set_title_metadata` and `submit_title`, and `submit_title`'s org check at that lock and normalized read); apply that migration to production once, as one transaction (it already carries the findings and checks work, so the merge rides along); verify (Verify on ship, step 9); merge. If the "merge_title_metadata not applied yet" log line still appears after the apply, run `notify pgrst, 'reload schema';`. |
+| What does Adam need to do? | Nothing until the PR is ready. Then, in order: (1) approve the exact SQL added to the title findings migration (`merge_title_metadata`, `normalize_stored_title_metadata`, the title lock in `set_title_metadata` and `submit_title`, and `submit_title`'s org check at that lock and normalized read); (2) apply that migration to production once, as one transaction, in a quiet window (it already carries the findings and checks work, so the merge rides along); (3) once it has committed, run `select public.finish_title_findings_repair();` as `postgres`, in its own transaction, and run it again if it refuses because transactions are still open (Verify on ship, step 9); (4) run the read-only after-check, expecting 0 (step 10); (5) the preview checks (step 11); (6) merge. Apply in a quiet window: the pass holds each live title's lock until commit, and a concurrent `link_title_to_work_of` can deadlock with it; Postgres aborts one side, and if it aborts the migration, the migration rolls back whole and re-running it is safe. If the "merge_title_metadata not applied yet" log line still appears after the apply, run `notify pgrst, 'reload schema';`. |
 | Does the app change ride in the findings SQL PR or its own stacked PR? | The same PR: one SQL review, one apply, one preview check, one merge. The app diff inherits that PR's reserved SQL gate. |
 | A two-session (dblink) concurrency proof now? | No. A follow-up modeled on `screener_concurrency_test.sql`. This change proves the merge in one session and pins both locks on each function's source. |
 | Should a Cast or Keywords entry over 200 characters say "Up to 200 characters per entry." (a new line) instead of today's "Up to 50 entries."? (Bugbot on the window's PR) | Not as a new line. The fix reuses the existing approved "Up to 200 characters.", so no new copy ships; "Up to 200 characters per entry." stays proposed until Adam approves that exact line. More than 50 entries, and any other list problem, keeps "Up to 50 entries.". |
@@ -158,4 +158,20 @@ The same ask as Edit profile. On desktop it is a strip at the window's foot: Dis
 6. Open from a new tab with `?edit=required`, and from `/metadata`: the window opens at both widths.
 7. Phone: the same window fills the sheet. A resize keeps the draft.
 8. A viewer, and staff under view-as, see View and no window.
-9. After the founder applies the SQL (a read-only check first: `select has_function_privilege('authenticated', 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)', 'EXECUTE');` is true): on the PR preview, open one title's Metadata window in two tabs, change Cast in one and Director in the other, Done in both, reload: both are kept. The preview's logs show no "merge_title_metadata not applied yet" line for those saves. This proves the merge path is live and nothing regressed; atomicity itself rests on the locks, which the tests pin.
+9. After the founder applies the SQL in a quiet window and it has committed: as `postgres`, in its own transaction, `select public.finish_title_findings_repair();`. It waits for every transaction that began before it, then re-derives every live title's findings, and returns how many titles it refreshed. If it refuses because transactions are still open, run it again. Re-running it is safe: it changes no finding's status, code or message (each pass re-stamps `derived_at` and appends an audit row per open finding).
+10. The read-only after-check (expect 0), as `postgres`: every live title's open validator findings are what its stored record derives, read as the window reads it.
+
+    ```sql
+    select count(*) as titles_out_of_step
+      from public.titles t
+     where t.deleted_at is null
+       and (select coalesce(array_agg(f.code order by f.code), '{}'::text[])
+              from public.findings f
+             where f.entity_type = 'title' and f.entity_id = t.id
+               and f.source = 'validator' and f.status = 'open')
+        <> (select coalesce(array_agg(d->>'code' order by d->>'code'), '{}'::text[])
+              from jsonb_array_elements(public.title_metadata_findings(public.normalize_stored_title_metadata(
+                coalesce((select m.data from public.title_metadata m where m.title_id = t.id), '{}'::jsonb)))) d);
+    ```
+
+11. The preview checks (a read-only check first: `select has_function_privilege('authenticated', 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)', 'EXECUTE');` is true): on the PR preview, open one title's Metadata window in two tabs, change Cast in one and Director in the other, Done in both, reload: both are kept. The preview's logs show no "merge_title_metadata not applied yet" line for those saves. This proves the merge path is live and nothing regressed; atomicity itself rests on the locks, which the tests pin. Then merge.

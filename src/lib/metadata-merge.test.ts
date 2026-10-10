@@ -40,6 +40,9 @@ const MIGRATION = readFileSync(
 );
 const PGTAP = readFileSync(join(process.cwd(), "supabase/tests/title_metadata_merge_test.sql"), "utf8");
 const TYPES = readFileSync(join(process.cwd(), "src/lib/supabase/database.types.ts"), "utf8");
+const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
+/** SQL comment text as prose: the `--` prefixes and line breaks folded to spaces. */
+const prose = (sql: string) => sql.replace(/\n\s*--\s?/g, " ").replace(/\s+/g, " ");
 
 /** One function's own source: from its `create or replace` to the next `$$;`. */
 function functionSql(name: string): { header: string; body: string; after: string } {
@@ -265,7 +268,10 @@ describe("the one pass over live titles' findings (draft, founder-applied)", () 
     );
     expect(MIGRATION).not.toMatch(/grant\s+execute on function public\.finish_title_findings_repair/);
     const body = finish.body;
-    const guard = body.indexOf("pg_has_role(current_user, 'pg_read_all_stats', 'member')");
+    // pg_stat_activity shows other roles' transactions by inherited privilege
+    // (USAGE), not bare membership (review on #799).
+    const guard = body.indexOf("pg_has_role(current_user, 'pg_read_all_stats', 'usage')");
+    expect(body).not.toMatch(/pg_has_role\([^)]*'member'\)/i);
     const since = body.indexOf("v_since timestamptz := clock_timestamp();");
     const drain = body.search(
       /from pg_stat_activity a\s+where a\.backend_type = 'client backend'\s+and a\.pid <> pg_backend_pid\(\)\s+and a\.xact_start < v_since;/,
@@ -286,6 +292,89 @@ describe("the one pass over live titles' findings (draft, founder-applied)", () 
     expect(body.indexOf("end loop;")).toBeLessThan(pass);
     // Never run by the migration itself (its own transaction is the one to drain).
     expect(MIGRATION).not.toMatch(/perform public\.finish_title_findings_repair|select public\.finish_title_findings_repair/);
+  });
+});
+
+// Review on #799: what the founder is told about the passes, and what he runs.
+describe("the apply runbook and the claims about the passes (draft, founder-applied)", () => {
+  const LOCK = read("docs/design-locks/aggregation-title-details-window-lock-v1.md");
+  const CURRENT = read("docs/status/CURRENT.md");
+  const FINDINGS_PGTAP = read("supabase/tests/findings_test.sql");
+
+  // Every pass re-stamps derived_at and appends an audit row per open
+  // finding, so a pass is not idempotent; a re-run changes no finding's
+  // status, code or message.
+  it("never calls a pass idempotent, and says what a re-run does change", () => {
+    for (const text of [MIGRATION, FINDINGS_PGTAP, LOCK, CURRENT]) expect(text).not.toMatch(/idempotent/i);
+    expect(prose(MIGRATION)).toContain("A second pass over an unchanged record changes no finding's status, code or message");
+    expect(prose(MIGRATION)).toContain("each pass re-stamps derived_at on every open validator finding");
+    expect(FINDINGS_PGTAP).toContain("'a second pass over unchanged records changes no finding''s status, code or message'");
+    expect(FINDINGS_PGTAP).toMatch(
+      /where f\.status is distinct from p\.status or f\.code is distinct from p\.code\s+or f\.message is distinct from p\.message/,
+    );
+    expect(FINDINGS_PGTAP).toContain("select id, code, status, message from public.findings where source = 'validator';");
+  });
+
+  // The lock's checklist once left out the final pass and the after-check.
+  it("the lock's checklist runs the final pass and the after-check between the apply and the merge", () => {
+    const row = LOCK.split("\n").find((line) => line.startsWith("| What does Adam need to do? |")) ?? "";
+    const steps = [
+      "apply that migration to production once, as one transaction, in a quiet window",
+      "run `select public.finish_title_findings_repair();` as `postgres`, in its own transaction, and run it again if it refuses because transactions are still open",
+      "run the read-only after-check, expecting 0",
+      "the preview checks",
+      "(6) merge",
+    ].map((step) => row.indexOf(step));
+    for (const at of steps) expect(at).toBeGreaterThan(0);
+    expect([...steps].sort((a, b) => a - b)).toEqual(steps);
+    expect(row).toContain("a concurrent `link_title_to_work_of` can deadlock with it");
+    expect(row).toContain("if it aborts the migration, the migration rolls back whole and re-running it is safe");
+    // This migration's own section of CURRENT.md (others share the phrasing).
+    const heading = "## Title metadata checks and atomic save";
+    expect(CURRENT).toContain(heading);
+    const section = CURRENT.slice(CURRENT.indexOf(heading));
+    const current = section.slice(0, section.indexOf("\n---")).replace(/\s+/g, " ");
+    for (const text of [current, prose(MIGRATION)]) {
+      expect(text).toContain("finish_title_findings_repair");
+      expect(text).toContain("after-check");
+      expect(text).toContain("quiet window");
+      expect(text).toContain("link_title_to_work_of");
+    }
+    const gate = ["applies it in a quiet window", "finish_title_findings_repair", "read-only after-check", "verifies on the PR preview", "then merges"].map(
+      (step) => current.indexOf(step),
+    );
+    for (const at of gate) expect(at).toBeGreaterThan(0);
+    expect([...gate].sort((a, b) => a - b)).toEqual(gate);
+  });
+
+  // One after-check, word for word, in the SQL the founder approves and in the lock.
+  it("the after-check in the lock is the one in the migration", () => {
+    const fromSql = /--   (select count\(\*\) as titles_out_of_step[\s\S]*?'\{\}'::jsonb\)\)\)\) d\);)/.exec(MIGRATION)?.[1] ?? "";
+    const fromLock = /```sql\n\s*(select count\(\*\) as titles_out_of_step[\s\S]*?d\);)\n\s*```/.exec(LOCK)?.[1] ?? "";
+    expect(fromSql).not.toBe("");
+    expect(prose(fromSql)).toBe(fromLock.replace(/\s+/g, " "));
+    // Read-only, as the window reads the record.
+    expect(fromLock).not.toMatch(/\b(update|insert|delete|truncate)\b|refresh_|finish_/i);
+    expect(fromLock).toContain("public.title_metadata_findings(public.normalize_stored_title_metadata(");
+  });
+
+  // Review on #799 (parity): a repair's "from" is the page's JSON.parse
+  // reading, compared with the exact stored jsonb.
+  it("says a repair from a value JSON.parse rounds is skipped, the safe direction", () => {
+    expect(prose(MIGRATION)).toContain(
+      "\"from\" is the stored value as the page's JSON.parse read it, compared here with jsonb equality against the exact stored value",
+    );
+    expect(prose(MIGRATION)).toContain("the repair is skipped. That is the safe direction");
+    const actions = prose(read("src/app/(app)/aggregation/titles/[id]/actions.ts").replace(/\n\s*\/\/\s?/g, "\n-- "));
+    expect(actions).toContain("`from` is the stored value as JSON.parse read it, and the merge compares it with the exact stored jsonb");
+    expect(actions).toContain("the repair is skipped, the safe direction (the check then names the field)");
+  });
+
+  it("the checks test claims the year bounds, not the UTC reading, which vitest pins", () => {
+    const header = read("supabase/tests/title_metadata_checks_test.sql").split("\nbegin;")[0];
+    expect(prose(header)).toContain("The year tests cover the bounds (1888, and next year plus five), not the time zone");
+    expect(prose(header)).not.toMatch(/\(Adam 2026-10-09, "Add these limits"; the year limit counted in UTC/);
+    expect(functionSql("check_title_metadata").body).toContain("extract(year from now() at time zone 'UTC')::int + 1 + 5");
   });
 });
 
@@ -341,15 +430,49 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     // Applied under the change: the save's own set and clear win.
     expect(body).toContain("(public.normalize_stored_title_metadata(v_current) || v_fixed || v_set) - v_clear);");
     expect(body.split("v_fixed :=")).toHaveLength(2);
+    // "from" is compared with the stored value as stored, the raw record the
+    // window opened on, never a normalized copy (review on #799: Cast stored
+    // as [1,"Ada"," "] normalizes to [1,"Ada"]): v_current is only ever the
+    // row read, and normalize runs once, in the merge, after the repairs.
+    expect(body).not.toMatch(/v_current\s*:=/);
+    expect(body.match(/into v_current\b/g)).toHaveLength(2);
+    expect(body.split("normalize_stored_title_metadata(")).toHaveLength(2);
   });
 
   it("gives every metadata writer the same title lock, before it touches the record", () => {
-    for (const name of ["set_title_metadata", "submit_title"]) {
+    for (const name of ["set_title_metadata", "submit_title", MERGE_TITLE_METADATA]) {
       const { body } = functionSql(name);
       const lock = body.search(/from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id[^;]*for no key update;/);
       expect(lock, name).toBeGreaterThan(0);
       expect(lock, name).toBeLessThan(body.indexOf("public.title_metadata"));
     }
+  });
+
+  // Review on #799: the FOR UPDATE pins also matched the conflict branch's
+  // re-read, so they could not see the main read lose its row lock, or the
+  // title lock move after it (a merge would then hold the record and wait
+  // for the title while set_title_metadata holds the title and waits for the
+  // record).
+  it("merge_title_metadata locks the title before its first read of the record, and that main read is FOR UPDATE", () => {
+    const { body } = functionSql(MERGE_TITLE_METADATA);
+    const lock = body.search(
+      /perform 1 from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title does not belong to this organization';\s+end if;/,
+    );
+    const firstRead = body.indexOf("from public.title_metadata m");
+    expect(lock).toBeGreaterThan(0);
+    expect(firstRead).toBeGreaterThan(lock);
+    // The first statement on the record, whole: the main read, FOR UPDATE,
+    // followed by the no-record branch (so not the conflict re-read).
+    const readStart = body.lastIndexOf("select m.data into v_current", firstRead);
+    const readEnd = body.indexOf(";", firstRead);
+    expect(readStart).toBeGreaterThan(lock);
+    expect(body.slice(readStart, readEnd)).toMatch(
+      /^select m\.data into v_current\s+from public\.title_metadata m\s+where m\.title_id = p_title_id\s+for update$/,
+    );
+    expect(body.slice(readEnd)).toMatch(/^;\s+if not found then\s+v_merged := public\.check_title_metadata\(v_set - v_clear\);/);
+    // The conflict branch's re-read is the only other read, and comes after.
+    expect(body.split("from public.title_metadata m")).toHaveLength(3);
+    expect(body.indexOf("from public.title_metadata m", readEnd)).toBeGreaterThan(body.indexOf("on conflict (title_id) do nothing;"));
   });
 
   // Codex on #799: an unlocked exists check let a delete that committed
@@ -400,10 +523,22 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     expect(create.indexOf("perform public.refresh_title_findings(p_org_id, v_title);")).toBeLessThan(
       create.indexOf("return v_title;"),
     );
-    // The refresh takes the title lock itself (a no-op under its callers').
-    expect(functionSql("refresh_title_findings").body).toMatch(
-      /from public\.titles t\s+left join public\.title_metadata m on m\.title_id = t\.id\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update of t;/,
+    // The refresh takes the title lock itself (a no-op under its callers'), in
+    // a statement of its own, then reads the record in the next (review on
+    // #799): a statement reads from the snapshot it starts with, so a call
+    // that waited on the lock reads what the save holding it committed.
+    const refresh = functionSql("refresh_title_findings").body;
+    const refreshLock = refresh.search(
+      /perform 1 from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title not found in this organization';\s+end if;/,
     );
+    const refreshRead = refresh.indexOf(
+      "v_data := coalesce((select m.data from public.title_metadata m where m.title_id = p_title_id), '{}'::jsonb);",
+    );
+    expect(refreshLock).toBeGreaterThan(0);
+    expect(refreshRead).toBeGreaterThan(refreshLock);
+    expect(refreshRead).toBeLessThan(refresh.indexOf("v_findings := public.title_metadata_findings("));
+    expect(refresh.split("public.title_metadata m")).toHaveLength(2);
+    expect(refresh).not.toMatch(/join public\.title_metadata/);
     // reconcile: a live title in p_org_id only, refused at the lock.
     expect(functionSql("reconcile_title_findings").body).toMatch(
       /from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title not found in this organization';\s+end if;/,

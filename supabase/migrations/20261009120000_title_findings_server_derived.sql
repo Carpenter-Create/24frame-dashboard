@@ -7,10 +7,12 @@
 -- (Adam, 2026-10-09, "4) yes, please."; open questions "approved, use the
 -- defaults"). Approving this exact SQL and applying it stay founder-only.
 --
--- MERGE GATE: the founder applies it, verifies on the PR preview, then
--- merges. For the Metadata window's save either order is safe: until this is
--- applied, PostgREST reports merge_title_metadata missing and the app reads,
--- merges and sets as before; no other error falls back.
+-- MERGE GATE: the founder applies it, runs the final pass after it has
+-- committed and then the read-only after-check (both in section 10),
+-- verifies on the PR preview, then merges. For the Metadata window's save
+-- either order is safe: until this is applied, PostgREST reports
+-- merge_title_metadata missing and the app reads, merges and sets as before;
+-- no other error falls back.
 --
 -- INTENT: close a forgery path in the findings store (§19) and harden the
 -- title write RPCs.
@@ -95,7 +97,11 @@
 -- upserts or resolves each live title's validator findings (findings rows
 -- only; nothing is deleted; AI findings and deleted titles are untouched).
 -- The pass holds each live title's lock until the transaction commits, so
--- saves, submits and deletes wait for it: apply in a quiet window.
+-- saves, submits and deletes wait for it: apply in a quiet window. A
+-- concurrent link_title_to_work_of, which locks two titles in its caller's
+-- order, can deadlock with the pass (review on #799): Postgres aborts one
+-- side, and if it aborts the migration, the migration rolls back whole and
+-- re-running it is safe.
 -- Existing stored metadata is not rewritten
 -- or re-validated; the next save of a title checks its whole record, so a
 -- stored value the checks refuse (including a language or country outside
@@ -354,8 +360,13 @@ grant  execute on function public.title_metadata_findings(jsonb) to authenticate
 -- auto-resolves those no longer present. Only touches source='validator'
 -- rows, so AI findings are never disturbed. Callers check who may run it;
 -- not granted to any client role (service_role included). It takes the title
--- lock itself (a no-op for its callers, which already hold it), so no call can
--- write findings from a record a later save replaced.
+-- lock itself, in a statement of its own, and reads the record in the next
+-- (review on #799): each statement reads from a snapshot taken when it
+-- starts, so a call that waited on the lock reads what the save holding it
+-- committed, where one statement that locked and read kept the record from
+-- before the wait. No save that takes the lock can then replace the record
+-- before this transaction ends. Its callers already hold the lock, so for
+-- them it is a no-op.
 create or replace function public.refresh_title_findings(p_org_id uuid, p_title_id uuid)
   returns void
   language plpgsql security definer
@@ -367,14 +378,13 @@ declare
   f          jsonb;
   v_codes    text[] := '{}';
 begin
-  select coalesce(m.data, '{}'::jsonb) into v_data
-    from public.titles t
-    left join public.title_metadata m on m.title_id = t.id
+  perform 1 from public.titles t
    where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
-     for no key update of t;
+     for no key update;
   if not found then
     raise exception 'Title not found in this organization';
   end if;
+  v_data := coalesce((select m.data from public.title_metadata m where m.title_id = p_title_id), '{}'::jsonb);
 
   -- Read as the Metadata window and its required count read it
   -- (normalizeStoredMetadata; Codex on #799): a list of blank entries is
@@ -693,7 +703,12 @@ revoke execute on function public.normalize_stored_title_metadata(jsonb) from pu
 -- never clears (a "to" that is empty is skipped), so a save made since the
 -- window opened is never overwritten with what the window showed before it.
 -- A skipped repair leaves the stored value, and the check names it if it
--- refuses it.
+-- refuses it. "from" is the stored value as the page's JSON.parse read it,
+-- compared here with jsonb equality against the exact stored value: a stored
+-- JSON number with more precision than a double holds (12345678901234567890)
+-- reads back rounded, compares unequal, and the repair is skipped. That is
+-- the safe direction: nothing is overwritten, and the check then names the
+-- field (review on #799).
 --
 -- Lock order for every metadata writer and every caller of the findings
 -- refresh (this, set_title_metadata, submit_title, reconcile_title_findings,
@@ -817,10 +832,14 @@ grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]
 -- validator findings from its stored metadata through refresh_title_findings,
 -- under each title's lock (the writers' order: title, then findings), and
 -- returns how many titles it refreshed. It runs once, below, when this
--- migration is applied. It is idempotent: a second pass over an unchanged
--- record changes no finding. Only validator rows change, by upsert or by status
--- (resolved): nothing is deleted, and AI findings, a deleted title's findings
--- and the metadata itself are untouched. No client role may call it.
+-- migration is applied. A second pass over an unchanged record changes no
+-- finding's status, code or message, so re-running it is safe; it is not a
+-- no-op: each pass re-stamps derived_at on every open validator finding of
+-- every live title (to that transaction's time), and audit_findings
+-- (tg_audit) appends one audit_log row, actor null, for each (review on
+-- #799). Only validator rows change, by upsert or by status (resolved):
+-- nothing is deleted, and AI findings, a deleted title's findings and the
+-- metadata itself are untouched. No client role may call it.
 
 create or replace function public.refresh_live_title_findings()
   returns integer
@@ -863,9 +882,29 @@ $$;
 -- is left to write after it. A call made after the commit runs the new body
 -- (PL/pgSQL rechecks the function at each call). It refuses, writing
 -- nothing, when the caller cannot see other sessions' transactions, or when
--- they have not drained within p_max_wait_seconds. The founder runs it once,
--- in its own transaction, after the migration has committed. No client role
--- may call it.
+-- they have not drained within p_max_wait_seconds. pg_stat_activity shows
+-- another role's transactions only to a role that has pg_read_all_stats's
+-- privileges, inherited (review on #799), so the guard asks for USAGE, not
+-- bare membership: a member that does not inherit the role would see no
+-- transaction open in other roles' sessions and run the pass at once. No
+-- client role may call it.
+--
+-- The founder runs it as postgres, once, in its own transaction, after the
+-- migration has committed (finish_title_findings_repair(), its default
+-- 120-second wait); if it refuses because transactions are still open, it is
+-- run again. Then the read-only after-check, expecting 0: every live title's
+-- open validator findings are what its stored record derives, read as the
+-- window reads it.
+--   select count(*) as titles_out_of_step
+--     from public.titles t
+--    where t.deleted_at is null
+--      and (select coalesce(array_agg(f.code order by f.code), '{}'::text[])
+--             from public.findings f
+--            where f.entity_type = 'title' and f.entity_id = t.id
+--              and f.source = 'validator' and f.status = 'open')
+--       <> (select coalesce(array_agg(d->>'code' order by d->>'code'), '{}'::text[])
+--             from jsonb_array_elements(public.title_metadata_findings(public.normalize_stored_title_metadata(
+--               coalesce((select m.data from public.title_metadata m where m.title_id = t.id), '{}'::jsonb)))) d);
 
 create or replace function public.finish_title_findings_repair(p_max_wait_seconds integer default 120)
   returns integer
@@ -878,7 +917,7 @@ declare
   v_waited integer := 0;
 begin
   if not (coalesce((select r.rolsuper from pg_roles r where r.rolname = current_user), false)
-          or pg_has_role(current_user, 'pg_read_all_stats', 'member')) then
+          or pg_has_role(current_user, 'pg_read_all_stats', 'usage')) then
     raise exception 'Cannot see other sessions: run as a role with pg_read_all_stats';
   end if;
   loop
