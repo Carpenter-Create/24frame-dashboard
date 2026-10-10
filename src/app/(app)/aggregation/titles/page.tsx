@@ -106,7 +106,12 @@ export default async function TitlesPage({
   const filtered = filterCatalogByStatus(filterTitles(all, q), statusFilter);
 
   const catalogById = new Map(list.map((t) => [t.id, t.catalog_id]));
-  const lifecycleActor = { isStaff: lifecycleStaff, canOperate };
+  // gc_can(operate) is delete_title's staff gate: staff whose GC role cannot
+  // operate (legal, accountant) get no delete action. Members never call it.
+  const { data: staffCanOperate } = lifecycleStaff
+    ? await supabase.rpc("gc_can", { p_uid: ctx.user.id, p_capability: "operate" })
+    : { data: false };
+  const lifecycleActor = { isStaff: lifecycleStaff, canOperate, staffCanOperate: staffCanOperate === true };
   const stills = filtered.map((r) => {
     const catalogId = catalogById.get(r.id) ?? null;
     const flags = titleLifecycleFlags(

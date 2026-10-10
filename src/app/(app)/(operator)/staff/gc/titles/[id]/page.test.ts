@@ -215,3 +215,70 @@ describe("GcTitleDetail GcAssets wiring", () => {
     expect(queries.assets.range).not.toHaveBeenCalled();
   });
 });
+
+// Adam, 2026-10-10, "Yes, in #799 (Recommended)": delete_title's staff gate is
+// gc_can(auth.uid(), 'operate'), so the lifecycle menu offers Delete only to a
+// GC role that can operate. Legal and accountant see no Delete.
+describe("GcTitleDetail lifecycle Delete follows gc_can(operate)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function renderAs(gcCanOperate: boolean, status: string) {
+    const titleId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const queries: Record<string, QueryStub> = {
+      titles: new QueryStub({
+        id: titleId,
+        title: "North Star",
+        catalog_id: "GC-0000002",
+        status,
+        work_id: null,
+        created_at: "2026-08-14T00:00:00.000Z",
+        release_type: "new_release",
+        original_release_date: null,
+        release_date: null,
+        organizations: { name: "Example Org" },
+      }),
+      rights_grants: new QueryStub([]),
+      portal_links: new QueryStub([]),
+      title_metadata: new QueryStub({ data: {} }),
+      findings: new QueryStub([]),
+      assets: new QueryStub([]),
+      deliveries: new QueryStub([]),
+      vendors: new QueryStub([]),
+      transcode_jobs: new QueryStub([]),
+    };
+    const from = vi.fn((table: string) => {
+      const query = queries[table];
+      if (!query) throw new Error(`unexpected table: ${table}`);
+      return query;
+    });
+    const rpc = vi.fn((name: string) => {
+      const data = name === "gc_can" ? gcCanOperate : name === "title_has_reporting_activity" ? false : [];
+      return Promise.resolve({ data, error: null });
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      { from, rpc } as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+    vi.mocked(getAuthUser).mockResolvedValue({ id: "staff-user", email: "staff@example.com" });
+    const html = renderToStaticMarkup(await GcTitleDetail({ params: Promise.resolve({ id: titleId }) }));
+    return { html, rpc };
+  }
+
+  it("offers Delete to a GC role that can operate", async () => {
+    const draft = await renderAs(true, "draft");
+    expect(draft.rpc).toHaveBeenCalledWith("gc_can", { p_uid: "staff-user", p_capability: "operate" });
+    expect(draft.html).toContain("data-title-lifecycle-delete-confirm");
+    const live = await renderAs(true, "live");
+    expect(live.html).toContain("data-title-lifecycle-delete-confirm");
+  });
+
+  it("offers no Delete to a read-only GC role (legal, accountant)", async () => {
+    const draft = await renderAs(false, "draft");
+    expect(draft.html).not.toContain("data-title-lifecycle-delete-confirm");
+    // A draft offers nothing else, so there is no Title actions menu at all.
+    expect(draft.html).not.toContain("data-title-lifecycle-menu");
+    const live = await renderAs(false, "live");
+    expect(live.html).not.toContain("data-title-lifecycle-delete-confirm");
+  });
+});

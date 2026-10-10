@@ -161,6 +161,41 @@ Social Feed cards (Direction B, founder pick): a white canvas with every post an
 
 ---
 
+## Title metadata checks and atomic save (authorized; not applied)
+
+The title findings migration under `supabase/migrations` derives validator
+findings from stored metadata in the database, checks every metadata write
+against the approved limits, and adds `merge_title_metadata`: the title's
+Metadata window sends only the changed fields (with them, repairs of untouched
+fields the page refuses, each stored only while the stored value is unchanged),
+and the database merges them under a lock on the title, checks the whole record
+and refreshes the title's findings in the same transaction. A failed findings refresh fails the save.
+Submit reads the stored record as the app does, so an older stored shape the
+window shows as complete never blocks it. `delete_title`'s staff gate becomes
+`gc_can(auth.uid(), 'operate')`, where it was `is_gc_staff` (Adam's answer,
+verbatim, is in the design lock): GC legal and accountant staff are
+refused "Not authorized to delete this title", and the app offers staff
+Delete only to a GC role that can operate. It is founder-applied and
+**not applied**. Merge gate, in order: the founder applies it in a quiet
+window (its pass holds each live title's lock until commit, and a concurrent
+`link_title_to_work_of` can deadlock with it: Postgres aborts one side, and if
+it aborts the migration, the migration rolls back whole and re-running it is
+safe); once it has committed, runs `select public.finish_title_findings_repair();`
+as `postgres` in its own transaction (again if it refuses because
+transactions are still open: a refused call writes nothing; once a pass has
+run, another pass in the same UTC year over records and findings unchanged
+since then changes no finding's status, code or message, and it re-stamps
+`derived_at` and appends one audit row per open finding); runs the read-only
+after-check (expect 0); verifies on the PR
+preview; then merges. For the save, either order is safe:
+until it is applied, the database reports `merge_title_metadata` missing and
+the save reads, merges and sets as before; no other error falls back.
+Rollback for the merge alone: drop `merge_title_metadata` and keep
+`normalize_stored_title_metadata`, which `submit_title` uses. Design lock:
+[`docs/design-locks/aggregation-title-details-window-lock-v1.md`](../design-locks/aggregation-title-details-window-lock-v1.md).
+
+---
+
 ## Not authority
 
 - [`docs/HANDOFF.md`](../HANDOFF.md) — historical handoff; preserve as evidence; do not act on its branch, SHA, production, or task statements without fresh verification.

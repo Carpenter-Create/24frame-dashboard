@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { ADD_RIGHT_PARAM } from "./add-right";
+import { metadataTierCount, normalizeStoredMetadata, parseMetadata } from "./metadata";
 import { TITLE_PAGE_WINDOW_PARAMS } from "./titles";
 import {
   TITLE_DETAILS,
   TITLE_DETAILS_PARAM,
+  TITLE_DETAILS_TIERS,
   checkTitleDetails,
   draftToMetadata,
   metadataChanges,
+  metadataRepairs,
   metadataToDraft,
   parseTitleDetailsWindow,
   releaseChanged,
@@ -17,9 +20,11 @@ import {
   titleDetailsClosedHref,
   titleDetailsDiscardLine,
   titleDetailsFaceForField,
+  titleDetailsMetadata,
   titleDetailsOpenHref,
   titleDetailsReleaseSummary,
   titleDetailsTierSummary,
+  type MetadataDraft,
 } from "./title-details";
 
 const NOW = new Date("2026-10-09T12:00:00Z");
@@ -140,6 +145,18 @@ describe("title Metadata window (lib/title-details)", () => {
     expect(checkTitleDetails(draft, NOW)?.error).toBe("Choose one from the list.");
   });
 
+  it("names a Cast or Keywords entry over 200 characters with the entry line, and too many entries with the list line", () => {
+    const draft = draftOf();
+    draft.metadata.cast = `Ada, ${"x".repeat(201)}`;
+    expect(checkTitleDetails(draft, NOW)).toEqual({
+      face: "recommended",
+      field: "cast",
+      error: "Up to 200 characters.",
+    });
+    draft.metadata.cast = Array.from({ length: 51 }, (_, i) => `c${i}`).join(",");
+    expect(checkTitleDetails(draft, NOW)).toEqual({ face: "recommended", field: "cast", error: "Up to 50 entries." });
+  });
+
   it("asks a re-release for an original date in the past", () => {
     const draft = draftOf();
     draft.release = { type: "re_release", originalDate: "" };
@@ -174,5 +191,186 @@ describe("title Metadata window (lib/title-details)", () => {
       "Re-release · May 4, 2001",
     );
     expect(TITLE_DETAILS.title).toBe("Metadata");
+  });
+});
+
+// The audit on #799: the window read the stored record through its own
+// round trip (lists re-split, numbers through Number(), choices trimmed), so
+// it could call a field complete that the page, the queue and submit refuse,
+// never send it, and refuse Done over a field nobody touched.
+describe("the Metadata window reads the stored record as the page reads it", () => {
+  const FULL = { ...STORED, director: "Jo", rating: "PG", keywords: ["k"] };
+  const release = releaseDraft(NEW_RELEASE);
+
+  // What the page counts after Done: the stored record, read as the page
+  // reads it, with Done's changes merged on as merge_title_metadata merges
+  // them. A repair lands only while the stored value (`now`, by default the
+  // record the window opened on) is still its `from`, and never over a change.
+  function afterDone(
+    stored: Record<string, unknown>,
+    changes: Record<string, unknown>,
+    repairs: Record<string, { from: unknown; to: unknown }> = {},
+    now: Record<string, unknown> = stored,
+  ) {
+    const merged = normalizeStoredMetadata(now);
+    for (const [key, repair] of Object.entries(repairs)) {
+      if (key in changes || !(key in now)) continue;
+      if (JSON.stringify(now[key]) === JSON.stringify(repair.from)) merged[key] = repair.to;
+    }
+    for (const [key, value] of Object.entries(changes)) {
+      if (value === null) delete merged[key];
+      else merged[key] = value;
+    }
+    return merged;
+  }
+
+  it("never blocks Done, or sends, an untouched field the page accepts", () => {
+    // 30 entries with a comma each: valid as stored, 60 entries once re-split.
+    const stored = { ...FULL, cast: Array.from({ length: 30 }, (_, i) => `Last${i}, First${i}`) };
+    const draft: MetadataDraft = { ...metadataToDraft(stored), synopsis: "Edited." };
+    expect(checkTitleDetails({ metadata: draft, release }, NOW, stored)).toBeNull();
+    expect(metadataChanges(stored, draft)).toEqual({ synopsis: "Edited." });
+    expect(titleDetailsTierSummary(draft, "recommended", stored)).toBe("4 of 4 complete");
+    expect(metadataTierCount(normalizeStoredMetadata(stored), "recommended").filled).toBe(4);
+    // Without the stored record every typed value is checked, as before.
+    expect(checkTitleDetails({ metadata: draft, release }, NOW)?.field).toBe("cast");
+    // Editing Cast itself still checks what was typed.
+    draft.cast = `${draft.cast}, Extra`;
+    expect(checkTitleDetails({ metadata: draft, release }, NOW, stored)).toEqual({
+      face: "recommended",
+      field: "cast",
+      error: "Up to 50 entries.",
+    });
+  });
+
+  it("repairs an untouched field the page refuses into what the field shows, with an edit, without asking on close", () => {
+    const stored = { ...FULL, cast: "Ada, Bob" };
+    const draft = { ...metadataToDraft(stored), synopsis: "Edited." };
+    const changes = metadataChanges(stored, draft);
+    const repairs = metadataRepairs(stored, draft);
+    // The change alone; the repair carries the stored value it expects.
+    expect(changes).toEqual({ synopsis: "Edited." });
+    expect(repairs).toEqual({ cast: { from: "Ada, Bob", to: ["Ada", "Bob"] } });
+    // The merge accepts the record Done leaves (before: refused on Cast).
+    expect(parseMetadata(afterDone(stored, changes, repairs)).ok).toBe(true);
+    expect(titleDetailsMetadata(stored, draft)).toEqual(afterDone(stored, changes, repairs));
+    // A repair is not a change anyone made: closing asks about Required only.
+    expect(
+      titleDetailsChangedRows({ metadata: stored, release: NEW_RELEASE }, { metadata: draft, release }),
+    ).toEqual(["required"]);
+    expect(
+      titleDetailsChangedRows({ metadata: stored, release: NEW_RELEASE }, { metadata: metadataToDraft(stored), release }),
+    ).toEqual([]);
+  });
+
+  // Review on #799: the repair went out as a change, so another user's Cast,
+  // saved after the window opened, was overwritten with the stale one.
+  it("never overwrites a save made since the window opened", () => {
+    const opened = { ...FULL, cast: "Ada, Bob" };
+    const draft = { ...metadataToDraft(opened), synopsis: "Edited." };
+    const changes = metadataChanges(opened, draft);
+    const repairs = metadataRepairs(opened, draft);
+    expect(changes).not.toHaveProperty("cast");
+    const savedSince = { ...FULL, cast: ["Cy"] };
+    expect(afterDone(opened, changes, repairs, savedSince).cast).toEqual(["Cy"]);
+    // Unchanged since: the repair lands.
+    expect(afterDone(opened, changes, repairs, opened).cast).toEqual(["Ada", "Bob"]);
+  });
+
+  // Review on #799: Done with no edit saved repairs, so it could be refused
+  // over a field nobody touched, or rewrite one, without a word.
+  it("sends nothing on Done with no edit", () => {
+    for (const shape of [
+      { cast: "Ada, Bob" },
+      { cast: ["Smith, Jr.", 5] },
+      { cast: [1, "Ada"], genre: "Drama" },
+      { director: 5 },
+      { director: "x".repeat(200) + " " },
+    ]) {
+      const stored: Record<string, unknown> = { ...FULL, ...shape };
+      const draft = metadataToDraft(stored);
+      expect(metadataChanges(stored, draft), JSON.stringify(shape)).toEqual({});
+      expect(metadataRepairs(stored, draft), JSON.stringify(shape)).toEqual({});
+      expect(titleDetailsMetadata(stored, draft), JSON.stringify(shape)).toEqual(normalizeStoredMetadata(stored));
+    }
+  });
+
+  it("never repairs into a value the field does not show, or splits or drops a stored entry", () => {
+    for (const shape of [
+      { runtime_minutes: "0x60" },
+      { runtime_minutes: "96e0000" },
+      { release_year: "0o3720" },
+      { runtime_minutes: true },
+      { genre: " drama" },
+      { synopsis: { a: 1 } },
+      { cast: [["Ada"]] },
+      // Review on #799: one name with a comma would become two entries, and
+      // an entry that shows empty would be dropped.
+      { cast: ["Smith, Jr.", 5] },
+      { cast: [{ a: 1 }, "Ada"] },
+      { keywords: [["k"], "space"] },
+    ]) {
+      const stored: Record<string, unknown> = { ...FULL, ...shape };
+      const draft = { ...metadataToDraft(stored), alternate_title: "Other" };
+      expect(metadataRepairs(stored, draft), JSON.stringify(shape)).toEqual({});
+      expect(metadataChanges(stored, draft), JSON.stringify(shape)).toEqual({ alternate_title: "Other" });
+    }
+    // A list whose entries each show as one entry is repaired, whole.
+    const lone = { ...FULL, cast: [1, "Ada", null, " "] };
+    expect(metadataRepairs(lone, { ...metadataToDraft(lone), alternate_title: "Other" })).toEqual({
+      cast: { from: [1, "Ada", null, " "], to: ["1", "Ada"] },
+    });
+    // An object shows empty, as the page shows it (never "[object Object]").
+    expect(metadataToDraft({ synopsis: { a: 1 }, cast: [{ a: 1 }, "Ada"] })).toMatchObject({ synopsis: "", cast: ", Ada" });
+    // Retyping a refused stored number sends it (before: "0x60" read as 96, so 96 sent nothing).
+    const stored = { ...FULL, runtime_minutes: "0x60" };
+    expect(metadataChanges(stored, { ...metadataToDraft(stored), runtime_minutes: "96" })).toEqual({ runtime_minutes: 96 });
+    // And typed hex is refused with the field's line, as the page refuses it stored.
+    expect(checkTitleDetails({ metadata: { ...metadataToDraft(FULL), runtime_minutes: "0x60" }, release }, NOW, FULL)).toEqual({
+      face: "required",
+      field: "runtime_minutes",
+      error: "Enter whole minutes, 1 to 1,000.",
+    });
+  });
+
+  it("counts every row as the page counts the record Done leaves: as it is now with no edit, with the repairs with one", () => {
+    for (const shape of [
+      { cast: "Ada, Bob" },
+      { cast: [1, "Ada"] },
+      { cast: [null, "Ada"] },
+      { cast: [["Ada"]] },
+      { cast: ["Smith, Jr.", 5] },
+      { cast: 5 },
+      { cast: Array.from({ length: 30 }, (_, i) => `Last${i}, First${i}`) },
+      { runtime_minutes: "0x60" },
+      { runtime_minutes: "96e0000" },
+      { runtime_minutes: "0".repeat(401) + "96" },
+      { release_year: "0o3720" },
+      { runtime_minutes: true },
+      { genre: " drama" },
+      { genre: ["drama"] },
+      { director: "x".repeat(200) + " " },
+      { synopsis: " " },
+      { synopsis: { a: 1 } },
+    ]) {
+      const stored: Record<string, unknown> = { ...FULL, ...shape };
+      for (const edit of [{}, { alternate_title: "Other" }] as MetadataDraft[]) {
+        const draft: MetadataDraft = { ...metadataToDraft(stored), ...edit };
+        const changes = metadataChanges(stored, draft);
+        const repairs = metadataRepairs(stored, draft);
+        const label = `${JSON.stringify(shape)} ${JSON.stringify(edit)}`;
+        expect(changes, label).toEqual(edit);
+        if (Object.keys(edit).length === 0) expect(repairs, label).toEqual({});
+        const after = afterDone(stored, changes, repairs);
+        for (const tier of TITLE_DETAILS_TIERS) {
+          const { filled, total } = metadataTierCount(after, tier);
+          expect(titleDetailsTierSummary(draft, tier, stored), `${label} ${tier}`).toBe(
+            TITLE_DETAILS.tierSummary(filled, total),
+          );
+        }
+        // Done never refuses an untouched field itself; the merge names any the page refuses.
+        expect(checkTitleDetails({ metadata: draft, release }, NOW, stored), label).toBeNull();
+      }
+    }
   });
 });

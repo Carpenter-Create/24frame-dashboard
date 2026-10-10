@@ -23,10 +23,18 @@ import {
   computeMetadataFindings,
   METADATA_FIELDS,
   METADATA_LOGIC_VERSION,
+  metadataValueAccepted,
   normalizeStoredMetadata,
   parseMetadata,
   requiredComplete,
 } from "@/lib/metadata";
+import {
+  metadataCheckField,
+  metadataMergeArgs,
+  metadataMergeMissing,
+  metadataRefusalError,
+  submitRequiredMissing,
+} from "@/lib/metadata-merge";
 import { checkReleaseInfo, releaseInfoSchema } from "@/lib/releases";
 import { getOrgContext } from "@/lib/supabase/context";
 import { RELEASE_FIELD, TITLE_DETAILS } from "@/lib/title-details";
@@ -189,15 +197,25 @@ export async function setScreenerSource(input: {
 // Nothing the browser sends decides who may write: the title is read under
 // row security (another org's or a deleted title is never found), its org
 // comes from that row, view-as is refused, and only the title org's
-// operators write. Release is checked before anything is written; only the
-// changed metadata fields are merged onto the stored record as read just
-// before the write (the set RPC replaces the record, so two saves in the
-// same instant can still race; an atomic merge in the RPC is founder SQL).
-// Database text never reaches the browser.
+// operators write. Release is checked before anything is written. Only the
+// changed metadata fields are sent, each checked here first; the database
+// merges them under a lock on the title, checks the whole record and
+// refreshes findings in one transaction (merge_title_metadata). Until that
+// SQL is applied, PostgREST reports the function missing and the save reads,
+// merges and sets as before; no other error falls back. Database text never
+// reaches the browser.
 const titleDetailsInput = z.object({
   titleId: z.string().uuid(),
   // Changed fields only; null clears one.
   metadata: z.record(z.string(), z.unknown()),
+  // Untouched fields the page refuses, stored as the window shows them (to),
+  // each only while the stored value is still the one it opened on (from):
+  // a save made since is never overwritten (review on #799). Sent only with
+  // a change. `from` is the stored value as JSON.parse read it, and the merge
+  // compares it with the exact stored jsonb: a stored JSON number with more
+  // precision than a double holds reads back rounded, compares unequal, and
+  // the repair is skipped, the safe direction (the check then names the field).
+  repairs: z.record(z.string(), z.object({ from: z.unknown(), to: z.unknown() })).default({}),
   // Null when Release did not change.
   release: releaseInfoSchema.nullable(),
 });
@@ -221,7 +239,7 @@ function refused(error: string): SaveTitleDetailsResult {
 export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetailsResult> {
   const parsed = titleDetailsInput.safeParse(input);
   if (!parsed.success) return refused(TITLE_DETAILS.saveFailed);
-  const { titleId, metadata: changes, release } = parsed.data;
+  const { titleId, metadata: changes, repairs, release } = parsed.data;
 
   const user = await getAuthUser();
   if (!user) return refused(TITLE_DETAILS.notAuthenticated);
@@ -252,53 +270,46 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
   if (releaseProblem) {
     return { ok: false, part: "release", field: RELEASE_FIELD, error: releaseProblem, metadataSaved: false };
   }
-  if (Object.keys(changes).some((key) => !METADATA_FIELDS.some((f) => f.key === key))) {
+  if ([...Object.keys(changes), ...Object.keys(repairs)].some((key) => !METADATA_FIELDS.some((f) => f.key === key))) {
+    return refused(TITLE_DETAILS.saveFailed);
+  }
+  // A repair expects a stored value and stores a filled value its check
+  // accepts, never a clear.
+  if (Object.entries(repairs).some(([key, repair]) => repair.from == null || !metadataValueAccepted(key, repair.to))) {
     return refused(TITLE_DETAILS.saveFailed);
   }
 
   let metadataSaved = false;
   if (Object.keys(changes).length > 0) {
-    const { data: row, error: readError } = await supabase
-      .from("title_metadata")
-      .select("data")
-      .eq("title_id", title.id)
-      .maybeSingle();
-    // A failed read is never "no record": merging onto nothing would store
-    // only the changed fields and drop every other one.
-    if (readError) {
-      console.error("[title-details] title_metadata read failed", readError.message);
-      return { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
-    }
-    // Read as the window reads it (Bugbot on #801): a stored empty or a
-    // number stored as text never blocks a save the window can't show.
-    const merged = normalizeStoredMetadata(row?.data as Record<string, unknown> | null);
-    for (const [key, value] of Object.entries(changes)) {
-      if (value === null) delete merged[key];
-      else merged[key] = value;
-    }
-    const checked = parseMetadata(merged);
+    const { set, clear } = metadataMergeArgs(changes);
+    // Each changed value alone; the database checks the whole record.
+    const checked = parseMetadata(set);
     if (!checked.ok) {
       return { ok: false, part: "metadata", field: checked.field, error: checked.error, metadataSaved: false };
     }
-    const { error } = await supabase.rpc("set_title_metadata", {
+    const { error: mergeError } = await supabase.rpc("merge_title_metadata", {
       p_org_id: title.org_id,
       p_title_id: title.id,
-      p_data: checked.data as Json,
+      p_set: checked.data as Json,
+      p_clear: clear,
+      p_repair: repairs as Json,
     });
-    if (error) {
-      console.error("[title-details] set_title_metadata failed", error.message);
-      return { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
+    if (mergeError && metadataMergeMissing(mergeError)) {
+      console.warn("[title-details] merge_title_metadata not applied yet; read-merge-set", mergeError.code);
+      const failed = await saveMetadataReadMergeSet(supabase, title, changes, repairs);
+      if (failed) return failed;
+    } else if (mergeError) {
+      console.error("[title-details] merge_title_metadata failed", mergeError.code, mergeError.message);
+      const field = metadataCheckField(mergeError);
+      return {
+        ok: false,
+        part: "metadata",
+        field,
+        error: field ? metadataRefusalError(mergeError, field) : TITLE_DETAILS.saveFailed,
+        metadataSaved: false,
+      };
     }
     metadataSaved = true;
-    // §19: metadata changed → refresh this title's validator findings. Best-effort: the
-    // save already committed, so a refresh failure must not fail it.
-    const { error: findingsError } = await supabase.rpc("reconcile_title_findings", {
-      p_org_id: title.org_id,
-      p_title_id: title.id,
-      p_findings: computeMetadataFindings(checked.data as Record<string, unknown>) as unknown as Json,
-      p_logic_version: METADATA_LOGIC_VERSION,
-    });
-    if (findingsError) console.error("[findings] reconcile after metadata save failed", findingsError.message);
   }
 
   const releaseDiffers =
@@ -323,6 +334,66 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
 
   if (metadataSaved || releaseDiffers) revalidateTitle(title.catalog_id);
   return { ok: true };
+}
+
+// The save before merge_title_metadata is applied: read the stored record,
+// merge the changes, set the whole record. Used only when the database
+// reports the merge function itself missing. A repair applies as the merge
+// applies it: only while the value read is still its `from`, never over a
+// change. Null on success.
+async function saveMetadataReadMergeSet(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  title: { id: string; org_id: string },
+  changes: Record<string, unknown>,
+  repairs: Record<string, { from?: unknown; to?: unknown }>,
+): Promise<SaveTitleDetailsResult | null> {
+  const { data: row, error: readError } = await supabase
+    .from("title_metadata")
+    .select("data")
+    .eq("title_id", title.id)
+    .maybeSingle();
+  // A failed read is never "no record": merging onto nothing would store
+  // only the changed fields and drop every other one.
+  if (readError) {
+    console.error("[title-details] title_metadata read failed", readError.message);
+    return { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
+  }
+  // Read as the window reads it (Bugbot on #801): a stored empty or a
+  // number stored as text never blocks a save the window can't show.
+  const current = (row?.data as Record<string, unknown> | null) ?? {};
+  const merged = normalizeStoredMetadata(current);
+  for (const [key, repair] of Object.entries(repairs)) {
+    // The same JSON as read: a mismatch only skips the repair.
+    if (JSON.stringify(current[key]) === JSON.stringify(repair.from)) merged[key] = repair.to;
+  }
+  // Changes after repairs, so a change to the same field wins.
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === null) delete merged[key];
+    else merged[key] = value;
+  }
+  const checked = parseMetadata(merged);
+  if (!checked.ok) {
+    return { ok: false, part: "metadata", field: checked.field, error: checked.error, metadataSaved: false };
+  }
+  const { error } = await supabase.rpc("set_title_metadata", {
+    p_org_id: title.org_id,
+    p_title_id: title.id,
+    p_data: checked.data as Json,
+  });
+  if (error) {
+    console.error("[title-details] set_title_metadata failed", error.message);
+    return { ok: false, part: "metadata", field: null, error: TITLE_DETAILS.saveFailed, metadataSaved: false };
+  }
+  // §19: metadata changed → refresh this title's validator findings. Best-effort: the
+  // save already committed, so a refresh failure must not fail it.
+  const { error: findingsError } = await supabase.rpc("reconcile_title_findings", {
+    p_org_id: title.org_id,
+    p_title_id: title.id,
+    p_findings: computeMetadataFindings(checked.data as Record<string, unknown>) as unknown as Json,
+    p_logic_version: METADATA_LOGIC_VERSION,
+  });
+  if (findingsError) console.error("[findings] reconcile after metadata save failed", findingsError.message);
+  return null;
 }
 
 function revalidateTitle(catalogId: string | null) {
@@ -354,26 +425,21 @@ export async function submitTitle(
   if (complete.filled < complete.total) return { error: TITLE_DETAIL.requiredNotice(complete.total) };
 
   const { error } = await supabase.rpc("submit_title", { p_org_id: orgId, p_title_id: titleId });
-  if (error) return { error: error.message };
-
-  // §19: submit is a findings trigger too — refresh from current metadata (best-effort;
-  // a reconcile failure must not fail the submit, which already committed).
-  try {
-    const { data: metaRow } = await supabase
-      .from("title_metadata")
-      .select("data")
-      .eq("title_id", titleId)
-      .maybeSingle();
-    const findings = computeMetadataFindings((metaRow?.data as Record<string, unknown>) ?? {});
-    await supabase.rpc("reconcile_title_findings", {
-      p_org_id: orgId,
-      p_title_id: titleId,
-      p_findings: findings as unknown as Json,
-      p_logic_version: METADATA_LOGIC_VERSION,
-    });
-  } catch (e) {
-    console.error("[findings] reconcile after submit failed", e);
+  if (error) {
+    // Database text stays on the server. A stored value the checks refuse
+    // reads as its field's approved line, a required field the database
+    // finds empty as the page's notice, anything else "Could not save.".
+    console.error("[title-details] submit_title failed", error.code, error.message);
+    const field = metadataCheckField(error);
+    if (field) return { error: metadataRefusalError(error, field) };
+    if (submitRequiredMissing(error)) return { error: TITLE_DETAIL.requiredNotice(complete.total) };
+    return { error: TITLE_DETAILS.saveFailed };
   }
+
+  // §19: submit is a findings trigger too. The database refreshes findings
+  // inside submit_title, from the stored record; the browser never supplies
+  // them. Until that SQL is applied, the last save's refresh already left
+  // them current (findings depend only on metadata).
 
   revalidatePath(`${TITLES_HREF}/${titleId}`);
   revalidatePath(TITLES_HREF, "layout");

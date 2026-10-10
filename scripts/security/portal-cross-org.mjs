@@ -102,8 +102,8 @@ async function mkUser(label) {
 }
 
 const GOOD_META = {
-  synopsis: "A film.", runtime_minutes: "96", release_year: "2024",
-  genre: "Drama", primary_language: "en", country_of_origin: "US",
+  synopsis: "A film.", runtime_minutes: 96, release_year: 2024,
+  genre: "drama", primary_language: "en", country_of_origin: "US",
 };
 
 /** An org with a delivered title, a master_download link, and a screener link — each with a live session. */

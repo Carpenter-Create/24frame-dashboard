@@ -92,6 +92,7 @@ function titleRow(
 
 function stubClient(
   titles: ReturnType<typeof titleRow>[] = ALL_STATUSES.map((status, i) => titleRow(status, i)),
+  gcCanOperate = true,
 ) {
   const titlesChain = {
     select: vi.fn(() => titlesChain),
@@ -106,8 +107,13 @@ function stubClient(
     if (table === "titles") return titlesChain;
     throw new Error(`unexpected from(${table})`);
   });
-  vi.mocked(createClient).mockResolvedValue({ from } as never);
-  return { from, titlesChain };
+  // Staff only: gc_can(operate), delete_title's staff gate.
+  const rpc = vi.fn(async (name: string) => {
+    if (name === "gc_can") return { data: gcCanOperate, error: null };
+    throw new Error(`unexpected rpc(${name})`);
+  });
+  vi.mocked(createClient).mockResolvedValue({ from, rpc } as never);
+  return { from, rpc, titlesChain };
 }
 
 async function renderCatalog(
@@ -506,7 +512,38 @@ describe("client /titles catalog", () => {
     const html = await renderCatalog();
 
     expect(html).toContain("data-title-lifecycle-menu");
+    expect(html).toContain("data-title-lifecycle-delete-confirm");
     expect(html).not.toContain("data-add-title");
+  });
+
+  // Adam, 2026-10-10, "Yes, in #799 (Recommended)": delete_title's staff gate
+  // is gc_can(auth.uid(), 'operate'); a read-only GC role is not offered Delete.
+  it("offers staff Delete only when the GC role can operate", async () => {
+    const operator = stubClient([titleRow("draft", 0)], true);
+    vi.mocked(getOrgContext).mockResolvedValue(
+      ctx({ canOperate: false, isGcStaff: true, aggregationViewAs: null }) as never,
+    );
+    expect(await renderCatalog()).toContain("data-title-lifecycle-delete-confirm");
+    expect(operator.rpc).toHaveBeenCalledWith("gc_can", { p_uid: "u1", p_capability: "operate" });
+
+    stubClient([titleRow("draft", 0)], false);
+    const readOnly = await renderCatalog();
+    expect(readOnly).not.toContain("data-title-lifecycle-delete-confirm");
+    expect(readOnly).not.toContain("data-title-lifecycle-menu");
+
+    // An org role does not stand in for the GC role.
+    stubClient([titleRow("draft", 0)], false);
+    vi.mocked(getOrgContext).mockResolvedValue(
+      ctx({ canOperate: true, isGcStaff: true, aggregationViewAs: null }) as never,
+    );
+    expect(await renderCatalog()).not.toContain("data-title-lifecycle-delete-confirm");
+  });
+
+  it("never asks gc_can for a member who is not staff", async () => {
+    const member = stubClient([titleRow("draft", 0)], false);
+    vi.mocked(getOrgContext).mockResolvedValue(ctx({ canOperate: true }) as never);
+    expect(await renderCatalog()).toContain("data-title-lifecycle-delete-confirm");
+    expect(member.rpc).not.toHaveBeenCalled();
   });
 
   it("hides catalog operate controls while Aggregation view-as is active", async () => {
