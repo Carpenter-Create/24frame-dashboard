@@ -107,7 +107,7 @@ export default async function TitlesPage({
 
   const catalogById = new Map(list.map((t) => [t.id, t.catalog_id]));
   // gc_can(operate) is delete_title's staff gate: staff whose GC role cannot
-  // operate (legal, accountant) are not offered Delete. Members never call it.
+  // operate (legal, accountant) get no delete action. Members never call it.
   const { data: staffCanOperate } = lifecycleStaff
     ? await supabase.rpc("gc_can", { p_uid: ctx.user.id, p_capability: "operate" })
     : { data: false };
