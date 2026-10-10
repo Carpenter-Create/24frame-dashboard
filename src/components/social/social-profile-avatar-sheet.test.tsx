@@ -72,7 +72,7 @@ describe("SocialProfileAvatarSheet", () => {
     );
     expect(html).toContain("data-social-profile-avatar-remove");
     expect(html).toContain(SOCIAL.profile.removePicture);
-    expect(html).toContain("text-[#c4564a]");
+    expect(html).toContain("text-danger");
     expect(html).toContain('data-social-icon="trash"');
   });
 

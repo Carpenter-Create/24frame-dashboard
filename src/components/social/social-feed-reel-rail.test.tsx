@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -107,5 +108,18 @@ describe("SocialFeedReelRail", () => {
     expect(html).not.toContain(`<span class="${SOCIAL_FEED_REEL_CAPTION_CLASS}">`);
     expect(html).toContain(`aria-label="Priya Nair, ${long}. Opens in Explore"`);
     expect(html).not.toContain("…");
+  });
+
+  // An owner's edited caption shows on its tile with no page refresh
+  // (social-post-caption-window-lock-v1): one subscription, then each tile
+  // rebuilds its caption and accessible name from the overlay.
+  it("reads each tile's caption and label through the owner's overlay", () => {
+    const src = readFileSync("src/components/social/social-feed-reel-rail.tsx", "utf8");
+    expect(src.match(/useSocialPostOwnVersion\(\)/g)?.length).toBe(1);
+    expect(src).toContain("socialFeedReelTileLive(tile, readSocialPostCaption(tile.postId))");
+    expect(src).toContain("aria-label={live.label}");
+    expect(src).toContain("{live.caption}");
+    expect(src).not.toContain("aria-label={tile.label}");
+    expect(src).not.toContain("{tile.caption}");
   });
 });

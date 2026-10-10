@@ -3,7 +3,8 @@
    ----------------------------------------------------------------------------
    Copied verbatim from the house canon. The register (type scale, spacing,
    radius, neutral ramp, hairlines) is shared and does NOT change per product.
-   Per product you set ONE thing: --accent.
+   Per product you set ONE thing: --accent. (24Frame adds one ink for
+   destructive actions, --danger, by founder pick 2026-10-10.)
 
    Global Content: Sporty Blue is the confirmed accent (2026-07-18).
    Light (:root) keeps it. Dark (.dark) flips the same token to
@@ -87,7 +88,14 @@
      until the founder settles Direction B. */
   --screen:        #0f0f0f;
 
-  /* --- NO status colors by default (greyscale + one accent). --- */
+  /* --- NO status colors (greyscale + one accent). ---
+     --danger is not a status colour: it is the ink for destructive actions
+     only (Remove, Log out, the bin, the danger button). Founder pick
+     2026-10-10, verbatim: "Yes, change that." It replaces the house red #c4564a (4.4:1 on white, 4.0:1 on
+     --surface-muted, below AA) with the same hue a step darker: 5.0:1 on
+     white and --surface, 4.6:1 on --surface-muted. .dark lifts it. Form
+     errors stay on-system (docs/known-divergences.md D3). Text only. */
+  --danger:        #bc4a3d;
 
   /* --- Type scale (size, rem). House SSOT — one ladder for every workspace
      (Aggregation · Social · Education). Geist face stays. Same six roles.
@@ -240,6 +248,11 @@
   --body:          #c4c9d0;
   --elevation: 0 1px 2px rgb(0 0 0 / 0.4);
   --elevation-float: 0 4px 16px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.4);
+
+  /* Founder pick 2026-10-10 ("Yes, change that."): the danger ink, lifted
+     on the same hue. 5.9:1 on #0f0f0f, 5.0:1 on --surface, 4.5:1 on
+     --surface-muted; #c4564a was 4.4, 3.7 and 3.3. */
+  --danger:        #cf776d;
 
   /* On the dark page the band lifts (rather than going darker) so it still
      reads as a distinct full-bleed section. */

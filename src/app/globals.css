@@ -31,6 +31,7 @@
   --color-accent-contrast: var(--accent-contrast);
   --color-accent-wash: var(--accent-wash);
   --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
   --color-band: var(--band);
   --color-band-ink: var(--band-ink);
   --color-workspace-band: var(--workspace-band);
@@ -333,7 +334,8 @@ body {
   .social-story-activate,
   .social-story-activate-prev,
   .house-window-push,
-  .house-window-pop {
+  .house-window-pop,
+  .licensing-row-paint {
     animation: none !important;
   }
   .app-sheet-rise {
@@ -448,6 +450,19 @@ body:has([data-social-write-compose]) :is(#vercel-toolbar, vercel-live-feedback,
 
 .house-window-pop {
   animation: house-window-pop 220ms ease-out both;
+}
+
+/* Deliver's paint-in (docs/design-locks/staff-licensing-deliver-window-lock-v1.md):
+   a channel sub-row the window just created fades in under its title once the
+   window has left. 220ms ease-out, a fade only. Instant under reduced motion
+   (the shared reduced-motion block above). */
+@keyframes licensing-row-paint {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.licensing-row-paint {
+  animation: licensing-row-paint 220ms ease-out both;
 }
 
 .social-feed-immersive-media {

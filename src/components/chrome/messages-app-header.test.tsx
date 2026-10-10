@@ -157,6 +157,13 @@ describe("MessagesAppHeader", () => {
       html.indexOf("data-ask-frame-ai-delete-cancel"),
       html.indexOf("</button>", html.indexOf("data-ask-frame-ai-delete-cancel")) + 9,
     );
+    // The open tag that carries an attribute: its class sits before the
+    // attribute, so the slices above never see it.
+    const tagOf = (needle: string) => {
+      const at = html.indexOf(needle);
+      expect(at, needle).toBeGreaterThan(-1);
+      return html.slice(html.lastIndexOf("<", at), html.indexOf(">", at) + 1);
+    };
 
     expect(html).toContain(ASK_FRAME_AI.deleteTitle);
     expect(html).toContain(ASK_FRAME_AI.deleteBody);
@@ -178,13 +185,13 @@ describe("MessagesAppHeader", () => {
     expect(deleteDialog).not.toContain("bg-accent");
     expect(deleteDialog).not.toContain('variant="primary"');
     expect(confirmHtml).toContain(ASK_FRAME_AI.deleteConfirm);
-    expect(html).toContain("text-[#c4564a]");
+    expect(tagOf("data-ask-frame-ai-delete-confirm")).toContain("text-danger");
     expect(confirmHtml).not.toContain("bg-accent");
     expect(confirmHtml).not.toContain("bg-primary");
     expect(cancelHtml).toContain(ASK_FRAME_AI.cancelLabel);
     expect(cancelHtml).not.toContain("bg-accent");
     expect(cancelHtml).not.toContain("bg-primary");
-    expect(cancelHtml).not.toContain("text-[#c4564a]");
+    expect(tagOf("data-ask-frame-ai-delete-cancel")).not.toContain("text-danger");
   });
 
   it("keeps desktop title on t-heading 17 and mobile 531:542 on t-body 15", () => {
@@ -242,7 +249,7 @@ describe("MessagesAppHeader", () => {
     expect(src).toContain("<ThreadPopoverSeparator");
     expect(src).toContain("THREAD_POPOVER_ICON_CLASS");
     expect(src).toContain("THREAD_POPOVER_DELETE_ICON_CLASS");
-    expect(houseSheetSrc).toContain("text-[#c4564a]");
+    expect(houseSheetSrc).toContain("text-danger");
     expect(src).toContain("ASK_FRAME_AI.deleteBody");
     expect(src).not.toContain("MessagesThreadOverflow");
     expect(src).not.toContain("data-ask-frame-ai-mobile-overflow");
@@ -370,7 +377,7 @@ describe("MessagesAppHeader", () => {
     expect(houseSheetSrc).not.toContain("THREAD_POPOVER_ITEM_CLASS");
     expect(houseSheetSrc).not.toContain("THREAD_POPOVER_DELETE_CLASS");
     expect(houseSheetSrc).not.toContain("min-w-[17.5rem]");
-    expect(houseSheetSrc).toContain("text-[#c4564a]");
+    expect(houseSheetSrc).toContain("text-danger");
     expect(src).not.toContain("min-w-[17.5rem]");
     expect(src).not.toContain("data-user-menu");
     expect(src).not.toContain("UserMenuIdentity");

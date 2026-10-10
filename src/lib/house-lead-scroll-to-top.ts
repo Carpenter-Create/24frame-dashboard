@@ -55,6 +55,11 @@ export const HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_GRACE_MS = 400;
  *  element removed mid-gesture, which never reaches the window. */
 export const HOUSE_LEAD_SCROLL_TO_TOP_TOUCH_STALE_MS = 10_000;
 
+/** Dispatched on each scroller just before the tap's smooth scroll, so the
+ *  phone chrome stops a running settle first (band lock v1.5): its next
+ *  instant write would otherwise cancel the smooth scroll. */
+export const HOUSE_LEAD_SCROLL_TO_TOP_EVENT = "house-lead-scroll-to-top";
+
 /** Pure predicate — returns `true` when a scroll event indicates iOS
  *  Safari forced the window back to y = 0 (status-bar tap). Any other
  *  window scroll position leaves the bridge inert, and so does a 0 that a

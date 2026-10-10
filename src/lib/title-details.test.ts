@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { ADD_RIGHT_PARAM } from "./add-right";
+import { TITLE_PAGE_WINDOW_PARAMS } from "./titles";
 import {
   TITLE_DETAILS,
+  TITLE_DETAILS_PARAM,
   checkTitleDetails,
   draftToMetadata,
   metadataChanges,
@@ -49,6 +52,11 @@ describe("title Metadata window (lib/title-details)", () => {
     expect(titleDetailsOpenHref("/t/1", "")).toBe("/t/1?edit");
     expect(titleDetailsOpenHref("/t/1", "?a=1", "release")).toBe("/t/1?a=1&edit=release");
     expect(titleDetailsClosedHref("/t/1", "?a=1&edit=required")).toBe("/t/1?a=1");
+    // The page under Metadata never carries Add right's query: one window
+    // per address.
+    expect(titleDetailsClosedHref("/t/1", "?a=1&edit&add-right=territory")).toBe("/t/1?a=1");
+    expect(TITLE_PAGE_WINDOW_PARAMS).toContain(TITLE_DETAILS_PARAM);
+    expect(TITLE_PAGE_WINDOW_PARAMS).toContain(ADD_RIGHT_PARAM);
   });
 
   it("round-trips stored values through the fields", () => {

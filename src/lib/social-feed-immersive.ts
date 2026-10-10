@@ -46,9 +46,17 @@ export function socialImmersiveActiveFocusRoot<T>(share: T | null, comment: T | 
   return share ?? comment ?? stage;
 }
 
-/** Escape dismisses the stage only when no comment or Share sheet is open. */
-export function socialImmersiveEscapeDismisses(key: string, nestedSheetOpen: boolean): boolean {
-  return key === "Escape" && !nestedSheetOpen;
+/** Escape dismisses the stage only when no comment or Share sheet is open,
+ *  and no inner layer already handled it (defaultPrevented). React 19
+ *  commits an inner layer's close before the stage's window listener runs,
+ *  so the sheet may already be gone when the stage looks for it.
+ *  docs/design-locks/social-comments-window-lock-v1.md */
+export function socialImmersiveEscapeDismisses(
+  key: string,
+  nestedSheetOpen: boolean,
+  handledInside = false,
+): boolean {
+  return key === "Escape" && !nestedSheetOpen && !handledInside;
 }
 
 export function socialImmersiveShellStaysActive(input: {

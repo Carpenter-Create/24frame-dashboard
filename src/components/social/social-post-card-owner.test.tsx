@@ -20,12 +20,16 @@ vi.mock("next/dynamic", () => ({
   default: () => () => null,
 }));
 
+const menu = vi.hoisted(() => ({ props: null as Record<string, unknown> | null }));
+
 vi.mock("./social-post-owner", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./social-post-owner")>();
   return {
     ...actual,
-    SocialPostOwnerMenu: ({ hasMedia }: { hasMedia: boolean }) =>
-      createElement("i", { "data-test-owner-has-media": String(hasMedia) }),
+    SocialPostOwnerMenu: (props: { hasMedia: boolean }) => {
+      menu.props = props;
+      return createElement("i", { "data-test-owner-has-media": String(props.hasMedia) });
+    },
   };
 });
 
@@ -55,6 +59,11 @@ function post(overrides: Partial<SocialPostCardModel> = {}): SocialPostCardModel
   };
 }
 
+/** The props the card handed the menu on its last render. */
+function menuProps(): Record<string, unknown> | null {
+  return menu.props;
+}
+
 function ownerHasMedia(model: SocialPostCardModel): string | null {
   const html = renderToStaticMarkup(<SocialPostCard post={model} comments={null} />);
   return html.match(/data-test-owner-has-media="(true|false)"/)?.[1] ?? null;
@@ -68,6 +77,37 @@ describe("SocialPostCard owner menu: hasMedia follows the stored media", () => {
   it("is false for a text post and true for a photo post", () => {
     expect(ownerHasMedia(post())).toBe("false");
     expect(ownerHasMedia(post({ media: [{ kind: "image", url: "https://cf.example/s.jpg" }] }))).toBe("true");
+  });
+
+  // Edit caption (social-post-caption-window-lock-v1): the window shows the
+  // media the card draws, read-only, while hasMedia still counts what is stored.
+  it("hands the menu the usable media, the author and the server caption", () => {
+    const legacy = { kind: "video" as const, url: "" };
+    const photo = { kind: "image" as const, url: "https://cf.example/s.jpg" };
+    menu.props = null;
+    expect(
+      ownerHasMedia(
+        post({
+          body: "hello",
+          authorPhotoUrl: "https://cf.example/a.jpg",
+          media: [legacy, photo],
+        }),
+      ),
+    ).toBe("true");
+    expect(menuProps()).toMatchObject({
+      postId: "p1",
+      serverBody: "hello",
+      hasMedia: true,
+      authorName: "Elena Ruiz",
+      authorPhotoUrl: "https://cf.example/a.jpg",
+      groupSlug: null,
+    });
+    expect(menuProps()?.media).toEqual([photo]);
+    expect(menuProps()).not.toHaveProperty("body");
+
+    menu.props = null;
+    expect(ownerHasMedia(post({ media: [legacy] }))).toBe("true");
+    expect(menuProps()?.media).toEqual([]);
   });
 });
 

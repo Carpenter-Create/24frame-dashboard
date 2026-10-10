@@ -9,7 +9,9 @@ import { SocialFeedVideo } from "@/components/social/social-feed-video";
 import { SocialIcon } from "@/components/social/social-icon";
 import { SocialMediaImage } from "@/components/social/social-media-image";
 import { SocialPostShareButton } from "@/components/social/social-post-share-button";
+import { useSocialPostLiveBody } from "@/components/social/use-social-optimistic";
 import type { SocialPostCardModel } from "@/lib/social-author-post-card";
+import { socialCommentsPostFromCard } from "@/lib/social-comments-window";
 import { cn } from "@/lib/cn";
 import { displayHandle, SOCIAL } from "@/lib/social";
 import {
@@ -53,7 +55,8 @@ export function SocialFeedImmersive({
   const [expanded, setExpanded] = useState(false);
   const [muted, setMuted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const body = post.body?.trim() ?? "";
+  // The caption as this device shows it (an owner's edit, no refresh).
+  const body = useSocialPostLiveBody(post.id, post.body)?.trim() ?? "";
   const needsMore = body.length > 0 && socialImmersiveCaptionNeedsMore(body);
   const handle = post.authorHandle ? displayHandle(post.authorHandle).slice(1) : post.authorName;
   const label = item?.kind === "video" ? SOCIAL.post.viewVideo : SOCIAL.post.viewPhoto;
@@ -81,16 +84,19 @@ export function SocialFeedImmersive({
     const inerted = socialImmersiveMarkShellInert(document.body, dialog);
     dialog.querySelector<HTMLElement>("[data-social-feed-immersive-close]")?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
-      // Comment listens on document. Share listens on window. Both are
-      // still mounted for this Escape, so the stage must not dismiss too.
+      // Comment (the window or the phone sheet) listens on document and
+      // marks the keys it takes handled; React 19 may already have
+      // committed its close by the time this window listener runs, so the
+      // stage skips a handled key rather than look for the layer. Share
+      // listens on window and is still mounted for this Escape.
       if (event.key === "Escape") {
         event.stopPropagation();
-        if (socialImmersiveEscapeDismisses(event.key, socialImmersiveNestedSheetOpen(document))) {
+        if (socialImmersiveEscapeDismisses(event.key, socialImmersiveNestedSheetOpen(document), event.defaultPrevented)) {
           onClose();
         }
         return;
       }
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || event.defaultPrevented) return;
       const share = document.querySelector(SOCIAL_IMMERSIVE_SHARE_SHEET_SELECTOR);
       const comment = dialog.querySelector(SOCIAL_IMMERSIVE_COMMENT_SHEET_SELECTOR);
       const root = socialImmersiveActiveFocusRoot(
@@ -214,9 +220,11 @@ export function SocialFeedImmersive({
               commentCount: post.commentCount,
               groupSlug: post.groupSlug,
               canComment: post.canLike,
+              preview: socialCommentsPostFromCard(post, index),
             }}
             icon
             tone="stage"
+            layer={dialogRef}
           />
           <SocialPostShareButton postId={post.id} tone="stage" />
         </div>

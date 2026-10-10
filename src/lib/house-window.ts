@@ -12,6 +12,19 @@ export const HOUSE_WINDOW_PANEL_CLASS = `${HOUSE_DIALOG_WINDOW_CLASS} relative f
 /** The frame holds the height it opens at (up to 80vh). */
 export const HOUSE_WINDOW_FRAME_CLASS = "flex max-h-[80vh] min-h-0 flex-col outline-none";
 
+// Optional parts, absent for every window before them
+// (docs/design-locks/social-comments-window-lock-v1.md). A window whose
+// content arrives after it opens (Comments), or whose faces hold long lists
+// (Add right, aggregation-add-right-window-lock-v1), fills 80vh and never
+// takes the held px height, so a resize never clips its pinned foot.
+export const HOUSE_WINDOW_FRAME_FILL_CLASS = "flex h-[80vh] min-h-0 flex-col outline-none";
+
+// A foot pinned under the scrolling body (the comments composer).
+export const HOUSE_WINDOW_FOOT_CLASS = "shrink-0 border-t border-hairline bg-surface";
+
+// A window with no Done: a 44 spacer (the X's size) keeps the title centred.
+export const HOUSE_WINDOW_HEADER_SPACER_CLASS = "size-[var(--header-control-size)] shrink-0";
+
 // Phone, for a window that opts in: the same header and body filling the
 // full AppSheet, clear of the status bar and the home indicator.
 export const HOUSE_WINDOW_SHEET_FRAME_CLASS = "flex h-full min-h-0 flex-col pt-[env(safe-area-inset-top)] outline-none";
@@ -52,14 +65,75 @@ export const HOUSE_WINDOW_ASK_SHEET_ACTIONS_CLASS = "flex flex-col gap-[var(--sp
 
 export const HOUSE_WINDOW_ASK_BUTTON_CLASS = "min-h-11 px-5 focus-visible:rounded-full!";
 
+// The ask alone, for a host that draws its own frame (a confirm in
+// HouseDialog's 400, or the phone card that held a menu): the sheet ask's
+// column, and no ring on the panel itself (it takes focus while the ask
+// waits, as the window frame does). social-post-owner-menu-lock-v1
+export const HOUSE_WINDOW_ASK_PANEL_CLASS = "flex flex-col gap-[var(--space-3)] outline-none";
+
 /** What Tab moves between inside the window. */
 export const HOUSE_WINDOW_FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+type HouseWindowControl = HTMLElement & { type?: string; name?: string; checked?: boolean; form?: unknown };
+
+/** A named radio: one of a group the browser treats as one Tab stop. */
+function namedRadio(node: unknown): HouseWindowControl | null {
+  const control = node as HouseWindowControl | null;
+  return control?.type === "radio" && control.name ? control : null;
+}
+
+/** The same Tab stop: the same node, or two radios of one group (the same
+ *  name and form). Tab leaves a radio group after any of its radios. */
+export function houseWindowSameStop(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  const radioA = namedRadio(a);
+  const radioB = namedRadio(b);
+  return radioA !== null && radioB !== null && radioA.name === radioB.name && radioA.form === radioB.form;
+}
+
+/** The window's real Tab stops, in order: never under [inert], never an
+ *  .sr-only input, and never tabindex="-1" (a roving list's other options,
+ *  reached with the arrows; HousePageSelectOptions `inline`). A radio group
+ *  is one stop, as the browser has it: its checked radio, else its first. */
 export function houseWindowFocusables(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(HOUSE_WINDOW_FOCUSABLE)].filter(
-    (node) => !node.closest("[inert]") && !node.classList.contains("sr-only"),
+  const nodes = [...root.querySelectorAll<HTMLElement>(HOUSE_WINDOW_FOCUSABLE)].filter(
+    (node) =>
+      !node.closest("[inert]") && !node.classList.contains("sr-only") && node.getAttribute("tabindex") !== "-1",
   );
+  return nodes.filter((node) => {
+    if (!namedRadio(node)) return true;
+    const group = nodes.filter((other) => houseWindowSameStop(other, node));
+    return (group.find((radio) => (radio as HouseWindowControl).checked) ?? group[0]) === node;
+  });
+}
+
+/** Where Tab goes when it would leave the window (from its last stop, or
+ *  Shift+Tab from its first, or from outside it), or null to let the
+ *  browser move between stops inside. */
+export function houseWindowTabTarget(
+  stops: readonly HTMLElement[],
+  active: unknown,
+  shift: boolean,
+  inside: boolean,
+): HTMLElement | null {
+  const first = stops[0];
+  const last = stops[stops.length - 1];
+  if (!first || !last) return null;
+  if (shift) return !inside || houseWindowSameStop(active, first) ? last : null;
+  return !inside || houseWindowSameStop(active, last) ? first : null;
+}
+
+/** A face's first field: the first real Tab stop that is an input (never a
+ *  file input) or a textarea, else its first stop. A radio group offers its
+ *  checked radio (its first while none is checked), so a face never opens on
+ *  an unchosen radio beside the chosen one. */
+export function houseWindowFirstField(root: HTMLElement): HTMLElement | null {
+  const stops = houseWindowFocusables(root);
+  const field = stops.find(
+    (node) => node.tagName === "TEXTAREA" || (node.tagName === "INPUT" && (node as HouseWindowControl).type !== "file"),
+  );
+  return field ?? stops[0] ?? null;
 }
 
 export type HouseWindowMotion = "push" | "pop" | null;
@@ -104,10 +178,11 @@ export function houseWindowOpenHref(
   return `${pathname}?${rest ? `${rest}&` : ""}${param}${value}`;
 }
 
-/** The address with the window's query removed (every other param kept). */
-export function houseWindowClosedHref(pathname: string, search: string, param: string): string {
+/** The address with the window's query removed (every other param kept).
+ *  A list removes each of its params (a page with two windows). */
+export function houseWindowClosedHref(pathname: string, search: string, param: string | readonly string[]): string {
   const params = paramsOf(search);
-  params.delete(param);
+  for (const name of typeof param === "string" ? [param] : param) params.delete(name);
   const rest = params.toString();
   return rest ? `${pathname}?${rest}` : pathname;
 }

@@ -4,19 +4,31 @@
 // Dashboard All time (period) is the SoT — quiet trigger, desktop menu,
 // phone bottom sheet, trailing Sporty Blue AppearanceCheck. Do not invent
 // a second select grammar for Titles, Home Revenue, or other filters.
+// A list that stays open in a page or window is HousePageSelectOptions
+// with `inline` (primitive audit row "Extend HousePageSelect"), never a
+// second listbox.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { CaretDown } from "@phosphor-icons/react";
 
 import { AppearanceCheck } from "@/components/chrome/appearance-check";
 import { Close44 } from "@/components/chrome/house";
+import { houseFormSelectListKeyDown, type HouseFormSelectTyped } from "@/lib/house-form-select";
 import {
   HOUSE_PAGE_SELECT_CHEVRON_CLASS,
   HOUSE_PAGE_SELECT_GROUP_CLASS,
+  HOUSE_PAGE_SELECT_INLINE_LIST_CLASS,
   HOUSE_PAGE_SELECT_MENU_DESKTOP_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS,
   HOUSE_PAGE_SELECT_OPTION_CHECK_GUTTER_CLASS,
+  HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS,
   HOUSE_PAGE_SELECT_OPTION_LABEL_CLASS,
   HOUSE_PAGE_SELECT_PANEL_ALIGN_START_CLASS,
   HOUSE_PAGE_SELECT_PANEL_CLASS,
@@ -24,7 +36,11 @@ import {
   HOUSE_PAGE_SELECT_TRIGGER_CLASS,
   HOUSE_PAGE_SELECT_TRIGGER_LABEL_CLASS,
   housePageSelectFlatGroup,
+  housePageSelectGroupLabelId,
+  housePageSelectInlineOptionClass,
   housePageSelectOptionClass,
+  housePageSelectOptionsInOrder,
+  housePageSelectTabStop,
   type HousePageSelectGroup,
   type HousePageSelectOption,
 } from "@/lib/house-page-select";
@@ -193,72 +209,146 @@ export function HousePageSelect({
   );
 }
 
-function HousePageSelectOptions({
+/** The options list HousePageSelect draws in its menu and its phone sheet.
+ *  With no opt-in prop it draws exactly that list (pinned byte for byte in
+ *  house-page-select.pin.json). Opt-ins, for a list that stays open in a
+ *  page or window:
+ *  - `inline`: the list laid flat (HOUSE_PAGE_SELECT_INLINE_LIST_CLASS) with
+ *    the listbox `id`, labelled groups as role=group, one Tab stop (roving
+ *    tabindex: the chosen option, else the first; it follows focus), ↓ ↑
+ *    Home End and type-ahead (houseFormSelectListKeyDown), 44 rows with the
+ *    form hover. Still no Esc listener, portal or sheet, and never
+ *    data-house-form-select-menu: Esc stays its host's.
+ *    Inside a house window, `inline` relies on the window's Tab trap
+ *    skipping tabindex=-1 (houseWindowFocusables, landed with the first
+ *    caller, Add right; guarded in house-page-select.test.tsx), so Tab from
+ *    the list's one stop wraps inside the window.
+ *  - `multiple` with `values`: aria-multiselectable; every listed key is
+ *    chosen and onPick toggles in the caller.
+ *  - an option's `detail`: a second line under its label. */
+export function HousePageSelectOptions({
   groups,
   value,
   ariaLabel,
   onPick,
   attrs,
+  inline,
+  multiple = false,
+  values,
 }: {
   groups: readonly HousePageSelectGroup[];
-  value: string;
+  value?: string;
   ariaLabel: string;
   onPick: (key: string) => void;
   attrs?: HousePageSelectAttrs;
+  inline?: { id: string; "aria-describedby"?: string };
+  multiple?: boolean;
+  values?: readonly string[];
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const typedRef = useRef<HouseFormSelectTyped>({ text: "", at: 0 });
+  const [focused, setFocused] = useState<string | null>(null);
+  const chosen = (key: string) => (multiple ? (values ?? []).includes(key) : key === value);
+  const stop = inline ? housePageSelectTabStop(groups, chosen, focused) : null;
+
+  function onListKey(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const nodes = [
+      ...(listRef.current?.querySelectorAll<HTMLButtonElement>("[data-house-page-select-option]") ?? []),
+    ];
+    typedRef.current = houseFormSelectListKeyDown(
+      housePageSelectOptionsInOrder(groups),
+      nodes,
+      document.activeElement,
+      event,
+      typedRef.current,
+      Date.now(),
+    );
+  }
+
   return (
-    <div role="listbox" aria-label={ariaLabel} className="flex flex-col">
-      {groups.map((group) => (
-        <div
-          key={group.id}
-          data-house-page-select-group={group.id}
-          {...attrs?.group?.(group.id)}
-        >
-          {group.hideLabel || !group.label ? null : (
-            <div
-              data-house-page-select-group-label=""
-              className={HOUSE_PAGE_SELECT_GROUP_CLASS}
-              {...attrs?.groupLabel}
-            >
-              {group.label}
-            </div>
-          )}
-          {group.options.map((option) => {
-            const isSelected = option.key === value;
-            return (
-              <button
-                key={option.key}
-                type="button"
-                role="option"
-                data-house-page-select-option={option.key}
-                aria-selected={isSelected}
-                className={housePageSelectOptionClass(isSelected)}
-                onClick={() => onPick(option.key)}
-                {...attrs?.option?.(option.key)}
+    <div
+      ref={listRef}
+      role="listbox"
+      id={inline?.id}
+      aria-label={ariaLabel}
+      aria-describedby={inline?.["aria-describedby"]}
+      aria-multiselectable={multiple ? true : undefined}
+      className={inline ? HOUSE_PAGE_SELECT_INLINE_LIST_CLASS : "flex flex-col"}
+      onKeyDown={inline ? onListKey : undefined}
+    >
+      {groups.map((group) => {
+        const labelled = !(group.hideLabel || !group.label);
+        const labelId =
+          inline && labelled ? housePageSelectGroupLabelId(inline.id, group.id) : undefined;
+        return (
+          <div
+            key={group.id}
+            role={labelId ? "group" : undefined}
+            aria-labelledby={labelId}
+            data-house-page-select-group={group.id}
+            {...attrs?.group?.(group.id)}
+          >
+            {labelled ? (
+              <div
+                id={labelId}
+                data-house-page-select-group-label=""
+                className={HOUSE_PAGE_SELECT_GROUP_CLASS}
+                {...attrs?.groupLabel}
               >
-                <span
-                  data-house-page-select-option-label=""
-                  className={HOUSE_PAGE_SELECT_OPTION_LABEL_CLASS}
-                  {...attrs?.optionLabel}
+                {group.label}
+              </div>
+            ) : null}
+            {group.options.map((option) => {
+              const isSelected = chosen(option.key);
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  role="option"
+                  data-house-page-select-option={option.key}
+                  aria-selected={isSelected}
+                  tabIndex={inline ? (option.key === stop ? 0 : -1) : undefined}
+                  className={
+                    inline
+                      ? housePageSelectInlineOptionClass(isSelected)
+                      : housePageSelectOptionClass(isSelected)
+                  }
+                  onClick={() => onPick(option.key)}
+                  onFocus={inline ? () => setFocused(option.key) : undefined}
+                  {...attrs?.option?.(option.key)}
                 >
-                  {option.label}
-                </span>
-                <span
-                  data-house-page-select-option-check=""
-                  className={HOUSE_PAGE_SELECT_OPTION_CHECK_GUTTER_CLASS}
-                  aria-hidden="true"
-                  {...attrs?.optionCheck}
-                >
-                  <AppearanceCheck
-                    selected={isSelected}
-                    className={HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS}
-                  />
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ))}
+                  <span
+                    data-house-page-select-option-label=""
+                    className={HOUSE_PAGE_SELECT_OPTION_LABEL_CLASS}
+                    {...attrs?.optionLabel}
+                  >
+                    {option.label}
+                    {option.detail ? (
+                      <span
+                        data-house-page-select-option-detail=""
+                        className={HOUSE_PAGE_SELECT_OPTION_DETAIL_CLASS}
+                      >
+                        {option.detail}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span
+                    data-house-page-select-option-check=""
+                    className={HOUSE_PAGE_SELECT_OPTION_CHECK_GUTTER_CLASS}
+                    aria-hidden="true"
+                    {...attrs?.optionCheck}
+                  >
+                    <AppearanceCheck
+                      selected={isSelected}
+                      className={HOUSE_PAGE_SELECT_OPTION_CHECK_CLASS}
+                    />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }

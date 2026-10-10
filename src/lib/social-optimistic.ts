@@ -12,6 +12,13 @@ import {
 } from "@/lib/optimistic-mutation";
 import { SOCIAL_CATEGORY_ALL } from "@/lib/social-categories";
 import { normalizePostBody, SOCIAL } from "@/lib/social";
+import {
+  beginSocialPostCaptionSaving,
+  endSocialPostCaptionSaving,
+  readSocialPostCaption,
+  rememberSocialPostCaption,
+  restoreSocialPostCaption,
+} from "@/lib/social-post-own";
 
 export const SOCIAL_OPTIMISTIC_LOCK = {
   likeHref: "/api/social/like",
@@ -222,11 +229,18 @@ export function persistSocialFollowLatest(
 export async function persistSocialComment(
   form: FormData,
 ): Promise<{ error?: string; id?: string; created_at?: string }> {
-  const res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
-    method: "POST",
-    body: form,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
+      method: "POST",
+      body: form,
+      cache: "no-store",
+    });
+  } catch {
+    // Offline or a dropped connection: the house line, never the
+    // browser's own network text (social-comments-window-lock-v1).
+    return { error: SOCIAL.post.commentFailed };
+  }
   const json = (await res.json().catch(() => null)) as {
     error?: string;
     id?: string;
@@ -254,19 +268,124 @@ async function persistSocialOwn(
   body: FormData,
   fallback: string,
 ): Promise<{ error?: string }> {
-  const res = await fetch(href, { method, body, cache: "no-store" });
+  let res: Response;
+  try {
+    res = await fetch(href, { method, body, cache: "no-store" });
+  } catch {
+    // A dropped connection reads as the action's own line, never the
+    // browser's ("Failed to fetch"), and never leaves a caller waiting.
+    return { error: fallback };
+  }
   const json = (await res.json().catch(() => null)) as { error?: string } | null;
   const error = typeof json?.error === "string" ? json.error.trim() : "";
   if (!res.ok || error) return { error: error || fallback };
   return {};
 }
 
-export async function persistSocialCommentDelete(form: FormData): Promise<{ error?: string }> {
-  const res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
-    method: "DELETE",
-    body: form,
-    cache: "no-store",
+// Caption "Latest" (as like and follow): a per-post epoch, saves sent one
+// after another, and the caption this device knows the server holds.
+// docs/design-locks/social-post-caption-window-lock-v1.md
+const captionEpoch = new Map<string, number>();
+const captionPersistTail = new Map<string, Promise<unknown>>();
+// undefined: the server's own caption (no saved override yet).
+const captionPersisted = new Map<string, string | null | undefined>();
+
+export function beginSocialPostCaptionEpoch(postId: string): number {
+  const next = (captionEpoch.get(postId) ?? 0) + 1;
+  captionEpoch.set(postId, next);
+  return next;
+}
+
+export function socialPostCaptionEpochIsCurrent(postId: string, epoch: number): boolean {
+  return captionEpoch.get(postId) === epoch;
+}
+
+/** Taken once per post, before its first edit paints. */
+export function rememberSocialPostCaptionBaseline(postId: string): void {
+  if (!captionPersisted.has(postId)) captionPersisted.set(postId, readSocialPostCaption(postId));
+}
+
+export function persistSocialPostCaptionLatest(
+  postId: string,
+  epoch: number,
+  body: string | null,
+  groupSlug: string | null,
+): Promise<{ error?: string }> {
+  const prev = captionPersistTail.get(postId) ?? Promise.resolve();
+  const next = prev.then(async () => {
+    if (!socialPostCaptionEpochIsCurrent(postId, epoch)) return {};
+    const from = captionPersisted.get(postId);
+    if (from !== undefined && from === body) return {};
+    const form = new FormData();
+    form.set("post_id", postId);
+    form.set("body", body ?? "");
+    if (groupSlug) form.set("group_slug", groupSlug);
+    const result = await persistSocialPostCaption(form);
+    if (!result.error) captionPersisted.set(postId, body);
+    return result;
   });
+  captionPersistTail.set(postId, next.catch(() => undefined));
+  return next;
+}
+
+/** Done on a changed caption: the words show at once on this device, the
+ *  save runs in the background, and a failure brings back the last caption
+ *  the server holds. Only the latest edit of a post reports a failure.
+ *  Resolves once onSaved or onFailed has run. */
+export function saveSocialPostCaption(input: {
+  postId: string;
+  body: string | null;
+  groupSlug: string | null;
+  onSaved?: () => void;
+  onFailed?: (error: string) => void;
+}): Promise<void> {
+  const { postId, body, groupSlug } = input;
+  rememberSocialPostCaptionBaseline(postId);
+  const epoch = beginSocialPostCaptionEpoch(postId);
+  beginSocialPostCaptionSaving(postId);
+  return new Promise<void>((resolve) => {
+    // Once: a callback that throws never reports a second time.
+    let settled = false;
+    const settle = (report: () => void) => {
+      if (settled) return;
+      settled = true;
+      try {
+        report();
+      } finally {
+        endSocialPostCaptionSaving(postId);
+        resolve();
+      }
+    };
+    runSocialOptimisticMutation({
+      apply: () => rememberSocialPostCaption(postId, body),
+      persist: () => persistSocialPostCaptionLatest(postId, epoch, body, groupSlug),
+      rollback: () => {
+        if (!socialPostCaptionEpochIsCurrent(postId, epoch)) return;
+        restoreSocialPostCaption(postId, captionPersisted.get(postId));
+      },
+      onError: (error) => {
+        settle(() => {
+          if (socialPostCaptionEpochIsCurrent(postId, epoch)) input.onFailed?.(error);
+        });
+      },
+      onSuccess: () => {
+        settle(() => input.onSaved?.());
+      },
+    });
+  });
+}
+
+export async function persistSocialCommentDelete(form: FormData): Promise<{ error?: string }> {
+  let res: Response;
+  try {
+    res = await fetch(SOCIAL_OPTIMISTIC_LOCK.commentHref, {
+      method: "DELETE",
+      body: form,
+      cache: "no-store",
+    });
+  } catch {
+    return { error: SOCIAL.post.commentDeleteFailed };
+  }
   const json = (await res.json().catch(() => null)) as { error?: string } | null;
   const error = typeof json?.error === "string" ? json.error.trim() : "";
   if (!res.ok || error) return { error: error || SOCIAL.post.commentDeleteFailed };
@@ -514,6 +633,9 @@ export function resetSocialOptimisticForTests(): void {
   followEpoch.clear();
   followPersistTail.clear();
   followPersisted.clear();
+  captionEpoch.clear();
+  captionPersistTail.clear();
+  captionPersisted.clear();
   commentCounts.clear();
   posts = [];
   postPublishBusy = false;

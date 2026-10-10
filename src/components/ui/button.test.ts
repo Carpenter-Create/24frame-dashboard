@@ -19,7 +19,7 @@ describe("product buttons", () => {
   it("registers danger as thin ink on the same pill, not a filled scare surface", () => {
     expect(src).toContain('"primary" | "secondary" | "ghost" | "danger"');
     expect(src).toContain("danger:");
-    expect(src).toContain("text-[#c4564a]");
+    expect(src).toContain("text-danger");
     expect(src).not.toMatch(/danger:\s*"bg-/);
     expect(src).not.toContain("bg-red");
   });

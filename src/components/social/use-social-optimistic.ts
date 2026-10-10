@@ -15,6 +15,7 @@ import {
   type SocialOptimisticLike,
   type SocialOptimisticPost,
 } from "@/lib/social-optimistic";
+import { readSocialPostOwnVersion, socialPostLiveBody, subscribeSocialPostOwn } from "@/lib/social-post-own";
 
 export function useSocialLike(postId: string, server: SocialOptimisticLike): SocialOptimisticLike {
   const overlay = useSyncExternalStore(
@@ -48,6 +49,22 @@ export function useSocialOptimisticPosts(
     (): readonly SocialOptimisticPost[] => [],
   );
   return socialOptimisticPostsFor(groupSlug, pending, topic);
+}
+
+/** The caption as this device shows it: an owner's edit shows at once on
+ *  every surface that reads it, with no page refresh
+ *  (docs/design-locks/social-post-caption-window-lock-v1.md). */
+export function useSocialPostLiveBody(postId: string, serverBody: string | null): string | null {
+  return useSyncExternalStore(
+    subscribeSocialPostOwn,
+    () => socialPostLiveBody(postId, serverBody),
+    () => serverBody,
+  );
+}
+
+/** One subscription for a list that re-reads its rows' captions. */
+export function useSocialPostOwnVersion(): number {
+  return useSyncExternalStore(subscribeSocialPostOwn, readSocialPostOwnVersion, () => 0);
 }
 
 export { mergeSocialLike };

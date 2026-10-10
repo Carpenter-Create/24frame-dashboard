@@ -13,28 +13,27 @@ import {
 import { createPortal } from "react-dom";
 
 import { useHouseClient } from "@/components/chrome/house-client-shell";
-import { AppSheetCard, AppSheetFrame, HouseDialogFrame, HouseScrim, useHouseDesktop } from "@/components/chrome/house-overlay";
+import { AppSheetFrame, HouseDialogFrame, useHouseDesktop } from "@/components/chrome/house-overlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { HOUSE_HEADER_ROUND_BUTTON_CLASS } from "@/lib/house-lead-chrome";
 import {
-  HOUSE_WINDOW_ASK_ACTIONS_CLASS,
-  HOUSE_WINDOW_ASK_BUTTON_CLASS,
-  HOUSE_WINDOW_ASK_LINE_CLASS,
-  HOUSE_WINDOW_ASK_SHEET_ACTIONS_CLASS,
-  HOUSE_WINDOW_ASK_STRIP_CLASS,
-  HOUSE_WINDOW_ASK_TITLE_CLASS,
   HOUSE_WINDOW_BODY_CLASS,
   HOUSE_WINDOW_DONE_CLASS,
   HOUSE_WINDOW_FACE_CLASS,
+  HOUSE_WINDOW_FOOT_CLASS,
   HOUSE_WINDOW_FRAME_CLASS,
+  HOUSE_WINDOW_FRAME_FILL_CLASS,
   HOUSE_WINDOW_HEADER_CLASS,
+  HOUSE_WINDOW_HEADER_SPACER_CLASS,
   HOUSE_WINDOW_PANEL_CLASS,
   HOUSE_WINDOW_SHEET_BODY_CLASS,
   HOUSE_WINDOW_SHEET_FRAME_CLASS,
   HOUSE_WINDOW_TITLE_CLASS,
+  houseWindowFirstField,
   houseWindowFocusables,
   houseWindowMotionClass,
+  houseWindowTabTarget,
   type HouseWindowMotion,
 } from "@/lib/house-window";
 
@@ -48,6 +47,17 @@ import {
 // is Done; Tab stays inside. Below md the window is hidden and holds no
 // keys and no scroll lock (a phone host draws its own sheet), unless it
 // opts into the phone sheet: then the same window fills the full AppSheet.
+// Four options, absent for every window before them (so their markup is
+// unchanged; social-comments-window-lock-v1): no Done (doneLabel left out:
+// a 44 spacer keeps the title centred, and ⌘/Ctrl+Enter still runs onDone),
+// a foot pinned under the body, a frame that fills 80vh (fill: never the
+// held px), and a container other than the page body (a layer that owns
+// the window). ⌘/Ctrl+Enter does nothing while the ask is up.
+// The ask itself (HouseWindowAsk) lives in ./house-window-ask, re-exported
+// here, so a confirm host can draw it without this shell
+// (house-dual-host-primitive-audit-v1, "HouseWindowAsk panel").
+
+export { HouseWindowAsk } from "./house-window-ask";
 
 /** While the draft has changes, reloading or closing the tab raises the
  *  browser's own prompt. */
@@ -190,7 +200,8 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
   }
 
   function done() {
-    if (holdOpen) return;
+    // ⌘/Ctrl+Enter never runs Done behind the ask.
+    if (holdOpen || asking) return;
     onDone();
   }
 
@@ -268,17 +279,12 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
       if (event.key !== "Tab") return;
       const frame = frameRef.current;
       if (!frame) return;
-      const items = houseWindowFocusables(frame);
-      if (items.length === 0) return;
-      const first = items[0]!;
-      const last = items[items.length - 1]!;
+      // A radio group is one stop: Tab from any of its radios leaves it.
       const active = document.activeElement;
-      if (event.shiftKey && (active === first || !frame.contains(active))) {
+      const target = houseWindowTabTarget(houseWindowFocusables(frame), active, event.shiftKey, frame.contains(active));
+      if (target) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (active === last || !frame.contains(active))) {
-        event.preventDefault();
-        first.focus();
+        target.focus();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -324,9 +330,11 @@ export function useHouseWindow(options: HouseWindowOptions): [HouseWindowState, 
       row?.focus();
       return;
     }
-    const field = body.querySelector<HTMLElement>("input:not([type=file]):not(.sr-only), textarea");
-    (field ?? houseWindowFocusables(body)[0])?.focus();
-    // attr and indexFace are fixed for a window's life.
+    houseWindowFirstField(body)?.focus();
+    // attr and indexFace are fixed for a window's life, except that a linear
+    // window may move indexFace once to its closing face (Deliver's result),
+    // so ✕ and Esc close there and Back can never re-submit. This effect reads
+    // the current render's indexFace when face changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [face, cameFrom]);
 
@@ -365,6 +373,9 @@ export function HouseWindowFrame({
   backIcon,
   doneDisabled = false,
   ask,
+  foot,
+  fill = false,
+  container,
   children,
 }: {
   win: HouseWindowState;
@@ -373,13 +384,21 @@ export function HouseWindowFrame({
   motion: HouseWindowMotion;
   closeLabel: string;
   backLabel: string;
-  doneLabel: string;
+  /** Left out: no Done (the window's one action lives in its body or foot);
+   *  a 44 spacer keeps the title centred. */
+  doneLabel?: string;
   closeIcon: ReactNode;
   backIcon: ReactNode;
   /** Done waits for something else too (a crop still open). */
   doneDisabled?: boolean;
   /** The ask, drawn while the window asks. */
   ask: ReactNode;
+  /** Pinned under the scrolling body; inert while the window asks or is busy. */
+  foot?: ReactNode;
+  /** The frame fills 80vh and never takes the held px height. */
+  fill?: boolean;
+  /** Where the window mounts: a layer that owns it, else the page body. */
+  container?: Element | null;
   children: ReactNode;
 }) {
   const a = win.attr;
@@ -390,8 +409,8 @@ export function HouseWindowFrame({
       ref={frameRef}
       tabIndex={-1}
       {...{ [`data-${a}`]: "", [`data-${a}-window`]: "" }}
-      className={onSheet ? HOUSE_WINDOW_SHEET_FRAME_CLASS : HOUSE_WINDOW_FRAME_CLASS}
-      style={onSheet || win.held === null ? undefined : { height: win.held }}
+      className={onSheet ? HOUSE_WINDOW_SHEET_FRAME_CLASS : fill ? HOUSE_WINDOW_FRAME_FILL_CLASS : HOUSE_WINDOW_FRAME_CLASS}
+      style={onSheet || fill || win.held === null ? undefined : { height: win.held }}
     >
       <header {...{ [`data-${a}-header`]: "" }} className={HOUSE_WINDOW_HEADER_CLASS} inert={win.asking || win.busy}>
         {win.atIndex ? (
@@ -420,15 +439,19 @@ export function HouseWindowFrame({
         <h2 id={win.titleId} className={HOUSE_WINDOW_TITLE_CLASS}>
           {title}
         </h2>
-        <Button
-          {...{ [`data-${a}-done`]: "" }}
-          disabled={win.holdOpen || doneDisabled}
-          aria-busy={win.busy}
-          className={HOUSE_WINDOW_DONE_CLASS}
-          onClick={win.done}
-        >
-          {doneLabel}
-        </Button>
+        {doneLabel === undefined ? (
+          <span aria-hidden className={HOUSE_WINDOW_HEADER_SPACER_CLASS} />
+        ) : (
+          <Button
+            {...{ [`data-${a}-done`]: "" }}
+            disabled={win.holdOpen || doneDisabled}
+            aria-busy={win.busy}
+            className={HOUSE_WINDOW_DONE_CLASS}
+            onClick={win.done}
+          >
+            {doneLabel}
+          </Button>
+        )}
       </header>
       <div
         ref={bodyRef}
@@ -440,6 +463,11 @@ export function HouseWindowFrame({
           {children}
         </div>
       </div>
+      {foot ? (
+        <div {...{ [`data-${a}-foot`]: "" }} className={HOUSE_WINDOW_FOOT_CLASS} inert={win.asking || win.busy}>
+          {foot}
+        </div>
+      ) : null}
       {win.asking ? ask : null}
     </div>
   );
@@ -462,100 +490,7 @@ export function HouseWindowFrame({
     </HouseDialogFrame>
   );
 
-  return typeof document === "undefined" ? host : createPortal(host, document.body);
-}
-
-/** The ask before changes are lost: a strip at the window's foot (Discard,
- *  then Keep editing, focused) or the house AppSheet card on a phone (Keep
- *  editing first, focused, then Discard, stacked full width). */
-export function HouseWindowAsk({
-  attr,
-  variant,
-  titleId,
-  title,
-  lines,
-  keepLabel,
-  discardLabel,
-  onKeep,
-  onDiscard,
-}: {
-  attr: string;
-  variant: "strip" | "sheet";
-  titleId: string;
-  title: string;
-  lines: readonly string[];
-  keepLabel: string;
-  discardLabel: string;
-  onKeep: () => void;
-  onDiscard: () => void;
-}) {
-  const keepRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    keepRef.current?.focus();
-  }, []);
-  const discardButton = (
-    <Button
-      variant="secondary"
-      {...{ [`data-${attr}-discard`]: "" }}
-      className={HOUSE_WINDOW_ASK_BUTTON_CLASS}
-      onClick={onDiscard}
-    >
-      {discardLabel}
-    </Button>
-  );
-  const keepButton = (
-    <Button ref={keepRef} {...{ [`data-${attr}-keep`]: "" }} className={HOUSE_WINDOW_ASK_BUTTON_CLASS} onClick={onKeep}>
-      {keepLabel}
-    </Button>
-  );
-  const body = (
-    <>
-      <h2 id={titleId} className={HOUSE_WINDOW_ASK_TITLE_CLASS}>
-        {title}
-      </h2>
-      {lines.map((line) => (
-        <p key={line} className={HOUSE_WINDOW_ASK_LINE_CLASS}>
-          {line}
-        </p>
-      ))}
-      <div className={variant === "strip" ? HOUSE_WINDOW_ASK_ACTIONS_CLASS : HOUSE_WINDOW_ASK_SHEET_ACTIONS_CLASS}>
-        {variant === "strip" ? (
-          <>
-            {discardButton}
-            {keepButton}
-          </>
-        ) : (
-          <>
-            {keepButton}
-            {discardButton}
-          </>
-        )}
-      </div>
-    </>
-  );
-  if (variant === "strip") {
-    return (
-      <div
-        {...{ [`data-${attr}-discard-ask`]: "" }}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={HOUSE_WINDOW_ASK_STRIP_CLASS}
-      >
-        {body}
-      </div>
-    );
-  }
-  return (
-    <AppSheetFrame span="card" titleId={titleId}>
-      <HouseScrim label={keepLabel} onClose={onKeep} />
-      <AppSheetCard className="gap-[var(--space-3)]">
-        <div {...{ [`data-${attr}-discard-ask`]: "" }} className="flex flex-col gap-[var(--space-3)]">
-          {body}
-        </div>
-      </AppSheetCard>
-    </AppSheetFrame>
-  );
+  return typeof document === "undefined" ? host : createPortal(host, container ?? document.body);
 }
 
 // ---- The window's history entry ---------------------------------------------
@@ -565,7 +500,9 @@ export function HouseWindowAsk({
 // browser's own history calls and no shell marker for Next to skip, so Next
 // keeps it as its address: a server action under the window never writes a
 // stale address back. A window always has the page without its query under
-// it, so Back reaches the ask and never leaves the page with the draft.
+// it, so Back reaches the ask and never leaves the page with the draft: one
+// opened from the page on an address that already carries its query (a
+// reload, a pasted link) first puts the page under it and pushes its own.
 
 /** Push a window's own entry: the browser's own call with the window's flag
  *  and no shell marker, so Next keeps the query as its address. A link
@@ -587,6 +524,10 @@ export type HouseWindowEntryOptions<F extends string> = {
   opensOnArrival: () => boolean;
   /** Where focus returns when the window closes. */
   returnFocus?: () => HTMLElement | null;
+  /** Back reached the window before its code loaded (nothing typed yet): an
+   *  owner that keeps state beside the window closes it its own way, so that
+   *  state goes too. Without one, the shell closes it. */
+  onBackBeforeMount?: (key: number) => void;
 };
 
 export type HouseWindowEntry<F extends string> = {
@@ -608,7 +549,7 @@ export type HouseWindowEntry<F extends string> = {
 };
 
 export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryOptions<F>): HouseWindowEntry<F> {
-  const { flag, indexFace, parse, openHref, closedHref, opensOnArrival, returnFocus } = options;
+  const { flag, indexFace, parse, openHref, closedHref, opensOnArrival, returnFocus, onBackBeforeMount } = options;
   const house = useHouseClient();
   const [win, setWin] = useState<{ face: F; key: number } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -653,6 +594,14 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
 
   function openFromPage(face: F) {
     if (winRef.current) return;
+    // The address already carries the query on an entry that is not the
+    // window's own (a reload, a pasted link): the page goes under it and the
+    // window pushes its own, so Back reaches the ask.
+    if (addressHasWindow() && !isOwnEntry()) {
+      install(face);
+      open(face, true);
+      return;
+    }
     const pushed = !addressHasWindow();
     if (pushed) push(face);
     open(face, pushed);
@@ -662,7 +611,11 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
     if (winRef.current?.key !== key) return;
     winRef.current = null;
     setWin(null);
-    if (addressHasWindow() && pushedRef.current) {
+    // Cleared before `after` runs: a window it opens at once (a failed save
+    // reopening) keeps the entry it pushed, so its close goes Back.
+    const pushed = pushedRef.current;
+    pushedRef.current = false;
+    if (addressHasWindow() && pushed) {
       closingRef.current = true;
       // After the router's own popstate work, so `after` sees the page.
       if (after) window.addEventListener("popstate", () => window.setTimeout(after, 0), { once: true });
@@ -671,7 +624,6 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
       if (addressHasWindow()) strip();
       after?.();
     }
-    pushedRef.current = false;
     window.requestAnimationFrame(() => returnFocus?.()?.focus());
   }
 
@@ -722,7 +674,15 @@ export function useHouseWindowEntry<F extends string>(options: HouseWindowEntryO
       if (!winRef.current) return;
       // Still on the query: the entry going in underneath, not Back.
       if (addressHasWindow()) return;
-      const closed = requestRef.current ? requestRef.current() : true;
+      // Back before the window has mounted (its code still loading): nothing
+      // is typed yet, so it closes here; left open, it would appear with no
+      // entry and the next Back would leave the page.
+      if (!requestRef.current) {
+        if (onBackBeforeMount) onBackBeforeMount(winRef.current.key);
+        else close(winRef.current.key);
+        return;
+      }
+      const closed = requestRef.current();
       if (closed) return;
       push(indexFace);
       pushedRef.current = true;

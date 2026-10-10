@@ -45,7 +45,7 @@ import {
   HOUSE_PHONE_BOTTOM_NAV_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_CREATE_ON_CLASS,
-  HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS,
+  HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_CLASS,
   HOUSE_PHONE_BOTTOM_NAV_ICON_WEIGHT,
   HOUSE_PHONE_CHROME_ICON_CLASS,
@@ -76,6 +76,7 @@ import {
 import { ASK_FRAME_AI } from "@/lib/ask-frame-ai";
 import {
   HOUSE_HEADER_TRAILING_HIT_CLASS,
+  HOUSE_PHONE_DOCK_HIDDEN_ATTR,
   HOUSE_THEME_TOGGLE_CLASS,
 } from "@/lib/house-lead-chrome";
 import { HOUSE_SHELL_QUIET_INK_CLASS } from "@/lib/house-shell";
@@ -593,7 +594,13 @@ describe("phone app-shell IA A — dest dock + header workspace sheet", () => {
     expect(bottomNavSrc).toContain("const { dockHidden: hidden } = useHousePhoneChrome();");
     expect(bottomNavSrc).not.toContain("addEventListener(\"scroll\"");
     expect(phoneAppShellSrc).toContain("HousePhoneBottomNav");
-    expect(HOUSE_PHONE_BOTTOM_NAV_HIDDEN_CLASS).toBe("pointer-events-none translate-y-full");
+    // v1.5: the look hides from the shell's mark, always on the dock.
+    expect(HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS).toBe(
+      "in-data-house-phone-dock-hidden:pointer-events-none in-data-house-phone-dock-hidden:translate-y-full",
+    );
+    expect(HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS).toContain(`in-${HOUSE_PHONE_DOCK_HIDDEN_ATTR}:`);
+    expect(bottomNavSrc).toContain("cn(HOUSE_PHONE_BOTTOM_NAV_CLASS, HOUSE_PHONE_BOTTOM_NAV_HIDE_CLASS)");
+    expect(bottomNavSrc).not.toContain("hidden && ");
 
     const html = renderToStaticMarkup(
       createElement(HousePhoneBottomNav, { workspace: "social" }),

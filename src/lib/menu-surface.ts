@@ -23,7 +23,7 @@ export const MENU_SURFACE_SEPARATOR_CLASS = "my-[var(--space-2)]";
 
 // Thin danger tint on the same item — not a second surface or a heavier mark.
 export const MENU_SURFACE_ITEM_DANGER_CLASS =
-  "text-[#c4564a] data-[highlighted]:text-[#c4564a]";
+  "text-danger data-[highlighted]:text-danger";
 
 // Identity-only chrome. Left-origin, 50% width, 4px, Sporty Blue. No track.
 // Flush top of the surface. Token — never a raw hex here.

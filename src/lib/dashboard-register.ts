@@ -2,7 +2,7 @@ import { DASHBOARD_ADMIN } from "@/lib/dashboard-admin";
 import { DASHBOARD_HOME, rankedBarPercent } from "@/lib/dashboard-home";
 import { TITLES_HREF } from "@/lib/title-public-id";
 import { isoAlpha2FromNumeric, isoNumericForAlpha2 } from "@/lib/iso3166-numeric";
-import { ISO_COUNTRIES } from "@/lib/territories";
+import { resolveTerritoryRef } from "@/lib/territories";
 import type { ReportsCountRow } from "@/lib/reports";
 
 // Company-admin `/dashboard` register rematches RL Overview
@@ -56,33 +56,8 @@ export type DashboardRankedRow = {
   numeric?: number | null;
 };
 
-const NAME_TO_CODE = new Map(
-  Object.entries(ISO_COUNTRIES).map(([code, name]) => [name.toLowerCase(), code]),
-);
-
-const TERRITORY_ALIASES: Record<string, string> = {
-  usa: "US",
-  uk: "GB",
-  "great britain": "GB",
-  "united states of america": "US",
-  "czech republic": "CZ",
-};
-
-export function resolveTerritoryRef(raw: string): { code: string | null; name: string } {
-  const trimmed = raw.trim();
-  if (!trimmed) return { code: null, name: "" };
-  const upper = trimmed.toUpperCase();
-  if (upper.length === 2 && ISO_COUNTRIES[upper]) {
-    return { code: upper, name: ISO_COUNTRIES[upper] };
-  }
-  const alias = TERRITORY_ALIASES[trimmed.toLowerCase()];
-  if (alias && ISO_COUNTRIES[alias]) {
-    return { code: alias, name: ISO_COUNTRIES[alias] };
-  }
-  const byName = NAME_TO_CODE.get(trimmed.toLowerCase());
-  if (byName) return { code: byName, name: ISO_COUNTRIES[byName] };
-  return { code: null, name: trimmed };
-}
+// Moved to lib/territories (the Add right window's country search shares it).
+export { resolveTerritoryRef };
 
 export function dashboardShareRatio(count: number, total: number): number {
   if (total <= 0 || count <= 0) return 0;

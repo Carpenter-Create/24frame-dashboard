@@ -251,7 +251,7 @@ export const ACCOUNT_MENU_THEME_CHEVRON_CLASS = "size-4 shrink-0 text-ink-3";
 
 // House danger ink — same mark as menu-surface danger. Not Sporty Blue.
 export const ACCOUNT_MENU_DROPDOWN_LOGOUT_CLASS =
-  "flex min-h-11 w-full items-center gap-[var(--space-3)] px-[var(--space-4)] text-left t-body-sm text-[#c4564a] hover:bg-surface-muted focus-visible:bg-surface-muted";
+  "flex min-h-11 w-full items-center gap-[var(--space-3)] px-[var(--space-4)] text-left t-body-sm text-danger hover:bg-surface-muted focus-visible:bg-surface-muted";
 
 // Version footer. 13 secondary. 12 pad. Not a card.
 export const ACCOUNT_MENU_DROPDOWN_FOOTER_CLASS =

@@ -18,6 +18,7 @@ const ACTION_FILES = [
   "src/app/(app)/(operator)/staff/gc/deliveries/actions.ts",
   "src/app/(app)/(operator)/staff/gc/review/actions.ts",
   "src/app/(app)/(operator)/staff/gc/titles/[id]/actions.ts",
+  "src/app/(app)/(operator)/staff/gc/deliveries/deliver-actions.ts",
 ] as const;
 
 const STALE_REVALIDATE = [
@@ -54,5 +55,6 @@ describe("aggregation revalidatePath SoT (P1-3)", () => {
     expect(readFileSync(ACTION_FILES[5], "utf8")).toContain("titleOpsPath");
     expect(readFileSync(ACTION_FILES[5], "utf8")).toContain("QUEUE_HREF");
     expect(readFileSync(ACTION_FILES[5], "utf8")).toContain("AVAILS_HREF");
+    expect(readFileSync(ACTION_FILES[6], "utf8")).toContain("revalidatePath(GC_DELIVERIES_HREF)");
   });
 });

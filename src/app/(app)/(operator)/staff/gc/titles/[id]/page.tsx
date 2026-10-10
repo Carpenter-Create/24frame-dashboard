@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { Card, CardBody } from "@/components/ui/card";
 import { InlineNotice } from "@/components/ui/inline-notice";
-import { RIGHTS_META } from "@/lib/rights";
+import { RIGHTS_META, exclusivityLabel } from "@/lib/rights";
 import { describeTerritory } from "@/lib/territories";
 import { METADATA_FIELDS } from "@/lib/metadata";
 import { FindingsCard } from "@/components/findings/findings-card";
@@ -268,7 +268,7 @@ export default async function GcTitleDetail({ params }: { params: Promise<{ id: 
               (grants ?? []).map((g) => (
                 <div key={g.id} className="flex items-center justify-between gap-4">
                   <span className="t-body-sm text-ink-2">
-                    {RIGHTS_META[g.rights_type].label} · {g.exclusive ? "Exclusive" : "Non-exclusive"}
+                    {RIGHTS_META[g.rights_type].label} · {exclusivityLabel(g.exclusive)}
                   </span>
                   <span className="shrink-0 t-body-sm text-ink-3">
                     {describeTerritory(g.territory_mode, g.territories)}

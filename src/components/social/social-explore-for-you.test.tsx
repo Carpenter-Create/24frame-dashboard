@@ -224,6 +224,10 @@ describe("SocialExploreForYouStream", () => {
     expect(explore).not.toContain("useRouter");
     expect(explore).not.toContain("router.push");
     expect(comment).toContain("onClose={() => setOpen(false)}");
+    // The comments window's post is the item; no layer, so it mounts on the
+    // body above the scroller (social-comments-window-lock-v1).
+    expect(explore).toContain("preview: socialCommentsPostFromExplore(item)");
+    expect(explore).not.toMatch(/\slayer=\{/);
     expect(share).toContain("onClose={() => setOpen(false)}");
     expect(comment).not.toContain("router.push");
     expect(share).not.toContain("router.push");
@@ -294,5 +298,13 @@ describe("SocialExploreForYouStream", () => {
     expect(lock).toContain("## A2) Desktop player");
     expect(lock).toContain("object-fit: cover");
     expect(lock).toContain("Phone rows in §A stay");
+  });
+
+  // An owner's edited caption shows on the slide with no page refresh
+  // (social-post-caption-window-lock-v1); a static render takes the server's.
+  it("reads the slide's caption through the owner's overlay", () => {
+    const src = readFileSync("src/components/social/social-explore-for-you.tsx", "utf8");
+    expect(src).toContain("useSocialPostLiveBody(item.postId, item.body)");
+    expect(src).not.toContain("{item.body}");
   });
 });

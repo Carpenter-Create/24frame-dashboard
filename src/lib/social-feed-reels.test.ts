@@ -16,6 +16,7 @@ import {
   socialFeedReelLabel,
   socialFeedReelOpenedExplore,
   socialFeedReelPlan,
+  socialFeedReelTileLive,
   socialFeedReelTiles,
   socialFeedReelVertical,
   socialRowFocusShift,
@@ -282,5 +283,35 @@ describe("socialRowItemUnderFade (feed topics: a chip under the fade hides; card
     expect(socialRowItemUnderFade({ itemEnd: 505.1, ...port })).toBe(true);
     expect(socialRowItemUnderFade({ itemEnd: 600, portEnd: 600, fade: -40 })).toBe(false);
     expect(socialRowItemUnderFade({ itemEnd: 601.5, portEnd: 600, fade: -40 })).toBe(true);
+  });
+});
+
+// An owner's edited caption shows on its tile on this device with no page
+// refresh (docs/design-locks/social-post-caption-window-lock-v1.md).
+describe("socialFeedReelTileLive", () => {
+  const tile = {
+    postId: "r1",
+    authorName: "Priya Nair",
+    caption: "Blocking the rooftop",
+    label: socialFeedReelLabel("Priya Nair", "Blocking the rooftop"),
+  };
+
+  it("keeps the tile as the server built it while there is no override", () => {
+    expect(socialFeedReelTileLive(tile, undefined)).toBe(tile);
+  });
+
+  it("rebuilds the caption and the accessible name from an edited caption", () => {
+    const live = socialFeedReelTileLive(tile, "Night shoot\nsecond line");
+    expect(live.postId).toBe("r1");
+    expect(live.caption).toBe(socialFeedReelCaption("Night shoot\nsecond line"));
+    expect(live.caption).toBe("Night shoot");
+    expect(live.label).toBe(socialFeedReelLabel("Priya Nair", "Night shoot"));
+  });
+
+  it("an emptied caption leaves the name alone", () => {
+    const live = socialFeedReelTileLive(tile, null);
+    expect(live.caption).toBeNull();
+    expect(live.label).toBe(socialFeedReelLabel("Priya Nair", null));
+    expect(live.label.startsWith("Priya Nair.")).toBe(true);
   });
 });

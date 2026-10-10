@@ -25,6 +25,8 @@ vi.mock("next/navigation", () => ({
     throw new Error(`REDIRECT:${to}`);
   }),
   useRouter: () => ({ refresh: vi.fn() }),
+  // The owner's ⋯ closes on an address change (social-post-owner-menu-lock-v1).
+  usePathname: () => "/social/profile",
 }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({ get: () => undefined })),

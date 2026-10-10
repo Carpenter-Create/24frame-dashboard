@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { titleArtworkUrls } from "@/lib/artwork";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   GC_DELIVERIES_EMPTY,
@@ -14,6 +15,8 @@ import { UNPAGINATED_MAX } from "@/lib/list-bounds";
 import GcDeliveriesPage from "./page";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/auth", () => ({ getAuthUser: vi.fn() }));
+vi.mock("./deliver-actions", () => ({ loadDeliverChoices: vi.fn(), deliverTitles: vi.fn() }));
 vi.mock("@/lib/artwork", () => ({
   titleArtworkUrls: vi.fn(async () => new Map()),
 }));
@@ -35,7 +38,10 @@ vi.mock("./licensing-status-filter", () => ({
     createElement("div", { "data-gc-licensing-status-compact": "" }, "Pending"),
 }));
 
-function stubClient(tables: Record<string, unknown[]> = {}) {
+type GcCan = { data: unknown; error: { message: string } | null };
+
+function stubClient(tables: Record<string, unknown[]> = {}, gcCan: GcCan = { data: true, error: null }) {
+  const rpc = vi.fn(async () => gcCan);
   const from = vi.fn((table: string) => {
     const rows = tables[table] ?? [];
     const chain: {
@@ -57,8 +63,8 @@ function stubClient(tables: Record<string, unknown[]> = {}) {
     };
     return chain;
   });
-  vi.mocked(createClient).mockResolvedValue({ from } as never);
-  return { from };
+  vi.mocked(createClient).mockResolvedValue({ from, rpc } as never);
+  return { from, rpc };
 }
 
 function stubEmptyClient() {
@@ -78,9 +84,69 @@ const pageSrc = readFileSync("src/app/(app)/(operator)/staff/gc/deliveries/page.
 const companionsSrc = readFileSync("src/lib/gc-deliveries-companions.ts", "utf8");
 const viewTitlesClass = "t-body-sm text-accent transition-colors hover:underline";
 
+const STAFF = { id: "staff-1", email: "ops@test.example" };
+
+beforeEach(() => {
+  vi.mocked(getAuthUser).mockResolvedValue(STAFF);
+});
+
+describe("staff /gc/deliveries Deliver: operate staff only", () => {
+  const pool = {
+    titles: [{ id: "t1", title: "North Star", catalog_id: "GC-0000001" }],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getAuthUser).mockResolvedValue(STAFF);
+    vi.mocked(titleArtworkUrls).mockResolvedValue(new Map());
+  });
+
+  it("shows ticks when gc_can(operate) is literally true", async () => {
+    const { rpc } = stubClient(pool, { data: true, error: null });
+    const html = renderToStaticMarkup(await GcDeliveriesPage());
+    expect(rpc).toHaveBeenCalledWith("gc_can", { p_uid: STAFF.id, p_capability: "operate" });
+    expect(html).toContain('data-gc-licensing-select="t1"');
+  });
+
+  const closed: [string, GcCan][] = [
+    ["false", { data: false, error: null }],
+    ["null", { data: null, error: null }],
+    ["an error", { data: true, error: { message: "boom" } }],
+    ["a truthy non-boolean", { data: "true", error: null }],
+  ];
+  for (const [name, answer] of closed) {
+    it(`shows no ticks when gc_can answers ${name}`, async () => {
+      stubClient(pool, answer);
+      const html = renderToStaticMarkup(await GcDeliveriesPage());
+      expect(html).toContain('data-gc-licensing-title="t1"');
+      expect(html).not.toContain("data-gc-licensing-select");
+    });
+  }
+
+  it("shows no ticks and asks nothing without a user", async () => {
+    vi.mocked(getAuthUser).mockResolvedValue(null);
+    const { rpc } = stubClient(pool, { data: true, error: null });
+    const html = renderToStaticMarkup(await GcDeliveriesPage());
+    expect(rpc).not.toHaveBeenCalled();
+    expect(html).not.toContain("data-gc-licensing-select");
+  });
+
+  it("passes the channels and the actions only when it may deliver, and never reads ?deliver", () => {
+    expect(pageSrc).toContain("vendors={vendorOpts}");
+    expect(pageSrc).toContain("canDeliver={canDeliver}");
+    expect(pageSrc).toContain(
+      "deliverActions={canDeliver ? { load: loadDeliverChoices, deliver: deliverTitles } : null}",
+    );
+    expect(pageSrc).toContain("canDeliver = !canOperateError && canOperate === true;");
+    expect(pageSrc).not.toContain("sp.deliver");
+    expect(pageSrc).not.toContain("groups.length === 0 ?");
+  });
+});
+
 describe("staff /gc/deliveries empty copy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getAuthUser).mockResolvedValue(STAFF);
     vi.mocked(titleArtworkUrls).mockResolvedValue(new Map());
   });
 

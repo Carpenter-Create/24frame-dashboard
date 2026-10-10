@@ -65,11 +65,17 @@ export const TITLE_DETAIL = {
   sectionAssets: "Assets",
   sectionCredits: "Credits",
   sectionRights: "Rights & territories",
+  rightsEmpty: "No rights granted yet.",
   sectionDeliveries: "Deliveries",
   editMetadata: "Edit",
   viewMetadata: "View",
   requiredNotice: (total: number) => `Complete the ${total} required metadata fields to submit this title for review.`,
 } as const;
+
+// The title page's windows, one query each: Metadata (`edit`,
+// lib/title-details) and Add right (`add-right`, lib/add-right). Closing
+// either strips both, so one address never opens two windows.
+export const TITLE_PAGE_WINDOW_PARAMS = ["edit", "add-right"] as const;
 
 // Title-detail phone containment. One SoT: house phone stack tokens.
 // Clip sideways overflow on the page surface; stack ledgers on phone;
