@@ -187,6 +187,25 @@ describe("submitRequiredMissing", () => {
   });
 });
 
+// Codex on #799: findings forged before the migration are re-derived once,
+// when it is applied, by a pass no client may call.
+describe("the one pass over live titles' findings (draft, founder-applied)", () => {
+  it("is definer-only, revoked from every client role, and runs once at apply", () => {
+    const pass = functionSql("refresh_live_title_findings");
+    expect(pass.header).toBe("()");
+    expect(pass.body).toContain("security definer");
+    expect(pass.body).toContain("set search_path = public");
+    expect(pass.after).toMatch(
+      /^revoke execute on function public\.refresh_live_title_findings\(\) from public, anon, authenticated;/,
+    );
+    expect(pass.after).not.toMatch(/grant\s+execute on function public\.refresh_live_title_findings/);
+    // Called once, after it is defined and revoked, at the migration's end.
+    const run = MIGRATION.indexOf("do $$\nbegin\n  perform public.refresh_live_title_findings();\nend;\n$$;");
+    expect(run).toBeGreaterThan(MIGRATION.indexOf("revoke execute on function public.refresh_live_title_findings()"));
+    expect(MIGRATION.slice(run).trim().endsWith("$$;")).toBe(true);
+  });
+});
+
 describe("merge_title_metadata SQL (draft, founder-applied)", () => {
   it("has the signature, gate and locks the action relies on, in its own body", () => {
     const merge = functionSql(MERGE_TITLE_METADATA);
@@ -225,15 +244,21 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     expect([...callers].sort()).toEqual([
       "merge_title_metadata",
       "reconcile_title_findings",
+      "refresh_live_title_findings",
       "set_title_metadata",
       "submit_title",
     ]);
-    for (const name of callers) {
+    // The one pass locks each live title as it walks them (below).
+    for (const name of callers.filter((caller) => caller !== "refresh_live_title_findings")) {
       const { body } = functionSql(name);
       const lock = body.search(/from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id[^;]*for no key update;/);
       expect(lock, name).toBeGreaterThan(0);
       expect(lock, name).toBeLessThan(body.indexOf("public.refresh_title_findings("));
     }
+    const pass = functionSql("refresh_live_title_findings").body;
+    const walk = pass.search(/from public\.titles t\s+where t\.deleted_at is null\s+order by t\.id\s+for no key update/);
+    expect(walk).toBeGreaterThan(0);
+    expect(walk).toBeLessThan(pass.indexOf("public.refresh_title_findings(r.org_id, r.id)"));
     // reconcile: a live title in p_org_id only, refused at the lock.
     expect(functionSql("reconcile_title_findings").body).toMatch(
       /from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;\s+if not found then\s+raise exception 'Title not found in this organization';\s+end if;/,

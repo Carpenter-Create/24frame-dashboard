@@ -49,17 +49,25 @@
 --      its record. It checks only the required tier's values, as the app
 --      counts them (required blocks delivery, docs/domain-spec.md §12): a
 --      refused recommended or optional value never blocks a submit.
+--   5. One pass at apply (section 9, Codex on #799): every live title's
+--      validator findings are re-derived from its stored metadata, so
+--      findings an earlier caller forged through the old reconcile do not
+--      outlive it.
 --
 -- DESTRUCTIVE OPS (approved before apply): create or replace 4 existing
 -- functions (reconcile_title_findings, set_title_metadata,
--- set_title_release_info, submit_title); create 6 new functions (2 pure
--- helpers, 1 internal refresh, 1 metadata check, and in section 8
--- normalize_stored_title_metadata (internal) and merge_title_metadata); a
+-- set_title_release_info, submit_title); create 7 new functions (2 pure
+-- helpers, 1 internal refresh, 1 metadata check, in section 8
+-- normalize_stored_title_metadata (internal) and merge_title_metadata, and
+-- in section 9 refresh_live_title_findings (internal)); a
 -- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata,
 -- submit_title and reconcile_title_findings; submit_title refuses a title
--- outside the org at that lock, reads the stored record normalized and
--- checks only its required fields; revoke/grant execute. No table, column,
--- policy, trigger or data change. Existing stored metadata is not rewritten
+-- outside the org or soft-deleted at that lock, reads the stored record
+-- normalized and checks only its required fields; revoke/grant execute. No
+-- table, column, policy or trigger change. One data step: the section 9 pass
+-- upserts or resolves each live title's validator findings (findings rows
+-- only; nothing is deleted; AI findings and deleted titles are untouched).
+-- Existing stored metadata is not rewritten
 -- or re-validated; the next save of a title checks its whole record, so a
 -- stored value the checks refuse (including a language or country outside
 -- the app's lists) blocks that save, named on its field, until it is
@@ -71,7 +79,10 @@
 -- 20260719000700_export_and_submit_gate.sql (submit_title) and
 -- 20260727000100_gc_role_separation.sql (reconcile_title_findings); drop the
 -- new functions (submit_title's previous body first: this one calls
--- normalize_stored_title_metadata). For the merge alone:
+-- normalize_stored_title_metadata), and
+--   drop function public.refresh_live_title_findings();
+-- The pass's findings stay: they are derived from stored metadata, and the
+-- next save of each title derives them again. For the merge alone:
 --   drop function public.merge_title_metadata(uuid, uuid, jsonb, text[]);
 -- and keep normalize_stored_title_metadata, which submit_title calls. The
 -- app then returns to read, merge and set by itself.
@@ -659,3 +670,46 @@ $$;
 
 revoke execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) from public, anon;
 grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) to authenticated;
+
+-- ---- 9. One pass over every live title's findings (Codex on #799) -----------
+-- Replacing reconcile_title_findings protects new calls only. Findings an
+-- earlier caller forged (a '[]' that resolved every validator finding, a
+-- made-up message) would stay until that title is next saved, submitted or
+-- reconciled. refresh_live_title_findings re-derives every live title's
+-- validator findings from its stored metadata through refresh_title_findings,
+-- under each title's lock (the writers' order: title, then findings), and
+-- returns how many titles it refreshed. It runs once, below, when this
+-- migration is applied. Only validator rows change, by upsert or by status
+-- (resolved): nothing is deleted, and AI findings, a deleted title's findings
+-- and the metadata itself are untouched. No client role may call it.
+
+create or replace function public.refresh_live_title_findings()
+  returns integer
+  language plpgsql security definer
+  set search_path = public
+as $$
+declare
+  r       record;
+  v_count integer := 0;
+begin
+  for r in
+    select t.id, t.org_id
+      from public.titles t
+     where t.deleted_at is null
+     order by t.id
+       for no key update
+  loop
+    perform public.refresh_title_findings(r.org_id, r.id);
+    v_count := v_count + 1;
+  end loop;
+  return v_count;
+end;
+$$;
+
+revoke execute on function public.refresh_live_title_findings() from public, anon, authenticated;
+
+do $$
+begin
+  perform public.refresh_live_title_findings();
+end;
+$$;

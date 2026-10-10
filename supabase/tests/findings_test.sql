@@ -2,10 +2,11 @@
 -- reconcile_title_findings (operate/GC-gated; derived from stored metadata, the
 -- caller's payload ignored; under the title lock, so another org's title is
 -- refused; upsert + auto-resolve; validator-only) + my_findings + RLS (own-org
--- only) for the findings store (§19).
+-- only) for the findings store (§19). Codex on #799: the one pass that
+-- re-derives every live title's findings when the migration is applied.
 
 begin;
-select plan(17);
+select plan(24);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -14,6 +15,7 @@ select set_config('t.viewerA',gen_random_uuid()::text, false);
 select set_config('t.ownerB', gen_random_uuid()::text, false);
 select set_config('t.gc',     gen_random_uuid()::text, false);
 select set_config('t.title',  gen_random_uuid()::text, false);
+select set_config('t.gone',   gen_random_uuid()::text, false);
 
 insert into auth.users (id) values
   (current_setting('t.ownerA')::uuid), (current_setting('t.viewerA')::uuid),
@@ -113,6 +115,50 @@ select is((select count(*) from public.my_findings(1))::int, 1,
 select is((select count(*) from public.my_findings(500, current_setting('t.orgB')::uuid))::int, 0,
   'p_org_id scopes away orgs the caller cannot see');
 
+-- ---- the one pass over live titles (Codex on #799) -------------------------
+-- Findings an earlier caller forged, before the migration: every validator
+-- finding resolved (a '[]'), one message made up, one code invented. And a
+-- soft-deleted title with a forged open finding.
 reset role;
+update public.findings set status = 'resolved', resolved_at = now()
+ where entity_id = current_setting('t.title')::uuid and source = 'validator';
+update public.findings set status = 'open', resolved_at = null, message = 'Forged.'
+ where entity_id = current_setting('t.title')::uuid and source = 'validator'
+   and code = 'metadata.missing.runtime_minutes';
+insert into public.findings (org_id, entity_type, entity_id, code, source, severity, message, source_refs, logic_version)
+  values (current_setting('t.orgA')::uuid, 'title', current_setting('t.title')::uuid,
+          'metadata.forged', 'validator', 'high', 'Forged.', '{}'::jsonb, 'forged');
+insert into public.titles (id, org_id, title, status) values
+  (current_setting('t.gone')::uuid, current_setting('t.orgA')::uuid, 'Gone', 'draft');
+update public.titles set deleted_at = now() where id = current_setting('t.gone')::uuid;
+insert into public.findings (org_id, entity_type, entity_id, code, source, severity, message, source_refs, logic_version)
+  values (current_setting('t.orgA')::uuid, 'title', current_setting('t.gone')::uuid,
+          'metadata.forged', 'validator', 'high', 'Forged.', '{}'::jsonb, 'forged');
+
+select ok(
+  not has_function_privilege('authenticated', 'public.refresh_live_title_findings()', 'EXECUTE')
+    and not has_function_privilege('anon', 'public.refresh_live_title_findings()', 'EXECUTE'),
+  'no client role may run the one pass');
+select ok(public.refresh_live_title_findings() >= 1, 'the pass refreshes every live title');
+select is(
+  (select coalesce(array_agg(code order by code), '{}'::text[]) from public.findings
+    where entity_type = 'title' and entity_id = current_setting('t.title')::uuid
+      and source = 'validator' and status = 'open'),
+  (select coalesce(array_agg(f->>'code' order by f->>'code'), '{}'::text[])
+     from jsonb_array_elements(public.title_metadata_findings(
+       (select data from public.title_metadata where title_id = current_setting('t.title')::uuid))) f),
+  'after the pass, the open validator findings are exactly the stored record''s');
+select isnt((select message from public.findings
+    where entity_id = current_setting('t.title')::uuid and code = 'metadata.missing.runtime_minutes'),
+  'Forged.', 'a made-up message is replaced by the derived one');
+select is((select status::text from public.findings
+    where entity_id = current_setting('t.title')::uuid and code = 'metadata.forged'),
+  'resolved', 'an invented code is resolved, not deleted');
+select is((select status::text from public.findings where code = 'ai.genre_mismatch'),
+  'open', 'AI findings are untouched by the pass');
+select is((select status::text from public.findings
+    where entity_id = current_setting('t.gone')::uuid and code = 'metadata.forged'),
+  'open', 'a deleted title is skipped (its findings are untouched)');
+
 select * from finish();
 rollback;
