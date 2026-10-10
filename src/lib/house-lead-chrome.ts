@@ -111,19 +111,26 @@ export const HOUSE_PHONE_CHROME_TOUCH_CLASS =
   "max-md:pointer-events-auto max-md:touch-pan-x max-md:touch-pinch-zoom";
 
 // The phone chrome's motion, written by the shell's tracker on the shell
-// element (house-phone-chrome-state): the chrome's height, its visible
-// height (less the bar's cover), and the bar's cover (0–56).
+// element (house-phone-chrome-runtime, bound in house-phone-chrome-state).
+// Variables: the chrome's height, its visible height (less the bar's
+// cover), and the bar's cover (0–56). Marks: the settle (while the bar
+// eases to rest) and the dock's hide (band lock v1.5), each written in the
+// same handler as the cover.
 export const HOUSE_PHONE_CHROME_HEIGHT_VAR = "--house-phone-chrome-h";
 export const HOUSE_PHONE_CHROME_VISIBLE_VAR = "--house-phone-chrome-visible";
 export const HOUSE_PHONE_SHEET_Y_VAR = "--house-phone-sheet-y";
 /** On the shell while the bar eases to rest (open or covered). */
 export const HOUSE_PHONE_SHEET_SETTLE_ATTR = "data-house-phone-sheet-settle";
+/** On the shell while the dock is hidden: the dock hides from it in the
+ *  same frame as the bar's move (v1.5). */
+export const HOUSE_PHONE_DOCK_HIDDEN_ATTR = "data-house-phone-dock-hidden";
 
 /** The bar, its corner fill, and the Education search row move together:
  *  up by the cover, 1:1 with the scroll (no easing), eased only while
- *  settling. Phone only. */
+ *  settling. Phone only. The ease is HOUSE_PHONE_SHEET_EASE (house-phone-
+ *  chrome), the curve `ease-out` names, written out so the two stay one. */
 export const HOUSE_PHONE_SHEET_MOTION_CLASS =
-  "max-md:translate-y-[calc(var(--house-phone-sheet-y,0px)*-1)] max-md:transition-[translate] max-md:duration-0 max-md:ease-out max-md:in-data-house-phone-sheet-settle:duration-[180ms]";
+  "max-md:translate-y-[calc(var(--house-phone-sheet-y,0px)*-1)] max-md:transition-[translate] max-md:duration-0 max-md:ease-[cubic-bezier(0,0,0.2,1)] max-md:in-data-house-phone-sheet-settle:duration-[180ms]";
 
 /** Sporty Blue behind the bar's rounded top corners: a 24 strip that rides
  *  just under the bar's top edge, so the corners show blue at rest and as

@@ -242,10 +242,10 @@ function bezier1dDeriv(t: number, a: number, b: number): number {
 
 export function cubicBezierProgress(
   x: number,
-  x1 = HOUSE_SEGMENTED_THUMB_EASE[0],
-  y1 = HOUSE_SEGMENTED_THUMB_EASE[1],
-  x2 = HOUSE_SEGMENTED_THUMB_EASE[2],
-  y2 = HOUSE_SEGMENTED_THUMB_EASE[3],
+  x1: number = HOUSE_SEGMENTED_THUMB_EASE[0],
+  y1: number = HOUSE_SEGMENTED_THUMB_EASE[1],
+  x2: number = HOUSE_SEGMENTED_THUMB_EASE[2],
+  y2: number = HOUSE_SEGMENTED_THUMB_EASE[3],
 ): number {
   if (x <= 0) return 0;
   if (x >= 1) return 1;
