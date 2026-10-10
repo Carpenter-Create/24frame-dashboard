@@ -24,7 +24,32 @@
 
 ## 0) Founder direction (verbatim)
 
-The proposal had two parts, the layout and the copy. Its own words are not in the repository; it closed "If you approve, I'll make it a small follow-up PR after Edit caption merges, since both touch the same menu." What it proposed was written down with Adam's answer, in the approval record, verbatim:
+The proposal (2026-10-09), verbatim. It answered Adam's question about the ⋯ Edit · Delete popover and the "Remove this post?" sheet, with screenshots of both:
+
+> **1) Layout**
+>
+> - **Desktop:** the ⋯ popover is right. It's the standard desktop pattern and matches the locked menu style.
+> - **Phone:** it's the weak spot.
+>   - The popover is small, sits mid-screen and covers the next post's actions, so it's awkward to reach with a thumb.
+>   - The confirm that follows is a bottom sheet, so the menu and its confirm use two different styles.
+>   - Better: on a phone, ⋯ opens the same bottom sheet, with full-width rows for Edit and Delete.
+> - **The confirm sheet:**
+>   - It has two ways to cancel (✕ and Keep).
+>   - Keep is a button but Remove is plain red text, so the action looks lighter than the escape.
+>   - Better: match the house "Discard changes?" sheet, with two full-width stacked buttons, Keep first and Remove in red, and no ✕.
+>
+> **2) Copy**
+>
+> - **The verbs don't match.** The menu says "Delete" but the sheet says "Remove". Pick one. I'd use **Remove** everywhere, because the post isn't erased: it's taken down and GC keeps the record. "Delete" would promise something that isn't true.
+> - **"Edit" undersells and oversells.** Only the caption can change. **"Edit caption"** sets the right expectation and matches the window's title.
+> - **The body text is incomplete.** The post also leaves Explore and groups, and the author can't undo a removal (the database only allows active → removed). Proposed:
+>   > Remove this post?
+>   > It comes off 24Frame, with its comments and likes. You can't undo this.
+>   > **Keep** · **Remove**
+>
+> All of this is locked copy you approved in September. That lock explicitly kept the menu as "Delete", so changing it needs your OK. If you approve, I'll make it a small follow-up PR after Edit caption merges, since both touch the same menu.
+
+The phone rows read Edit caption · Remove, not the layout part's "Edit and Delete": the copy part renames both items, and Adam approved both parts together. The summary recorded with his answer:
 
 > Approved proposal: phone ⋯ opens the bottom sheet (full-width rows "Edit caption" / "Remove"); desktop popover stays with those labels; confirm = house ask (Keep first, Remove red, stacked full width on phone; no ✕); one verb "Remove"; copy: "Remove this post?" / "It comes off 24Frame, with its comments and likes. You can't undo this." / Keep · Remove.
 
@@ -36,7 +61,7 @@ The record reads the second sentence as "layout and copy: improve beyond the pro
 
 Edit caption merged first (#804, `64f3e3b`). This build sits on `origin/main` `8ea5154`.
 
-| Decision | The approval record | Recorded |
+| Decision | The approved summary | Recorded |
 |----------|---------------------|----------|
 | A phone's ⋯ opens the bottom sheet of rows, Edit caption then Remove, full width | "phone ⋯ opens the bottom sheet (full-width rows "Edit caption" / "Remove")" | §2 |
 | The desktop popover is kept, with the same two labels | "desktop popover stays with those labels" | §1 |
