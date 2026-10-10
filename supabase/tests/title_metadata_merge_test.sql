@@ -13,7 +13,7 @@
 -- the same title lock.
 
 begin;
-select plan(95);
+select plan(98);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -33,6 +33,7 @@ select set_config('t.tsub',   gen_random_uuid()::text, false);  -- A, complete, 
 select set_config('t.tbad',   gen_random_uuid()::text, false);  -- A, complete, a recommended value the checks refuse
 select set_config('t.tlang',  gen_random_uuid()::text, false);  -- A, complete, a language outside the list
 select set_config('t.toff',   gen_random_uuid()::text, false);  -- A, complete, a country outside the list
+select set_config('t.tgonebad', gen_random_uuid()::text, false);  -- A, deleted, complete, a language outside the list
 
 insert into auth.users (id) values
   (current_setting('t.owner')::uuid), (current_setting('t.deliv')::uuid),
@@ -59,7 +60,8 @@ insert into public.titles (id, org_id, title, status) values
   (current_setting('t.tsub')::uuid,    current_setting('t.org_a')::uuid, 'Submit',  'draft'),
   (current_setting('t.tbad')::uuid,    current_setting('t.org_a')::uuid, 'Bad',     'draft'),
   (current_setting('t.tlang')::uuid,   current_setting('t.org_a')::uuid, 'Lang',    'draft'),
-  (current_setting('t.toff')::uuid,    current_setting('t.org_a')::uuid, 'Country', 'draft');
+  (current_setting('t.toff')::uuid,    current_setting('t.org_a')::uuid, 'Country', 'draft'),
+  (current_setting('t.tgonebad')::uuid, current_setting('t.org_a')::uuid, 'Gone bad', 'draft');
 insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.ta')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"Jo"}'::jsonb),
@@ -82,8 +84,12 @@ insert into public.title_metadata (title_id, org_id, data) values
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"zz","country_of_origin":"US"}'::jsonb),
   -- Complete, with two letters that are not in ISO_COUNTRIES (stored before the lists).
   (current_setting('t.toff')::uuid, current_setting('t.org_a')::uuid,
-   '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"ZZ"}'::jsonb);
-update public.titles set deleted_at = now() where id = current_setting('t.tgone')::uuid;
+   '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"ZZ"}'::jsonb),
+  -- Soft-deleted, complete, with a required language the checks refuse.
+  (current_setting('t.tgonebad')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"zz","country_of_origin":"US"}'::jsonb);
+update public.titles set deleted_at = now()
+ where id in (current_setting('t.tgone')::uuid, current_setting('t.tgonebad')::uuid);
 
 -- ===== structure, grants, lock pins (as postgres) =====
 select has_function('public', 'merge_title_metadata', array['uuid','uuid','jsonb','text[]'],
@@ -139,8 +145,8 @@ select ok(
 select ok(
   (select p.prosrc from pg_proc p
     where p.oid = 'public.submit_title(uuid, uuid)'::regprocedure)
-  ~* 'from\s+public\.titles\s+t\s+where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+for\s+no\s+key\s+update',
-  'submit_title takes the same title lock');
+  ~* 'from\s+public\.titles\s+t\s+where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+and\s+t\.deleted_at\s+is\s+null\s+for\s+no\s+key\s+update',
+  'submit_title takes the same title lock, live titles only (Bugbot on #799)');
 select ok(
   (select strpos(p.prosrc, 'for no key update') > 0
       and strpos(p.prosrc, 'for no key update') < strpos(p.prosrc, 'from public.title_metadata')
@@ -466,6 +472,19 @@ select throws_ok(
   format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tb')),
   'P0001', 'Title not found in this organization, or not in draft',
   'SPOOF: own org, another org''s title is refused before its record is read');
+-- A soft-deleted title is refused at the lock too, before its record is read
+-- (Bugbot on #799): with no record, never "required field missing"; with a
+-- refused required value, never that field's check.
+select throws_ok(
+  format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tgone')),
+  'P0001', 'Title not found in this organization, or not in draft',
+  'a deleted title with no record is refused at the lock');
+select throws_ok(
+  format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tgonebad')),
+  'P0001', 'Title not found in this organization, or not in draft',
+  'a deleted title with a refused required value is refused at the lock, not by the check');
+select is((select status::text from public.titles where id = current_setting('t.tgonebad')::uuid),
+  'draft', 'and the deleted title is untouched');
 
 reset role;
 select * from finish();

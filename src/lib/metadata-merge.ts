@@ -1,4 +1,4 @@
-import { METADATA_FIELDS } from "@/lib/metadata";
+import { METADATA_ERRORS, METADATA_FIELDS, metadataFieldError } from "@/lib/metadata";
 
 // The title Metadata window's save
 // (docs/design-locks/aggregation-title-details-window-lock-v1.md): only the
@@ -57,4 +57,17 @@ export function metadataCheckField(error: DatabaseError): string | null {
   const firstLine = (error.message ?? "").split("\n")[0];
   const key = /^([a-z_]+):/.exec(firstLine)?.[1];
   return key && METADATA_FIELDS.some((f) => f.key === key) ? key : null;
+}
+
+/** The approved line for a check that refused `field` (metadataCheckField),
+ *  read as the window reads the same value (metadataValueError): a list
+ *  refused for one entry ("<field>: each entry 1 to 200 characters") says
+ *  "Up to 200 characters."; any other list refusal ("<field>: at most 50", not
+ *  a list), "Up to 50 entries."; every other field, its own line (Bugbot on
+ *  #799). Only the message's kind is read; its text never reaches the browser. */
+export function metadataRefusalError(error: DatabaseError, field: string, now: Date = new Date()): string {
+  const list = METADATA_FIELDS.find((f) => f.key === field)?.type === "list";
+  const firstLine = (error?.message ?? "").split("\n")[0];
+  if (list && firstLine.startsWith(`${field}: each entry `)) return METADATA_ERRORS.text;
+  return metadataFieldError(field, now);
 }

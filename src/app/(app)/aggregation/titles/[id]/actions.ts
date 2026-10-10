@@ -23,7 +23,6 @@ import {
   computeMetadataFindings,
   METADATA_FIELDS,
   METADATA_LOGIC_VERSION,
-  metadataFieldError,
   normalizeStoredMetadata,
   parseMetadata,
   requiredComplete,
@@ -32,6 +31,7 @@ import {
   metadataCheckField,
   metadataMergeArgs,
   metadataMergeMissing,
+  metadataRefusalError,
   submitRequiredMissing,
 } from "@/lib/metadata-merge";
 import { checkReleaseInfo, releaseInfoSchema } from "@/lib/releases";
@@ -290,7 +290,7 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
         ok: false,
         part: "metadata",
         field,
-        error: field ? metadataFieldError(field) : TITLE_DETAILS.saveFailed,
+        error: field ? metadataRefusalError(mergeError, field) : TITLE_DETAILS.saveFailed,
         metadataSaved: false,
       };
     }
@@ -407,7 +407,7 @@ export async function submitTitle(
     // finds empty as the page's notice, anything else "Could not save.".
     console.error("[title-details] submit_title failed", error.code, error.message);
     const field = metadataCheckField(error);
-    if (field) return { error: metadataFieldError(field) };
+    if (field) return { error: metadataRefusalError(error, field) };
     if (submitRequiredMissing(error)) return { error: TITLE_DETAIL.requiredNotice(complete.total) };
     return { error: TITLE_DETAILS.saveFailed };
   }

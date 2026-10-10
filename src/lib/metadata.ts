@@ -111,10 +111,10 @@ export function metadataFieldError(key: string, now: Date = new Date()): string 
 }
 
 /** What a field says for this value: as metadataFieldError, except that a
- *  Cast or Keywords entry over 200 characters reads "Up to 200 characters per
- *  entry." (Bugbot on #801; Adam 2026-10-09, "approved, use the defaults").
- *  Over 50 entries still reads "Up to 50 entries.", and so does any other
- *  list problem. */
+ *  Cast or Keywords entry over 200 characters reads the existing "Up to 200
+ *  characters." (Bugbot on #801; "Up to 200 characters per entry." is
+ *  proposed, pending the founder). Over 50 entries still reads "Up to 50
+ *  entries.", and so does any other list problem. */
 export function metadataValueError(key: string, value: unknown, now: Date = new Date()): string {
   const field = METADATA_FIELDS.find((f) => f.key === key);
   if (

@@ -22,6 +22,7 @@ import {
   metadataCheckField,
   metadataMergeArgs,
   metadataMergeMissing,
+  metadataRefusalError,
   submitRequiredMissing,
 } from "./metadata-merge";
 import { ISO_COUNTRIES } from "./territories";
@@ -113,6 +114,39 @@ describe("metadataMergeMissing", () => {
     ]) {
       expect(metadataMergeMissing(error), JSON.stringify(error)).toBe(false);
     }
+  });
+});
+
+// Bugbot on #799: the window reads an over-long entry as the entry limit
+// (metadataValueError), so the database's refusal of the same value does too.
+describe("metadataRefusalError", () => {
+  it("reads a list refused for one entry as the entry limit, any other list refusal as the count", () => {
+    expect(metadataRefusalError({ code: "22023", message: "cast: each entry 1 to 200 characters" }, "cast")).toBe(
+      "Up to 200 characters.",
+    );
+    expect(metadataRefusalError({ code: "22023", message: "keywords: each entry 1 to 200 characters\nx" }, "keywords")).toBe(
+      "Up to 200 characters.",
+    );
+    expect(metadataRefusalError({ code: "22023", message: "cast: at most 50" }, "cast")).toBe("Up to 50 entries.");
+    expect(metadataRefusalError({ code: "22023", message: "keywords: expected a list" }, "keywords")).toBe(
+      "Up to 50 entries.",
+    );
+    // The entry wording on a field that is not a list is that field's own line.
+    expect(metadataRefusalError({ code: "22023", message: "director: each entry 1 to 200 characters" }, "director")).toBe(
+      "Up to 200 characters.",
+    );
+    expect(metadataRefusalError({ code: "22023", message: "genre: not in the list" }, "genre")).toBe(
+      "Choose one from the list.",
+    );
+    expect(metadataRefusalError({ code: "22023", message: "runtime_minutes: 1 to 1000" }, "runtime_minutes")).toBe(
+      "Enter whole minutes, 1 to 1,000.",
+    );
+  });
+
+  it("matches the check's own list refusals, word for word", () => {
+    const { body } = functionSql("check_title_metadata");
+    expect(body).toContain("raise exception '%: at most 50', v_key using errcode = '22023';");
+    expect(body).toContain("raise exception '%: each entry 1 to 200 characters', v_key using errcode = '22023';");
   });
 });
 
@@ -211,6 +245,10 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     // Refused at the lock, before the record is read.
     expect(body).toMatch(
       /for no key update;\s+if not found then\s+raise exception 'Title not found in this organization, or not in draft';/,
+    );
+    // A soft-deleted title is refused at the same lock (Bugbot on #799).
+    expect(body).toMatch(
+      /from public\.titles t\s+where t\.id = p_title_id and t\.org_id = p_org_id and t\.deleted_at is null\s+for no key update;/,
     );
     const read = body.indexOf("select data into v_data from public.title_metadata");
     const normalize = body.indexOf("v_data := public.normalize_stored_title_metadata(v_data);");

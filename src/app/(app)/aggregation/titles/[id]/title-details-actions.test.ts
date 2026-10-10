@@ -266,6 +266,28 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     expect(names(seen)).toEqual(["merge_title_metadata"]);
   });
 
+  // Bugbot on #799: a stored Cast entry over 200 characters, refused when
+  // another field is saved, reads as the window reads it.
+  it("names a list the database refuses for one entry with the entry limit", async () => {
+    fake({
+      rpcErrors: { merge_title_metadata: { code: "22023", message: "cast: each entry 1 to 200 characters p_secret" } },
+    });
+    const result = await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null });
+    expect(result).toEqual({
+      ok: false,
+      part: "metadata",
+      field: "cast",
+      error: "Up to 200 characters.",
+      metadataSaved: false,
+    });
+    expect(JSON.stringify(result)).not.toContain("p_secret");
+    fake({ rpcErrors: { merge_title_metadata: { code: "22023", message: "cast: at most 50" } } });
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { director: "X" }, release: null })).toMatchObject({
+      field: "cast",
+      error: "Up to 50 entries.",
+    });
+  });
+
   it.each([
     { code: "P0001", message: 'relation "x" violates policy p_secret' },
     { code: "42501", message: "permission denied for function merge_title_metadata" },

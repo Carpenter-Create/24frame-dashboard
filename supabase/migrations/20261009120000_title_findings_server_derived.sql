@@ -443,10 +443,12 @@ begin
   end if;
 
   -- The metadata writers' title lock: a save in flight finishes first, and
-  -- the read below sees what it stored. A title outside p_org_id is refused
-  -- here, before its record is read, so no answer depends on it.
+  -- the read below sees what it stored. A title outside p_org_id, or a
+  -- soft-deleted one, is refused here, before its record is read, so no
+  -- answer depends on it (Bugbot on #799: merge, set and reconcile refuse a
+  -- deleted title at the lock too).
   perform 1 from public.titles t
-   where t.id = p_title_id and t.org_id = p_org_id
+   where t.id = p_title_id and t.org_id = p_org_id and t.deleted_at is null
    for no key update;
   if not found then
     raise exception 'Title not found in this organization, or not in draft';
