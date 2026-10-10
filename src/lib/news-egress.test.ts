@@ -145,10 +145,10 @@ describe("news egress (P0-3)", () => {
     ).resolves.toMatchObject({ hostname: "indiewire.com" });
     await expect(
       assertNewsEgressUrl("https://joblo.com/feed/", { lookup: PUBLIC_LOOKUP }),
-    ).resolves.toMatchObject({ hostname: "joblo.com" });
+    ).rejects.toThrow(/not allowlisted/);
     await expect(
       assertNewsEgressUrl("https://www.joblo.com/feed/", { lookup: PUBLIC_LOOKUP }),
-    ).resolves.toMatchObject({ hostname: "www.joblo.com" });
+    ).rejects.toThrow(/not allowlisted/);
 
     const fetchEvil = vi.fn<typeof fetch>(
       async () =>

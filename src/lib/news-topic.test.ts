@@ -153,19 +153,19 @@ describe("classifyNewsTopic — awards / box office ambiguity", () => {
 });
 
 describe("classifyNewsTopic — on-beat source default", () => {
-  it("defaults JoBlo / IndieWire / NFS / Screen Daily to film when nothing else fires", () => {
-    expect(
-      classifyNewsTopic({
-        title: "Flood influence",
-        url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-        source: "joblo",
-      }),
-    ).toBe("film");
+  it("defaults IndieWire / NFS / Screen Daily to film when nothing else fires", () => {
     expect(
       classifyNewsTopic({
         title: "Feature interview",
         url: "https://indiewire.com/2026/feature-interview",
         source: "indiewire",
+      }),
+    ).toBe("film");
+    expect(
+      classifyNewsTopic({
+        title: "Trade dispatch",
+        url: "https://www.screendaily.com/2026/dispatch",
+        source: "screen-daily",
       }),
     ).toBe("film");
   });
@@ -180,12 +180,12 @@ describe("classifyNewsTopic — on-beat source default", () => {
     ).toBe("tv");
   });
 
-  it("still drops JoBlo music-path URLs even with a source default", () => {
+  it("still drops music-path URLs even with a film source default", () => {
     expect(
       classifyNewsTopic({
         title: "Soundtrack drop",
-        url: "https://joblo.com/music/soundtrack-drop",
-        source: "joblo",
+        url: "https://indiewire.com/music/soundtrack-drop",
+        source: "indiewire",
       }),
     ).toBe("music");
   });

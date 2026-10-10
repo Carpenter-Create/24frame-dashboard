@@ -6,11 +6,9 @@ import {
   canonicalizeNewsImageUrl,
   newsCardImageUrl,
   canonicalizeNewsUrl,
-  newsOgFetchUrl,
   parseNewsDate,
   parseNewsFeed,
   parseOgImageUrl,
-  planJobloImageUrl,
 } from "./news-rss";
 
 const NOW = new Date("2026-09-18T18:00:00.000Z");
@@ -66,88 +64,18 @@ describe("canonicalizeNewsUrl", () => {
 });
 
 describe("canonicalizeNewsImageUrl", () => {
-  const floodWww =
-    "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg";
-  const floodApex =
-    "https://joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg";
-
-  it("rewrites JoBlo apex media to www and leaves already-www / non-JoBlo alone", () => {
-    expect(canonicalizeNewsImageUrl(floodApex)).toBe(floodWww);
-    expect(canonicalizeNewsImageUrl(floodWww)).toBe(floodWww);
+  it("passes a publisher URL through and keeps a mirrored news-thumbs URL", () => {
     expect(canonicalizeNewsImageUrl("https://variety.com/thumbs/harbor.jpg")).toBe(
       "https://variety.com/thumbs/harbor.jpg",
     );
-    expect(canonicalizeNewsImageUrl("https://cdn.joblo.com/thumbs/x.jpg")).toBe(
-      "https://cdn.joblo.com/thumbs/x.jpg",
-    );
     expect(canonicalizeNewsImageUrl(null)).toBeNull();
-    expect(newsCardImageUrl(floodApex)).toBe(floodWww);
+    expect(newsCardImageUrl("https://variety.com/thumbs/harbor.jpg")).toBe(
+      "https://variety.com/thumbs/harbor.jpg",
+    );
     expect(
-      newsCardImageUrl("https://delivery.globalcontent.co/news-thumbs/joblo/abc.jpg"),
-    ).toBe("https://delivery.globalcontent.co/news-thumbs/joblo/abc.jpg");
+      newsCardImageUrl("https://delivery.globalcontent.co/news-thumbs/variety/abc.jpg"),
+    ).toBe("https://delivery.globalcontent.co/news-thumbs/variety/abc.jpg");
     expect(newsCardImageUrl(null)).toBeNull();
-  });
-
-  it("collapses a doubled www.joblo.com host in the path", () => {
-    expect(canonicalizeNewsImageUrl("https://joblo.com/www.joblo.com/wp-content/x.jpg")).toBe(
-      "https://www.joblo.com/wp-content/x.jpg",
-    );
-    expect(canonicalizeNewsImageUrl("https://www.joblo.com/www.joblo.com/wp-content/x.jpg")).toBe(
-      "https://www.joblo.com/wp-content/x.jpg",
-    );
-    expect(
-      canonicalizeNewsImageUrl("https://www.joblo.com/www.joblo.com/www.joblo.com/wp-content/x.jpg"),
-    ).toBe("https://www.joblo.com/wp-content/x.jpg");
-    expect(canonicalizeNewsImageUrl("https://www.joblo.com/wp-content/x.jpg")).toBe(
-      "https://www.joblo.com/wp-content/x.jpg",
-    );
-    expect(canonicalizeNewsImageUrl("https://variety.com/www.joblo.com/thumbs/harbor.jpg")).toBe(
-      "https://variety.com/www.joblo.com/thumbs/harbor.jpg",
-    );
-  });
-
-  it("prefers www when fetching a JoBlo article that canonicalizeNewsUrl stored as apex", () => {
-    expect(newsOgFetchUrl("https://joblo.com/zach-cregger-the-flood-2001-influence")).toBe(
-      "https://www.joblo.com/zach-cregger-the-flood-2001-influence",
-    );
-    expect(newsOgFetchUrl("https://www.joblo.com/zach-cregger-the-flood-2001-influence")).toBe(
-      "https://www.joblo.com/zach-cregger-the-flood-2001-influence",
-    );
-    expect(newsOgFetchUrl("https://variety.com/live")).toBe("https://variety.com/live");
-  });
-
-  it("plans apex rewrite and the known Flood OG fill without touching other hosts", () => {
-    expect(
-      planJobloImageUrl({
-        url: "https://joblo.com/story",
-        image_url: "https://joblo.com/wp-content/uploads/2026/09/thumb.jpg",
-      }),
-    ).toEqual({
-      next: "https://www.joblo.com/wp-content/uploads/2026/09/thumb.jpg",
-      action: "rewrite",
-    });
-    expect(
-      planJobloImageUrl({
-        url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-        image_url: null,
-        fillKnown: true,
-      }),
-    ).toEqual({
-      next: "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg",
-      action: "fill-known",
-    });
-    expect(
-      planJobloImageUrl({
-        url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-        image_url: null,
-      }),
-    ).toEqual({ next: null, action: "still-null" });
-    expect(
-      planJobloImageUrl({
-        url: "https://variety.com/live",
-        image_url: "https://variety.com/thumbs/harbor.jpg",
-      }),
-    ).toEqual({ next: "https://variety.com/thumbs/harbor.jpg", action: "unchanged" });
   });
 });
 
@@ -187,7 +115,7 @@ describe("parseNewsFeed", () => {
 
   it("does not invent a source outside the allowlist", () => {
     expect(parseNewsFeed(RSS, "variety", NOW)[0]?.source).toBe("variety");
-    expect(NEWS_SOURCES).toHaveLength(11);
+    expect(NEWS_SOURCES).toHaveLength(10);
   });
 
   it("stamps a topic on every parsed item — RSS category signals count", () => {
@@ -210,42 +138,6 @@ describe("parseNewsFeed", () => {
 </rss>`;
     const items = parseNewsFeed(xml, "hollywood-reporter", NOW);
     expect(items.map((item) => item.topic)).toEqual(["music", "film"]);
-  });
-
-  it("rewrites JoBlo RSS enclosure thumbs from apex to www", () => {
-    const xml = `<?xml version="1.0"?>
-<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
-  <channel>
-    <item>
-      <title>Flood influence</title>
-      <link>https://joblo.com/zach-cregger-the-flood-2001-influence</link>
-      <pubDate>Thu, 17 Sep 2026 12:00:00 GMT</pubDate>
-      <media:thumbnail url="https://joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg" />
-    </item>
-  </channel>
-</rss>`;
-    const items = parseNewsFeed(xml, "joblo", NOW);
-    expect(items).toHaveLength(1);
-    expect(items[0]?.url).toBe("https://joblo.com/zach-cregger-the-flood-2001-influence");
-    expect(items[0]?.image_url).toBe(
-      "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg",
-    );
-  });
-
-  it("collapses a doubled www host in a JoBlo RSS enclosure path", () => {
-    const xml = `<?xml version="1.0"?>
-<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
-  <channel>
-    <item>
-      <title>Doubled host thumb</title>
-      <link>https://joblo.com/doubled-host-thumb</link>
-      <pubDate>Thu, 17 Sep 2026 12:00:00 GMT</pubDate>
-      <media:thumbnail url="https://joblo.com/www.joblo.com/wp-content/uploads/x.jpg" />
-    </item>
-  </channel>
-</rss>`;
-    const items = parseNewsFeed(xml, "joblo", NOW);
-    expect(items[0]?.image_url).toBe("https://www.joblo.com/wp-content/uploads/x.jpg");
   });
 });
 
@@ -315,21 +207,6 @@ describe("parseOgImageUrl", () => {
         page,
       ),
     ).toBe("https://thr.com/tw-src.jpg");
-  });
-
-  it("keeps Flood-style JoBlo OG on www after canonicalize strips the host", () => {
-    expect(
-      parseOgImageUrl(
-        `<meta property="og:image" content="https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg" />`,
-        "https://joblo.com/zach-cregger-the-flood-2001-influence",
-      ),
-    ).toBe("https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg");
-    expect(
-      parseOgImageUrl(
-        `<meta property="og:image" content="https://joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg" />`,
-        "https://www.joblo.com/zach-cregger-the-flood-2001-influence",
-      ),
-    ).toBe("https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg");
   });
 });
 

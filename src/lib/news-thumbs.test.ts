@@ -2,21 +2,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  backfillNewsThumbUrls,
   isMirroredNewsThumbUrl,
   isNewsThumbMirrorConfigured,
   mirrorNewsImageUrl,
   NEWS_THUMBS_PREFIX,
   newsThumbObjectKey,
-  planNewsThumbBackfill,
   previewNewsThumbPublicUrl,
 } from "./news-thumbs";
 
-const FLOOD_CANON = "https://joblo.com/zach-cregger-the-flood-2001-influence";
-const FLOOD_APEX =
-  "https://joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg";
-const FLOOD_WWW =
-  "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg";
+const CANON = "https://variety.com/2026/film/news/harbor";
+const REMOTE = "https://variety.com/thumbs/harbor.jpg";
 const CF = "https://delivery.globalcontent.co";
 const MIRROR_ENV = {
   S3_BUCKET: "gc-content-assets-prod",
@@ -33,15 +28,15 @@ function jpegResponse(): Response {
 
 describe("news thumb key + public URL", () => {
   it("stays under news-thumbs/ and builds the title CloudFront URL", () => {
-    const key = newsThumbObjectKey("joblo", FLOOD_CANON, "jpg");
+    const key = newsThumbObjectKey("variety", CANON, "jpg");
     expect(key.startsWith(NEWS_THUMBS_PREFIX)).toBe(true);
-    expect(key).toMatch(/^news-thumbs\/joblo\/[0-9a-f]{32}\.jpg$/);
+    expect(key).toMatch(/^news-thumbs\/variety\/[0-9a-f]{32}\.jpg$/);
     expect(key).not.toContain("orgs/");
-    expect(previewNewsThumbPublicUrl("joblo", FLOOD_CANON, FLOOD_WWW, MIRROR_ENV)).toBe(
+    expect(previewNewsThumbPublicUrl("variety", CANON, REMOTE, MIRROR_ENV)).toBe(
       `${CF}/${key}`,
     );
     expect(isMirroredNewsThumbUrl(`${CF}/${key}`, MIRROR_ENV)).toBe(true);
-    expect(isMirroredNewsThumbUrl(FLOOD_WWW, MIRROR_ENV)).toBe(false);
+    expect(isMirroredNewsThumbUrl(REMOTE, MIRROR_ENV)).toBe(false);
     expect(isNewsThumbMirrorConfigured({})).toBe(false);
     expect(isNewsThumbMirrorConfigured(MIRROR_ENV)).toBe(true);
   });
@@ -51,25 +46,25 @@ describe("mirrorNewsImageUrl", () => {
   it("writes the CloudFront URL on a successful PutObject", async () => {
     const putObject = vi.fn(async () => undefined);
     const result = await mirrorNewsImageUrl({
-      source: "joblo",
-      canonicalUrl: FLOOD_CANON,
-      remoteUrl: FLOOD_APEX,
+      source: "variety",
+      canonicalUrl: CANON,
+      remoteUrl: REMOTE,
       fetchImpl: async () => jpegResponse(),
       putObject,
       env: MIRROR_ENV,
     });
-    const key = newsThumbObjectKey("joblo", FLOOD_CANON, "jpg");
+    const key = newsThumbObjectKey("variety", CANON, "jpg");
     expect(putObject).toHaveBeenCalledTimes(1);
     expect(putObject).toHaveBeenCalledWith(key, expect.any(Uint8Array), "image/jpeg");
     expect(result.mirrored).toBe(true);
     expect(result.url).toBe(`${CF}/${key}`);
   });
 
-  it("keeps the canonicalized remote URL when PutObject fails", async () => {
+  it("keeps the remote URL when PutObject fails", async () => {
     const result = await mirrorNewsImageUrl({
-      source: "joblo",
-      canonicalUrl: FLOOD_CANON,
-      remoteUrl: FLOOD_APEX,
+      source: "variety",
+      canonicalUrl: CANON,
+      remoteUrl: REMOTE,
       fetchImpl: async () => jpegResponse(),
       putObject: async () => {
         throw new Error("AccessDenied");
@@ -77,53 +72,8 @@ describe("mirrorNewsImageUrl", () => {
       env: MIRROR_ENV,
     });
     expect(result.mirrored).toBe(false);
-    expect(result.url).toBe(FLOOD_WWW);
+    expect(result.url).toBe(REMOTE);
     expect(result.error).toBe("AccessDenied");
-  });
-});
-
-describe("backfillNewsThumbUrls dry-run", () => {
-  it("previews the CF URL and does not PutObject or write Dynamo", async () => {
-    const putObject = vi.fn(async () => undefined);
-    const writeItem = vi.fn(async () => undefined);
-    const logs: string[] = [];
-    const summary = await backfillNewsThumbUrls({
-      apply: false,
-      fillKnown: false,
-      allSources: false,
-      rows: [
-        {
-          source: "joblo",
-          url: FLOOD_CANON,
-          canonical_url: FLOOD_CANON,
-          image_url: FLOOD_APEX,
-        },
-        {
-          source: "variety",
-          url: "https://variety.com/live",
-          canonical_url: "https://variety.com/live",
-          image_url: "https://variety.com/thumbs/harbor.jpg",
-        },
-      ],
-      putObject,
-      writeItem,
-      env: MIRROR_ENV,
-      log: (line) => logs.push(line),
-    });
-    expect(summary.rewrite).toBe(1);
-    expect(summary.unchanged).toBe(1);
-    expect(summary.wrote).toBe(0);
-    expect(putObject).not.toHaveBeenCalled();
-    expect(writeItem).not.toHaveBeenCalled();
-    expect(logs.some((line) => line.includes(`${CF}/news-thumbs/joblo/`))).toBe(true);
-    expect(
-      planNewsThumbBackfill({
-        source: "joblo",
-        url: FLOOD_CANON,
-        image_url: `${CF}/news-thumbs/joblo/abc.jpg`,
-        env: MIRROR_ENV,
-      }).action,
-    ).toBe("unchanged");
   });
 });
 

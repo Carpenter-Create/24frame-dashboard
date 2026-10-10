@@ -21,12 +21,12 @@ describe("putObjectBytes", () => {
   });
 
   it("PutObject to S3_BUCKET with the given key and type", async () => {
-    await putObjectBytes("news-thumbs/joblo/abc.jpg", new Uint8Array([1, 2, 3]), "image/jpeg");
+    await putObjectBytes("news-thumbs/variety/abc.jpg", new Uint8Array([1, 2, 3]), "image/jpeg");
     expect(mockSend).toHaveBeenCalledTimes(1);
     const cmd = mockSend.mock.calls[0]?.[0] as PutObjectCommand;
     expect(cmd).toBeInstanceOf(PutObjectCommand);
     expect(cmd.input.Bucket).toBe("test-bucket");
-    expect(cmd.input.Key).toBe("news-thumbs/joblo/abc.jpg");
+    expect(cmd.input.Key).toBe("news-thumbs/variety/abc.jpg");
     expect(cmd.input.ContentType).toBe("image/jpeg");
     expect(cmd.input.CacheControl).toBe("public, max-age=86400");
     expect(S3Client).toHaveBeenCalledWith({
@@ -45,7 +45,7 @@ describe("putObjectBytes", () => {
       const { S3Client: FreshS3Client } = await import("@aws-sdk/client-s3");
       vi.mocked(FreshS3Client).mockClear();
       const { putObjectBytes: putFresh } = await import("./s3-put");
-      await putFresh("news-thumbs/joblo/abc.jpg", new Uint8Array([1, 2, 3]), "image/jpeg");
+      await putFresh("news-thumbs/variety/abc.jpg", new Uint8Array([1, 2, 3]), "image/jpeg");
       expect(FreshS3Client).toHaveBeenCalledWith({
         region: "us-west-2",
         followRegionRedirects: true,

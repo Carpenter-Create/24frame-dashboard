@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { NEWS_HOME_CAP, NEWS_WINDOW_MS, newsItemTtlEpoch } from "./news";
+import { NEWS_HOME_CAP, NEWS_WINDOW_MS, newsItemTtlEpoch, type NewsSourceId } from "./news";
+import { loadHomeNews, loadNewsHistory, resetNewsReadCache } from "./news-load";
 import type { NormalizedNewsItem } from "./news-rss";
 import { memoryNewsStore, mergeNewsImageUrl } from "./news-store";
 
@@ -47,15 +48,14 @@ describe("memoryNewsStore", () => {
   });
 });
 
-const FLOOD_WWW =
-  "https://www.joblo.com/wp-content/uploads/2026/09/zach-cregger-the-flood-2001.jpg";
+const STORED_THUMB = "https://variety.com/thumbs/harbor.jpg";
 
-function floodItem(image_url: string | null): NormalizedNewsItem {
+function thumbItem(image_url: string | null): NormalizedNewsItem {
   return {
-    title: "Flood influence",
-    url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-    canonical_url: "https://joblo.com/zach-cregger-the-flood-2001-influence",
-    source: "joblo",
+    title: "Harbor Cut",
+    url: "https://variety.com/harbor-cut",
+    canonical_url: "https://variety.com/harbor-cut",
+    source: "variety",
     published_at: "2026-09-17T12:00:00.000Z",
     image_url,
     topic: "film",
@@ -63,39 +63,69 @@ function floodItem(image_url: string | null): NormalizedNewsItem {
 }
 
 describe("mergeNewsImageUrl", () => {
-  it("preserves an existing www thumb when incoming is null or empty", () => {
-    expect(mergeNewsImageUrl(FLOOD_WWW, null)).toBe(FLOOD_WWW);
-    expect(mergeNewsImageUrl(FLOOD_WWW, "")).toBe(FLOOD_WWW);
-    expect(mergeNewsImageUrl(FLOOD_WWW, "   ")).toBe(FLOOD_WWW);
+  it("preserves an existing thumb when incoming is null or empty", () => {
+    expect(mergeNewsImageUrl(STORED_THUMB, null)).toBe(STORED_THUMB);
+    expect(mergeNewsImageUrl(STORED_THUMB, "")).toBe(STORED_THUMB);
+    expect(mergeNewsImageUrl(STORED_THUMB, "   ")).toBe(STORED_THUMB);
     expect(mergeNewsImageUrl(null, null)).toBeNull();
     expect(mergeNewsImageUrl(undefined, "")).toBeNull();
   });
 
   it("replaces an existing thumb when incoming is a new non-null URL", () => {
-    const next = "https://www.joblo.com/wp-content/uploads/2026/09/replacement.jpg";
-    expect(mergeNewsImageUrl(FLOOD_WWW, next)).toBe(next);
-    expect(mergeNewsImageUrl(null, FLOOD_WWW)).toBe(FLOOD_WWW);
+    const next = "https://variety.com/thumbs/replacement.jpg";
+    expect(mergeNewsImageUrl(STORED_THUMB, next)).toBe(next);
+    expect(mergeNewsImageUrl(null, STORED_THUMB)).toBe(STORED_THUMB);
   });
 });
 
 describe("memoryNewsStore image_url merge", () => {
-  it("upsert with null does not clear an existing www image_url", async () => {
+  it("upsert with null does not clear an existing image_url", async () => {
     const store = memoryNewsStore();
-    await store.upsertItems([floodItem(FLOOD_WWW)], NOW);
-    await store.upsertItems([{ ...floodItem(null), title: "Flood influence again" }], NOW);
+    await store.upsertItems([thumbItem(STORED_THUMB)], NOW);
+    await store.upsertItems([{ ...thumbItem(null), title: "Harbor Cut again" }], NOW);
     const rows = await store.queryFeed({ limit: 20, now: NOW });
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.title).toBe("Flood influence again");
-    expect(rows[0]?.image_url).toBe(FLOOD_WWW);
+    expect(rows[0]?.title).toBe("Harbor Cut again");
+    expect(rows[0]?.image_url).toBe(STORED_THUMB);
   });
 
   it("upsert with a new non-null image_url replaces the old", async () => {
     const store = memoryNewsStore();
-    await store.upsertItems([floodItem(FLOOD_WWW)], NOW);
-    const next = "https://www.joblo.com/wp-content/uploads/2026/09/replacement.jpg";
-    await store.upsertItems([floodItem(next)], NOW);
+    await store.upsertItems([thumbItem(STORED_THUMB)], NOW);
+    const next = "https://variety.com/thumbs/replacement.jpg";
+    await store.upsertItems([thumbItem(next)], NOW);
     const rows = await store.queryFeed({ limit: 20, now: NOW });
     expect(rows[0]?.image_url).toBe(next);
+  });
+
+  it("filters a stored JoBlo row out of the feed", async () => {
+    // Retired outlet. Stored rows still carry the string; the read path
+    // drops any source that is not on the allowlist.
+    const retired = "https://joblo.com/zach-cregger-the-flood-2001-influence";
+    const store = memoryNewsStore();
+    await store.upsertItems(
+      [
+        thumbItem(STORED_THUMB),
+        {
+          title: "Flood influence",
+          url: retired,
+          canonical_url: retired,
+          source: "joblo" as NewsSourceId,
+          published_at: "2026-09-17T13:00:00.000Z",
+          image_url: "https://www.joblo.com/wp-content/uploads/thumb.jpg",
+          topic: "film",
+        },
+      ],
+      NOW,
+    );
+    const rows = await store.queryFeed({ limit: 20, now: NOW });
+    expect(rows.map((row) => row.url)).toEqual(["https://variety.com/harbor-cut"]);
+    resetNewsReadCache();
+    const home = await loadHomeNews(NOW, store);
+    const history = await loadNewsHistory(NOW, store);
+    expect(home.map((row) => row.url)).toEqual(["https://variety.com/harbor-cut"]);
+    expect(history.rows.map((row) => row.url)).toEqual(["https://variety.com/harbor-cut"]);
+    expect(JSON.stringify({ home, history })).not.toMatch(/joblo/i);
   });
 });
 

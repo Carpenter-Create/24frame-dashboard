@@ -53,7 +53,6 @@ export const NEWS_SOURCE_IDS = [
   "no-film-school",
   "filmmaker-magazine",
   "moviemaker",
-  "joblo",
   "film-threat",
   "screen-daily",
 ] as const;
@@ -131,12 +130,6 @@ export const NEWS_SOURCES = [
     id: "moviemaker",
     label: "MovieMaker",
     feedUrls: ["https://www.moviemaker.com/feed/"],
-    enabled: true,
-  },
-  {
-    id: "joblo",
-    label: "JoBlo",
-    feedUrls: ["https://www.joblo.com/feed/"],
     enabled: true,
   },
   {

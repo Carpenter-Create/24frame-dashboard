@@ -64,7 +64,6 @@ describe("News SoT", () => {
       "No Film School",
       "Filmmaker Magazine",
       "MovieMaker",
-      "JoBlo",
       "Film Threat",
       "Screen Daily",
     ]);

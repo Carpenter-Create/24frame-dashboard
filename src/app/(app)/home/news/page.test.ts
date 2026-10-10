@@ -98,7 +98,7 @@ describe("NewsPage", () => {
     });
 
     const html = renderToStaticMarkup(
-      await NewsPage({ searchParams: Promise.resolve({ source: "joblo" }) }),
+      await NewsPage({ searchParams: Promise.resolve({ source: "film-threat" }) }),
     );
     expect(html).toContain(NEWS_PAGE.filterEmpty);
     expect(html).not.toContain("Harbor Cut lands a festival slot");

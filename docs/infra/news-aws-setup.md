@@ -15,8 +15,7 @@ redirect. Ingest
 **writes** DynamoDB. Page requests never fan out RSS. RSS media /
 enclosure first; when `image_url` is null, ingest OG-scrapes the
 article (`og:image` / `twitter:image`, 12s timeout, desktop Chrome UA,
-1.5MB HTML cap, fail-soft). **JoBlo always OG-scrapes** even when the
-RSS enclosure exists (enclosure has been wrong/apex). After a remote
+1.5MB HTML cap, fail-soft). After a remote
 `image_url` is resolved, ingest **mirrors bytes** to the title-asset
 bucket prefix `news-thumbs/` (`S3_BUCKET` + house `putObjectBytes`)
 and persists the unsigned `CLOUDFRONT_DOMAIN` URL. A mirror miss
@@ -28,7 +27,7 @@ positive integer). Per-source CloudWatch counters: `ogAttempted`,
 Feed is **film + tv only**. Cross-beat trades (Hollywood Reporter,
 Variety, Deadline) ingest **section RSS** — never the site-wide feed
 — so music and other beats do not enter the pipeline. Film-first
-trades (IndieWire, JoBlo, No Film School, Filmmaker Magazine,
+trades (IndieWire, No Film School, Filmmaker Magazine,
 MovieMaker, Film Threat, Screen Daily) and tv-first (TVLine) keep one
 on-beat feed each. A second **ingest topic gate** in
 `src/lib/news-topic.ts` re-classifies every candidate (URL path →
@@ -221,27 +220,13 @@ image. No console row edit. To run once without waiting for cron,
 use the invoke above. A scrape timeout or miss leaves the grey plate
 — it does not fail the source.
 
-**JoBlo / news thumbs (mirror).** Cards load our CloudFront URL, not
-the publisher CDN. Ingest canonicalizes JoBlo apex → www, force-OGs
-JoBlo, then PutObject to `$S3_BUCKET/news-thumbs/{source}/{hash}.{ext}`
-and writes `https://$CLOUDFRONT_DOMAIN/news-thumbs/...`. After Lambda
-redeploy, existing Dynamo rows still hotlink remotes until backfill
-(merge ≠ live, and items that left the RSS window are not re-upserted).
-CoS only — dry-run default:
-
-```
-# preview apex→www + planned CF URLs; no PutObject / PutItem
-pnpm exec tsx scripts/news/backfill-joblo-image-urls.ts
-# apply mirror + PutItem (same pk / canonical_url)
-pnpm exec tsx scripts/news/backfill-joblo-image-urls.ts --apply
-# optional: fill the known Flood OG when image_url is null, then mirror
-pnpm exec tsx scripts/news/backfill-joblo-image-urls.ts --apply --fill-known
-# optional: every source that still has a remote thumb
-pnpm exec tsx scripts/news/backfill-joblo-image-urls.ts --all-sources
-```
-
-Then invoke ingest once to soak new items. Live backfill and Lambda
-redeploy stay CoS/founder — not this merge.
+**News thumbs (mirror).** Cards load our CloudFront URL, not
+the publisher CDN. Ingest PutObject to
+`$S3_BUCKET/news-thumbs/{source}/{hash}.{ext}` and writes
+`https://$CLOUDFRONT_DOMAIN/news-thumbs/...`. After Lambda redeploy,
+the next ingest upserts rows still in the RSS window. Items that left
+the window are not re-upserted. Lambda redeploy stays CoS/founder —
+not this merge.
 
 **Music / other row purge (one-shot).** Rows that ingested before the
 topic gate landed can be evicted without waiting for TTL. Dry-run
