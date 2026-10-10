@@ -1,13 +1,15 @@
 /**
  * Remove gc-hold from every face profiles.avatar_key names.
  * Dry-run is the default. Pass --execute to delete the tag and confirm it is gone.
+ * Immediately before each clear, read that profile's avatar_key again.
+ * A key that read no longer names, or a read that errors, is a skipped clear. The tag stays.
  * A tag read that fails is unverified. The tag stays.
  * Do not run this against production from CI. Adam runs it after the avatar SQL is applied.
  *
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts --execute
  */
-import { AVATAR_CLEARED } from "@/lib/account-avatar";
+import { AVATAR_CLEARED, avatarPointerNamesKey } from "@/lib/account-avatar";
 import { clearAvatarHoldTag, readAvatarObjectTags } from "@/lib/s3-avatars";
 import { SOCIAL_IMAGE_RECHECK_PAGE } from "@/lib/social-image-reencode";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -22,6 +24,7 @@ export type UnholdLiveAvatarsReport = {
   checked: number;
   held: number;
   cleared: number;
+  skippedClears: number;
   unverified: number;
 };
 
@@ -34,13 +37,16 @@ function holdTagRemains(tags: readonly { Key?: string; Value?: string }[]): bool
 /**
  * Page profiles by id. A non-null avatar_key is checked.
  * `cleared` is not an object. Any gc-hold value on a real key is held.
- * --execute removes that tag and counts it cleared only when the follow-up read has no gc-hold.
+ * --execute reads profiles.avatar_key again immediately before the clear.
+ * A pointer that no longer names the key, or a read that fails, increments skippedClears and leaves the tag.
+ * A clear counts only when the follow-up tag read has no gc-hold.
  */
 export async function unholdLiveAvatars(input: {
   execute: boolean;
   pageSize: number;
   loadPage: (afterId: string | null, limit: number) => Promise<UnholdRow[]>;
   readTags: (key: string) => Promise<{ Key?: string; Value?: string }[]>;
+  readPointer: (profileId: string) => Promise<string | null>;
   clearTag: (key: string) => Promise<void>;
 }): Promise<UnholdLiveAvatarsReport> {
   const report: UnholdLiveAvatarsReport = {
@@ -49,6 +55,7 @@ export async function unholdLiveAvatars(input: {
     checked: 0,
     held: 0,
     cleared: 0,
+    skippedClears: 0,
     unverified: 0,
   };
   let afterId: string | null = null;
@@ -69,6 +76,17 @@ export async function unholdLiveAvatars(input: {
       if (!holdTagRemains(tags)) continue;
       report.held += 1;
       if (!input.execute) continue;
+      let pointer: string | null;
+      try {
+        pointer = await input.readPointer(row.id);
+      } catch {
+        report.skippedClears += 1;
+        continue;
+      }
+      if (!avatarPointerNamesKey(row.id, pointer, row.avatar_key)) {
+        report.skippedClears += 1;
+        continue;
+      }
       try {
         await input.clearTag(row.avatar_key);
         report.cleared += 1;
@@ -93,12 +111,20 @@ async function loadUnholdPage(afterId: string | null, limit: number): Promise<Un
   return (data ?? []).map((row) => ({ id: row.id, avatar_key: row.avatar_key }));
 }
 
+async function readProfilePointer(profileId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const row = await admin.from("profiles").select("avatar_key").eq("id", profileId).maybeSingle();
+  if (row.error || !row.data) throw row.error ?? new Error("avatar pointer was not read");
+  return row.data.avatar_key;
+}
+
 export async function runUnholdLiveAvatars(execute: boolean): Promise<UnholdLiveAvatarsReport> {
   return unholdLiveAvatars({
     execute,
     pageSize: SOCIAL_IMAGE_RECHECK_PAGE,
     loadPage: loadUnholdPage,
     readTags: (key) => readAvatarObjectTags(key),
+    readPointer: readProfilePointer,
     clearTag: (key) => clearAvatarHoldTag(key),
   });
 }
