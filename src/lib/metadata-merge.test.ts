@@ -292,7 +292,7 @@ describe("the one pass over live titles' findings (draft, founder-applied)", () 
 describe("merge_title_metadata SQL (draft, founder-applied)", () => {
   it("has the signature, gate and locks the action relies on, in its own body", () => {
     const merge = functionSql(MERGE_TITLE_METADATA);
-    expect(merge.header).toBe("(p_org_id uuid, p_title_id uuid, p_set jsonb, p_clear text[])");
+    expect(merge.header).toBe("(p_org_id uuid, p_title_id uuid, p_set jsonb, p_clear text[], p_repair jsonb default null)");
     expect(merge.body).toContain("security definer");
     expect(merge.body).toContain("set search_path = public");
     expect(merge.body).toContain("public.member_can(auth.uid(), p_org_id, 'operate')");
@@ -305,9 +305,42 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     expect(merge.body).toContain("public.check_title_metadata(");
     expect(merge.body).toContain("public.refresh_title_findings(");
     expect(merge.after.split("\n").slice(0, 2)).toEqual([
-      "revoke execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) from public, anon;",
-      "grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) to authenticated;",
+      "revoke execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb) from public, anon;",
+      "grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb) to authenticated;",
     ]);
+    expect(MIGRATION).toContain("--   drop function public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb);");
+    expect(MIGRATION).not.toMatch(/merge_title_metadata\(uuid, uuid, jsonb, text\[\]\)/);
+  });
+
+  // Review on #799: a repair sent with the window's stale view overwrote a
+  // save made since. It now applies only while the stored value is still the
+  // one the window opened on, under the lock, never over a field the save
+  // sets or clears, and never as a clear.
+  it("applies a repair only while the stored value is the one the window opened on", () => {
+    const { body } = functionSql(MERGE_TITLE_METADATA);
+    expect(body).toContain("v_repair  jsonb  := coalesce(p_repair, '{}'::jsonb);");
+    expect(body).toMatch(
+      /if jsonb_typeof\(v_repair\) <> 'object' then\s+raise exception 'p_repair must be a JSON object' using errcode = '22023';/,
+    );
+    const loop = body.indexOf("for v_key, v_fix in select key, value from jsonb_each(v_repair) loop");
+    expect(loop).toBeGreaterThan(body.search(/from public\.title_metadata m\s+where m\.title_id = p_title_id\s+for update;/));
+    expect(body.slice(loop)).toMatch(
+      new RegExp(
+        [
+          "if jsonb_typeof\\(v_fix\\) = 'object'",
+          "and not \\(v_set \\? v_key\\)",
+          "and not \\(v_key = any \\(v_clear\\)\\)",
+          "and not public\\.title_metadata_value_empty\\(v_fix -> 'to'\\)",
+          "and \\(v_current -> v_key\\) = \\(v_fix -> 'from'\\) then",
+          "v_fixed := v_fixed \\|\\| jsonb_build_object\\(v_key, v_fix -> 'to'\\);",
+          "end if;",
+          "end loop;",
+        ].join("\\s+"),
+      ),
+    );
+    // Applied under the change: the save's own set and clear win.
+    expect(body).toContain("(public.normalize_stored_title_metadata(v_current) || v_fixed || v_set) - v_clear);");
+    expect(body.split("v_fixed :=")).toHaveLength(2);
   });
 
   it("gives every metadata writer the same title lock, before it touches the record", () => {
@@ -486,11 +519,13 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
   it("is typed by hand in database.types.ts with the SQL's argument names", () => {
     const entry = /\n {6}merge_title_metadata: \{\n {8}Args: \{([^}]*)\}\n {8}Returns: undefined\n {6}\}/.exec(TYPES);
     expect(entry).not.toBeNull();
-    const typed = [...(entry?.[1] ?? "").matchAll(/(p_\w+):/g)].map((m) => m[1]).sort();
+    const typed = [...(entry?.[1] ?? "").matchAll(/(p_\w+)\??:/g)].map((m) => m[1]).sort();
     const sql = [...functionSql(MERGE_TITLE_METADATA).header.matchAll(/(p_\w+) /g)].map((m) => m[1]).sort();
     expect(typed).toEqual(sql);
     expect(entry?.[1]).toContain("p_clear: string[]");
     expect(entry?.[1]).toContain("p_set: Json");
+    // Defaulted in SQL, so optional here.
+    expect(entry?.[1]).toContain("p_repair?: Json");
   });
 });
 
@@ -560,7 +595,7 @@ describe("normalize parity (the fixtures shared with title_metadata_merge_test.s
   // lossy decimal rounds alike on both, and text that trims to nothing is
   // empty on both. No known difference is left.
   it("has the shared rows, with no known difference", () => {
-    expect(rows.length).toBeGreaterThanOrEqual(36);
+    expect(rows.length).toBeGreaterThanOrEqual(44);
     expect(block).not.toMatch(/js-differs/);
     for (const input of ['{"runtime_minutes":"0x60"}', '{"runtime_minutes":"0b11"}', '{"release_year":"0o3720"}']) {
       expect(jsOf(input), input).toBe(input);
@@ -569,6 +604,18 @@ describe("normalize parity (the fixtures shared with title_metadata_merge_test.s
     expect(jsOf('{"runtime_minutes":96.00000000000000000001}')).toBe('{"runtime_minutes":96}');
     expect(jsOf('{"runtime_minutes":"1e999"}')).toBe('{"runtime_minutes":"1e999"}');
     expect(jsOf('{"runtime_minutes":" "}')).toBe("{}");
+    // The boundaries the double read depends on (review on #799): just past
+    // its range stays text; its largest power of ten, a denormal, a bare
+    // point either side and 2^53 + 1 read as the same double on both sides;
+    // -0 and an underflow below -0 read as 0, as numeric has no -0.
+    expect(jsOf('{"runtime_minutes":"1.7976931348623159e308"}')).toBe('{"runtime_minutes":"1.7976931348623159e308"}');
+    expect(jsOf('{"runtime_minutes":"1e308"}')).toBe('{"runtime_minutes":1e308}');
+    expect(jsOf('{"runtime_minutes":"3e-324"}')).toBe('{"runtime_minutes":5e-324}');
+    expect(jsOf('{"runtime_minutes":"5."}')).toBe('{"runtime_minutes":5}');
+    expect(jsOf('{"runtime_minutes":".5"}')).toBe('{"runtime_minutes":0.5}');
+    expect(jsOf('{"release_year":"9007199254740993"}')).toBe('{"release_year":9007199254740992}');
+    expect(jsOf('{"runtime_minutes":"-0"}')).toBe('{"runtime_minutes":0}');
+    expect(jsOf('{"runtime_minutes":"-1e-400"}')).toBe('{"runtime_minutes":0}');
   });
 
   it("reads stored number text with the database's grammar, character for character", () => {
@@ -604,6 +651,10 @@ describe("normalize parity (the fixtures shared with title_metadata_merge_test.s
     expect(storedNumberText("0x60")).toBeNull();
     expect(storedNumberText("96e0000")).toBeNull();
     expect(storedNumberText("9".repeat(401))).toBeNull();
+    // -0 is 0, as the database's numeric reads it (review on #799).
+    expect(Object.is(storedNumberText("-0"), 0)).toBe(true);
+    expect(Object.is(storedNumberText("-1e-400"), 0)).toBe(true);
+    expect(Object.is(normalizeStoredMetadata({ runtime_minutes: "-0" }).runtime_minutes, 0)).toBe(true);
   });
 
   // Codex on #799: " " was filled to the findings and the app, missing to

@@ -212,12 +212,13 @@ const STORED_DECIMAL_TEXT = /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]{1,3
 /** Trimmed number text as the page and the database read it: decimal text
  *  of up to 400 characters, read by Number() (normalize_stored_title_metadata
  *  reads it as float8, the same IEEE-754 double, so both round alike), or
- *  null when it is not decimal text or not finite. The Metadata window reads
- *  a typed number the same way. */
+ *  null when it is not decimal text or not finite. -0 reads as 0, as the
+ *  database stores it (numeric has no -0). The Metadata window reads a typed
+ *  number the same way. */
 export function storedNumberText(text: string): number | null {
   if (text.length > 400 || !STORED_DECIMAL_TEXT.test(text)) return null;
   const number = Number(text);
-  return Number.isFinite(number) ? number : null;
+  return Number.isFinite(number) ? number + 0 : null;
 }
 
 /** The stored record as the title's Metadata window reads it, so a save is

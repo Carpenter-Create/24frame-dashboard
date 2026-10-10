@@ -14,9 +14,12 @@
 -- live-title predicates) and the refresh itself; one emptiness rule (text
 -- that trims to nothing is empty, to submit as to the findings); normalize
 -- reads numbers as the double JS reads, with no known difference left.
+-- Review on #799: a repair (p_repair) is stored only while the stored value
+-- is still the one the window opened on, never over a field the save sets or
+-- clears, and never as a clear.
 
 begin;
-select plan(118);
+select plan(134);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -38,6 +41,9 @@ select set_config('t.tlang',  gen_random_uuid()::text, false);  -- A, complete, 
 select set_config('t.toff',   gen_random_uuid()::text, false);  -- A, complete, a country outside the list
 select set_config('t.tgonebad', gen_random_uuid()::text, false);  -- A, deleted, complete, a language outside the list
 select set_config('t.tws',    gen_random_uuid()::text, false);  -- A, complete but a Synopsis that trims to nothing
+select set_config('t.trepair', gen_random_uuid()::text, false);  -- A, Cast as text and a numeric Director (repairable)
+select set_config('t.tstale', gen_random_uuid()::text, false);  -- A, Cast saved as a list since the window opened
+select set_config('t.tskip',  gen_random_uuid()::text, false);  -- A, Cast as text, repair expecting another value
 
 insert into auth.users (id) values
   (current_setting('t.owner')::uuid), (current_setting('t.deliv')::uuid),
@@ -66,7 +72,10 @@ insert into public.titles (id, org_id, title, status) values
   (current_setting('t.tlang')::uuid,   current_setting('t.org_a')::uuid, 'Lang',    'draft'),
   (current_setting('t.toff')::uuid,    current_setting('t.org_a')::uuid, 'Country', 'draft'),
   (current_setting('t.tgonebad')::uuid, current_setting('t.org_a')::uuid, 'Gone bad', 'draft'),
-  (current_setting('t.tws')::uuid,     current_setting('t.org_a')::uuid, 'Blank synopsis', 'draft');
+  (current_setting('t.tws')::uuid,     current_setting('t.org_a')::uuid, 'Blank synopsis', 'draft'),
+  (current_setting('t.trepair')::uuid, current_setting('t.org_a')::uuid, 'Repair',  'draft'),
+  (current_setting('t.tstale')::uuid,  current_setting('t.org_a')::uuid, 'Stale',   'draft'),
+  (current_setting('t.tskip')::uuid,   current_setting('t.org_a')::uuid, 'Skip',    'draft');
 insert into public.title_metadata (title_id, org_id, data) values
   (current_setting('t.ta')::uuid, current_setting('t.org_a')::uuid,
    '{"synopsis":"A film.","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US","director":"Jo"}'::jsonb),
@@ -96,25 +105,34 @@ insert into public.title_metadata (title_id, org_id, data) values
   -- Complete but a Synopsis of a space and a no-break space (a direct write):
   -- btrim left the no-break space, so the old submit let it through.
   (current_setting('t.tws')::uuid, current_setting('t.org_a')::uuid,
-   '{"synopsis":" \u00a0","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US"}'::jsonb);
+   '{"synopsis":" \u00a0","runtime_minutes":96,"release_year":2024,"genre":"drama","primary_language":"en","country_of_origin":"US"}'::jsonb),
+  -- Stored before the checks: Cast as text, Director as a number. The page
+  -- refuses both; the window shows them as a list and as text.
+  (current_setting('t.trepair')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"A film.","cast":"Ada, Bob","director":5}'::jsonb),
+  -- The window opened on Cast "Ada, Bob"; another user saved ["Cy"] since.
+  (current_setting('t.tstale')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"A film.","cast":["Cy"],"director":"Jo"}'::jsonb),
+  (current_setting('t.tskip')::uuid, current_setting('t.org_a')::uuid,
+   '{"synopsis":"x","cast":"Ada, Bob"}'::jsonb);
 update public.titles set deleted_at = now()
  where id in (current_setting('t.tgone')::uuid, current_setting('t.tgonebad')::uuid);
 
 -- ===== structure, grants, lock pins (as postgres) =====
-select has_function('public', 'merge_title_metadata', array['uuid','uuid','jsonb','text[]'],
-  'merge_title_metadata(uuid, uuid, jsonb, text[]) exists');
+select has_function('public', 'merge_title_metadata', array['uuid','uuid','jsonb','text[]','jsonb'],
+  'merge_title_metadata(uuid, uuid, jsonb, text[], jsonb) exists');
 select ok(
   (select p.prosecdef from pg_proc p
-    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[])'::regprocedure),
+    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)'::regprocedure),
   'merge_title_metadata is SECURITY DEFINER');
 select ok(
-  has_function_privilege('authenticated', 'public.merge_title_metadata(uuid, uuid, jsonb, text[])', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)', 'EXECUTE'),
   'authenticated may execute merge_title_metadata');
 select ok(
-  not has_function_privilege('anon', 'public.merge_title_metadata(uuid, uuid, jsonb, text[])', 'EXECUTE'),
+  not has_function_privilege('anon', 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)', 'EXECUTE'),
   'anon may not execute merge_title_metadata');
 select ok(
-  not has_function_privilege('public', 'public.merge_title_metadata(uuid, uuid, jsonb, text[])', 'EXECUTE'),
+  not has_function_privilege('public', 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)', 'EXECUTE'),
   'PUBLIC may not execute merge_title_metadata');
 select ok(
   not has_function_privilege('anon', 'public.normalize_stored_title_metadata(jsonb)', 'EXECUTE')
@@ -125,12 +143,12 @@ select ok(
 -- The locks, read from each function's own source.
 select ok(
   (select p.prosrc from pg_proc p
-    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[])'::regprocedure)
+    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)'::regprocedure)
   ~* 'from\s+public\.titles\s+t\s+where\s+t\.id\s*=\s*p_title_id\s+and\s+t\.org_id\s*=\s*p_org_id\s+and\s+t\.deleted_at\s+is\s+null\s+for\s+no\s+key\s+update',
   'merge: the live title row is locked FOR NO KEY UPDATE, deleted titles excluded');
 select ok(
   (select p.prosrc from pg_proc p
-    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[])'::regprocedure)
+    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)'::regprocedure)
   ~* 'from\s+public\.title_metadata\s+m\s+where\s+m\.title_id\s*=\s*p_title_id\s+for\s+update',
   'merge: the stored record is read FOR UPDATE');
 select ok(
@@ -138,7 +156,7 @@ select ok(
       and p.prosrc ~* 'public\.normalize_stored_title_metadata\s*\('
       and p.prosrc ~* 'public\.refresh_title_findings\s*\('
      from pg_proc p
-    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[])'::regprocedure),
+    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)'::regprocedure),
   'merge: checks the whole record, normalizes the stored one, refreshes findings');
 select ok(
   (select p.prosrc from pg_proc p
@@ -257,6 +275,14 @@ select is(public.normalize_stored_title_metadata(f.input::jsonb), f.sql_expected
   ($j${"runtime_minutes":"0.99999999999999999999"}$j$, $j${"runtime_minutes":1}$j$, $j${"runtime_minutes":1}$j$),
   ($j${"runtime_minutes":"1000.0000000000001"}$j$, $j${"runtime_minutes":1000.0000000000001}$j$, $j${"runtime_minutes":1000.0000000000001}$j$),
   ($j${"runtime_minutes":"1e-400"}$j$, $j${"runtime_minutes":0}$j$, $j${"runtime_minutes":0}$j$),
+  ($j${"runtime_minutes":"1.7976931348623159e308"}$j$, $j${"runtime_minutes":"1.7976931348623159e308"}$j$, $j${"runtime_minutes":"1.7976931348623159e308"}$j$),
+  ($j${"runtime_minutes":"1e308"}$j$, $j${"runtime_minutes":1e308}$j$, $j${"runtime_minutes":1e308}$j$),
+  ($j${"runtime_minutes":"3e-324"}$j$, $j${"runtime_minutes":5e-324}$j$, $j${"runtime_minutes":5e-324}$j$),
+  ($j${"runtime_minutes":"5."}$j$, $j${"runtime_minutes":5}$j$, $j${"runtime_minutes":5}$j$),
+  ($j${"runtime_minutes":".5"}$j$, $j${"runtime_minutes":0.5}$j$, $j${"runtime_minutes":0.5}$j$),
+  ($j${"release_year":"9007199254740993"}$j$, $j${"release_year":9007199254740992}$j$, $j${"release_year":9007199254740992}$j$),
+  ($j${"runtime_minutes":"-0"}$j$, $j${"runtime_minutes":0}$j$, $j${"runtime_minutes":0}$j$),
+  ($j${"runtime_minutes":"-1e-400"}$j$, $j${"runtime_minutes":0}$j$, $j${"runtime_minutes":0}$j$),
   ($j${"runtime_minutes":96.00000000000000000001}$j$, $j${"runtime_minutes":96}$j$, $j${"runtime_minutes":96}$j$),
   ($j${"release_year":2024.0000000000001}$j$, $j${"release_year":2024}$j$, $j${"release_year":2024}$j$),
   ($j${"runtime_minutes":1e400}$j$, $j${"runtime_minutes":1e400}$j$, $j${"runtime_minutes":1e400}$j$),
@@ -405,6 +431,41 @@ select lives_ok(
 select is((select data from public.title_metadata where title_id = current_setting('t.tlegacy')::uuid),
   '{"runtime_minutes":96,"cast":["Ada"],"genre":"drama","rating":"PG"}'::jsonb,
   'the legacy record is stored normalized, with the change');
+
+-- ===== repairs: only while the stored value is the one the window opened on (review on #799) =====
+select lives_ok(
+  format($$ select public.merge_title_metadata(%L, %L, '{"synopsis":"Edited."}'::jsonb, '{}'::text[],
+           '{"cast":{"from":"Ada, Bob","to":["Ada","Bob"]},"director":{"from":5,"to":"5"}}'::jsonb) $$,
+         current_setting('t.org_a'), current_setting('t.trepair')),
+  'a change with repairs whose stored values are unchanged saves');
+select is((select data from public.title_metadata where title_id = current_setting('t.trepair')::uuid),
+  '{"synopsis":"Edited.","cast":["Ada","Bob"],"director":"5"}'::jsonb,
+  'each repair is stored with the change');
+select lives_ok(
+  format($$ select public.merge_title_metadata(%L, %L, '{"synopsis":"Edited."}'::jsonb, '{}'::text[],
+           '{"cast":{"from":"Ada, Bob","to":["Ada","Bob"]}}'::jsonb) $$,
+         current_setting('t.org_a'), current_setting('t.tstale')),
+  'a change whose repair no longer matches the stored value saves');
+select is((select data from public.title_metadata where title_id = current_setting('t.tstale')::uuid),
+  '{"synopsis":"Edited.","cast":["Cy"],"director":"Jo"}'::jsonb,
+  'the newer Cast is kept: a stale repair never overwrites a save made since');
+select lives_ok(
+  format($$ select public.merge_title_metadata(%L, %L, '{"cast":["Di"]}'::jsonb, array['director'],
+           '{"cast":{"from":["Cy"],"to":["Ada"]},"director":{"from":"Jo","to":"X"},"synopsis":{"from":"Edited.","to":null}}'::jsonb) $$,
+         current_setting('t.org_a'), current_setting('t.tstale')),
+  'repairs that match, on fields the save sets or clears or with an empty value, are accepted');
+select is((select data from public.title_metadata where title_id = current_setting('t.tstale')::uuid),
+  '{"synopsis":"Edited.","cast":["Di"]}'::jsonb,
+  'a repair never overrides a field the save sets or clears, and never clears one');
+select throws_like(
+  format($$ select public.merge_title_metadata(%L, %L, '{"synopsis":"y"}'::jsonb, '{}'::text[],
+           '{"cast":{"from":"Ada","to":["Ada"]}}'::jsonb) $$,
+         current_setting('t.org_a'), current_setting('t.tskip')),
+  'cast:%', 'a skipped repair leaves the stored value, and the check names it');
+select throws_ok(
+  format($$ select public.merge_title_metadata(%L, %L, '{"synopsis":"y"}'::jsonb, '{}'::text[], '[]'::jsonb) $$,
+         current_setting('t.org_a'), current_setting('t.ta')),
+  '22023', 'p_repair must be a JSON object', 'p_repair must be an object');
 
 -- ===== findings follow the record =====
 select lives_ok(

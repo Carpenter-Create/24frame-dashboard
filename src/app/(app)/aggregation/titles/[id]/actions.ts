@@ -23,6 +23,7 @@ import {
   computeMetadataFindings,
   METADATA_FIELDS,
   METADATA_LOGIC_VERSION,
+  metadataValueAccepted,
   normalizeStoredMetadata,
   parseMetadata,
   requiredComplete,
@@ -207,6 +208,11 @@ const titleDetailsInput = z.object({
   titleId: z.string().uuid(),
   // Changed fields only; null clears one.
   metadata: z.record(z.string(), z.unknown()),
+  // Untouched fields the page refuses, stored as the window shows them (to),
+  // each only while the stored value is still the one it opened on (from):
+  // a save made since is never overwritten (review on #799). Sent only with
+  // a change.
+  repairs: z.record(z.string(), z.object({ from: z.unknown(), to: z.unknown() })).default({}),
   // Null when Release did not change.
   release: releaseInfoSchema.nullable(),
 });
@@ -230,7 +236,7 @@ function refused(error: string): SaveTitleDetailsResult {
 export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetailsResult> {
   const parsed = titleDetailsInput.safeParse(input);
   if (!parsed.success) return refused(TITLE_DETAILS.saveFailed);
-  const { titleId, metadata: changes, release } = parsed.data;
+  const { titleId, metadata: changes, repairs, release } = parsed.data;
 
   const user = await getAuthUser();
   if (!user) return refused(TITLE_DETAILS.notAuthenticated);
@@ -261,7 +267,12 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
   if (releaseProblem) {
     return { ok: false, part: "release", field: RELEASE_FIELD, error: releaseProblem, metadataSaved: false };
   }
-  if (Object.keys(changes).some((key) => !METADATA_FIELDS.some((f) => f.key === key))) {
+  if ([...Object.keys(changes), ...Object.keys(repairs)].some((key) => !METADATA_FIELDS.some((f) => f.key === key))) {
+    return refused(TITLE_DETAILS.saveFailed);
+  }
+  // A repair expects a stored value and stores a filled value its check
+  // accepts, never a clear.
+  if (Object.entries(repairs).some(([key, repair]) => repair.from == null || !metadataValueAccepted(key, repair.to))) {
     return refused(TITLE_DETAILS.saveFailed);
   }
 
@@ -278,10 +289,11 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
       p_title_id: title.id,
       p_set: checked.data as Json,
       p_clear: clear,
+      p_repair: repairs as Json,
     });
     if (mergeError && metadataMergeMissing(mergeError)) {
       console.warn("[title-details] merge_title_metadata not applied yet; read-merge-set", mergeError.code);
-      const failed = await saveMetadataReadMergeSet(supabase, title, changes);
+      const failed = await saveMetadataReadMergeSet(supabase, title, changes, repairs);
       if (failed) return failed;
     } else if (mergeError) {
       console.error("[title-details] merge_title_metadata failed", mergeError.code, mergeError.message);
@@ -323,11 +335,14 @@ export async function saveTitleDetails(input: unknown): Promise<SaveTitleDetails
 
 // The save before merge_title_metadata is applied: read the stored record,
 // merge the changes, set the whole record. Used only when the database
-// reports the merge function itself missing. Null on success.
+// reports the merge function itself missing. A repair applies as the merge
+// applies it: only while the value read is still its `from`, never over a
+// change. Null on success.
 async function saveMetadataReadMergeSet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   title: { id: string; org_id: string },
   changes: Record<string, unknown>,
+  repairs: Record<string, { from?: unknown; to?: unknown }>,
 ): Promise<SaveTitleDetailsResult | null> {
   const { data: row, error: readError } = await supabase
     .from("title_metadata")
@@ -342,7 +357,13 @@ async function saveMetadataReadMergeSet(
   }
   // Read as the window reads it (Bugbot on #801): a stored empty or a
   // number stored as text never blocks a save the window can't show.
-  const merged = normalizeStoredMetadata(row?.data as Record<string, unknown> | null);
+  const current = (row?.data as Record<string, unknown> | null) ?? {};
+  const merged = normalizeStoredMetadata(current);
+  for (const [key, repair] of Object.entries(repairs)) {
+    // The same JSON as read: a mismatch only skips the repair.
+    if (JSON.stringify(current[key]) === JSON.stringify(repair.from)) merged[key] = repair.to;
+  }
+  // Changes after repairs, so a change to the same field wins.
   for (const [key, value] of Object.entries(changes)) {
     if (value === null) delete merged[key];
     else merged[key] = value;

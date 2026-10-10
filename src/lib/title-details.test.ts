@@ -10,6 +10,7 @@ import {
   checkTitleDetails,
   draftToMetadata,
   metadataChanges,
+  metadataRepairs,
   metadataToDraft,
   parseTitleDetailsWindow,
   releaseChanged,
@@ -202,9 +203,20 @@ describe("the Metadata window reads the stored record as the page reads it", () 
   const release = releaseDraft(NEW_RELEASE);
 
   // What the page counts after Done: the stored record, read as the page
-  // reads it, with Done's changes merged on (merge_title_metadata).
-  function afterDone(stored: Record<string, unknown>, changes: Record<string, unknown>) {
-    const merged = normalizeStoredMetadata(stored);
+  // reads it, with Done's changes merged on as merge_title_metadata merges
+  // them. A repair lands only while the stored value (`now`, by default the
+  // record the window opened on) is still its `from`, and never over a change.
+  function afterDone(
+    stored: Record<string, unknown>,
+    changes: Record<string, unknown>,
+    repairs: Record<string, { from: unknown; to: unknown }> = {},
+    now: Record<string, unknown> = stored,
+  ) {
+    const merged = normalizeStoredMetadata(now);
+    for (const [key, repair] of Object.entries(repairs)) {
+      if (key in changes || !(key in now)) continue;
+      if (JSON.stringify(now[key]) === JSON.stringify(repair.from)) merged[key] = repair.to;
+    }
     for (const [key, value] of Object.entries(changes)) {
       if (value === null) delete merged[key];
       else merged[key] = value;
@@ -231,14 +243,17 @@ describe("the Metadata window reads the stored record as the page reads it", () 
     });
   });
 
-  it("repairs an untouched field the page refuses into what the field shows, without asking on close", () => {
+  it("repairs an untouched field the page refuses into what the field shows, with an edit, without asking on close", () => {
     const stored = { ...FULL, cast: "Ada, Bob" };
     const draft = { ...metadataToDraft(stored), synopsis: "Edited." };
     const changes = metadataChanges(stored, draft);
-    expect(changes).toEqual({ synopsis: "Edited.", cast: ["Ada", "Bob"] });
+    const repairs = metadataRepairs(stored, draft);
+    // The change alone; the repair carries the stored value it expects.
+    expect(changes).toEqual({ synopsis: "Edited." });
+    expect(repairs).toEqual({ cast: { from: "Ada, Bob", to: ["Ada", "Bob"] } });
     // The merge accepts the record Done leaves (before: refused on Cast).
-    expect(parseMetadata(afterDone(stored, changes)).ok).toBe(true);
-    expect(titleDetailsMetadata(stored, draft)).toEqual(afterDone(stored, changes));
+    expect(parseMetadata(afterDone(stored, changes, repairs)).ok).toBe(true);
+    expect(titleDetailsMetadata(stored, draft)).toEqual(afterDone(stored, changes, repairs));
     // A repair is not a change anyone made: closing asks about Required only.
     expect(
       titleDetailsChangedRows({ metadata: stored, release: NEW_RELEASE }, { metadata: draft, release }),
@@ -248,7 +263,39 @@ describe("the Metadata window reads the stored record as the page reads it", () 
     ).toEqual([]);
   });
 
-  it("never repairs into a value the field does not show, and reads typed numbers as the page does", () => {
+  // Review on #799: the repair went out as a change, so another user's Cast,
+  // saved after the window opened, was overwritten with the stale one.
+  it("never overwrites a save made since the window opened", () => {
+    const opened = { ...FULL, cast: "Ada, Bob" };
+    const draft = { ...metadataToDraft(opened), synopsis: "Edited." };
+    const changes = metadataChanges(opened, draft);
+    const repairs = metadataRepairs(opened, draft);
+    expect(changes).not.toHaveProperty("cast");
+    const savedSince = { ...FULL, cast: ["Cy"] };
+    expect(afterDone(opened, changes, repairs, savedSince).cast).toEqual(["Cy"]);
+    // Unchanged since: the repair lands.
+    expect(afterDone(opened, changes, repairs, opened).cast).toEqual(["Ada", "Bob"]);
+  });
+
+  // Review on #799: Done with no edit saved repairs, so it could be refused
+  // over a field nobody touched, or rewrite one, without a word.
+  it("sends nothing on Done with no edit", () => {
+    for (const shape of [
+      { cast: "Ada, Bob" },
+      { cast: ["Smith, Jr.", 5] },
+      { cast: [1, "Ada"], genre: "Drama" },
+      { director: 5 },
+      { director: "x".repeat(200) + " " },
+    ]) {
+      const stored: Record<string, unknown> = { ...FULL, ...shape };
+      const draft = metadataToDraft(stored);
+      expect(metadataChanges(stored, draft), JSON.stringify(shape)).toEqual({});
+      expect(metadataRepairs(stored, draft), JSON.stringify(shape)).toEqual({});
+      expect(titleDetailsMetadata(stored, draft), JSON.stringify(shape)).toEqual(normalizeStoredMetadata(stored));
+    }
+  });
+
+  it("never repairs into a value the field does not show, or splits or drops a stored entry", () => {
     for (const shape of [
       { runtime_minutes: "0x60" },
       { runtime_minutes: "96e0000" },
@@ -257,11 +304,22 @@ describe("the Metadata window reads the stored record as the page reads it", () 
       { genre: " drama" },
       { synopsis: { a: 1 } },
       { cast: [["Ada"]] },
+      // Review on #799: one name with a comma would become two entries, and
+      // an entry that shows empty would be dropped.
+      { cast: ["Smith, Jr.", 5] },
+      { cast: [{ a: 1 }, "Ada"] },
+      { keywords: [["k"], "space"] },
     ]) {
       const stored: Record<string, unknown> = { ...FULL, ...shape };
-      const draft = metadataToDraft(stored);
-      expect(metadataChanges(stored, draft), JSON.stringify(shape)).toEqual({});
+      const draft = { ...metadataToDraft(stored), alternate_title: "Other" };
+      expect(metadataRepairs(stored, draft), JSON.stringify(shape)).toEqual({});
+      expect(metadataChanges(stored, draft), JSON.stringify(shape)).toEqual({ alternate_title: "Other" });
     }
+    // A list whose entries each show as one entry is repaired, whole.
+    const lone = { ...FULL, cast: [1, "Ada", null, " "] };
+    expect(metadataRepairs(lone, { ...metadataToDraft(lone), alternate_title: "Other" })).toEqual({
+      cast: { from: [1, "Ada", null, " "], to: ["1", "Ada"] },
+    });
     // An object shows empty, as the page shows it (never "[object Object]").
     expect(metadataToDraft({ synopsis: { a: 1 }, cast: [{ a: 1 }, "Ada"] })).toMatchObject({ synopsis: "", cast: ", Ada" });
     // Retyping a refused stored number sends it (before: "0x60" read as 96, so 96 sent nothing).
@@ -275,12 +333,13 @@ describe("the Metadata window reads the stored record as the page reads it", () 
     });
   });
 
-  it("counts every row as the page counts the record Done leaves, and as it counts it now when Done sends nothing", () => {
+  it("counts every row as the page counts the record Done leaves: as it is now with no edit, with the repairs with one", () => {
     for (const shape of [
       { cast: "Ada, Bob" },
       { cast: [1, "Ada"] },
       { cast: [null, "Ada"] },
       { cast: [["Ada"]] },
+      { cast: ["Smith, Jr.", 5] },
       { cast: 5 },
       { cast: Array.from({ length: 30 }, (_, i) => `Last${i}, First${i}`) },
       { runtime_minutes: "0x60" },
@@ -295,20 +354,23 @@ describe("the Metadata window reads the stored record as the page reads it", () 
       { synopsis: { a: 1 } },
     ]) {
       const stored: Record<string, unknown> = { ...FULL, ...shape };
-      const draft = metadataToDraft(stored);
-      const changes = metadataChanges(stored, draft);
-      const after = afterDone(stored, changes);
-      for (const tier of TITLE_DETAILS_TIERS) {
-        const { filled, total } = metadataTierCount(after, tier);
-        expect(titleDetailsTierSummary(draft, tier, stored), `${JSON.stringify(shape)} ${tier}`).toBe(
-          TITLE_DETAILS.tierSummary(filled, total),
-        );
-        if (Object.keys(changes).length === 0) {
-          expect(metadataTierCount(normalizeStoredMetadata(stored), tier).filled, `${JSON.stringify(shape)} ${tier} now`).toBe(filled);
+      for (const edit of [{}, { alternate_title: "Other" }] as MetadataDraft[]) {
+        const draft: MetadataDraft = { ...metadataToDraft(stored), ...edit };
+        const changes = metadataChanges(stored, draft);
+        const repairs = metadataRepairs(stored, draft);
+        const label = `${JSON.stringify(shape)} ${JSON.stringify(edit)}`;
+        expect(changes, label).toEqual(edit);
+        if (Object.keys(edit).length === 0) expect(repairs, label).toEqual({});
+        const after = afterDone(stored, changes, repairs);
+        for (const tier of TITLE_DETAILS_TIERS) {
+          const { filled, total } = metadataTierCount(after, tier);
+          expect(titleDetailsTierSummary(draft, tier, stored), `${label} ${tier}`).toBe(
+            TITLE_DETAILS.tierSummary(filled, total),
+          );
         }
+        // Done never refuses an untouched field itself; the merge names any the page refuses.
+        expect(checkTitleDetails({ metadata: draft, release }, NOW, stored), label).toBeNull();
       }
-      // Done never refuses an untouched field itself; the merge names any the page refuses.
-      expect(checkTitleDetails({ metadata: draft, release }, NOW, stored), JSON.stringify(shape)).toBeNull();
     }
   });
 });

@@ -166,9 +166,10 @@ Social Feed cards (Direction B, founder pick): a white canvas with every post an
 The title findings migration under `supabase/migrations` derives validator
 findings from stored metadata in the database, checks every metadata write
 against the approved limits, and adds `merge_title_metadata`: the title's
-Metadata window sends only the changed fields, and the database merges them
-under a lock on the title, checks the whole record and refreshes the title's
-findings in the same transaction. A failed findings refresh fails the save.
+Metadata window sends only the changed fields (with them, repairs of untouched
+fields the page refuses, each stored only while the stored value is unchanged),
+and the database merges them under a lock on the title, checks the whole record
+and refreshes the title's findings in the same transaction. A failed findings refresh fails the save.
 Submit reads the stored record as the app does, so an older stored shape the
 window shows as complete never blocks it. It is founder-applied and
 **not applied**. Merge gate: the founder applies it, verifies on the PR

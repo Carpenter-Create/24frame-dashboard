@@ -40,7 +40,11 @@
 --      (merge_title_metadata): the app sends only the changed fields; the
 --      database merges them onto the stored record under a lock on the
 --      title, checks the whole record and refreshes findings in one
---      transaction. set_title_metadata, submit_title and
+--      transaction. With a change, the window may also send repairs of
+--      untouched fields the page refuses, each with the stored value it
+--      expects; the merge applies one only while that value is unchanged
+--      (review on #799), so no save made since is lost.
+--      set_title_metadata, submit_title and
 --      reconcile_title_findings take the same title lock first, so every
 --      caller of the findings refresh serializes on the title, a submit
 --      reads what the last save stored, and a reconcile never writes
@@ -117,7 +121,7 @@
 --   drop function public.refresh_live_title_findings();
 -- The pass's findings stay: they are derived from stored metadata, and the
 -- next save of each title derives them again. For the merge alone:
---   drop function public.merge_title_metadata(uuid, uuid, jsonb, text[]);
+--   drop function public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb);
 -- and keep normalize_stored_title_metadata, which submit_title calls. The
 -- app then returns to read, merge and set by itself.
 --
@@ -604,7 +608,8 @@ grant  execute on function public.submit_title(uuid, uuid) to authenticated;
 -- "1.00000000000000000001" was 1 in the app and refused here; the audit on
 -- #799: so was a stored JSON number 96.00000000000000000001): past the
 -- double's range the stored value stays as it is, as Number() gives Infinity
--- and the app keeps it; below it, 0. float8 output is shortest-exact
+-- and the app keeps it; below it, 0; -0 is 0 on both sides (numeric has no
+-- -0, and storedNumberText adds 0). float8 output is shortest-exact
 -- whatever the session sets (extra_float_digits), so to_jsonb never rounds the
 -- double, and float8::numeric (15 digits) is never used. The shared fixtures
 -- in supabase/tests/title_metadata_merge_test.sql pin both sides, with no
@@ -681,6 +686,15 @@ revoke execute on function public.normalize_stored_title_metadata(jsonb) from pu
 -- p_clear is ignored. Same-field edits stay last-writer-wins, and a list is
 -- replaced whole.
 --
+-- p_repair (review on #799): untouched fields the page refuses (Cast stored
+-- as "Ada, Bob"), each {"from": the stored value the window opened on, "to":
+-- the value its field shows}. A repair applies only while the stored value
+-- is still exactly "from", never over a field p_set or p_clear names, and
+-- never clears (a "to" that is empty is skipped), so a save made since the
+-- window opened is never overwritten with what the window showed before it.
+-- A skipped repair leaves the stored value, and the check names it if it
+-- refuses it.
+--
 -- Lock order for every metadata writer and every caller of the findings
 -- refresh (this, set_title_metadata, submit_title, reconcile_title_findings,
 -- the passes, and refresh_title_findings itself): the title row (FOR NO KEY
@@ -698,7 +712,7 @@ revoke execute on function public.normalize_stored_title_metadata(jsonb) from pu
 -- (refresh_title_findings rewrites derived_at on every call). A failed
 -- refresh fails the save.
 create or replace function public.merge_title_metadata(
-  p_org_id uuid, p_title_id uuid, p_set jsonb, p_clear text[]
+  p_org_id uuid, p_title_id uuid, p_set jsonb, p_clear text[], p_repair jsonb default null
 ) returns void
   language plpgsql security definer
   set search_path = public
@@ -706,6 +720,10 @@ as $$
 declare
   v_set     jsonb  := coalesce(p_set, '{}'::jsonb);
   v_clear   text[] := coalesce(p_clear, '{}'::text[]);
+  v_repair  jsonb  := coalesce(p_repair, '{}'::jsonb);
+  v_fixed   jsonb  := '{}'::jsonb;
+  v_key     text;
+  v_fix     jsonb;
   v_current jsonb;
   v_merged  jsonb;
   v_rows    int;
@@ -720,6 +738,9 @@ begin
   end if;
   if jsonb_typeof(v_set) <> 'object' then
     raise exception 'p_set must be a JSON object' using errcode = '22023';
+  end if;
+  if jsonb_typeof(v_repair) <> 'object' then
+    raise exception 'p_repair must be a JSON object' using errcode = '22023';
   end if;
 
   -- One metadata writer per title. A spoofed p_org_id matches no row, so
@@ -759,8 +780,18 @@ begin
   end if;
 
   if v_current is not null then
+    -- Under the lock, so the stored value compared is the one this merges onto.
+    for v_key, v_fix in select key, value from jsonb_each(v_repair) loop
+      if jsonb_typeof(v_fix) = 'object'
+         and not (v_set ? v_key)
+         and not (v_key = any (v_clear))
+         and not public.title_metadata_value_empty(v_fix -> 'to')
+         and (v_current -> v_key) = (v_fix -> 'from') then
+        v_fixed := v_fixed || jsonb_build_object(v_key, v_fix -> 'to');
+      end if;
+    end loop;
     v_merged := public.check_title_metadata(
-      (public.normalize_stored_title_metadata(v_current) || v_set) - v_clear);
+      (public.normalize_stored_title_metadata(v_current) || v_fixed || v_set) - v_clear);
     if v_merged is distinct from v_current then
       update public.title_metadata
          set data = v_merged, updated_at = now()
@@ -775,8 +806,8 @@ begin
 end;
 $$;
 
-revoke execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) from public, anon;
-grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]) to authenticated;
+revoke execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb) from public, anon;
+grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb) to authenticated;
 
 -- ---- 9. One pass over every live title's findings (Codex on #799) -----------
 -- Replacing reconcile_title_findings protects new calls only. Findings an

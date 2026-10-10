@@ -144,44 +144,82 @@ export function draftToMetadata(draft: MetadataDraft): Record<string, unknown> {
 
 type MetadataFieldState = { key: string; edited: boolean; repaired: boolean; value: unknown };
 
+// A stored list whose entries each show as one entry of the field: none is
+// an object or a list (it shows empty) and none holds a comma (the field
+// would split it). Only such a list is repaired, so a repair never splits a
+// name ("Smith, Jr.") or drops an entry (review on #799). Text and a lone
+// value are read as the field shows them.
+function listEntriesWhole(stored: unknown): boolean {
+  if (!Array.isArray(stored)) return true;
+  return stored.every(
+    (entry) =>
+      entry === null ||
+      ((typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean") &&
+        !draftText(entry).includes(",")),
+  );
+}
+
 // Each field, against the stored record read as the page reads it
 // (normalizeStoredMetadata; audit on #799). Edited: the draft differs from
-// what the field showed. Repaired: untouched, the stored value is one the
-// page refuses (Cast stored as "Ada, Bob"), and the field shows it as a value
-// the checks accept, so Done stores what the window shows instead of being
-// refused over a field nobody touched.
+// what the field showed. Repaired: untouched, while another field is edited
+// (Done with no edit sends nothing; review on #799), the stored value is one
+// the page refuses (Cast stored as "Ada, Bob"), and the field shows it, whole,
+// as a value the checks accept, so Done stores what the window shows instead
+// of being refused over a field nobody touched.
 function metadataFieldStates(baseline: Record<string, unknown>, draft: MetadataDraft): MetadataFieldState[] {
   const stored = normalizeStoredMetadata(baseline);
   const shown = draftToMetadata(metadataToDraft(baseline));
   const after = draftToMetadata(draft);
-  return METADATA_FIELDS.map((f) => {
+  const edits = METADATA_FIELDS.map((f) => JSON.stringify(shown[f.key]) !== JSON.stringify(after[f.key]));
+  const anyEdit = edits.some(Boolean);
+  return METADATA_FIELDS.map((f, i) => {
     const value = after[f.key];
-    const edited = JSON.stringify(shown[f.key]) !== JSON.stringify(value);
+    const edited = edits[i];
     const repaired =
+      anyEdit &&
       !edited &&
       stored[f.key] !== undefined &&
       !metadataValueAccepted(f.key, stored[f.key]) &&
-      metadataValueAccepted(f.key, value);
+      metadataValueAccepted(f.key, value) &&
+      (f.type !== "list" || listEntriesWhole(baseline?.[f.key]));
     return { key: f.key, edited, repaired, value };
   });
 }
 
-/** What Done sends: the fields the draft changed (a cleared field is null),
- *  and each repaired field's value. */
+/** What Done sends as changes: only the fields the draft changed; a cleared
+ *  field is null. */
 export function metadataChanges(
   baseline: Record<string, unknown>,
   draft: MetadataDraft,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const state of metadataFieldStates(baseline, draft)) {
-    if (!state.edited && !state.repaired) continue;
+    if (!state.edited) continue;
     out[state.key] = state.value === undefined ? null : state.value;
   }
   return out;
 }
 
-/** The record Done leaves stored: an edited or repaired field's draft value,
- *  every other field as the page reads it now. */
+/** A repair as Done sends it: the stored value the window opened on (`from`)
+ *  and the value the field shows (`to`). The database stores `to` only while
+ *  the stored value is still `from`, so a save made since the window opened
+ *  is never overwritten with what it showed before (review on #799). */
+export type MetadataRepair = { from: unknown; to: unknown };
+
+/** Each repaired field (metadataFieldStates), with the stored value it expects. */
+export function metadataRepairs(
+  baseline: Record<string, unknown>,
+  draft: MetadataDraft,
+): Record<string, MetadataRepair> {
+  const out: Record<string, MetadataRepair> = {};
+  for (const state of metadataFieldStates(baseline, draft)) {
+    if (state.repaired) out[state.key] = { from: baseline[state.key], to: state.value };
+  }
+  return out;
+}
+
+/** The record Done leaves stored, while no other save lands first: an edited
+ *  or repaired field's draft value, every other field as the page reads it now. */
 export function titleDetailsMetadata(
   baseline: Record<string, unknown>,
   draft: MetadataDraft,
@@ -219,11 +257,7 @@ export function titleDetailsChangedRows(
   draft: { metadata: MetadataDraft; release: ReleaseDraft },
 ): TitleDetailsFace[] {
   // Edits only: a repair is not a change anyone made, so closing never asks about it.
-  const changed = new Set(
-    metadataFieldStates(baseline.metadata, draft.metadata)
-      .filter((state) => state.edited)
-      .map((state) => state.key),
-  );
+  const changed = new Set(Object.keys(metadataChanges(baseline.metadata, draft.metadata)));
   const rows: TitleDetailsFace[] = TITLE_DETAILS_TIERS.filter((tier) =>
     METADATA_FIELDS.some((f) => f.tier === tier && changed.has(f.key)),
   );

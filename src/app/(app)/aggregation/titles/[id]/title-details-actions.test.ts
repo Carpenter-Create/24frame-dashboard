@@ -208,7 +208,7 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     expect(seen.rpc).toEqual([
       {
         name: "merge_title_metadata",
-        args: { p_org_id: ORG, p_title_id: TITLE, p_set: { runtime_minutes: 100 }, p_clear: ["director"] },
+        args: { p_org_id: ORG, p_title_id: TITLE, p_set: { runtime_minutes: 100 }, p_clear: ["director"], p_repair: {} },
       },
     ]);
     // No read of the stored record, and no findings from the browser: the
@@ -216,6 +216,72 @@ describe("saveTitleDetails (the title's Metadata window)", () => {
     expect(readsMetadata(seen)).toBe(false);
     expect(names(seen)).not.toContain("reconcile_title_findings");
     expect(revalidatePath).toHaveBeenCalledWith(titleClientPath(CATALOG));
+  });
+
+  // Review on #799: a repair is sent with the stored value it expects, so
+  // the database stores it only while that value is unchanged.
+  it("sends each repair with the stored value it expects, only with a change, and checks it first", async () => {
+    const repairs = { cast: { from: "Ada, Bob", to: ["Ada", "Bob"] } };
+    const seen = fake();
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { synopsis: "Edited." }, repairs, release: null })).toEqual({
+      ok: true,
+    });
+    expect(seen.rpc).toEqual([
+      {
+        name: "merge_title_metadata",
+        args: { p_org_id: ORG, p_title_id: TITLE, p_set: { synopsis: "Edited." }, p_clear: [], p_repair: repairs },
+      },
+    ]);
+    // Repairs alone save nothing: Done with no change sends none.
+    const alone = fake();
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: {}, repairs, release: null })).toEqual({ ok: true });
+    expect(alone.rpc).toEqual([]);
+    // A repair outside the registry, one that expects no stored value, or one
+    // that would clear or store a value its check refuses, is refused before
+    // anything is written.
+    const refusedRepairs = fake();
+    for (const bad of [
+      { budget: { from: 1, to: 2 } },
+      { keywords: { from: undefined, to: ["k"] } },
+      { keywords: { from: null, to: ["k"] } },
+      { cast: { from: "Ada, Bob" } },
+      { cast: { from: "Ada, Bob", to: [] } },
+      { genre: { from: "Drama", to: "Drama" } },
+    ]) {
+      expect(
+        await saveTitleDetails({ titleId: TITLE, metadata: { synopsis: "Edited." }, repairs: bad, release: null }),
+        JSON.stringify(bad),
+      ).toMatchObject({ ok: false, error: "Could not save." });
+    }
+    expect(refusedRepairs.rpc).toEqual([]);
+  });
+
+  it.each(MERGE_MISSING)("applies a repair under the fallback only while the stored value is unchanged ($code)", async (missing) => {
+    const repairs = { cast: { from: "Ada, Bob", to: ["Ada", "Bob"] }, director: { from: 5, to: "5" } };
+    const unchanged = fake({
+      stored: { ...STORED, cast: "Ada, Bob", director: 5 },
+      rpcErrors: { merge_title_metadata: missing },
+    });
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { synopsis: "Edited." }, repairs, release: null })).toEqual({
+      ok: true,
+    });
+    expect(unchanged.rpc[1]).toEqual({
+      name: "set_title_metadata",
+      args: { p_org_id: ORG, p_title_id: TITLE, p_data: { ...STORED, synopsis: "Edited.", cast: ["Ada", "Bob"], director: "5" } },
+    });
+    // Another user saved Cast since the window opened: theirs is kept.
+    const savedSince = fake({ stored: { ...STORED, cast: ["Cy"] }, rpcErrors: { merge_title_metadata: missing } });
+    expect(await saveTitleDetails({ titleId: TITLE, metadata: { synopsis: "Edited." }, repairs, release: null })).toEqual({
+      ok: true,
+    });
+    expect(savedSince.rpc[1]).toEqual({
+      name: "set_title_metadata",
+      args: { p_org_id: ORG, p_title_id: TITLE, p_data: { ...STORED, synopsis: "Edited.", cast: ["Cy"] } },
+    });
+    // A change to the same field wins over its repair.
+    const both = fake({ stored: { ...STORED, cast: "Ada, Bob" }, rpcErrors: { merge_title_metadata: missing } });
+    await saveTitleDetails({ titleId: TITLE, metadata: { cast: ["Di"] }, repairs, release: null });
+    expect(both.rpc[1]?.args.p_data).toMatchObject({ cast: ["Di"] });
   });
 
   it("names the field a value breaks, with its approved line, and writes nothing", async () => {

@@ -3727,7 +3727,7 @@ export type Database = {
       }
       member_tier_rank: { Args: { p_user: string }; Returns: number }
       merge_title_metadata: {
-        Args: { p_clear: string[]; p_org_id: string; p_set: Json; p_title_id: string }
+        Args: { p_clear: string[]; p_org_id: string; p_repair?: Json; p_set: Json; p_title_id: string }
         Returns: undefined
       }
       my_entity_ids: {

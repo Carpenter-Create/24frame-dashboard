@@ -125,7 +125,11 @@ describe("title Metadata window (aggregation-title-details-window-lock-v1)", () 
     expect(done).toContain("} catch {\n      // The request itself failed");
     expect(done).toContain("} finally {\n      if (mountedRef.current) setPending(false);\n    }");
     // The browser sends no org: the action reads it from the title row.
-    expect(done).toContain("saveTitleDetails({ titleId, metadata: changes, release: releaseNext })");
+    // Repairs go with the stored value they expect (review on #799).
+    expect(done).toContain("saveTitleDetails({ titleId, metadata: changes, repairs, release: releaseNext })");
+    expect(done).toContain("const repairs = metadataRepairs(baseline.metadata, draft.metadata);");
+    expect(done).toContain("if (Object.keys(changes).length === 0 && releaseNext === null) {\n      onClose(savedRef.current);");
+    expect(done).toContain("applyChanges(current.metadata, changes)");
     expect(actionsSrc).not.toContain("export async function setTitleReleaseInfo");
     expect(existsSync(`${DIR}/metadata/actions.ts`)).toBe(false);
     expect(existsSync(`${DIR}/metadata/metadata-form.tsx`)).toBe(false);
