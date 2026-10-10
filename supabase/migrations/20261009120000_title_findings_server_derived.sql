@@ -682,7 +682,12 @@ grant  execute on function public.merge_title_metadata(uuid, uuid, jsonb, text[]
 -- validator findings from its stored metadata through refresh_title_findings,
 -- under each title's lock (the writers' order: title, then findings), and
 -- returns how many titles it refreshed. It runs once, below, when this
--- migration is applied. Only validator rows change, by upsert or by status
+-- migration is applied, and the founder runs it once more in its own
+-- transaction after the migration has committed: a reconcile call that began
+-- on the old body before the commit keeps that body until it ends, so it
+-- could write after the first pass, and only a pass after the commit has the
+-- last word (Codex on #799). It is idempotent: a second pass over an
+-- unchanged record changes no finding. Only validator rows change, by upsert or by status
 -- (resolved): nothing is deleted, and AI findings, a deleted title's findings
 -- and the metadata itself are untouched. No client role may call it.
 

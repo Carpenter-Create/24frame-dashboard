@@ -6,7 +6,7 @@
 -- re-derives every live title's findings when the migration is applied.
 
 begin;
-select plan(25);
+select plan(27);
 
 select set_config('t.orgA',   gen_random_uuid()::text, false);
 select set_config('t.orgB',   gen_random_uuid()::text, false);
@@ -167,6 +167,16 @@ select is((select status::text from public.findings where code = 'ai.genre_misma
 select is((select status::text from public.findings
     where entity_id = current_setting('t.gone')::uuid and code = 'metadata.forged'),
   'open', 'a deleted title is skipped (its findings are untouched)');
+-- The founder's second pass after the commit (Codex on #799) is idempotent:
+-- over unchanged records it changes no finding's status or message.
+create temp table pass_one as
+  select id, status, message from public.findings where source = 'validator';
+select ok(public.refresh_live_title_findings() >= 1, 'a second pass runs');
+select is(
+  (select count(*) from public.findings f join pass_one p on p.id = f.id
+    where f.status is distinct from p.status or f.message is distinct from p.message)::int,
+  0, 'a second pass over unchanged records changes nothing');
+
 -- Derived as the window reads the record (Codex on #799): a blank-only Cast
 -- is missing, a runtime stored as text is filled.
 select is(
