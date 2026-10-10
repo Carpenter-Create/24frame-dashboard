@@ -483,9 +483,10 @@ select throws_ok(
   format($$ select public.submit_title(%L, %L) $$, current_setting('t.org_a'), current_setting('t.tgonebad')),
   'P0001', 'Title not found in this organization, or not in draft',
   'a deleted title with a refused required value is refused at the lock, not by the check');
-select is((select status::text from public.titles where id = current_setting('t.tgonebad')::uuid),
-  'draft', 'and the deleted title is untouched');
 
 reset role;
+-- Read as the owner: row security hides a deleted title from members.
+select is((select status::text from public.titles where id = current_setting('t.tgonebad')::uuid),
+  'draft', 'and the deleted title is untouched');
 select * from finish();
 rollback;
