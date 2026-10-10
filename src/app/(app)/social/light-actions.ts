@@ -51,6 +51,7 @@ import {
   postHasMedia,
   postSoftDeleteUpdateRow,
 } from "@/lib/social-post-own";
+import { readSocialPostCaptionInput, readSocialPostOwnTarget } from "@/lib/social-post-own-input";
 import {
   isFollowUniqueViolation,
   newFollowerNoticeCopy,
@@ -462,7 +463,7 @@ export async function deleteSocialComment(formData: FormData): Promise<ActionRes
   return {};
 }
 
-function revalidateOwnPost(postId: string, groupSlug: string) {
+function revalidateOwnPost(postId: string, groupSlug: string | null) {
   revalidatePath(SOCIAL_ROUTES.home);
   revalidatePath(SOCIAL_ROUTES.profile);
   revalidatePath(socialPostHref(postId));
@@ -470,11 +471,15 @@ function revalidateOwnPost(postId: string, groupSlug: string) {
 }
 
 export async function updateSocialPostCaption(formData: FormData): Promise<ActionResult> {
+  // The request is checked first: junk reads nothing and never creates a
+  // profile (ownProfile can insert one). social-post-caption-window-lock-v1 §6
+  const input = readSocialPostCaptionInput(formData);
+  if ("error" in input) return { error: input.error };
+
   const { user, supabase, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
 
-  const postId = String(formData.get("post_id") ?? "").trim();
-  if (!postId) return { error: SOCIAL.post.missing };
+  const { postId } = input;
 
   const { data: post, error: readError } = await supabase
     .from("posts")
@@ -487,7 +492,7 @@ export async function updateSocialPostCaption(formData: FormData): Promise<Actio
   const refused = postAuthorRefusal(user.id, post.author_id);
   if (refused) return { error: refused };
 
-  const written = postCaptionWrite(String(formData.get("body") ?? ""), postHasMedia(post.media));
+  const written = postCaptionWrite(input.rawBody, postHasMedia(post.media));
   if ("error" in written) return written;
   if ((post.body ?? null) === written.body) return {};
 
@@ -499,20 +504,26 @@ export async function updateSocialPostCaption(formData: FormData): Promise<Actio
     .eq("status", "active")
     .select("id")
     .maybeSingle();
-  if (error) return { error: error.message || SOCIAL.post.editFailed };
+  if (error) {
+    // Database text (a policy or trigger line) stays on the server.
+    console.error("[social-post-own] caption update failed", error.code, error.message);
+    return { error: SOCIAL.post.editFailed };
+  }
   if (!saved) return { error: SOCIAL.post.notAuthor };
 
   await bustSocialFeedHotCache(user.id);
-  revalidateOwnPost(postId, String(formData.get("group_slug") ?? "").trim());
+  revalidateOwnPost(postId, input.groupSlug);
   return {};
 }
 
 export async function deleteSocialPost(formData: FormData): Promise<ActionResult> {
+  const target = readSocialPostOwnTarget(formData);
+  if ("error" in target) return { error: target.error };
+
   const { user, supabase, profileId } = await ownProfile();
   if (!profileId) return { error: SOCIAL.cta.needProfile };
 
-  const postId = String(formData.get("post_id") ?? "").trim();
-  if (!postId) return { error: SOCIAL.post.missing };
+  const { postId } = target;
 
   const { data: post, error: readError } = await supabase
     .from("posts")
@@ -533,13 +544,17 @@ export async function deleteSocialPost(formData: FormData): Promise<ActionResult
     .eq("status", "active")
     .select("id")
     .maybeSingle();
-  if (error) return { error: error.message || SOCIAL.post.deleteFailed };
+  if (error) {
+    // Database text (a policy or trigger line) stays on the server.
+    console.error("[social-post-own] post remove failed", error.code, error.message);
+    return { error: SOCIAL.post.deleteFailed };
+  }
   if (!saved) return { error: SOCIAL.post.notAuthor };
 
   // Actor feed key only. Another viewer's hot entry can linger until
   // SOCIAL_HOT_TTL_SECONDS, and their following-wall query until
   // SOCIAL_QUERY_STALE_MS. posts.status = removed is the tombstone.
   await bustSocialFeedHotCache(user.id);
-  revalidateOwnPost(postId, String(formData.get("group_slug") ?? "").trim());
+  revalidateOwnPost(postId, target.groupSlug);
   return {};
 }

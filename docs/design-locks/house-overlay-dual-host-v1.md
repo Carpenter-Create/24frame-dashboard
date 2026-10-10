@@ -10,18 +10,20 @@ The job picks the host. Phone and desktop are different hosts. A breakpoint does
 - Max height 90vh
 - Scrim ink 40%
 - No shadow
-- A window with faces may take the full AppSheet (`APP_SHEET_FULL_HOST_CLASS`) on a phone instead of its own phone route: the same header, faces and ask, clear of the safe areas (the title's Metadata window; Deliver over Licensing Status; Edit profile keeps its sheet route). The 90vh cap is for card sheets
+- A window, with faces or one face (a post's caption), may take the full AppSheet (`APP_SHEET_FULL_HOST_CLASS`) on a phone instead of its own phone route: the same header, faces and ask, clear of the safe areas (the title's Metadata window; a title's Add right window; Deliver over Licensing Status; a post's caption; Edit profile keeps its sheet route). The 90vh cap is for card sheets
 
 ## Desktop — HouseDialog
 
 - Max width 400 for confirm
 - Max width 480 for a short form
-- Max width 600 for a window: one object edited over the page that shows it (the composer; Edit profile; a title's Metadata; Deliver over Licensing Status). Radius 24, no edge, no shadow. One geometry constant (`HOUSE_DIALOG_WINDOW_CLASS`) feeds every window
-- A window with faces holds one height while open: the height it opens at, up to 80vh. Faces push inside it (220ms). Header: close or back · title · Done. One Done, one action; a part that saved stays saved. A linear window (Deliver) keeps one action that names its step: Continue, then the commit ("Deliver · N"), then Done; its result face shows close, never back ([`staff-licensing-deliver-window-lock-v1.md`](staff-licensing-deliver-window-lock-v1.md))
+- Max width 600 for a window: one object edited over the page that shows it, or one record added to the list that page shows (the composer; Edit profile; a title's Metadata; a title's Add right; Deliver over Licensing Status; a post's caption; amended 2026-10-09, [`aggregation-add-right-window-lock-v1.md`](aggregation-add-right-window-lock-v1.md)). Radius 24, no edge, no shadow. One geometry constant (`HOUSE_DIALOG_WINDOW_CLASS`) feeds every window
+- A window holds one height while open: the height it opens at, up to 80vh. Faces push inside it (220ms). Header: close or back · title · Done. One Done, one action; a part that saved stays saved. A linear window (Deliver) keeps one action that names its step: Continue, then the commit ("Deliver · N"), then Done; its result face shows close, never back ([`staff-licensing-deliver-window-lock-v1.md`](staff-licensing-deliver-window-lock-v1.md))
 - A changed window asks before it closes, inside the window: Keep editing · Discard
 - Pad 24 (a window's header and body carry their own; the composer keeps its locked 16)
 - Button footer (a window's actions sit in its header)
-- One shell draws every window with faces: `lib/house-window` (classes, the query helpers) and `components/chrome/house-window` (`useHouseWindow`, `HouseWindowFrame`, `HouseWindowAsk`, `useHouseWindowEntry`). A new window brings its faces, copy and save; the header, Esc order, the ask, held height, focus and the history entry are the shell's
+- One shell draws every window, with faces or one: `lib/house-window` (classes, the query helpers) and `components/chrome/house-window` (`useHouseWindow`, `HouseWindowFrame`, `HouseWindowAsk`, `useHouseWindowEntry`). A new window brings its faces, copy and save; the header, Esc order, the ask, held height, focus and the history entry are the shell's. When a window opens from the page on an address that already carries its query, the shell puts the page under it and pushes its own entry, so Back always reaches the ask (social-post-caption-window-lock-v1)
+- Tab and a face's first focus count only real Tab stops: an element with tabindex -1 is skipped (a list's roving options are reached with the arrows), and a radio group is one stop, as the browser has it (its checked radio, else its first)
+- A window whose faces hold long lists may open at 80vh (`fill`) instead of holding the height it opens at
 - A window may also show one object to read and add to (Comments). A window whose one action lives in its body (Post at a pinned foot) draws no Done, and ⌘/Ctrl+Enter runs that action. A window whose content arrives after it opens fills 80vh. A window opened from a layer that owns it (the immersive viewer, a full-screen viewer, not a HouseDialog) mounts inside that layer. ⌘/Ctrl+Enter does nothing while the ask is up. See [`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md)
 
 ## HouseDrawer

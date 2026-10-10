@@ -219,11 +219,10 @@ export function HousePageSelect({
  *    Home End and type-ahead (houseFormSelectListKeyDown), 44 rows with the
  *    form hover. Still no Esc listener, portal or sheet, and never
  *    data-house-form-select-menu: Esc stays its host's.
- *    Inside a house window, `inline` needs the window's Tab trap to skip
- *    tabindex=-1 (houseWindowFocusables, Add right plan A1): until then the
- *    trap counts every option as a stop, and Tab from the list's one stop
- *    can leave the window. The first inline caller lands with that change
- *    (guarded in house-page-select.test.tsx).
+ *    Inside a house window, `inline` relies on the window's Tab trap
+ *    skipping tabindex=-1 (houseWindowFocusables, landed with the first
+ *    caller, Add right; guarded in house-page-select.test.tsx), so Tab from
+ *    the list's one stop wraps inside the window.
  *  - `multiple` with `values`: aria-multiselectable; every listed key is
  *    chosen and onPick toggles in the caller.
  *  - an option's `detail`: a second line under its label. */
