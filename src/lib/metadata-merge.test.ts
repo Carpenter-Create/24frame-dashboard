@@ -300,12 +300,28 @@ describe("the apply runbook and the claims about the passes (draft, founder-appl
   const LOCK = read("docs/design-locks/aggregation-title-details-window-lock-v1.md");
   const CURRENT = read("docs/status/CURRENT.md");
   const FINDINGS_PGTAP = read("supabase/tests/findings_test.sql");
+  /** This migration's own section of CURRENT.md (others share the phrasing). */
+  const currentSection = () => {
+    const heading = "## Title metadata checks and atomic save";
+    expect(CURRENT).toContain(heading);
+    const section = CURRENT.slice(CURRENT.indexOf(heading));
+    return section.slice(0, section.indexOf("\n---"));
+  };
 
   // Every pass re-stamps derived_at and appends an audit row per open
-  // finding, so a pass is not idempotent; a re-run changes no finding's
-  // status, code or message.
+  // finding, so a pass is not idempotent; a pass over records unchanged since
+  // the last one changes no finding's status, code or message.
   it("never calls a pass idempotent, and says what a re-run does change", () => {
-    for (const text of [MIGRATION, FINDINGS_PGTAP, LOCK, CURRENT]) expect(text).not.toMatch(/idempotent/i);
+    for (const text of [MIGRATION, FINDINGS_PGTAP, LOCK, currentSection()]) expect(text).not.toMatch(/idempotent/i);
+    // Qualified (review on #799): a refused call writes nothing, and only a
+    // pass over records unchanged since the last one changes no finding.
+    const step9 = LOCK.split("\n").find((line) => line.startsWith("9. ")) ?? "";
+    for (const text of [currentSection().replace(/\s+/g, " "), step9]) {
+      expect(text).toContain("a refused call writes nothing");
+      expect(text).toMatch(/[Oo]nce a pass has run, another pass over records unchanged since then changes no finding's status, code or message/);
+      expect(text).toContain("re-stamps `derived_at` and appends one audit row per open finding");
+      expect(text).not.toMatch(/a re-run changes no finding|Re-running it is safe/);
+    }
     expect(prose(MIGRATION)).toContain("A second pass over an unchanged record changes no finding's status, code or message");
     expect(prose(MIGRATION)).toContain("each pass re-stamps derived_at on every open validator finding");
     expect(FINDINGS_PGTAP).toContain("'a second pass over unchanged records changes no finding''s status, code or message'");
@@ -356,6 +372,22 @@ describe("the apply runbook and the claims about the passes (draft, founder-appl
     // Read-only, as the window reads the record.
     expect(fromLock).not.toMatch(/\b(update|insert|delete|truncate)\b|refresh_|finish_/i);
     expect(fromLock).toContain("public.title_metadata_findings(public.normalize_stored_title_metadata(");
+    // Code, severity and message on both sides (review on #799), each side
+    // in code order, so a finding with a forged message or severity counts.
+    expect(fromLock).toContain(
+      "array_agg(f.code || '|' || f.severity::text || '|' || f.message order by f.code), '{}'::text[])",
+    );
+    expect(fromLock).toContain(
+      "array_agg((d->>'code') || '|' || (d->>'severity') || '|' || (d->>'message') order by d->>'code'), '{}'::text[])",
+    );
+    // title_metadata_findings's own keys.
+    const { body: derive } = functionSql("title_metadata_findings");
+    for (const key of ["'code',", "'severity',", "'message',"]) expect(derive).toContain(key);
+    // The descriptions say what it compares.
+    const step10 = LOCK.split("\n").find((line) => line.startsWith("10. ")) ?? "";
+    for (const text of [step10, prose(MIGRATION)]) {
+      expect(text).toContain("the same codes, each with the same severity and message");
+    }
   });
 
   // Review on #799 (parity): a repair's "from" is the page's JSON.parse
@@ -632,6 +664,38 @@ describe("merge_title_metadata SQL (draft, founder-applied)", () => {
     expect(body).toMatch(
       /where id = p_title_id\s+and deleted_at is null;\s+if not found then\s+raise exception 'Title is already deleted';\s+end if;\s+update public\.assets/,
     );
+  });
+
+  // Adam, 2026-10-10, "Yes, in #799 (Recommended)": the staff gate is the one
+  // every other GC write uses, so GC legal and accountant cannot delete.
+  it("delete_title's staff gate is gc_can(auth.uid(), 'operate'), never is_gc_staff", () => {
+    const { body, after } = functionSql("delete_title");
+    expect(body).toContain("  v_staff := public.gc_can(auth.uid(), 'operate');\n  if not v_staff then");
+    expect(body).not.toContain("is_gc_staff");
+    // The member branch keeps its gate and line; nothing else moves.
+    expect(body).toMatch(
+      /if not v_staff then\s+if not public\.member_can\(auth\.uid\(\), v_org, 'operate'\) then\s+raise exception 'Not authorized to delete this title';/,
+    );
+    // After the lock, before either branch.
+    expect(body.indexOf("v_staff := public.gc_can(")).toBeGreaterThan(body.indexOf("for no key update;"));
+    expect(after.split("\n").slice(0, 2)).toEqual([
+      "revoke execute on function public.delete_title(uuid) from public, anon;",
+      "grant  execute on function public.delete_title(uuid) to authenticated;",
+    ]);
+    // The decision, verbatim, where the SQL is approved.
+    expect(prose(MIGRATION)).toContain(
+      "Adam, 2026-10-10, verbatim: \"Yes, in #799 (Recommended)\", choosing \"Add the one-line gate change plus pgTAP tests that legal and accountant are refused. You approve it with the rest of #799's SQL before applying. I'll also hide the Delete button from staff who can't use it.\"",
+    );
+    // pgTAP refuses legal and accountant, and still lets the operating roles delete.
+    const pgtap = read("supabase/tests/titles_delete_archive_test.sql");
+    for (const line of [
+      "'P0001', 'Not authorized to delete this title', 'gc_legal cannot delete a draft');",
+      "'P0001', 'Not authorized to delete this title', 'gc_accountant cannot delete a draft');",
+      "'gc_delivery_ops still deletes a draft');",
+      "'gc_account_owner still deletes a draft');",
+    ]) {
+      expect(pgtap).toContain(line);
+    }
   });
 
   it("keeps the normalize helper internal and its registry equal to the app's", () => {

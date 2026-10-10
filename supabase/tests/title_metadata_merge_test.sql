@@ -21,7 +21,7 @@
 -- record in the next.
 
 begin;
-select plan(139);
+select plan(141);
 
 select set_config('t.org_a',  gen_random_uuid()::text, false);
 select set_config('t.org_b',  gen_random_uuid()::text, false);
@@ -160,6 +160,23 @@ select ok(
     where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)'::regprocedure)
   ~* 'from\s+public\.title_metadata\s+m\s+where\s+m\.title_id\s*=\s*p_title_id\s+for\s+update',
   'merge: the stored record is read FOR UPDATE');
+-- The order, as src/lib/metadata-merge.test.ts pins it (review on #799): the
+-- title lock comes before the first read of the record, and that first read
+-- is the main one, FOR UPDATE, followed by the no-record branch (not the
+-- conflict branch's re-read, which raises 'Could not save metadata').
+select ok(
+  (select strpos(p.prosrc, 'for no key update') > 0
+      and strpos(p.prosrc, 'for no key update') < strpos(p.prosrc, 'from public.title_metadata m')
+     from pg_proc p
+    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)'::regprocedure),
+  'merge: the title lock comes before the first read of the record');
+select ok(
+  (select substr(p.prosrc, 1, strpos(p.prosrc, 'from public.title_metadata m') - 1) ~ 'select\s+m\.data\s+into\s+v_current\s+$'
+      and substr(p.prosrc, strpos(p.prosrc, 'from public.title_metadata m'))
+          ~ '^from\s+public\.title_metadata\s+m\s+where\s+m\.title_id\s*=\s*p_title_id\s+for\s+update;\s+if\s+not\s+found\s+then\s+v_merged\s*:=\s*public\.check_title_metadata\(\s*v_set\s*-\s*v_clear\s*\);'
+     from pg_proc p
+    where p.oid = 'public.merge_title_metadata(uuid, uuid, jsonb, text[], jsonb)'::regprocedure),
+  'merge: the first read of the record is the main read, FOR UPDATE, then the no-record branch');
 select ok(
   (select p.prosrc ~* 'public\.check_title_metadata\s*\('
       and p.prosrc ~* 'public\.normalize_stored_title_metadata\s*\('

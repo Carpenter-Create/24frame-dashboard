@@ -5,7 +5,9 @@
 -- (2026-10-09, "Yes, draft for review"); applying it is founder-executed.
 -- Section 8 (the atomic metadata merge) was drafted on the same terms
 -- (Adam, 2026-10-09, "4) yes, please."; open questions "approved, use the
--- defaults"). Approving this exact SQL and applying it stay founder-only.
+-- defaults"). Section 13's staff gate for delete_title was drafted on the
+-- same terms (Adam, 2026-10-10, "Yes, in #799 (Recommended)"). Approving
+-- this exact SQL and applying it stay founder-only.
 --
 -- MERGE GATE: the founder applies it, runs the final pass after it has
 -- committed and then the read-only after-check (both in section 10),
@@ -74,7 +76,12 @@
 --      load (section 11); my_findings serves a title's findings only while
 --      the title is live (section 12); delete_title checks the status it acts
 --      on under the title lock, so a draft submitted in the meantime is never
---      deleted (section 13). refresh_title_findings takes the title lock
+--      deleted (section 13). delete_title's staff gate is
+--      gc_can(auth.uid(), 'operate'), as every other GC write's, where it was
+--      is_gc_staff: GC legal and accountant, which cannot operate, are refused
+--      "Not authorized to delete this title"; account owner and delivery
+--      operations staff delete as before (Adam, 2026-10-10, "Yes, in #799
+--      (Recommended)"). refresh_title_findings takes the title lock
 --      itself, and no client role (service_role included) may call it or the
 --      passes.
 --
@@ -88,7 +95,10 @@
 -- finish_title_findings_repair (internal)); a
 -- titles row lock (FOR NO KEY UPDATE) added to set_title_metadata,
 -- set_title_release_info, submit_title, reconcile_title_findings,
--- refresh_title_findings and delete_title; submit_title refuses a title
+-- refresh_title_findings and delete_title; delete_title's staff gate
+-- narrowed from is_gc_staff to gc_can(auth.uid(), 'operate') (Adam,
+-- 2026-10-10), the one authorization change here: GC legal and accountant
+-- can no longer delete a title; submit_title refuses a title
 -- outside the org or soft-deleted at that lock, reads the stored record
 -- normalized and checks only its required fields; create_title writes the
 -- new title's findings (ten open: no metadata yet); my_findings leaves out a
@@ -120,7 +130,8 @@
 -- 20260727000100_gc_role_separation.sql (reconcile_title_findings),
 -- 20260919160000_legal_entities.sql (create_title),
 -- 20260914310000_bound_my_rpcs.sql (my_findings, with create or replace) and
--- 20260917120100_titles_delete_archive.sql (delete_title); drop the
+-- 20260917120100_titles_delete_archive.sql (delete_title, which brings back
+-- its is_gc_staff gate: every GC role may delete again); drop the
 -- new functions (the previous bodies first: this submit_title calls
 -- normalize_stored_title_metadata, this create_title refresh_title_findings), and
 --   drop function public.finish_title_findings_repair(integer);
@@ -136,7 +147,10 @@
 -- STORED_DECIMAL_TEXT, storedNumberText, isEmpty, metadataValueAccepted,
 -- metadataMaxYear, requiredComplete) and the limits there, src/lib/languages.ts
 -- (LANGUAGES) and src/lib/territories.ts (ISO_COUNTRIES);
--- src/lib/metadata-merge.test.ts pins them.
+-- src/lib/metadata-merge.test.ts pins them. delete_title's staff gate
+-- (gc_can(auth.uid(), 'operate')) with src/lib/titles-lifecycle.ts
+-- (titleLifecycleFlags offers staff Delete only to a GC role that can
+-- operate).
 -- ============================================================================
 
 -- ---- 1. Pure helpers ---------------------------------------------------------
@@ -893,16 +907,17 @@ $$;
 -- migration has committed (finish_title_findings_repair(), its default
 -- 120-second wait); if it refuses because transactions are still open, it is
 -- run again. Then the read-only after-check, expecting 0: every live title's
--- open validator findings are what its stored record derives, read as the
--- window reads it.
+-- open validator findings are the findings its stored record derives, read
+-- as the window reads it: the same codes, each with the same severity and
+-- message.
 --   select count(*) as titles_out_of_step
 --     from public.titles t
 --    where t.deleted_at is null
---      and (select coalesce(array_agg(f.code order by f.code), '{}'::text[])
+--      and (select coalesce(array_agg(f.code || '|' || f.severity::text || '|' || f.message order by f.code), '{}'::text[])
 --             from public.findings f
 --            where f.entity_type = 'title' and f.entity_id = t.id
 --              and f.source = 'validator' and f.status = 'open')
---       <> (select coalesce(array_agg(d->>'code' order by d->>'code'), '{}'::text[])
+--       <> (select coalesce(array_agg((d->>'code') || '|' || (d->>'severity') || '|' || (d->>'message') order by d->>'code'), '{}'::text[])
 --             from jsonb_array_elements(public.title_metadata_findings(public.normalize_stored_title_metadata(
 --               coalesce((select m.data from public.title_metadata m where m.title_id = t.id), '{}'::jsonb)))) d);
 
@@ -1050,7 +1065,20 @@ comment on function public.my_findings(integer, uuid) is
 -- view check, so nothing is locked outside an org the caller may see) and
 -- checks that status. Lock order: the title, then its assets; no writer here
 -- locks assets first. The body is 20260917120100_titles_delete_archive.sql's,
--- plus that re-read and a found check on the update.
+-- plus that re-read, a found check on the update, and the staff gate below.
+--
+-- The staff gate is gc_can(auth.uid(), 'operate'), the gate every other GC
+-- write uses; it was is_gc_staff (review on #799), so every GC role, the
+-- read-only legal and accountant roles included, could delete a title, and
+-- the app purges a deleted title's stored files. Adam, 2026-10-10, verbatim:
+-- "Yes, in #799 (Recommended)", choosing "Add the one-line gate change plus
+-- pgTAP tests that legal and accountant are refused. You approve it with the
+-- rest of #799's SQL before applying. I'll also hide the Delete button from
+-- staff who can't use it." Account owner and delivery operations staff keep
+-- the staff branch unchanged. Legal and accountant staff take the member
+-- branch, where member_can defers to gc_can for GC staff, so 'operate' is
+-- false and they get "Not authorized to delete this title" before anything
+-- is written. Approving this exact SQL and applying it stay founder-only.
 
 create or replace function public.delete_title(p_title_id uuid)
   returns void
@@ -1093,7 +1121,7 @@ begin
     raise exception 'Title is already deleted';
   end if;
 
-  v_staff := public.is_gc_staff(auth.uid());
+  v_staff := public.gc_can(auth.uid(), 'operate');
   if not v_staff then
     if not public.member_can(auth.uid(), v_org, 'operate') then
       raise exception 'Not authorized to delete this title';

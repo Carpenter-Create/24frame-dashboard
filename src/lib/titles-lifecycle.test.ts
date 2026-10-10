@@ -19,7 +19,7 @@ import {
 
 describe("title lifecycle gates", () => {
   it("lets an owner delete a draft and never a submitted title", () => {
-    const owner = { isStaff: false, canOperate: true };
+    const owner = { isStaff: false, canOperate: true, staffCanOperate: false };
     expect(titleLifecycleFlags(owner, "draft", false)).toEqual({
       canDelete: true,
       canArchive: false,
@@ -41,7 +41,7 @@ describe("title lifecycle gates", () => {
   });
 
   it("lets staff delete drafts and Live only when reporting facts are empty", () => {
-    const staff = { isStaff: true, canOperate: true };
+    const staff = { isStaff: true, canOperate: true, staffCanOperate: true };
     expect(titleLifecycleFlags(staff, "draft", false).canDelete).toBe(true);
     expect(titleLifecycleFlags(staff, "live", false)).toEqual({
       canDelete: true,
@@ -59,7 +59,7 @@ describe("title lifecycle gates", () => {
   });
 
   it("restores archived titles and does not offer delete", () => {
-    const owner = { isStaff: false, canOperate: true };
+    const owner = { isStaff: false, canOperate: true, staffCanOperate: false };
     expect(titleLifecycleFlags(owner, "archived", true)).toEqual({
       canDelete: false,
       canArchive: false,
@@ -71,15 +71,44 @@ describe("title lifecycle gates", () => {
   });
 
   it("hides controls from a read-only member", () => {
-    const viewer = { isStaff: false, canOperate: false };
+    const viewer = { isStaff: false, canOperate: false, staffCanOperate: false };
     expect(titleLifecycleFlags(viewer, "draft", false).canDelete).toBe(false);
     expect(titleLifecycleFlags(viewer, "live", false).canArchive).toBe(false);
     expect(titleLifecycleFlags(viewer, "archived", false).canRestore).toBe(false);
     expect(titleHasLifecycleActions(titleLifecycleFlags(viewer, "draft", false))).toBe(false);
   });
 
+  // Adam, 2026-10-10, "Yes, in #799 (Recommended)": delete_title's staff gate
+  // is gc_can(auth.uid(), 'operate'), so a read-only GC role is not offered it.
+  it("offers staff Delete only to a GC role that can operate, as delete_title's gate", () => {
+    // GC legal or accountant: staff, but gc_can(operate) is false.
+    const readOnly = { isStaff: true, canOperate: false, staffCanOperate: false };
+    expect(titleLifecycleFlags(readOnly, "draft", false)).toEqual({
+      canDelete: false,
+      canArchive: false,
+      canRestore: false,
+      offerArchiveFromDelete: false,
+    });
+    expect(titleHasLifecycleActions(titleLifecycleFlags(readOnly, "draft", false))).toBe(false);
+    expect(titleLifecycleFlags(readOnly, "live", false).canDelete).toBe(false);
+    expect(titleLifecycleFlags(readOnly, "submitted", false).canDelete).toBe(false);
+    // An org role never stands in for the GC role: for GC staff, member_can
+    // defers to gc_can.
+    const readOnlyWithOrgRole = { isStaff: true, canOperate: true, staffCanOperate: false };
+    expect(titleLifecycleFlags(readOnlyWithOrgRole, "draft", false).canDelete).toBe(false);
+    expect(titleLifecycleFlags(readOnlyWithOrgRole, "live", false).canDelete).toBe(false);
+    // Account owner or delivery ops staff, with no org role: unchanged.
+    const operator = { isStaff: true, canOperate: false, staffCanOperate: true };
+    expect(titleLifecycleFlags(operator, "draft", false).canDelete).toBe(true);
+    expect(titleLifecycleFlags(operator, "live", false).canDelete).toBe(true);
+    expect(titleLifecycleFlags(operator, "live", true).canDelete).toBe(false);
+    // A member's Delete never reads the GC flag.
+    expect(titleLifecycleFlags({ isStaff: false, canOperate: true, staffCanOperate: false }, "draft", false).canDelete).toBe(true);
+    expect(titleLifecycleFlags({ isStaff: false, canOperate: false, staffCanOperate: true }, "draft", false).canDelete).toBe(false);
+  });
+
   it("exposes list-row flags without weakening the reporting predicate", () => {
-    const staff = { isStaff: true, canOperate: false };
+    const staff = { isStaff: true, canOperate: false, staffCanOperate: true };
     expect(titleListHasReportingActivity("draft")).toBe(false);
     expect(titleListHasReportingActivity("live")).toBe(true);
     expect(titleListHasReportingActivity("archived")).toBe(false);

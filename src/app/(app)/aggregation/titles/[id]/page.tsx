@@ -263,8 +263,13 @@ export default async function TitleDetailPage({ params }: { params: Promise<{ id
   const { data: hasReportingActivity } = needsReportingCheck
     ? await supabase.rpc("title_has_reporting_activity", { p_title_id: titleId })
     : { data: false };
+  // gc_can(operate) is delete_title's staff gate: staff whose GC role cannot
+  // operate (legal, accountant) are not offered Delete. Members never call it.
+  const { data: staffCanOperate } = lifecycleStaff
+    ? await supabase.rpc("gc_can", { p_uid: ctx.user.id, p_capability: "operate" })
+    : { data: false };
   const lifecycleFlags = titleLifecycleFlags(
-    { isStaff: lifecycleStaff, canOperate },
+    { isStaff: lifecycleStaff, canOperate, staffCanOperate: staffCanOperate === true },
     title.status as TitleStatus,
     hasReportingActivity === true,
   );

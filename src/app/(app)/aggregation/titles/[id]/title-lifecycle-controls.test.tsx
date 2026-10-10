@@ -146,4 +146,18 @@ describe("TitleLifecycleControls", () => {
     expect(pageSrc).toContain("titleRole");
     expect(pageSrc).toContain("ctx.activeRole");
   });
+
+  // Adam, 2026-10-10, "Yes, in #799 (Recommended)": delete_title's staff gate
+  // is gc_can(auth.uid(), 'operate'). Every host passes it as staffCanOperate,
+  // and the Aggregation hosts ask for it only for staff.
+  it("gives every host delete_title's staff gate, gc_can(operate)", () => {
+    for (const host of [pageSrc, listSrc]) {
+      expect(host).toContain(
+        'lifecycleStaff\n    ? await supabase.rpc("gc_can", { p_uid: ctx.user.id, p_capability: "operate" })\n    : { data: false };',
+      );
+      expect(host).toContain("staffCanOperate: staffCanOperate === true");
+    }
+    expect(gcSrc).toContain('supabase.rpc("gc_can", { p_uid: user.id, p_capability: "operate" })');
+    expect(gcSrc).toContain("staffCanOperate: canOperate === true");
+  });
 });

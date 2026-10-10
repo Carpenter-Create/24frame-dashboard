@@ -31,6 +31,14 @@ export const TITLE_LIFECYCLE = {
 export type TitleLifecycleActor = {
   isStaff: boolean;
   canOperate: boolean;
+  /**
+   * GC staff whose GC role can operate: gc_can(uid, 'operate'), delete_title's
+   * staff gate (account owner, delivery ops). Read-only GC roles (legal,
+   * accountant) are refused delete, so they are not offered it (Adam,
+   * 2026-10-10, "Yes, in #799 (Recommended)"). Not read for a member who is
+   * not staff.
+   */
+  staffCanOperate: boolean;
 };
 
 export type TitleLifecycleFlags = {
@@ -59,6 +67,10 @@ export function titleLifecycleFlags(
   const archived = isArchivedTitleStatus(status);
   const draft = isDraftTitleStatus(status);
   const operate = actor.canOperate || actor.isStaff;
+  // delete_title's gate: staff by GC role (gc_can operate), a member by org
+  // role. For GC staff, member_can defers to gc_can, so the org role adds
+  // nothing.
+  const deleteGate = actor.isStaff ? actor.staffCanOperate : actor.canOperate;
 
   if (archived) {
     return {
@@ -71,7 +83,7 @@ export function titleLifecycleFlags(
 
   if (draft) {
     return {
-      canDelete: operate,
+      canDelete: deleteGate,
       canArchive: false,
       canRestore: false,
       offerArchiveFromDelete: false,
@@ -80,11 +92,12 @@ export function titleLifecycleFlags(
 
   // Submitted / Complete / Live (and later lifecycle). Owner never deletes
   // after submit. Staff may delete only when the hard money/reporting
-  // predicate is empty; otherwise Archive is the offered path.
+  // predicate is empty; otherwise Archive is the offered path. A read-only
+  // GC role is never offered Delete.
   if (actor.isStaff) {
     const blocked = hasReportingActivity;
     return {
-      canDelete: !blocked,
+      canDelete: deleteGate && !blocked,
       canArchive: true,
       canRestore: false,
       offerArchiveFromDelete: blocked,
