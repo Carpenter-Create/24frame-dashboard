@@ -108,7 +108,8 @@ describe("news history source filter rows", () => {
     expect(newsHistoryEmptyCopy([], [])).toBe(NEWS_PAGE.empty);
     expect(newsHistoryEmptyCopy(rows, [])).toBe(NEWS_PAGE.filterEmpty);
     expect(newsHistoryEmptyCopy([], [], true)).toBeNull();
-    expect(newsHistoryEmptyCopy(rows, rows, true)).toBe(NEWS_PAGE.empty);
+    expect(newsHistoryEmptyCopy(rows, [], true)).toBeNull();
+    expect(newsHistoryEmptyCopy(rows, rows, true)).toBeNull();
   });
 });
 

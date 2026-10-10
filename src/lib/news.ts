@@ -318,7 +318,7 @@ export function newsHistoryEmptyCopy(
   visible: readonly NewsItem[],
   truncated = false,
 ): string | null {
-  if (truncated && rows.length === 0) return null;
+  if (truncated) return null;
   if (rows.length === 0) return NEWS_PAGE.empty;
   if (visible.length === 0) return NEWS_PAGE.filterEmpty;
   return NEWS_PAGE.empty;
