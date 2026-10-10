@@ -54,6 +54,8 @@ vi.mock("next/navigation", () => ({
     throw new Error(`REDIRECT:${to}`);
   }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  // The owner's ⋯ closes on an address change (social-post-owner-menu-lock-v1).
+  usePathname: () => "/social",
 }));
 vi.mock("@/lib/supabase/context", () => ({ getOrgContext: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));

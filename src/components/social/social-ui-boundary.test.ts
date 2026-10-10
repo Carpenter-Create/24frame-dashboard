@@ -233,4 +233,16 @@ describe("social-ui import boundary", () => {
     expect(card.has(CAPTION_HOST)).toBe(false);
     expect(owner.has(CAPTION_HOST)).toBe(false);
   });
+
+  // A post's ⋯ (social-post-owner-menu-lock-v1): the card carries the sheet
+  // and the house ask, never the 600-line window shell.
+  it("keeps the owner menu on the ask's own module, off the window shell", () => {
+    const owner = closure("src/components/social/social-post-owner.tsx");
+    expect(owner.has("src/components/chrome/house-window-ask.tsx")).toBe(true);
+    expect(owner.has("src/components/social/social-post-owner-sheet.tsx")).toBe(true);
+    expect(owner.has("src/components/chrome/house-window.tsx")).toBe(false);
+    expect(owner.has("src/components/social/social-post-caption-window.tsx")).toBe(false);
+    expect(owner.has("src/components/social/social-post-caption-host.tsx")).toBe(false);
+    expect(hits(owner, FEED_HEAVY)).toEqual([]);
+  });
 });

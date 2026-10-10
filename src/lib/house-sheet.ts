@@ -88,7 +88,15 @@ export const APP_SHEET_HAIRLINE_CLASS = "h-px w-full bg-hairline";
 
 export const APP_SHEET_SCRIM_CLASS = "absolute inset-0 bg-ink/40 app-sheet-scrim-fade";
 
+// The house danger ink: the one red the house already draws (no --danger
+// token yet: a founder colour call, docs/known-divergences.md D3). This
+// constant serves its new uses (a post's Remove row and the ask's danger
+// action, social-post-owner-menu-lock-v1). The four other literals
+// (button.tsx, menu-surface.ts, account-sheet.ts, social-chrome.ts) wait
+// for the token, so all five move at once. Never a second hex.
+export const HOUSE_DANGER_INK_CLASS = "text-[#c4564a]";
+
 // Thread ··· item glyphs only — surface chrome is MenuSurface.
 export const THREAD_POPOVER_ICON_CLASS = "size-4 shrink-0 text-ink-3";
 
-export const THREAD_POPOVER_DELETE_ICON_CLASS = "size-4 shrink-0 text-[#c4564a]";
+export const THREAD_POPOVER_DELETE_ICON_CLASS = `size-4 shrink-0 ${HOUSE_DANGER_INK_CLASS}`;

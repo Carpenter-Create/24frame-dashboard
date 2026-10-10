@@ -127,6 +127,30 @@ describe("menu family hard gate", () => {
     expect(menuSurfaceViolations(surface!, broken).length).toBeGreaterThan(0);
   });
 
+  // A post's ⋯ (social-post-owner-menu-lock-v1): Family A's third host on a
+  // phone, the thread ··· MenuSurface on desktop, through the gate.
+  it("gates a post's ⋯ and its sheet as Family A", () => {
+    expect(MENU_FAMILIES.A.hosts).toContain("SocialPostOwnerSheet");
+    const menu = MENU_GATED_SURFACES.find((item) => item.id === "post-owner-menu");
+    expect(menu).toMatchObject({
+      phone: "A",
+      desktop: "MenuSurface",
+      file: "src/components/social/social-post-owner.tsx",
+    });
+    const sheet = MENU_GATED_SURFACES.find((item) => item.id === "post-owner-sheet");
+    expect(sheet).toMatchObject({
+      phone: "A",
+      desktop: null,
+      file: "src/components/social/social-post-owner-sheet.tsx",
+    });
+    const source = readFileSync(menu!.file, "utf8");
+    expect(menuSurfaceViolations(menu!, source)).toEqual([]);
+    expect(menuSurfaceViolations(sheet!, readFileSync(sheet!.file, "utf8"))).toEqual([]);
+    // Dropping the gate from the ⋯ fails the registry.
+    const ungated = source.replaceAll("menuHostClass(", "menuHostLiteral(");
+    expect(menuSurfaceViolations(menu!, ungated)).toContain("missing menuHostClass(");
+  });
+
   it("scans sources and fails if an ungated file mixes hosts", () => {
     const parked = new Set(MENU_PARKED_SURFACES.map((item) => item.file));
     const gated = new Set(MENU_GATED_SURFACES.map((item) => item.file));

@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-09
 **Status:** **LOCKED** (Adam, 2026-10-09, "approved, use the defaults") · Design Own→READY
+**Amended 2026-10-09:** [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md) (Adam, "approved, do it after Edit caption merges. make both better than it is."): the menu item reads **Edit caption** (was Edit; `SOCIAL.post.edit` retired); on a phone it is a row in the ⋯ sheet; Delete is **Remove**.
 **Scope:** The author's Edit caption from a post's ⋯, wherever `SocialPostCard` renders: the Feed (both lanes), a group, your own Profile Activity (the Comments pill included), a member's profile showing your posts, and the permalink. Also the places this device shows the edited words: the card, the tap immersive, Explore For You, and the Feed's reel tiles.
 **Entity:** Global Content / 24Frame only
 **Follows:**
@@ -13,7 +14,7 @@
 **Amends:**
 - [`social-confirm-copy-lock-v1.md`](social-confirm-copy-lock-v1.md): Edit caption has no Cancel.
 - [`house-overlay-dual-host-v1.md`](house-overlay-dual-host-v1.md): one-face windows, and a leftover window address.
-- [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7, the ⋯ row: Edit opens this window.
+- [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7, the ⋯ row: Edit caption opens this window (the label was Edit until 2026-10-09, [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md)).
 
 **Supersedes:** the 480 Edit caption dialog with its Cancel · Save footer.
 
@@ -101,7 +102,7 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 - The server checks the post id (a uuid) and the length before anything else: before it reads, and before it can create a profile.
 - It reads the post under row security (active posts only), refuses a non-author, and writes the body only.
 - The database stamps `edited_at` and refuses every other field.
-- Database text is logged on the server; the browser gets the fixed line. A dropped connection gets the same line, for Edit and for Delete.
+- Database text is logged on the server; the browser gets the fixed line. A dropped connection gets the same line, for Edit caption and for Remove.
 - An invalid group in the request is never refused; it only skips refreshing that group's page.
 
 ## 7) Not
@@ -111,11 +112,11 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 - No route.
 - No dialog over a dialog.
 - No new copy.
-- Delete stays its confirm (Remove / Keep, unchanged).
+- Remove keeps its confirm (Remove this post? · Keep · Remove), now the house ask ([`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md)).
 
 ## Copy
 
-**Existing, reused:** "Edit caption", "Edit", "Post options", "Close", "Done", "Back" (required by the shell, never shown), "Add a caption…", "Discard changes?", "Keep editing", "Discard", "Photo", "Video", "That caption is too long.", "Write a post or attach a photo or video.", "Could not save that caption.", "Could not remove that post.", "Only the author can change this post.", "That post is not visible.", "Create a creator profile to post, like, comment, or message.", "Not authenticated."
+**Existing, reused:** "Edit caption", "Post options", "Close", "Done", "Back" (required by the shell, never shown), "Add a caption…", "Discard changes?", "Keep editing", "Discard", "Photo", "Video", "That caption is too long.", "Write a post or attach a photo or video.", "Could not save that caption.", "Could not remove that post.", "Only the author can change this post.", "That post is not visible.", "Create a creator profile to post, like, comment, or message.", "Not authenticated." ("Edit" retired 2026-10-09: the menu reads "Edit caption".)
 
 **Retired:** "Save" and "Cancel" (`SOCIAL.post.editSave`, `SOCIAL.post.editCancel`).
 
@@ -137,7 +138,7 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 - `src/components/social/social-post-caption-window.test.tsx`: both hosts, the contents, the media, the error wiring, the shell.
 - `src/components/social/social-post-caption-host.test.tsx`: the one entry on the layout, the window loading on first use, no page refresh.
 - `src/components/social/social-post-caption-host.client.test.tsx`: the host driven over the real window entry, a browser history and Next's address: it opens at once, and at once over a profile pill; it waits for a Home lane or a landing close; a queued Edit whose card left opens nothing; a failure reopens with the draft, in place, or after another post's window closes; a removed post never reopens; a window reopened as Back closes another goes Back on close.
-- `src/components/social/social-post-owner.test.tsx`, `social-post-card-owner.test.tsx`: Delete's copy, the retired keys, the menu's request.
+- `src/components/social/social-post-owner.test.tsx`, `social-post-card-owner.test.tsx`: Remove's copy, the retired keys, the menu's request.
 - `social-feed-immersive.test.tsx`, `social-explore-for-you.test.tsx`, `social-feed-reel-rail.test.tsx`: each reads the owner's edit.
 - `social-ui-boundary.test.ts`: the window stays off the layout, the card and the menu.
 - `src/components/chrome/house-window.test.tsx` and `src/lib/house-overlay.test.ts`: the shell's leftover-address entry, and the window draws the shell.
@@ -145,10 +146,10 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 
 ## Verify on ship
 
-1. Computer: ⋯ → Edit on a Feed photo post opens the 600 window over the Feed, and the address gains `&caption` with no reload. It shows the avatar, the caption with the caret at its end, and the photo under it, not clickable.
+1. Computer: ⋯ → Edit caption on a Feed photo post opens the 600 window over the Feed, and the address gains `&caption` with no reload. It shows the avatar, the caption with the caret at its end, and the photo under it, not clickable.
 2. Change the words → Done: the card shows them as the window leaves. Open the photo: the immersive shows them.
 3. Change the words → Esc → the ask; Esc → back to editing; browser Back → the ask; Discard → closed, the old caption, focus on the ⋯.
 4. Own Profile → Activity → the Comments pill (a post shown twice), the permalink, a member profile with your own posts, and a group. On a video post the poster shows and nothing plays.
 5. Switch the Feed lane and open Edit at once: it opens once the lane lands. Reload with the window open, then Edit again: Back still asks.
 6. Phone (390): the same window fills the sheet below the status bar. ✕ with changes → the ask card, Keep editing first. The back gesture → the ask. An emptied text post → Done shows "Write a post or attach a photo or video." and nothing is sent.
-7. In devtools block `/api/social/post-own` → Done: the caption flips back and the window reopens with the draft and "Could not save that caption.". With the block on, Delete → Remove shows "Could not remove that post." and the dialog can be closed.
+7. In devtools block `/api/social/post-own` → Done: the caption flips back and the window reopens with the draft and "Could not save that caption.". With the block on, ⋯ → Remove → Remove shows "Could not remove that post." in place, and Keep closes it.

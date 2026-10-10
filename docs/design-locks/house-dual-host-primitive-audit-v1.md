@@ -23,3 +23,13 @@ Authorized by Adam, 2026-10-09: "make sure we do your recommendations above, res
 - The bare list owns no Esc listener, portal or sheet, and never carries `data-house-form-select-menu`, so Esc stays its host's. No second select: `ui/select.tsx` is unchanged.
 - No caller uses an opt-in yet, so nothing a person sees changes and no copy is added. The first caller is the Add right window, which lands with its own lock.
 - Dependency: inside a house window, `inline` needs the window's Tab trap (`houseWindowFocusables`) to skip `tabindex="-1"` (Add right plan A1). Until it does, the trap counts every option as a stop, and Tab from the list's one stop at the foot of a window body leaves the window. So the first caller lands with that shell change or after it. `house-page-select.test.tsx` fails if any file uses `HousePageSelectOptions` while the trap still counts `tabindex="-1"`.
+
+## HouseWindowAsk panel: opened 2026-10-10
+
+Authorized by Adam, 2026-10-09: "approved, do it after Edit caption merges. make both better than it is." Inside the P0 HouseOverlay row.
+
+- HouseWindowAsk moves to `components/chrome/house-window-ask.tsx` (re-exported by `house-window.tsx`, so every caller is unchanged).
+- With no opt-in prop it draws exactly what it drew before, pinned byte for byte in `src/components/chrome/house-window-ask.pin.json` (rendered from `origin/main` `8ea5154`; the ask is unchanged there since `64f3e3b`). A change meant to alter today's asks rewrites the pin with `UPDATE_HOUSE_WINDOW_ASK_PIN=1 pnpm exec vitest run src/components/chrome/house-window-ask.test.tsx` and says so in its pull request.
+- Opt-ins: `variant="panel"` (frameless, its own alertdialog described by its line), `layout`, `discardTone="danger"`, `busy`, `notice`, and `panelRef` (the host's handle on the panel).
+- First caller: a post's Remove confirm ([`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md)).
+- No second ask, and no change to AppSheetFrame, HouseDialogFrame or HouseScrim.

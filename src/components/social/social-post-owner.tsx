@@ -1,37 +1,36 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { DotsThree, PencilSimple, Trash } from "@phosphor-icons/react";
 
 import {
   ThreadPopoverContent,
   ThreadPopoverItem,
 } from "@/components/chrome/menu-surface";
-import { useAppQueryClient } from "@/components/query-provider";
-import { useSocialPostCaptionWindow } from "@/components/social/social-post-caption-context";
+import { SocialPostOwnerSheet, SocialPostRemoveDialog } from "@/components/social/social-post-owner-sheet";
+import { useSocialPostOwner } from "@/components/social/use-social-post-owner";
 import { useSocialPostLiveBody } from "@/components/social/use-social-optimistic";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { InlineNotice } from "@/components/ui/inline-notice";
+import { menuHostClass } from "@/lib/menu-host";
 import { PHOSPHOR_CHROME_IDLE_WEIGHT } from "@/lib/phosphor-icon";
 import { SOCIAL } from "@/lib/social";
 import { type SocialPostMediaItem } from "@/lib/social-author-post-card";
 import { SOCIAL_POST_MORE_CLASS } from "@/lib/social-chrome";
 import { THREAD_POPOVER_DELETE_ICON_CLASS, THREAD_POPOVER_ICON_CLASS } from "@/lib/house-sheet";
-import { persistSocialPostDelete } from "@/lib/social-optimistic";
 import {
-  hideSocialPost,
   readSocialPostHidden,
   subscribeSocialPostOwn,
 } from "@/lib/social-post-own";
 
-// Owner overflow: the quiet ⋯ at the credit row's end (H · Posts; a 44
-// clear hit, desktop 40, glyph 20 ink-2). Thread ··· surface — not a
-// fourth round beside Like · Comment · Share.
+// Owner overflow: the quiet ⋯ at the header's end (a 44 clear hit, desktop
+// 40, glyph 20 ink-2), not a fourth round beside Like · Comment · Share.
+// It reads Edit caption · Remove. Drawn once for each width through the
+// menu-family gate (menuHostClass; lib/menu-host.ts post-owner-menu): on a
+// phone the house AppSheet card of rows (Family A), on desktop the thread ···
+// popover (MenuSurface). Remove asks first with the house ask.
+// docs/design-locks/social-post-owner-menu-lock-v1.md
 // docs/design-locks/social-feed-register-lock-v1.md §7
-// src/lib/menu-surface.ts
+// docs/design-locks/mobile-menu-family-tree-v1.md
 
 export function SocialPostPresence({
   postId,
@@ -76,15 +75,7 @@ export function SocialPostCaptionPlace({
   );
 }
 
-export function SocialPostOwnerMenu({
-  postId,
-  serverBody,
-  hasMedia,
-  media,
-  authorName,
-  authorPhotoUrl,
-  groupSlug,
-}: {
+export function SocialPostOwnerMenu(props: {
   postId: string;
   /** The caption the server sent with the card. */
   serverBody: string | null;
@@ -96,118 +87,92 @@ export function SocialPostOwnerMenu({
   authorPhotoUrl: string | null;
   groupSlug: string | null;
 }) {
-  const router = useRouter();
-  const queryClient = useAppQueryClient();
-  // Edit opens the caption window over the post: the one host on the Social
-  // layout (docs/design-locks/social-post-caption-window-lock-v1.md). No host,
-  // no Edit (never a dead control).
-  const caption = useSocialPostCaptionWindow();
-  const [mode, setMode] = useState<"delete" | null>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  // Edit opened the window: the menu must not take focus back to the ⋯.
-  const openingRef = useRef(false);
-
-  function openEdit() {
-    if (!caption) return;
-    openingRef.current = true;
-    caption.open({
-      postId,
-      serverBody,
-      hasMedia,
-      media,
-      authorName,
-      authorPhotoUrl,
-      groupSlug,
-      trigger: triggerRef.current,
-    });
-  }
-
-  function close() {
-    if (pending) return;
-    setMode(null);
-    setError("");
-  }
-
-  async function removePost() {
-    setPending(true);
-    setError("");
-    const form = new FormData();
-    form.set("post_id", postId);
-    if (groupSlug) form.set("group_slug", groupSlug);
-    const result = await persistSocialPostDelete(form);
-    setPending(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    hideSocialPost(postId);
-    setMode(null);
-    void queryClient?.invalidateQueries({ queryKey: ["social", "following-wall"] });
-    router.refresh();
-  }
+  const {
+    state,
+    host,
+    canEdit,
+    surfaceRef,
+    panelRef,
+    phoneTriggerRef,
+    desktopTriggerRef,
+    openSheet,
+    onPopoverOpenChange,
+    chooseEdit,
+    chooseRemove,
+    dismiss,
+    dismissFromScrim,
+    remove,
+    onDesktopCloseAutoFocus,
+  } = useSocialPostOwner(props);
+  const ask = {
+    pending: state.pending,
+    error: state.error,
+    panelRef,
+    onKeep: dismiss,
+    onRemove: () => void remove(),
+    onScrimKeep: dismissFromScrim,
+  };
+  const glyph = <DotsThree className="size-5" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />;
 
   return (
     <>
-      <DropdownMenu
-        onOpenChange={(open) => {
-          if (open) caption?.warm();
-        }}
+      {/* Phone: opens the sheet on click (Radix opens on finger-down, and a
+          sheet rising under a finger still down would take the release as a
+          scrim tap). */}
+      <button
+        ref={phoneTriggerRef}
+        type="button"
+        data-social-post-owner=""
+        data-menu-host="phone"
+        data-menu-family="A"
+        aria-label={SOCIAL.post.overflow}
+        aria-haspopup="dialog"
+        aria-expanded={host === "sheet"}
+        className={`${SOCIAL_POST_MORE_CLASS} ${menuHostClass("phone")}`}
+        onClick={openSheet}
       >
-        <DropdownMenuTrigger asChild>
-          <button
-            ref={triggerRef}
-            type="button"
-            data-social-post-owner=""
-            aria-label={SOCIAL.post.overflow}
-            className={SOCIAL_POST_MORE_CLASS}
-          >
-            <DotsThree className="size-5" weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-          </button>
-        </DropdownMenuTrigger>
-        <ThreadPopoverContent
-          align="end"
-          onCloseAutoFocus={(event) => {
-            // Edit opened the window: focus goes to its field. A plain
-            // dismiss still returns focus to the ⋯.
-            if (!openingRef.current) return;
-            event.preventDefault();
-            openingRef.current = false;
-          }}
-        >
-          {caption ? (
-            <ThreadPopoverItem data-social-post-owner-edit="" onSelect={openEdit}>
-              <PencilSimple className={THREAD_POPOVER_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-              {SOCIAL.post.edit}
+        {glyph}
+      </button>
+      {/* Desktop: the thread ··· popover; `contents` keeps the ⋯ a flex child. */}
+      <span data-menu-host="desktop" data-menu-family="desktop" className={menuHostClass("desktop", "slot")}>
+        <DropdownMenu open={state.step === "menu" && state.surface === "popover"} onOpenChange={onPopoverOpenChange}>
+          <DropdownMenuTrigger asChild>
+            <button
+              ref={desktopTriggerRef}
+              type="button"
+              data-social-post-owner=""
+              aria-label={SOCIAL.post.overflow}
+              className={SOCIAL_POST_MORE_CLASS}
+            >
+              {glyph}
+            </button>
+          </DropdownMenuTrigger>
+          <ThreadPopoverContent align="end" data-menu-family="desktop" onCloseAutoFocus={onDesktopCloseAutoFocus}>
+            {canEdit ? (
+              <ThreadPopoverItem data-social-post-owner-edit="" onSelect={chooseEdit}>
+                <PencilSimple className={THREAD_POPOVER_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
+                {SOCIAL.post.editTitle}
+              </ThreadPopoverItem>
+            ) : null}
+            <ThreadPopoverItem data-social-post-owner-remove="" danger onSelect={chooseRemove}>
+              <Trash className={THREAD_POPOVER_DELETE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
+              {SOCIAL.post.deleteConfirm}
             </ThreadPopoverItem>
-          ) : null}
-          <ThreadPopoverItem data-social-post-owner-delete="" danger onSelect={() => setMode("delete")}>
-            <Trash className={THREAD_POPOVER_DELETE_ICON_CLASS} weight={PHOSPHOR_CHROME_IDLE_WEIGHT} />
-            {SOCIAL.post.delete}
-          </ThreadPopoverItem>
-        </ThreadPopoverContent>
-      </DropdownMenu>
-      {mode === "delete" ? (
-      <Dialog open onClose={close} title={SOCIAL.post.deleteTitle} size="sm">
-        <p className="t-body-sm text-ink-2">{SOCIAL.post.deleteBody}</p>
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-        <DialogFooter>
-          <Button type="button" variant="secondary" onClick={close}>
-            {SOCIAL.post.deleteKeep}
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            data-social-post-owner-delete-confirm=""
-            disabled={pending}
-            onClick={() => void removePost()}
-          >
-            {SOCIAL.post.deleteConfirm}
-          </Button>
-        </DialogFooter>
-      </Dialog>
+          </ThreadPopoverContent>
+        </DropdownMenu>
+      </span>
+      {host === "sheet" ? (
+        <SocialPostOwnerSheet
+          face={state.step === "confirm" ? "confirm" : "menu"}
+          canEdit={canEdit}
+          surfaceRef={surfaceRef}
+          onEdit={chooseEdit}
+          onRemoveRow={chooseRemove}
+          onClose={dismiss}
+          {...ask}
+        />
       ) : null}
+      {host === "dialog" ? <SocialPostRemoveDialog {...ask} /> : null}
     </>
   );
 }

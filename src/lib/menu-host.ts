@@ -10,6 +10,12 @@
 // G5. Destination sheet stays D on AppSheet chrome. Hamburger is not
 //     mounted; do not fork a second sheet skin to bring it back.
 // G6. Desktop SoT stays separate from A–D.
+//
+// Family A's hosts: the account sheet (PhoneAccountMenu, AccountSheet) and,
+// third, a post's ⋯ on a phone (SocialPostOwnerSheet: one inset SheetGroup
+// that turns into the Remove confirm). The ⋯ goes through menuHostClass:
+// phone A, desktop the thread ··· MenuSurface (post-owner-menu,
+// post-owner-sheet; social-post-owner-menu-lock-v1).
 
 import { HOUSE_HEADER_TRAILING_PHONE_SLOT_CLASS } from "@/lib/house-lead-chrome";
 
@@ -58,7 +64,7 @@ export const MENU_FAMILIES = {
     id: "A",
     job: "app-action-sheet",
     primitive: "AppSheet+SheetGroup",
-    hosts: ["PhoneAccountMenu", "AccountSheet"],
+    hosts: ["PhoneAccountMenu", "AccountSheet", "SocialPostOwnerSheet"],
   },
   B: {
     id: "B",
@@ -220,6 +226,33 @@ export const MENU_GATED_SURFACES: readonly MenuGatedSurface[] = [
       'data-menu-family="C"',
     ],
     forbid: ["<AccountSheet", "<SheetGroup", "<SettingsHubList", "<MenuSurface"],
+  },
+  {
+    // A post's ⋯: the phone ⋯ opens the sheet below, the desktop ⋯ the
+    // thread ··· popover (social-post-owner-menu-lock-v1).
+    id: "post-owner-menu",
+    phone: "A",
+    desktop: "MenuSurface",
+    file: "src/components/social/social-post-owner.tsx",
+    // Each ⋯ carries its own gate: the phone button and the desktop slot.
+    require: [
+      "menuHostClass(",
+      'menuHostClass("phone")',
+      'menuHostClass("desktop", "slot")',
+      'data-menu-family="A"',
+      'data-menu-family="desktop"',
+      "<ThreadPopoverContent",
+      "<SocialPostOwnerSheet",
+    ],
+    forbid: ["<SheetGroup", "SettingsHubList", "SettingsDrillRow", "HousePageSelect", "@/components/ui/dialog"],
+  },
+  {
+    id: "post-owner-sheet",
+    phone: "A",
+    desktop: null,
+    file: "src/components/social/social-post-owner-sheet.tsx",
+    require: ["<AppSheetFrame", "<SheetGroup", 'data-menu-family="A"'],
+    forbid: ["<MenuSurface", "<ThreadPopoverContent", "SettingsDrillRow", "HousePageSelect", "Close44", "truncate"],
   },
 ];
 
