@@ -187,6 +187,7 @@ async function main(): Promise<void> {
         if (parent.surface === "welcome") {
           const ids = settled[0];
           if (!ids) return;
+          // Still the loaded S3 welcome. A Mux pair saved since then is left in place.
           const updated = await admin
             .from("profiles")
             .update({
@@ -195,7 +196,11 @@ async function main(): Promise<void> {
               welcome_mux_upload_id: ids.uploadId,
               welcome_video_key: null,
             })
-            .eq("id", parent.parentId);
+            .eq("id", parent.parentId)
+            .eq("welcome_video_key", ids.candidate.key)
+            .is("welcome_mux_asset_id", null)
+            .is("welcome_mux_playback_id", null)
+            .is("welcome_mux_upload_id", null);
           assertOk(updated.error, "welcome parent update");
           return;
         }
