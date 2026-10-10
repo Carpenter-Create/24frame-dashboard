@@ -241,6 +241,11 @@ describe("the one pass over live titles' findings (draft, founder-applied)", () 
     const pass = body.indexOf("return public.refresh_live_title_findings();");
     for (const at of [guard, since, drain, refuse, pass]) expect(at).toBeGreaterThan(0);
     expect(since).toBeLessThan(drain);
+    // Each look clears the cached activity first, so ended transactions drop
+    // out (Codex on #799): the clear sits inside the loop, before the read.
+    const clear = body.indexOf("perform pg_stat_clear_snapshot();");
+    expect(clear).toBeGreaterThan(body.indexOf("  loop\n"));
+    expect(clear).toBeLessThan(drain);
     expect(guard).toBeLessThan(drain);
     expect(drain).toBeLessThan(pass);
     expect(refuse).toBeLessThan(pass);

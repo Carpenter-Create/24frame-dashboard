@@ -751,6 +751,9 @@ begin
     raise exception 'Cannot see other sessions: run as a role with pg_read_all_stats';
   end if;
   loop
+    -- Activity is read once per transaction and then cached: clear it, so
+    -- each look sees transactions end (Codex on #799).
+    perform pg_stat_clear_snapshot();
     select count(*) into v_open
       from pg_stat_activity a
      where a.backend_type = 'client backend'
