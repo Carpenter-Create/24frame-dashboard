@@ -19,7 +19,7 @@
 -- An INSERT by anyone else stores avatar_key null. Profile creation still
 -- succeeds. An UPDATE by anyone else is 42501.
 --
--- DESTRUCTIVE OPS (draft only; do NOT apply to production from this PR):
+-- DESTRUCTIVE OPS (Adam applies on prod via the SQL Editor in the same sitting as the merge, cleared by CoS):
 -- CREATE FUNCTION, CREATE OR REPLACE TRIGGER.
 -- No DROP of tables. No DELETE of rows. No column REVOKE. Forward-only.
 -- ROLLBACK:

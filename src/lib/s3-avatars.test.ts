@@ -862,6 +862,12 @@ describe("s3-avatars dedicated bucket", () => {
     expect(setup).toContain("Filter.Tag.Value==`quarantine`");
     expect(setup).toContain("Expiration.Days==`30`");
     expect(setup).toContain("before deploying this PR and before recheck --execute");
+    expect(notes).toContain('export AVATARS_BUCKET=gc-avatars-prod');
+    expect(notes).toContain('get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET"');
+    expect(notes).not.toContain('get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET"');
+    expect(notes.indexOf("export AVATARS_BUCKET=gc-avatars-prod")).toBeLessThan(
+      notes.indexOf("get-bucket-lifecycle-configuration"),
+    );
     expect(notes).toContain("Filter.Prefix==null");
     expect(notes).toContain("Filter.Tag.Key==`gc-hold`");
     expect(notes).toContain("Filter.Tag.Value==`quarantine`");
@@ -877,6 +883,11 @@ describe("s3-avatars dedicated bucket", () => {
     expect(lifecycle).toBeGreaterThan(-1);
     expect(lifecycle).toBeLessThan(env);
     expect(setup.indexOf("get-bucket-lifecycle-configuration")).toBeLessThan(env);
+    expect(setup).toContain("export AVATARS_BUCKET=gc-avatars-prod");
+    expect(setup.indexOf("export AVATARS_BUCKET=gc-avatars-prod\n    aws s3api get-bucket-lifecycle-configuration")).toBeGreaterThan(
+      -1,
+    );
+    expect(setup).not.toContain('get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET"');
     expect(notes).toContain("no `s3:prefix` condition");
     expect(notes).toContain("only cleanup for quarantine copies");
     const gate = notes.indexOf("get-bucket-lifecycle-configuration");

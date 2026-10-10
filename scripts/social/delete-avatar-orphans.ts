@@ -5,7 +5,7 @@
  * A key the pointer names, a key that is not an avatar path, and a key whose
  * pointer read fails are not deleted.
  * A delete that throws still prints the keys already classified, then exits 1.
- * Do not run this against production from CI. Adam runs it.
+ * Do not run this against production from CI. CoS runs this on the CoS box, with env from the box secrets store.
  * Do not delete orphans by hand.
  *
  *   pnpm exec tsx --conditions=react-server scripts/social/delete-avatar-orphans.ts <key> [<key>...]

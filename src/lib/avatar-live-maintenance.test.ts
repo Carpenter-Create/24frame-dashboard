@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey } from "./account-avatar";
 import {
@@ -6,12 +6,27 @@ import {
   deleteOrphansWantsExecute,
   printDeleteAvatarOrphansResult,
 } from "../../scripts/social/delete-avatar-orphans";
-import { unholdLiveAvatars, unholdWantsExecute } from "../../scripts/social/unhold-live-avatars";
+import { reportUnholdProcessFailure, unholdLiveAvatars, unholdWantsExecute } from "../../scripts/social/unhold-live-avatars";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 
 describe("unholdLiveAvatars", () => {
+  it("prints a plain-object unhold process message and exits 1", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const previousExit = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      reportUnholdProcessFailure({ message: "canceling statement due to statement timeout" });
+      expect(errors).toHaveBeenCalledTimes(1);
+      expect(errors).toHaveBeenCalledWith("canceling statement due to statement timeout");
+      expect(process.exitCode).toBe(1);
+    } finally {
+      errors.mockRestore();
+      process.exitCode = previousExit;
+    }
+  });
+
   it("is a dry run unless --execute is passed", () => {
     expect(unholdWantsExecute(["node", "unhold-live-avatars.ts"])).toBe(false);
     expect(unholdWantsExecute(["node", "unhold-live-avatars.ts", "--execute"])).toBe(true);

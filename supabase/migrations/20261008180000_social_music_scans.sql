@@ -36,14 +36,21 @@
 -- A music score at or above the app block threshold (default 25) is blocked
 -- immediately. The staff queue lists those rows; it does not release them.
 --
--- DESTRUCTIVE OPS (draft only; do NOT apply to production from this PR):
+-- DESTRUCTIVE OPS (Adam applies on prod via the SQL Editor in the same sitting as the merge, cleared by CoS):
 -- CREATE TYPE, CREATE TABLE, CREATE INDEX, CREATE FUNCTION, CREATE TRIGGER,
 -- ENABLE RLS, CREATE POLICY, DROP POLICY + CREATE POLICY on posts_select and
 -- stories_select (same grants; adds the music visibility predicate), GRANT,
 -- REVOKE. No UPDATE, DELETE, or DROP of existing rows.
--- Adam applies this SQL on prod. Do not apply from CI.
+-- APPLY ORDER, in that sitting, file 1 then file 2 then file 3. Do not apply from CI.
+--   1. 20261008180000_social_music_scans.sql
+--   2. 20261008180100_profiles_welcome_mux.sql
+--   3. 20261009120000_avatar_key_and_story_media.sql
+-- ROLLBACK ORDER, file 3 then file 2 then file 1:
+--   1. 20261009120000_avatar_key_and_story_media.sql
+--   2. 20261008180100_profiles_welcome_mux.sql
+--   3. 20261008180000_social_music_scans.sql
 --
--- ROLLBACK: restore the policies that call the private function BEFORE
+-- ROLLBACK (this file is last: roll back file 3, then file 2, then the statements below): restore the policies that call the private function BEFORE
 -- dropping it, then drop the private schema. Policy text is the pre-music
 -- posts_select (20260912120000_groups_posts.sql) and stories_select
 -- (20260914120000_social_home_stories.sql). Nothing between those files

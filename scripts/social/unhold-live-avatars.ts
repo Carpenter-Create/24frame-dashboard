@@ -8,7 +8,7 @@
  * A key that read no longer names, a pointer that changed, or a read that errors, is a skipped clear. The tag stays.
  * Unhold is not scheduled yet. Scheduling --execute well under 30 days is a required follow-up before real users depend on it.
  * A tag read that fails is unverified. The tag stays.
- * Do not run this against production from CI. Adam runs it after the avatar SQL is applied.
+ * Do not run this against production from CI. CoS runs this on the CoS box, with env from the box secrets store.
  *
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts
  *   pnpm exec tsx --conditions=react-server scripts/social/unhold-live-avatars.ts --execute
@@ -20,6 +20,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export function unholdWantsExecute(argv: readonly string[]): boolean {
   return argv.includes("--execute");
+}
+
+/** Supabase errors are plain objects with a string message, not Error instances. */
+export function failureMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return fallback;
+}
+
+export function reportUnholdProcessFailure(error: unknown): void {
+  console.error(failureMessage(error, "unhold failed"));
+  process.exitCode = 1;
 }
 
 export type UnholdLiveAvatarsReport = {
@@ -174,7 +187,6 @@ if (invokedDirectly) {
       console.log(JSON.stringify({ msg: "unhold live avatars", ...report }));
     })
     .catch((error: unknown) => {
-      console.error(error instanceof Error ? error.message : "unhold failed");
-      process.exitCode = 1;
+      reportUnholdProcessFailure(error);
     });
 }

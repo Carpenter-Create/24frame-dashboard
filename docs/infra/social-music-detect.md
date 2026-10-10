@@ -431,11 +431,12 @@ notice is `malformed`. Test: `retries a clip longer than the cap without identif
    Apply it from `docs/infra/avatar-storage-setup.md`, then run this
    read-only check. Stop when that rule is missing, not Enabled, has a
    prefix, filtered on a tag other than `gc-hold=quarantine`, or set to an
-   expiration other than 30 days. Do not set the env var until the check
-   shows it.
+   expiration other than 30 days. The check uses `AVATARS_BUCKET`.
+   Do not set `S3_AVATARS_BUCKET` until the check shows that rule.
 
 ```sh
-aws s3api get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET" \
+export AVATARS_BUCKET=gc-avatars-prod
+aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET" \
   --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Prefix==null && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
 ```
 

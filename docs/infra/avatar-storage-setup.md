@@ -1,6 +1,6 @@
-# Avatar storage (S3) setup — run once per environment
+# Avatar storage (S3) setup: run once per environment
 
-Dedicated **private** avatars bucket on the **existing GC AWS account** — the
+Dedicated **private** avatars bucket on the **existing GC AWS account**: the
 same account as title assets (`gc-content-assets-dev` / `gc-content-assets-prod`).
 This is **not** a prefix on the title-asset bucket. Title objects stay in
 `S3_BUCKET` under `orgs/<org>/titles/...`. Faces never go there and are never
@@ -35,7 +35,7 @@ assets (e.g. us-east-1).
 Do not attach a public bucket policy. Do not enable a website. Do not add this
 bucket as a CloudFront origin.
 
-2) Least-privilege on the **existing** app IAM user (`gc-assets-app`) — same
+2) Least-privilege on the **existing** app IAM user (`gc-assets-app`): same
 credentials the title-asset path already uses. Pre-deploy, before the image
 recheck: GetObject, PutObject, DeleteObject, GetObjectTagging,
 PutObjectTagging, and DeleteObjectTagging on `avatars/*`, plus ListBucket
@@ -122,6 +122,7 @@ set to an expiration other than 30 days. Run this before deploying this PR
 and before recheck --execute. Do not set `S3_AVATARS_BUCKET` until this
 returns that rule.
 
+    export AVATARS_BUCKET=gc-avatars-prod
     aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET" \
       --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Prefix==null && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
 

@@ -19,7 +19,7 @@
  * docs/infra/social-music-detect.md: the copy replaces tags, and the
  * pointer is set only after gc-hold is gone.
  * One page is read, rechecked, and dropped before the next page.
- * Do not run this against production from CI. Adam runs it after the SQL is applied.
+ * Do not run this against production from CI. CoS runs this on the CoS box, with env from the box secrets store.
  *
  *   pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts
  *   pnpm exec tsx --conditions=react-server scripts/social/recheck-social-images.ts --execute
@@ -57,7 +57,7 @@ import {
   type SocialImageRecheckReport,
 } from "@/lib/social-image-reencode";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runUnholdLiveAvatars, type UnholdLiveAvatarsReport } from "./unhold-live-avatars";
+import { failureMessage, runUnholdLiveAvatars, type UnholdLiveAvatarsReport } from "./unhold-live-avatars";
 
 export { recheckWantsExecute };
 
@@ -521,21 +521,40 @@ async function mediaItem(
   }
 }
 
-async function main(): Promise<void> {
-  const admin = createAdminClient();
+export async function main(
+  deps: {
+    execute?: boolean;
+    createAdmin?: () => ReturnType<typeof createAdminClient>;
+    recheckPages?: typeof recheckParentPages;
+    publish?: typeof publishRecheckReportThenUnhold;
+  } = {},
+): Promise<void> {
+  const executeFlag = deps.execute ?? execute;
+  const admin = (deps.createAdmin ?? createAdminClient)();
+  const publishReport = deps.publish ?? publishRecheckReportThenUnhold;
   const logs: string[] = [];
   const hidden = new Set<string>();
-  const report: SocialImageRecheckReport = blankSocialImageRecheckReport(!execute);
+  const report: SocialImageRecheckReport = blankSocialImageRecheckReport(!executeFlag);
 
-  if (execute) {
+  if (executeFlag) {
     const unholdStart = await runUnholdLiveAvatars(true);
     logs.push(JSON.stringify({ msg: "unhold live avatars", when: "start", ...unholdStart }));
   }
 
+  async function recheckPages<T extends { id: string }>(input: {
+    execute: boolean;
+    pageSize: number;
+    loadParents: (afterId: string | null, limit: number) => Promise<T[]>;
+    recheck: (parents: readonly T[]) => Promise<SocialImageRecheckReport>;
+  }): Promise<SocialImageRecheckReport> {
+    if (deps.recheckPages) return deps.recheckPages(input);
+    return recheckParentPages(input);
+  }
+
   for (const surface of ["post", "story"] as const) {
     const table = surface === "post" ? "posts" : "stories";
-    const page = await recheckParentPages({
-      execute,
+    const page = await recheckPages({
+      execute: executeFlag,
       pageSize: SOCIAL_IMAGE_RECHECK_PAGE,
       loadParents: (afterId) => loadParentPage(table, afterId),
       recheck: async (parents) => {
@@ -554,7 +573,7 @@ async function main(): Promise<void> {
           }
         }
         const page = await runSocialImageRecheck({
-          execute,
+          execute: executeFlag,
           items,
           report: (line) => {
             logs.push(line);
@@ -620,8 +639,8 @@ async function main(): Promise<void> {
     report.legacyS3Video += page.legacyS3Video;
   }
 
-  const avatars = await recheckParentPages({
-    execute,
+  const avatars = await recheckPages({
+    execute: executeFlag,
     pageSize: SOCIAL_IMAGE_RECHECK_PAGE,
     loadParents: (afterId) => loadAvatarPage(afterId),
     recheck: async (parents) => {
@@ -633,7 +652,7 @@ async function main(): Promise<void> {
       const read = await readAvatarRecheckPage(parents, headAvatarRecheck, readAvatarObject);
       for (const note of read.notes) logs.push(note);
       const page = await runSocialImageRecheck({
-        execute,
+        execute: executeFlag,
         items: read.items,
         report: (line) => {
           logs.push(line);
@@ -694,7 +713,7 @@ async function main(): Promise<void> {
   report.unverifiedKeys.push(...avatars.unverifiedKeys);
   report.legacyS3Video += avatars.legacyS3Video;
 
-  await publishRecheckReportThenUnhold({ execute, report, notes: logs });
+  await publishReport({ execute: executeFlag, report, notes: logs });
 }
 
 /**
@@ -717,16 +736,9 @@ export async function publishRecheckReportThenUnhold(input: {
     const unholdEnd = await (input.unhold ?? unholdAfterRecheckReport)(true);
     log(JSON.stringify({ msg: "unhold live avatars", when: "end", ...unholdEnd }));
   } catch (error) {
-    fail(`unhold live avatars failed after the recheck report: ${unholdFailureMessage(error)}`);
+    fail(`unhold live avatars failed after the recheck report: ${failureMessage(error, "unhold failed")}`);
     process.exitCode = 1;
   }
-}
-
-function unholdFailureMessage(error: unknown): string {
-  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-  return "unhold failed";
 }
 
 function unholdAfterRecheckReport(execute: boolean): Promise<UnholdLiveAvatarsReport> {
@@ -735,9 +747,13 @@ function unholdAfterRecheckReport(execute: boolean): Promise<UnholdLiveAvatarsRe
 
 const invokedDirectly =
   process.argv[1]?.endsWith("recheck-social-images.ts") || process.argv[1]?.endsWith("recheck-social-images.js");
+export function reportRecheckProcessFailure(error: unknown): void {
+  console.error(failureMessage(error, "recheck failed"));
+  process.exitCode = 1;
+}
+
 if (invokedDirectly) {
   main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : "recheck failed");
-    process.exitCode = 1;
+    reportRecheckProcessFailure(error);
   });
 }

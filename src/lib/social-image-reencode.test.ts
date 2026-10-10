@@ -385,14 +385,44 @@ describe("reencodeSocialImage", () => {
     expect(lastPage).toBeLessThan(unholdEnd);
   });
 
-  it("main calls publishRecheckReportThenUnhold", () => {
-    const script = readFileSync("scripts/social/recheck-social-images.ts", "utf8");
-    const mainStart = script.indexOf("async function main(): Promise<void> {");
-    const mainEnd = script.indexOf("export async function publishRecheckReportThenUnhold");
-    expect(mainStart).toBeGreaterThanOrEqual(0);
-    expect(mainEnd).toBeGreaterThan(mainStart);
-    const mainBody = script.slice(mainStart, mainEnd);
-    expect(mainBody).toContain("await publishRecheckReportThenUnhold({ execute, report, notes: logs })");
+  it("main calls publishRecheckReportThenUnhold with the report", async () => {
+    const { main } = await import("../../scripts/social/recheck-social-images");
+    const publish = vi.fn(async () => undefined);
+    const createAdmin = vi.fn(() => ({
+      from() {
+        throw new Error("admin query");
+      },
+    }));
+    const page = (store: number, extra: Partial<ReturnType<typeof blankSocialImageRecheckReport>> = {}) => ({
+      ...blankSocialImageRecheckReport(true),
+      store,
+      ...extra,
+    });
+    const recheckPages = vi
+      .fn()
+      .mockResolvedValueOnce(page(2, { hiddenPosts: ["post-9"] }))
+      .mockResolvedValueOnce(page(1, { hiddenStories: ["story-3"] }))
+      .mockResolvedValueOnce(page(5, { clearedAvatars: ["profile-7"] }));
+    await main({
+      execute: false,
+      createAdmin: createAdmin as never,
+      recheckPages,
+      publish,
+    });
+    expect(createAdmin).toHaveBeenCalledTimes(1);
+    expect(recheckPages).toHaveBeenCalledTimes(3);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith({
+      execute: false,
+      report: expect.objectContaining({
+        dryRun: true,
+        store: 8,
+        hiddenPosts: ["post-9"],
+        hiddenStories: ["story-3"],
+        clearedAvatars: ["profile-7"],
+      }),
+      notes: [],
+    });
   });
 
   it("prints the recheck report before the final unhold and exits 1 when that unhold throws", async () => {
@@ -462,6 +492,22 @@ describe("reencodeSocialImage", () => {
       ]);
       expect(process.exitCode).toBe(1);
     } finally {
+      process.exitCode = previousExit;
+    }
+  });
+
+  it("prints a plain-object recheck process message and exits 1", async () => {
+    const { reportRecheckProcessFailure } = await import("../../scripts/social/recheck-social-images");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const previousExit = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      reportRecheckProcessFailure({ message: "canceling statement due to statement timeout" });
+      expect(errors).toHaveBeenCalledTimes(1);
+      expect(errors).toHaveBeenCalledWith("canceling statement due to statement timeout");
+      expect(process.exitCode).toBe(1);
+    } finally {
+      errors.mockRestore();
       process.exitCode = previousExit;
     }
   });

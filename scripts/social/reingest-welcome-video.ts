@@ -1,7 +1,7 @@
 /**
  * Re-ingest Social S3 video (posts, stories, welcome) onto Mux.
  * Dry-run is the default. Pass --execute to create assets and bindings.
- * Do not run this against production from CI. Adam runs it after the SQL is applied.
+ * Do not run this against production from CI. CoS runs this on the CoS box, with env from the box secrets store.
  *
  *   pnpm exec tsx --conditions=react-server scripts/social/reingest-welcome-video.ts
  *   pnpm exec tsx --conditions=react-server scripts/social/reingest-welcome-video.ts --execute
