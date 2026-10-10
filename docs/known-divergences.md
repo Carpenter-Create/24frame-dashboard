@@ -169,3 +169,10 @@ B5 is in `delete-avatar-orphans.ts`: a delete that throws still prints the parti
 - B6: unhold has a read-to-clear window. If the pointer moves away, the old key loses its hold (a leak, with no expiry).
 - B7: a residual N-N window after the post-tag read (it needs a writer naming a fresh key after a proven rollback). The safety net is unhold at recheck start and end. There is no periodic schedule yet: REQUIRED before real users depend on it (run daily or weekly, well under 30 days).
 - B8: a remove retry after an untagged-leftover error cannot reach a recheck leftover. It relies on the Sentry report plus `delete-avatar-orphans`.
+
+## Migrations
+
+### MIG-DRIFT: production and the repository disagree on migration history
+`migration-drift` was already red before #799 (merged as `9719939`). Production and the repository disagree on about 47 or 48 versions. Step 9 of #799's apply notes says the check returns to green after that migration is applied. That step describes a check that was already red for this older gap. Reconciling the history awaits Adam's decision.
+#799's apply notes live in the pull request description, not in this repository's docs. Those notes are unchanged.
+**Trigger:** Adam decides how to reconcile production `schema_migrations` with the repository history.
