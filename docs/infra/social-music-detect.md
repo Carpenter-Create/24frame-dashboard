@@ -445,6 +445,8 @@ read-only check. Stop when that rule is missing, not Enabled, has a
 prefix, filtered on a tag other than `gc-hold=quarantine`, or set to an
 expiration other than 30 days. The check uses `AVATARS_BUCKET`.
 Do not set `S3_AVATARS_BUCKET` until the check shows that rule.
+This sitting is production, so this line sets `AVATARS_BUCKET` to `gc-avatars-prod`.
+`docs/infra/avatar-storage-setup.md` keeps the bucket chosen at the top of that file.
 
 ```sh
 export AVATARS_BUCKET=gc-avatars-prod

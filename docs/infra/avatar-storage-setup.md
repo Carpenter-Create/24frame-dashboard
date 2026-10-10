@@ -120,9 +120,12 @@ Read-only check. Stop when rule `avatars-quarantine-30d` is missing, not
 Enabled, has a prefix, filtered on a tag other than `gc-hold=quarantine`, or
 set to an expiration other than 30 days. Run this before deploying this PR
 and before recheck --execute. Do not set `S3_AVATARS_BUCKET` until this
-returns that rule.
+returns that rule. Use the `AVATARS_BUCKET` chosen above. Production is
+`gc-avatars-prod`. Dev, local, and preview are `gc-avatars-dev`. Do not
+replace that choice on this line. The production merge sitting in
+`docs/infra/social-music-detect.md` sets `AVATARS_BUCKET` to `gc-avatars-prod`
+for this same check.
 
-    export AVATARS_BUCKET=gc-avatars-prod
     aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET" \
       --query 'Rules[?ID==`avatars-quarantine-30d` && Status==`Enabled` && Filter.Prefix==null && Filter.Tag.Key==`gc-hold` && Filter.Tag.Value==`quarantine` && Expiration.Days==`30`]'
 

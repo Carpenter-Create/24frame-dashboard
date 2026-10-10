@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { AVATAR_CLEARED, avatarObjectKey, avatarRecheckObjectKey } from "./account-avatar";
@@ -12,6 +14,13 @@ const USER = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 
 describe("unholdLiveAvatars", () => {
+  it("hooks a rejected unhold through reportUnholdProcessFailure", () => {
+    const script = readFileSync("scripts/social/unhold-live-avatars.ts", "utf8");
+    const hook = script.indexOf(".catch(");
+    expect(hook).toBeGreaterThan(-1);
+    expect(script.slice(hook, hook + 160)).toContain("reportUnholdProcessFailure(error)");
+  });
+
   it("prints a plain-object unhold process message and exits 1", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const previousExit = process.exitCode;

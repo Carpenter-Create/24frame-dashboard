@@ -884,9 +884,12 @@ describe("s3-avatars dedicated bucket", () => {
     expect(lifecycle).toBeLessThan(env);
     expect(setup.indexOf("get-bucket-lifecycle-configuration")).toBeLessThan(env);
     expect(setup).toContain("export AVATARS_BUCKET=gc-avatars-prod");
-    expect(setup.indexOf("export AVATARS_BUCKET=gc-avatars-prod\n    aws s3api get-bucket-lifecycle-configuration")).toBeGreaterThan(
-      -1,
-    );
+    const chosenBucket = setup.indexOf("export AVATARS_BUCKET=gc-avatars-prod   # or gc-avatars-dev");
+    const lifecycleCheck = setup.indexOf('aws s3api get-bucket-lifecycle-configuration --bucket "$AVATARS_BUCKET"');
+    expect(chosenBucket).toBeGreaterThan(-1);
+    expect(lifecycleCheck).toBeGreaterThan(chosenBucket);
+    const afterChoice = chosenBucket + "export AVATARS_BUCKET=gc-avatars-prod   # or gc-avatars-dev".length;
+    expect(setup.slice(afterChoice, lifecycleCheck)).not.toContain("export AVATARS_BUCKET=");
     expect(setup).not.toContain('get-bucket-lifecycle-configuration --bucket "$S3_AVATARS_BUCKET"');
     expect(notes).toContain("no `s3:prefix` condition");
     expect(notes).toContain("only cleanup for quarantine copies");

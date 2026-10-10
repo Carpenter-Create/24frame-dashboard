@@ -387,7 +387,11 @@ describe("reencodeSocialImage", () => {
 
   it("main calls publishRecheckReportThenUnhold with the report", async () => {
     const { main } = await import("../../scripts/social/recheck-social-images");
-    const publish = vi.fn(async () => undefined);
+    let published = false;
+    const publish = vi.fn(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+      published = true;
+    });
     const createAdmin = vi.fn(() => ({
       from() {
         throw new Error("admin query");
@@ -409,6 +413,7 @@ describe("reencodeSocialImage", () => {
       recheckPages,
       publish,
     });
+    expect(published).toBe(true);
     expect(createAdmin).toHaveBeenCalledTimes(1);
     expect(recheckPages).toHaveBeenCalledTimes(3);
     expect(publish).toHaveBeenCalledTimes(1);
@@ -494,6 +499,13 @@ describe("reencodeSocialImage", () => {
     } finally {
       process.exitCode = previousExit;
     }
+  });
+
+  it("hooks a thrown main through reportRecheckProcessFailure", () => {
+    const script = readFileSync("scripts/social/recheck-social-images.ts", "utf8");
+    const hook = script.indexOf("main().catch(");
+    expect(hook).toBeGreaterThan(-1);
+    expect(script.slice(hook, hook + 160)).toContain("reportRecheckProcessFailure(error)");
   });
 
   it("prints a plain-object recheck process message and exits 1", async () => {
