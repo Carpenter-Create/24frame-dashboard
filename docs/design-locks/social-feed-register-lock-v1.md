@@ -114,7 +114,7 @@ One **44** row, no bar: the **44** avatar, **12**, the grey **"Share something"*
 
 > **Amended (comments window, 2026-10-09):** on desktop, Comment opens the comments window over the page; the phone keeps its sheet. See [`social-comments-window-lock-v1.md`](social-comments-window-lock-v1.md).
 
-> **Amended (owner menu, 2026-10-09; Adam, "approved, do it after Edit caption merges. make both better than it is."):** the ⋯ reads Edit caption · Remove; a phone opens the house AppSheet of rows. See [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md).
+> **Amended (owner menu, 2026-10-10; Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is."):** the ⋯ reads Edit caption · Remove; a phone opens the house AppSheet of rows. See [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md).
 
 **The media is the card.** A grey card around the media read cheap (a grey frame, square media corners inside a round card, smaller media), so the media carries the large radius and fills the column; the register lands around it: round grey actions, a quiet credit, and a soft grey card for text-only posts. One face everywhere `SocialPostCard` renders (the Feed in both lanes, Profile activity, a member's posts, the permalink). **Role eyebrow:** the founder chose "Members choose one; no line until they do" — the main-role picker ships later, so posts render **no** role line now and keep a clean slot for it (the name stack, above the name).
 

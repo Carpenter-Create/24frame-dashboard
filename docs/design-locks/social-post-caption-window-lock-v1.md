@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-09
 **Status:** **LOCKED** (Adam, 2026-10-09, "approved, use the defaults") · Design Own→READY
-**Amended 2026-10-09:** [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md) (Adam, "approved, do it after Edit caption merges. make both better than it is."): the menu item reads **Edit caption** (was Edit; `SOCIAL.post.edit` retired); on a phone it is a row in the ⋯ sheet; Delete is **Remove**.
+**Amended 2026-10-10:** [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md) (Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is."): the menu item reads **Edit caption** (was Edit; `SOCIAL.post.edit` retired); on a phone it is a row in the ⋯ sheet; Delete is **Remove**.
 **Scope:** The author's Edit caption from a post's ⋯, wherever `SocialPostCard` renders: the Feed (both lanes), a group, your own Profile Activity (the Comments pill included), a member's profile showing your posts, and the permalink. Also the places this device shows the edited words: the card, the tap immersive, Explore For You, and the Feed's reel tiles.
 **Entity:** Global Content / 24Frame only
 **Follows:**
@@ -14,7 +14,7 @@
 **Amends:**
 - [`social-confirm-copy-lock-v1.md`](social-confirm-copy-lock-v1.md): Edit caption has no Cancel.
 - [`house-overlay-dual-host-v1.md`](house-overlay-dual-host-v1.md): one-face windows, and a leftover window address.
-- [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7, the ⋯ row: Edit caption opens this window (the label was Edit until 2026-10-09, [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md)).
+- [`social-feed-register-lock-v1.md`](social-feed-register-lock-v1.md) §7, the ⋯ row: Edit caption opens this window (the label was Edit until 2026-10-10, [`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md)).
 
 **Supersedes:** the 480 Edit caption dialog with its Cancel · Save footer.
 
@@ -116,7 +116,7 @@ The same header, field and media fill the full AppSheet (`APP_SHEET_FULL_HOST_CL
 
 ## Copy
 
-**Existing, reused:** "Edit caption", "Post options", "Close", "Done", "Back" (required by the shell, never shown), "Add a caption…", "Discard changes?", "Keep editing", "Discard", "Photo", "Video", "That caption is too long.", "Write a post or attach a photo or video.", "Could not save that caption.", "Could not remove that post.", "Only the author can change this post.", "That post is not visible.", "Create a creator profile to post, like, comment, or message.", "Not authenticated." ("Edit" retired 2026-10-09: the menu reads "Edit caption".)
+**Existing, reused:** "Edit caption", "Post options", "Close", "Done", "Back" (required by the shell, never shown), "Add a caption…", "Discard changes?", "Keep editing", "Discard", "Photo", "Video", "That caption is too long.", "Write a post or attach a photo or video.", "Could not save that caption.", "Could not remove that post.", "Only the author can change this post.", "That post is not visible.", "Create a creator profile to post, like, comment, or message.", "Not authenticated." ("Edit" retired 2026-10-10: the menu reads "Edit caption".)
 
 **Retired:** "Save" and "Cancel" (`SOCIAL.post.editSave`, `SOCIAL.post.editCancel`).
 

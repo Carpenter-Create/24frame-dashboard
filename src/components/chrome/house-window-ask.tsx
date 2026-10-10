@@ -87,8 +87,10 @@ export function HouseWindowAsk({
     if (busy) {
       // Before the buttons can drop focus to the page.
       if (!active || active === document.body || panel.contains(active)) panel.focus();
-    } else if (active === panel) {
-      // The answer is back: focus returns to the action that was pressed.
+    } else if (active === panel || !panel.contains(active)) {
+      // The answer is back: focus returns to the action that was pressed,
+      // also when a click on the host's scrim (outside the ask) took it
+      // while the ask waited.
       discardRef.current?.focus();
     }
   }, [busy, panelRef]);

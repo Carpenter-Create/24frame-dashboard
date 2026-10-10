@@ -6,7 +6,7 @@ Phone menus belong to one family. Desktop is a separate lane. Do not cross a fam
 
 Account and actions. The phone host is AppSheet. Rows sit in SheetGroup.
 
-A post's ⋯ on a phone is Family A: the AppSheet card with one inset SheetGroup (Edit caption · Remove); its confirm is the house ask in the same card. The ⋯ goes through `menuHostClass` (phone A, desktop the thread ··· MenuSurface), and `lib/menu-host.ts` gates it as `post-owner-menu` and `post-owner-sheet` ([`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md), amended 2026-10-09 (Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is.")).
+A post's ⋯ on a phone is Family A: the AppSheet card with one inset SheetGroup (Edit caption · Remove); its confirm is the house ask in the same card. The ⋯ goes through `menuHostClass` (phone A, desktop the thread ··· MenuSurface), and `lib/menu-host.ts` gates it as `post-owner-menu` and `post-owner-sheet` ([`social-post-owner-menu-lock-v1.md`](social-post-owner-menu-lock-v1.md), amended 2026-10-10; Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is.").
 
 ## Family B — SettingsHubList
 

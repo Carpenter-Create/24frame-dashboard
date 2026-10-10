@@ -1,7 +1,7 @@
 # [GC][24Frame] LOCK — A post's ⋯: the owner menu and the Remove confirm v1
 
 **Date:** 2026-10-10
-**Status:** **LOCKED** (Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is.") · Design Own→READY. The five open questions at the end are proposed, pending founder; the build takes each one's "not in this PR" default.
+**Status:** **LOCKED** (Adam, 2026-10-09, "approved, do it after Edit caption merges. make both better than it is.") · Design Own→READY. Everything this lock fixes is approved (§0). The five questions at the end add nothing to this PR: each one's default is "not in this PR", and the follow-up it names comes back to the founder as its own item.
 **Scope:** The author's ⋯ wherever `SocialPostCard` renders: the Feed in both lanes, a group, your own Profile Activity (the Comments pill included), a member's profile showing your posts, and the permalink. Its menu on both widths, and the Remove confirm. No other post surface has an owner control (the immersive, Explore, reels, stories and Messages have none), and none is added.
 **Entity:** Global Content / 24Frame only
 **Follows:**
@@ -24,25 +24,28 @@
 
 ## 0) Founder direction (verbatim)
 
-The proposal, as the plan records it (the full text is in the founder conversation; its two parts were the layout and the copy):
+The proposal had two parts, the layout and the copy. Its own words are not in the repository; it closed "If you approve, I'll make it a small follow-up PR after Edit caption merges, since both touch the same menu." What it proposed was written down with Adam's answer, in the approval record, verbatim:
 
-> 1) Layout … 2) Copy … If you approve, I'll make it a small follow-up PR after Edit caption merges, since both touch the same menu.
+> Approved proposal: phone ⋯ opens the bottom sheet (full-width rows "Edit caption" / "Remove"); desktop popover stays with those labels; confirm = house ask (Keep first, Remove red, stacked full width on phone; no ✕); one verb "Remove"; copy: "Remove this post?" / "It comes off 24Frame, with its comments and likes. You can't undo this." / Keep · Remove.
 
 Adam's answer, 2026-10-09:
 
 > approved, do it after Edit caption merges. make both better than it is.
 
+The record reads the second sentence as "layout and copy: improve beyond the proposal where it is clearly better; any further new copy is listed in the PR". This build adds no copy and no visual element beyond the proposal; its improvements are engineering only (§4–§6).
+
 Edit caption merged first (#804, `64f3e3b`). This build sits on `origin/main` `8ea5154`.
 
-| Decision | Recorded |
-|----------|----------|
-| A phone's ⋯ opens the bottom sheet of rows | §2 |
-| The desktop popover is kept | §1 |
-| One verb: Remove ("Delete" is retired for posts) | Copy |
-| The edit item reads "Edit caption" | Copy |
-| The new body line | Copy |
-| The confirm is the house ask: Keep first, Remove in the house red, stacked on a phone, no ✕ | §3 |
-| "make both better than it is": engineering only, no new copy and no new visual element | §4–§6 |
+| Decision | The approval record | Recorded |
+|----------|---------------------|----------|
+| A phone's ⋯ opens the bottom sheet of rows, Edit caption then Remove, full width | "phone ⋯ opens the bottom sheet (full-width rows "Edit caption" / "Remove")" | §2 |
+| The desktop popover is kept, with the same two labels | "desktop popover stays with those labels" | §1 |
+| One verb: Remove. "Delete" is retired for posts | "one verb "Remove"" | Copy |
+| The edit item reads "Edit caption" ("Edit" is retired) | "full-width rows "Edit caption" / "Remove"" | Copy |
+| Remove this post? · the new line · Keep · Remove | "copy: "Remove this post?" / "It comes off 24Frame, with its comments and likes. You can't undo this." / Keep · Remove" | Copy |
+| The confirm is the house ask: Keep first, stacked full width on a phone, no ✕ on either width | "confirm = house ask (Keep first, … stacked full width on phone; no ✕)" | §3 |
+| Keep is the ask's accent pill and Remove its outlined pill, in the house red | "house ask" (its Keep is the accent pill and its other action the outlined pill, as Edit profile's ask draws them) and "Remove red" | §3 |
+| One request, no dismiss mid-request, the line in place, focus kept, no Remove in the first 500 ms | "make both better than it is" (engineering only) | §4–§6 |
 
 ---
 
@@ -79,7 +82,7 @@ Unchanged in place and surface: MenuSurface sparse, radius 12, hairline, no shad
 
 - One request. Both buttons wait (the house disabled look) and Remove is busy. Esc, the scrim, Keep and an address change do nothing until the answer lands.
 - Focus moves to the confirm's panel before the buttons wait, and Tab cannot leave it.
-- A failure shows its line in place, above the buttons; Keep and Remove work again and focus returns to Remove. A retry clears the old line while it waits. Closing clears it.
+- A failure shows its line in place, above the buttons; Keep and Remove work again and focus returns to Remove, also when a click on the scrim took it while the removal waited. A retry clears the old line while it waits. Closing clears it.
 - The line is the route's fixed answer: "Could not remove that post." for a dropped connection or a database error, otherwise "That post is not visible.", "Only the author can change this post.", "Create a creator profile to post, like, comment, or message." or "Not authenticated.". A request that throws ends the wait with "Could not remove that post.".
 - Success removes every copy of the post on the page, refreshes the page as before, and moves focus into the post after the one acted on (its name link, else its first shown link or button). On the permalink there is no next post; the page refreshes to its existing "That post is not visible.".
 - A width change keeps an open confirm (pending or not, with its line) and closes an open menu.
@@ -115,15 +118,15 @@ The author only. The server is unchanged: `DELETE /api/social/post-own` (auth, t
 
 **Existing, reused:** "Edit caption" (`SOCIAL.post.editTitle`), "Remove" (`SOCIAL.post.deleteConfirm`: one string for the menu item and the confirm's button), "Remove this post?", "Keep" (also the confirm's scrim label), "Could not remove that post.", "Post options" (the ⋯ and both frames' accessible name), "Close" (the menu face's scrim), and the route's fixed lines ("That post is not visible.", "Only the author can change this post.", "Create a creator profile to post, like, comment, or message.", "Not authenticated.").
 
-**New, pending founder approval:** "It comes off 24Frame, with its comments and likes. You can't undo this." (`SOCIAL.post.deleteBody`, a straight apostrophe as the nearby lines). This is the line Adam approved in the proposal on 2026-10-09 and the only new user-facing line; it is listed here so it shows in the PR.
+**New, approved (Adam, 2026-10-09, in the proposal; §0):** "It comes off 24Frame, with its comments and likes. You can't undo this." (`SOCIAL.post.deleteBody`, a straight apostrophe as the nearby lines). It is the only new user-facing line, and it is listed here so it shows in the PR.
 
 **Retired:** "Delete" (`SOCIAL.post.delete`), "Edit" (`SOCIAL.post.edit`), and the old body "It'll come off your profile and the feed. Comments and likes go with it."
 
-## Open questions (proposed, pending founder)
+## Questions for follow-ups (outside this lock)
 
-Each is built at its default, which changes nothing a person sees beyond the approved decisions.
+The plan raised five questions after the approval. Each default is "not in this PR", so this PR adds nothing for them, and what it ships stays inside §0. Each follow-up it names is not approved here: it comes back to the founder as its own item before any of it is built.
 
-| # | Question | Built now (the proposed default) |
+| # | Question | This PR (the default) |
 |---|----------|----------------------------------|
 | 1 | The house red (`#c4564a`), used for Remove, Log out and the bin, is below WCAG AA for normal text: 4.4:1 on white, 4.0:1 on the sheet's grey row card, 3.7:1 and 3.3:1 in dark mode, where it does not change. The fix is a `--danger` token with light and dark values (known-divergences D3). Do it in this PR? | Not in this PR. Remove ships in the house's existing red. A follow-up drafts a light / dark `--danger` pair that passes AA, for sign-off, and moves all five literals at once. |
 | 2 | The line holds everywhere the post itself is read. The one exception: a post sent in Messages keeps the caption snip its message stored (up to 120 characters), though the photo stops loading. Ship the line and fix the DM card later, or change the line now? | The approved line ships. A follow-up makes a DM post card whose post is removed show the existing "Post unavailable" (`SOCIAL.dms.postUnavailable`) instead of the stored snip; it is a visible change, so it comes back as its own small PR. |
@@ -133,7 +136,7 @@ Each is built at its default, which changes nothing a person sees beyond the app
 
 ## Follow-ups (not in this PR)
 
-- The answers to questions 1–5, at their defaults above.
+- The follow-ups that questions 1–5 name, each for the founder's sign-off.
 - Remove on a post still being published (it has no server id yet) reads "That post is not visible.", the same gap as Edit caption's ([`social-post-caption-window-lock-v1.md`](social-post-caption-window-lock-v1.md), Follow-ups).
 - The Feed's reel tiles and the For you rail read server data, so a removed post can show there until the refresh lands.
 
@@ -149,8 +152,9 @@ Each is built at its default, which changes nothing a person sees beyond the app
 - `src/components/social/use-social-post-owner.client.test.tsx`: one request, the press guard, no dismiss mid-request, a failure in place and its retry, a throw, a removal (the next post read before the hide, every copy hidden, one refresh), the request's fields, idle Esc, the scrim, the address close and no popstate close, focus in, Tab, the scroll lock, Edit caption's hand-off, a width change, and Radix's close focus.
 - `src/components/social/social-post-focus.test.ts`: the post after the copy acted on, its name link, else its first shown stop.
 - `src/components/social/social-post-owner-sheet.test.tsx`: the phone sheet's two faces and the desktop confirm.
-- `src/components/chrome/house-window-ask.test.tsx` (with `house-window-ask.pin.json`) and `house-window-ask.client.test.tsx`: today's asks unchanged, the re-export, the opt-ins, the panel's focus.
+- `src/components/chrome/house-window-ask.test.tsx` (with `house-window-ask.pin.json`) and `house-window-ask.client.test.tsx`: today's asks unchanged, the re-export, the opt-ins, the panel's focus (including its return to the action after a scrim click took focus while it waited).
 - `src/components/social/social-post-owner.test.tsx`: the copy, the two ⋯ through the gate, their server markup, the caption host.
+- `src/components/social/social-post-owner.client.test.tsx`: on both widths the confirm's scrim runs the guarded `dismissFromScrim`, never the plain dismiss; Keep runs dismiss and Remove runs remove.
 - `src/components/social/social-post-verb.test.ts`: no post surface says Delete.
 - `src/components/social/social-ui-boundary.test.ts`: the owner menu carries the ask's own module and the sheet, never the window shell or the caption window.
 - `src/lib/house-sheet.test.ts`: the danger constant, the hex once.

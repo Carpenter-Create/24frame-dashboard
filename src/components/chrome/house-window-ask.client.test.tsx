@@ -96,4 +96,31 @@ describe("HouseWindowAsk panel: focus", () => {
     draw(false);
     expect(focus.active).toBe(find("data-w-discard"));
   });
+
+  it("returns to the action when the answer is back even if a scrim click took focus off the ask", () => {
+    // The host's scrim sits outside the ask; Chrome focuses a clicked
+    // button on mousedown, and the scrim does nothing while the ask waits.
+    const scrim = miniDocument.createElement("button") as MiniNode & { remove(): void; focus(): void };
+    miniDocument.body.appendChild(scrim);
+    try {
+      draw(false);
+      (find("data-w-discard") as unknown as { focus(): void }).focus();
+      draw(true);
+      expect(focus.active).toBe(find("data-w-discard-ask"));
+      scrim.focus();
+      expect(focus.active).toBe(scrim);
+      draw(false);
+      expect(focus.active).toBe(find("data-w-discard"));
+    } finally {
+      scrim.remove();
+    }
+  });
+
+  it("leaves focus where it is inside the ask when the answer is back", () => {
+    draw(true);
+    const keep = find("data-w-keep") as unknown as { focus(): void };
+    keep.focus();
+    draw(false);
+    expect(focus.active).toBe(keep);
+  });
 });
