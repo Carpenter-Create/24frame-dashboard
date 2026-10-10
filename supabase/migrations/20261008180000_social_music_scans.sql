@@ -44,9 +44,9 @@
 -- APPLY ORDER, in that sitting, file 1 then file 2 then file 3. Do not apply from CI.
 --   1. 20261008180000_social_music_scans.sql
 --   2. 20261008180100_profiles_welcome_mux.sql
---   3. 20261009120000_avatar_key_and_story_media.sql
+--   3. 20261009130000_avatar_key_and_story_media.sql
 -- ROLLBACK ORDER, file 3 then file 2 then file 1:
---   1. 20261009120000_avatar_key_and_story_media.sql
+--   1. 20261009130000_avatar_key_and_story_media.sql
 --   2. 20261008180100_profiles_welcome_mux.sql
 --   3. 20261008180000_social_music_scans.sql
 --

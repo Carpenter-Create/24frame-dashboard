@@ -1,5 +1,5 @@
 -- ============================================================================
--- 20261009120000_avatar_key_and_story_media.sql
+-- 20261009130000_avatar_key_and_story_media.sql
 --
 -- INTENT: profiles.avatar_key is server-only. Story authors may still edit
 -- a caption (body). They may not change media on an existing story. The

@@ -24,7 +24,7 @@ import {
 
 const MIGRATION = readFileSync("supabase/migrations/20261008180000_social_music_scans.sql", "utf8");
 const PROFILES = readFileSync("supabase/migrations/20261008180100_profiles_welcome_mux.sql", "utf8");
-const AVATAR_STORY = readFileSync("supabase/migrations/20261009120000_avatar_key_and_story_media.sql", "utf8");
+const AVATAR_STORY = readFileSync("supabase/migrations/20261009130000_avatar_key_and_story_media.sql", "utf8");
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
 

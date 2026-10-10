@@ -309,7 +309,7 @@ order by 1;
 - SHARE ROW EXCLUSIVE for `CREATE TRIGGER` is also held with the ACCESS
   EXCLUSIVE lock until commit. Expected hold: milliseconds once acquired.
 
-`20261009120000_avatar_key_and_story_media.sql` does not add
+`20261009130000_avatar_key_and_story_media.sql` does not add
 `profiles.avatar_key`. That column already exists. `ADD COLUMN IF NOT
 EXISTS` would still take ACCESS EXCLUSIVE, so this file does not issue
 it. Each table gets one `CREATE OR REPLACE TRIGGER` (SHARE ROW EXCLUSIVE).
@@ -540,7 +540,7 @@ Before apply, run the read-only video count above (`post_video_items`, `live_sto
 
 1. `supabase/migrations/20261008180000_social_music_scans.sql`
 2. `supabase/migrations/20261008180100_profiles_welcome_mux.sql`
-3. `supabase/migrations/20261009120000_avatar_key_and_story_media.sql`
+3. `supabase/migrations/20261009130000_avatar_key_and_story_media.sql`
 
 ```sql
 begin;
@@ -565,7 +565,7 @@ begin;
 set local lock_timeout = '3s';
 -- paste file 3, then:
 insert into supabase_migrations.schema_migrations (version, name)
-values ('20261009120000', 'avatar_key_and_story_media');
+values ('20261009130000', 'avatar_key_and_story_media');
 commit;
 ```
 
@@ -585,7 +585,7 @@ stay pending, which is the fail-closed state.
 
 CoS runs, in this order: the unhold dry run; the recheck dry run, then `--execute`; then `delete-avatar-orphans` as a dry run, CoS reviews the list, then `--execute`. Never feed it `unverifiedKeys`. Last comes the welcome re-ingest, once the scanner Lambda is live. CoS runs it.
 
-After `20261009120000_avatar_key_and_story_media.sql` is applied, and
+After `20261009130000_avatar_key_and_story_media.sql` is applied, and
 before recheck `--execute`, dry-run the live-face unhold. It pages
 `profiles` by id. A non-null `avatar_key` is checked. A null
 `avatar_key` is a legacy canonical face: the script checks
